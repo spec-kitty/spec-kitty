@@ -1,0 +1,14 @@
+title: OpsClosedBy
+description: >-
+  Who closed an Op: the agent that ran it, or doctor_sweep when a sweep closed an Op that the
+  agent left open. An open Op has no closer.
+type: string
+enum:
+  - agent
+  - doctor_sweep
+x-source:
+  path: src/specify_cli/invocation/record.py
+  symbol: OpCompletedEvent
+examples:
+  - agent
+  - doctor_sweep

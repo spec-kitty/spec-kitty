@@ -199,28 +199,6 @@ class VCSProtocol(Protocol):
         """
         ...
 
-    def commit(
-        self,
-        workspace_path: Path,
-        message: str,
-        paths: list[Path] | None = None,
-    ) -> ChangeInfo | None:
-        """
-        Create a commit with current changes.
-
-        Args:
-            workspace_path: Workspace to commit in
-            message: Commit message
-            paths: Specific paths to commit (None = all)
-
-        Returns:
-            ChangeInfo for new commit, None if nothing to commit
-
-        Implementation notes:
-            - Git: git add + git commit
-        """
-        ...
-
     # =========================================================================
     # Repository Operations (Core - Required)
     # =========================================================================

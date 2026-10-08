@@ -1,0 +1,256 @@
+schema: review-refute/v1
+complete: true
+phase: pr
+lens_group: refuter-R2
+mission: mission-status-health-drift-ops-01M464D3
+probes_in: c12-squad/tmp/r2/clone (git clone --shared at 9a168182d; plants reverted)
+entries:
+  - id: PR-CONTRACT-001
+    verdict: CONFIRMED
+    severity: 3
+    remedy_kind: fork
+    refutation_attempt: >-
+      No ruling covers the event log. The WP03 rework (tasks/WP03-project-vertical/review-cycle-3.md, commit 8b970f977) and the
+      tracer close-out line "Refined at the WP09 review" both name only an undecodable status.json. That rework was a review
+      decision with reviewer_agent "user", not an operator ruling. Its premise also overreaches: the "never raises" clauses of
+      FR-002 and FR-003 are scoped to specKittyVersion and schemaVersion, and FR-006 and FR-024 say nothing about
+      lastActivityAt never raising. FR-024 governs here. Its header says no read reports null as success when the truth is
+      "could not read", and its Project.lastActivityAt row allows null only for "no Mission, or none with activity".
+      Re-probed in a scratch repository with two Missions (b holds the later instant). Clean: lastActivityAt is b's instant.
+      Event log plus one invalid-UTF-8 line: a's older instant is served as success. Event log plus one non-JSON line: the build
+      raises StoreError. Undecodable status.json: a's instant is served. v1 load_source raised on all three plants
+      (JSONDecodeError, JSONDecodeError, UnicodeDecodeError), so FR-006's "exactly what GET /missions lists" cannot hold in
+      any of them. A side fact: the activity of the status.json case can be derived, because the event log is intact. The
+      null there is materialize_snapshot's status.json read (_target_schema_version) failing, not missing activity.
+    evidence:
+      - code: "tests/contract/_mission_status_project.py:178-183 (the catch is in _mission_activity; R1's line numbers are stale)"
+      - artifact: "spec.md FR-024 header and Project.lastActivityAt row; FR-002/FR-003 'does not raise' scoped to their own fields"
+      - artifact: "tasks/WP03-project-vertical/review-cycle-3.md (scope: status.json only)"
+    fork:
+      options:
+        - id: a
+          text: >-
+            Narrow the catch so that only the status.json read degrades. An event-log failure (invalid UTF-8, or non-JSON as
+            today) ends the read as a failure under the default Problem, as GET /missions and GET /drift do. State the
+            status.json null in the lastActivityAt description and in FR-024's Project row, and add an event-log plant beside
+            the existing status.json plant. This makes the two event-log corruptions consistent.
+        - id: b
+          text: >-
+            Keep the broad degrade. Record it as an operator ruling, state it in the lastActivityAt description and in FR-024,
+            and also catch StoreError so that the non-JSON line degrades too. Today the two event-log corruptions give opposite
+            outcomes.
+      recommendation: >-
+        a. The event log is the authority, and FR-024 forbids serving a wrong instant as success. Either option edits a
+        contract description, so it rides the same J-1 replay as the other text fixes.
+  - id: PR-CONTRACT-002
+    verdict: CONFIRMED
+    severity: 2
+    remedy_kind: single
+    refutation_attempt: >-
+      Re-probed project_version on a metadata.yaml version of the AKIA shape (20 characters) and of the ghp_ shape
+      (40 characters). Both were served verbatim, and leak_codes(STRICT) on the served value gave ('SECRET',). The
+      19-character control was served with no hit. The reader follows FR-002 exactly ("a matching string -> that string"), so
+      the gap is in the spec table. The Project promise "never carries ... a credential" is pre-existing on main (abafc135e
+      Project.yaml), and this Mission added the first field that can break it. Severity is lowered from 3: the input is
+      contrived (a value the CLI writes), and an implementer of FR-002 still builds the field correctly apart from this guard.
+    remediation: >-
+      In project_version, return null when leak_codes(version, STRICT) is non-empty, as current_branch_of does. Add the
+      credential row to the FR-002 table, and add a plant per fitting SECRET_PATTERNS shape with a one-character-short
+      control. No contract text changes, because the Project description already promises this, so no J-1 replay is needed.
+  - id: PR-CONTRACT-003
+    verdict: CONFIRMED
+    severity: 3
+    remedy_kind: fork
+    schema_facts: >-
+      OpsInvocation.actor is in OpsInvocation.required (13 members, all required). It is "$ref: ActorHandle.yaml" with the
+      description "or null when the stored value is not a handle". ActorHandle.yaml (unchanged from main, abafc135e) has
+      type [string, 'null'], minLength 1, maxLength 128 and pattern ^[A-Za-z0-9._:-]+$. So actor is required AND nullable.
+      The premise of the WP08 record, "required and not nullable", is false. Both credential shapes (AKIA..., ghp_...) fit
+      the ActorHandle pattern, so without the WP08 guard actor_of would serve them verbatim.
+    refutation_attempt: >-
+      Not refutable. tracer-design-decisions.md "Operator rulings at WP08" item 2 says the operator's option text had actor
+      become null, and that the implementation chose skip on the false premise. spec.md FR-017 (line 369) contradicts itself:
+      the member list says "actor (ActorHandle, nullable ...)", and the amendment says "not nullable in the schema". The
+      reader's actor_of already serves null for a non-handle actor (tests/contract/_mission_status_ops.py:186-188), and
+      handle_holds_credential (:378-380, :409) skips the record.
+    fork:
+      options:
+        - id: 'null'
+          text: >-
+            A credential-shaped actor is served as actor: null. The Op stays in items and totalCount, and skippedCount is
+            unchanged. profileId and action still skip, because they identify the record. Reader change: drop started.actor
+            from handle_holds_credential, and make actor_of return null when holds_credential(actor). Contract text: the
+            OpsInvocation.actor description becomes "or null when the stored value is not a handle or holds a credential".
+            ActorHandle, which is shared with v1, stays untouched. Spec: correct FR-017 and FR-019 so they no longer list
+            actor among the skip causes, and invert AC-OPS row 637 for actor (the failure becomes "actor served", and
+            "actor nulled" becomes the pass). Matches the operator's original option, the OQ-5 precedent (a credential
+            withholds a field and keeps the Op) and FR-017's own rationale ("actor alone degrades: attribution"). Cost: a
+            reader, test and description edit, plus a J-1 replay for the description.
+        - id: skip
+          text: >-
+            Keep the code. A credential-shaped actor skips the whole Op: it leaves items and totalCount, skippedCount rises,
+            and a closed Op with that actor vanishes from the screen. Correct the false sentence in FR-017 and in the tracer
+            record, so the rationale reads "skipped for uniformity with profileId and action" rather than "not nullable".
+            Optionally state in the OpsInvocation.actor and listOpsInvocations descriptions that a credential-shaped handle
+            skips the record. Today only the generic "a malformed field" clause covers it, and adding the sentence costs a
+            J-1 replay. With no contract edit there is no J-1 replay.
+      recommendation: >-
+        null. It is what the operator chose on the option text, and the only reason given for departing from it is false.
+        Either way the credential never reaches the payload, and the corpus holds no such actor, so the reality check is
+        unaffected.
+  - id: PR-CONTRACT-004
+    verdict: CONFIRMED
+    severity: 2
+    remedy_kind: single
+    refutation_attempt: >-
+      Confirmed against spec.md AD-4 (line 124) and the reader (_mission_status_drift.py kind1 and kind2). The DriftRemedy
+      rule gives materialize_status to a SNAPSHOT_DRIFT_TERMINAL finding ("disagrees in more than provenance"), and gives null
+      to a missing status.json on a merged Mission. The DriftFinding.remedy x-derived rule leaves out the merged-to-main null
+      that its own description states. Neither case is operator-ruled or pre-existing (both schemas are new).
+    remediation: "As R1: rewrite both x-derived rules to AD-4."
+  - id: PR-CONTRACT-005
+    verdict: CONFIRMED
+    severity: 2
+    remedy_kind: single
+    refutation_attempt: >-
+      The wording was dictated by the orchestrator's WP04 rework brief (tasks/WP04-contract-slice-drift/review-cycle-2.md,
+      item 1), not by the operator. The operator ruled only "fix the text to the real behaviour" (tracer, WP07 ruling). FR-015
+      keeps the reason out of the contract, and no DriftReport member carries a fallback entry or the
+      coordination_branch_deleted value. Not refuted.
+    remediation: >-
+      As R1, and also re-point the two prose pins that assert the current sentence:
+      tests/contract/test_mission_status_examples.py:1550-1551 and tests/contract/test_mission_status_drift.py:2022-2023.
+  - id: PR-CONTRACT-006
+    verdict: CONFIRMED
+    severity: 2
+    remedy_kind: single
+    refutation_attempt: >-
+      The reader raises OpsUnreadable on a non-vanished OSError of an Op file (_mission_status_ops.py:613-614), as FR-019 and
+      FR-024 require. OpsRefusalCode.yaml, responses/OpsUnreadable.yaml and the listOpsInvocations description name only the
+      directory and the spine, and the operation says unreadable records are "never a failure". Confirmed.
+    remediation: "As R1."
+  - id: PR-CONTRACT-007+PR-TESTS-007
+    verdict: CONFIRMED
+    severity: 1
+    remedy_kind: single
+    merged_from: [PR-CONTRACT-007, PR-TESTS-007]
+    refutation_attempt: "tests/contract/test_mission_status_drift.py:939-942 still says the spec expects a 500, although the spec was amended by the WP07 ruling."
+    remediation: "Reword the row14_problems docstring to cite the WP07 ruling (2026-10-06): the row pins the ruled 200 with no fallback entry, and the fallback entry for a clean miss."
+  - id: PR-CONTRACT-008
+    verdict: REFUTED
+    severity: 1
+    remedy_kind: single
+    refutation_attempt: >-
+      Three of the four cited sites are PRE-EXISTING on main: the v1 reality module at abafc135e carries "feature_slug" at
+      lines 862, 876, 1711 and 1904, which are now 887, 901, 1736 and 1929. The literal also appears in 142 src/tests files
+      on main. AC-VERSION's "sole accepted occurrence" therefore cannot mean repo-wide, and it reads as the reader module the
+      pin covers. Only _mission_status_oracles.py:336 is new, and an oracle legitimately needs the literal to detect the
+      legacy shape.
+    remediation: "Optional nit: build the oracle's literal from fragments (RETIRED + '_slug'), as test_mission_status_drift.py does. Nothing to fix in the reality module."
+  - id: PR-BOUNDARY-001
+    verdict: CONFIRMED
+    severity: 3
+    remedy_kind: fork
+    refutation_attempt: >-
+      Re-probed. select_gates(['kitty-ops/01ABC.jsonl']) and select_gates(['kitty-ops/closures.jsonl']) both give
+      matched_groups=frozenset() and no tests-corpus-blocking. A contracts/ path selects it. The v1 reality module (abafc135e)
+      has 0 kitty-ops references, so kitty-ops/ is a new blocking data root. Mitigating facts:
+      (1) The same class already exists and is accepted. select_gates(['kitty-specs/x/status.events.jsonl']) also selects
+      nothing, although v1's reality check reads every event log. test_ci_corpus_trigger_completeness.py:73-74 forbids
+      churny globs: "Never add bare kitty-specs/** or status.events.jsonl (C-001)".
+      (2) The churn is lower than for status events: 73 of 2911 commits on main since 2026-09-07 touch kitty-ops (60
+      first-parent), against 215 for status.events.jsonl.
+      Aggravating fact: a stale-Op sweep that writes spine closures for the pinned legacy_completion_ops ids, as 05697f827
+      did, turns the pinned named list stale and reds main for every later corpus PR.
+      Scope: ROUTER_WORKFLOW_PATH (ci-router.yml) is in SLICE_ALLOWED, and
+      tests/architectural/test_ci_corpus_trigger_completeness.py is in EXTRA_ALLOWED_REGISTRATIONS
+      (test_mission_status_contract_1_1.py:951-972). The fix touches no src/, so NFR-007 holds. The plan's own ci-router
+      text (plan.md line 117) names only contract_tools globs, so a corpus-group glob goes beyond the plan as written and needs
+      the operator's word.
+    fork:
+      options:
+        - id: a
+          text: >-
+            Add 'kitty-ops/**' to the router corpus group and 'kitty-ops/' to _CORPUS_DATA_ROOTS, in the existing ci-router
+            edit. Op-only PRs (about 2% of main commits) then select tests (corpus-blocking), plus the advisory Packs corpus
+            run and prose-scan. This departs from the C-001 churn principle for a low-churn root.
+        - id: b
+          text: >-
+            Change nothing in CI. Record it in plan Reflexivity beside item 5: "Op data drift is not selected before merge;
+            the push-to-main run catches it". This is the same acceptance as status.events.jsonl today.
+      recommendation: >-
+        a. The pinned Op lists make a routine sweep a main-breaker, and the cost is small. Choose b only if the operator wants
+        to keep C-001's churn rule uniform.
+  - id: PR-BOUNDARY-002
+    verdict: REFUTED
+    severity: 1
+    remedy_kind: single
+    refutation_attempt: >-
+      This is already handled. plan.md "Departs" item 3 (line 338) records the local proxy at plan time and reads the
+      CI-runner figure from the first PR CI run at W-7, against the 120 s bounds. No bound is breached. The finding is a
+      request to put a local number beside it.
+    remediation: "Advisory: at W-7, cite R1's local figures (gain about 65 s; tool job 271 s) next to the IC-01 proxy. No code change."
+  - id: PR-TESTS-001
+    verdict: REFUTED
+    severity: 1
+    remedy_kind: single
+    refutation_attempt: >-
+      Not a detection gap. seconds_combined = seconds_project + seconds_scan + seconds_per_mission
+      (test_mission_status_reality.py:2493-2494), and every resolver call of the shared memo is paid inside seconds_project.
+      So a cold scan (resolver plus scan reduction) is at most seconds_project + seconds_scan, which is at most the combined
+      bound of 120 s. "One scan at most 120 s, resolver included" therefore holds transitively. R1's own revert probe agrees:
+      the Project bound (141.9 s) and the combined bound (149.7 s) both went red. The shared execution is plan-ruled (D-P5
+      "Execution sharing", plan-round). It was not re-run, because the conclusion follows from R1's recorded numbers and the
+      code.
+    remediation: >-
+      Nit: the test_corpus_scan_is_within_its_bound docstring says that seconds_scan is the warm reduction, and that the
+      resolver-inclusive scan bound is carried by the combined case. W-7 cites the combined case for "resolver included".
+  - id: PR-TESTS-002
+    verdict: CONFIRMED
+    severity: 2
+    remedy_kind: single
+    refutation_attempt: >-
+      Re-probed. With `found += [finding, dict(finding)]` for kind 3 in scan_mission (copy of _mission_status_drift.py), the
+      kinds 1/2, kind 3, per-Mission, project and planted-repository cases all passed: 5 passed, 0 skipped, online. The
+      planted repository holds kind-3 plants, so the green is not vacuous. reader_finding_keys and difference_problems
+      compare sets (:2295-2308). The fixture rows catch the plant, so this is a gap in the corpus evidence only.
+    remediation: "As R1: assert len(findings) == len(reader_finding_keys(findings)) in the corpus kind cases and the planted-repository case."
+  - id: PR-TESTS-003
+    verdict: REFUTED
+    severity: 1
+    remedy_kind: single
+    refutation_attempt: >-
+      Sharing code_lane_branch_name is the definition, not a leak. The expected lane branch is by construction the name the
+      product creates. The product's own tests pin the literal:
+      tests/lanes/test_branch_naming.py:27,30 ("kitty/mission-057-feat-lane-a") and
+      tests/core/test_branch_naming_human_slug.py:101,109. So a naming regression goes red there, outside this slice. A
+      literal pin in the oracle would duplicate those tests, and it would not touch the D-P6 honest-rule concern (historic
+      branch names), which IC-01's re-measure handles.
+    remediation: "Nit: add code_lane_branch_name to the D-P6 and D-P14 record of the product functions the kind-3 oracle shares."
+  - id: PR-TESTS-004
+    verdict: CONFIRMED
+    severity: 2
+    remedy_kind: single
+    refutation_attempt: >-
+      Re-probed. index-profile-filters on row5 gives "raised RecursionError: maximum recursion depth exceeded while decoding a
+      JSON array", which is the mutant's own crash. eager-500-on-legacy on row8 gives "raised KeyError: 'skippedCount'". That
+      second kill is arguably the intended defect showing as a crash, because a 500 body has no skippedCount. Only the first
+      kill is spurious, which is enough to confirm.
+    remediation: "As R1: add a CRASH_KILLS allow-set, require a non-'raised' problem line elsewhere, make _index_profile_filters catch RecursionError, and make row8 check the status first."
+  - id: PR-TESTS-005
+    verdict: CONFIRMED
+    severity: 1
+    remedy_kind: single
+    refutation_attempt: >-
+      D-P16 is met as written. The margin is measured locally and recorded in the WP hand-off, and 3.5x is over the 2x line.
+      The CI margin is an estimate made with the 1.7 factor, not a measurement. The residual issue is observability only.
+    remediation: "Print each shape's minimum and its margin to REDACTION_BOUND (and the 10,000-file case) on success, and read the CI margin at W-7."
+  - id: PR-TESTS-006
+    verdict: CONFIRMED
+    severity: 2
+    remedy_kind: single
+    refutation_attempt: >-
+      The skip itself is operator-ruled (plan "Departs" item 5). How visible it is in CI is not ruled. Plan Reflexivity item 2
+      promises "never a silent pass", but the corpus-blocking command (ci-router.yml:978-985) has no -rs, so a green offline
+      run looks the same as an online one. Not refuted.
+    remediation: "As R1: add a ::warning:: annotation when GITHUB_ACTIONS is set and remote_state is offline, and add -rs to the corpus-blocking pytest command. ci-router.yml is in SLICE_ALLOWED."

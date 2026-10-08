@@ -1,0 +1,84 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: mission-status-health-drift-ops-01M464D3
+profile_applied: debugger-debbie (squad-delegate mode; falsify before asserting, divergence matrix over the revision, no fix proposed beyond a remedy per finding)
+findings:
+  - id: TASKS-FRESH3-001
+    severity: 3
+    title: Charter override for the Step 0 baseline run is attributed to the operator ruling, which does not say it
+    evidence: >
+      tasks.md Step 0 item 2 ("operator ruling 14, which makes the full battery a binding local gate of WP03, WP07 and WP08, and of this orchestrator baseline run ... an override of the charter rule NO_FULL_HEAVY_SUITES_IN_MISSION for exactly those runs"),
+      quickstart.md line 3 and the battery table row ("operator ruling 14 ... overriding the charter's no-full-sweep rule for those runs"), and the battery sections of WP03/WP07/WP08
+      ("and for the orchestrator's Step 0 baseline run ... and its note 16 fallback run"). reviews/tasks.ruling.md item 3 names only WP03, WP07 and WP08; note 15 (orchestrator) only sets the comparison rule; note 16 (orchestrator) only adds the fallback.
+      The extension of a charter override to orchestrator runs is therefore text authored in this revision and cited as operator authority.
+    claim: >
+      A charter rule override is stated as an operator ruling when the ruling text covers three work packages only. Anyone reading the Step 0 block or the quickstart
+      sees operator authority for runs the operator did not name.
+    remedy: >
+      FORK. (A) Record the extension as an orchestrator note 17 in reviews/tasks.ruling.md (for the operator to overturn, like notes 15 and 16) and cite "note 17 within ruling 14" at the
+      Step 0 item 2, quickstart and the three WP battery sections. (B) Ask the operator to extend ruling 14 to the baseline and fallback runs, and cite that.
+  - id: TASKS-FRESH3-002
+    severity: 3
+    title: The J-1 / WP06 contracts-commit gate counts lines, it does not compare hashes
+    evidence: >
+      tasks.md Step PD item 4 (WP07: "with the same `contracts-commit: <hash>` line in both (`grep -c` of that line is 2 over the two files)"); WP07 Dependencies and order
+      ("the `contracts-commit: <hash>` line of the J-1 record being the same hash as ..."); WP06 hand-off item 1.
+      `grep -c` over two files prints one count per file (1 and 1), never 2, and a count of matching lines is the same whether the two hashes agree or not.
+    claim: >
+      The only mechanical test written cannot detect the stale-record case it exists for (J-1 recorded against a different commit than the WP06 hand-off).
+    remedy: >
+      Replace with a test of the value: `grep -h "^contracts-commit: " tracer-approach.md tracer-design-decisions.md | sort -u | wc -l` prints 1, and each file has exactly one such line
+      (`grep -c` per file prints 1 and 1). Apply the same wording in tasks.md and the WP07 pointer.
+  - id: TASKS-FRESH3-003
+    severity: 2
+    title: Rework cycles leave two heading lines per record and the heading-grep gate cannot tell which is current
+    evidence: >
+      tasks.md Step PD item 1 (one heading per record `## Record: Hand-off WPxx (<commit hash>)`, "one per work package") and item 4 (grep of the heading prefix `## Record: Hand-off WP03 (`);
+      Step J-1 ("the replay repeats for any later change to contracts/mission-status/"; a defect returns WP06 by rejection and the hand-off is written again).
+    claim: >
+      After a rejection, or a repeated J-1 replay, the old heading still matches the prefix grep, so Step PD passes against a stale record; the "one per work package" rule is also false in that case.
+    remedy: >
+      State that a re-hand-off or repeated replay appends a new heading (add-only) and that the gate reads the LAST matching heading (e.g. `grep -n` and take the final line), whose hash must equal
+      the work package tip dispatched from; for J-1 the last heading's hash is the one compared in TASKS-FRESH3-002.
+  - id: TASKS-FRESH3-004
+    severity: 3
+    title: 'The checkout-relative CLI path is pinned "as written" but a lane workspace has no .venv'
+    evidence: >
+      tasks.md Step 0 item 2 and quickstart.md line 3 ("`.venv/bin/spec-kitty` is the CLI and stays as written"); every WP prompt Environment note (same sentence); commands `.venv/bin/spec-kitty cutover-guard --base-ref origin/main`
+      (WP01:188, WP02:170, WP03:340 ... WP09:238, quickstart.md:150); .gitignore:33 ignores `.venv*/`, so a lane worktree created by the tooling does not carry the checkout's `.venv`; tooling-created lane workspaces are where
+      these prompts run ("From the lane workspace root"). The same prompts write the CLI bare (`spec-kitty agent action implement WPxx --agent claude`).
+    claim: >
+      The revision removes the hand-built interpreter from every gate command but explicitly keeps a repository-relative path that only resolves at the primary checkout root; the cutover-guard gate of every code WP
+      fails with "No such file" in a lane workspace (or tempts a worker to improvise), and the same text writes the CLI in two spellings.
+    remedy: >
+      FORK. (A) Define `<synced-spec-kitty>` (= `<scratch>/venv/bin/spec-kitty`, with the same import check / PYTHONPATH rule) and extend the substitution rule to it. (B) Name an absolute-by-placeholder path to the primary checkout's CLI
+      (`<checkout>/.venv/bin/spec-kitty`) and state that cutover-guard runs from the lane workspace root with it. (C) Use the bare `spec-kitty` of the Implementation command section everywhere.
+  - id: TASKS-FRESH3-005
+    severity: 2
+    title: The blanket substitution rule reaches Step 0 item 1 before `<synced-python>` exists
+    evidence: >
+      tasks.md Step 0 item 1 ("re-run the symbol check of the quickstart") precedes item 2, which defines `<synced-python>` and states that every `.venv/bin/python` written in a command of quickstart.md or of a Step "reads `<synced-python>`";
+      quickstart.md:273 is the symbol check, written `.venv/bin/python -I -`.
+    claim: >
+      Read literally, the first Step 0 action requires an interpreter that item 2 creates later; the exception for "the hand-built python used for no gate command" does not say whether the symbol check is a gate command.
+    remedy: >
+      Either move the symbol check after item 2, or add one sentence: the symbol check and the hygiene counts of item 6 need only the standard library and may use either interpreter.
+  - id: TASKS-FRESH3-006
+    severity: 2
+    title: The hand-off definition of done cannot be met under the note 16 fallback
+    evidence: >
+      WP03 Definition of done (line ~453; same in WP07 line ~402 and WP08 line ~349): "The three architectural battery legs ... ran locally on the final commit ... three exit-code files read, counts and exit status in the hand-off";
+      the same prompts' new "Probe and fallback" paragraph tells the worker to STOP and leave the legs to the orchestrator.
+    claim: >
+      In the fallback the worker's own checklist is unsatisfiable by construction, and the reviewer instruction "treat a missing leg as a reason to reject" is applied to a hand-off that is missing the legs by design until the orchestrator appends them.
+    remedy: >
+      Add to the three checklist bullets "or, under the note 16 fallback, the orchestrator ran the legs and appended the three exit-code results to the hand-off record before review", and say in the reviewer bullet that rejection for a missing leg applies after that append.
+  - id: TASKS-FRESH3-007
+    severity: 1
+    title: The repeated-in-every-prompt claim is false for WP10
+    evidence: >
+      tasks.md Step 0 item 2 ("repeated in the Environment note of every prompt and in quickstart.md"); grep of "Substitution rule" finds 1 hit in each of WP01 to WP09 and 0 in WP10, which handles its interpreter in its own "Interpreter and floor" paragraph.
+    claim: Wording overstates the coverage; WP10's equivalent exists but under a different name.
+    remedy: Say "every code work package prompt (WP10 carries its own interpreter paragraph)".

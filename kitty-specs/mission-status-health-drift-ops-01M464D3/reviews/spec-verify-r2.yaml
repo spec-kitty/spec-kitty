@@ -1,0 +1,57 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-ARCH-015
+    status: resolved
+    reason: "The field catalogue now cites field-level symbols (OpStartedEvent.profile_id and siblings, which the citation grammar resolves and which exist in record.py) and FR-027 no longer adds profile to STRICT_FIELDS."
+  - id: SPEC-COMPLETE-013
+    status: resolved
+    reason: "Per the ruling FR-019 and FR-024 make an OSError on a candidate Op file (other than a vanished one) a 500 ops_unreadable, with AC-OPS rows for an unopenable file beside readable ones."
+  - id: SPEC-FRESH-001
+    status: unresolved
+    remaining_severity: 3
+    reason: "FR-015 and FR-012 define the coordination-aware read directory and each resolver exception, but also run is_mission_completed on that read directory, and that function reads merged_at from meta.json there, which for a coordination Mission lives only in the primary directory (the coordination surface has none or a status-only copy), so a merged coordination Mission is misclassified as not completed; the completion test must read meta.json from the Mission's own directory."
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: "One absent-file rule in FR-019 now covers both an index entry without a file and a vanished file (skipped and counted), and FR-018, Edge Cases, FR-024, AC-OPS and the tracer agree, with no old \"neither counted nor skipped\" wording left."
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: "FR-029 now enumerates the real edit list (DEFERRED_GAPS, NEW_PATH_KEYS, CHANGED_ALLOWED, _make_pair, the renamed scratch-baseline test, SLICE_ALLOWED and related scope data, the docstring) and says previous file-set data is replaced, all names verified in the test module."
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: "FR-028 is now \"yes, paired\" and AC-VERSION has a bullet checking the cited commit (cat-file, ancestor, last touching contracts/mission-status), one line per contracts.yml job with a planted invented job, and the SC-009 command."
+  - id: SPEC-FRESH-005
+    status: resolved
+    reason: '"Scans nothing" and "cheap" are dropped from FR-007 and OR-10, NFR-009 bounds the Project build at 15 seconds, and the description-states-cost row is in AC-PROJECT (the quoted 1.5 s measurement could not be re-run here but the bound is generous).'
+  - id: SPEC-FRESH-006
+    status: resolved
+    reason: "FR-027 now names profileId, action, invocationId, sourceCode, specKittyVersion and currentBranch as additions to STRICT_FIELDS (verified absent today; profile does not cover profileId), asserts them by test and plants a profileId absolute path."
+  - id: SPEC-FRESH-007
+    status: resolved
+    reason: "FR-012, FR-015, AD-10, FR-024, FR-026 and the AC-DRIFT three-way row all state completion-first with lanes.json read only for a non-completed Mission and a completed/non-completed fixture pair, as ruled."
+  - id: SPEC-FRESH-008
+    status: resolved
+    reason: "FR-019 makes invalid UTF-8 in an Op file a skipped shape failure and in the spine a 500 ops_unreadable, with matching AC-OPS plants and controls; the read_op_closures claim is verified."
+  - id: SPEC-FRESH-009
+    status: resolved
+    reason: "FR-025 restricts the kinds 1 and 2 oracle to Missions with both files, drops the OSError-derived CORRUPT_JSON, and makes it corpus-only with fixtures asserting findings directly."
+  - id: SPEC-FRESH-010
+    status: resolved
+    reason: "NFR-001 now says at most two reductions per Mission and names the snapshot reuse and the second reduction inside derive_mission_lifecycle, matching the code."
+  - id: SPEC-FRESH-011
+    status: resolved
+    reason: "The AC-OPS evidence row states the expected (kind, value, redacted) for the dotdot and space plants, consistent with the FR-020 pipeline and a clean relative-path control."
+  - id: SPEC-FRESH-012
+    status: resolved
+    reason: "FR-018 states profile, totalCount and the cursor use the Op's own started-event profile_id, and the AC-OPS index row plants an index whose profile differs from its file."
+  - id: SPEC-FRESH-013
+    status: resolved
+    reason: "AC-VERSION now scopes the terminology scan to the existing scan's files and names the reader's feature_slug literal as the sole accepted occurrence, pinned by a test with a plant."
+  - id: SPEC-FRESH-014
+    status: resolved
+    reason: "Per the ruling FR-009, the AC no-dead-value row, FR-023 and the CHANGELOG list make missionId and artifactPath non-null, with the null-ordering clause removed and no old wording left."
+  - id: SPEC-FRESH-015
+    status: unresolved
+    remaining_severity: 1
+    reason: "AD-3, FR-004, FR-012 (reopened) and the SK-id descriptions are fixed, but tracer-design-decisions.md OR-2 still says the literal rule \"gives one finding per merged Mission\", the same inaccuracy."

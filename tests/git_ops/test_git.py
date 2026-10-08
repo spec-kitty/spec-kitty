@@ -340,46 +340,6 @@ class TestCommitOperations:
 
         assert frozenset(c.message for c in changes) == frozenset({"Commit 0", "Commit 1"})
 
-    def test_commit(self, git_repo, git_vcs):
-        """commit should create a new commit."""
-        # Make a change
-        (git_repo / "new_file.txt").write_text("new content")
-
-        change = git_vcs.commit(git_repo, "Test commit message")
-
-        assert change is not None
-        assert change.message == "Test commit message"
-
-    def test_commit_returns_none_when_nothing_to_commit(self, git_repo, git_vcs):
-        """commit should return None when nothing to commit."""
-        change = git_vcs.commit(git_repo, "Empty commit")
-
-        assert change is None
-
-    def test_commit_specific_paths(self, git_repo, git_vcs):
-        """commit should support committing specific paths."""
-        # Make multiple changes
-        (git_repo / "file1.txt").write_text("content 1")
-        (git_repo / "file2.txt").write_text("content 2")
-
-        # Commit only file1
-        change = git_vcs.commit(
-            git_repo,
-            "Commit file1 only",
-            paths=[Path("file1.txt")],
-        )
-
-        assert change is not None
-
-        # file2 should still be untracked
-        result = subprocess.run(
-            ["git", "status", "--porcelain"],
-            cwd=git_repo,
-            capture_output=True,
-            text=True,
-        )
-        assert "file2.txt" in result.stdout
-
 
 # =============================================================================
 # Conflict Detection Tests
@@ -554,15 +514,3 @@ class TestEdgeCases:
         assert info is not None
         assert info.current_branch is None  # Detached HEAD = no branch
         assert info.current_commit_id == commit
-
-    def test_commit_with_empty_message(self, git_repo, git_vcs):
-        """commit should handle empty messages."""
-        (git_repo / "empty_msg.txt").write_text("content")
-
-        # Git actually allows empty messages with -m ""
-        change = git_vcs.commit(git_repo, "")
-
-        # Behavior depends on git config
-        # Most setups will reject empty message, some won't
-        # Just verify we don't crash
-        assert change is None or change.message == ""

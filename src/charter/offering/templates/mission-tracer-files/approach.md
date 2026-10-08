@@ -11,4 +11,4 @@
 
 ## Entries
 
-<!-- YYYY-MM-DD — 1-3 sentences: what approach was tried and what shifted. -->
+Example: `- **[2026-07-29][implement] Switched to a smaller integration slice.** The original approach needed too many changes at once; the smaller slice worked around the blocker.`

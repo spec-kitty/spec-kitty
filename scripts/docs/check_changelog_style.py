@@ -45,6 +45,9 @@ _FOREIGN_BULLET_RE: Final[re.Pattern[str]] = re.compile(r"^[*+]\s")
 _HEADLINE_RE: Final[re.Pattern[str]] = re.compile(r"^- \*\*(.+?)\*\*", re.DOTALL)
 _CODE_SPAN_RE: Final[re.Pattern[str]] = re.compile(r"`[^`]*`")
 _FENCE: Final[str] = "```"
+_CONFLICT_OPEN_RE: Final[re.Pattern[str]] = re.compile(r"^(?:<{7}|\|{7})(?:\s|$)")
+_CONFLICT_CLOSE_RE: Final[re.Pattern[str]] = re.compile(r"^>{7}(?:\s|$)")
+_CONFLICT_SPLIT_RE: Final[re.Pattern[str]] = re.compile(r"^={7}\s*$")
 _REF: Final[str] = r"(?:[\w.-]+/[\w.-]+)?#\d+"
 _REFS_RE: Final[re.Pattern[str]] = re.compile(rf"^\s*\(\s*{_REF}(?:\s*,\s*{_REF})*\s*\)")
 _ISSUE_REF_RE: Final[re.Pattern[str]] = re.compile(r"#\d+")
@@ -555,6 +558,34 @@ def check_bullet_markers(parsed: ParsedSection, path: str) -> list[Finding]:
     ]
 
 
+def check_conflict_markers(section: UnreleasedSection, path: str) -> list[Finding]:
+    """Refuse leftover merge-conflict markers (issue #5906) in the Unreleased section.
+
+    A line that starts with ``<<<<<<<``, ``|||||||`` or ``>>>>>>>`` is always a finding. A bare
+    ``=======`` is also a Markdown heading underline, so it is refused only while a conflict is open,
+    that is, after a ``<<<<<<<`` or ``|||||||`` line and before the closing ``>>>>>>>``. Fenced
+    blocks are skipped, so an entry may still quote git output.
+    """
+    fix = "Resolve the merge conflict: delete the marker line and keep one copy of the intended text."
+    findings: list[Finding] = []
+    in_fence = False
+    in_conflict = False
+    for offset, text in enumerate(section.lines, start=1):
+        if text.lstrip().startswith(_FENCE):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        if _CONFLICT_OPEN_RE.match(text):
+            in_conflict = True
+        elif _CONFLICT_CLOSE_RE.match(text):
+            in_conflict = False
+        elif not (in_conflict and _CONFLICT_SPLIT_RE.match(text)):
+            continue
+        findings.append(_error("conflict-marker", path, section.start_line + offset, f"[Unreleased] {_shorten(text.strip())}", fix))
+    return findings
+
+
 EntryRule = Callable[[Entry, str], list[Finding]]
 SectionRule = Callable[[ParsedSection, str], list[Finding]]
 
@@ -576,7 +607,7 @@ def check(text: str, path: str = "docs/changelog/CHANGELOG.md") -> list[Finding]
     if section is None:
         return []
     parsed = parse_section(section)
-    findings: list[Finding] = []
+    findings: list[Finding] = check_conflict_markers(section, path)
     for section_rule in SECTION_RULES:
         findings.extend(section_rule(parsed, path))
     for entry in parsed.entries:

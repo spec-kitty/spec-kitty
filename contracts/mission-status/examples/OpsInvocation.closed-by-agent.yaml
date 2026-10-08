@@ -1,0 +1,16 @@
+invocationId: 01K6TY7H2J3K4M5N6P7Q8R9S0T
+profileId: reviewer-renata
+action: review
+actor: codex
+modeOfWork: mission_step
+startedAt: '2026-10-05T11:02:30Z'
+missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+wpId: WP02
+status: closed
+outcome: done
+closedBy: agent
+completedAt: '2026-10-05T11:41:10Z'
+evidence:
+  kind: repo_path
+  value: docs/reports/review-summary.md
+  redacted: false

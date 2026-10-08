@@ -1,0 +1,78 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: TASKS-SEQ-001
+    lens: orchestrator-steps
+    severity: 3
+    title: No step moves the Step 0 / J-1 / hand-off records, or the amended planning state, into the lane workspaces that must read them
+    evidence:
+      - artifact: "tasks.md § ORCHESTRATOR STEP 0 item 4 (appends to tracer-approach.md, add-only) and Chokepoint sequencing statement (orchestrator appends hand-off records between dispatches)"
+      - artifact: "tasks/WP01-resync-remeasure-campsite.md and WP03/WP07 § Dependencies and order and Baseline-red binning (workers read the Step 0 record in tracer-approach.md from the lane workspace)"
+      - artifact: "tasks/WP07-drift-reader.md § Dependencies and order (not dispatched before the J-1 record exists in tracer-design-decisions.md)"
+      - artifact: "lanes.json planning_commit_sha 4572d1df710561f61ebcaf9c9791749a1cd965ee (pinned before D-0 merge and before any record is appended)"
+      - code: "src/specify_cli/cli/commands/agent/mission_finalize.py:1108-1114 (--refresh-planning-commit advances planning_commit_sha so lanes merge the amended planning state)"
+    claim: >
+      The records are appended by the orchestrator on the planning/target branch, but code workers run in lane worktrees and are told to read the Step 0 record, and WP07 is gated on the J-1 record. Nothing in tasks.md says how those commits reach a lane workspace (commit the record, then refresh the planning pin or fast-forward/merge the Mission branch into the lane before dispatch), nor that D-0 (a merge of origin/main into the Mission branch) invalidates the planning pin recorded in lanes.json. A worker can be dispatched on a base that lacks the record it is told to read, and WP10 (lane-planning) appends to the same tracer files the orchestrator appended on another branch, so append-vs-append conflicts at W-1 consolidation are likely. The "not dispatched before the record exists" gates test existence on the planning branch, not in the lane.
+    remediation: >
+      Add to Step 0 item 4, to J-1, and to the chokepoint statement a per-dispatch pre-flight: commit the appended record add-only; run finalize-tasks --refresh-planning-commit (after D-0, after the J-1 record, before WP10) or, FORK: remedies A (refresh the planning pin each time, but see TASKS-SEQ-002: it regenerates tasks.md) / B (fast-forward kitty/mission-<slug> and merge the planning branch into the lane workspace, no tooling pin change); then verify with a grep of the record inside the lane workspace before dispatch. State which of A/B applies to lane-planning (WP10).
+  - id: TASKS-SEQ-002
+    lens: orchestrator-steps
+    severity: 3
+    title: The command the orchestrator needs for planning amendments (--refresh-planning-commit) regenerates tasks.md and drops the hand-carried orchestrator block; the stated mitigation is only a manual re-add
+    evidence:
+      - artifact: "tasks.md § opening paragraph of ORCHESTRATOR STEPS (a later finalize-tasks run regenerates this file and drops them; re-add them from the plan)"
+      - code: "src/specify_cli/cli/commands/agent/mission_finalize_bootstrap.py:648-690 (_regenerate_or_report_tasks_md: validate-only only reports tasks_md_stale; any other mode write_text of the generated file)"
+      - code: "src/specify_cli/core/wps_manifest.py:225-244 (generator emits only the header and the WP sections)"
+      - code: "src/specify_cli/cli/commands/agent/mission_finalize.py:1003 (called for every non-validate-only run, including a refresh)"
+    claim: >
+      Validate-only does survive: it writes nothing, returns validation_passed, and sets tasks_md_stale=true because the on-disk file differs from the generated one (the block is not mentioned as an expected stale report, so a pre-flight reader may mistake it for drift). Every mutating run, including the refresh that TASKS-SEQ-001 shows is likely to be needed, overwrites tasks.md wholesale. The risk is stated, but mitigation is "re-add from the plan" with no owner, trigger or check, and the plan (not tasks.md) is the only durable copy, so Step 0, J-1 and W-1..W-7 may silently vanish between dispatches while the generated header still says "Do not edit directly".
+    remediation: >
+      Keep the authoritative text outside the generated file (FORK: remedies A / B). A: add a non-generated sibling file in the Mission directory (for example orchestrator-steps.md) holding Step 0, J-1, W-1..W-7 and the chokepoint statement, and leave in tasks.md only a pointer. B: keep the block in tasks.md but add an explicit orchestrator rule: after any finalize-tasks run without --validate-only (refresh included), diff tasks.md against the committed version and restore the block from git before the next dispatch. Either way, state that tasks_md_stale=true under --validate-only is the expected report while the block exists.
+  - id: TASKS-SEQ-003
+    lens: decomposition
+    severity: 2
+    title: WP07 and WP09 "may be split" has no mechanism that keeps ids, owned_files and lanes final
+    evidence:
+      - artifact: "tasks/WP07-drift-reader.md § Risks (a split is allowed: same files, sequential)"
+      - artifact: "tasks/WP09-oracles-reality.md § Context (IC-09 may be split by the orchestrator)"
+      - artifact: "research.md item 4 (an amended manifest never propagates to frontmatter or the lane write scope; wps.yaml edits after finalisation leave lanes.json stale)"
+    claim: >
+      A split would need new WP ids or an amended wps.yaml after finalisation, which the research names as a hazard that reports success yet leaves frontmatter and lanes.json stale. The prompts do not say whether "split" means two sequential dispatches of the one WP (no manifest change) or new work packages.
+    remediation: >
+      Say in both prompts and in tasks.md that a split is two sequential sessions inside the same WP (same id, same owned_files, one review at the end or per part), and that no wps.yaml or frontmatter edit and no new WP id is made after finalisation.
+  - id: TASKS-SEQ-004
+    lens: orchestrator-steps
+    severity: 2
+    title: J-1 text drops the plan's no-JDK consequence
+    evidence:
+      - artifact: "tasks.md § ORCHESTRATOR STEP J-1 (ends with: WP07 not dispatched before the record exists, or the operator accepts the open risk P-9)"
+      - artifact: "plan.md § J-1 and Risks table P-9 (if no JDK and network are available the risk stays open, the operator is told before the draft PR, and a second compaction is budgeted)"
+    claim: >
+      The nine job names, TMPDIR rule, plant and two breaking_check runs are complete. Missing: what the orchestrator does when no JVM-capable machine exists (tell the operator before the draft PR, budget a second compaction), so the "operator accepts" branch has no recorded form and no W-2/W-7 consequence.
+    remediation: >
+      Append the P-9 sentence to J-1 and require that an acceptance be recorded in tracer-design-decisions.md in place of the nine lines, with W-2 and W-7 citing it.
+  - id: TASKS-SEQ-005
+    lens: sequencing
+    severity: 1
+    title: Open PR 5802 edits .github/workflows/packs.yml; the chokepoint file is shared with the maintainer
+    evidence:
+      - artifact: "tasks.md § Chokepoint sequencing statement (3) and W-6 (rebase onto upstream main)"
+      - code: "gh pr diff 5802 (draft, base main): removes one line in the packs.yml path-filter list near line 132, not the built-in-corpus-suite command line"
+    claim: >
+      No textual overlap with the corpus-suite line WP03/WP07/WP08 edit, so no conflict is expected. It is still a second writer of a declared chokepoint; no other open PR touches contracts/, tests/contract/, ci-router.yml or the corpus-trigger registry (checked read-only with gh pr list).
+    remediation: >
+      Add one clause to W-6: re-check open PRs for packs.yml before the rebase and keep both sides on a conflict.
+  - id: TASKS-SEQ-006
+    lens: sequencing
+    severity: 1
+    title: Plan declared exception (1) lists WP03 against openapi.yaml and the parameters/responses indexes, which WP03 does not own
+    evidence:
+      - artifact: "plan.md § Declared shared-file exceptions (1) versus IC-03 Affected surfaces"
+      - artifact: "wps.yaml WP03 owned_files (schemas/_index.yaml and examples/_index.yaml only; no openapi.yaml, parameters/_index.yaml, responses/_index.yaml)"
+    claim: >
+      wps.yaml and the frontmatter follow IC-03 (correct). The plan sentence is broader than reality; harmless, but a reader auditing the chain against the exception text sees WP03 listed for files it cannot touch.
+    remediation: >
+      No change to the WP files; optionally note in tasks.md that exception (1) applies to WP03 for the two indexes, the pins and the two test modules only.

@@ -1,0 +1,62 @@
+scannedAt: '2026-10-06T09:00:00Z'
+findings:
+  - kind: lane_branch_missing
+    severity: warning
+    missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+    artifactPath: lanes.json
+    summary: An expected lane or Mission branch has no local branch.
+    authority: git
+    derivedSide: lanes_json
+    laneComparison: []
+    remedy: null
+    sourceCode: null
+  - kind: snapshot_disagrees_with_event_log
+    severity: error
+    missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+    artifactPath: status.json
+    summary: The status snapshot disagrees with the event log.
+    authority: event_log
+    derivedSide: status_json
+    laneComparison:
+      - wpId: WP01
+        persistedStatusLane: in_progress
+        derivedStatusLane: for_review
+      - wpId: WP03
+        persistedStatusLane: planned
+        derivedStatusLane: null
+    remedy: materialize_status
+    sourceCode: SNAPSHOT_DRIFT
+  - kind: snapshot_disagrees_with_event_log
+    severity: warning
+    missionId: 01JZCB3D4E5F6G7H8J9KMNPQRS
+    artifactPath: status.json
+    summary: The status snapshot differs from the event log only in provenance fields.
+    authority: event_log
+    derivedSide: status_json
+    laneComparison: []
+    remedy: null
+    sourceCode: SNAPSHOT_DRIFT_PROVENANCE
+  - kind: snapshot_disagrees_with_event_log
+    severity: warning
+    missionId: 01JZCB3E5F6G7H8J9KMNPQRSTV
+    artifactPath: status.json
+    summary: The status snapshot differs from the event log and every work package is done.
+    authority: event_log
+    derivedSide: status_json
+    laneComparison:
+      - wpId: WP02
+        persistedStatusLane: approved
+        derivedStatusLane: done
+    remedy: null
+    sourceCode: SNAPSHOT_DRIFT_TERMINAL
+  - kind: snapshot_or_event_log_missing
+    severity: warning
+    missionId: 01JZCB3F6G7H8J9KMNPQRSTVWX
+    artifactPath: status.events.jsonl
+    summary: One of the status snapshot and the event log is missing.
+    authority: event_log
+    derivedSide: status_json
+    laneComparison: []
+    remedy: null
+    sourceCode: null
+truncated: false

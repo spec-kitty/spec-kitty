@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 from importlib.resources import files
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -62,3 +63,18 @@ def canonical_tracker_bind_fields() -> set[str]:
 def orchestrator_api_contract() -> dict:
     """Orchestrator API contract section."""
     return _CONTRACT["orchestrator_api"]
+
+
+def pytest_terminal_summary(terminalreporter: Any) -> None:
+    """Print the timing margin lines that the Ops timed cases record, so a passing run (also under xdist) shows its minimum and margin."""
+    lines = [
+        value
+        for reports in terminalreporter.stats.values()
+        for report in reports
+        for name, value in getattr(report, "user_properties", ())
+        if name == "timing_margin"
+    ]
+    if lines:
+        terminalreporter.write_sep("-", "timing margins (minimum of the cold repeats)")
+        for line in lines:
+            terminalreporter.write_line(line)

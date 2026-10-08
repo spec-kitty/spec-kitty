@@ -20,6 +20,7 @@ from specify_cli.status.doctor import (
     check_drift,
     check_issue_matrix,
     check_orphan_workspaces,
+    check_wp_file_reconciliation,
     check_reviewer_self_approval,
     check_sparse_checkout,
     check_stale_claims,
@@ -30,7 +31,14 @@ from specify_cli.status.lifecycle_events import emit_reviewer_self_approval
 pytestmark = pytest.mark.fast
 
 
-def _create_events_file(feature_dir: Path, wp_states: dict[str, str], timestamp: str, mission_slug: str = "034-test") -> None:
+def _create_events_file(
+    feature_dir: Path,
+    wp_states: dict[str, str],
+    timestamp: str,
+    mission_slug: str = "034-test",
+    *,
+    create_prompts: bool = True,
+) -> None:
     """Create a minimal status.events.jsonl matching the given WP states.
 
     Prevents doctor from flagging 'status.json exists but events file missing'.
@@ -53,6 +61,15 @@ def _create_events_file(feature_dir: Path, wp_states: dict[str, str], timestamp:
             )
         )
     (feature_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
+    if create_prompts:
+        for wp_id in wp_states:
+            _create_wp_prompt(feature_dir, wp_id)
+
+
+def _create_wp_prompt(feature_dir: Path, wp_id: str) -> None:
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(exist_ok=True)
+    (tasks_dir / f"{wp_id}-work.md").write_text(f"---\nwork_package_id: {wp_id}\n---\n", encoding="utf-8")
 
 
 def _healthy_global_checks() -> list[DoctorCheck]:
@@ -845,6 +862,7 @@ class TestRunDoctor:
             ),
         ]
         (feature_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
+        _create_wp_prompt(feature_dir, "WP01")
 
         result = run_doctor(
             feature_dir=feature_dir,
@@ -893,6 +911,7 @@ class TestRunDoctor:
             ),
         ]
         (feature_dir / "status.events.jsonl").write_text("\n".join(events) + "\n", encoding="utf-8")
+        _create_wp_prompt(feature_dir, "WP01")
 
         result = run_doctor(
             feature_dir=feature_dir,
@@ -1033,6 +1052,47 @@ class TestRunDoctor:
         stale_findings = [f for f in result.findings if f.category == Category.STALE_CLAIM]
         assert len(stale_findings) == 1
         assert stale_findings[0].wp_id == "WP01"
+
+
+def test_doctor_reports_event_wp_without_prompt_even_when_snapshot_is_stale(tmp_path: Path) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "034-test"
+    (feature_dir / "tasks").mkdir(parents=True)
+    _create_events_file(feature_dir, {"WP08": "planned", "WP09": "done"}, "2026-01-01T00:00:00Z", create_prompts=False)
+    _create_wp_prompt(feature_dir, "WP02")
+    (feature_dir / "status.json").write_text(json.dumps({"work_packages": {}}), encoding="utf-8")
+
+    result = run_doctor(feature_dir, "034-test", tmp_path)
+
+    findings = result.findings_by_category(Category.WP_FILE_DRIFT)
+    assert [(finding.wp_id, finding.severity) for finding in findings] == [
+        ("WP08", Severity.ERROR),
+        ("WP09", Severity.WARNING),
+        ("WP02", Severity.ERROR),
+    ]
+    assert "tasks/" in findings[0].message
+    assert result.has_errors
+
+
+def test_wp_reconciliation_reports_prompt_without_event_and_ignores_readme(tmp_path: Path) -> None:
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP02-work.md").write_text("---\nwork_package_id: WP02\n---\n", encoding="utf-8")
+    (tasks_dir / "WP02-work-copy.md").write_text("---\nwork_package_id: WP02\n---\n", encoding="utf-8")
+    (tasks_dir / "WP05-bad.md").write_text("---\nwork_package_id: [unclosed\n---\n", encoding="utf-8")
+    (tasks_dir / "README.md").write_text("work_package_id: WP03\n", encoding="utf-8")
+
+    findings = check_wp_file_reconciliation(tmp_path, {"WP01", "WP04"}, frozenset({"WP04"}))
+
+    assert [(finding.wp_id, finding.severity) for finding in findings] == [
+        ("WP02", Severity.ERROR),
+        (None, Severity.ERROR),
+        ("WP01", Severity.ERROR),
+        ("WP04", Severity.WARNING),
+        ("WP02", Severity.ERROR),
+    ]
+    assert findings[0].message == "tasks/WP02-work-copy.md and tasks/WP02-work.md both declare WP02."
+    assert findings[0].recommended_action == "Keep one prompt per work package."
+    assert findings[1].message == "Cannot read work-package identity from tasks/WP05-bad.md."
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,337 @@
+{
+  "event_count": 97,
+  "last_event_id": "01M4CD7JHQYSM7F9B73S9BZTVC",
+  "materialized_at": "2026-10-08T00:04:55.479381+00:00",
+  "mission_number": "222",
+  "mission_slug": "upgrade-migration-commit-scope-01M4AKVE",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 8,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M4CD77KMQA8WV2PVGWR1RKHE",
+      "last_transition_at": "2026-10-08T00:04:44.276199+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "4 commits db6bd502a..9a148e333; RED 11/12 on base; GREEN 17 + 333 + 275; e2e clean",
+        "Review passed: red-first verified, e2e behaviour verified, 17/19 mutants killed; folds: (1) test for worktree_errored, (2) drop TypeError shape-pin in test_commit_decision, (3) changelog wording"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261007",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1074601,
+      "shell_pid_created_at": "1791381712.72",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T045": "done"
+      },
+      "tracker_refs": [
+        "#5443",
+        "#4763"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4CD7DVWFSB9FT0R6Y7PN6R2",
+      "last_transition_at": "2026-10-08T00:04:50.684449+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "be3384dd6 red / 4456420db + 89b0adce4 fix; 13/13 mutants; operator keys kept",
+        "Review passed (reviewer-renata r1): red-first verified at be3384dd6 (23 failed for content reasons), green at 89b0adce4 (WP list 137 passed/1 skipped; tests/upgrade+migration 46 failures identical to base, all <checkout>/.venv preview tests; architectural 222 passed); real-git probes clean/dirty/operator-map/legacy-list/failed-run/atomic all hold; 14/14 mutants killed; ruff/format/C901/mypy clean. Minor notes: stale 'trio' docstrings in metadata.py:387,407,434; comment loss on dirty metadata.yaml accepted (FR-011 keys only). Follow-ups: corrupt metadata.yaml overwritten by upgrade (pre-existing); first-run 'Profile source/config input root changed' + auto-commit before 'Upgrade failed' (pre-existing, also on d3b1b0679)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261007",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1548076,
+      "shell_pid_created_at": "1791387902.99",
+      "subtasks": {
+        "T006": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      },
+      "tracker_refs": [
+        "#5229"
+      ]
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4CD796KMNSCCWDT6X4694G3",
+      "last_transition_at": "2026-10-08T00:04:45.907967+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented c3b85ede5 (red) + eb20dc7d1 (fix); RED 4 failed/1 passed at red commit; GREEN 223+20 passed; ruff/C901 clean",
+        "Review-1 rework c97058eff (red) + 7473f01be (fix): stamped WP prompt committed when clean before; six regressions green unmodified; destroy_lane reverted",
+        "Cycle 2 approved. MAJOR 1 fixed: lanes claim commit = status pair + meta + stamped WP01 prompt, tree clean; second claim (WP02) carries only WP02's prompt; --no-auto-commit stages exactly the 4 claim writes, nothing unstaged; coord claim exits 0, primary claim commit = meta + stamped prompt, clean. Red-first c97058eff 4F/5P for the bug's reasons, 7473f01be green. Six cycle-1 regressions pass unmodified; destroy_lane byte-identical to base. Gates 248+23 passed; ruff/format/C901 clean; mypy 0 errors in touched files. Mutants 9/10 killed; M1 (force wp_stamped=True) survives, near-equivalent. Non-blocking notes: (1) MINOR 2 not actually fixed: test_implement_claim_scope_5673.py:115 still says 'Red on the base too' and module docstring :12 says every set-asserting case is red on base; (2) case (a) asserts membership, not the exact set; (3) dead _LANES_SLUG, redundant git_out re-import, unexplained type: ignore on _lanes_mission; (4) no seam/unit test of claim_commit_paths wp_stamped or the allocate byte diff; (5) WP08 changelog draft overclaims: under auto-commit an operator-modified WP prompt is still committed by the planning-artifacts step (C-003), only --no-auto-commit with a tolerated key reaches the warning.",
+        "re-review of post-approval folds",
+        "re-review of post-approval folds",
+        "Re-review of post-approval folds: lane-c ef2df1c7a (flat-topology claim keeps status pair, drops tasks.md) verified; test_implement_placement_routing 8 passed at ef2df1c7a. Approved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20261008",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1408999,
+      "shell_pid_created_at": "1791386396.13",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      },
+      "tracker_refs": [
+        "#5673"
+      ]
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M4CD7AR0MA9TSDKTDBJYJ2EP",
+      "last_transition_at": "2026-10-08T00:04:47.489012+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review-1 fixes bbabe9db6 (red) + 0442b5a16 (fix): tracked-in-HEAD and clean check, probe failure reports unbaked, refusal reasons asserted",
+        "Cycle 2 approved. MAJOR-1 fixed: tree_entry(HEAD)+clean precheck refuses untracked, gitignored, intent-to-add and staged-rename-into meta.json (real-git probes); red 3/10 at bbabe9db6, green 11/11 at 0442b5a16; 7 of 9 mutants killed, 2 equivalent (HEAD->target_branch ref, check reorder); NOTE-1 closed (branch-precheck mutant now killed by reason asserts). Gates: consolidation 78 passed, architectural 303 passed/1 skipped, load_meta 5 passed, ruff/format/C901/mypy clean. Approval notes: (a) assume-unchanged on a tracked dirty meta.json hides the edit from status_entries; commit --only then commits the operator edit onto main and clears the h bit (pre-WP04 base refused it). Follow-up: compare the worktree blob hash with tree_entry oid. (b) except Exception at bake.py:307 could narrow to (GitCommandError, ValueError); it fails closed and shows the exception text, so it is acceptable.",
+        "re-review of post-approval folds",
+        "re-review of post-approval folds",
+        "Re-review of post-approval folds on lane-d: 16ca95918/3448897b2 (hidden-edit refusal) plus the CRLF correction ac0fb2dca (red: CRLF test fails with 'differs from HEAD') and 09ea48d00 (fix: accepts hash-object or hash-object --no-filters; test_bake_commit_scope_meta_only 15 passed incl. assume-unchanged/skip-worktree refusal). Prior CHANGES-NEEDED resolved. Approved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261008",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 982304,
+      "shell_pid_created_at": "1791381402.46",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      },
+      "tracker_refs": [
+        "#5443"
+      ]
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4CD7GYX8CM6PSX1RG6A81W1",
+      "last_transition_at": "2026-10-08T00:04:53.853412+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "22b10e333..be570f797; 11 sites routed; gate empty; 28/28 mutants",
+        "Review passed (reviewer-renata r1): A red-first verified (22b10e333 lists exactly 11 sites; cc6604627 amend red; 34bce06b4/tip green). B 18 real-git flows x {nosign,goodsign,badsign} identical base 7a022c203 vs tip (subjects, parents, signatures, hooks, staged sets, abort/HEAD restore). C owner OK. D gate empty, 2 owners with import guard, controls fire, C-005 pathspec exceptions pass. E 9 implementer mutants re-killed + R1/R5 killed; R2/R3/R4/R6 survive (test gaps; behaviour verified by probe). F lanes/consolidation/coordination/git_ops/agent 5621 passed; tests/architectural 4272 green; ruff/format/C901/mypy clean. Non-blocking follow-ups: mint_fresh_worktree untracked=all refuses squash when a post-checkout hook writes a non-ignored untracked file (planner decision: narrow proof to index==HEAD); census exemption leak via exempt private helper reuse; undocumented concat/f-string blind spots.",
+        "re-review of post-approval folds",
+        "re-review of post-approval folds",
+        "Re-review of post-approval folds on lane-e: f449dcd88/126223f68 (squash FreshWorktree proof = index matches HEAD) plus 499dfa111 (UU-index test; kills the 'index not in \" U\"' mutant). merge_conclusion_owner*, merge_conclusion_routing, implement_placement_routing, bake scope: 88 passed at 499dfa111. Approved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261008",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2643640,
+      "shell_pid_created_at": "1791400089.98",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      },
+      "tracker_refs": [
+        "#5443"
+      ]
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M4CD7C99P5H5G53X4BVTC6V8",
+      "last_transition_at": "2026-10-08T00:04:49.065332+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Review-1 fixes c4105cf50: merge-conclusion check -> diff-filter=U, rejection checklist names status files, doctrine --untracked-files=all, detector hardened (32 passed)",
+        "Review cycle 2 passed: MAJOR-1 and MINOR-2 verified on real git; gates green. Fold notes: rejection-loop-checklist example omits review-cycle-N.md under auto_commit:false; detector -sm cluster break false negative"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20261007",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 951922,
+      "shell_pid_created_at": "1791380887.81",
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      },
+      "tracker_refs": [
+        "#5443"
+      ]
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4CD7FDCG7MW88AXFZD1464T",
+      "last_transition_at": "2026-10-08T00:04:52.268629+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "9a148e333..69254b1d5, red-first per subtask; 14/15 mutants",
+        "Review-1 rework: e2e moved per-PR, registry reverted; m1 m2 m3 m4 fixed red-first",
+        "Review cycle 2 passed: R1 move verified (per-PR selection), m1 (incl. linked worktree), m2, m3, m4 red-first and fixed; gates green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP07:20261007",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1905419,
+      "shell_pid_created_at": "1791392933.22",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T044": "done"
+      },
+      "tracker_refs": [
+        "#5401",
+        "#5671",
+        "#4722",
+        "#5443"
+      ]
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4CD7JHQYSM7F9B73S9BZTVC",
+      "last_transition_at": "2026-10-08T00:04:55.479381+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "b37820a6f main merge; d8c810e28 + 36ff1d9f4 changelog; planning base merged",
+        "239a3f1d0 applies the reviewer's corrected bullets",
+        "Review cycle 2 passed: 239a3f1d0 applies the 3 corrected bullets verbatim (CHANGELOG only, 3+/3-); claims match lane code; check_changelog_style 0 errors / 15 warnings, identical to 6d45d8fcc; no British spellings or banned tokens",
+        "re-review of post-approval folds",
+        "re-review of post-approval folds",
+        "Re-review of post-approval folds on lane-h: 75fb52027/7734c0b94 plus 923df81f8 ('never enter the squash commit' wording). Bullet accurate vs 126223f68; check_changelog_style 0 errors / 15 warnings; merge-conclusion bullet 863 chars (<900). Approved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP08:20261008",
+        "reviewer": "Ivan Melck",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3388770,
+      "shell_pid_created_at": "1791412323.02",
+      "subtasks": {
+        "T041": "done",
+        "T042": "done",
+        "T043": "done"
+      },
+      "tracker_refs": [
+        "#5443",
+        "#5673",
+        "#5229",
+        "#4763",
+        "#5401",
+        "#5671",
+        "#4722"
+      ]
+    }
+  }
+}

@@ -1,0 +1,129 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: PR-TESTS-001
+    lens: timing tests (production path)
+    severity: 2
+    title: The "one project-wide scan at most 120 s" bound times a warm-memo scan, so it cannot see the resolver it claims to include
+    evidence:
+      - artifact: "spec.md AC-CROSS 4 row ('one project-wide scan at most 120 seconds, resolver included'); NFR-001 (one scan 40.3 to 52.0 s measured with the resolver)"
+      - artifact: "plan.md D-P5 'Execution sharing' (one execution, no second scan)"
+      - code: "tests/contract/test_mission_status_reality.py:2527-2541 (execute_corpus_run builds the Project first on the shared memo, then times the scan on the same memo)"
+      - code: "tests/contract/test_mission_status_reality.py:2700-2703 (test_corpus_scan_is_within_its_bound asserts on seconds_scan)"
+      - artifact: "Measured in a git clone --shared at 9a168182d with origin set to the public URL: project 37.4 s, scan 1.0 s, per-Mission 6.2 s. Revert probe on the clone: a 0.2 s sleep added to _mission_status_memo._run_resolver (574 calls) made the Project bound fail at 141.9 s and the combined bound fail at 149.7 s. The scan bound still passed at 1.1 s, although a cold scan would take about 140 s."
+    claim: >
+      The Project build fills the memo, so the scan the bound times only gets memo hits. No resolver call runs inside it, and
+      seconds_scan is the scan's reduction and listing alone. A resolver regression that made a cold GET /drift exceed 120 s stays
+      green on this case. Only the Project and combined cases catch it, and the combined bound is a different quantity. W-7
+      evidence that cites this case as "scan at most 120 s, resolver included" would therefore state something no test measured.
+    remediation: >
+      Record the elapsed seconds of each resolver call in MemoEntry (beside `subprocesses`). Make
+      test_corpus_scan_is_within_its_bound assert seconds_scan plus the summed resolver seconds is at most 120, which keeps the one
+      shared execution of D-P5. Make its failure text print both terms.
+  - id: PR-TESTS-002
+    lens: vacuous or tautological tests (revert probe)
+    severity: 2
+    title: The corpus drift equality with the oracles compares sets, so a reader that emits a finding twice passes every corpus case
+    evidence:
+      - code: "tests/contract/test_mission_status_reality.py:2297-2308 (reader_finding_keys builds a set; difference_problems compares set(reader) with set(oracle))"
+      - code: "tests/contract/test_mission_status_reality.py:2634-2652 (kinds 1/2 and kind 3 equality), 2666-2676 (the per-Mission sum check compares the duplicated report with itself)"
+      - artifact: "Revert probe on the clone: in _mission_status_drift.scan_mission, `found += [finding, dict(finding)]` for kind 3. All 19 test_corpus_* cases passed (1 named skip), and so did test_the_reader_equals_the_oracles_on_the_planted_repository. Only the fixture rows of test_mission_status_drift.py (row6 to row9, row24, row26, row27) went red."
+    claim: >
+      SC-002 says the scan returns the findings the oracles report "and none they do not". The corpus comparison cannot see
+      multiplicity. Every key is collapsed into a set, and the per-Mission check sums findings that come from the same duplicated
+      report. The Ops walk has an explicit "served twice" check (ops_walk_problems), but the drift side has none. The fixture rows
+      catch this plant today. The corpus half, which is the SC-002 evidence, does not.
+    remediation: >
+      In the corpus kinds 1/2 and kind 3 cases (and the planted-repository case), also assert that the number of reader findings
+      equals the number of distinct keys: len(findings) == len(reader_finding_keys(findings)). This is the drift twin of the Ops
+      "served twice" check.
+  - id: PR-TESTS-003
+    lens: oracle independence (D-P6, D-P14)
+    severity: 2
+    title: The kind-3 lane-branch name comes from one product function shared by the reader, the oracle and every fixture, so a naming regression is invisible
+    evidence:
+      - artifact: "plan.md D-P6 (the oracle shares the product's is_mission_completed and materialize_snapshot; expected names tested with git rev-parse)"
+      - code: "tests/contract/_mission_status_oracles.py:27,306 (oracle imports and calls code_lane_branch_name)"
+      - code: "tests/contract/_mission_status_drift.py:446 (reader calls code_lane_branch_name)"
+      - code: "tests/contract/test_mission_status_drift.py:57 (LANE_BRANCH = code_lane_branch_name(SLUG, LANE_ID)); test_mission_status_reality.py:3117 (the plant creates its branch the same way)"
+      - artifact: "Revert probe on the clone: src/specify_cli/lanes/branch_naming.py code_lane_branch_name was given a '-renamed' suffix. test_mission_status_drift.py (every row and every mutation) and the reality kind-3 corpus, planted and oracle cases all stayed green: 62 passed."
+    claim: >
+      D-P6 lists two product functions the kind-3 oracle may share. The oracle also shares the lane-branch naming function, and the
+      fixtures build their branches with it too. The reader, the oracle and the plants therefore agree by construction on whatever
+      the function returns. A wrong expected name, which is the false-positive class of risk P-5 the honest rule exists to expose,
+      shows up in no test. Only the Mission-level branch is spelled literally anywhere (test_mission_status_drift.py:892).
+    remediation: >
+      Pin the lane-branch shape independently once: either spell the expected lane name in the oracle literally
+      (f"kitty/mission-{slug}-{lane_id}" for the current-shaped slugs of the corpus), or add a drift-row assertion that LANE_BRANCH
+      equals a literal string. A naming change then fails one named test.
+  - id: PR-TESTS-004
+    lens: mutation tables (kill for the intended reason)
+    severity: 2
+    title: _problems_or_raised credits any exception as a kill, and one Ops mutation is killed only by the mutant's own crash
+    evidence:
+      - code: "tests/contract/test_mission_status_ops.py:1575-1590; test_mission_status_drift.py:1804-1819; test_mission_status_project.py:797-812 (except Exception -> 'raised ...' counts as killed)"
+      - code: "tests/contract/test_mission_status_ops.py:1409-1429 (_index_profile_filters: json.loads per index line, catching only ValueError)"
+      - code: "tests/contract/test_mission_status_ops.py:617-620 (row5 plants a '[' * 100_000 index line)"
+      - artifact: "Kill-reason probe over all 42 mutations: 'index-profile-filters' -> row5 'raised RecursionError: maximum recursion depth exceeded' (the mutant's own json.loads on the planted line). With the mutant made to catch RecursionError, row5 kills it for the intended reason (the three index-profile assertions). Also 'eager-500-on-legacy' -> row8 \"raised KeyError: 'skippedCount'\" (the row reads the body before checking the status). The other 40 kills are assertion failures or the intended UnexpectedWrite, UnexpectedProcess and propagated-exception raises."
+    claim: >
+      The mutation proof (kind M) is meant to show that each row detects the defect it names. Today a mutant with a typo, a wrong
+      signature or a crash of its own is reported as killed. index-profile-filters is in fact recorded as killed by its own
+      RecursionError, not by the profile assertions. The table stays green if those assertions are later weakened, so it no longer
+      proves what its name says.
+    remediation: >
+      Add a CRASH_KILLS set naming the mutations whose intended kill is a raise: call-materialize, subprocess-for-head,
+      unguarded-load, wrap-cli-version, unguarded-activity and no-exception-fallback. For every other mutation, require at least
+      one problem line that does not start with "raised". Make _index_profile_filters catch RecursionError, and make row8 check
+      the status before it reads skippedCount.
+  - id: PR-TESTS-005
+    lens: timing tests (flakiness under CI load, margins)
+    severity: 2
+    title: The 0.1 s redaction bound has a 3.5x local margin, and the CI run never prints the measured minimum, so the D-P16 margin rule cannot be applied to CI
+    evidence:
+      - artifact: "plan.md D-P16 (a margin under a factor of 2 goes to the operator); D-P5 (local-to-CI factor about 1.7)"
+      - code: "tests/contract/test_mission_status_ops.py:47 (REDACTION_BOUND = 0.1), 1184-1198 (timing_problems: the minimum appears only in a failure line)"
+      - artifact: "Measured at 256 KiB on the clone, idle machine: no whitespace 0.0250 s (4.0x), repeated address starts 0.0286 s (3.5x), repeated host path roots 0.0246 s (4.1x). For contrast, the reality listing case prints its minimum and margin (test_mission_status_reality.py:2911-2914)."
+    claim: >
+      The case runs in the blocking `tests (contract tools)` job under -n 4. By the plan's own 1.7 factor, the CI margin of the
+      worst shape is about 2.1x, which sits on the D-P16 escalation line. The minimum-of-5 method absorbs contention, but it does
+      not absorb a slower CPU. The measured minimum reaches the log only when the case fails, so neither W-7 nor a later
+      flake triage can see the CI margin.
+    remediation: >
+      Print each shape's minimum and its margin to REDACTION_BOUND (and the same for the 10,000-file case), as
+      test_corpus_ops_listing_is_within_five_seconds already does. At W-7, read the margin from the first PR run's log, and send
+      any margin under 2x to the operator, as D-P16 requires.
+  - id: PR-TESTS-006
+    lens: corpus tests (CI robustness of the online and offline arms, named-skip discipline)
+    severity: 2
+    title: In the blocking corpus job, a transient ls-remote failure turns 12 resolver cases into named skips and the job stays green, with no visible signal
+    evidence:
+      - code: "tests/contract/_mission_status_oracles.py:99-117 (probe_remotes: any error or a 5 s timeout makes the remote unreachable)"
+      - code: "tests/contract/test_mission_status_reality.py:2211-2220 (case_ledger skips by name), 3809-3812 (the ledger accepts the offline plan)"
+      - code: ".github/workflows/ci-router.yml:965-986 (tests (corpus-blocking): no -rs, so a skip is a bare 's')"
+      - artifact: "Offline run on the clone (a second remote pointed at a missing path): 710 passed, 12 skipped, exit 0. The ledger test passes."
+    claim: >
+      The named-skip discipline holds: every skip is named and counted. But the required job cannot tell "this runner had no
+      network" apart from "SC-002/SC-007 verified". One failed `git ls-remote` against GitHub skips the drift-scan 200, the
+      fallback list, kinds 1 to 3, the per-Mission equality, payload validation and the three timing bounds, and the router gate
+      stays green. The plan says an offline run is no evidence (FRESH4-001), but nothing in CI makes the offline case visible to
+      the reviewer who reads a green check.
+    remediation: >
+      Keep the operator-ruled skip. When GITHUB_ACTIONS is set and remote_state is offline, have the last test of the reality file
+      print a `::warning::` annotation naming the unreachable remotes and the 12 skipped cases, so a green-but-offline run shows
+      on the PR. Add `-rs` to the corpus-blocking pytest command.
+  - id: PR-TESTS-007
+    lens: vacuous or tautological tests (stale test prose)
+    severity: 1
+    title: The drift row14 docstring still says the spec expects a 500 for an unreachable remote
+    evidence:
+      - code: "tests/contract/test_mission_status_drift.py:936-942 (row14_problems docstring: 'The spec (FRESH3-001, AC-DRIFT 14) expects a 500 here')"
+      - artifact: "spec.md AC-DRIFT row 'a remote that cannot be asked' (line 606) and FRESH3-001: a 200 read from the own directory with no fallback entry (operator ruling at WP07, 2026-10-06)"
+    claim: >
+      The row correctly pins the 200, but its prose describes a spec that has since been amended. A reader of the test would think
+      the test knowingly departs from the spec.
+    remediation: >
+      Reword the first sentence to say that the spec, as amended by the operator ruling at WP07 (2026-10-06), expects a 200 with no
+      fallback entry, and that this row pins it.

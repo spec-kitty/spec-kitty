@@ -57,16 +57,18 @@ falling back to the generic path unchanged (#1784).
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 import typer
 from specify_cli.cli.console import console
 from specify_cli.cli.commands._commit_message import MESSAGE_OPTION_HELP, join_message_paragraphs
 
-from kernel.git import GitCommandError, status_entries
-from kernel.resolution import resolve_rejecting_loops
+from kernel.git import GitCommandError, GitPath, StatusEntry, is_tracked, status_entries
+from kernel.resolution import resolve_commit_path
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
@@ -138,19 +140,51 @@ def _current_worktree_root() -> Path:
     return fallback_root
 
 
-def _changed_paths_under(repo_root: Path, rel_dir: str) -> list[str]:
-    """Return changed / untracked files (relative to ``repo_root``) under ``rel_dir``.
-
-    Uses ``kernel.git.status_entries`` (untracked files expanded) scoped to the
-    directory so the expansion is validated against the actual worktree state —
-    a directory argument resolves to exactly the files git would stage.
-    """
+def _worktree_status_entries(repo_root: Path, rel_dir: str) -> tuple[StatusEntry, ...]:
+    """One whole-worktree ``git status`` (untracked files expanded); a failed probe aborts the command."""
     try:
-        entries = status_entries(repo_root, untracked="all", pathspecs=[rel_dir])
+        return status_entries(repo_root, untracked="all")
     except GitCommandError as exc:
         # Guard: this decides what a directory argument commits, so a failed probe aborts.
         raise RuntimeError(f"Unable to inspect directory '{rel_dir}' before commit.") from exc
-    return [str(entry.path) for entry in entries]
+
+
+def _changed_paths_under(repo_root: Path, rel_dir: str, entries: Sequence[StatusEntry] | None = None) -> list[str]:
+    """Return changed / untracked files (relative to ``repo_root``) under ``rel_dir``.
+
+    Uses ``kernel.git.status_entries`` (untracked files expanded), filtered to the
+    directory, so the expansion is validated against the actual worktree state —
+    a directory argument resolves to exactly the files git would stage.
+
+    A staged rename contributes BOTH sides (#5401): committing only the new
+    path would leave the old path in HEAD and a staged deletion behind. A rename
+    with one side outside ``rel_dir`` is refused, never auto-included. Git only
+    pairs a rename when both sides are in the status scope, so the status is
+    read for the whole worktree and filtered here by component-wise containment.
+
+    Cost: one whole-repository ``git status --untracked-files=all`` per command
+    (the caller passes the *entries* it read once for every directory argument), so a
+    large untracked, non-ignored tree anywhere in the checkout slows the expansion even
+    when it is outside ``rel_dir``.
+    """
+    if entries is None:
+        entries = _worktree_status_entries(repo_root, rel_dir)
+    directory = GitPath(()) if rel_dir == "." else GitPath.parse(rel_dir)
+
+    def _inside(path: GitPath) -> bool:
+        return not directory.parts or directory.contains(path)
+
+    paths: list[str] = []
+    for entry in entries:
+        sides = [entry.path] if entry.orig_path is None else [entry.orig_path, entry.path]
+        inside = [side for side in sides if _inside(side)]
+        if not inside:
+            continue
+        if len(inside) != len(sides):
+            outside = next(side for side in sides if not _inside(side))
+            raise ValueError(f"Rename crosses the directory argument {rel_dir}/: {outside} is outside it; commit both paths explicitly")
+        paths.extend(str(side) for side in sides)
+    return paths
 
 
 def _expand_arguments(
@@ -166,6 +200,7 @@ def _expand_arguments(
     expanded: list[Path] = []
     report_lines: list[str] = []
     seen: set[Path] = set()
+    entries: tuple[StatusEntry, ...] | None = None
 
     def _add(path: Path) -> None:
         if path not in seen:
@@ -173,10 +208,14 @@ def _expand_arguments(
             expanded.append(path)
 
     for path in normalized_files:
-        if path.is_dir():
+        # A symlinked directory is one 120000 entry, never a directory to expand: dropping this
+        # guard reports a bogus "Expanding linkdir/ → 1 files: linkdir" (pinned by the symlinked-dir test).
+        if path.is_dir() and not path.is_symlink():
             rel_dir = str(path.relative_to(repo_root))
-            contained = _changed_paths_under(repo_root, rel_dir)
-            contained_abs = [(repo_root / rel).resolve() for rel in contained]
+            if entries is None:
+                entries = _worktree_status_entries(repo_root, rel_dir)
+            contained = _changed_paths_under(repo_root, rel_dir, entries)
+            contained_abs = [repo_root / rel for rel in contained]
             display = ", ".join(contained) if contained else "(no changed files)"
             report_lines.append(
                 f"Expanding {rel_dir}/ → {len(contained_abs)} files: {display}"
@@ -186,6 +225,24 @@ def _expand_arguments(
         else:
             _add(path)
     return expanded, report_lines
+
+
+def _refuse_unknown_paths(repo_root: Path, arguments: list[Path]) -> None:
+    """Refuse an argument that is neither on disk nor known to git (#4722).
+
+    A typo previously read as "No requested changes" (exit 0). A deleted tracked
+    file stays valid: it is tracked in the index or carries a status entry.
+    """
+    for path in arguments:
+        if os.path.lexists(path):
+            continue
+        rel = str(path.relative_to(repo_root))
+        try:
+            known = is_tracked(repo_root, rel) or bool(status_entries(repo_root, untracked="all", pathspecs=[rel]))
+        except GitCommandError as exc:
+            raise RuntimeError(f"Unable to inspect '{rel}' before commit.") from exc
+        if not known:
+            raise ValueError(f"Unknown path (did not match any files: not on disk and not known to git): {rel}")
 
 
 def _has_candidate_changes(repo_root: Path, files_to_commit: list[Path]) -> bool:
@@ -225,7 +282,7 @@ def _mission_slug_from_paths(repo_root: Path, files: list[Path]) -> str | None:
     """
     for path in files:
         try:
-            rel = path.resolve().relative_to(repo_root.resolve())
+            rel = resolve_commit_path(repo_root, path).relative_to(repo_root.resolve())
         except ValueError:
             continue
         parts = rel.parts
@@ -247,7 +304,7 @@ def _mission_file_kind(repo_root: Path, files: list[Path], mission_slug: str) ->
     """
     for path in files:
         try:
-            rel = path.resolve().relative_to(repo_root.resolve())
+            rel = resolve_commit_path(repo_root, path).relative_to(repo_root.resolve())
         except ValueError:
             continue
         kind = kind_for_mission_file(rel, mission_slug=mission_slug)
@@ -401,11 +458,12 @@ def _resolve_capability_for_target(
     return GuardCapability.STANDARD
 
 
-def _resolve_file_argument(candidate: Path) -> Path:
-    """Resolve one CLI file argument, refusing a symlink loop on every interpreter (#3189).
+def _resolve_file_argument(repo_root: Path, candidate: Path) -> Path:
+    """Resolve one CLI file argument: parents resolved, a link leaf kept (#5671), a loop refused (#5251).
 
-    ``resolve_rejecting_loops`` behaves exactly like non-strict
-    ``Path.resolve()`` except that a symlink loop anywhere in ``candidate``
+    ``resolve_commit_path`` resolves the parent directories but keeps the final
+    component, so a symlink argument names the link git stores (mode 120000),
+    never its target. A symlink loop anywhere in ``candidate``
     always raises ``OSError(errno.ELOOP, ...)`` -- on every interpreter this
     project supports, not only 3.11/3.12's own non-strict probe (3.13+ no
     longer performs that probe itself, so an un-migrated ``.resolve()`` call
@@ -417,7 +475,7 @@ def _resolve_file_argument(candidate: Path) -> Path:
     elsewhere in the command body is not silently swallowed by this fix.
     """
     try:
-        return resolve_rejecting_loops(candidate)
+        return resolve_commit_path(repo_root, candidate)
     except OSError as exc:
         raise ValueError(f"Symlink loop while resolving file argument {candidate}: {exc}") from exc
 
@@ -449,10 +507,11 @@ def safe_commit_command(
         commit_message = join_message_paragraphs(message)
         repo_root = _current_worktree_root()
         normalized_files = [
-            _resolve_file_argument(repo_root / file_path if not file_path.is_absolute() else file_path)
+            _resolve_file_argument(repo_root, file_path)
             for file_path in files
         ]
 
+        _refuse_unknown_paths(repo_root, [path for path in normalized_files if not path.is_dir() or path.is_symlink()])
         expanded_files, expansion_report = _expand_arguments(repo_root, normalized_files)
         rel_files = [str(path.relative_to(repo_root)) for path in expanded_files]
 

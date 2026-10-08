@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: "Real departure, fork (A keep plan and amend spec, B keep spec); spec AC-REALITY 2 and 3 and FR-025 skip the Ops walk, skippedCount and fingerprint offline while plan Departs 5 and the design notes run them in both, under a header saying the spec text is left as it is."
+  - id: PLAN-GOV-002
+    verdict: refuted
+    reason: "The plan already discloses the widening explicitly (PD-2, Departs 1, Constraints line, final-report acknowledgement request) and spec item (5) itself admits registrations where a new module needs one, so this is a handled operator-acknowledgement step, not an undisclosed defect."
+  - id: PLAN-GOV-003
+    verdict: confirmed
+    reason: "The FR-024 trace cell says AC rows are marked in the Test strategy, but grep shows no Test strategy row cites FR-024 or its catalogue lines, so the cited convention does not exist."
+  - id: PLAN-GOV-004
+    verdict: confirmed
+    reason: "Verified in plan.md that FR-010 to FR-012 name no AC rows, NFR-001 and NFR-009 omit AC-CROSS 4, and FRESH-005 points to AC-PROJECT 7 although the cost-sentence row is AC-PROJECT 8."
+  - id: PLAN-GOV-005
+    verdict: refuted
+    reason: "The plan names six scope, pair and proof-message literals and restricts the hoist to those data classes with a re-count drop rule, so the finding's claim that the plan includes project branch and ArtifactRefusal is not supported by the plan text."
+  - id: PLAN-GOV-006
+    verdict: refuted
+    reason: "The plan does decide the glossary question (Gate set row: terms stay spec-defined and schema-described, no glossary entry because it is outside the file set), so the claim that it decides nothing is false and the residual drift-collision wording is a minor description point."
+  - id: PLAN-GOV-007
+    verdict: refuted
+    reason: "The read is a mirror that serves records as written and the contract judges no record truthfulness, so accounting for an Op record quality ledger class in R-14 changes no observable contract outcome and is an assumption, not a plan defect."
+  - id: PLAN-GOV-008
+    verdict: confirmed
+    reason: "tracer-design-decisions.md line 46 quotes the codes SK-02 and SK-91, which are literally existing private ledger entry ids, contradicting C-005 and the later no-ledger-ids line; rewording without the values is trivial."

@@ -203,6 +203,19 @@ def test_an_appended_non_claim_status_event_between_claims_still_blocks(repo: Pa
     assert f"kitty-specs/{SLUG}/status.events.jsonl" in flat(result.output)
 
 
+def test_an_appended_blank_status_line_between_claims_still_blocks(repo: Path) -> None:
+    """An unrelated log edit is not a claim transition, even when it is blank."""
+    mission = _independent_lanes_mission(repo)
+    assert _claim("WP01").exit_code == 0
+    with mission.events_path.open("a", encoding="utf-8") as handle:
+        handle.write("\n")
+
+    result = _claim("WP02")
+
+    assert result.exit_code == 1, result.output
+    assert f"kitty-specs/{SLUG}/status.events.jsonl" in flat(result.output)
+
+
 def test_a_corrupt_status_log_between_claims_still_reads_as_not_committed(repo: Path) -> None:
     """A corrupt event log keeps both status files in the "not committed" set; it never raises.
 

@@ -149,7 +149,7 @@ def test_the_real_pin_file_pins_the_three_vocabularies() -> None:
 def test_the_real_mission_status_module_passes_against_the_default_pin_file() -> None:
     result = _run("--root", str(CONTRACTS), "--module", "mission-status")
     assert result.returncode == 0, result.stdout
-    assert result.stdout.splitlines()[-1] == "counts: enums=7 values=43"
+    assert result.stdout.splitlines()[-1] == "counts: enums=20 values=72"
 
 
 @pytest.fixture
@@ -177,3 +177,94 @@ def test_a_real_copy_without_a_topology_value_fails(module_copy: Path) -> None:
     result = _run("--root", str(module_copy), "--module", "mission-status")
     assert result.returncode == 1
     assert "ENUM_VALUE_REMOVED: mission-status:Topology" in result.stdout
+
+
+def test_the_project_health_enum_is_pinned_in_snake_case() -> None:
+    assert _real_pins()["mission-status"]["ProjectHealth"] == ["healthy", "schema_drift"]
+
+
+def test_a_camel_case_health_value_fails_the_pin_in_both_directions(module_copy: Path) -> None:
+    control = _run("--root", str(module_copy), "--module", "mission-status")
+    assert control.returncode == 0, control.stdout
+    target = module_copy / "mission-status" / "schemas" / "ProjectHealth.yaml"
+    document = yaml.safe_load(target.read_text(encoding="utf-8"))
+    assert "schema_drift" in document["enum"], "the plant would change nothing"
+    document["enum"] = ["schemaDrift" if value == "schema_drift" else value for value in document["enum"]]
+    target.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    result = _run("--root", str(module_copy), "--module", "mission-status")
+    assert result.returncode == 1
+    assert "ENUM_VALUE_ADDED: mission-status:ProjectHealth" in result.stdout
+    assert "ENUM_VALUE_REMOVED: mission-status:ProjectHealth" in result.stdout
+
+
+DRIFT_PINS = {
+    "DriftKind": ["snapshot_disagrees_with_event_log", "snapshot_or_event_log_missing", "lane_branch_missing"],
+    "DriftSeverity": ["error", "warning"],
+    "DriftAuthority": ["event_log", "git"],
+    "DriftSide": ["status_json", "lanes_json"],
+    "DriftRemedy": ["materialize_status"],
+    "DriftRefusalCode": ["mission_not_found", "drift_scan_unreadable"],
+}
+
+
+@pytest.mark.parametrize(("name", "values"), sorted(DRIFT_PINS.items()))
+def test_each_drift_enum_is_pinned_with_its_snake_case_values(name: str, values: list[str]) -> None:
+    assert _real_pins()["mission-status"].get(name) == values
+
+
+def test_the_drift_pins_carry_no_value_without_a_producer() -> None:
+    pinned = {value for name in DRIFT_PINS for value in _real_pins()["mission-status"].get(name, [])}
+    assert pinned, "the drift pins are absent"
+    assert not pinned & {"info", "derived_view_stale", "derived_views", "meta"}, pinned
+
+
+def test_the_pin_file_holds_the_eight_earlier_the_six_drift_and_the_six_ops_enums() -> None:
+    pins = _real_pins()["mission-status"]
+    assert len(pins) == 20 and sum(len(values) for values in pins.values()) == 72
+
+
+def test_a_camel_case_drift_kind_value_fails_the_pin_in_both_directions(module_copy: Path) -> None:
+    control = _run("--root", str(module_copy), "--module", "mission-status")
+    assert control.returncode == 0, control.stdout
+    target = module_copy / "mission-status" / "schemas" / "DriftKind.yaml"
+    document = yaml.safe_load(target.read_text(encoding="utf-8"))
+    assert "snapshot_or_event_log_missing" in document["enum"], "the plant would change nothing"
+    document["enum"] = ["snapshotOrEventLogMissing" if value == "snapshot_or_event_log_missing" else value for value in document["enum"]]
+    target.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    result = _run("--root", str(module_copy), "--module", "mission-status")
+    assert result.returncode == 1
+    added = [line for line in result.stdout.splitlines() if "ENUM_VALUE_ADDED: mission-status:DriftKind" in line]
+    removed = [line for line in result.stdout.splitlines() if "ENUM_VALUE_REMOVED: mission-status:DriftKind" in line]
+    assert added and "snapshotOrEventLogMissing" in added[0]
+    assert removed and "snapshot_or_event_log_missing" in removed[0]
+
+
+OPS_PINS = {
+    "OpsModeOfWork": ["task_execution", "advisory", "mission_step", "query"],
+    "OpsInvocationStatus": ["open", "closed"],
+    "OpsOutcome": ["done", "failed", "abandoned"],
+    "OpsClosedBy": ["agent", "doctor_sweep"],
+    "OpsEvidenceKind": ["repo_path", "url", "text"],
+    "OpsRefusalCode": ["ops_unreadable"],
+}
+
+
+@pytest.mark.parametrize(("name", "values"), sorted(OPS_PINS.items()))
+def test_each_ops_enum_is_pinned_with_its_snake_case_values(name: str, values: list[str]) -> None:
+    assert _real_pins()["mission-status"].get(name) == values
+
+
+def test_a_camel_case_ops_closed_by_value_fails_the_pin_in_both_directions(module_copy: Path) -> None:
+    control = _run("--root", str(module_copy), "--module", "mission-status")
+    assert control.returncode == 0, control.stdout
+    target = module_copy / "mission-status" / "schemas" / "OpsClosedBy.yaml"
+    document = yaml.safe_load(target.read_text(encoding="utf-8"))
+    assert "doctor_sweep" in document["enum"], "the plant would change nothing"
+    document["enum"] = ["doctorSweep" if value == "doctor_sweep" else value for value in document["enum"]]
+    target.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+    result = _run("--root", str(module_copy), "--module", "mission-status")
+    assert result.returncode == 1
+    added = [line for line in result.stdout.splitlines() if "ENUM_VALUE_ADDED: mission-status:OpsClosedBy" in line]
+    removed = [line for line in result.stdout.splitlines() if "ENUM_VALUE_REMOVED: mission-status:OpsClosedBy" in line]
+    assert added and "doctorSweep" in added[0]
+    assert removed and "doctor_sweep" in removed[0]

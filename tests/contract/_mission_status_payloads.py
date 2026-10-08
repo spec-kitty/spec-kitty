@@ -137,6 +137,8 @@ SCHEMA_ARTIFACT_LISTING = "ArtifactListing"
 SCHEMA_ARTIFACT_CONTENT = "ArtifactContent"
 SCHEMA_ARTIFACT_REFUSAL = "ArtifactRefusal"
 SCHEMA_DETAIL_REFUSAL = "WorkPackageDetailRefusal"
+SCHEMA_DRIFT_REPORT = "DriftReport"
+SCHEMA_OPS_PAGE = "OpsInvocationPage"
 DROPPED_INVALID_WP_ID = "status-transition:invalid-wp-id"
 DROPPED_UNKNOWN_ROW = "unknown-row"
 
@@ -192,6 +194,18 @@ class Floors:
     readable_true: int = 14000
     redacted_files: int = 970
     missions_without_lanes: int = 72
+    # The health, drift and Ops reads (D-P13): fixed at plan time below the plan-time measurement by one stated rule, and never re-pinned.
+    missions_examined: int = 540
+    ops_served: int = 440
+    spine_closed_ops: int = 5
+    evidence_none: int = 330
+    evidence_absolute_path: int = 28
+    evidence_free_text: int = 50
+    evidence_relative_reference: int = 25
+    evidence_url: int = 0  # fixture-only: the corpus holds no address
+    kind1_findings: int = 39
+    kind2_findings: int = 27
+    completion_compared: int = 490
 
 
 FLOORS = Floors()
@@ -338,9 +352,29 @@ def derive_ready_to_start(status_lane: str | None, readiness_satisfied: bool) ->
     return status_lane == "planned" and readiness_satisfied
 
 
-def derive_project(name: str, overviews: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
-    """``missionCount`` is the number of overview records."""
-    return {"name": name, "missionCount": len(overviews)}
+def derive_project(
+    name: str,
+    overviews: Sequence[Mapping[str, Any]],
+    *,
+    spec_kitty_version: str | None,
+    schema_version: int | None,
+    health: str,
+    current_branch: str | None,
+) -> dict[str, Any]:
+    """The seven properties of ``Project``: ``missionCount`` is the number of overview records, ``lastActivityAt`` the latest instant of theirs.
+
+    The other four come from the project files, not from a Mission; the caller states them, so this stays the v1 derivation of the two
+    properties that depend on what ``GET /missions`` lists.
+    """
+    return {
+        "name": name,
+        "missionCount": len(overviews),
+        "specKittyVersion": spec_kitty_version,
+        "schemaVersion": schema_version,
+        "health": health,
+        "currentBranch": current_branch,
+        "lastActivityAt": _latest_instant(overview.get("lastActivityAt") for overview in overviews),
+    }
 
 
 def overview_order_key(overview: Mapping[str, Any]) -> tuple[Any, str]:
@@ -585,6 +619,8 @@ class Contract:
             SCHEMA_ARTIFACT_CONTENT,
             SCHEMA_ARTIFACT_REFUSAL,
             SCHEMA_DETAIL_REFUSAL,
+            SCHEMA_DRIFT_REPORT,
+            SCHEMA_OPS_PAGE,
         )
         missing = [title for title in wanted if title not in nodes]
         if missing:

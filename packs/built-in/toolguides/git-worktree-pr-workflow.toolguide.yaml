@@ -16,7 +16,7 @@ commands:
   - git fetch
   - git cherry-pick
   - git remote add
-last_updated: "2026-07-22"
+last_updated: "2026-10-07"
 references:
   - packs/built-in/tactics/pr-agent-worktree-isolation.tactic.yaml
   - packs/built-in/tactics/clean-linear-commit-history.tactic.yaml

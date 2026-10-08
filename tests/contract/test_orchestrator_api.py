@@ -298,7 +298,15 @@ class TestAllowedErrorCodes:
         assert emitted <= allowed
 
     def test_safe_commit_failure_codes_are_contract_allowed(self, orchestrator_api_contract):
+        # Walk every descendant, not only direct subclasses: a refinement such as
+        # a ``SafeCommitRecoveryFailed`` child carries its own code too.
         emitted = {SafeCommitError.error_code, SafeCommitBackstopError.error_code}
-        emitted.update(cls.error_code for cls in SafeCommitError.__subclasses__())
+        pending = list(SafeCommitError.__subclasses__())
+        while pending:
+            cls = pending.pop()
+            emitted.add(cls.error_code)
+            pending.extend(cls.__subclasses__())
+        for code in ("SAFE_COMMIT_PATH_LOOP", "SAFE_COMMIT_INDEX_DELETION_CONFLICT", "SAFE_COMMIT_INDEX_RESIDUE"):
+            assert code in emitted
         allowed = set(orchestrator_api_contract["allowed_error_codes"])
         assert emitted <= allowed

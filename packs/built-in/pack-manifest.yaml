@@ -495,7 +495,7 @@ constituents:
   kind: procedure
   path: procedures/migrate-project-guidance-to-spec-kitty-charter.procedure.yaml
   provenance_path:
-- content_hash: bd8587b3636f716aaa283a6067c9a22463a86ee1180f92d4dd27903f60dea42c
+- content_hash: 9613a16462de93a6a65c1c44e6ed93adb2056dd080d9ed4b4a7748df1f7b1f43
   id: mission-tracer-files
   kind: procedure
   path: procedures/mission-tracer-files.procedure.yaml
@@ -1307,7 +1307,7 @@ constituents:
   kind: toolguide
   path: toolguides/git-agent-commit-signing.toolguide.yaml
   provenance_path:
-- content_hash: 847de935dd4bd3fd0d841ad4e831e42a3d5da4111779f3057d5060dac4295165
+- content_hash: 9782ac98bbcb2d9cb46e0d8b83485af0c14cfdcad71e145b7ad020572bea9c6e
   id: git-worktree-pr-workflow
   kind: toolguide
   path: toolguides/git-worktree-pr-workflow.toolguide.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 67eede7fd793907e44d1dba6b4e5dc182ef05840d5da67c70a20d4635972165d
+manifest_hash: 0dcb54e323bf388d603f45e9b05dfef531707ccdffb7a8ec7ede40037ac302e8
 schema_version: '1'
 source_type: built-in
 source_url:

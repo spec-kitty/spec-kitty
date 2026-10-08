@@ -1,0 +1,57 @@
+title: DriftReport
+description: >-
+  The result of one scan of the Missions of the project for drift: where a derived file disagrees
+  with the record that decides it. At most 1000 findings are returned, sorted by Mission
+  identity, kind and artifact path in the byte order of the UTF-8 encoding, and truncated is true only
+  when more than 1000 existed (exactly 1000 is not truncated). findings is empty when the scan ran and found none. The scan reads and
+  never repairs, and the 200 answer is sent with Cache-Control no-store, so a rescan is a second
+  call. A Mission whose declared coordination branch no longer exists is scanned from its own
+  directory, which can lag the coordination surface. The stock coordination resolver may query
+  remotes, so the outcome depends on the network. An unreachable remote leaves the Mission read
+  from its own directory, and the answer is still a 200; a reachable remote that lacks the
+  declared branch is likewise read from its own directory; any other resolver error is a 500
+  drift_scan_unreadable.
+type: object
+additionalProperties: false
+required: [scannedAt, findings, truncated]
+properties:
+  scannedAt:
+    type: string
+    format: date-time
+    description: The time of this scan, as an RFC 3339 date-time. Every call reads again, so a second call has a later value.
+    x-derived:
+      rule: The service clock at the moment the scan started.
+      inputs:
+        - path: src/kernel/clock.py
+          symbol: now_utc
+  findings:
+    type: array
+    maxItems: 1000
+    items:
+      $ref: DriftFinding.yaml
+    description: >-
+      The findings of the scan, sorted by missionId, kind and artifactPath in byte order, at most
+      1000. The key is unique, because a Mission has at most one finding of a kind for a file, so
+      the order is total. The list is empty when the scan ran and found none.
+    x-derived:
+      rule: Every finding of the scan, sorted by missionId, kind and artifactPath in the byte order of the UTF-8 encoding, the first 1000 kept.
+      inputs:
+        - DriftFinding.missionId
+        - DriftFinding.kind
+        - DriftFinding.artifactPath
+  truncated:
+    type: boolean
+    description: True when more than 1000 findings existed and the list holds the first 1000 of them; false for exactly 1000.
+    x-derived:
+      rule: True exactly when the number of findings found by the scan is greater than 1000.
+      inputs:
+        - findings
+    x-provisional:
+      open_decision: >-
+        Whether the report is capped at 1000 findings or is paged is open, so this flag is a
+        proposal that a later minor version may replace by a page cursor.
+examples:
+  - $ref: ../examples/DriftReport.clean.yaml
+  - $ref: ../examples/DriftReport.populated.yaml
+  - $ref: ../examples/DriftReport.corrupt-json.yaml
+  - $ref: ../examples/DriftReport.truncated.yaml

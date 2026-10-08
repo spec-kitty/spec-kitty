@@ -68,6 +68,49 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
   `/api/research/*`, `/api/contracts/*`, `/api/checklists/*` and the artifact part of `/api/dossier/*`.
   The dossier overview and the snapshot export are not covered. The route-by-route mapping is the work of
   #5533 and is not recorded here.
+- `GET /drift` (`getDriftReport`): where derived state disagrees with its source, for the project or, with
+  the optional query parameter `missionId` (`DriftMissionId`), for one Mission. A scan reads and never
+  repairs; `scannedAt` is the time of the scan, the 200 carries `Cache-Control: no-store`, and a
+  `missionId` that names no Mission is a 404 (`DriftMissionNotFound`) while a scan that cannot read a
+  Mission is a 500 (`DriftScanUnreadable`), never a partial report. The stock coordination resolver may
+  query remotes; the network caveat and its error cases are stated once, in the operation description of
+  `GET /drift`. `findings: []` means the scan ran and found none.
+- The schemas `DriftReport`, `DriftFinding`, `LaneComparison`, `DriftKind` (three values:
+  `snapshot_disagrees_with_event_log`, `snapshot_or_event_log_missing` and `lane_branch_missing`),
+  `DriftSeverity` (`error`, `warning`), `DriftAuthority` (`event_log`, `git`), `DriftSide` (`status_json`,
+  `lanes_json`), `DriftRemedy` (`materialize_status`), `DriftRefusalCode` (`mission_not_found`,
+  `drift_scan_unreadable`) and `DriftRefusal`, the two responses `DriftMissionNotFound` (404) and
+  `DriftScanUnreadable` (500), and the tag `Drift`. The summary of a finding is one of six fixed sentences.
+- The report holds at most 1000 findings, sorted by `missionId`, `kind` and `artifactPath` in byte order,
+  with `truncated` set when more existed. `missionId` and `artifactPath` of `DriftFinding` are non-null:
+  every shipped kind belongs to one Mission and names one file.
+- The `info` value of the audit `Severity` is not carried: `DriftSeverity` is `error` and `warning` only.
+- A fourth kind, `derived_view_stale`, was considered and is not shipped. A kind ships only with an honest
+  rule and a real example. The rule could be written, but no example exists: `.kittify/derived/` is ignored
+  by git, untracked and written only on an operator machine, so a fresh clone has none, and the product has
+  retired its own check of derived views.
+- One read behaviour readers will meet: a manifest that predates `mission_slug` is not evaluated for
+  `lane_branch_missing` and no finding is reported for it; the two status files of that Mission are still
+  compared.
+- `GET /ops/invocations` (`listOpsInvocations`): one page of the Op invocation records of the project,
+  newest first (`startedAt` descending, ties by `invocationId` descending), with the optional query
+  parameter `profile` (`OpsProfile`) and the shared `PageSize` and `PageCursor`. It never starts an agent
+  and never writes. An Op is closed when its own file holds a completion or the closure spine holds a record
+  for its id. `totalCount` is the number of served Ops that match the filter and can lag the newest
+  records; `skippedCount` is the number of legacy or unreadable records, over the same candidate set and
+  independent of the filter. A directory, the closure spine or an Op file that exists but cannot be opened is a 500 (`OpsUnreadable`), never an
+  empty page. The operation carries `x-provisional`.
+- The schemas `OpsInvocationPage`, `OpsInvocation`, `OpsEvidence`, `OpsModeOfWork` (`task_execution`,
+  `advisory`, `mission_step`, `query`), `OpsInvocationStatus` (`open`, `closed`), `OpsOutcome` (`done`,
+  `failed`, `abandoned`), `OpsClosedBy` (`agent`, `doctor_sweep`), `OpsEvidenceKind` (`repo_path`, `url`,
+  `text`), `OpsRefusalCode` (`ops_unreadable`) and `OpsRefusal`, the response `OpsUnreadable` (500), the
+  parameter `OpsProfile` and the tag `Ops`. The record fields `request_text`, `model_id`,
+  `governance_context_hash`, `governance_context_available` and `router_confidence` are left out on
+  purpose, and the closed schema rejects a payload that carries one.
+- One read behaviour readers will meet: Op records with legacy or malformed content are skipped and counted in
+  `skippedCount`, never served and never a failure. Evidence that holds a credential is withheld (the
+  Op is served with `evidence` null), and other evidence has host paths, e-mail addresses and address
+  userinfo removed and is cut to 512 characters.
 
 ### Changed
 
@@ -122,6 +165,16 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
 - `StatusTransitionEvent` names the `StatusEvent` fields it leaves out, so projecting one later
   is a visible contract change.
 
+- Pre-release shape change: `Project` gains five required properties: `specKittyVersion`,
+  `schemaVersion`, `health` (the new schema `ProjectHealth`: `healthy`, `schema_drift`),
+  `currentBranch` and `lastActivityAt`. Each is required and nullable except `health`, so an
+  absent key is never a valid answer. The `Project` description now states that the read is
+  side-effect-free but not free: its cost grows with the Mission count and its git queries can
+  include network probes. The breaking-change tooling reports the four non-provisional additions
+  (`specKittyVersion`, `schemaVersion`, `currentBranch`, `lastActivityAt`) as breaking, because
+  they add required properties to an existing, closed response; this is the one change of an
+  existing response, made before the contract is released, and `health` is provisional.
+
 ### Removed
 
 - Nothing. This is the initial version.
@@ -158,13 +211,37 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
 - `WorkPackageDetailRefusalCode` (the schema) and `WorkPackageDetailRefusal` (the schema, with its
   `code`): the two codes and the status each takes are a proposal.
 - `kind` of `ArtifactReference`: it carries the provisional `ArtifactKind`.
+- `health` of `Project`: the two-value badge and the serving build's range rule are a proposal.
+- `DriftKind` (the schema) and the `kind` of `DriftFinding` that carries it (`DriftFinding.kind`): the
+  three kinds, the two checks behind `lane_branch_missing` and the decision not to ship `derived_view_stale`
+  are a proposal.
+- `remedy` of `DriftFinding` and the schema `DriftRemedy`: whether a finding names its repair, and the one
+  value `materialize_status`, are a proposal.
+- `laneComparison` of `DriftFinding`: the lane rows of a snapshot that disagrees with the event log are a
+  proposal.
+- `truncated` of `DriftReport` (`DriftReport.truncated`): the cap of 1000 findings may be replaced by paging.
+- `DriftRefusalCode` (the schema) and the `code` of `DriftRefusal` (`DriftRefusal.code`): the two codes and
+  the status each takes are a proposal.
+- `OpsRefusalCode` (the schema) and the `code` of `OpsRefusal` (`OpsRefusal.code`): the one code and the
+  status it takes are a proposal.
+- Properties whose bare name several schemas share are named here in full: `ArtifactEntry.kind`,
+  `ArtifactContent.kind`, `ArtifactReference.kind`, `ArtifactListing.truncated`, `ArtifactRefusal.code`,
+  `WorkPackageDetailRefusal.code`, `MissionHead.streamCursor`, `StatusTransitionEvent.streamCursor` and
+  `MissionLifecycleEvent.streamCursor` are each provisional, for the reasons given above.
+- `evidence` of `OpsInvocation`: the three classes of evidence, the removal of host paths and addresses, the
+  withholding of a credential and the cut at 512 characters are a proposal. The credential kinds checked
+  are the GitHub classic and fine-grained tokens, the AWS access key id and the private-key header; other
+  secret shapes are not detected.
+- `totalCount` and `skippedCount` of `OpsInvocationPage`: that the list carries a total which can lag the
+  newest records, and that legacy and unreadable records are skipped and counted, are a proposal.
+- `/ops/invocations` (`GET /ops/invocations`): the operation carries `x-provisional` because the legacy-record
+  rule has no property of its own; the marker is dropped once that rule and `skippedCount` are settled.
 
 ### Deferred to the next major version
 
-Four gaps are decided out of this release. Each would add a property to an existing, closed response, which the
+Three gaps are decided out of this release. Each would add a property to an existing, closed response, which the
 breaking-change check treats as breaking once the contract is released, so each waits for the next major version.
 
 - The per-Mission staleness on `MissionOverview`: a new property of an existing, closed response.
 - An actor on `WorkPackageSummary`: a new property of an existing, closed response.
-- The project branch: a new property of an existing, closed response.
 - The lane weights behind `weightedPercentage`: new properties of an existing, closed response.

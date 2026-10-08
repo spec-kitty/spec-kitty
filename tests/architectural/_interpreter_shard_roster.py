@@ -281,6 +281,7 @@ INTERPRETER_SHARDS: tuple[InterpreterShard, ...] = (
             "tests/specify_cli/core",
             "tests/specify_cli/events",
             "tests/specify_cli/git",
+            "tests/specify_cli/git_commit_scope",  # moved from tests/git_ops (#5443), same shard
             "tests/specify_cli/integration",
             "tests/specify_cli/invocation",
             "tests/specify_cli/mission_v1",

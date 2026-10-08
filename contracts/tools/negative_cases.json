@@ -2510,6 +2510,114 @@
       }
     },
     {
+      "id": "leak-scan-strict-specKittyVersion",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-specKittyVersion",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-currentBranch",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-currentBranch",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-profileId",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-profileId",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-action",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-action",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-invocationId",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-invocationId",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
+      "id": "leak-scan-strict-sourceCode",
+      "tool": "leak_scan.py",
+      "build": "leak:strict-sourceCode",
+      "plant": {
+        "args": [
+          "--root",
+          "{root}"
+        ],
+        "code": "HOST_PATH"
+      },
+      "control": {
+        "args": [
+          "--root",
+          "{root}"
+        ]
+      }
+    },
+    {
       "id": "leak-scan-artifact-path-empty",
       "tool": "leak_scan.py",
       "build": "leak:artifact-path-empty",

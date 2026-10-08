@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Literal
 from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
 from specify_cli.core.vcs.git import capture_branch_tip
+from specify_cli.git.merge_conclusion import MergeConclusionRefused, conclude_in_progress_op, run_committing_op
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import code_lane_branch_name, lane_branch_name, resolve_mid8, worktree_path as _worktree_path
 from specify_cli.lanes.compute import PLANNING_LANE_ID, has_code_lanes
@@ -1423,19 +1424,12 @@ def _merge_recorded_planning_commit(
     # all. Route through the pipeline's single env authority (AC-F1).
     env = _make_merge_env()
     with _ephemeral_merge_driver_activation(repo_root):
-        merge = subprocess.run(
-            [
-                "git",
-                "merge",
-                "--no-edit",
-                "-m",
-                f"Merge recorded planning-artifact commit into {lane_id} (FR-009)",
-                planning_commit_sha,
-            ],
-            cwd=str(worktree_path),
-            capture_output=True,
-            text=True,
+        merge = run_committing_op(
+            worktree_path,
+            "merge",
+            ["--no-edit", "-m", f"Merge recorded planning-artifact commit into {lane_id} (FR-009)", planning_commit_sha],
             env=env,
+            disable_gpgsign=False,
         )
     if merge.returncode != 0:
         # #4889 T006: capture the WP-task-file diagnostic BEFORE aborting --
@@ -1546,13 +1540,11 @@ def _auto_resolve_dependency_merge(worktree_path: Path, env: dict[str, str]) -> 
             return False
     except RuntimeError:
         return False
-    completed = subprocess.run(
-        ["git", "commit", "--no-edit"],
-        cwd=str(worktree_path),
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+    try:
+        # This conclusion never disabled signing; keep honouring commit.gpgsign.
+        completed = conclude_in_progress_op(worktree_path, env=env, disable_gpgsign=False)
+    except MergeConclusionRefused:
+        return False
     return completed.returncode == 0
 
 
@@ -1641,19 +1633,12 @@ def _merge_dependency_lane_tips(
             )
             if is_ancestor.returncode == 0:
                 continue
-            merge = subprocess.run(
-                [
-                    "git",
-                    "merge",
-                    "--no-edit",
-                    "-m",
-                    f"Merge dependency lane {dep_lane.lane_id} into {lane.lane_id}",
-                    dep_branch,
-                ],
-                cwd=str(worktree_path),
-                capture_output=True,
-                text=True,
+            merge = run_committing_op(
+                worktree_path,
+                "merge",
+                ["--no-edit", "-m", f"Merge dependency lane {dep_lane.lane_id} into {lane.lane_id}", dep_branch],
                 env=env,
+                disable_gpgsign=False,
             )
             if merge.returncode != 0:
                 if _auto_resolve_dependency_merge(worktree_path, env):

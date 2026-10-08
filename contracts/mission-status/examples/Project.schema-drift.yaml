@@ -1,0 +1,7 @@
+name: example-project
+missionCount: 2
+specKittyVersion: 3.1.0
+schemaVersion: 2
+health: schema_drift
+currentBranch: topic/example
+lastActivityAt: '2026-09-28T14:05:00+02:00'

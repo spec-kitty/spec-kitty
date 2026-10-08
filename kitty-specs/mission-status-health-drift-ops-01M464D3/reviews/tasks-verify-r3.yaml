@@ -1,0 +1,28 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: Step PD item 1 fixes the exact headings (Record Step 0, Hand-off WPxx (hash), Hygiene counts, J-1 (hash)), item 4 greps those headings, and all nine Pre-dispatch paragraphs plus WP10 name the same heading strings with the contracts-commit line check for WP07.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: Step PD item 6 has the orchestrator record exempt-count and whole-directory-count before WP10, W-5 and W-7 use the whole-directory count as FLOOR, and WP10 script/T053 use the exempt count, all consistently.
+  - id: TASKS-FRESH2-003
+    status: resolved
+    reason: The Step 0 baseline run (and the note 16 fallback) is added to the override sentence in tasks.md Step 0, quickstart.md (intro and table row) and the battery headers of WP03, WP07 and WP08.
+  - id: TASKS-FRESH2-004
+    status: resolved
+    reason: All three battery How-to-run paragraphs use background commands with exit-code files awaited by an until-loop monitor, never a foreground sleep loop, and Step 0 probes the primitive once and records permitted or not permitted, with the orchestrator-runs-the-legs fallback, matching note 16.
+  - id: TASKS-FRESH2-005
+    status: resolved
+    reason: Step PD and every Pre-dispatch paragraph now name only spec-kitty agent action implement WPxx --agent claude (matching each Implementation command and the existing CLI), with spec-kitty implement explained once as the internal allocator.
+  - id: TASKS-FRESH2-006
+    status: resolved
+    reason: Every WP Environment note carries the synced-python and synced-ruff substitution rule, WP10 and quickstart use the same placeholders, working branch no longer appears anywhere, and the quickstart sentence is tidied.
+  - id: TASKS-FRESH2-007
+    status: resolved
+    reason: tasks.md states the 12-14 and 15-16 mapping once, tasks.ruling.md ends with a Numbering section, and the prompts and quickstart cite ruling 14 and notes 15 and 16 with the file name.
+  - id: TASKS-FRESH2-008
+    status: resolved
+    reason: W-5 now says new-on-branch files are fixed in place before compaction because add-only is measured against the merge base at W-7, files already on the merge base are recorded and ruled, and WP10 states the same measure and that it never fixes hits itself.

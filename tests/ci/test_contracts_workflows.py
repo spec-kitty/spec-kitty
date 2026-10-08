@@ -1256,16 +1256,27 @@ def _src_files_imported_by_the_mission_status_contract_tests() -> set[str]:
     return imported
 
 
+def _src_files_cited_by_the_contract_x_derived_blocks() -> set[str]:
+    """The ``src/`` files the mission-status contract cites as ``x-derived`` inputs (``path: src/...``)."""
+    cited: set[str] = set()
+    for contract_file in (REPO_ROOT / "contracts" / "mission-status").rglob("*.yaml"):
+        cited.update(re.findall(r"path: (src/[A-Za-z0-9_/]+\.py)", contract_file.read_text(encoding="utf-8")))
+    return cited
+
+
 def _group_selects(group: list[str], path: str) -> bool:
     """True when a ``**/<tail>`` glob of the group names ``path`` (the group spells src files without their ``src/`` prefix)."""
     return any(glob.startswith("**/") and path.endswith("/" + glob[3:]) for glob in group)
 
 
-def test_the_contract_tools_filter_group_names_every_src_file_the_mission_status_reader_and_its_tests_import() -> None:
+def test_the_contract_tools_filter_group_names_every_src_file_the_mission_status_reader_its_tests_import_and_the_contract_cites() -> None:
     filters = yaml.safe_load(next(step for step in steps_of(jobs(load(ROUTER_TEXT))["changes"]) if step.get("id") == "filter")["with"]["filters"])
     group = filters["contract_tools"]
     imported = _src_files_imported_by_the_mission_status_contract_tests()
     assert len(imported) > 20, f"the import scan found too little: {sorted(imported)}"
+    cited = _src_files_cited_by_the_contract_x_derived_blocks()
+    assert "src/specify_cli/cli/commands/invocations_cmd.py" in cited, "the x-derived scan found nothing it should"
+    imported |= cited  # a file the contract cites is as much an input of the contract check as one the reader imports
     missing = sorted(path for path in imported if not _group_selects(group, path))
     assert missing == [], f"a change to these imported src files selects no `tests (contract tools)` run: {missing}"
 

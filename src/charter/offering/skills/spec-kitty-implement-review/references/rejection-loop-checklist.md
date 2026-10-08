@@ -6,7 +6,7 @@ Operational checklist for handling review rejections and re-implementation cycle
 
 - [ ] Reviewer attached a **rationale** to the rejection — a `--review-feedback-file <path>` (or `--note`). This is MANDATORY: it is recorded as the transition's `review_ref` / reason and travels on the event wire. A backward review-rejection edge (`* -> planned`, `in_review -> in_progress`) emitted WITHOUT a rationale is a contract-invalid status event — accepted locally but silently rejected by hosted sync, so the rejection never propagates.
 - [ ] Confirmed WP lane is `planned` with `review_status: has_feedback`
-- [ ] Committed status change from main: `git add kitty-specs/ && git commit -m "chore: Review feedback for WP## from <reviewer> (cycle X/3)"`
+- [ ] Confirmed the status change is committed. A `move-task` transition writes `kitty-specs/<mission>/status.events.jsonl` and `status.json` and commits them itself (default auto-commit), so nothing is left to stage. Only if you ran it with `--no-auto-commit` (or `auto_commit: false` in `.kittify/config.yaml`), or the step also wrote a review-feedback file in the repo such as `kitty-specs/<mission>/tasks/WP##-<slug>/review-cycle-N.md`, commit exactly those files by name: `spec-kitty safe-commit kitty-specs/<mission>/status.events.jsonl kitty-specs/<mission>/status.json kitty-specs/<mission>/tasks/WP##-<slug>/review-cycle-N.md -m "chore: Review feedback for WP## from <reviewer> (cycle X/3)"` (name only the files that changed)
 - [ ] Noted current cycle count (1, 2, or 3)
 
 ## Re-Implementation Dispatch

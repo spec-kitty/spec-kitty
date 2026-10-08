@@ -1246,11 +1246,10 @@ class TestImplementReceiptsNameRealBranch:
     def test_target_branch_receipt_names_the_target_branch_not_coordination(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """US6.2 positive control: the PRIMARY-group receipt names the
-        TARGET branch specifically, with its sha contained THERE -- an
-        "always print the coordination branch" implementation would fail
-        this (the target-branch receipt's sha is not generally on the
-        coordination branch)."""
+        """US6.2: receipts name the branch they really committed to. The claim
+        commits only the status pair, which a coordination Mission routes to
+        the coordination branch, so the receipt names that branch and none
+        claims the target branch."""
         from typer.testing import CliRunner
 
         from specify_cli import app as root_app
@@ -1274,18 +1273,20 @@ class TestImplementReceiptsNameRealBranch:
         assert result.exit_code == 0, result.output
 
         receipts = list(workflow._WORKFLOW_COMMIT_RECEIPTS)
-        target_receipts = [r for r in receipts if r.get("destination_ref") == target_branch]
-        coord_receipts = [
-            r for r in receipts if r.get("destination_ref") not in (target_branch, None)
-        ]
-        assert target_receipts, "expected a receipt naming the target branch (PRIMARY group)"
-        assert coord_receipts, "expected a separate receipt naming the coordination branch"
-        for receipt in target_receipts:
+        # The claim writes only the status pair (#5673); on a coordination Mission that pair lives on the
+        # coordination surface, so nothing is committed to the target branch and no receipt may claim it.
+        assert not [r for r in receipts if r.get("destination_ref") == target_branch], (
+            "a claim that commits nothing to the target branch must not name it in a receipt"
+        )
+        coord_receipts = [r for r in receipts if r.get("outcome") == "committed"]
+        assert coord_receipts, "expected a receipt naming the coordination branch"
+        for receipt in coord_receipts:
+            ref = str(receipt["destination_ref"])
             sha = str(receipt["sha"])
-            assert target_branch in _branch_contains(repo_root, sha), (
-                "the target-branch receipt's sha must be contained in the "
-                "target branch -- an implementation that always names the "
-                "coordination branch would fail this assertion"
+            assert ref != target_branch
+            assert ref in _branch_contains(repo_root, sha), "the receipt sha must be contained in the branch it names"
+            assert target_branch not in _branch_contains(repo_root, sha), (
+                "a coordination-surface sha must not be reachable from the target branch"
             )
         workflow._reset_workflow_receipts()
 

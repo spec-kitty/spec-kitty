@@ -1,0 +1,13 @@
+# Research
+
+Grounding (2026-10-07) and validation squad: `<operator-local squad notes>` (+ lensA/B/C.md). Key decisions:
+
+- **Single upgrade commit authority** — remove the runner's own commit; upgrade's baseline-scoped commit decides. Rationale: it already honours hooks and excludes dirty-at-baseline paths. Alternative rejected: a fail-loud commit inside the runner (a commit failure there triggers rollback plus false success).
+- **No commit after a failed upgrade** — gate at the commit decision in `upgrade.py` (~:1885), not in `finalize.py` (PR #5856 adjacency). Upgraded worktrees get the same rules in `upgrade/runner.py::_upgrade_worktrees` (verified on `origin/main` 7299fbe7a: `:554-555` flags manual review, `:609-612` skips the whole worktree commit, and the commit runs even when the worktree's migrations failed).
+- **Ignored paths** — keep the obsolete ignore lines instead of removing them, and exclude candidates equal to or under a path ignored at baseline, from one probe `kernel.git.status_entries(repo, untracked="normal", ignored=True)` (ignored directories collapse to one `!! dir/` entry; `-uall` would list every file under a large ignored tree — review M5). Alternative rejected: trusting the post-run ignore rules.
+- **Manual review** — only a missing version marker means customised (fix `_preserve` reasons in the globalize migrations); commit tool-written clean paths minus held files and name the held files (Decision `01M4AYQRGFPWSGN39HBBTTBFSR`). Root cause of the false flag: `specify_cli/__init__.py:128-131` skips runtime/global-command setup under `upgrade_intent`.
+- **Explicit-list rule** — the squad refuted a single "which paths" helper; claim and bake pass explicit written-path lists (Decision `01M4AY1QM21535SC7AZ6BC9NXT` scope, wording corrected).
+- **Gate starts empty** — ADR 2026-09-30-1; one merge-conclusion owner (Decision `01M4B2XJQ0JAHVXGVDNQBMF6XF`). git refuses a pathspec while concluding a merge/cherry-pick; `merge`/`revert` refuse over a staged unrelated file; `merge --squash` does not, so the owner asserts a fresh worktree for squashes.
+- **Symlinks** — one normalisation helper; never follow the final component; refuse looping links (#5251 / PR #5252); symlinked directory = link.
+- **Residuals / follow-ups**: implement's planning-artifacts auto-commit (follow-up issue); naming overlap paths; acceptance commits via `safe_commit`; mutation-journal cap; other docs showing `git add .` for new repositories; plumbing commits (`commit-tree`/`update-ref`) outside the gate (follow-up issue filed at closeout).
+- **Supply chain (DIRECTIVE_051)**: no dependency change — not applicable.

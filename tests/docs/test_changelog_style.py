@@ -720,6 +720,64 @@ def test_emphasis_and_fenced_stars_are_not_bullet_markers() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Leftover merge-conflict markers (#5906)
+# ---------------------------------------------------------------------------
+
+
+def _conflict_findings(*body: str) -> list[Finding]:
+    return [finding for finding in check(doc(*body)) if finding.rule == "conflict-marker"]
+
+
+@pytest.mark.parametrize("marker", ["<<<<<<< HEAD", "||||||| parent of abc123 (docs: x)", ">>>>>>> feature", "<<<<<<<", ">>>>>>>"])
+def test_a_conflict_marker_line_is_an_error_with_its_file_line(marker: str) -> None:
+    findings = _conflict_findings("### Fixed", "- **A** (#1). Short.", marker, "- **B** (#2). Short.")
+
+    assert [(f.severity, f.line) for f in findings] == [("error", _HEADING_LINE + 3)]
+    assert findings[0].where.startswith("[Unreleased] ")
+    assert findings[0].fix.startswith("Resolve the merge conflict")
+
+
+def test_a_full_diff3_conflict_flags_every_marker_including_the_divider() -> None:
+    body = ("### Fixed", "<<<<<<< HEAD", "- **A** (#1). Ours.", "||||||| base", "- **A** (#1). Base.", "=======", "- **A** (#1). Theirs.", ">>>>>>> topic")
+
+    assert [f.line for f in _conflict_findings(*body)] == [_HEADING_LINE + 2, _HEADING_LINE + 4, _HEADING_LINE + 6, _HEADING_LINE + 8]
+
+
+def test_a_bare_divider_outside_a_conflict_is_a_heading_underline_not_a_finding() -> None:
+    assert _conflict_findings("### Fixed", "- **A** (#1). Short.", "=======", "- **B** (#2). Short.") == []
+
+
+def test_the_divider_is_only_flagged_while_a_conflict_is_open() -> None:
+    body = ("### Fixed", "||||||| base", "=======", ">>>>>>> topic", "=======")
+
+    assert [f.line for f in _conflict_findings(*body)] == [_HEADING_LINE + 2, _HEADING_LINE + 3, _HEADING_LINE + 4]
+
+
+def test_marker_lookalikes_are_not_flagged() -> None:
+    body = ("### Fixed", "- **A** (#1). Uses `<<<<<<< HEAD` markers.", "  <<<<<<< indented", "<<<<<< six", "||||||||x eight", ">>>>>>>>x eight")
+
+    assert _conflict_findings(*body) == []
+
+
+def test_conflict_markers_inside_a_fenced_block_are_allowed() -> None:
+    body = ("### Fixed", "- **A** (#1). Short.", "```", "<<<<<<< HEAD", "||||||| base", "=======", ">>>>>>> topic", "```")
+
+    assert _conflict_findings(*body) == []
+
+
+def test_the_issue_5906_shape_is_caught() -> None:
+    body = (
+        "### Fixed",
+        "- **A** (#1). Short.",
+        "||||||| parent of c86dde6c34 (docs(changelog): owned checkouts no longer block each other (#5894))",
+        "- **B** (#2). Short.",
+        "||||||| parent of 4045be80cd (docs(changelog): commit-scope fixes for #5443)",
+    )
+
+    assert [f.line for f in _conflict_findings(*body)] == [_HEADING_LINE + 3, _HEADING_LINE + 5]
+
+
+# ---------------------------------------------------------------------------
 # T006: length (FR-011)
 # ---------------------------------------------------------------------------
 

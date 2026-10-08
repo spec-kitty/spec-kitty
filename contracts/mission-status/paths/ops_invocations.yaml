@@ -1,0 +1,45 @@
+get:
+  operationId: listOpsInvocations
+  summary: List the Op invocation records of the project.
+  description: >-
+    Returns one page of the Op invocations of the project, newest first: startedAt descending,
+    with ties broken by invocationId descending. An Op is one governed invocation of an agent
+    profile on an action, recorded in the Ops directory. Paging uses the shared opaque page
+    cursor: pass the nextPageCursor of one response as pageCursor to fetch the next page, and
+    stop when hasNextPage is false. A pageCursor that is malformed, forged, or issued for another
+    profile is answered with 400 and a problem whose code is invalid_page_cursor. The optional
+    profile query parameter keeps the Ops of one profile; a profile that matches no Op gives an
+    empty page, and a profile that fails its pattern is a 400 problem. Records with legacy
+    or malformed content are skipped, never served and never a failure: a record of an older shape, an
+    empty or truncated file, a file whose name differs from its invocation id, an index entry
+    that names no file and a malformed field are skipped and counted in skippedCount, over the
+    same candidate set as totalCount and independent of profile, because a skipped record has no
+    reliable profile. totalCount is the number of served Ops matching profile, and it can lag the
+    newest records, which an Op appended after the read began may not yet be part of. An Op is
+    closed when its own file holds a completion or the closure spine holds a record for its id.
+    A directory, the closure spine or an Op file that exists but cannot be opened is a 500 problem, never an empty page. The
+    operation never starts an agent and never writes.
+  tags:
+    - Ops
+  parameters:
+    - $ref: ../../_shared/parameters/PageSize.yaml
+    - $ref: ../../_shared/parameters/PageCursor.yaml
+    - $ref: ../parameters/OpsProfile.yaml
+  responses:
+    '200':
+      description: One page of Op invocations.
+      content:
+        application/json:
+          schema:
+            $ref: ../schemas/OpsInvocationPage.yaml
+    '400':
+      $ref: ../responses/PageCursorRefused.yaml
+    '500':
+      $ref: ../responses/OpsUnreadable.yaml
+    default:
+      $ref: ../../_shared/responses/Problem.yaml
+  x-provisional:
+    open_decision: >-
+      How legacy and unreadable Op records are handled (skipped and counted in skippedCount) and
+      the paging of the list are a proposal of this contract. The marker is dropped once the
+      handling of those records and the skippedCount property are settled.

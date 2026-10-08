@@ -69,6 +69,17 @@ def test_contracts_only_diff_selects_the_corpus_job_and_no_module_shard() -> Non
     assert select_modules(CONTRACTS_ONLY_PATHS, router=router) == frozenset()
 
 
+@pytest.mark.parametrize("path", ["kitty-ops/x.jsonl", "kitty-ops/closures.jsonl", "kitty-ops/01ABC.jsonl"])
+def test_an_ops_data_only_diff_selects_the_corpus_job(path: str) -> None:
+    """The reality check reads the Op files and the closure spine, so a PR that changes only ``kitty-ops/`` runs it."""
+    router = load_router()
+
+    selection = select_gates([path], router=router)
+
+    assert selection.matched_groups == {"corpus"}
+    assert selection.selected_jobs == router.always_on_jobs | _corpus_gated_jobs()
+
+
 def test_codeowners_alone_selects_nothing_in_the_router() -> None:
     router = load_router()
 

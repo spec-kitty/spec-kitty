@@ -1,0 +1,7 @@
+description: >-
+  The missionId names no Mission, refused with 404. The body is a problem details object whose
+  code is mission_not_found.
+content:
+  application/problem+json:
+    schema:
+      $ref: ../schemas/DriftRefusal.yaml

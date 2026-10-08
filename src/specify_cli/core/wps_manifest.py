@@ -93,7 +93,6 @@ class WpsManifest(BaseModel):
     """Top-level wps.yaml manifest."""
 
     work_packages: list[WorkPackageEntry]
-    _concern_tracking_fields_seen: bool | None = PrivateAttr(default=None)
     _concern_tracking_required: bool | None = PrivateAttr(default=None)
 
 
@@ -113,8 +112,6 @@ def _parse_wps_manifest(content: bytes | str, feature_dir: Path) -> WpsManifest:
     wps_raw: list[dict[str, Any]] = raw.get("work_packages", [])
     manifest = WpsManifest.model_validate(raw)
 
-    concern_tracking_fields_seen = False
-
     # Back-fill source-key presence on each entry using PrivateAttr mechanism.
     for entry, raw_wp in zip(manifest.work_packages, wps_raw):
         object.__setattr__(entry, "_dependencies_explicit", "dependencies" in raw_wp)
@@ -122,19 +119,11 @@ def _parse_wps_manifest(content: bytes | str, feature_dir: Path) -> WpsManifest:
         cross_cutting_explicit = "cross_cutting" in raw_wp
         object.__setattr__(entry, "_plan_concern_refs_explicit", plan_refs_explicit)
         object.__setattr__(entry, "_cross_cutting_explicit", cross_cutting_explicit)
-        concern_tracking_fields_seen = (
-            concern_tracking_fields_seen or plan_refs_explicit or cross_cutting_explicit
-        )
 
     object.__setattr__(
         manifest,
-        "_concern_tracking_fields_seen",
-        concern_tracking_fields_seen,
-    )
-    object.__setattr__(
-        manifest,
         "_concern_tracking_required",
-        concern_tracking_fields_seen or _plan_contains_implementation_concerns(feature_dir),
+        _plan_contains_implementation_concerns(feature_dir),
     )
 
     return manifest
@@ -207,8 +196,8 @@ def check_concern_refs_coverage(manifest: WpsManifest) -> list[str]:
         A (possibly empty) list of human-readable warning strings, one per
         uncovered WP.  An empty list means all WPs have adequate coverage.
     """
-    # Legacy manifests predate concern traceability. FR-010/NFR-001 require those
-    # files to finalize without new warning noise when no new fields are present.
+    # Coverage is only meaningful when plan.md declares IC-## concerns; without
+    # them there is nothing to cite, so stay quiet (#5079).
     if getattr(manifest, "_concern_tracking_required", None) is False:
         return []
 

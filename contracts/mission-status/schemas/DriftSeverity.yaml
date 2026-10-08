@@ -1,0 +1,14 @@
+title: DriftSeverity
+description: >-
+  How serious a drift finding is: error or warning. The audit vocabulary this is drawn from also
+  has an info value, which this contract does not carry because no drift finding is info.
+type: string
+enum:
+  - error
+  - warning
+x-source:
+  path: src/specify_cli/audit/models.py
+  symbol: Severity
+examples:
+  - error
+  - warning

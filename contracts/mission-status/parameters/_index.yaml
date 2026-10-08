@@ -1,8 +1,10 @@
 files:
   - ArtifactPath.yaml
+  - DriftMissionId.yaml
   - EventsMissionId.yaml
   - EventsStreamCursor.yaml
   - IncludePrompt.yaml
   - LastEventId.yaml
   - MissionId.yaml
+  - OpsProfile.yaml
   - WpId.yaml

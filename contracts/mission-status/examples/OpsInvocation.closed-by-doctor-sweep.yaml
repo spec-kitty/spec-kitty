@@ -1,0 +1,16 @@
+invocationId: 01K6TX6E1F2G3H4J5K6M7N8P9Q
+profileId: architect-alphonso
+action: analyze
+actor: operator
+modeOfWork: advisory
+startedAt: '2026-10-04T16:45:00Z'
+missionId: null
+wpId: null
+status: closed
+outcome: abandoned
+closedBy: doctor_sweep
+completedAt: '2026-10-05T08:00:00Z'
+evidence:
+  kind: text
+  value: Closed by the doctor sweep because no completion was recorded.
+  redacted: false

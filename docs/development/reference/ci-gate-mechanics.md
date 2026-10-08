@@ -653,7 +653,8 @@ The prose of those pages is linted by a separate, always-on job: see
 - **Symptom:** the job log lists one finding per line as
   `path:line: [rule] ... — fix`, ending in a summary line. It is not one of the
   docs-freshness or registration errors above. The guard's rules include
-  `bullet-marker` (a column-0 `* ` or `+ ` bullet) and banned-token checks on
+  `bullet-marker` (a column-0 `* ` or `+ ` bullet), `conflict-marker` (a leftover
+  `<<<<<<<`, `|||||||` or `>>>>>>>` line) and banned-token checks on
   prose between a `###`/`####` heading and its first bullet; the how-to lists
   every rule and the false-positive shapes (`WP-D-1`, `SC-2086`,
   `DEFAULT-branch`) to put in backticks.

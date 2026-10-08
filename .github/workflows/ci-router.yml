@@ -121,6 +121,9 @@ jobs:
       # Contract-tools group (#5558): non-src, like ci_config above; gates only `tests (contract tools)`
       # (together with `corpus`, which owns contracts/**). Never in the unmatched loop.
       contract_tools: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.contract_tools }}
+      # Mission-state group (#5864): non-src, like contract_tools above; gates only `mission-state audit`.
+      # Never in the unmatched loop.
+      mission_state: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.mission_state }}
       # Raw fail-closed catch-all signal (FR-004): any src/** changed but no named src group did.
       unmatched: ${{ steps.unmatched.outputs.unmatched }}
     steps:
@@ -232,6 +235,14 @@ jobs:
               - '.kittify/glossaries/**'
               - '.kittify/doctrine/**'
               - 'contracts/**'
+              # Intended: an Op-journal commit under kitty-ops/ triggers the corpus job (the Ops read of the reality suite reads it).
+              - 'kitty-ops/**'
+            # Mission-state group (#5864): NON-src (not in the unmatched loop); gates only `mission-state audit`.
+            # Every file of a Mission can change what `doctor mission-state --audit` reports (status.json against
+            # its event log, meta.json, lanes.json, WP frontmatter), and the `corpus` globs above name only the
+            # planning leaves, so a status-only diff used to select no job and a drifted snapshot landed unchecked (#5862).
+            mission_state:
+              - 'kitty-specs/**'
             e2e:
               - 'tests/e2e/**'
               - 'tests/cross_cutting/**'
@@ -289,36 +300,64 @@ jobs:
               - '**/status/lifecycle_events.py'
               # The src files the mission-status reference reader (tests/contract/_mission_status_*.py) and its tests import,
               # spelled the same way and for the same reason: a change to one of them must run `tests (contract tools)`, which is
-              # their only per-PR home. Pinned by tests/ci/test_contracts_workflows.py, which derives the list from the imports.
+              # their only per-PR home, plus the src files the contract's x-derived blocks cite. Pinned by
+              # tests/ci/test_contracts_workflows.py, which derives the list from the imports and from the x-derived paths.
               - '**/kernel/clock.py'
               - '**/kernel/errors.py'
               - '**/kernel/git/__init__.py'
+              - '**/kernel/git/listing.py'
               - '**/mission_runtime/__init__.py'
+              - '**/mission_runtime/context.py'
               - '**/mission_runtime/identity.py'
+              - '**/specify_cli/audit/classifiers/status_json.py'
+              - '**/specify_cli/audit/models.py'
               - '**/specify_cli/cli/commands/agent/tasks_move_task.py'
+              - '**/specify_cli/cli/commands/invocations_cmd.py'
+              - '**/specify_cli/consolidation/baseline.py'
               - '**/specify_cli/context/__init__.py'
               - '**/specify_cli/context/mission_resolver.py'
               - '**/specify_cli/coordination/surface_resolver.py'
+              - '**/specify_cli/coordination/workspace.py'
               - '**/specify_cli/core/dependency_graph.py'
               - '**/specify_cli/core/git_ops.py'
+              - '**/specify_cli/core/paths.py'
+              - '**/specify_cli/core/stale_detection.py'
+              - '**/specify_cli/core/subtask_rows.py'
               - '**/specify_cli/core/vcs/git.py'
+              - '**/specify_cli/core/version_checker.py'
               - '**/specify_cli/frontmatter.py'
+              - '**/specify_cli/git/remote_probes.py'
+              - '**/specify_cli/invocation/errors.py'
+              - '**/specify_cli/invocation/modes.py'
+              - '**/specify_cli/invocation/record.py'
+              - '**/specify_cli/invocation/writer.py'
+              - '**/specify_cli/lanes/_git.py'
               - '**/specify_cli/lanes/branch_naming.py'
               - '**/specify_cli/lanes/compute.py'
+              - '**/specify_cli/lanes/models.py'
               - '**/specify_cli/lanes/persistence.py'
+              - '**/specify_cli/migration/__init__.py'
+              - '**/specify_cli/migration/schema_version.py'
               - '**/specify_cli/mission_metadata.py'
               - '**/specify_cli/missions/_read_path_resolver.py'
               - '**/specify_cli/ownership/validation.py'
               - '**/specify_cli/policy/commit_guard.py'
               - '**/specify_cli/review/artifacts.py'
               - '**/specify_cli/review/cycle.py'
+              - '**/specify_cli/status/__init__.py'
               - '**/specify_cli/status/aggregate.py'
+              - '**/specify_cli/status/doctor.py'
+              - '**/specify_cli/status/lifecycle.py'
               - '**/specify_cli/status/models.py'
               - '**/specify_cli/status/progress.py'
               - '**/specify_cli/status/reducer.py'
+              - '**/specify_cli/status/store.py'
               - '**/specify_cli/status/tail_reader.py'
+              - '**/specify_cli/status/validate.py'
               - '**/specify_cli/status/wp_metadata.py'
+              - '**/specify_cli/status/wp_review.py'
               - '**/specify_cli/status/wp_view.py'
+              - '**/specify_cli/upgrade/metadata.py'
               - '**/specify_cli/workspace/context.py'
             # FR-004 probe: matches ANY src change. The `unmatched` step computes
             # `any_src AND NOT (any named src group)` from the filter's own outputs.
@@ -948,6 +987,10 @@ jobs:
   # Packs' advisory corpus run deselects exactly these selections, so nothing
   # runs twice. Pinned by tests/ci/test_corpus_blocking_home.py; a tests/contract module that
   # neither this job nor the tool-test job runs fails tests/ci/test_contracts_workflows.py.
+  # Wall-clock bounds (#5838): the four timing cases of tests/contract/test_mission_status_reality.py
+  # (BOUND_SECONDS, LISTING_BOUND_SECONDS) are `performance`-marked, so tests/conftest.py skips them here
+  # like TestShippedProfilesPerformance; the nightly `performance` job (ci-nightly.yml) runs them.
+  # Their correctness halves stay in this job.
   # Budget (2026-10-06, #5838): 20 minutes. On 25c03e3549 the job passed 877 tests in 5m47s
   # and was still cancelled at the old 10-minute cap: setup took ~3.7 min, collection
   # ~1.5 min, and the reality-check fixture alone 157 s for 575 Missions. Runtime grows with
@@ -967,7 +1010,7 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
-          uv run --frozen pytest -m "corpus and not windows_ci" \
+          uv run --frozen pytest -rs -m "corpus and not windows_ci" \
             tests/contract/test_example_round_trip.py \
             tests/contract/test_mission_status_payloads.py \
             tests/contract/test_mission_status_reality.py \
@@ -1008,6 +1051,50 @@ jobs:
             --ignore=tests/contract/test_mission_status_reality.py \
             -n 4 --dist loadfile
 
+  # The Mission-state audit (#5864). The upgrade witness
+  # (tests/upgrade/preview_support/test_public_witnesses.py::test_original_full_corpus_has_no_teamspace_blockers)
+  # audits the checkout's whole kitty-specs/ with this command and gate, but it runs only when upgrade code
+  # changes, so a Mission that landed with a drifted status.json (SNAPSHOT_DRIFT, #5862) went red on the next
+  # unrelated upgrade PR instead of its own. The corpus jobs do not catch it: the reality check passes on a
+  # drifted snapshot. This job runs the same audit on every kitty-specs/ change: about 20-30 s of audit after
+  # the environment install, against the 4 upgrade shards or the corpus-blocking job (5-10 min). It is
+  # read-only. On failure it prints the offending Missions and their error findings; the fix for
+  # SNAPSHOT_DRIFT is `spec-kitty agent status materialize --mission <slug>`. Pinned by
+  # tests/ci/test_mission_state_audit_routing.py.
+  mission-state-audit:
+    name: mission-state audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [changes]
+    if: ${{ needs.changes.outputs.mission_state == 'true' }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the locked Python environment
+        run: uv sync --frozen
+      - name: Audit every Mission's state
+        run: |
+          set -uo pipefail
+          report="$RUNNER_TEMP/mission-state-audit.json"
+          uv run --frozen --no-sync spec-kitty doctor mission-state --audit --fail-on teamspace-blocker --json > "$report"
+          status=$?
+          if ! jq -e . "$report" >/dev/null 2>&1; then
+            echo "::error::doctor mission-state --audit produced no JSON report (exit $status)."
+            cat "$report"
+            if [ "$status" -ne 0 ]; then exit "$status"; fi
+            exit 1
+          fi
+          jq '.repo_summary' "$report"
+          if [ "$status" -ne 0 ]; then
+            echo "::error::doctor mission-state --audit found Missions with errors or TeamSpace blockers (exit $status)."
+            jq -c '.missions[] | select(.has_errors or .has_teamspace_blockers) | {mission: .mission_slug, errors: [.findings[] | select(.severity == "error") | {code, artifact_path, detail}]}' "$report"
+          fi
+          exit "$status"
+
   # ---------------------------------------------------------------------------
   # router-gate: terminal aggregator. `if: always() && !cancelled()` realizes
   # the FR-018/FR-019 full-mode semantics (skipped != pass) — it evaluates the
@@ -1041,6 +1128,7 @@ jobs:
       - tests-e2e
       - tests-corpus-blocking
       - tests-contract-tools
+      - mission-state-audit
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0

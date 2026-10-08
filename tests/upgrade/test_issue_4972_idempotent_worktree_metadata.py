@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
+from specify_cli.migration.schema_version import CURRENT_SCHEMA_CAPABILITIES, REQUIRED_SCHEMA_VERSION
 from specify_cli.upgrade.runner import MigrationRunner
 
 #: A non-integrating worktree branch prefix: upgrade still aligns and commits there.
@@ -48,7 +48,14 @@ _TARGET_VERSION = "3.2.9"
 # reaching `_upgrade_worktrees`) so the byte-identical assertion below is a
 # fair like-for-like comparison rather than an artifact of this test calling
 # `_upgrade_worktrees` directly instead of the full `upgrade()`/CLI path.
-_SCHEMA_VERSION_LINE = f"  schema_version: {REQUIRED_SCHEMA_VERSION}\n" if REQUIRED_SCHEMA_VERSION is not None else ""
+# #5229: the stamp now also settles the canonical capability map, so a main that
+# a real upgrade already stamped carries it too.
+_SCHEMA_VERSION_LINE = (
+    f"  schema_version: {REQUIRED_SCHEMA_VERSION}\n"
+    "  schema_capabilities:\n" + "".join(f"    {name}: {str(enabled).lower()}\n" for name, enabled in CURRENT_SCHEMA_CAPABILITIES.items())
+    if REQUIRED_SCHEMA_VERSION is not None
+    else ""
+)
 _MAIN_METADATA_YAML = (
     "spec_kitty:\n"
     f"  version: '{_TARGET_VERSION}'\n"

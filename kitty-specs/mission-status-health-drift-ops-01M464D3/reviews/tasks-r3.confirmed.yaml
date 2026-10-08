@@ -1,0 +1,116 @@
+schema: review-findings/v1
+phase: tasks
+findings:
+- id: TASKS-FRESH2-001
+  severity: 2
+  title: Hand-off record has no name, so the Step PD grep has no token to search for
+  evidence: 'tasks.md:27 (Step PD item 4: ''the WP06 hand-off line'', ''that of WP03''); the Pre-dispatch
+    paragraphs of tasks/WP03..WP09 (''the hand-off record of WP04''); WP10 ''Where this package works''.
+    No WP ''Hand-off report'' section and no tasks.md step defines a heading, marker or key for the record
+    the orchestrator appends, and Step 0 / J-1 records likewise have no named heading.'
+  claim: The revision makes the grep of each named record the gate that stops a worker ('A missing line
+    means do not start the worker'), but nothing defines what line to grep for. Two orchestrators (or
+    a worker and the orchestrator) will grep different strings; a missing-record check that is not mechanical
+    is exactly what ruling 2 set out to remove. The step 'the WP06 hand-off line for the commit the J-1
+    record cites' is the only place that hints at content (a commit hash).
+  remediation: In Step PD item 1 fix one heading per record, for example 'Hand-off WPxx (<commit hash>)',
+    'Step 0 record' and 'J-1 record', appended by the orchestrator; say in item 4 that the grep is for
+    that exact heading (and for the cited hash for WP07), and repeat the heading in each WP Pre-dispatch
+    sentence.
+  fork: false
+- id: TASKS-FRESH2-002
+  severity: 2
+  title: The FLOOR of the whole-directory hygiene scan (W-5, W-7) is recorded by no step and is the wrong
+    count
+  evidence: 'tasks.md:42 (W-5: ''FLOOR is the file count recorded at WP10 start''); tasks/WP10-closeout-evidence.md
+    script line ''FLOOR = 28 ... raise to the count recorded at WP10 start'' and the paragraph ''Why reviews/
+    and the event log are exempt''. Running the WP10 script on this tree gives files=28 problems=0; the
+    same script with the exemption removed (the W-5 variant) gives files=90 problems=13 (reviews files
+    plus the status log).'
+  claim: No WP10 subtask, Step PD item or hand-off field records a count 'at WP10 start', and the only
+    count WP10 can record is the exempt-directory count (28 now), not the whole-directory count (90).
+    Using it as the W-5/W-7 floor makes the 'files > 0 against a wrong directory' guard 3x looser than
+    the scan it guards, and the number is undefined for the orchestrator.
+  remediation: Have the orchestrator record both counts in tracer-approach.md before dispatching WP10
+    (unmodified script, and W-5 variant), and word W-5/W-7 as 'FLOOR is the whole-directory count recorded
+    there'; add a first step to T053 or T055 that records the exempt count.
+  fork: false
+- id: TASKS-FRESH2-003
+  severity: 2
+  title: Charter-override scope omits the orchestrator's own full-battery baseline run
+  evidence: tasks.md:16 (Step 0 item 2 runs the three architectural legs on the D-0 tip); quickstart.md:3
+    and the table row at quickstart.md:16 ('only for WP03, WP07 and WP08'); WP03:374, WP07:323, WP08:271
+    ('overrides, for WP03, WP07 and WP08 only, the charter rule NO_FULL_HEAVY_SUITES_IN_MISSION ... everywhere
+    else in this Mission the rule stands').
+  claim: The revision adds a full-battery run at Step 0 that is not a work package, while every statement
+    of the override says WP03, WP07 and WP08 'only' and that the rule stands everywhere else. A reviewer
+    or charter check reading those sentences can call the Step 0 run (and any W-7 rerun) a violation,
+    though note 15 makes it the comparison base for all three gates.
+  remediation: Add 'and the orchestrator's Step 0 baseline run of the same three legs on the unchanged
+    D-0 tip' to the override sentence in quickstart.md:3 and :16 and in the WP03, WP07 and WP08 battery
+    headers (or state in ruling-derived text that the baseline is part of ruling 3).
+  fork: false
+- id: TASKS-FRESH2-004
+  severity: 2
+  title: Poll loop of the battery 'How to run' may be refused as a foreground sleep, with 'denied = stop'
+    leaving no path
+  evidence: 'tasks/WP03-project-vertical.md:420 (and the same paragraph in WP07, WP08): ''for i in $(seq
+    1 16); do [ -f ... ] && break; sleep 30; done'' polled in the foreground; Dispatch hygiene: ''A denied
+    command means STOP and report it''; the Bash tool of this harness states foreground sleep is blocked.
+    The paragraph is unchanged by the revision but ruling 3 makes it a binding gate in three WPs.'
+  claim: If the worker harness blocks a foreground sleep, every battery gate stops at the first poll,
+    and the same prompt forbids retrying in another form. The prompt also forbids relying on a wake-up.
+    Not verified on the worker harness, hence a risk, not a defect.
+  remediation: FORK. (a) Have the orchestrator probe once at Step 0 that a bounded sleep loop is permitted
+    for workers and record it; (b) the orchestrator, not the worker, runs the three legs (detached, with
+    its own wake-up) and hands the exit-code files to the reviewer; (c) name the permitted wait primitive
+    in the prompt.
+  fork: true
+- id: TASKS-FRESH2-005
+  severity: 1
+  title: Two names for the command that creates the lane workspace
+  evidence: tasks.md:22 and :26 and every Pre-dispatch paragraph ('once spec-kitty implement has created
+    this lane workspace') versus the 'Implementation command' of each WP prompt ('spec-kitty agent action
+    implement WPxx --agent claude', e.g. WP03:482). Both commands exist in src/specify_cli/cli/commands.
+  claim: Step PD item 3 timing (steps 3 and 4 after the workspace exists, before the worker starts) hinges
+    on which command creates the workspace; the prompts name two.
+  remediation: Name the command used in Step PD once (the one in each prompt's Implementation command
+    section) and use it in the Pre-dispatch sentences.
+  fork: false
+- id: TASKS-FRESH2-006
+  severity: 1
+  title: Placeholder and term loose ends from the revision
+  evidence: tasks.md:16 defines <synced-ruff> and nothing uses it (WP03:338 and :358 keep '.venv/bin/ruff');
+    WP03/WP07/WP08 battery text says 'never the hand-built .venv/bin/python' next to 22/8/8 literal '.venv/bin/python'
+    commands (the substitution is only in the Environment note, WP03:343); WP10 hygiene script is run
+    with '.venv/bin/python -I -' while W-5 runs the same script with '<synced-python> -I -'; tasks.md:15
+    introduces 'working branch' beside 'planning branch' (tasks.md:30 uses 'working branch' alone); quickstart.md:27
+    ends 'compare with the plan-time baseline of the plan (Baseline section)' after the added clause.
+  claim: Several placeholders and branch terms are used inconsistently within one document, which invites
+    a worker to run a gate with the interpreter the same paragraph forbids.
+  remediation: 'Pick one: add to each Environment note ''every .venv/bin/python and .venv/bin/ruff below
+    reads <synced-python> and <synced-ruff>''; drop <synced-ruff> or use it; say ''planning branch'' only;
+    tidy the quickstart sentence.'
+  fork: false
+- id: TASKS-FRESH2-007
+  severity: 1
+  title: Operator ruling numbering does not resolve
+  evidence: reviews/tasks.ruling.md numbers items 1, 2, 3 then 'Orchestrator note 15'; WP prompts cite
+    'operator ruling 3' and 'note 15'; the round-1 commit subject speaks of 'rulings 12-14'.
+  claim: A reader of the WP prompts finds ruling 3 and note 15 but no 4 to 14, and cannot tell whether
+    other numbered notes bind the battery gate.
+  remediation: Cite 'tasks.ruling.md item 3' and 'tasks.ruling.md orchestrator note (TASKS-FRESH-005)'
+    in the prompts, or renumber the file consistently.
+  fork: false
+- id: TASKS-FRESH2-008
+  severity: 1
+  title: W-5 'fixed in the file' versus add-only wording
+  evidence: tasks.md:42 ('any other hit is fixed in the file ... before the step is closed') versus tasks/WP10-closeout-evidence.md
+    Context ('the Mission directory is add-only on the branch') and T055 (additions only for the tracer
+    files).
+  claim: A hit in a tracer file or an earlier-committed planning file would be fixed by editing an existing
+    line, which the add-only wording forbids, while the add-only check at W-7 compares with main where
+    those files are new.
+  remediation: State in W-5 that an in-file fix before compaction is allowed because the add-only rule
+    is measured against the merge base, or say fixes to tracer files are made by an appended correction.
+  fork: false

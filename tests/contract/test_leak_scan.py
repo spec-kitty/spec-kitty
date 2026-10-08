@@ -31,7 +31,24 @@ FIXTURE_ROOT = TOOLS_DIR / "fixtures" / "leak_scan"
 SCRIPT = TOOLS_DIR / "leak_scan.py"
 
 OLD_KINDS = ["host-path-strict", "host-path-human", "email", "email-dotless", "github-token", "aws-key", "private-key", "forbidden-property"]
-STRICT_NAMES = ["id", "laneId", "laneBranch", "planningBranch", "pattern", "feedbackReference", "reviewer", "kind", "mediaType", "changeState"]
+STRICT_NAMES = [
+    "id",
+    "laneId",
+    "laneBranch",
+    "planningBranch",
+    "pattern",
+    "feedbackReference",
+    "reviewer",
+    "kind",
+    "mediaType",
+    "changeState",
+    "specKittyVersion",
+    "currentBranch",
+    "profileId",
+    "action",
+    "invocationId",
+    "sourceCode",
+]
 ARTIFACT_PATH_REASONS = [
     "empty",
     "too_long",

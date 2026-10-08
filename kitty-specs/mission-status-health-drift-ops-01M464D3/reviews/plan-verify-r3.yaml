@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: D-P5 now states local seconds, drops the unpriced 25 s listing worst case, prices AC-DRIFT 19 at up to 10 s, and arrives at 55 to 70 s local (45+10, 60+10), which times 1.7 gives 94 to 119 s CI; it says plainly this is at the edge of the 120 s bound and can exceed it, keeping IC-01 and the 6-minute re-plan threshold as the control.
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: contracts/tool-extension-and-reader.md line 64 adds the ops row cache-the-result with AC-OPS 14 and AC-CROSS 4, and plan.md D-P16, the AC-OPS 14 row and the red-first bullet all name it consistently, with no other mutation list found that omits it.

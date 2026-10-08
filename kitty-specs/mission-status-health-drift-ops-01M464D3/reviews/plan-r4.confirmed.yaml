@@ -1,0 +1,73 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+- id: PLAN-FRESH3-001
+  lens: budget-consistency
+  severity: 3
+  title: IC-01 proxy threshold (90 s, local) contradicts D-P5's own 1.7 local-to-CI factor and the 120
+    s bound
+  evidence:
+  - artifact: "plan.md \xA7 D-P5 (Budget; In-test)"
+  - artifact: "research.md \xA7 R-12 (all proxy figures are local)"
+  - artifact: spec.md NFR-001 / NFR-009 (120 s on the CI runner)
+  claim: 'D-P5 now states the local estimate is 55 to 70 s and that 1.7x puts it at 94 to 119 s in CI,
+    "at the edge" of the 120 s bound. The same paragraph says a proxy "above 90 s" goes to the operator
+    before the bound is set. The proxy is measured locally (IC-01 step 4), so a 90 s local proxy is about
+    153 s in CI by the plan''s own factor, already 27 percent over the bound. A local proxy of about 70
+    s (120 / 1.7) is the real escalation line. Any proxy between about 70 and 90 s therefore passes the
+    escalation check yet is predicted to fail NFR-001/NFR-009 on the first CI run. The new "at the edge,
+    not safely inside" wording makes the stale 90 s figure visibly wrong.
+
+    '
+  remediation: 'Restate the threshold in one unit, either local (about 70 s, derived from 120 / 1.7) or
+    CI (the factor applied first), and say which quantity it gates (the combined in-test case or the whole
+    job gain). More than one valid remedy (move the threshold, or drop it in favour of the W-7 pass rule),
+    so it needs an operator choice.
+
+    '
+  fork: true
+- id: PLAN-FRESH3-002
+  lens: budget-consistency
+  severity: 2
+  title: In-test bound and job gain called the same quantity, overstated after the budget was repriced
+  evidence:
+  - artifact: "plan.md \xA7 D-P5 (Execution sharing; In-test)"
+  - artifact: "plan.md \xA7 IC-09 offline classification (a)(b)"
+  claim: 'D-P5 now prices the AC-DRIFT 19 completion equality (up to about 10 s local) and the repeated
+    listing as extra work inside the job gain, outside the combined case. The in-test sentence still says
+    the combined case and the job gain are "the same quantity". They differ by about 10 to 15 s local
+    (17 to 25 s in CI). A combined case passing at 118 s gives a job gain near 135 s, so passing the in-test
+    120 s cannot imply the W-7 pass rule.
+
+    '
+  remediation: 'Reword to say the in-test case is the largest component of the gain, not the whole, and
+    either set the combined case bound below 120 s or accept explicitly that the W-7 job-level rule is
+    the only gain check.
+
+    '
+- id: PLAN-FRESH3-003
+  lens: mutation-coverage
+  severity: 2
+  title: cache-the-result is not carried into the AC-CROSS 4 row, nor reachable for the reality-module
+    5 s case
+  evidence:
+  - artifact: "plan.md \xA7 AC-CROSS 4 row (suffix '(B, P)', no M)"
+  - artifact: "plan.md \xA7 IC-09 Red-first (no cache-the-result mutation)"
+  - artifact: "plan.md \xA7 D-P16 (the mutation must turn AC-OPS 14 and the timing cases red)"
+  - artifact: "contracts/tool-extension-and-reader.md \xA7 C (mutation is a context manager in the test\
+      \ module)"
+  claim: 'The contract table claims cache-the-result covers AC-CROSS 4, including the real 5 s listing
+    case, and D-P16 says the timing cases must go red. The AC-CROSS 4 test-strategy row still lists only
+    (B, P), with no mutation tag. The real 5 s listing case lives in the reality module (ruling 4), whose
+    IC-09 Red-first lists no cache-the-result mutation, and mutations are scoped to the test module of
+    the reader. Only the 30 s synthetic case (ops module, IC-08) is covered. A memoising listing would
+    pass the 5 s corpus case, which is the one that matters, without any mutation failing.
+
+    '
+  remediation: 'Add M (cache-the-result) to the AC-CROSS 4 row and to IC-09 Red-first, or narrow the contract
+    row to the cases the ops module can mutate. More than one valid remedy, so fork.
+
+    '
+  fork: true

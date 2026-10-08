@@ -1,0 +1,150 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: SPEC-FRESH3-001
+    lens: debugger (hypothesis-driven, differential matrix)
+    severity: 4
+    title: The resolver probes the network (git ls-remote) and refs/remotes, which the spec calls "read-only git queries" and a fallback "the same on a fresh CI clone"
+    evidence:
+      - artifact: "spec.md § FR-007, FR-015, NFR-001, NFR-002, NFR-009, R-9; tracer-design-decisions.md § Measurement ('the git branches of the clone have no kitty/* refs')"
+      - code: "src/specify_cli/coordination/surface_resolver.py:690 (_coord_branch_exists: refs/heads, then refs/remotes/, then remote_branch_lookup)"
+      - code: "src/specify_cli/coordination/surface_resolver.py:674 (_coord_branch_exists_via_remote: HIT or ERROR both mean 'present', so CoordinationBranchDeleted is not raised)"
+      - code: "src/specify_cli/git/remote_probes.py:117 (git ls-remote --heads per remote, 5 s timeout)"
+      - code: "src/specify_cli/status/aggregate.py:351-361 (a branch judged present with no worktree becomes CoordAuthorityUnavailable, a 500 here)"
+      - measurement: "Reproduced with the real resolver: 569 directories, 37 CoordinationBranchDeleted, 787 subprocesses, of which 37 are 'git ls-remote --heads' and 37 are 'git remote' (network access to origin). The clone also holds 16 refs/remotes/origin/kitty/* refs, so 'no kitty/* refs' is true only of refs/heads."
+    claim: >
+      Each of the 37 fallback Missions costs a live `git ls-remote` against origin. The outcome therefore
+      depends on the network and on remote refs, not on the checked-out tree. Offline, or on any ERROR from
+      ls-remote, the probe answers "present" and the resolver raises CoordinationWorktreeUnmaterialized, which
+      MissionStatus.load re-spells as CoordAuthorityUnavailable. Under FR-015 that is a 500 for the whole
+      project-wide GET /drift, and AC-REALITY / SC-002 ("a 200, no outcome other than
+      CoordinationBranchDeleted") go red. The spec says the opposite in several places: "read-only git queries"
+      (FR-007, R-9), "the same on a fresh CI clone" (FRESH2-001, FR-015), and tracer "no kitty/* refs". The
+      NFR bounds (measured with network up) also have no offline figure; 37 blackholed probes at 5 s each add
+      about 185 s, over both the 120 s scan bound and the 180 s job budget. GET /project is described as
+      "safe to call once per recent project" while it makes 37 outbound requests per call on this repository.
+      FORK: options A / B. A: keep the stock resolver and state the facts: it may run `git ls-remote --heads`
+      (timeout 5 s per remote), the fallback count and the 200 are network-dependent, offline gives a 500 for
+      drift, the Project and Drift descriptions and NFR-001/NFR-009 say so, and AC-REALITY is conditioned on
+      reachable remotes (or marks the network-less outcome expected). B: escalate to the operator (C-006) a
+      seam that lets the read-side scan decide "branch deleted" without remote probing (a src/ change, so a
+      separate decision).
+    remediation: >
+      Operator picks A or B. Under A, rewrite the "read-only git queries" wording in FR-007, FR-015, NFR-002,
+      NFR-009 and R-9 to name the ls-remote probe; correct "no kitty/* refs" to "no local kitty/* branches";
+      add an offline row to FR-024 and AC-DRIFT (resolver raising CoordAuthorityUnavailable from an ERROR probe
+      is a 500, with a real-git fixture whose remote is unreachable); give NFR-001 and NFR-009 an offline bound
+      or state they hold with the network reachable.
+  - id: SPEC-FRESH3-002
+    lens: debugger (differential matrix, dormant masks)
+    severity: 3
+    title: The "independent derivation" of the fallback list mirrors only part of the resolver's rule, so the two-way stale-entry check is not a sound oracle
+    evidence:
+      - artifact: "spec.md § FR-025 (Corpus outcome and the fallback list), AC-REALITY, FR-026"
+      - code: "src/specify_cli/coordination/surface_resolver.py:1340 (primary re-anchor uses _primary_mission_is_completed, i.e. is_mission_merged)"
+      - code: "src/specify_cli/status/lifecycle.py:294-317 (is_mission_merged is reopen-aware: merged_at AND no later MissionReopened event)"
+      - code: "src/specify_cli/coordination/surface_resolver.py:1430-1440 (the raise is gated on the stored topology using the coordination surface, coord_branch present, and probe_coord_state DELETED)"
+      - code: "src/specify_cli/coordination/surface_resolver.py:690 (existence also counts refs/remotes and ls-remote)"
+    claim: >
+      The derivation is "meta.json names a coordination_branch, has no merged_at, and the branch is in neither
+      refs/heads nor the worktree list". It agrees with the resolver on this clone only because the corpus holds
+      none of the cases it omits (I reproduced 37 = 37 and the 35 coord / 2 lanes_with_coord split). It differs
+      from the resolver for: (1) a reopened Mission whose meta.json still holds merged_at (resolver: not merged,
+      so it can raise; derivation: merged, so unlisted); (2) a Mission with coordination_branch but a stored
+      topology that does not use the coordination surface (resolver: primary, no raise; derivation: listed);
+      (3) a branch that exists only as refs/remotes/<remote>/<name> or on the remote (resolver: present; derivation:
+      listed); (4) `cb not in worktree-list text` is a substring test on porcelain output, not the resolver's
+      "coordination worktree registered at the composed path". On any such clone the stale-entry check fails
+      with no product defect, or hides one. FR-026 has no fixture for these cases.
+    remediation: >
+      Either make the derivation reproduce the resolver's gates (reopen-aware merged test, stored-topology
+      test, local, remote-tracking and remote existence, registered coordination worktree at the composed path)
+      or, simpler, define the stale-entry check as a reconciliation that classifies every Mission that declares
+      an absent local coordination_branch as (raised CoordinationBranchDeleted | merged | topology without
+      coordination surface | present on a remote | reopened) and asserts each category is explained. Add
+      fixtures for a reopened merged Mission, a non-coordination stored topology with a declared branch, and a
+      remote-only branch.
+  - id: SPEC-FRESH3-003
+    lens: debugger (divergence mapping)
+    severity: 3
+    title: FR-007's no-subprocess test and the "once per Mission" memo cannot both hold while the Project build keeps v1's unmemoised helper
+    evidence:
+      - artifact: "spec.md § FR-007 (Test), FR-015 (Not the v1 helper; Memo), AC-PROJECT row 'starts no process of its own', NFR-009, R-9"
+      - code: "tests/contract/_mission_status_payloads.py:664-707 (resolve_read_dir calls MissionStatus.load directly; load_source calls resolve_read_dir)"
+    claim: >
+      FR-015 says the Project build and GET /missions keep v1's helper and its fallbacks, and that helper stays
+      untouched. FR-007 requires a stub that raises on subprocess.run unless "the resolver call of the memo
+      helper" is on the stack, and says the build must still yield a valid Project. v1's helper calls
+      MissionStatus.load itself, never through the memo, so the stub raises on the first coordination Mission
+      and the AC fails, or the AC passes only if the Project path is routed through the memo, which FR-015's
+      list of memo users (scan, per-Mission reports, oracles) does not include. Separately, "the resolver runs
+      once per Mission per run" is false for a run that builds Project (v1 helper) and the drift scan (memo):
+      two resolver passes (about 2 x 40 s), which also makes NFR-001's reality-job gain figure unsound.
+    remediation: >
+      State how the Project build reaches the memo: either the ratchet edit of `_mission_status_payloads.py`
+      (already required for derive_project) wraps v1's helper so it consults the memo while keeping its
+      three-exception fallback, or Project keeps its own pass and FR-007's stub exempts that call site and
+      NFR-001 counts two passes. Add Project to the memo's stated users and to the AC-CROSS "resolver ran once
+      per Mission" assertion.
+  - id: SPEC-FRESH3-004
+    lens: debugger (hypothesis-driven)
+    severity: 3
+    title: The memo is keyed by Mission directory name only, so fixture repositories and plant/control pairs share stale entries
+    evidence:
+      - artifact: "spec.md § FR-015 (Memo, FRESH2-003), FR-026, AC-DRIFT (rows 'the read directory is the coordination-aware one', 'completion reads the own directory's meta.json')"
+    claim: >
+      The memo is "keyed by Mission directory name", shared by every scan, report and oracle in the run. Fixture
+      Missions reuse names across tests and repositories, and several rows are control/plant pairs on the same
+      Mission whose git state changes between reads (branch deleted, then recreated; coordination worktree
+      added). A name-only key returns the first resolution (directory or exception) for a different repository
+      or a later state, so plants can pass or fail for the wrong reason. The no-op risk is real: a plant that
+      expects 500 gets the cached directory from its control.
+    remediation: >
+      Key the memo by (resolved repository root, Mission directory name), state that tests using fixture
+      repositories get a fresh memo per fixture, and add a test that two repositories with the same Mission name
+      and different resolver outcomes each get their own result.
+  - id: SPEC-FRESH3-005
+    lens: debugger
+    severity: 2
+    title: NFR-002 says the reader starts "exactly one subprocess" but FR-012 makes the listing conditional
+    evidence:
+      - artifact: "spec.md § NFR-002 versus FR-012 rule step 4 and AC-DRIFT row 'one listing per scan'"
+    claim: >
+      FR-012 says a scan in which no Mission has an expected lane never runs the listing. NFR-002 says the
+      reader's own code starts exactly one subprocess and the scan total is the memo count plus one. Both
+      hold only for a scan that has an expected lane; the corpus total of 785 is that case. A fixture with no
+      expected lane gives a total of the memo count plus zero and contradicts the NFR as worded.
+    remediation: >
+      Reword NFR-002 to "at most one, exactly one when any Mission has an expected lane, zero otherwise", and
+      give the AC-CROSS row both fixtures.
+  - id: SPEC-FRESH3-006
+    lens: debugger (dual-system divergence)
+    severity: 2
+    title: How a drift `missionId` is mapped to a Mission, and what a corrupt meta.json elsewhere does to that lookup, is unstated
+    evidence:
+      - artifact: "spec.md § FR-008 (404 mission_not_found), FR-015, AD-10 ('missionId isolates the Mission'), R-2"
+    claim: >
+      A ULID query needs the ULID-to-directory map, which means reading every Mission's identity (meta.json
+      mission_id). AD-10 makes a corrupt meta.json a 500 for the scan, yet R-2 and the per-Mission rule say one
+      unreadable Mission does not fail another Mission's report. The spec does not say whether the lookup reads
+      all meta files (so one corrupt file elsewhere makes every `?missionId=` read a 500 or a wrong 404) or uses
+      an index the v1 reads already provide.
+    remediation: >
+      State that the lookup uses the v1 Mission identity read (the one that produces MissionHead.missionId) and
+      that a corrupt meta.json of another Mission neither fails nor 404s the lookup, with a plant: corrupt meta
+      in Mission B, `?missionId=` of Mission A succeeds; `?missionId=` of an unknown ULID is 404.
+  - id: SPEC-FRESH3-007
+    lens: debugger
+    severity: 1
+    title: Citation of the writer of derived views points at the command module, not the function's home
+    evidence:
+      - artifact: "spec.md § FR-013 Gate B ('`src/specify_cli/cli/commands/materialize.py`, `write_derived_views`')"
+      - code: "src/specify_cli/status/views.py:71 (def write_derived_views)"
+    claim: >
+      `write_derived_views` is defined in status/views.py and only imported and called by the materialize
+      command. A reader checking the cited path and symbol finds the symbol absent from that module's definitions.
+    remediation: >
+      Cite `src/specify_cli/status/views.py` `write_derived_views`, and the command module as its caller.

@@ -125,12 +125,14 @@ Typical changes:
 - `.kittify/metadata.yaml` schema bump.
 - Occasionally `.kittify/config.yaml` schema migrations.
 
-Commit the result:
+`spec-kitty upgrade` commits the files it changed itself when `auto_commit` is enabled (the default), and only those files; your own uncommitted work is left alone. If it reports that its changes were left uncommitted (auto-commit disabled, a hook rejected the commit, or files held for manual review), review them with `git status` and `git diff`, then stage the listed files by name:
 
 ```bash
-git add .kittify/ .claude/ .agents/skills/
+git add -- .kittify/metadata.yaml <other files git status lists>
 git commit -m "chore: upgrade Spec Kitty project to <version>"
 ```
+
+Or use `spec-kitty safe-commit <those files> -m "chore: upgrade Spec Kitty project to <version>"`.
 
 ## Upgrade nag
 

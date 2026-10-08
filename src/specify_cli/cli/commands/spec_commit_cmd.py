@@ -28,6 +28,7 @@ from typing import cast
 import typer
 from specify_cli.cli.console import console
 
+from kernel.resolution import resolve_commit_path
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout
 from specify_cli.cli.commands._commit_message import MESSAGE_OPTION_HELP, join_message_paragraphs
 from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, resolve_owned_or_refuse
@@ -140,7 +141,10 @@ def _resolve_commit_inputs(
         abs_files = owned.files(files)
         require_unstaged_index(owned)
         return owned.mission_slug, abs_files
-    abs_files = [(repo_root / path).resolve() if not path.is_absolute() else path.resolve() for path in files]
+    try:
+        abs_files = [resolve_commit_path(repo_root, path) for path in files]
+    except OSError as exc:
+        raise ValueError(f"Symlink loop while resolving file argument: {exc}") from exc
     return mission_slug, abs_files
 
 
@@ -162,7 +166,7 @@ def _reject_directory_args(abs_files: list[Path], json_output: bool) -> None:
     arg would otherwise abort with the opaque "staging area contains unexpected
     paths" error. Reject early with actionable guidance instead.
     """
-    directory_args = [f for f in abs_files if f.is_dir()]
+    directory_args = [f for f in abs_files if f.is_dir() and not f.is_symlink()]
     if not directory_args:
         return
     listed = ", ".join(str(d) for d in directory_args)
@@ -212,7 +216,7 @@ def _relpath(repo_root: Path, path: Path) -> str:
     ``result.surfaces``).
     """
     try:
-        return path.resolve().relative_to(repo_root.resolve()).as_posix()
+        return resolve_commit_path(repo_root, path).relative_to(repo_root.resolve()).as_posix()
     except ValueError:
         return str(path)
 

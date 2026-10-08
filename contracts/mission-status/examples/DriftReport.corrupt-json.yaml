@@ -1,0 +1,13 @@
+scannedAt: '2026-10-06T09:00:00Z'
+findings:
+  - kind: snapshot_disagrees_with_event_log
+    severity: error
+    missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+    artifactPath: status.json
+    summary: The status snapshot is not a valid JSON object.
+    authority: event_log
+    derivedSide: status_json
+    laneComparison: []
+    remedy: materialize_status
+    sourceCode: CORRUPT_JSON
+truncated: false

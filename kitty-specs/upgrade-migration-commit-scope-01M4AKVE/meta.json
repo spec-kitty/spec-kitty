@@ -1,0 +1,38 @@
+{
+  "accept_commit": "c2de5dd62540c1996e675a8a7bbda45949b0b7b6",
+  "acceptance_history": [
+    {
+      "accept_commit": "c2de5dd62540c1996e675a8a7bbda45949b0b7b6",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-07T23:51:24.086424+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "c0c714c558240f184364d05b0ccc4f7804009f67"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-07T23:51:24.086424+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "c0c714c558240f184364d05b0ccc4f7804009f67",
+  "baseline_merge_commit": "c3cc91c7bfde8c075a6a67264ed5711765cf2a7f",
+  "contracts": "none",
+  "contracts_rationale": "Bug-fix mission on commit scoping; no interface, endpoint or payload is added.",
+  "created_at": "2026-10-07T07:22:08.922025+00:00",
+  "flattened": false,
+  "friendly_name": "Schema-3 upgrade commits only what it changed",
+  "merged_at": "2026-10-08T00:04:43.622762+00:00",
+  "merged_commit": "69b74c14619cf9b4a369ddd600dc01261aec602c",
+  "mid8": "01M4AKVE",
+  "mission_id": "01M4AKVE24MTJ4KNHVK1AAPBW7",
+  "mission_number": 222,
+  "mission_slug": "upgrade-migration-commit-scope-01M4AKVE",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Upgrading a 2.x project runs a migration that commits with git add -A and retries with --no-verify, so untracked secrets, staged files and unrelated edits are committed at exit 0 and a hook that would have refused them is skipped. This mission routes the migration's changes through the upgrade command's existing commit, which only commits paths the upgrade changed and honours hooks.",
+  "purpose_tldr": "Stop spec-kitty upgrade from sweeping a project's uncommitted work, including untracked secrets, into the schema-3 migration commit and from bypassing commit hooks (#5443).",
+  "slug": "upgrade-migration-commit-scope-01M4AKVE",
+  "status_phase": "1",
+  "target_branch": "fix/upgrade-migration-commit-scope",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-07T13:24:00.814143+00:00"
+}

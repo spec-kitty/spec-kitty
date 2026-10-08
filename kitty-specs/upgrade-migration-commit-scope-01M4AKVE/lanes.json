@@ -1,0 +1,237 @@
+{
+  "version": 1,
+  "mission_slug": "upgrade-migration-commit-scope-01M4AKVE",
+  "mission_id": "01M4AKVE24MTJ4KNHVK1AAPBW7",
+  "mission_branch": "kitty/mission-upgrade-migration-commit-scope-01M4AKVE",
+  "target_branch": "fix/upgrade-migration-commit-scope",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/upgrade.py",
+        "src/specify_cli/migration/runner.py",
+        "src/specify_cli/upgrade/autocommit.py",
+        "src/specify_cli/upgrade/migrations/m_3_0_0_canonical_context.py",
+        "src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_0a4_safe_globalize_commands.py",
+        "src/specify_cli/upgrade/runner.py",
+        "tests/specify_cli/migration/test_runner.py",
+        "tests/specify_cli/migration/test_runner_rollback_hygiene_unit.py",
+        "tests/upgrade/_legacy_upgrade_fixture.py",
+        "tests/upgrade/migrations/test_m_3_2_0a4_safe_globalize_commands.py",
+        "tests/upgrade/test_commit_decision.py",
+        "tests/upgrade/test_upgrade_commit_outcomes_5443.py",
+        "tests/upgrade/test_upgrade_commit_scope_5443.py",
+        "tests/upgrade/test_upgrade_git_paths.py",
+        "tests/upgrade/test_upgrade_no_commit_reasons_unit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/implement_claim.py",
+        "src/specify_cli/cli/commands/implement_phases.py",
+        "tests/specify_cli/cli/commands/test_implement_characterization.py",
+        "tests/specify_cli/cli/commands/test_implement_claim.py",
+        "tests/specify_cli/cli/commands/test_implement_claim_scope_5673.py",
+        "tests/specify_cli/cli/commands/test_implement_phases.py",
+        "tests/specify_cli/cli/commands/test_implement_runtime_frontmatter_claim.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/mission_number/bake.py",
+        "tests/consolidation/test_bake_commit_scope_meta_only.py",
+        "tests/consolidation/test_ordering_bake_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "docs/api/upgrade-lifecycle.md",
+        "docs/guides/how-to/installation/upgrade-project.md",
+        "packs/built-in/pack-manifest.yaml",
+        "packs/built-in/toolguide.graph.yaml",
+        "packs/built-in/toolguides/GIT_WORKTREE_PR_WORKFLOW.md",
+        "packs/built-in/toolguides/git-worktree-pr-workflow.toolguide.yaml",
+        "src/charter/offering/skills/spec-kitty-charter-doctrine/SKILL.md",
+        "src/charter/offering/skills/spec-kitty-git-workflow/SKILL.md",
+        "src/charter/offering/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
+        "src/charter/offering/skills/spec-kitty-implement-review/SKILL.md",
+        "src/charter/offering/skills/spec-kitty-implement-review/references/rejection-loop-checklist.md",
+        "src/specify_cli/core/__init__.py",
+        "src/specify_cli/core/git_ops.py",
+        "src/specify_cli/core/vcs/git.py",
+        "src/specify_cli/core/vcs/protocol.py",
+        "tests/architectural/test_shipped_text_path_scoped_commits.py",
+        "tests/git_ops/test_git.py",
+        "tests/git_ops/test_git_ops.py",
+        "tests/git_ops/test_sweeping_helpers_removed.py",
+        "tests/git_ops/test_vcs_integration.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/backfill_identity.py",
+        "src/specify_cli/upgrade/metadata.py",
+        "tests/specify_cli/migration/test_runner_schema_stamp_5229.py",
+        "tests/upgrade/test_metadata_final_file_5229.py",
+        "tests/upgrade/test_metadata_schema_roundtrip.py",
+        "tests/upgrade/test_metadata_writers_5229.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/kernel/resolution.py",
+        "src/mission_runtime/owned_checkout.py",
+        "src/specify_cli/cli/commands/safe_commit_cmd.py",
+        "src/specify_cli/cli/commands/spec_commit_cmd.py",
+        "src/specify_cli/coordination/commit_router.py",
+        "src/specify_cli/git/commit_helpers.py",
+        "tests/coordination/test_commit_router_symlink_paths.py",
+        "tests/git_ops/test_safe_commit_link_and_stage_detail.py",
+        "tests/integration/upgrade/__init__.py",
+        "tests/integration/upgrade/test_upgrade_carries_migration_untracks.py",
+        "tests/kernel/test_resolution.py",
+        "tests/kernel/test_resolve_commit_path.py",
+        "tests/specify_cli/cli/commands/test_safe_commit_cli.py",
+        "tests/specify_cli/cli/commands/test_safe_commit_cmd.py",
+        "tests/specify_cli/cli/commands/test_safe_commit_paths_5401_5671_4722.py",
+        "tests/specify_cli/cli/commands/test_safe_commit_symlink_loop.py",
+        "tests/specify_cli/cli/commands/test_spec_commit_symlink_5671.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/coordination/coherence.py",
+        "src/specify_cli/git/merge_conclusion.py",
+        "src/specify_cli/lanes/auto_rebase.py",
+        "src/specify_cli/lanes/consolidation.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "tests/architectural/_commit_scope_census.py",
+        "tests/architectural/test_commit_scope_owner.py",
+        "tests/git_ops/test_merge_conclusion_owner.py",
+        "tests/git_ops/test_merge_conclusion_owner_unit.py",
+        "tests/lanes/test_merge_conclusion_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-d",
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-10-07T13:19:50.976210+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "639a7352ee5c6781cb5882443c75dedb8cef69d9"
+}

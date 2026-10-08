@@ -84,6 +84,7 @@ _CORPUS_DATA_ROOTS = (
     ".kittify/charter/",
     ".kittify/glossaries/",
     ".kittify/doctrine/",
+    "kitty-ops/",
     # (`.kittify/release/downstream-verified.json` was dropped: it is not a tracked
     # file and is not in the router corpus group.)
 )
@@ -133,8 +134,11 @@ _CORPUS_MARKED_MODULES = frozenset(
         "tests/contract/test_mission_status_artifacts.py",
         "tests/contract/test_mission_status_contract_1_1.py",
         "tests/contract/test_mission_status_detail.py",
+        "tests/contract/test_mission_status_drift.py",
         "tests/contract/test_mission_status_examples.py",
+        "tests/contract/test_mission_status_ops.py",
         "tests/contract/test_mission_status_payloads.py",
+        "tests/contract/test_mission_status_project.py",
         "tests/contract/test_mission_status_reality.py",
         "tests/contract/test_no_pytest_scan.py",
         "tests/contract/test_provisional_check.py",

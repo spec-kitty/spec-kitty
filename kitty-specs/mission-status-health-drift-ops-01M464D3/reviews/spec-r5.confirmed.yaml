@@ -1,0 +1,44 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: SPEC-FRESH4-001
+    lens: contradiction-with-unchanged-sections
+    severity: 3
+    title: SC-002 and SC-007 still demand an unconditional 200 and met floors; the offline outcome of the reality check is left half-defined
+    evidence:
+      - artifact: "spec.md § SC-002 ('GET /drift over this checkout succeeds (a 200 ...)') and § SC-007 ('finishes within the NFR-001 budget with every floor met')"
+      - artifact: "spec.md § FR-025 Corpus outcome and AC-REALITY (offline = expected 500 'asserted as such')"
+    claim: The round-5 edit conditioned FR-025, AC-REALITY, NFR-001 and NFR-009 on reachable remotes but left the success criteria SC-002 and SC-007 unconditional. Offline, the project-wide scan is a 500, so the kind 1 and 2 floors, the examined-plus-skipped equality, the oracle comparison and the per-Mission equality cannot run, yet the text says only that the 500 is 'asserted as such'. A CI run without network would either fail SC-002/SC-007 or pass vacuously with only the 500 asserted, and the spec does not say which.
+    remediation: In FR-025 and AC-REALITY state that offline the check asserts only the 500 and the independent ls-remote detection, skips the floor, oracle and equality assertions explicitly (named skip, not silent pass), and is not accepted as evidence for SC-002 or SC-007; reword SC-002 and SC-007 to 'with every configured remote reachable'.
+  - id: SPEC-FRESH4-002
+    lens: contradiction-with-unchanged-sections
+    severity: 3
+    title: FR-015 still says the scan always does one branch listing while NFR-002 and an AC row now require zero listings when no Mission has an expected lane
+    evidence:
+      - artifact: "spec.md § FR-015 ('plus one git for-each-ref refs/heads listing for the whole scan (FR-012)')"
+      - artifact: "spec.md § NFR-002 ('exactly one ... when any Mission has an expected lane, and none otherwise') and AC-DRIFT row 'one listing per scan'"
+      - artifact: "spec.md § COMPLETE-001 ('one git for-each-ref refs/heads listing per scan')"
+    claim: The conditional listing appears only in NFR-002 and the AC row. The functional text (FR-015, COMPLETE-001) says the listing is unconditional, and no FR states that it is lazy. A WP implementing FR-015 as written lists always and fails the new 'zero' assertion; the AC row and the 'a listing with no expected lane' failure mode are not backed by any FR.
+    remediation: Add one sentence to FR-012 (and make FR-015 and COMPLETE-001 say 'at most one listing, made only when a Mission has an expected lane').
+  - id: SPEC-FRESH4-003
+    lens: scope-and-coverage
+    severity: 2
+    title: The Project builder's fallbacks are 'three', but v1's helper has a fourth (outside the checkout) and the builder is required to equal the v1 build
+    evidence:
+      - artifact: "spec.md § FR-015 Not the v1 helper ('it falls back for a read directory outside the checkout') versus § Memo ('maps the three exceptions of v1's helper')"
+      - artifact: "spec.md § AC-PROJECT row 'starts no process of its own' (control: build equals v1 load_source build on the fixtures)"
+    claim: v1's helper falls back for three exceptions and for an outside-root directory. The memo section and FR-015 say the new builder keeps 'v1's three fallbacks', applied to the raw outcome. An outside-root fixture would make the builder differ from v1, contradicting the equality control, and the spec does not say which behaviour is intended.
+    remediation: Say in FR-015 Memo that the builder reproduces all four v1 fallbacks (three exceptions and the outside-root case), and add the outside-root case to the equality control.
+  - id: SPEC-FRESH4-004
+    lens: weakened-acceptance
+    severity: 2
+    title: "'With the remotes reachable, GET /drift is a 200' is not implied by reachability under the spec's own network facts"
+    evidence:
+      - artifact: "spec.md § AC-REALITY first bullet; § FR-025 Corpus outcome"
+      - artifact: "spec.md § FR-015 Network behaviour (3): a branch only on a remote or only as a remote-tracking ref is 500"
+      - code: "src/specify_cli/git/remote_probes.py:98"
+    claim: Even with every remote reachable, any non-merged Mission whose declared coordination branch exists only on origin gives a 500, so the 200 depends on the corpus as well as the network. The text frames the 200 as the reachable-network outcome, and a future in-flight coordination Mission would turn the reality job red with no network fault. The spec says disagreements are 'explained by a new fixture', but not that a remote-only branch is a corpus condition, not a network one.
+    remediation: In FR-025 and AC-REALITY phrase the condition as 'remotes reachable and no non-merged Mission declares a branch present only on a remote or as a remote-tracking ref', and have the reality check name any such Mission when it reports the 500.

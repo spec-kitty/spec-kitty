@@ -1,0 +1,13 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH3-001
+    status: resolved
+    reason: D-P5 and IC-01 step 4 now gate the combined case at about 70 s local (120 / 1.7, stated in local seconds) with the W-7 rule as arbiter, and no stale 90 s figure remains in any mission artifact outside reviews.
+  - id: PLAN-FRESH3-002
+    status: resolved
+    reason: D-P5 In-test now says the combined case is the largest component of the gain, not the whole, that the completion equality and listing repeats sit in the job gain only (10 to 15 s local = 17 to 25 s CI, arithmetic correct at 1.7), and names W-7 the arbiter per ruling 10.
+  - id: PLAN-FRESH3-003
+    status: resolved
+    reason: The AC-CROSS 4 row now carries the M tag with the planted cache-the-result mutation in the reality module, IC-09 Red-first adds it, and the contract row says the same, all consistent per ruling 9.

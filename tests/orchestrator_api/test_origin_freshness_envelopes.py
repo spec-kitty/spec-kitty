@@ -26,7 +26,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _STATUS_LOG = "status.events.jsonl"
 _ORIGIN_CODES = ("ORIGIN_STATUS_STALE", "ORIGIN_LANE_STALE", "ORIGIN_UNREACHABLE", ORIGIN_REMOTE_AMBIGUOUS, ORIGIN_COMPARE_FAILED)
-_CONTRACT_VERSION = "1.13.0"
+_CONTRACT_VERSION = "1.14.0"
 
 
 def _git(repo: Path, *args: str) -> str:

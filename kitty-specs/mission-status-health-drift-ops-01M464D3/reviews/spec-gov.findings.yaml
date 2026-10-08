@@ -1,0 +1,216 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: SPEC-GOV-001
+    lens: Directive (canonical sources)
+    severity: 4
+    title: "Remedy command spec-kitty materialize --mission does not repair the snapshot the finding is about"
+    evidence:
+      - artifact: "spec.md § FR-014 (client builds `spec-kitty materialize --mission <slug>`), § Out of scope (Remedy command strings), § AD-4"
+      - code: "src/specify_cli/cli/commands/materialize.py:100-105 (writes only .kittify/derived/<slug>/, never kitty-specs/<slug>/status.json)"
+      - code: "src/specify_cli/status/doctor.py:335 (the shipped recommended action is 'spec-kitty agent status materialize')"
+      - code: "src/specify_cli/cli/commands/agent/status.py:499-507 (agent status materialize rebuilds status.json from the event log)"
+    claim: >-
+      AD-4 says DriftRemedy `materialize_status` is grounded in the doctor's shipped recommended action, but the spec then
+      tells clients to render it as `spec-kitty materialize --mission <slug>`. That command writes the gitignored derived
+      views under .kittify/derived/ and leaves the drifted kitty-specs/<slug>/status.json untouched, so a user who presses
+      the Drift screen's copy button runs a command that does not clear the finding. The doctor's real action is
+      `spec-kitty agent status materialize`. The command text is copied from the prototype (issue) without checking it
+      against the checkout, which is a canonical-sources miss, and no AC would catch it because the contract sends only
+      the enum.
+    remediation: >-
+      Correct FR-014 and the Out-of-scope bullet to name the command the doctor recommends (`spec-kitty agent status
+      materialize`, with the Mission argument that command takes), and state in AD-4 that `materialize_status` maps to
+      that action and not to `spec-kitty materialize`. Add the mapping to the DriftRemedy schema description so a client
+      has one source, and add a note in the squad-visible Corrections list that the prototype's command is wrong.
+
+  - id: SPEC-GOV-002
+    lens: Operator-ruling fidelity
+    severity: 3
+    title: "FORK: derived_view_stale is dropped on a ground the OR-2 ruling does not name"
+    evidence:
+      - artifact: "spec.md § OR-2, § FR-013 (Gate A holds, Gate B fails), § Summary item 2"
+      - artifact: "issue #5776 Q2 recommendation: keep both as provisional kinds; drop only if the reality check finds no honest rule for derived_view_stale"
+      - code: "src/specify_cli/status/validate.py:316-331 (validate_derived_views is a no-op stub), .gitignore:65 (.kittify/derived/ ignored)"
+    claim: >-
+      The ruling keeps both kinds and names one drop condition, "no honest rule". FR-013 itself finds Gate A (an honest
+      rule) holds, and drops the kind because the corpus has no .kittify/derived/ directory (Gate B). The ruling's
+      general clause (a kind needs a rule and a reality-check example) can be read to cover that, but the spec decides it
+      at spec time, while the ruling says "if the reality check finds", which runs at implementation. The reality-check
+      example could also come from a scratch copy that runs the writing command, as FR-026 does for other states the
+      corpus lacks. This is the one place the spec withdraws something the operator ruled in, and it is recorded as
+      applied, not as a decision awaiting confirmation. FORK: option A keep the drop and ask the operator to confirm it
+      explicitly before the plan (the plan's first task already re-measures); option B ship derived_view_stale as
+      provisional with a fixture-built example and a Gate B that accepts a scratch-copy materialize.
+    remediation: >-
+      Do not present the drop as ruled. Move it from "OR-2 applied" to an Open question (OQ-7) with the two options, keep
+      the three-kind shape as the spec's minimal behaviour, and have SC-003 and AC-DRIFT wait on the answer. Reword the
+      tracer OR-2 entry the same way.
+
+  - id: SPEC-GOV-003
+    lens: Operator-ruling fidelity
+    severity: 3
+    title: "OR-5 diluted: an Op with a legacy own completion and a spine closure is skipped, not served closed"
+    evidence:
+      - artifact: "spec.md § FR-019 (a legacy completion skips the whole Op even when the spine holds a closure, as the CLI does), § Edge cases, § OR-5"
+      - code: "src/specify_cli/cli/commands/invocations_cmd.py:273-296 (_apply_completion_status returns False on a legacy completion)"
+    claim: >-
+      OR-5 says an Op is closed when a completed event exists in its file or on the closure spine, and that the contract
+      "does not copy the CLI reader's gap". FR-019 copies the CLI behaviour for the one case where the spine does hold a
+      closure, so the Op disappears from the list and from totalCount although the ruling's own test (spine record present)
+      says closed. The spec states the rule but does not mark it as a deviation from the ruling or ask.
+    remediation: >-
+      Either serve such an Op as closed from the spine record (own legacy completion ignored), or record it as an author
+      decision AD-11 with the reason and an Open question. Add the case to AC-OPS "closure spine" with a plant and its
+      control.
+
+  - id: SPEC-GOV-004
+    lens: Operator-ruling fidelity
+    severity: 3
+    title: "OR-10 'cheap' promise has no cost bound; lastActivityAt reduces every Mission"
+    evidence:
+      - artifact: "spec.md § FR-006, § FR-007 (cheap test only asserts no subprocess and no writes), § OR-10, § NFR-001/NFR-002 (budgets for drift and ops only)"
+      - code: "contracts/mission-status/schemas/MissionHead.yaml:195-203 (lastActivityAt is a maximum over the work packages)"
+    claim: >-
+      OR-10 promises GET /project is cheap and safe to call once per recent project. lastActivityAt is the maximum of
+      MissionHead.lastActivityAt over every listed Mission, which needs each event log reduced (569 directories here;
+      the spec measures 18 s for one drift pass over the same corpus). FR-007's test proves only "no process, no writes",
+      and no NFR bounds the Project build, so the promise made to the host is vacuous and a slow implementation passes.
+    remediation: >-
+      Add an NFR with a measured bound for building Project over this checkout (and a synthetic large corpus), and a
+      reality-check case timing it. Or define "cheap" in FR-007 as "reads no more than GET /missions reads" and say so in
+      the Project description so the host knows the cost scales with the Mission count.
+
+  - id: SPEC-GOV-005
+    lens: Operator-ruling fidelity
+    severity: 2
+    title: "OR-6 counts from the index, but FR-018 opens every Op file anyway"
+    evidence:
+      - artifact: "spec.md § OR-6, § AD-5, § FR-018 (ordering key is the started_at of the Op's own started event; index only supplies candidates; an entry whose file is skipped is not counted)"
+      - code: "src/specify_cli/cli/commands/invocations_cmd.py:177-224 (the index exists as a fast reverse scan), .gitignore:83"
+    claim: >-
+      The ruling counts readable started records from the index when present. The spec validates and orders from each
+      Op file, so with an index present the whole directory is still read and the index changes nothing but which ids
+      are candidates. That keeps the lag the ruling accepts without the speed it exists for, and no NFR bounds the
+      indexed path (NFR-002 covers the unindexed 10,000-file case only). Implementation would still come out right.
+    remediation: >-
+      State in FR-018 that the index is a candidate filter only and the cost is the same as the directory scan, and add
+      the indexed 10,000-file case to NFR-002. If the index is meant to avoid file reads, say which fields come from the
+      index.
+
+  - id: SPEC-GOV-006
+    lens: Terminology
+    severity: 2
+    title: "Spec says the glossary has no entry for Op; it has one"
+    evidence:
+      - artifact: "spec.md § Terminology (The glossary has no entry for Op, invocation, drift or health)"
+      - code: ".kittify/glossaries/planning-and-tracking.yaml:40-47 (surface: op, status draft)"
+    claim: >-
+      The glossary defines `op` as a bounded, doctrine-governed agent action that produces a durable git-tracked record.
+      The spec's own definitions (Op file, closure spine) are built without citing it, and the claim of no entry is
+      false. The new contract text (OpsInvocation descriptions) would be written without the canonical definition.
+    remediation: >-
+      Cite the glossary `op` entry in Terminology, align the Op description in the Ops schemas to it, and keep the
+      sentence only for invocation, drift and health, after checking those against .kittify/glossaries/spec_kitty_core.yaml.
+
+  - id: SPEC-GOV-007
+    lens: Ledger
+    severity: 3
+    title: "a ledger entry: reference reader built on read_lanes_json cannot produce the legacy lanes.json outcome the spec defines"
+    evidence:
+      - artifact: "spec.md § FR-012 (legacy-shaped lanes.json: no finding), § AD-10 (a legacy shape is a defined outcome, not a failure), § FR-025 (reader built from read_lanes_json)"
+      - code: "src/specify_cli/lanes/persistence.py:138-161 (read_lanes_json raises CorruptLanesError on a missing mission_slug)"
+      - artifact: "SPEC-KITTY-LEDGER.md a ledger entry (legacy lanes.json is refused by read_lanes_json; the v1 detail reader answers 500 for it)"
+    claim: >-
+      The ledger entry a ledger entry records that read_lanes_json refuses the one legacy manifest, and that the previous slice
+      treats that as a loud 500. This spec makes the same file a silent "no finding" and also lists read_lanes_json as a
+      public reader for the reference reader. A reader that calls it raises on that Mission, which AD-10 would turn
+      into 500 drift_scan_unreadable for the whole project report. The two rules disagree, the spec never cites a ledger entry,
+      and the contract tree ends up with two policies for one file.
+    remediation: >-
+      Cite a ledger entry in FR-012 and AD-10. State that the reader detects the legacy shape by its own JSON read (key
+      `feature_slug`, no `mission_slug`) before calling read_lanes_json, and say why drift differs from the v1 detail
+      reader, or make drift follow v1 (500) and add the Mission to the named skipped list only. This is a FORK: option A
+      legacy shape is a no-finding (spec text, with the pre-read), option B it fails the scan as in v1.
+
+  - id: SPEC-GOV-008
+    lens: Ledger
+    severity: 2
+    title: "a ledger entry and a ledger entry: the reducer is treated as the authority, and the ledger records it is wrong in known cases"
+    evidence:
+      - artifact: "spec.md § Terminology (reducer output), § FR-010, § Risks (no entry)"
+      - artifact: "SPEC-KITTY-LEDGER.md a ledger entry (materialize_snapshot ignores schema-5 finalizer events, status.json matches the empty reduction), a ledger entry (status.json agent field stale, SNAPSHOT_DRIFT reported)"
+    claim: >-
+      Kind 1 declares the event log the winning side and the reducer its reading. a ledger entry records a case where the reducer
+      returns an empty snapshot and the persisted file agrees with it, so the drift report is clean while the CLI's
+      own task listing disagrees. a ledger entry records a real SNAPSHOT_DRIFT that the product's repair did not clear. The Risks
+      section has neither, and the Drift screen's "trustworthy" claim (FR-015) rests on them.
+    remediation: >-
+      Add a Risk R-8 citing a ledger entry and a ledger entry, state that kind 1 reports disagreement with materialize_snapshot's
+      output and not with the true event log, and add a note to the DriftFinding description. No new check is needed.
+
+  - id: SPEC-GOV-009
+    lens: Scope
+    severity: 2
+    title: "C-003 file set is open-ended and the existing Project pin test is not named"
+    evidence:
+      - artifact: "spec.md § Slice file set (item 4: tests/contract/; item 5: the job registrations the plan names), § C-003, § FR-029, § R-6"
+      - code: "tests/contract/test_mission_status_payloads.py:235 (asserts derive_project(...) == {name, missionCount})"
+    claim: >-
+      C-003 says only the slice file set changes, but item 5 defers its content to the plan and item 4 is a whole
+      directory, so the constraint is not testable as written. FR-029 names one existing test to edit as a ratchet, yet
+      test_mission_status_payloads.py:235 pins Project to two keys and goes red when derive_project gains five. That edit
+      is also an existing-test change owed the same ratchet review (R-6).
+    remediation: >-
+      Name the job-registration files at spec time (or state that the plan must list them and the squad re-checks), list
+      the existing tests the Project change turns red (test_mission_status_payloads.py and the reality-check Project
+      assertion) beside FR-029 with the same "ratchet, not relaxation" control.
+
+  - id: SPEC-GOV-010
+    lens: Directive (reconcile, do not duplicate)
+    severity: 2
+    title: "Reference reader re-implements the audit classifier's comparison"
+    evidence:
+      - artifact: "spec.md § FR-010 (compared exactly as classify_status_json does), § FR-025 (new reference-reader modules; oracle uses classify_status_json)"
+      - code: "src/specify_cli/audit/classifiers/status_json.py:119-160 (the provenance, terminal and plain-drift branches)"
+    claim: >-
+      The charter standing order is to reconcile before adding a second authority. The reader copies the classifier's
+      normalisation and its three-way branch order, and the oracle then calls the original, so a drift in the copy is
+      caught only if the two diverge on a fixture. This is a defensible independence trade, but the spec does not say why
+      reuse was rejected.
+    remediation: >-
+      State in FR-010 why the reader cannot call classify_status_json (independence from the oracle, or a missing seam),
+      or have the reader call it and take the oracle from validate_materialization_drift alone. Add a differential test
+      over the corpus either way.
+
+  - id: SPEC-GOV-011
+    lens: Directive (campsite)
+    severity: 2
+    title: "No opening campsite step for the god-surfaces the slice edits"
+    evidence:
+      - artifact: "spec.md § Slice file set, § FR-025 (the reality check and its payload helper are edited), § NFR-006"
+      - code: "tests/contract/_mission_status_payloads.py:342-343 (derive_project)"
+    claim: >-
+      The charter's campsite directive opens a mission by cleaning the surfaces it will touch. The spec edits the v1
+      payload helper, the reality check, leak_scan.py and fixture_builder.py and names no campsite pass or baseline for
+      them. Nothing breaks if the plan adds it, but the spec would not stop a plan without it.
+    remediation: >-
+      Add a constraint or NFR that the plan's first work package is a behaviour-preserving campsite of the edited
+      contract-tool and test modules, or state why none is needed.
+
+  - id: SPEC-GOV-012
+    lens: Ledger
+    severity: 1
+    title: "Manufactured Op records (a ledger entry class) can inflate the Ops listing"
+    evidence:
+      - artifact: "spec.md § FR-016 to FR-018 (no mention)"
+      - artifact: "SPEC-KITTY-LEDGER.md entry on seven synthesized started/completed Op pairs per next call"
+    claim: >-
+      The ledger records Ops written by the runtime for steps no invocation ran. The listing and totalCount serve them
+      as real. The spec need not filter them, but should say the page reports records, not verified executions.
+    remediation: >-
+      Add one sentence to the Ops operation description that items are the records on disk, and name the ledger entry in
+      the Risks section.

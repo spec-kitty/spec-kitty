@@ -48,6 +48,7 @@ from kernel.git import GitCommandError, status_entries
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
+from specify_cli.cli.commands.implement_claim import claim_status_pair_paths
 from specify_cli.cli.commands.agent.workflow_cores import (
     build_owned_files_review_pathspecs,
     has_prior_rejection,
@@ -967,7 +968,6 @@ def _implement_start_claim(
 
 def _implement_write_claim_and_commit(
     *,
-    wp: WorkPackage,
     agent: str | None,
     main_repo_root: Path,
     feature_dir: Path,
@@ -1001,8 +1001,8 @@ def _implement_write_claim_and_commit(
     # cutover, so this function writes 0 runtime bytes to the WP file.
 
     # Auto-commit to target branch (enables instant status sync)
-    actual_wp_path = wp.path.resolve()
-    status_artifacts = [path.resolve() for path in w._collect_status_artifacts(feature_dir)]
+    # #5673: exactly the paths the claim wrote -- the status pair. This claim never stamps the WP prompt
+    # (workspace allocation is ``implement``'s) and never rewrites ``tasks.md``, so neither joins the commit.
     # WP06 T027: route through BookkeepingTransaction when the
     # mission has a coordination branch, fall back to safe_commit
     # with surgical event-log truncate on failure otherwise.
@@ -1010,7 +1010,7 @@ def _implement_write_claim_and_commit(
         repo_root=main_repo_root,
         mission_slug=mission_slug,
         target_branch=target_branch,
-        paths=[actual_wp_path, *status_artifacts],
+        paths=claim_status_pair_paths(w._collect_status_artifacts(feature_dir)),
         message=f"chore: Start {normalized_wp_id} implementation [{agent}]",
         operation=f"planned -> claimed for {normalized_wp_id}",
         wp_id=normalized_wp_id,
@@ -1211,7 +1211,6 @@ def _implement_claim_transition_body(
                 repo_root=main_repo_root,
             )
         _implement_write_claim_and_commit(
-            wp=wp,
             agent=agent,
             main_repo_root=main_repo_root,
             feature_dir=wf_feature_dir,
@@ -1236,12 +1235,11 @@ def _implement_claim_transition_body(
             repo_root=main_repo_root,
             resolved_binding=resolved_binding,
         )
-        status_artifacts = [path.resolve() for path in w._collect_status_artifacts(wf_feature_dir)]
         w._commit_workflow_change(
             repo_root=main_repo_root,
             mission_slug=mission_slug,
             target_branch=target_branch,
-            paths=[wp.path.resolve(), *status_artifacts],
+            paths=claim_status_pair_paths(w._collect_status_artifacts(wf_feature_dir)),
             message=f"chore: Refresh {normalized_wp_id} implementation liveness",
             operation=f"refresh implementation liveness for {normalized_wp_id}",
             wp_id=normalized_wp_id,

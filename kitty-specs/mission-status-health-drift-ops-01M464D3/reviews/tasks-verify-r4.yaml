@@ -1,0 +1,25 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH3-001
+    status: resolved
+    reason: Note 17 now exists in the ruling file as an orchestrator note (settling the FORK per note 17), and tasks.md Step 0 item 2, quickstart.md (line 3 and the battery row) and the WP03/WP07/WP08 battery sections cite "note 17 extending ruling 14" instead of attributing it to the operator text.
+  - id: TASKS-FRESH3-002
+    status: resolved
+    reason: The grep -c line count is replaced in Step PD item 4, Step J-1, WP06 hand-off item 1 and the WP07 pointer by a value test (last contracts-commit line of each file, sort -u, wc -l prints 1), which I ran on sample stale and matching records and which behaves correctly.
+  - id: TASKS-FRESH3-003
+    status: resolved
+    reason: Step PD item 1 now says a re-hand-off or repeated J-1 replay appends a new heading add-only, that gates read the LAST matching heading whose hash must equal the dispatched tip, item 4 repeats it, and the J-1 and WP06 text compare the last contracts-commit line.
+  - id: TASKS-FRESH3-004
+    status: resolved
+    reason: Per note 18 (option A) every cutover-guard command in WP01 to WP09 and quickstart.md now reads <synced-spec-kitty>, defined once in Step 0 item 2 with the import and PYTHONPATH rule, the "stays as written" sentence is gone from all ten WPs, tasks.md and quickstart, and WP10 states it runs no cutover-guard.
+  - id: TASKS-FRESH3-005
+    status: resolved
+    reason: Step 0 item 1 now states the symbol check (and the Step PD item 6 hygiene counts) need only the standard library and may run with either interpreter before item 2 exists, and quickstart.md carries the same sentence.
+  - id: TASKS-FRESH3-006
+    status: resolved
+    reason: The definition-of-done bullet in WP03, WP07 and WP08 is now met under the note 16 fallback once the orchestrator appends the three exit-code results to the hand-off record, and each reviewer bullet applies rejection for a missing leg only after that append.
+  - id: TASKS-FRESH3-007
+    status: resolved
+    reason: Step 0 item 2 now says the substitution rule is in every code work package prompt WP01 to WP09 and that WP10 carries its own "Interpreter and floor" paragraph, matching the grep (one hit each in WP01 to WP09, none in WP10).

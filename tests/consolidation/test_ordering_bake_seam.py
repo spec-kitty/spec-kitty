@@ -200,7 +200,7 @@ def test_bake_onto_target_tree_writes_existing_meta(tmp_path: Path) -> None:
 
 def test_write_skips_when_branch_missing(tmp_path: Path) -> None:
     with patch.object(bake, "_has_branch_ref", return_value=False):
-        assert bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 3) is False
+        assert bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 3, target_branch="main") is False
 
 
 # --- _assign_planning_only_mission_number_if_needed -------------------------
@@ -387,7 +387,7 @@ def test_write_rejects_unsafe_mission_slug_before_git_or_file_io(tmp_path: Path)
         patch("subprocess.run") as run_mock,
         patch("specify_cli.missions._read_path_resolver.compose_meta_json_path") as compose_mock,
     ):
-        result = bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "/outside-repo", 99)
+        result = bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "/outside-repo", 99, target_branch="main")
 
     assert result is False
     branch_mock.assert_not_called()
@@ -410,7 +410,7 @@ def test_write_skips_when_worktree_add_fails(tmp_path: Path) -> None:
         patch.object(bake, "_has_branch_ref", return_value=True),
         patch("subprocess.run", side_effect=_fake_run),
     ):
-        assert bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 3) is False
+        assert bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 3, target_branch="main") is False
 
 
 def test_write_skips_when_meta_missing(tmp_path: Path) -> None:
@@ -425,7 +425,7 @@ def test_write_skips_when_meta_missing(tmp_path: Path) -> None:
         patch("subprocess.run", side_effect=_fake_run),
     ):
         # The composed meta path under the tmp scan worktree never exists.
-        assert bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 3) is False
+        assert bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 3, target_branch="main") is False
 
 
 def test_write_refuses_when_meta_path_under_worktrees(tmp_path: Path) -> None:
@@ -443,7 +443,7 @@ def test_write_refuses_when_meta_path_under_worktrees(tmp_path: Path) -> None:
             side_effect=lambda wt, slug: wt / ".worktrees" / "m-coord" / "meta.json",
         ),
     ):
-        assert bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 3) is False
+        assert bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 3, target_branch="main") is False
 
 
 def test_write_refuses_when_meta_not_a_dict(tmp_path: Path) -> None:
@@ -468,7 +468,7 @@ def test_write_refuses_when_meta_not_a_dict(tmp_path: Path) -> None:
             side_effect=lambda wt, slug: wt / "kitty-specs" / slug / "meta.json",
         ),
     ):
-        assert bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 3) is False
+        assert bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 3, target_branch="main") is False
 
 
 def test_write_idempotency_hit_never_marks_baked_returns_false(tmp_path: Path) -> None:
@@ -499,6 +499,44 @@ def test_write_idempotency_hit_never_marks_baked_returns_false(tmp_path: Path) -
             side_effect=lambda wt, slug: wt / "kitty-specs" / slug / "meta.json",
         ),
     ):
-        result = bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 9)
+        result = bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 9, target_branch="main")
     assert result is False
     assert marked == [], "the idempotency-hit seam must never mark mission_number_baked (#4900)"
+
+
+def test_write_commit_argv_names_only_meta(tmp_path: Path) -> None:
+    """#5443 / C-005: the temp-worktree commit is ``commit --only ... -- <rel_meta>``.
+
+    Restoring the bare ``git commit -m`` (or a pathspec-less ``git add``) fails here.
+    """
+    import json as _json
+
+    recorded: list[list[str]] = []
+
+    def _fake_run(args: list[str], **kwargs: object) -> CompletedProcess[str]:
+        recorded.append(list(args))
+        if args[:3] == ["git", "worktree", "add"]:
+            specs = Path(args[4]) / "kitty-specs" / "m"
+            specs.mkdir(parents=True, exist_ok=True)
+            (specs / "meta.json").write_text(_json.dumps({"mission_number": None}), encoding="utf-8")
+        return CompletedProcess(args, 0, stdout="abc123\n", stderr="")
+
+    with (
+        patch.object(bake, "_has_branch_ref", return_value=True),
+        patch.object(bake, "path_is_under_worktrees", return_value=False),
+        patch.object(bake, "advance_branch_ref") as advance_mock,
+        patch("subprocess.run", side_effect=_fake_run),
+        patch(
+            "specify_cli.missions._read_path_resolver.compose_meta_json_path",
+            side_effect=lambda wt, slug: wt / "kitty-specs" / slug / "meta.json",
+        ),
+    ):
+        result = bake._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "m", 4, target_branch="main")
+
+    assert result is True
+    advance_mock.assert_called_once()
+    commits = [argv for argv in recorded if "commit" in argv]
+    assert len(commits) == 1
+    assert "--only" in commits[0]
+    assert commits[0][-2:] == ["--", "kitty-specs/m/meta.json"]
+    assert not [argv for argv in recorded if argv[:2] == ["git", "add"] and "--" not in argv]

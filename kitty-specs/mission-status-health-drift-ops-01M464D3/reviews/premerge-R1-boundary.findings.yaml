@@ -1,0 +1,48 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: boundary
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: PR-BOUNDARY-001
+    lens: CI coupling / blast radius
+    severity: 3
+    title: The reality check now reads kitty-ops/, but no router group selects tests (corpus-blocking) for a kitty-ops-only PR
+    evidence:
+      - code: ".github/workflows/ci-router.yml:224-234 (the `corpus` filter group: packs, five kitty-specs leaves, .kittify roots, contracts; no kitty-ops/)"
+      - code: ".github/workflows/ci-router.yml:965-970 (tests-corpus-blocking runs only when `needs.changes.outputs.corpus == 'true'`)"
+      - code: "tests/contract/test_mission_status_reality.py:2128 (OPS_TREE = \"kitty-ops\"), :2813, :2821-2833 (the Ops walk, and a skip for any reason other than the named legacy completion fails; pinned names must stay derived), :2853 (Ops floors)"
+      - code: "tests/contract/fixtures/mission_status_health_drift_ops_expected.json (legacy_completion_ops and spine_closed_ops pinned by Op id: a vanished or changed named entry fails)"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py:81-89 (_CORPUS_DATA_ROOTS does not list kitty-ops/, so the root-coverage gate cannot flag the new data root)"
+      - artifact: "plan.md Reflexivity items 2 and 5 accept a stranger-Mission data defect on a corpus-selected PR, and reader drift caught on main push. Neither covers a data root that never selects the job. The v1 reality module on main (abafc135e) has no kitty-ops reference."
+      - code: "Verified: scripts.ci.gate_selection.select_gates(['kitty-ops/<id>.jsonl']) gives matched_groups=[] and unmatched_src=False, so tests-corpus-blocking is not selected. git log shows 10 of the last 40 kitty-ops commits on main touch only kitty-ops/ (for example 05697f827 'chore(ops): close six stale python-pedro generate Ops')."
+    claim: >-
+      kitty-ops/*.jsonl is committed on main routinely, often in kitty-ops-only commits or PRs (Op open and close
+      records, stale-Op sweeps). After this lands, the blocking reality check treats that tree as corpus. Any skip
+      reason other than legacy completion fails, for example a credential-shaped profileId/action/actor or a bad
+      closure instant (both WP08 skip rulings). Each pinned legacy_completion_ops or spine_closed_ops id must stay
+      on the derived list. A kitty-ops-only PR runs no reality check, so it can merge green. The push-to-main run
+      then goes red, and so does every later corpus-selected PR, because PR CI tests the merge ref. Those strangers
+      own neither the cause nor the fix. A closure sweep of the kind 05697f827 made is enough to trigger this.
+    remediation: >-
+      Add 'kitty-ops/**' to the router `corpus` filter group and 'kitty-ops/' to _CORPUS_DATA_ROOTS, in the
+      ci-router.yml edit this slice already makes. A kitty-ops change then selects tests (corpus-blocking). The cost
+      is the advisory Packs corpus run and prose-scan on Op-only PRs. Fork: if that cost is unwanted, record it in
+      the plan as an accepted item beside Reflexivity 5 ("Op data drift is not selected before merge").
+  - id: PR-BOUNDARY-002
+    lens: Blast radius (CI runtime)
+    severity: 2
+    title: The measured local job gain is about 65 s, against the 38 s IC-01 proxy and the 70 s escalation line
+    evidence:
+      - artifact: "plan.md D-P5 and tracer-approach.md:73,77 (IC-01 proxy about 37 to 39 s local; the escalation line is about 70 s local against the job-gain sum; plan-time corpus-job baseline 'reality plus payload helper 819 passed in 108 s locally'; tool selection '1,778 passed, 37 skipped in 176 s locally')"
+      - code: "Measured at 9a168182d (this review, remotes reachable, the CI command lines): payloads+reality 893 passed, 1 skipped in 173.4 s. The corpus_exam fixture setup is 73.1 s and corpus_run setup is 45.8 s. Tool selection (-n 4 --dist loadfile): 2263 passed, 37 skipped in 271.3 s. tests/contract/test_mission_status_examples.py alone takes 203 s, one worker under loadfile."
+    claim: >-
+      Against the plan's own 108 s baseline, the corpus job gains about 65 s local, roughly 110 s in CI at the
+      plan's 1.7 factor. The 120 s bound is not exceeded, but the margin is about 8%, and the IC-01 proxy that set
+      the bound understated the gain by about 27 s. The tool job grew by about 95 s local, to about 7.7 min
+      estimated in CI against a 15 min timeout, and one file is its critical path. Neither number is a breach. Both
+      are smaller margins than the recorded proxies suggest, and a runner variance of about 10% would cross the
+      120 s gain bound.
+    remediation: >-
+      In the W-7 record, report the measured CI job gain of the first PR run. Also report the local measurement
+      above, next to the IC-01 proxy, so the operator judges the bound on measured numbers.

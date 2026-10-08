@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Final, Literal, Protocol, runtime_checkable
 
 from kernel.git import status_entries
+from kernel.resolution import resolve_commit_path
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
@@ -1321,8 +1322,8 @@ def _is_directly_in_worktree(path: Path, worktree: Path) -> bool:
     from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 
     try:
-        rel = path.resolve().relative_to(worktree.resolve())
-    except ValueError:
+        rel = resolve_commit_path(worktree, path).relative_to(worktree.resolve())
+    except (ValueError, OSError):  # OSError: a symlink loop
         return False
     return not is_under_worktrees_segment(rel)
 
@@ -1952,8 +1953,8 @@ def _relpath(repo_root: Path, path: Path) -> str:
     classification decision.
     """
     try:
-        return path.resolve().relative_to(repo_root.resolve()).as_posix()
-    except ValueError:
+        return resolve_commit_path(repo_root, path).relative_to(repo_root.resolve()).as_posix()
+    except (ValueError, OSError):  # OSError: a symlink loop; this renderer must never raise
         return path.as_posix()
 
 
@@ -1979,7 +1980,7 @@ def _dirty_paths_in_checkout(surface_root: Path, files: tuple[Path, ...]) -> tup
         if not path.exists():
             continue
         try:
-            rel = path.resolve().relative_to(surface_root.resolve())
+            rel = resolve_commit_path(surface_root, path).relative_to(surface_root.resolve())
         except ValueError:
             continue
         if status_entries(surface_root, pathspecs=(rel.as_posix(),), untracked=None):

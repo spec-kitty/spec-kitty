@@ -1,0 +1,155 @@
+title: OpsInvocation
+description: >-
+  One Op: a governed invocation of an agent profile on an action, as recorded in the Ops
+  directory, with the state of its closure. It is open until its own file holds a completion or
+  the closure spine holds a record for its id, and then closed; an open Op has no outcome, closer,
+  completion instant or evidence. A record of an older shape or an unreadable record is never
+  served as an Op; it is skipped and counted. Record fields left out on purpose, because they are
+  free text, model identity or internal routing state: request_text, model_id,
+  governance_context_hash, governance_context_available and router_confidence. The schema is closed,
+  so a payload carrying any of them is invalid.
+type: object
+additionalProperties: false
+required:
+  - invocationId
+  - profileId
+  - action
+  - actor
+  - modeOfWork
+  - startedAt
+  - missionId
+  - wpId
+  - status
+  - outcome
+  - closedBy
+  - completedAt
+  - evidence
+properties:
+  invocationId:
+    type: string
+    pattern: '^[0-9A-HJKMNP-TV-Z]{26}$'
+    description: The 26-character ULID of the Op, which is also the stem of its file name.
+    x-source:
+      path: src/specify_cli/invocation/record.py
+      symbol: OpStartedEvent.invocation_id
+  profileId:
+    type: string
+    pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
+    description: The identifier of the agent profile the Op ran under. A record whose value does not fit the pattern is skipped, never served.
+    x-source:
+      path: src/specify_cli/invocation/record.py
+      symbol: OpStartedEvent.profile_id
+  action:
+    type: string
+    pattern: '^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$'
+    description: The canonical action token the Op was opened for. A record whose value does not fit the pattern is skipped, never served.
+    x-source:
+      path: src/specify_cli/invocation/record.py
+      symbol: OpStartedEvent.action
+  actor:
+    $ref: ActorHandle.yaml
+    description: The handle of the tool, role or agent that opened the Op, or null when the stored value is not a handle or holds a credential.
+    x-source:
+      path: src/specify_cli/invocation/record.py
+      symbol: OpStartedEvent.actor
+  modeOfWork:
+    $ref: OpsModeOfWork.yaml
+    description: How the work of the Op was framed.
+    x-source:
+      path: src/specify_cli/invocation/record.py
+      symbol: OpStartedEvent.mode_of_work
+  startedAt:
+    type: string
+    format: date-time
+    description: When the Op was opened, as an RFC 3339 date-time with an offset.
+    x-source:
+      path: src/specify_cli/invocation/record.py
+      symbol: OpStartedEvent.started_at
+  missionId:
+    oneOf:
+      - $ref: MissionId.yaml
+      - type: 'null'
+    description: The 26-character ULID of the Mission the Op belongs to, or null when it belongs to none. A stored value that is not a ULID makes the record unreadable, so it is skipped.
+    x-source:
+      path: src/specify_cli/invocation/record.py
+      symbol: OpStartedEvent.mission_id
+  wpId:
+    oneOf:
+      - $ref: WpId.yaml
+      - type: 'null'
+    description: The work package the Op belongs to, or null when it belongs to none. A stored value that does not fit is skipped as an unreadable record.
+    x-source:
+      path: src/specify_cli/invocation/record.py
+      symbol: OpStartedEvent.wp_id
+  status:
+    $ref: OpsInvocationStatus.yaml
+    description: Whether the Op is open or closed, counting the closure spine.
+    x-derived:
+      rule: closed when the Op's own file holds a valid completion, else when the closure spine holds a record for its id; the own file wins when both exist.
+      inputs:
+        - path: src/specify_cli/invocation/record.py
+          symbol: OpCompletedEvent
+        - path: src/specify_cli/invocation/writer.py
+          symbol: closed_invocation_ids
+  outcome:
+    oneOf:
+      - $ref: OpsOutcome.yaml
+      - type: 'null'
+    description: How the Op ended, or null while it is open.
+    x-source:
+      path: src/specify_cli/invocation/record.py
+      symbol: OpCompletedEvent.outcome
+  closedBy:
+    oneOf:
+      - $ref: OpsClosedBy.yaml
+      - type: 'null'
+    description: Who closed the Op, or null while it is open.
+    x-source:
+      path: src/specify_cli/invocation/record.py
+      symbol: OpCompletedEvent.closed_by
+  completedAt:
+    type:
+      - string
+      - 'null'
+    format: date-time
+    description: When the Op was closed, as an RFC 3339 date-time with an offset, or null while it is open. For an Op closed by a sweep it is the instant of the closure.
+    x-source:
+      path: src/specify_cli/invocation/record.py
+      symbol: OpCompletedEvent.completed_at
+  evidence:
+    oneOf:
+      - $ref: OpsEvidence.yaml
+      - type: 'null'
+    description: >-
+      The evidence the closure recorded, made safe to show, or null. Null means no evidence, or
+      withheld because it holds a credential: the credential kinds checked are GitHub classic and
+      fine-grained tokens, an AWS access key id and a private-key header, and other secret shapes
+      are not detected. The credential check runs on the stored value before anything is redacted,
+      so redaction never masks a credential. An open Op has null evidence.
+    x-derived:
+      rule: >-
+        The evidence reference of the completion, withheld when it matches a credential pattern,
+        else classified, redacted and cut to 512 characters.
+      inputs:
+        - path: src/specify_cli/invocation/record.py
+          symbol: OpCompletedEvent.evidence_ref
+        - path: src/specify_cli/invocation/writer.py
+          symbol: normalise_ref
+        - path: contracts/tools/leak_patterns.py
+          symbol: redact_emails
+        - path: contracts/tools/leak_patterns.py
+          symbol: SECRET_PATTERNS
+    x-provisional:
+      open_decision: >-
+        The classes of evidence, the removal of host paths and addresses, the withholding of a
+        credential and the cut at 512 characters are a proposal of this contract.
+examples:
+  - $ref: ../examples/OpsInvocation.open.yaml
+  - $ref: ../examples/OpsInvocation.closed-by-agent.yaml
+  - $ref: ../examples/OpsInvocation.closed-by-doctor-sweep.yaml
+  - $ref: ../examples/OpsInvocation.evidence-repo-path.yaml
+  - $ref: ../examples/OpsInvocation.evidence-url.yaml
+  - $ref: ../examples/OpsInvocation.evidence-url-redacted.yaml
+  - $ref: ../examples/OpsInvocation.evidence-text.yaml
+  - $ref: ../examples/OpsInvocation.evidence-text-redacted.yaml
+  - $ref: ../examples/OpsInvocation.evidence-null.yaml

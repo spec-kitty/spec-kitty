@@ -447,7 +447,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
             "Execution worktrees root: every mission worktree is a full "
             "checkout under .worktrees/<slug>-<mid8>. Must be gitignored in "
             "the main checkout -- an unignored root shows as permanent "
-            "untracked dirt and a stray `git add -A` stages entire nested "
+            "untracked dirt and a blanket stage-everything command stages entire nested "
             "checkouts. Historically only migration 0.13.1 excluded it (via "
             "the local-only .git/info/exclude), so projects initialised "
             "since then had no coverage; registering it here makes init "

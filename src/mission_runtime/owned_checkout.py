@@ -37,7 +37,7 @@ from enum import StrEnum
 from pathlib import Path
 
 import kernel.paths as kernel_paths
-from kernel.resolution import resolve_rejecting_loops
+from kernel.resolution import resolve_commit_path, resolve_rejecting_loops
 from mission_runtime.context import MissionTopology
 from mission_runtime.resolution import ActionContextError
 
@@ -206,13 +206,20 @@ class OwnedCheckout:
             _token=_MINT_TOKEN,
         )
 
-    def files(self, paths: list[Path]) -> list[Path]:
+    def files(self, paths: list[Path], *, follow_links: bool = False) -> list[Path]:
         """Validate a batch of paths against ``mission_dir`` (whole-batch containment before any staging).
 
         A relative path is joined to ``owned_root``. Any ``..`` part is
         refused. Each candidate is resolved with
-        :func:`kernel.resolution.resolve_rejecting_loops` (a symlink loop is
-        refused too) and must resolve inside ``mission_dir``.
+        :func:`kernel.resolution.resolve_commit_path` (parents resolved, a link
+        leaf kept; a symlink loop is refused too) and must lie inside
+        ``mission_dir`` by the link's own location: a link inside the mission is
+        committed as a link even if it points elsewhere (#5671).
+
+        ``follow_links=True`` is for boundary screens that decide where a path
+        *leads* rather than what a commit stores: the final component is
+        resolved too (:func:`kernel.resolution.resolve_rejecting_loops`), so a
+        link inside the mission that points outside it is refused.
         """
         resolved: list[Path] = []
         for path in paths:
@@ -220,7 +227,7 @@ class OwnedCheckout:
             if ".." in path.parts:
                 raise OwnedCheckoutPathRefused(f"Path is outside the selected mission: {path}")
             try:
-                resolved_candidate = resolve_rejecting_loops(candidate)
+                resolved_candidate = resolve_rejecting_loops(candidate) if follow_links else resolve_commit_path(self.owned_root, candidate)
             except OSError as exc:
                 raise OwnedCheckoutPathRefused(f"Path is outside the selected mission: {path}") from exc
             if not _is_within(resolved_candidate, self.mission_dir):

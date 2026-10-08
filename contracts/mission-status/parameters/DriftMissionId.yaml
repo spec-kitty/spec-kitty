@@ -1,0 +1,9 @@
+name: missionId
+in: query
+required: false
+description: >-
+  Restricts the scan to one Mission, by its 26-character ULID. Without it every Mission of the
+  project is scanned. A value that is not a ULID is refused with 400, and a ULID that names no
+  Mission with 404. The display number is never accepted.
+schema:
+  $ref: ../schemas/MissionId.yaml

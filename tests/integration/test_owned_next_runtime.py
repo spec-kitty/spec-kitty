@@ -241,16 +241,42 @@ def _inject_git_worktree_failure(monkeypatch: pytest.MonkeyPatch, subcommand: st
     monkeypatch.setattr(workspace_mod.subprocess, "run", _fake_run)
 
 
-def _truncate_a_sibling_commondir(repo_root: Path, tmp_path: Path) -> None:
+def _truncate_a_sibling_commondir(repo_root: Path, tmp_path: Path) -> tuple[Path, bytes]:
     """Register a sibling worktree and truncate its ``commondir`` to zero
-    bytes; pre-asserts git itself now fails (R-16), never skips."""
+    bytes; pre-asserts git itself now fails (R-16), never skips.
+
+    A zero-byte ``commondir`` is exactly what a sibling's in-flight ``git
+    worktree add`` leaves for an instant (git writes it last, truncate then
+    write; #5894). Returns the file and its original bytes so a test can play
+    the sibling finishing its ``add``."""
     sibling_worktree = tmp_path / "sibling-registered-worktree"
     subprocess.run(["git", "-C", str(repo_root), "worktree", "add", "-q", "--detach", str(sibling_worktree)], check=True)
     git_dir = Path((sibling_worktree / ".git").read_text(encoding="utf-8").removeprefix("gitdir:").strip())
-    (git_dir / "commondir").write_bytes(b"")
+    commondir = git_dir / "commondir"
+    original = commondir.read_bytes()
+    commondir.write_bytes(b"")
     probe = subprocess.run(["git", "-C", str(repo_root), "worktree", "list", "--porcelain"], capture_output=True, text=True)
     if probe.returncode == 0:
         pytest.fail("git tolerated a zero-byte commondir with exit 0 -- the injection did not reproduce; refusing to skip (R-16).")
+    return commondir, original
+
+
+def _count_retry_sleeps(monkeypatch: pytest.MonkeyPatch, on_sleep: Any = None) -> list[float]:
+    """Replace the bounded retry's back-off with a recorder (no wall-clock
+    wait); ``on_sleep`` runs on each back-off, standing in for the sibling."""
+    import time
+
+    # Patching ``time.sleep`` module-wide reaches the bridge because it
+    # imports ``time`` inside the retry function, not at module scope.
+    sleeps: list[float] = []
+
+    def _sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+        if on_sleep is not None:
+            on_sleep()
+
+    monkeypatch.setattr(time, "sleep", _sleep)
+    return sleeps
 
 
 class TestO8CoordinationWorkspaceUnavailable:
@@ -270,16 +296,37 @@ class TestO8CoordinationWorkspaceUnavailable:
 
         assert decision.error_code != OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE.value, (decision.kind, decision.reason)
 
-    def test_zero_byte_commondir_returns_typed_refusal(self, make_owned_checkouts, tmp_path: Path) -> None:
+    def test_zero_byte_commondir_returns_typed_refusal(self, make_owned_checkouts, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A ``commondir`` that STAYS empty through the whole bounded retry
+        window is still refused, and the refusal carries git's own diagnostic."""
         from runtime.next import decision as decision_mod
 
         checkouts, fact = _coord_owned_with_removed_worktree(make_owned_checkouts)
         _truncate_a_sibling_commondir(checkouts.repository_root, tmp_path)
+        sleeps = _count_retry_sleeps(monkeypatch)
 
         decision = decision_mod.decide_next("claude", checkouts.mission_slug, "success", checkouts.repository_root, owned=fact)
 
         assert decision.kind == "blocked"
         assert decision.error_code == OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE.value
+        assert sleeps, "the in-flight sibling diagnostic was refused without a single retry (#5894)"
+        assert "commondir" in (decision.reason or ""), decision.reason
+
+    def test_sibling_add_finishing_inside_the_retry_window_is_not_refused(self, make_owned_checkouts, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#5894 (nightly run 37723696665): a sibling's in-flight ``git
+        worktree add`` leaves a zero-byte ``commondir`` for an instant. When
+        the sibling finishes while this process backs off, the coordination
+        worktree materializes; the instant is never a durable refusal."""
+        from runtime.next import decision as decision_mod
+
+        checkouts, fact = _coord_owned_with_removed_worktree(make_owned_checkouts)
+        commondir, original = _truncate_a_sibling_commondir(checkouts.repository_root, tmp_path)
+        sleeps = _count_retry_sleeps(monkeypatch, on_sleep=lambda: commondir.write_bytes(original))
+
+        decision = decision_mod.decide_next("claude", checkouts.mission_slug, "success", checkouts.repository_root, owned=fact)
+
+        assert decision.error_code != OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE.value, (decision.kind, decision.reason)
+        assert sleeps, "the control injection never reached the retry (the race was not exercised)"
 
     def test_subprocess_seam_failure_returns_typed_refusal(self, make_owned_checkouts, monkeypatch: pytest.MonkeyPatch) -> None:
         from runtime.next import decision as decision_mod

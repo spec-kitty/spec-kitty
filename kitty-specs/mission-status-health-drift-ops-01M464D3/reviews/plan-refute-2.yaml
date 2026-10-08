@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 2
+verdicts:
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: The contract tree really holds schemas/Project.yaml and paths/project.yaml, and plan.md line 256 flattens both into one fixture directory as Project.yaml and project.yaml, a case-insensitive collision on the macOS and Windows platforms the plan names.
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: ProjectMetadata.load calls data.get and spec_kitty.get on unvalidated YAML (only OSError and YAMLError caught) so a list top level raises AttributeError, while D-P4 names load as the reader and data-model says the read does not raise, with no guard stated; fork options (a) pre-check shape and treat residual AttributeError or TypeError as null, (b) read spec_kitty.version directly with safe_load and keep load only as the equality control.
+  - id: PLAN-ARCH-003
+    verdict: refuted
+    reason: D-P4 already makes the builder reproduce the four v1 fallbacks on the raw memo outcome (so it holds the read directory) and the equality control against the v1 build on every fixture proves population and activity parity, leaving only an implementer-level choice of public readers (materialize_snapshot, enumerate_missions) that changes no contract outcome.
+  - id: PLAN-ARCH-004
+    verdict: confirmed
+    reason: _bundle_problems compares whole trees after deleting only path keys, and D-P10 says only "equals the baseline bundle except Project" with no masking rule or plant on getProject, so a change to the existing /project operation could be hidden by an over-broad exclusion.
+  - id: PLAN-ARCH-005
+    verdict: refuted
+    reason: AC-CROSS 4 compares the run total of subprocesses to the sum of memo counts, which is order-independent, so the per-entry attribution is a harmless diagnostic and demanding its removal is resolver-internals peeling that R-9 treats as assumptions.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: The registry excludes test_no_dead_symbols.py and test_dead_symbol_allowlist_contract.py from the fast roster and lists no home-pin file, yet plan.md and the quickstart attribute dead symbols and the home pin to architectural-fast, and the fast roster scan test_no_tmp_paths_in_tests.py and the heavy clock-ban files are absent from the named list.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: Baseline item 3 records durations only for the two architectural jobs, D-P5 holds only a remembered "about 3 minutes" CI figure for the corpus job, and W-7 states no pass rule for the 120 s gain while the in-test bound covers one case, not the job.

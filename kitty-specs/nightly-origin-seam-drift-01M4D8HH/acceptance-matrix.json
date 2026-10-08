@@ -1,0 +1,49 @@
+{
+  "mission_slug": "nightly-origin-seam-drift-01M4D8HH",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/doctrine/test_sources.py::TestGitSource: 7 red on add98cdb, 78/78 file green on branch",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-08T08:44:42.390405+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_merge_cli_golden.py::test_help_pins_one_line_help_and_every_visible_flag red on add98cdb, green on branch",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-08T08:44:46.079485+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_accept_decomposition.py owned ids (2) red on add98cdb, 85/85 with golden green on branch",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-08T08:44:49.714367+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_explicit_checkout_commands.py accept ids (6) red on add98cdb, 102/102 file green on branch",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-08T08:44:53.863942+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

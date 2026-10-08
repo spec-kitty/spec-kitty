@@ -15,12 +15,16 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from kernel.clock import now_utc, parse_iso
 from specify_cli.lanes.branch_naming import lane_id_for_worktree_dir
 from specify_cli.status_lanes import TERMINAL_LANES
+from specify_cli.frontmatter import FrontmatterError
 from .models import Lane, WPInnerStateDelta
 from .reducer import SNAPSHOT_FILENAME, reduce
-from .store import read_events
+from .store import StoreError, read_events
+from .wp_metadata import read_authored_wp_frontmatter, wp_task_files
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +51,7 @@ class Category(StrEnum):
     UNINITIALIZED_STATUS = "uninitialized_status"
     DUPLICATE_FRONTMATTER_KEY = "duplicate_frontmatter_key"
     BLANKED_RUNTIME_SLOT = "blanked_runtime_slot"
+    WP_FILE_DRIFT = "wp_file_drift"
 
 
 @dataclass
@@ -153,6 +158,68 @@ def check_uninitialized_status(
             recommended_action=action,
         )
     ]
+
+
+def check_wp_file_reconciliation(
+    feature_dir: Path,
+    event_wp_ids: set[str],
+    terminal_wp_ids: frozenset[str] = frozenset(),
+) -> list[Finding]:
+    """Compare reduced event-log membership with authored WP prompts.
+
+    A ``done``/``canceled`` WP whose prompt is gone (an archived Mission) is a
+    warning; any other WP without a prompt is an error.
+    """
+    file_wp_ids: dict[str, str] = {}
+    findings: list[Finding] = []
+    for wp_file in wp_task_files(feature_dir / "tasks"):
+        try:
+            metadata, _ = read_authored_wp_frontmatter(wp_file)
+        except (FrontmatterError, ValidationError, UnicodeDecodeError, OSError):
+            findings.append(
+                Finding(
+                    severity=Severity.ERROR,
+                    category=Category.WP_FILE_DRIFT,
+                    wp_id=None,
+                    message=f"Cannot read work-package identity from tasks/{wp_file.name}.",
+                    recommended_action="Repair the prompt frontmatter, then rerun status doctor.",
+                )
+            )
+            continue
+        wp_id = metadata.work_package_id
+        first_file = file_wp_ids.setdefault(wp_id, wp_file.name)
+        if first_file != wp_file.name:
+            findings.append(
+                Finding(
+                    severity=Severity.ERROR,
+                    category=Category.WP_FILE_DRIFT,
+                    wp_id=wp_id,
+                    message=f"tasks/{first_file} and tasks/{wp_file.name} both declare {wp_id}.",
+                    recommended_action="Keep one prompt per work package.",
+                )
+            )
+
+    for wp_id in sorted(event_wp_ids - file_wp_ids.keys()):
+        findings.append(
+            Finding(
+                severity=Severity.WARNING if wp_id in terminal_wp_ids else Severity.ERROR,
+                category=Category.WP_FILE_DRIFT,
+                wp_id=wp_id,
+                message=f"{wp_id} exists in the event log but has no prompt in tasks/.",
+                recommended_action="Restore the work-package prompt or reconcile its event-log lifecycle.",
+            )
+        )
+    for wp_id in sorted(file_wp_ids.keys() - event_wp_ids):
+        findings.append(
+            Finding(
+                severity=Severity.ERROR,
+                category=Category.WP_FILE_DRIFT,
+                wp_id=wp_id,
+                message=f"{wp_id} has a prompt in tasks/ but no event-log status.",
+                recommended_action="Run `spec-kitty migrate backfill-wp-status` to seed missing status events.",
+            )
+        )
+    return findings
 
 
 def check_stale_claims(
@@ -742,5 +809,17 @@ def run_doctor(
     # Legacy dual-key artifact finding (FR-008, #3372). Scoped to this mission's
     # own artifact tree; appended at the tail for the same order-stability reason.
     result.findings.extend(check_duplicate_frontmatter_keys(feature_dir))
+
+    # Compare with the event log itself: status.json is a derived view and may
+    # be stale, so its WP set cannot establish canonical membership.
+    try:
+        events = read_events(feature_dir)
+    except (StoreError, OSError):
+        logger.debug("Could not reconcile WP files against the event log", exc_info=True)
+        events = []
+    if events:
+        event_wps = reduce(events).work_packages
+        terminal = frozenset(wp_id for wp_id, state in event_wps.items() if state.get("lane") in TERMINAL_LANES)
+        result.findings.extend(check_wp_file_reconciliation(feature_dir, set(event_wps), terminal))
 
     return result

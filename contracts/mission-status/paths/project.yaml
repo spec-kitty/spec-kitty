@@ -1,7 +1,13 @@
 get:
   operationId: getProject
   summary: Read the project header.
-  description: Returns the project name and the number of Missions the service lists.
+  description: >-
+    Returns the project name, the number of Missions the service lists, the recorded Spec Kitty
+    and schema versions, the health badge, the current branch and the latest Mission activity.
+    The read is side-effect-free and runs no drift scan; its cost grows with the Mission count
+    (see the Project schema). A Mission whose declared coordination branch no longer exists, or
+    whose remote cannot be reached, is read from its own directory and the answer is still a 200;
+    any other resolver error is a 500 Problem, as for GET /drift.
   tags:
     - Project
   responses:

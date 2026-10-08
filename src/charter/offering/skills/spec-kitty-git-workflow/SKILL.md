@@ -149,7 +149,7 @@ worktree but never commits code:
 ```bash
 cd .worktrees/042-mission-lane-a
 # ... write code, run tests ...
-git add src/ tests/
+git add -- src/auth/middleware.py tests/test_auth_middleware.py
 git commit -m "feat(WP01): implement auth middleware"
 ```
 

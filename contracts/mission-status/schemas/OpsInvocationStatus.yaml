@@ -1,0 +1,19 @@
+title: OpsInvocationStatus
+description: >-
+  Whether an Op is still open or closed. closed counts the closure spine: an Op is closed when its
+  own file holds a completion and also when the closure spine holds a record for its id, so an Op
+  closed by a sweep is served closed even though its own file never changed.
+type: string
+enum:
+  - open
+  - closed
+x-derived:
+  rule: closed when the Op's own file holds a valid completion, else when the closure spine holds a record for its id; otherwise open.
+  inputs:
+    - path: src/specify_cli/invocation/record.py
+      symbol: OpCompletedEvent
+    - path: src/specify_cli/invocation/writer.py
+      symbol: closed_invocation_ids
+examples:
+  - open
+  - closed

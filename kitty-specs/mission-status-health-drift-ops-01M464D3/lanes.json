@@ -1,0 +1,214 @@
+{
+  "version": 1,
+  "mission_slug": "mission-status-health-drift-ops-01M464D3",
+  "mission_id": "01M464D3QRGMV4H68TTJXZRHKV",
+  "mission_branch": "kitty/mission-mission-status-health-drift-ops-01M464D3",
+  "target_branch": "issue-5776-mission-status-contract-health-drift-ops",
+  "lanes": [
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "contracts/tools/fixture_builder.py",
+        "contracts/tools/negative_cases.json",
+        "tests/contract/test_fixture_builder.py",
+        "tests/contract/test_leak_scan.py",
+        "tests/contract/test_run_negative_cases.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-router.yml",
+        ".github/workflows/packs.yml",
+        "contracts/mission-status/CHANGELOG.md",
+        "contracts/mission-status/examples/DriftRefusal.mission-not-found.yaml",
+        "contracts/mission-status/examples/DriftRefusal.scan-unreadable.yaml",
+        "contracts/mission-status/examples/DriftReport.clean.yaml",
+        "contracts/mission-status/examples/DriftReport.corrupt-json.yaml",
+        "contracts/mission-status/examples/DriftReport.populated.yaml",
+        "contracts/mission-status/examples/DriftReport.truncated.yaml",
+        "contracts/mission-status/examples/OpsInvocation.closed-by-agent.yaml",
+        "contracts/mission-status/examples/OpsInvocation.closed-by-doctor-sweep.yaml",
+        "contracts/mission-status/examples/OpsInvocation.evidence-null.yaml",
+        "contracts/mission-status/examples/OpsInvocation.evidence-repo-path.yaml",
+        "contracts/mission-status/examples/OpsInvocation.evidence-text-redacted.yaml",
+        "contracts/mission-status/examples/OpsInvocation.evidence-text.yaml",
+        "contracts/mission-status/examples/OpsInvocation.evidence-url-redacted.yaml",
+        "contracts/mission-status/examples/OpsInvocation.evidence-url.yaml",
+        "contracts/mission-status/examples/OpsInvocation.open.yaml",
+        "contracts/mission-status/examples/OpsInvocationPage.empty.yaml",
+        "contracts/mission-status/examples/OpsInvocationPage.first.yaml",
+        "contracts/mission-status/examples/OpsInvocationPage.last.yaml",
+        "contracts/mission-status/examples/OpsRefusal.ops-unreadable.yaml",
+        "contracts/mission-status/examples/Project.all-null.yaml",
+        "contracts/mission-status/examples/Project.example.yaml",
+        "contracts/mission-status/examples/Project.schema-drift.yaml",
+        "contracts/mission-status/examples/_index.yaml",
+        "contracts/mission-status/openapi.yaml",
+        "contracts/mission-status/parameters/DriftMissionId.yaml",
+        "contracts/mission-status/parameters/OpsProfile.yaml",
+        "contracts/mission-status/parameters/_index.yaml",
+        "contracts/mission-status/paths/drift.yaml",
+        "contracts/mission-status/paths/ops_invocations.yaml",
+        "contracts/mission-status/paths/project.yaml",
+        "contracts/mission-status/responses/DriftMissionNotFound.yaml",
+        "contracts/mission-status/responses/DriftScanUnreadable.yaml",
+        "contracts/mission-status/responses/OpsUnreadable.yaml",
+        "contracts/mission-status/responses/_index.yaml",
+        "contracts/mission-status/schemas/DriftAuthority.yaml",
+        "contracts/mission-status/schemas/DriftFinding.yaml",
+        "contracts/mission-status/schemas/DriftKind.yaml",
+        "contracts/mission-status/schemas/DriftRefusal.yaml",
+        "contracts/mission-status/schemas/DriftRefusalCode.yaml",
+        "contracts/mission-status/schemas/DriftRemedy.yaml",
+        "contracts/mission-status/schemas/DriftReport.yaml",
+        "contracts/mission-status/schemas/DriftSeverity.yaml",
+        "contracts/mission-status/schemas/DriftSide.yaml",
+        "contracts/mission-status/schemas/LaneComparison.yaml",
+        "contracts/mission-status/schemas/OpsClosedBy.yaml",
+        "contracts/mission-status/schemas/OpsEvidence.yaml",
+        "contracts/mission-status/schemas/OpsEvidenceKind.yaml",
+        "contracts/mission-status/schemas/OpsInvocation.yaml",
+        "contracts/mission-status/schemas/OpsInvocationPage.yaml",
+        "contracts/mission-status/schemas/OpsInvocationStatus.yaml",
+        "contracts/mission-status/schemas/OpsModeOfWork.yaml",
+        "contracts/mission-status/schemas/OpsOutcome.yaml",
+        "contracts/mission-status/schemas/OpsRefusal.yaml",
+        "contracts/mission-status/schemas/OpsRefusalCode.yaml",
+        "contracts/mission-status/schemas/Project.yaml",
+        "contracts/mission-status/schemas/ProjectHealth.yaml",
+        "contracts/mission-status/schemas/_index.yaml",
+        "contracts/tools/enum_pins.json",
+        "tests/architectural/test_ci_corpus_trigger_completeness.py",
+        "tests/contract/_mission_status_drift.py",
+        "tests/contract/_mission_status_memo.py",
+        "tests/contract/_mission_status_ops.py",
+        "tests/contract/_mission_status_oracles.py",
+        "tests/contract/_mission_status_payloads.py",
+        "tests/contract/_mission_status_project.py",
+        "tests/contract/fixtures/mission_status_health_drift_ops_expected.json",
+        "tests/contract/fixtures/mission_status_pre_slice/examples/Project.example.yaml",
+        "tests/contract/fixtures/mission_status_pre_slice/paths/project.yaml",
+        "tests/contract/fixtures/mission_status_pre_slice/schemas/Project.yaml",
+        "tests/contract/test_enum_pin_check.py",
+        "tests/contract/test_mission_status_contract_1_1.py",
+        "tests/contract/test_mission_status_drift.py",
+        "tests/contract/test_mission_status_examples.py",
+        "tests/contract/test_mission_status_ops.py",
+        "tests/contract/test_mission_status_payloads.py",
+        "tests/contract/test_mission_status_project.py",
+        "tests/contract/test_mission_status_reality.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "kitty-specs/mission-status-health-drift-ops-01M464D3/tracer-approach.md",
+        "kitty-specs/mission-status-health-drift-ops-01M464D3/tracer-design-decisions.md",
+        "kitty-specs/mission-status-health-drift-ops-01M464D3/tracer-tooling-friction.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-06T07:00:52.840214+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP10"
+  ],
+  "planning_commit_sha": "4572d1df710561f61ebcaf9c9791749a1cd965ee",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/contract/test_mission_status_contract_1_1.py' vs 'tests/contract/test_mission_status_contract_1_1.py'; WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/contract/test_mission_status_contract_1_1.py' vs 'tests/contract/test_mission_status_contract_1_1.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'contracts/mission-status/schemas/_index.yaml' vs 'contracts/mission-status/schemas/_index.yaml', 'contracts/mission-status/examples/_index.yaml' vs 'contracts/mission-status/examples/_index.yaml', 'contracts/mission-status/CHANGELOG.md' vs 'contracts/mission-status/CHANGELOG.md', 'contracts/tools/enum_pins.json' vs 'contracts/tools/enum_pins.json', 'tests/contract/test_mission_status_examples.py' vs 'tests/contract/test_mission_status_examples.py', 'tests/contract/test_enum_pin_check.py' vs 'tests/contract/test_enum_pin_check.py'; WP04 depends on WP03"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP05",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'contracts/mission-status/schemas/_index.yaml' vs 'contracts/mission-status/schemas/_index.yaml', 'contracts/mission-status/examples/_index.yaml' vs 'contracts/mission-status/examples/_index.yaml', 'contracts/mission-status/CHANGELOG.md' vs 'contracts/mission-status/CHANGELOG.md', 'contracts/tools/enum_pins.json' vs 'contracts/tools/enum_pins.json', 'tests/contract/test_mission_status_examples.py' vs 'tests/contract/test_mission_status_examples.py', 'tests/contract/test_enum_pin_check.py' vs 'tests/contract/test_enum_pin_check.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: '.github/workflows/packs.yml' vs '.github/workflows/packs.yml', 'tests/architectural/test_ci_corpus_trigger_completeness.py' vs 'tests/architectural/test_ci_corpus_trigger_completeness.py', '.github/workflows/ci-router.yml' vs '.github/workflows/ci-router.yml'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP08",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: '.github/workflows/packs.yml' vs '.github/workflows/packs.yml', 'tests/architectural/test_ci_corpus_trigger_completeness.py' vs 'tests/architectural/test_ci_corpus_trigger_completeness.py', '.github/workflows/ci-router.yml' vs '.github/workflows/ci-router.yml'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP09",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/contract/_mission_status_payloads.py' vs 'tests/contract/_mission_status_payloads.py', 'tests/contract/test_mission_status_reality.py' vs 'tests/contract/test_mission_status_reality.py'"
+      }
+    ],
+    "total_merges": 7,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 7
+    }
+  }
+}

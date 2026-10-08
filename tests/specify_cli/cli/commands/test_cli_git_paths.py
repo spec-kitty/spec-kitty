@@ -87,13 +87,30 @@ def test_safe_commit_expansion_sees_real_paths(repo: Path) -> None:
     assert _changed_paths_under(repo, "é") == [NON_ASCII_FILE]
 
 
-def test_safe_commit_expansion_uses_rename_destination(repo: Path) -> None:
+def test_safe_commit_expansion_reads_git_status_once_for_all_directory_arguments(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.cli.commands import safe_commit_cmd
+
+    _write(repo, SPACED_FILE)
+    _write(repo, NON_ASCII_FILE)
+    reads: list[int] = []
+    real = safe_commit_cmd.status_entries
+    monkeypatch.setattr(safe_commit_cmd, "status_entries", lambda *a, **k: reads.append(1) or real(*a, **k))
+
+    expanded, report = safe_commit_cmd._expand_arguments(repo, [repo / SPACED_DIR, repo / "é"])
+
+    assert expanded == [repo / SPACED_FILE, repo / NON_ASCII_FILE]
+    assert len(report) == 2
+    assert len(reads) == 1
+
+
+def test_safe_commit_expansion_carries_both_rename_sides(repo: Path) -> None:
     _write(repo, SPACED_FILE, "tracked\n")
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "seed")
     _git(repo, "mv", SPACED_FILE, "a b/g h")
 
-    assert _changed_paths_under(repo, SPACED_DIR) == ["a b/g h"]
+    # #5401: the old path travels with the new one, or the rename is committed half-way.
+    assert _changed_paths_under(repo, SPACED_DIR) == [SPACED_FILE, "a b/g h"]
 
 
 def test_safe_commit_candidate_probe_sees_quoted_paths(repo: Path) -> None:

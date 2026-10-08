@@ -1,0 +1,43 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: PLAN-FRESH2-001
+    lens: debugging-recurrence (budget arithmetic)
+    severity: 2
+    title: D-P5 worst-case arithmetic contradicts its own "inside the 120 s gain bound" claim
+    evidence:
+      - artifact: "plan.md § D-P5 Budget and Execution sharing"
+    claim: >
+      D-P5 derives 45 to 60 s local (75 to 100 s CI at the 1.7 factor) and calls it inside the 120 s gain
+      bound. It then adds the AC-DRIFT 19 equality plus the listing repeats and says the estimate "rises by at
+      most about 30 s in the worst case". The unit is not stated. As local seconds it gives 75 to 90 s local,
+      so about 128 to 153 s in CI; as CI seconds it gives 105 to 130 s. Either way the stated worst case can
+      exceed the 120 s bound the paragraph just declared met. The 25 s worst case also assumes every one of
+      five listing repeats sits at the 5 s bound, which is a failing run of that very test, so it is not a
+      meaningful budget input. The paragraph defers to the first PR run, but the plan-time claim of
+      "inside the bound" is not supported by its own numbers.
+    remediation: >
+      State the unit of the 30 s increment, apply the 1.7 factor to it, and either drop the 25 s listing worst
+      case (price the listing at its expected well-under-1 s cost) or say plainly that the worst case can
+      exceed 120 s. Keep the IC-01 proxy and the 6-minute re-plan threshold as the actual control.
+  - id: PLAN-FRESH2-002
+    lens: debugging-recurrence (stale cross-reference)
+    severity: 2
+    title: The cache-the-result mutation is not in the mutation catalogue the plan points to
+    evidence:
+      - artifact: "plan.md § D-P16 ('joins the Ops mutation catalogue') and Test strategy rule M ('the catalogue is in contracts/tool-extension-and-reader.md')"
+      - artifact: "contracts/tool-extension-and-reader.md:63 (the ops row lists only quadratic-redaction, AC-OPS 14)"
+    claim: >
+      D-P16 and AC-OPS 14 add a second planted mutation, cache-the-result, that must turn AC-OPS 14 and the
+      timing cases red. The plan names the contracts file as the home of the catalogue, and this round edited
+      that file (section G only). Its ops mutation row still lists only quadratic-redaction against AC-OPS 14.
+      The new mutation is therefore missing from the named catalogue, and its AC column omits AC-CROSS 4 (the
+      30 s listing case and the real 5 s listing case), which D-P16 says it must also turn red. A work package
+      built from the contract would not add it, and the "the mutation was not killed: <name>" message needs a
+      stable name there.
+    remediation: >
+      Add `cache-the-result` to the ops row of the catalogue at contracts/tool-extension-and-reader.md:63 with
+      AC-OPS 14 and AC-CROSS 4 as the rows it must turn red.

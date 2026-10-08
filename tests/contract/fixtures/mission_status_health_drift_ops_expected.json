@@ -1,0 +1,26 @@
+{
+  "_comment": "Named corpus anomalies of the health, drift and Ops reads (spec FR-025, plan D-P13). Authored, never generated: a vanished or changed named entry fails; an unnamed new one is only reported. Counts are floors in _mission_status_payloads.py, not here.",
+  "legacy_lane_manifests": [
+    {"mission": "064-complete-mission-identity-cutover", "reason": "lanes.json predates mission_slug: not evaluated for kind 3, kinds 1 and 2 still apply"}
+  ],
+  "legacy_completion_ops": [
+    "01KTK4DFAS04MCX5GP1W2R6NEP",
+    "01KTK4MF47RVY2WCXGFGX5AHT6",
+    "01KTK4WQC1ZVRRK8420G2DB5FH",
+    "01KTK513R0292M9ER0F41CRFKQ",
+    "01KTK5JBD69FQ8XVRFV1J630MJ",
+    "01KTK64KJFMHBMW7H0YD4AW98N",
+    "01KTKBWR6WGSYJG2YA129HXNQ5"
+  ],
+  "spine_closed_ops": [
+    "01M1VXP7D4P42AJRTXEWW7JB42",
+    "01M1XF4MQ2JPFAVDK15SYGVK8Q",
+    "01M1XKAK3SXPCAWP6PN9STTA20",
+    "01M1XREZBGQTCZWW1X1WB8EBHR",
+    "01M1XSSJ92CX6AX0D54AVM3Z5H",
+    "01M1XXTXV3NK7P3WAPRA4T6TZG"
+  ],
+  "provenance_only_drift": [
+    {"mission": "080-ci-hardening-and-lint-cleanup", "source_code": "SNAPSHOT_DRIFT_PROVENANCE"}
+  ]
+}

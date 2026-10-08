@@ -1,0 +1,122 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: PLAN-ARCH-001
+    lens: Canonical source / generated artefacts
+    severity: 3
+    title: Frozen pre-slice fixture directory holds two files that differ only by letter case
+    evidence:
+      - artifact: "plan.md § Generated artefacts (row 'Frozen pre-slice copies'), § Source code tree (fixtures line), § IC-06 Affected surfaces"
+      - artifact: "contracts/tool-extension-and-reader.md and plan.md Technical Context ('contributors on Linux, macOS, Windows')"
+      - code: "contracts/mission-status/schemas/Project.yaml and contracts/mission-status/paths/project.yaml (two real files that the plan flattens into one directory)"
+    claim: >-
+      The plan puts the frozen copies of schemas/Project.yaml and paths/project.yaml side by side in
+      tests/contract/fixtures/mission_status_pre_slice/ as Project.yaml and project.yaml. Those two names
+      collide on a case-insensitive checkout (macOS default, Windows): git cannot materialise both, one
+      overwrites the other, the working tree reads as modified, and the extended scratch pair (FR-022) would swap in the wrong
+      bytes or fail on a contributor machine while staying green on Linux CI. The plan names macOS and Windows as supported
+      contributor platforms, so the collision is in scope.
+    remediation: >-
+      Do not flatten. Keep the source layout under the fixture directory (mission_status_pre_slice/schemas/Project.yaml,
+      mission_status_pre_slice/paths/project.yaml, mission_status_pre_slice/examples/Project.example.yaml) and generate each by
+      git show of the same relative path. Update the three places that name the fixture files (Generated artefacts row, source
+      tree, IC-06 surfaces) and the SLICE_ALLOWED prefix stays tests/contract/.
+  - id: PLAN-ARCH-002
+    lens: Contracts (shape claims against existing code)
+    severity: 3
+    title: Plan relies on ProjectMetadata.load never raising, but it raises on non-mapping metadata shapes
+    evidence:
+      - artifact: "plan.md § D-P4 (reads .kittify/metadata.yaml through ProjectMetadata.load); data-model.md § Project: specKittyVersion ('top level not a mapping, or spec_kitty not a mapping -> null (the read does not raise)'); plan.md § AC-PROJECT row 1 (YAML list; spec_kitty a list)"
+      - code: "src/specify_cli/upgrade/metadata.py:77-133 (ProjectMetadata.load: data.get / spec_kitty.get / env.get / data.get('migrations', {}).get applied to unvalidated YAML; only OSError and YAMLError are caught around the parse, and malformed migration entries are caught for KeyError and ValueError only)"
+      - code: "src/specify_cli/migration/schema_version.py:98-130 (get_project_schema_version, by contrast, checks isinstance dict at each level)"
+    claim: >-
+      A non-empty YAML list at the top level, or a spec_kitty or environment value that is a list or scalar, makes
+      ProjectMetadata.load raise AttributeError (a list has no get), and a non-mapping migrations entry raises TypeError. The plan
+      and data-model state the builder serves null without raising while naming load as the reader, and AC-PROJECT row 1 plants
+      exactly those inputs. The plan gives no guard, so the first red-first run shows an exception and the implementer must invent the
+      remedy inside IC-03. No src change is allowed (C-006), so the guard has to live in the reader.
+    remediation: >-
+      State the guard in D-P4. Two valid options (fork): (a) pre-check the shape of the parsed YAML in the reader (top level
+      mapping, spec_kitty mapping) and call ProjectMetadata.load only when the shape is safe, treating any residual
+      AttributeError or TypeError from load as null; or (b) read spec_kitty.version directly with yaml.safe_load in the reader and keep
+      ProjectMetadata.load only as the control of an equality test. Option (a) keeps the spec's wording ('read as load reads it');
+      option (b) avoids depending on the raising loader. Either way add the raising shapes (list top level, spec_kitty list, environment list,
+      non-mapping migration entry) to the AC-PROJECT row 1 plants and name the chosen option in the decision register.
+    fork: true
+  - id: PLAN-ARCH-003
+    lens: RESOLVER-DISCIPLINE (feasibility of the memo/reader design)
+    severity: 3
+    title: Project builder's route to listed Missions and snapshots is unspecified and in tension with 'never calls v1 load_source' and 'v1 pass untouched'
+    evidence:
+      - artifact: "plan.md § D-P4 ('takes lastActivityAt as the latest instant over the Missions GET /missions lists ... never calls v1's load_source'); § Complexity Tracking row 3; § Reflexivity item 8; contracts/tool-extension-and-reader.md § B (build_project signature, 'source=...')"
+      - code: "tests/contract/_mission_status_payloads.py:664-715 (resolve_read_dir and load_source: the only seam that turns a resolver outcome into a MissionSource; it calls MissionStatus.load itself)"
+      - code: "tests/contract/_mission_status_payloads.py:803-838 (build_overview consumes a MissionSource; lastActivityAt comes from materialize_snapshot(read_dir) work-package last_transition_at)"
+      - code: "tests/contract/_mission_status_payloads.py:200 (enumerate_missions)"
+    claim: >-
+      lastActivityAt needs, for each listed Mission, the snapshot of the read directory. In the existing helper the only way to get a
+      MissionSource is load_source, which runs its own MissionStatus.load, so a builder that is forbidden to call it and forbidden to
+      run a second resolver pass must either re-implement the MissionHead activity projection or add a memo-fed constructor to the
+      payload helper. The plan names neither, does not say which predicate defines 'the Missions GET /missions lists' (so that the
+      equality control against the v1 build holds), and does not say whether the helper edit conflicts with 'the v1 pass stays untouched'.
+      This is the largest work package (IC-03), so the gap becomes rework there.
+    remediation: >-
+      Name the seam in D-P4 and in contracts/tool-extension-and-reader.md § B. Options (fork): (a) extract in the payload helper
+      (already edited by IC-03 as a ratchet) a source constructor that takes a memo outcome, and have load_source call it, so v1 and
+      the new builder share one projection while the v1 pass keeps its own resolver run; or (b) keep load_source untouched and let the
+      builder compute activity from materialize_snapshot(read directory taken from the memo outcome) over the same enumerate_missions
+      population, with the equality control proving parity. State which, and state the population predicate in one sentence.
+    fork: true
+  - id: PLAN-ARCH-004
+    lens: Contracts (additive proof, FR-022)
+    severity: 3
+    title: 'Bundle comparison "equal except Project" has no stated masking rule, so it can hide a change to the existing getProject operation'
+    evidence:
+      - artifact: "plan.md § D-P10 (a): 'bundle comparison removes the new operations and schemas and the two tags and equals the baseline bundle except Project'; § Contracts table row Project"
+      - code: "tests/contract/test_mission_status_contract_1_1.py:331-345 and 388-410 (CHANGED_ALLOWED; _bundle_problems deletes only path keys and compares whole trees); 421-437 (_make_pair copies the candidate tree, so the baseline is the candidate minus path keys)"
+      - code: "contracts/mission-status/paths/project.yaml (the /project operation: summary, description, 200 and default responses)"
+    claim: >-
+      Swapping frozen Project files into the scratch baseline makes the two trees differ at components.schemas.Project and in the
+      description of the /project operation. The plan says the comparison tolerates 'Project' without saying what is masked. If the
+      whole /project path item is excluded, a change to the one existing operation that this slice does touch (status codes, response
+      schema, parameters) passes the additive proof. The planted cases listed (byte change in an existing schema, a 409 on an existing
+      operation, changed info.version) do not include a plant on getProject.
+    remediation: >-
+      State the masking rule in D-P10: remove components.schemas.Project from both trees and compare paths./project after dropping only its
+      description (and summary if changed); everything else of /project must be equal. Add two planted mutations: an extra response code on
+      getProject, and a changed 200 schema reference, each of which must fail the comparison.
+  - id: PLAN-ARCH-005
+    lens: RESOLVER-DISCIPLINE (observable outcome versus internal attribute)
+    severity: 2
+    title: Per-memo-entry subprocess count turns a resolver-internal cache effect into a stated attribute
+    evidence:
+      - artifact: "plan.md § D-P2 (memo value holds 'the number of subprocesses the call started'); § AC-CROSS row 4 ('subprocess total equals the memo's count plus the listing'); contracts/tool-extension-and-reader.md § B (MemoEntry)"
+      - code: "src/specify_cli/git/remote_probes.py:39 and :95 (the remote branch lookup is memoised per process by repository root and branch; _reset_remote_branch_lookup_cache)"
+      - code: "src/specify_cli/coordination/surface_resolver.py:674-761 (_coord_branch_exists: local head, remote-tracking scan, then the remote probe, each only when the previous misses)"
+      - artifact: "spec.md R-9 (the probe memo and arm order are assumptions, not rules)"
+    claim: >-
+      Because the probe cache is process-wide, the number of subprocesses one Mission's resolver call starts depends on which Missions were
+      resolved before it, so a per-entry count is not a stable property of the Mission. Only the sum over a run, and the number of resolver
+      calls per (root, name), are observable outcomes. Stating the per-entry figure as part of the memo contract invites tasks and tests
+      that peel the resolver internals, which R-9 says to keep as assumptions.
+    remediation: >-
+      In D-P2 and the reader contract, make the memo's asserted facts (a) resolver invocations per (root, name) equal one, and (b) the run total
+      of subprocesses. Keep the per-entry count as diagnostic output only, and state in the AC-CROSS row that the total is compared with the
+      memo's own sum, with the probe cache reset at the start of each fixture or run.
+  - id: PLAN-ARCH-006
+    lens: Contracts / traceability
+    severity: 2
+    title: Departs 5 runs Ops and fingerprint assertions offline while the bound spec text says the Ops equality assertions are skipped offline
+    evidence:
+      - artifact: "plan.md § Departs from the spec item 5 and § Reality-check design notes ('The Ops walk, its oracle comparison and the fingerprints run in both')"
+      - artifact: "spec.md AC-REALITY bullet 2 and FRESH4-001 ('Examined plus skipped equals discovered for Missions and Ops ... offline these assertions are skipped by a named skip')"
+    claim: >-
+      The plan departs from a bound ruling text in the safe direction (it runs more offline) but leaves the spec unchanged, stating that
+      only two severity-1 nits were edited. A reviewer checking AC-REALITY against the spec will find a skip rule the plan does not
+      implement, and the offline test cannot be traced to a spec row.
+    remediation: >-
+      Record the departure as an operator-visible decision (a PD row, or an explicit acknowledgement request alongside PD-2) rather than only
+      in the Departs list, and add one sentence to the tracer-design-decisions record that AC-REALITY bullets 2 and 3 are narrowed
+      to the resolver-dependent assertions. No change to the tests themselves.

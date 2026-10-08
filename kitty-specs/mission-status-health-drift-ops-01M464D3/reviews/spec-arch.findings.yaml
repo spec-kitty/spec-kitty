@@ -1,0 +1,296 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: SPEC-ARCH-001
+    lens: Derived-state honesty
+    severity: 4
+    title: lane_branch_missing expects the manifest mission_branch for coordination-topology Missions, a branch the product never creates there
+    evidence:
+      - artifact: "spec.md § FR-012 step 3 (expected branches include the manifest's mission_branch); AD-3 (expect a branch only where the product would have created one)"
+      - code: "src/specify_cli/lanes/worktree_allocator.py:1195-1215 (coordination arm calls _ensure_branch_exists on coordination_branch and never _ensure_mission_branch)"
+      - code: "src/specify_cli/lanes/worktree_allocator.py:1235 (_ensure_mission_branch is called only in the legacy, non-coordination arm); worktree_allocator.py:939 (coordination Missions use coordination_branch as the lane base, not lanes_manifest.mission_branch)"
+      - code: "52 meta.json files under kitty-specs/ carry coordination_branch (grep '\"coordination_branch\"' kitty-specs/*/meta.json)"
+    claim: >-
+      For a Mission with a coordination branch the allocator creates the lane branches and the
+      coordination branch, not lanes.json's mission_branch. Rule step 3 therefore yields a
+      lane_branch_missing finding for every active coordination-topology Mission that has an expected
+      lane, on a branch that was never meant to exist. That is exactly the noise AD-3 says the rule
+      avoids, and the reality-check oracle ("manifest JSON read directly") would reproduce the same
+      false positive, so the oracle would not catch it. The rule is not honest for that population.
+    remediation: >-
+      FORK: option A, for a Mission whose meta.json names a coordination_branch expect that branch (the
+      read of meta.json is already inside the FR-015 / NFR-002 file list) and never mission_branch;
+      option B, expect mission_branch only for Missions with no coordination_branch and expect no
+      Mission-level branch for coordination Missions (coordination health stays with the doctor).
+      Either way add a coordination-topology fixture pair (branch present, branch absent) to FR-026 and
+      AC-DRIFT, and make the independent oracle read meta.json itself.
+
+  - id: SPEC-ARCH-002
+    lens: Derived-state honesty
+    severity: 4
+    title: DriftSeverity keeps the value info that no kind can produce, so the no-dead-enum-value tests cannot pass
+    evidence:
+      - artifact: "spec.md § AD-1 ('info stays in the reused vocabulary though no kind emits it'); FR-009 (DriftSeverity: error, warning, info)"
+      - artifact: "spec.md § FR-023 (a committed test fails when any new enum value has no producing fixture); AC-DRIFT row 'no dead enum value' (names DriftSeverity); AD-6"
+      - code: "src/specify_cli/audit/models.py:47-58 (Severity has ERROR, WARNING, INFO; the three shipped kinds map only to ERROR and WARNING per classify_status_json)"
+    claim: >-
+      AD-6 removes dead values from DriftAuthority and DriftSide, but AD-1 keeps one in DriftSeverity.
+      FR-023 and AC-DRIFT then require a fixture that produces severity info, which the three kinds
+      cannot create. The acceptance row is either unsatisfiable or satisfied only by a synthetic fixture
+      that bypasses the production entry point (which the AC preamble forbids).
+    remediation: >-
+      FORK: option A (preferred, consistent with AD-6) DriftSeverity is error, warning only, pinned in
+      enum_pins.json, with a CHANGELOG line that info from the audit vocabulary is not carried; option B
+      keep info and name DriftSeverity as the single exempt enum in FR-023 and AC-DRIFT, mark it
+      x-provisional and name it in the CHANGELOG Provisional section. State the choice in AD-1 and AD-6.
+
+  - id: SPEC-ARCH-003
+    lens: Contracts
+    severity: 3
+    title: DriftAuthority and DriftSide are stable enums although their value sets are tied to the provisional DriftKind
+    evidence:
+      - artifact: "spec.md § AD-6, FR-009, FR-013, FR-023 (only DriftKind and DriftRemedy are provisional)"
+      - code: "contracts/tools/breaking_check.py:59-62 and 506-512 (a stable change that oasdiff reports at WARN or ERR is counted and, without a major move, fails BREAKING_WITHOUT_MAJOR); BREAKING_LEVEL = 2 at line 86"
+    claim: >-
+      The spec shrinks authority to event_log, git and derivedSide to status_json, lanes_json because the
+      dropped kind and meta have no producer. If derived_view_stale (derivedSide derived_views) or any
+      kind with a meta authority ships later, a value is added to a non-provisional response enum. In the
+      pinned oasdiff an added response enum value is reported at a level breaking_check counts (verify in
+      the J-1 replay against the pinned oasdiff release); once 1.0.0 is tagged that needs a major version
+      for a change the spec itself calls a proposal. DriftKind is provisional precisely so it can grow;
+      the two enums that must grow with it are not.
+    remediation: >-
+      Mark DriftAuthority and DriftSide x-provisional (open_decision: the value sets follow the set of
+      drift kinds), pin them, and name both in the CHANGELOG Provisional section. Alternatively state in
+      FR-013 that shipping a fourth kind later is a major-version change and say so in the CHANGELOG
+      Deferred section. Add the choice to AD-6.
+
+  - id: SPEC-ARCH-004
+    lens: Canonical source
+    severity: 3
+    title: Field catalogue writes code inputs of x-derived as bare symbol names, which citation_check reports as UNRESOLVED_INPUT
+    evidence:
+      - artifact: "spec.md § Field catalogue rows Project.health, DriftFinding.kind, DriftFinding.remedy, DriftFinding.laneComparison, LaneComparison.derivedStatusLane, OpsInvocation.status, OpsInvocation.evidence (inputs such as MIN_SUPPORTED_SCHEMA, check_compatibility, classify_status_json, LanesManifest, branch_exists, materialize_snapshot, StatusSnapshot, OpCompletedEvent given without a path)"
+      - code: "contracts/tools/citation_check.py:20-26 (an x-derived input is a contract-field path string or a {path, symbol} code input)"
+      - code: "contracts/tools/citation_check.py:412-421 (a bare string resolves only as a contract-field path)"
+    claim: >-
+      Every symbol named above does exist in src/ (verified), but as written they are bare strings, so
+      the citation check treats them as contract-field paths and fails UNRESOLVED_INPUT. The catalogue
+      mixes the two forms (OpsInvocation.status gives a path for closed_invocation_ids and none for
+      OpCompletedEvent), so a work package copying the table gets a red gate.
+    remediation: >-
+      Rewrite the catalogue so every code input is {path, symbol} with the repository-relative file
+      (src/specify_cli/migration/schema_version.py for MIN_SUPPORTED_SCHEMA, MAX_SUPPORTED_SCHEMA and
+      check_compatibility; src/specify_cli/audit/classifiers/status_json.py; src/specify_cli/status/validate.py;
+      src/specify_cli/lanes/models.py; src/specify_cli/lanes/_git.py; src/specify_cli/status/reducer.py;
+      src/specify_cli/status/models.py; src/specify_cli/invocation/record.py) and bare strings only for
+      contract fields (schemaVersion, kind, sourceCode).
+
+  - id: SPEC-ARCH-005
+    lens: Breaking-change proof
+    severity: 3
+    title: FR-022 names a baseline commit that is not the contract tree on main
+    evidence:
+      - artifact: "spec.md § FR-022 ('the contract tree on main (aef7cc967 or the current origin/main)')"
+      - code: "git: aef7cc967 is the previous mission's record-analysis commit; it is on no branch, is not an ancestor of origin/main (b61d1fa33, #5625), and git diff aef7cc967 HEAD -- contracts shows 64 files changed (leak_scan.py, negative_cases.json, and others)"
+    claim: >-
+      Observable 1 (byte identity of every existing file) and observable 2 (bundle equality) would fail
+      against aef7cc967 for reasons unrelated to this slice, and pass vacuously if the wrong tree is used
+      as a scratch baseline. The text offers origin/main as an alternative, but a reader following the
+      first named reference gets a wrong proof.
+    remediation: >-
+      Drop the hash. Define the baseline as the merge-base of the branch with origin/main at the time of
+      the run, recorded as a full SHA in tracer-design-decisions.md, and have the proof script assert that
+      the baseline commit is an ancestor of origin/main.
+
+  - id: SPEC-ARCH-006
+    lens: Breaking-change proof
+    severity: 3
+    title: FR-022 does not say which observables are committed tests and which are recorded wrap-up commands, and a committed test has no source for the old Project shape
+    evidence:
+      - artifact: "spec.md § FR-022 ('each scripted with a planted negative'), AC-VERSION, FR-028"
+      - code: "tests/contract/test_mission_status_contract_1_1.py:1-10 (the comparison with main is a recorded wrap-up command, never a committed test, because breaking_check refuses a same-version baseline)"
+      - code: "tests/contract/test_mission_status_contract_1_1.py:421-436 (the scratch pair is this tree minus the new operations, so a Project change is invisible to it)"
+      - code: "contracts/tools/breaking_check.py:335-340 (SHALLOW_CHECKOUT) and 296-310 (needs oasdiff, pinned and absent from the pure-Python test jobs)"
+    claim: >-
+      The existing additive-proof tests build their baseline from the candidate tree itself, so they
+      cannot see that Project changed; observable 2 ('equals the baseline bundle except Project') needs a
+      baseline that has the old Project, which in CI is a git extraction from a full history or a frozen
+      fixture. The spec does not choose. The count assertions (breaking= four, BREAKING_WITHOUT_MAJOR)
+      need oasdiff and a lowered-major scratch copy, which the module docstring places in the orchestrator
+      wrap-up, not in pytest. Read literally, 'scripted' may become a test that cannot run in the
+      contract-tools job.
+    remediation: >-
+      State per observable: (a) committed pure tests (byte identity of the files outside the slice file
+      set, using a frozen copy of the old Project.yaml, Project.example.yaml and paths/project.yaml as
+      the comparator, or the pair fixture extended with a Project override); (b) recorded wrap-up
+      commands (the two breaking_check runs and their counts lines, with planted controls) in
+      tracer-design-decisions.md, as the J-1 replay already is. Update the module docstring's lifetime
+      note accordingly.
+
+  - id: SPEC-ARCH-007
+    lens: Derived-state honesty
+    severity: 3
+    title: The independent oracle for kinds 1 and 2 combines two predicates that disagree, and classify_status_json reports things the spec turns into other outcomes
+    evidence:
+      - artifact: "spec.md § FR-025 (oracle for kinds 1 and 2: classify_status_json plus validate_materialization_drift); FR-010; AD-10; FR-015"
+      - code: "src/specify_cli/audit/classifiers/status_json.py:75-99 (reducer raise becomes a SNAPSHOT_DRIFT error finding; CORRUPT_JSON, legacy-key and unknown-key findings are also returned)"
+      - code: "src/specify_cli/status/validate.py:247-312 (compares only work_packages, retrospective, event_count and last_event_id, not the whole normalised JSON that classify_status_json compares)"
+    claim: >-
+      validate_materialization_drift ignores differences (for example summary or top-level fields) that
+      classify_status_json flags, so 'equality with an independent oracle' is undefined when both are
+      named. classify_status_json also emits non-drift codes and maps a reducer failure to SNAPSHOT_DRIFT,
+      while the spec makes that case a 500. On this corpus the sets probably coincide, but the assertion is
+      not stated precisely and a differing Mission would produce a spurious red or, worse, a loosened
+      assertion.
+    remediation: >-
+      Define the oracle for kind 1 as classify_status_json filtered to the three SNAPSHOT_DRIFT codes,
+      with Missions whose reducer raises or whose status.json is not JSON on the named skipped list.
+      Use validate_materialization_drift only as a one-way check (every finding it reports implies a
+      classify finding). State that the reference reader reimplements the comparison with public
+      materialize_snapshot and materialize_to_json, and add materialize_to_json to the FR-025 reader list.
+
+  - id: SPEC-ARCH-008
+    lens: Derived-state honesty
+    severity: 3
+    title: read_lanes_json raises on the legacy-shaped lanes.json, and the outcome for a JSON-valid but malformed manifest is undefined
+    evidence:
+      - artifact: "spec.md § FR-012 ('legacy-shaped ... no finding'), FR-015 and AD-10 (only a lanes.json that is not JSON fails), FR-025 (reader built from read_lanes_json)"
+      - code: "src/specify_cli/lanes/models.py:~190 (LanesManifest.from_dict reads data['mission_slug'] unconditionally)"
+      - code: "src/specify_cli/lanes/persistence.py:138-157 (read_lanes_json turns KeyError, TypeError and ValueError into CorruptLanesError)"
+    claim: >-
+      The legacy shape (feature_slug, no mission_slug; 1 of 489 here) makes the public reader raise
+      CorruptLanesError, so a reader that follows FR-025 and calls it would fail the whole scan on the one
+      shape the spec calls a defined non-failure. Separately, JSON that parses but lacks a required key
+      (lanes, mission_branch) or is not an object also raises, and neither FR-012 nor FR-015 says what the
+      report does then.
+    remediation: >-
+      State that the reader parses the raw JSON, treats an object without mission_slug and with
+      feature_slug as legacy (no finding), and only then calls LanesManifest.from_dict. For every other
+      CorruptLanesError choose and state one outcome. FORK: option A, 500 drift_scan_unreadable (loud,
+      consistent with AD-10); option B, a counted skipped Mission on the named list. Add a fixture for
+      each shape to FR-026 and AC-DRIFT.
+
+  - id: SPEC-ARCH-009
+    lens: Contracts
+    severity: 3
+    title: The provisional element list of FR-023 does not match what provisional_check will discover
+    evidence:
+      - artifact: "spec.md § FR-023 (list: health, DriftKind, DriftRemedy, laneComparison, evidence, totalCount, the Ops operation); § Field catalogue (DriftFinding.remedy and DriftFinding.laneComparison marked provisional); FR-008 and FR-016 (refusal schemas follow the ArtifactRefusal pattern); FR-019 ('provisional' with no carrier)"
+      - code: "contracts/tools/provisional_check.py:175-183 and 233-254 (every x-provisional node is an element whose own name, a property name, schema title or operation path, must appear in the CHANGELOG Provisional section)"
+      - code: "contracts/mission-status/schemas/ArtifactRefusalCode.yaml:17-20 and ArtifactRefusal.yaml:99-102 (the precedent marks both the code enum and the code property provisional)"
+    claim: >-
+      If remedy, truncated, DriftRefusalCode, DriftRefusal, OpsRefusalCode, OpsRefusal or the refusal
+      code properties carry x-provisional (the precedent pattern the spec invokes, and the catalogue says
+      remedy is provisional) the check demands each name in the CHANGELOG, and FR-023 lists none of them.
+      The legacy-record handling is called provisional in FR-019 and by the issue, but no property can
+      carry the marker. The list in the spec and the tree will disagree, and the existing test
+      (_reported_provisional_tokens) fails until they match.
+    remediation: >-
+      Replace the FR-023 list with an exact table of x-provisional carriers: element, kind (property,
+      schema, operation), token the CHANGELOG must name. Say whether the two refusal code enums and the
+      refusal code properties are provisional, name remedy and truncated, and say that the legacy-record
+      rule is stated in the Ops operation description under the operation-level marker (AD-7), not as its
+      own element.
+
+  - id: SPEC-ARCH-010
+    lens: Contracts
+    severity: 2
+    title: artifactPath is described with the artifact-path rule, but status.json, status.events.jsonl and lanes.json are not artifacts in this contract
+    evidence:
+      - artifact: "spec.md § FR-009 and FR-014 (artifactPath follows the artifact-path rule); FR-010 to FR-012 (values status.json, status.events.jsonl, lanes.json)"
+      - code: "contracts/mission-status/schemas/ArtifactPath.yaml:17-20 (x-derived: an eligible file below the Mission directory on the primary planning surface)"
+      - code: "contracts/mission-status/CHANGELOG.md (the two root status records are not listed and are answered 404)"
+    claim: >-
+      A property that $refs ArtifactPath inherits the citation that the path names an eligible artifact,
+      false for these values, and a client that passes a finding's artifactPath to the artifact content
+      read gets 404. Existing files cannot be edited to fix it (FR-022 byte identity).
+    remediation: >-
+      Do not $ref ArtifactPath. Give DriftFinding.artifactPath its own description (a path relative to
+      the Mission directory that follows the same syntax rule, a locator for display, not a reference to
+      an artifact readable through the artifact routes) and its own x-source on MissionFinding.artifact_path.
+
+  - id: SPEC-ARCH-011
+    lens: Derived-state honesty
+    severity: 2
+    title: Dropping derived_view_stale leaves a prototype panel unserved and rests on a different ruling sentence than the text states
+    evidence:
+      - artifact: "spec.md § Summary, FR-013 (Gate A holds, Gate B fails), Risks 'Unblocks' ('a complete contract for the seven prototype screens'); tracer-design-decisions.md OR-2"
+      - artifact: "issue #5776 'Unblocks' (the Drift screen's stale-derived-views panel) and Q2 ('If the reality check finds no honest rule ... drop the kind')"
+      - code: "src/specify_cli/status/doctor.py:340-344 and src/specify_cli/status/validate.py:316-336 (derived-view drift retired, validate_derived_views a permanent no-op); .gitignore:65 (.kittify/derived/ ignored, 0 tracked files)"
+    claim: >-
+      The evidence for dropping the kind is correct and consistent with the ruling sentence 'a kind
+      without both [rule and example] is not shipped'. But FR-013 finds an honest rule (Gate A holds), so
+      the drop does not follow from the sentence the tracer quotes ('no honest rule'). And the issue's
+      Drift screen has a stale-derived-views panel that now has no data, yet the spec claims a complete
+      contract for all seven screens.
+    remediation: >-
+      State in FR-013 and the CHANGELOG that the drop rests on the rule-and-example requirement, not on
+      the absence of a rule. Reword the 'Unblocks' sentence in Risks and Dependencies to say that the
+      stale-derived-views panel has no contract read and the host decides how it renders.
+
+  - id: SPEC-ARCH-012
+    lens: Derived-state honesty
+    severity: 2
+    title: health depends on the serving build, and schemaVersion coercion accepts floats and booleans
+    evidence:
+      - artifact: "spec.md § FR-003 (coercion of a numeric string), FR-004 (range rule), AC-PROJECT rows 'non-integer schema is null'"
+      - code: "src/specify_cli/migration/schema_version.py:22-23 (the range is the constants of the CLI build) and :122-124 (int(raw): 3.9 gives 3, true gives 1, '3' gives 3)"
+    claim: >-
+      The same project reads healthy or schema_drift depending on which build serves it, because the range
+      constants belong to the build; the description and CHANGELOG must say so or the card contradicts the
+      CLI after an upgrade. FR-003 mentions only string coercion; schema_version: 3.9 reads healthy with
+      schemaVersion 3 and true reads as 1, silently, and no plant covers them.
+    remediation: >-
+      Add to the health description that the range is the serving build's. Add float and boolean rows to
+      AC-PROJECT and FR-026 with their stated outcome, or specify that the reference reader rejects a
+      non-int, non-numeric-string value as null and records the divergence from the CLI as an author
+      decision.
+
+  - id: SPEC-ARCH-013
+    lens: Breaking-change proof
+    severity: 2
+    title: FR-029 keeps 'every planted-entry test' but one of them indexes the gap that is removed
+    evidence:
+      - artifact: "spec.md § FR-029"
+      - code: "tests/contract/test_mission_status_contract_1_1.py:46-51 (DEFERRED_GAPS)"
+      - code: "tests/contract/test_mission_status_contract_1_1.py:260-262 (test_a_gap_named_only_outside_the_deferred_section_is_refused uses DEFERRED_GAPS['project branch'])"
+      - code: "tests/contract/test_mission_status_contract_1_1.py:195 (test name says 'four deferred gaps')"
+    claim: >-
+      Removing the key makes that planted test raise KeyError; the edit is not a pure removal. The test
+      name and the CHANGELOG intro also say four.
+    remediation: >-
+      State that the test at line 260 is re-pointed to a surviving gap (for example 'lane weights'), that
+      the function name at line 195 is renamed to three, and that CHANGELOG 'Four gaps' becomes 'Three
+      gaps'. Keep the planted entry that lacks 'lane weights' as the named control.
+
+  - id: SPEC-ARCH-014
+    lens: Derived-state honesty
+    severity: 1
+    title: FR-011 remedy null for a missing log diverges from the doctor without saying so
+    evidence:
+      - artifact: "spec.md § AD-4, FR-011"
+      - code: "src/specify_cli/status/doctor.py:325-338 (check_drift attaches the materialize action to every drift string, including 'status.json exists but status.events.jsonl is missing' from validate.py:236-238)"
+    claim: >-
+      The choice (null, since materialize cannot restore a log) is sound, but AD-4 says the value is
+      grounded in the doctor's shipped action while the doctor recommends it for this case too.
+    remediation: >-
+      Add one sentence to AD-4 recording the deliberate divergence and the reason.
+
+  - id: SPEC-ARCH-015
+    lens: Canonical source
+    severity: 1
+    title: Eight properties cite the whole OpStartedEvent class, and STRICT_FIELDS already holds profile and kind
+    evidence:
+      - artifact: "spec.md § Field catalogue (OpsInvocation.invocationId to wpId all cite OpStartedEvent); FR-027 (STRICT_FIELDS gains profile)"
+      - code: "contracts/tools/citation_check.py:12-19 (dotted symbols such as OpStartedEvent.profile_id resolve) and the CITATION_REUSE limit of five"
+      - code: "contracts/tools/fixture_builder.py:96-114 (profile is already in STRICT_FIELDS)"
+    claim: >-
+      One class cited by eight properties trips the informational CITATION_REUSE report and says less
+      than a field-level symbol; adding profile to STRICT_FIELDS is a no-op.
+    remediation: >-
+      Cite field-level symbols (OpStartedEvent.profile_id, and so on) and drop profile from the
+      STRICT_FIELDS additions in FR-027.

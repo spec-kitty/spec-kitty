@@ -1,0 +1,22 @@
+title: OpsEvidenceKind
+description: >-
+  The class of the evidence a closed Op points at, decided by the shape of the stored value after
+  host paths and addresses are removed: repo_path (one line with no whitespace that is a relative
+  path inside the repository), url (an address, with userinfo, query and fragment removed) or text
+  (anything else, including a host path, which is served as [path]). Existence is never checked.
+type: string
+enum:
+  - repo_path
+  - url
+  - text
+x-derived:
+  rule: The shape of the stored evidence reference, after the credential check and the removal of host paths and addresses.
+  inputs:
+    - path: src/specify_cli/invocation/record.py
+      symbol: OpCompletedEvent
+    - path: src/specify_cli/invocation/writer.py
+      symbol: normalise_ref
+examples:
+  - repo_path
+  - url
+  - text

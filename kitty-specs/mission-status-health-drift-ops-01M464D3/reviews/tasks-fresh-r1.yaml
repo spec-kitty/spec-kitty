@@ -1,0 +1,124 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: TASKS-FRESH-001
+    severity: 3
+    title: Battery legs name the hand-built checkout venv as "the synced environment"
+    evidence: >
+      tasks/WP03-project-vertical.md, "The three legs" paragraph and the three command blocks (copied into WP07 and WP08):
+      "the checkout interpreter `.venv/bin/python` (the synced environment of Step 0; never a bare `uv run`)". But
+      quickstart.md "Environment" (line 20) and tracer-tooling-friction.md F-2 say the checkout `.venv` is hand-built and
+      lacks respx, ruff and mypy, and that the synced environment is a SCRATCH one (`UV_PROJECT_ENVIRONMENT=<scratch>/venv`),
+      commands to run with `<scratch>/venv/bin/python`; tasks.md Step 0 item 2 says the same ("scratch environment ...
+      never uv run in the hand-built checkout .venv"). The architectural registration gates error at collection without respx.
+      Additionally, an editable install in a Step-0 scratch venv resolves the source tree of the checkout where it was
+      synced, not the lane workspace the leg runs in, so a leg could test the wrong tree (the "stale install" bin of Step 0).
+    claim: >
+      As written, a worker following the leg commands verbatim runs the whole battery on the interpreter the mission itself
+      declares broken, producing collection errors that Step 0 would also have to bin, or runs against the wrong source tree.
+      The binding gate of ruling 3 then proves nothing or reds on environment.
+    remediation: >
+      In WP03 (and the WP07/WP08 copies) replace `.venv/bin/python` by a named placeholder for the Step 0 synced interpreter
+      (for example `<synced-venv>/bin/python`, defined as the scratch venv of Step 0 / quickstart Environment), and state how
+      the lane workspace tree is the one imported (an editable sync made inside the lane workspace, or `PYTHONPATH` to its
+      `src/`), with a one-line check (print `specify_cli.__file__`) before the first leg. Make Step 0 item 2 record the same
+      interpreter path so WP leg and Step 0 baseline are comparable.
+  - id: TASKS-FRESH-002
+    severity: 2
+    title: Step PD overloads "Mission branch" and cannot be executed literally for the first dispatch of a lane
+    evidence: >
+      tasks.md Step 0 item 1 ("bring the Mission branch level with the new origin/main tip by a merge"), W-5 and W-6 use
+      "Mission branch" for the working branch (lanes.json target_branch `issue-5776-...`); Step PD item 2 defines "the Mission
+      branch `kitty/mission-<slug>`" (lanes.json mission_branch), a different branch that does not yet exist on the checkout
+      (`git branch --list` shows only the planning branch). Step PD items 3 and 4 require merging into and grepping inside "the
+      lane workspace the dispatch will use", but the workspace of a lane is created by `spec-kitty implement WPxx`, which
+      Step PD says comes after these steps (WP01 and WP02 are first dispatches of lane-a / lane-b; WP10 aside).
+    claim: >
+      Two meanings of one capitalised term in one block, and an order of operations that is impossible for the first dispatch
+      of each lane (nothing to merge into, nothing to grep), leave the executor to improvise at exactly the step the ruling
+      made load-bearing. The WP prompts repeat "fast-forwards the Mission branch" and "this lane workspace" without the fix.
+    remediation: >
+      In tasks.md Step PD: call the branch `kitty/mission-<slug>` "the mission-lane branch" (or always spell the ref) and keep
+      "Mission branch" for the working branch of Step 0/W-5/W-6; say that on the first dispatch of a lane step 2 creates or
+      fast-forwards the branch and steps 3 and 4 run right after `spec-kitty implement` creates the workspace and before the
+      worker is started (grep still gates the worker), and that step 3 applies only when the workspace already exists.
+  - id: TASKS-FRESH-003
+    severity: 2
+    title: Stale "never a full sweep" / "no full architectural sweep" wording contradicts the binding battery gate
+    evidence: >
+      tasks/WP03-project-vertical.md line 468, tasks/WP07-drift-reader.md line 414 and tasks/WP08-ops-reader.md line 363,
+      "Reviewer Guidance": "Review the diff ... plus the named gate files and census files above; never a full sweep."
+      The same sections' last bullet (WP03:471, WP07:419, WP08:368) tells the reviewer to re-run a battery leg and reject on
+      a missing leg. quickstart.md line 3 still opens with "Charter rule: no full architectural, end-to-end or performance
+      sweep ... run the named files below", while the table row (revised) and the Architectural-files section allow the
+      battery for WP03/WP07/WP08.
+    claim: >
+      Within one prompt the reviewer is told both "never a full sweep" and "re-run a leg"; a literal reader rejects or
+      skips one of the two. Stale wording the revision was meant to remove.
+    remediation: >
+      In the three Reviewer Guidance sentences add "except the three battery legs of the binding gate below"; in
+      quickstart.md line 3 add "(except the three-leg battery of WP03, WP07 and WP08, operator ruling 3)".
+  - id: TASKS-FRESH-004
+    severity: 2
+    title: WP04 D-P8 still says router globs land "in the same commit as the helper"
+    evidence: >
+      tasks/WP04-contract-slice-drift.md line 161 (D-P8): "Each reader work package adds its own entries ... in the same
+      commit as the helper". WP03, WP07 and WP08 D-P8 and Registration item 4 were rewritten to "the commit that first
+      imports the file" (a stub that imports nothing needs none); tasks.md chokepoint (3) still says "in the same commit as
+      its module".
+    claim: >
+      The revision changed the rule in three prompts and left the old rule in a fourth prompt (copied plan text) and in the
+      chokepoint statement; the two rules differ on the red-first commit, which the registry-gates-green-on-every-commit rule
+      makes decisive.
+    remediation: >
+      Apply the revised D-P8 sentence to WP04 (and any other prompt carrying D-P8, check WP05, WP06, WP09) and change the
+      chokepoint (3) wording to "in the commit that first imports the src file (the module-creating commit for the
+      registration pair)".
+  - id: TASKS-FRESH-005
+    severity: 2
+    title: Battery gate compares against main-CI durations but states no pass rule and runs the legs without the CI pre-step
+    evidence: >
+      tasks.md Step 0 item 3: "The per-leg durations are what the battery gate of WP03, WP07 and WP08 compares against".
+      The WP03/07/08 gate text only says to bin reds and report counts, exit status and bins; no threshold, no consequence of a
+      longer or shorter local time. The CI heavy job (.github/workflows/ci-router.yml ~lines 797-860) runs the
+      `collect_universe_prestep` key/restore/collect/save/check steps with `SK_GATE_REUSE_REPORT` before the pytest line;
+      the local legs omit all of it (the commands otherwise match ci-router.yml lines 697-705 and 861-868).
+    claim: >
+      "Compares against" is an acceptance criterion with no rule (vacuous), and the local legs are not the CI legs for
+      timing: the consumers of the universe store collect afresh locally, so local wall time is not comparable to the main-CI
+      figures Step 0 records.
+    remediation: >
+      Either drop the sentence that durations are compared against (record them for information and bin only on
+      pass/fail), or add a rule and mention that the local run omits the CI collection pre-step so times are indicative only.
+      FORK: (a) information only, (b) add the pre-step commands to the local legs.
+  - id: TASKS-FRESH-006
+    severity: 2
+    title: WP10 hygiene prose cites a W-5 scan that tasks.md does not define, and exempts reviews/ from the mechanical scan
+    evidence: >
+      tasks/WP10-closeout-evidence.md "Why reviews/ and the event log are exempt": "the orchestrator's hygiene scan over the
+      WHOLE Mission directory at W-5 and W-7 reads them, and each hit there is judged by a person". tasks.md W-5 (line 42)
+      has no scan; W-7 (line 44) says only "the hygiene scan" with no definition or scope. The mission is on a PUBLIC repo and
+      reviews/ holds the largest set of committed files (about 65).
+    claim: >
+      The only mechanical leak check of the review files is deferred to an orchestrator scan that no orchestrator step
+      specifies; if W-7's "hygiene scan" is read as the WP10 script, reviews/ is never scanned for leak patterns at all.
+    remediation: >
+      In tasks.md add to W-5 and W-7 the explicit command: the WP10 script run without the reviews/ and event-log exemption,
+      output reviewed by a person, hits quoted as pattern examples allowed, anything else fixed; or have WP10 list that scan
+      as its own validation step.
+  - id: TASKS-FRESH-007
+    severity: 1
+    title: WP pre-dispatch pointers name only the Step 0 record while Step PD step 4 requires further greps
+    evidence: >
+      tasks.md Step PD item 4 requires, in addition to Step 0, the J-1 record for WP07, "the WP06 hand-off line for the commit
+      the J-1 record cites, plus every earlier hand-off a work package reads". The one-line pointer in WP07 names Step 0 and
+      J-1 only; WP08 and WP09 name Step 0 only, though WP09 consumes WP03/WP07/WP08 hand-offs (chokepoint (5), dependencies).
+    claim: >
+      The worker cannot tell which records its prompt expects, so "a line the prompt tells you to read is not there" is
+      under-specified for hand-offs.
+    remediation: >
+      Make the pointer in WP07 add the WP06 hand-off line, and in WP08/WP09 name the earlier hand-off records each reads, or
+      keep the orchestrator-only grep and drop the claim "where it reads a record" from tasks.md.

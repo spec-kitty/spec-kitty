@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#5845": {
+      "evidence_ref": "Cited for context: the PR whose intended changes the stale test seams missed (research.md)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5886": {
+      "evidence_ref": "58c05f76: node ids red on add98cdb, green on branch (research.md)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "G1",
+      "source_file": null,
+      "title": "Nightly suite red: interpreter-3.13-shard-5",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5887": {
+      "evidence_ref": "58c05f76: node ids red on add98cdb, green on branch (research.md)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "G3",
+      "source_file": null,
+      "title": "Nightly suite red: integration",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5888": {
+      "evidence_ref": "58c05f76: node ids red on add98cdb, green on branch (research.md)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "G2",
+      "source_file": null,
+      "title": "Nightly suite red: interpreter-3.13-shard-3",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5889": {
+      "evidence_ref": "58c05f76: node ids red on add98cdb, green on branch (research.md)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "G1 + G2",
+      "source_file": null,
+      "title": "Nightly suite red: specify-cli-out-of-matrix",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5891": {
+      "evidence_ref": "Out of scope; follow-up #5894 / PR #5895 and #5753",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "out of scope",
+      "source_file": null,
+      "title": "Nightly suite red: performance",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

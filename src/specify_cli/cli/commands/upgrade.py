@@ -1322,7 +1322,8 @@ def _no_commit_reason(
     disabled is reported by :func:`_churn_left_uncommitted_by_config`; then an unavailable
     baseline, activation or repair-preparation errors (``finalize_upgrade`` skips the commit
     silently for those), a later failure such as a tool-surface repair that was not applied
-    (the failed-run reason again; :func:`_finalizer_step_commit_churn` committed nothing), and a ``.kittify/metadata.yaml`` that was dirty before the run.
+    (the failed-run reason again; :func:`_finalizer_step_commit_churn` committed nothing),
+    and a ``.kittify/metadata.yaml`` that was dirty before the run.
     Detached HEAD, branch-detection and ``safe_commit`` failures already carry their own
     ``commit_warning``, and held files are named by :func:`_held_files_warning`.
     """

@@ -111,7 +111,14 @@ from kernel.clock import now_utc_iso
 # failure ``data`` carries the mission identity, ``wp_id`` and ``message`` (and
 # ``lock_timeout_seconds`` for a timeout). A new ``error_code`` on an existing verb, so
 # a minor bump; no field is removed or renamed.
-CONTRACT_VERSION = "1.13.0"
+# 1.14.0: ``append-history`` (the safe-commit verbs) can newly fail with three ``error_code``
+# values (#5443): ``SAFE_COMMIT_PATH_LOOP`` (a requested path is a symlink loop),
+# ``SAFE_COMMIT_INDEX_DELETION_CONFLICT`` (an index deletion conflicts with the commit) and
+# ``SAFE_COMMIT_INDEX_RESIDUE`` (the commit DID land -- ``commit_sha`` names it -- but the real
+# index still stages a committed path; a refinement of ``SAFE_COMMIT_RECOVERY_FAILED``, which
+# keeps meaning the commit may not have landed). New ``error_code`` values on existing verbs,
+# so a minor bump; no field is removed or renamed.
+CONTRACT_VERSION = "1.14.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

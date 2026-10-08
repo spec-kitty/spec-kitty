@@ -108,6 +108,7 @@ from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, Protect
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
 from kernel.git import GitCommandError, changed_paths
+from kernel.resolution import is_symlink_loop_error, resolve_commit_path
 from kernel.git_topology import (
     GitTopologyError,
     git_common_dir,
@@ -380,6 +381,70 @@ class SafeCommitPathPolicyError(SafeCommitError):
         return payload
 
 
+class SafeCommitPathLoopRefused(SafeCommitError):
+    """A requested path is (or sits under) a symlink loop (#5671 / #5251).
+
+    Raised before any index mutation. Still a ``RuntimeError`` through
+    :class:`SafeCommitError`, so callers that flatten ``RuntimeError`` keep working.
+    """
+
+    error_code = "SAFE_COMMIT_PATH_LOOP"
+
+    def __init__(self, *, offending_path: Path, worktree_root: Path) -> None:
+        super().__init__(
+            f"safe_commit: refusing symlink loop at {offending_path}",
+            worktree_root=worktree_root,
+        )
+        self.offending_path = offending_path
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = super().to_dict()
+        payload["offending_path"] = str(self.offending_path)
+        return payload
+
+
+class SafeCommitIndexDeletionConflict(SafeCommitError):
+    """A path was both requested for commit and listed in ``index_deletions`` (FR-022)."""
+
+    error_code = "SAFE_COMMIT_INDEX_DELETION_CONFLICT"
+
+    def __init__(self, *, conflicting_paths: Sequence[str], worktree_root: Path) -> None:
+        super().__init__(
+            f"safe_commit: path(s) both requested and listed as index deletions: {', '.join(conflicting_paths)}",
+            worktree_root=worktree_root,
+        )
+        self.conflicting_paths = tuple(conflicting_paths)
+
+
+class SafeCommitIndexResidue(SafeCommitRecoveryFailed):
+    """An index-deletion commit landed but the real index still stages a committed path (FR-022).
+
+    Raised only AFTER HEAD moved, so it is a :class:`SafeCommitRecoveryFailed` carrying
+    ``commit_sha``: callers that flatten a plain ``SafeCommitError`` into "not committed"
+    (``upgrade.autocommit.commit_touched_checkout``) re-raise it instead, and the upgrade
+    renderer reports that the commit DID land. It keeps its own ``error_code``.
+    """
+
+    error_code = "SAFE_COMMIT_INDEX_RESIDUE"
+
+    def __init__(
+        self,
+        *,
+        residue: Sequence[str],
+        commit_sha: str,
+        worktree_root: Path,
+        destination_ref: str | None = None,
+    ) -> None:
+        super().__init__(
+            f"safe_commit: commit {commit_sha} landed, but the index still stages: {', '.join(residue)}",
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+            unrecovered_paths=residue,
+            commit_sha=commit_sha,
+        )
+        self.residue = tuple(residue)
+
+
 # ---------------------------------------------------------------------------
 # Legacy / staging-area backstop error (preserved from prior implementation)
 # ---------------------------------------------------------------------------
@@ -650,12 +715,21 @@ def _destination_ref_exists(worktree_root: Path, destination_ref: str) -> bool:
     return result.returncode == 0
 
 
-def _stage_requested_files(repo_path: Path, normalized_files: list[str]) -> bool:
-    """Stage each requested file via ``git add --force``. Returns False on failure."""
+def _stage_requested_files(
+    repo_path: Path,
+    normalized_files: list[str],
+    env: Mapping[str, str] | None = None,
+) -> tuple[str, str] | None:
+    """Stage each requested file via ``git add --force``.
+
+    Returns ``None`` on success, else ``(path, git's stderr)`` for the first
+    path git refused (#4722).
+    """
     for file_path in normalized_files:
         add_result = subprocess.run(
             ["git", "add", "--force", "--", file_path],
             cwd=repo_path,
+            env=None if env is None else dict(env),
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -663,8 +737,8 @@ def _stage_requested_files(repo_path: Path, normalized_files: list[str]) -> bool
             check=False,
         )
         if add_result.returncode != 0:
-            return False
-    return True
+            return file_path, add_result.stderr.strip()
+    return None
 
 
 def _staged_patch_for_paths(repo_path: Path, normalized_files: list[str]) -> str | None:
@@ -880,6 +954,132 @@ def _run_commit_capture_sha(
     return sha, commit_result.stdout, commit_result.stderr
 
 
+def _git_in(
+    worktree_root: Path,
+    args: list[str],
+    env: Mapping[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", *args],
+        cwd=worktree_root,
+        env=None if env is None else dict(env),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+
+
+def _temp_index_path(worktree_root: Path) -> Path:
+    """A fresh index-file path under the worktree's own git dir (never inside the work tree).
+
+    The location comes from ``--absolute-git-dir`` with ``GIT_INDEX_FILE`` scrubbed from the
+    probe's env: ``--git-path index`` would follow an inherited ``GIT_INDEX_FILE`` and could
+    place the temporary index beside it, inside the work tree.
+    """
+    # Defensive only: ``--absolute-git-dir`` does not read GIT_INDEX_FILE today, so this scrub is
+    # behavior-neutral (an equivalent mutant). It is kept so the probe stays index-independent if
+    # it is ever switched to an index-sensitive form such as ``--git-path index``.
+    probe_env = {key: value for key, value in os.environ.items() if key != "GIT_INDEX_FILE"}
+    probe = _git_in(worktree_root, ["rev-parse", "--absolute-git-dir"], probe_env)
+    if probe.returncode != 0 or not probe.stdout.strip():
+        raise RuntimeError(f"safe_commit: could not locate the git dir of {worktree_root}: {probe.stderr.strip()}")
+    git_dir = Path(probe.stdout.strip())
+    return git_dir / f"spec-kitty-index-deletions.{os.getpid()}.{os.urandom(4).hex()}.tmp"
+
+
+def _discard_temp_index(temp_index: Path) -> None:
+    for leftover in (temp_index, temp_index.with_name(temp_index.name + ".lock")):
+        with contextlib.suppress(OSError):
+            leftover.unlink()
+
+
+def _build_index_deletion_tree(
+    worktree_root: Path,
+    temp_env: Mapping[str, str],
+    requested: list[str],
+    deletions: list[str],
+) -> None:
+    """Seed the temp index from HEAD (never the real index), then apply the requested adds and the deletions."""
+    seeded = _git_in(worktree_root, ["read-tree", "HEAD"], temp_env)
+    if seeded.returncode != 0:
+        raise RuntimeError(f"safe_commit: could not seed the temporary index from HEAD in {worktree_root}: {seeded.stderr.strip()}")
+    failure = _stage_requested_files(worktree_root, requested, temp_env)
+    if failure is not None:
+        bad_path, git_reason = failure
+        raise RuntimeError(f"safe_commit: failed to stage requested files in {worktree_root}: {bad_path!r}: {git_reason}")
+    if deletions:
+        removed = _git_in(worktree_root, ["rm", "--cached", "--quiet", "--ignore-unmatch", "--", *deletions], temp_env)
+        if removed.returncode != 0:
+            raise RuntimeError(f"safe_commit: failed to drop index deletions in {worktree_root}: {removed.stderr.strip()}")
+
+
+def _sync_real_index_after_commit(worktree_root: Path, destination_ref: str, sha: str, paths: list[str]) -> None:
+    """Make the real index match the new HEAD for ``paths`` only; every other entry stays as the operator left it."""
+    reset = _git_in(worktree_root, ["reset", "-q", "HEAD", "--", *paths])
+    if reset.returncode != 0:
+        raise SafeCommitRecoveryFailed(
+            f"safe_commit: commit {sha} landed on {destination_ref}, but the index could not be synced for the committed paths: {reset.stderr.strip()}",
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+            unrecovered_paths=paths,
+            commit_sha=sha,
+        )
+    try:
+        leftover = [str(entry) for entry in changed_paths(worktree_root, cached=True, pathspecs=paths)]
+    except GitCommandError:
+        leftover = list(paths)  # an unreadable index is not proof that it is clean
+    if leftover:
+        raise SafeCommitIndexResidue(residue=leftover, commit_sha=sha, worktree_root=worktree_root, destination_ref=destination_ref)
+
+
+def _commit_with_index_deletions(
+    worktree_root: Path,
+    destination_ref: str,
+    message: str,
+    requested: list[str],
+    deletions: list[str],
+) -> CommitResult:
+    """Commit ``requested`` (added) and ``deletions`` (index-removed) from a temporary index (FR-022).
+
+    ``git commit --only`` re-reads the working tree, so it would re-add a file the
+    caller untracked on purpose (``git rm --cached``, file kept on disk). A commit from
+    a temporary index seeded from HEAD records the removal without touching the work
+    tree, and cannot see any entry the operator staged: the temp index is built from
+    HEAD, not from the real index. Hooks run (no ``--no-verify``) and see exactly
+    HEAD versus the temp index through the inherited ``GIT_INDEX_FILE``. The operator's
+    own ``GIT_INDEX_FILE`` is overridden for these calls only and never written back.
+    """
+    temp_index = _temp_index_path(worktree_root)
+    temp_env = {**os.environ, "GIT_INDEX_FILE": str(temp_index)}
+    try:
+        _build_index_deletion_tree(worktree_root, temp_env, requested, deletions)
+        if _git_in(worktree_root, ["diff", "--cached", "--quiet"], temp_env).returncode == 0:
+            raise SafeCommitStagedTreeUnchanged(destination_ref=destination_ref)
+        commit = subprocess.run(
+            ["git", "-c", "commit.gpgsign=false", "commit", "-m", message],
+            cwd=worktree_root,
+            env=temp_env,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        if commit.returncode != 0:
+            detail = f"{commit.stdout}\n{commit.stderr}".strip()
+            raise RuntimeError(f"safe_commit: git commit failed in {worktree_root} for destination_ref={destination_ref!r}" + (f": {detail}" if detail else ""))
+        sha = _run_git_text(worktree_root, ["rev-parse", "HEAD"])
+        assert sha is not None
+        if commit.stderr.strip():
+            logger.warning("git commit in %s produced warnings on a successful commit: %s", worktree_root, commit.stderr.strip())
+        _sync_real_index_after_commit(worktree_root, destination_ref, sha, [*requested, *deletions])
+        return CommitResult(sha=sha, destination_ref=destination_ref, worktree_root=worktree_root)
+    finally:
+        _discard_temp_index(temp_index)
+
+
 def _mission_scoped_policies(
     repo_root: Path,
     worktree_root: Path,
@@ -1043,6 +1243,16 @@ def _verify_expected_parent_tree_bytes(
             raise RuntimeError(f"safe_commit: staged blob for {path!r} differs from expected raw bytes; refusing expected-parent commit")
 
 
+def _resolve_commit_path_or_refuse(root: Path, candidate: Path, worktree_root: Path) -> Path:
+    """``resolve_commit_path`` with a looping path raised as the typed refusal."""
+    try:
+        return resolve_commit_path(root, candidate)
+    except OSError as exc:
+        if is_symlink_loop_error(exc):
+            raise SafeCommitPathLoopRefused(offending_path=candidate, worktree_root=worktree_root) from exc
+        raise
+
+
 def _normalize_expected_parent_path_bytes(
     worktree_root: Path,
     normalized_files: list[str],
@@ -1057,7 +1267,7 @@ def _normalize_expected_parent_path_bytes(
         candidate = Path(requested_path)
         if candidate.is_absolute():
             try:
-                candidate = candidate.resolve().relative_to(root)
+                candidate = _resolve_commit_path_or_refuse(root, candidate, worktree_root).relative_to(root)
             except ValueError as exc:
                 raise RuntimeError(f"safe_commit: expected raw-bytes path must be inside the worktree: {requested_path}") from exc
         if candidate.is_absolute() or ".." in candidate.parts:
@@ -1302,9 +1512,11 @@ def preflight_commit(
     for path in paths:
         candidate: Path = path
         if candidate.is_absolute():
-            # If the path is not under worktree_root, pass as-is.
+            # Parents resolved, final component kept: a symlink is committed as
+            # the link, never its target (#5671). If the path is not under
+            # worktree_root, pass as-is.
             with contextlib.suppress(ValueError):
-                candidate = candidate.resolve().relative_to(resolved_worktree_root)
+                candidate = _resolve_commit_path_or_refuse(resolved_worktree_root, candidate, worktree_root).relative_to(resolved_worktree_root)
         normalized_files.append(str(candidate))
 
     # 6a. Path policy: reject any path under .worktrees/ before staging.
@@ -1371,6 +1583,7 @@ def safe_commit(
     expected_parent_sha: str | None = None,
     expected_path_bytes: Mapping[Path, bytes] | None = None,
     owned: OwnedCheckout | OwnedCreateMission | None = None,
+    index_deletions: Sequence[Path] = (),
 ) -> CommitResult:
     """Commit ``paths`` to ``destination_ref`` inside ``worktree_root``.
 
@@ -1439,6 +1652,14 @@ def safe_commit(
         expected_path_bytes: Optional exact raw bytes expected in selected
             staged blobs. Requires ``expected_parent_sha`` and refuses before
             ref update if a clean filter changes any asserted path.
+        index_deletions: Paths whose INDEX deletion is committed while the file
+            stays on disk (FR-022: a migration's ``git rm --cached``). Committed
+            from a temporary index seeded from HEAD, so the work tree is never
+            touched and no operator-staged entry can enter the commit; afterwards
+            the real index is synced for these paths only. An untracked entry is
+            a no-op; a path also in ``paths`` raises
+            :class:`SafeCommitIndexDeletionConflict`. Incompatible with
+            ``expected_parent_sha``.
         owned: The validated owned-checkout fact when this is an owned write
             (``None`` otherwise). The mission-scoped protection fold then reads
             the mission from the fact -- never inferred from the two roots'
@@ -1480,15 +1701,24 @@ def safe_commit(
         target = CommitTarget(ref=destination_ref)
     destination_ref = target.ref
 
+    if index_deletions and expected_parent_sha is not None:
+        raise ValueError("index_deletions cannot be combined with expected_parent_sha")
     normalized_files = preflight_commit(
         repo_root=repo_root,
         worktree_root=worktree_root,
         target=target,
         message=message,
-        paths=paths,
+        paths=(*paths, *index_deletions),
         capability=capability,
         owned=owned,
     )
+    if index_deletions:
+        requested_files = normalized_files[: len(paths)]
+        deletion_files = normalized_files[len(paths) :]
+        conflicts = sorted(set(requested_files) & set(deletion_files))
+        if conflicts:
+            raise SafeCommitIndexDeletionConflict(conflicting_paths=conflicts, worktree_root=worktree_root)
+        return _commit_with_index_deletions(worktree_root, destination_ref, message, requested_files, deletion_files)
 
     if expected_parent_sha is not None:
         normalized_expected_path_bytes = _normalize_expected_parent_path_bytes(
@@ -1538,9 +1768,11 @@ def safe_commit(
     # independently re-stageable, matching the pre-fix behavior for this case.
     _unstage_requested_files(worktree_root, normalized_files)
 
-    if not _stage_requested_files(worktree_root, normalized_files):
+    stage_failure = _stage_requested_files(worktree_root, normalized_files)
+    if stage_failure is not None:
         _restore_staged_patch(worktree_root, normalized_files, requested_staged_patch, destination_ref=destination_ref)
-        raise RuntimeError(f"safe_commit: failed to stage requested files in {worktree_root}: {normalized_files!r}")
+        bad_path, git_reason = stage_failure
+        raise RuntimeError(f"safe_commit: failed to stage requested files in {worktree_root}: {bad_path!r}: {git_reason}")
 
     # 8-9. Commit ONLY the requested paths via `git commit --only`
     # (FR-011/FR-012/#4888): this is the structural fix. `--only` commits

@@ -609,69 +609,6 @@ class GitVCS:
         except (subprocess.TimeoutExpired, OSError):
             return []
 
-    def commit(
-        self,
-        workspace_path: Path,
-        message: str,
-        paths: list[Path] | None = None,
-    ) -> ChangeInfo | None:
-        """
-        Create a commit with current changes.
-
-        Args:
-            workspace_path: Workspace to commit in
-            message: Commit message
-            paths: Specific paths to commit (None = all)
-
-        Returns:
-            ChangeInfo for new commit, None if nothing to commit
-        """
-        try:
-            # Stage files
-            if paths:
-                for path in paths:
-                    subprocess.run(
-                        ["git", "-C", str(workspace_path), "add", str(path)],
-                        capture_output=True,
-                        timeout=30,
-                    )
-            else:
-                subprocess.run(
-                    ["git", "-C", str(workspace_path), "add", "-A"],
-                    capture_output=True,
-                    timeout=30,
-                )
-
-            # Check if there are staged changes
-            status_result = subprocess.run(
-                ["git", "-C", str(workspace_path), "diff", "--cached", "--quiet"],
-                capture_output=True,
-                timeout=30,
-            )
-
-            if status_result.returncode == 0:
-                # No changes to commit
-                return None
-
-            # Commit
-            commit_result = subprocess.run(
-                ["git", "-C", str(workspace_path), "commit", "-m", message],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=60,
-            )
-
-            if commit_result.returncode != 0:
-                return None
-
-            # Return info about the new commit
-            return self.get_current_change(workspace_path)
-
-        except (subprocess.TimeoutExpired, OSError):
-            return None
-
     # =========================================================================
     # Repository Operations
     # =========================================================================

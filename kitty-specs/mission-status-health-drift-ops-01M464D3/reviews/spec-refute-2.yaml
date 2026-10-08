@@ -1,0 +1,56 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 2
+verdicts:
+- id: SPEC-ARCH-006
+  verdict: confirmed
+  reason: FR-022 says each observable is scripted without choosing committed test versus wrap-up command, and the existing tests build the baseline from the candidate tree and breaking_check needs oasdiff.
+- id: SPEC-ARCH-007
+  verdict: confirmed
+  reason: FR-010 and FR-025 name both classify_status_json and validate_materialization_drift as oracle, and the latter compares only four fields while the former also maps reducer failure to SNAPSHOT_DRIFT, so the assertion is undefined.
+- id: SPEC-ARCH-008
+  verdict: confirmed
+  reason: read_lanes_json calls from_dict which reads data['mission_slug'] unguarded and wraps KeyError in CorruptLanesError, so the legacy shape raises and FR-012/FR-015/FR-025 do not say how the reader separates it or what a malformed JSON-valid manifest yields.
+- id: SPEC-ARCH-009
+  verdict: confirmed
+  reason: FR-023 lists no refusal enums or code properties although the ArtifactRefusal precedent marks them x-provisional and provisional_check demands each element token in the CHANGELOG.
+- id: SPEC-ARCH-010
+  verdict: refuted
+  reason: The spec says artifactPath follows the artifact-path rule and cites MissionFinding.artifact_path, nowhere that it refs ArtifactPath or that the value is readable through artifact routes, so the evidence shows a possible description concern only.
+- id: SPEC-ARCH-011
+  verdict: confirmed
+  reason: FR-013 finds Gate A holds and drops the kind on Gate B, while the quoted ruling says drop on no honest rule, and Risks still claims a complete contract for the seven screens with the stale-derived-views panel unserved.
+- id: SPEC-ARCH-012
+  verdict: confirmed
+  reason: schema_version.py does int(raw) so 3.9 gives 3 and true gives 1, FR-003 mentions only numeric-string coercion, and the range is the serving build's constants.
+- id: SPEC-ARCH-013
+  verdict: confirmed
+  reason: DEFERRED_GAPS contains 'project branch' and the test at line 260 indexes it, so FR-029's 'keep every planted-entry test' conflicts with removing the key.
+- id: SPEC-ARCH-014
+  verdict: confirmed
+  reason: check_drift attaches the materialize action to every drift string including the missing-log case, so AD-4's remedy null for a missing log diverges from the doctor without saying so.
+- id: SPEC-ARCH-015
+  verdict: confirmed
+  reason: Spec lines 439-446 cite whole OpStartedEvent for eight properties (over REUSE_LIMIT of 5) and STRICT_FIELDS already contains profile.
+- id: SPEC-COMPLETE-001
+  verdict: confirmed
+  reason: branch_exists runs one git rev-parse subprocess per ref and returns False on any git failure, contradicting FR-015's single refs/heads listing and leaving git-unusable undefined in FR-015/FR-024.
+- id: SPEC-COMPLETE-002
+  verdict: confirmed
+  reason: is_mission_completed reaches load_meta_fail_closed which raises on corrupt meta.json, and neither FR-015 nor FR-024 lists meta.json among the 500 conditions.
+- id: SPEC-COMPLETE-003
+  verdict: confirmed
+  reason: 'Same verified defect as SPEC-ARCH-008: read_lanes_json raises CorruptLanesError on the legacy manifest and the JSON-valid malformed case has no defined outcome.'
+- id: SPEC-COMPLETE-004
+  verdict: confirmed
+  reason: FR-020 does not state whether the SECRET_PATTERNS check precedes steps 1-5, and steps 1, 2 and 4 would silently remove a credential in a URL or path while OQ-5 claims the case is open.
+- id: SPEC-COMPLETE-005
+  verdict: confirmed
+  reason: NFR-004, SC-005 and FR-020 read as absolute credential-free guarantees but SECRET_PATTERNS covers only four kinds and the spec does not say so.
+- id: SPEC-COMPLETE-006
+  verdict: confirmed
+  reason: FR-020 step 1 treats any scheme URL as url with only userinfo/query/fragment removed and step 4 path patterns know few roots, so file:// host paths, UNC paths and URLs embedded in text stay unredacted.
+- id: SPEC-COMPLETE-007
+  verdict: confirmed
+  reason: FR-020 step 3 returns repo_path unchanged while step 4 redacts every value, leaving the outcome for a relative path containing an e-mail address and the whole-value versus run replacement unspecified.

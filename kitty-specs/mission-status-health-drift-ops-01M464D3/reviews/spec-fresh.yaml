@@ -1,0 +1,251 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: SPEC-FRESH-001
+    lens: "debugging-recurrence (divergence between the v1 read path and the new scan)"
+    severity: 4
+    title: "The directory that kinds 1-3 read status from is never defined; v1 reads a coordination-aware status directory"
+    evidence:
+      - artifact: "spec.md § FR-010, FR-011, FR-012 (rule step 2), FR-015, AD-10 ('status path'), AC-DRIFT row 'unresolvable status path is 500'"
+      - code: "tests/contract/_mission_status_payloads.py:660-690 (resolve_read_dir uses MissionStatus.load, falls back to the Mission's own directory with a named reason)"
+      - code: "src/specify_cli/lanes/worktree_allocator.py:1764-1790 (_read_coordination_branch: coordination Missions keep meta.json on primary, status on the coordination surface)"
+    claim: >-
+      FR-010 compares "a Mission directory holding both status.json and status.events.jsonl" and AD-10 / AC-DRIFT speak of
+      an unresolvable "status path", but no FR says which directory is read. The v1 reads resolve the authoritative status
+      directory through MissionStatus.load with a fallback; for a live coordination-topology Mission (the very topology
+      ARCH-001 is about) the primary kitty-specs/<slug>/ holds a stale or absent copy. A scan of the primary files alone
+      compares stale files, reports neither-file as "no finding" and computes the kind-3 expected lanes from a stale
+      reducer output. The exceptions CoordinationBranchDeleted, CoordAuthorityUnavailable and MissionMetadataUnavailable
+      have no stated outcome (finding, fallback or 500). The spec silently decides the question. FORK: options A / B
+      (A: read through the same coordination-aware resolver as v1 and state each resolver exception as 500
+      drift_scan_unreadable or a named fallback; B: read only the Mission's own primary directory, say so in the DriftReport
+      and finding descriptions, and add a fixture pair for a coordination Mission whose primary copy is stale).
+    remediation: >-
+      Add an FR (or a sentence in FR-015) naming the read directory and the outcome of each resolver exception, add the
+      coordination-Mission fixture to FR-026 and a row to AC-DRIFT, and make AD-10's "status path" refer to that definition.
+  - id: SPEC-FRESH-002
+    lens: "consistency"
+    severity: 3
+    title: 'Index entry without a file and a vanished file are both "neither counted nor skipped" and "skipped and counted"'
+    evidence:
+      - artifact: "spec.md § FR-018 ('an index entry without a file is neither counted nor skipped')"
+      - artifact: "spec.md § FR-019 (lists 'a file listed and then gone' under 'A record is skipped when', yet says it is treated as an index entry without a file)"
+      - artifact: "spec.md § Edge Cases ('a file gone after listing (skipped)', 'an index entry without a file (skipped)') and FR-024 table row ('or vanished: skipped by rule and counted in skippedCount')"
+    claim: >-
+      The same input has two incompatible outcomes. FR-018 says an index entry whose file is missing is not counted and not
+      skipped; FR-019 treats a vanished file as exactly that case but lists it among skipped records; Edge Cases and FR-024
+      say both are skipped and counted in skippedCount. skippedCount is the figure SC-004 and AC-REALITY compare with an
+      oracle, so an implementation following FR-018 and one following FR-024 differ by this count.
+    remediation: >-
+      Pick one rule. The least surprising is: an index entry with no file, and a file that vanished between listing and
+      open, are neither served nor counted in skippedCount (nothing was discovered). Then delete 'file listed and then
+      gone' from the FR-019 skipped list, fix the Edge Cases line and the FR-024 row, and keep one AC row proving it.
+  - id: SPEC-FRESH-003
+    lens: "correspondence"
+    severity: 3
+    title: "FR-029 says every other rule in the existing contract test stays, but the scratch-pair machinery of that module cannot"
+    evidence:
+      - artifact: "spec.md § FR-029 ('every other rule and planted-entry test stays'), FR-022 item 1, slice file set item (4), R-6"
+      - code: "tests/contract/test_mission_status_contract_1_1.py:331 (CHANGED_ALLOWED), :342 (NEW_PATH_KEYS = the three v1.1 operations), :421 (_make_pair removes exactly those three), :455 (test_the_scratch_baseline_is_this_tree_without_exactly_the_three_new_operations)"
+    claim: >-
+      The v1.1 operations are on main now, so the baseline of this slice is the current tree, not the tree minus those three
+      operations. As written the existing assertions go red as soon as /drift and /ops/invocations and the Project files
+      change: candidate minus baseline paths no longer equals NEW_PATH_KEYS, Project.yaml, project.yaml and the Project
+      example are not in CHANGED_ALLOWED, and the scope-data tests encode the previous file set. FR-029 enumerates only the
+      deferral edit and FR-022 mentions only a Project override, so the real edit list (NEW_PATH_KEYS, CHANGED_ALLOWED,
+      _make_pair, the renamed 'exactly the three' test, the allowed-data and scope tests, the module docstring) is not
+      specified and the sentence 'every other rule stays' is false for those tests.
+    remediation: >-
+      Replace FR-029's closing claim with an enumerated edit list for the module: NEW_PATH_KEYS becomes the two new path keys,
+      CHANGED_ALLOWED and the scope data become this slice's file set, the 'three new operations' test is renamed and
+      re-pointed, and name which of these are ratchets (R-6). State that the previous slice's file-set data is replaced,
+      not extended.
+  - id: SPEC-FRESH-004
+    lens: "acceptance-criteria-non-vacuity"
+    severity: 3
+    title: 'FR-028 has no acceptance row and is marked "no-op passable: no" while SC-009 says a record can be written without the run'
+    evidence:
+      - artifact: "spec.md § FR table row FR-028 ('no')"
+      - artifact: "spec.md § SC-009 ('no-op passable: yes - a record can be written without the run')"
+      - artifact: "spec.md § AC-VERSION (header names FR-028; no bullet mentions J-1, a job conclusion or the cited commit)"
+    claim: >-
+      FR-028 is covered by no AC row, and the table's "no-op passable: no" contradicts SC-009's own "yes". A tracer record
+      with an invented commit and invented job lines satisfies everything checkable by a test.
+    remediation: >-
+      Mark FR-028 "yes, paired with ..." and add an AC-VERSION bullet: the cited commit exists (git cat-file -t), is an
+      ancestor of HEAD, touches contracts/mission-status last, and the record has exactly one line per job of contracts.yml
+      with a conclusion that matches the run id's real conclusion (squad-verified at the wrap-up). Keep the wrap-up command
+      of SC-009 in the bullet.
+  - id: SPEC-FRESH-005
+    lens: "scope"
+    severity: 3
+    title: '"/project stays cheap" and "scans nothing" contradict reading everything GET /missions reads'
+    evidence:
+      - artifact: "spec.md § FR table row FR-007 ('so that listing projects scans nothing'), User Story 1, OR-10, FR-007 body ('reads only ... what GET /missions already reads'), FR-006"
+      - code: "src/specify_cli/status/lifecycle.py:354-396 (derive_mission_lifecycle reduces one event log per Mission; MissionHead.lastActivityAt and missionCount both need every Mission)"
+    claim: >-
+      lastActivityAt is the maximum over every listed Mission and missionCount counts them, so each /project read reduces
+      every Mission's event log (about 4 seconds for 567 Missions here, measured with materialize_snapshot plus
+      is_mission_completed). That is not what a host calling it "once per recent project" would call cheap, and the table's
+      "scans nothing" is false. No NFR bounds it. OR-10 only promises cheap; the spec decides what cheap means without
+      saying so. FORK: options A / B (A: keep the semantics, drop "scans nothing", and add an NFR time bound and a
+      description sentence that the cost grows with the Mission count; B: serve lastActivityAt from a cheaper source such as
+      the newest event timestamp of each log tail, which changes FR-006's meaning and needs an operator ruling).
+    remediation: >-
+      Reword FR-007's title and the user-story line, add an NFR for /project latency over this checkout, and state the
+      complexity in the Project description.
+  - id: SPEC-FRESH-006
+    lens: "leak-surface"
+    severity: 3
+    title: 'profileId is declared strict but the STRICT_FIELDS additions omit it; the existing "profile" entry does not match'
+    evidence:
+      - artifact: "spec.md § FR-017 (profileId and action strict), FR-027 (STRICT_FIELDS names specKittyVersion, currentBranch, action, invocationId, sourceCode; 'profile is already in STRICT_FIELDS')"
+      - code: "contracts/tools/leak_scan.py:256 (membership test is the exact property name: str(child) in STRICT_FIELDS)"
+      - code: "contracts/tools/fixture_builder.py:96-114 (STRICT_FIELDS holds 'profile', not 'profileId')"
+    claim: >-
+      The scan classifies by exact property name, so profileId would be scanned with the human-text patterns, not the strict
+      host-path patterns. A strict value such as a bare absolute path in a profileId example would pass the leak scan, and no
+      FR-027 plant exists for it. The new query parameter named profile is a parameter, not a property, so the existing entry
+      does not help.
+    remediation: >-
+      Add profileId (and any other strict-by-spec property not already listed) to the FR-027 STRICT_FIELDS list, drop the
+      'profile is already in' sentence, and add a planted profileId example to the leak-scan negatives.
+  - id: SPEC-FRESH-007
+    lens: "archive-freeze"
+    severity: 3
+    title: 'Whether lanes.json of a completed Mission is validated is left open; AD-10 says "any scanned Mission"'
+    evidence:
+      - artifact: "spec.md § FR-012 Population (completed Missions are excluded), AD-10 ('for any scanned Mission ... lanes.json is neither current- nor legacy-shaped'), FR-024 row, AC-DRIFT row 'lanes.json three-way'"
+      - artifact: "reviews/spec.ruling.md GOV-007 / ARCH-008 rationale (a permanent 500 on a frozen file cannot be repaired)"
+    claim: >-
+      The ruling's own rationale (a frozen file that cannot be repaired must not fail the project-wide read forever) applies
+      equally to a completed Mission whose lanes.json is malformed in a way that is not the legacy shape. FR-012 excludes
+      completed Missions from kind 3, so their lanes.json is never needed, yet AD-10 refuses the whole report on it.
+      Whether the pre-read runs before or after the completion test is not stated. FORK: options A / B (A: read and validate
+      lanes.json only for Missions that are not completed, so a frozen defect cannot 500 the scan; B: validate it for every
+      Mission and accept the permanent-500 risk, stating it in R-2).
+    remediation: >-
+      State the order in FR-012 (completion test, then manifest read) or the exception in AD-10, and add a fixture pair: a
+      completed Mission with a malformed manifest (outcome per the chosen option) beside a non-completed one (500).
+  - id: SPEC-FRESH-008
+    lens: "loud-failure"
+    severity: 2
+    title: "Invalid UTF-8 in an Op file or in the closure spine has no stated outcome"
+    evidence:
+      - artifact: "spec.md § FR-019 (OSError and shape failures only), FR-017, AC-OPS rows 'legacy and unreadable are skipped', 'empty and failing directory'"
+      - code: "src/specify_cli/invocation/writer.py:59-79 (read_op_closures calls read_text outside its try; a UnicodeDecodeError, a ValueError, escapes)"
+      - code: "src/specify_cli/cli/commands/invocations_cmd.py:59-69 (_read_first_line catches only OSError and JSONDecodeError)"
+    claim: >-
+      The reference reader built from the public readers would raise an uncaught UnicodeDecodeError for a spine or Op file
+      holding invalid UTF-8. The spec's rule (OSError is 500, shape failure is skipped, corrupt spine line is skipped) does
+      not say which this is, so the behaviour would be decided by whatever the helper happens to do.
+    remediation: >-
+      Add to FR-019: invalid UTF-8 in an Op file is a shape failure (skipped, counted); invalid UTF-8 in the spine is 500
+      ops_unreadable (an unreadable authority). Add one plant and control to the AC-OPS empty-and-failing row.
+  - id: SPEC-FRESH-009
+    lens: "oracle-independence"
+    severity: 2
+    title: "The kinds 1 and 2 oracle is not restricted to the reader's population or to read faults"
+    evidence:
+      - artifact: "spec.md § FR-025 (Independent oracles: classify_status_json filtered to the four kind-1 codes)"
+      - code: "src/specify_cli/audit/classifiers/status_json.py:34-70 (CORRUPT_JSON is emitted for an OSError and for corrupt JSON whether or not the log exists; it returns [] only when status.json is absent)"
+    claim: >-
+      FR-010's population requires both files, and an OSError on status.json is a 500, but the classifier emits a CORRUPT_JSON
+      finding for an OSError and for a corrupt snapshot with no log, and a SNAPSHOT_DRIFT finding for a snapshot without a log.
+      An oracle used as written disagrees with the reader on those fixtures (kind 2 versus kind 1, finding versus 500). The
+      corpus has no such Mission, so only the fixtures could expose it.
+    remediation: >-
+      Say the oracle runs only over Missions with both files and drops the OSError-derived CORRUPT_JSON, or that the oracle is
+      applied to the corpus only and fixtures assert expected findings directly.
+  - id: SPEC-FRESH-010
+    lens: "performance"
+    severity: 2
+    title: 'NFR-001 "one reduction per Mission" cannot be met with the named public readers'
+    evidence:
+      - artifact: "spec.md § NFR-001, FR-012 (inputs is_mission_completed, materialize_snapshot), FR-010"
+      - code: "src/specify_cli/status/lifecycle.py:344-377 (is_mission_completed reduces the log itself and has no snapshot parameter)"
+    claim: >-
+      Kind 1 calls materialize_snapshot, kind 3 needs is_mission_completed (a second reduction inside
+      derive_mission_lifecycle) and the reducer lanes (a third unless the kind-1 snapshot is reused). The 60-second bound is
+      stated against a count the design cannot reach.
+    remediation: >-
+      Restate as "at most two reductions per Mission" and name the reuse of the kind-1 snapshot for the expected-lane step, or
+      name derive_mission_lifecycle(snapshot=...) plus the merged_at read as the completion input.
+  - id: SPEC-FRESH-011
+    lens: "acceptance-criteria-non-vacuity"
+    severity: 2
+    title: "Two planted evidence shapes have no stated expected output"
+    evidence:
+      - artifact: "spec.md § AC-OPS row 'evidence classes' (path with '..', path with a space)"
+      - artifact: "spec.md § FR-020 steps 1(d) and 1(e)"
+      - code: "contracts/tools/leak_scan.py:131-160 (malformed_artifact_path rejects dotdot_segment)"
+    claim: >-
+      By the pipeline a '..' path fails the artifact-path rule and becomes kind text with the value unchanged and redacted
+      false; a path with a space is text for the same reason. The row lists the plants but not those results, so a reader
+      cannot tell a correct classification from a wrong one ("wrong kind" is the only red condition).
+    remediation: >-
+      State the expected (kind, value, redacted) triple for each plant in the row, with the clean relative-path control.
+  - id: SPEC-FRESH-012
+    lens: "consistency"
+    severity: 2
+    title: "The source of the profile used by the filter is not stated although the index also stores one"
+    evidence:
+      - artifact: "spec.md § FR-016, FR-018 ('the index only supplies candidates'), AD-5, AC-OPS rows 'filter' and 'index candidates and lag'"
+      - code: "src/specify_cli/cli/commands/invocations_cmd.py:228-236 (the CLI filters on the index entry's profile_id in the index arm)"
+    claim: >-
+      The index line carries profile_id and the Op's own started event carries profile_id; the two can differ for a lagging or
+      hand-edited index. The spec says the index only supplies candidates, which implies the own-file value, but never says so
+      for the filter, totalCount or the cursor binding, and no plant has an index whose profile disagrees with the file.
+    remediation: >-
+      State that profile, totalCount and the cursor binding use profileId of the own started event, and add an index-mismatch
+      plant to the index-candidates row.
+  - id: SPEC-FRESH-013
+    lens: "terminology"
+    severity: 2
+    title: '"The terminology scan finds no feature in the new files" conflicts with a reader that must test for feature_slug'
+    evidence:
+      - artifact: "spec.md § AC-VERSION last bullet, Terminology ('Legacy-shaped manifest ... key feature_slug'), C-008"
+      - code: "tests/contract/test_mission_status_contract_1_1.py:760-810 (the existing scan covers the module YAML and the CHANGELOG entry only)"
+    claim: >-
+      The reference reader and its tests must contain the literal key feature_slug to detect the legacy shape. If "the new
+      files" means every new file of the slice file set, the AC cannot pass; if it means the existing scan's scope, the AC is
+      fine but unstated. The CHANGELOG entry and DriftKind description must also avoid the key (the spec's wording does).
+    remediation: >-
+      Say the scan covers new YAML files under contracts/mission-status and the CHANGELOG entry (the existing scan scope) and
+      that the reader's feature_slug literal is the sole accepted occurrence, pinned by a test.
+  - id: SPEC-FRESH-014
+    lens: "scope"
+    severity: 2
+    title: "Nullable missionId and artifactPath on DriftFinding have no producer, against the no-dead-value principle used for info"
+    evidence:
+      - artifact: "spec.md § FR-009 ('missionId is null only for a project-wide finding; no shipped kind is project-wide'), ARCH-002, AD-6, AC-DRIFT row 'no dead enum value'"
+    claim: >-
+      ARCH-002 removed DriftSeverity info because no kind produces it, yet missionId and artifactPath stay nullable although
+      every shipped finding sets both. The no-dead-value row covers enums only, so the dead null branch is untested and the
+      ordering rule 'null before any string' is unreachable. FORK: options A / B (A: make both non-null now and drop the
+      null-ordering clause; B: keep them nullable and state in FR-009 that this is deliberate room for a project-wide kind,
+      with a CHANGELOG line).
+    remediation: >-
+      Choose, then align FR-009, the examples and the CHANGELOG with the choice.
+  - id: SPEC-FRESH-015
+    lens: "stale-numbers"
+    severity: 1
+    title: "Small inaccuracies in wording and numbers"
+    evidence:
+      - artifact: "spec.md § AD-3 ('gave 488 findings here, one per merged Mission')"
+      - artifact: "spec.md § FR-004 ('check_compatibility compares for equality')"
+      - artifact: "spec.md § FR-012 Population (states 'abandoned, active, stale, recoverable')"
+      - artifact: "spec.md § Terminology, FR-012, R-8 (a ledger entry, a ledger entry, a ledger entry cited with no public pointer)"
+      - code: "src/specify_cli/migration/schema_version.py:150-206 (check_compatibility is a three-way comparison against REQUIRED_SCHEMA_VERSION)"
+      - code: "src/specify_cli/status/lifecycle.py:249-283 (_classify_state can also return reopened, a non-completed state)"
+    claim: >-
+      488 is the number of current manifests, 118 of them not completed, so 'one per merged Mission' is wrong; check_compatibility
+      compares with less-than and greater-than against REQUIRED_SCHEMA_VERSION, so the differential test must pass
+      REQUIRED_SCHEMA_VERSION (the MIN constant); the non-completed states include reopened; SK ids are operator-ledger entries a
+      public reader cannot resolve (earlier slices cite them too).
+    remediation: >-
+      Reword AD-3 to 'one per manifest whose branch is absent', say 'compares against REQUIRED_SCHEMA_VERSION', add reopened to
+      the parenthetical, and give each SK id a one-line description beside it.

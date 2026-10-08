@@ -1,0 +1,55 @@
+title: DriftRefusal
+description: >-
+  The problem details body of a refused drift read. It is a Problem whose code is one of two
+  values, and the status follows from the code: 404 for mission_not_found and 500 for
+  drift_scan_unreadable. The body carries no host path, no Mission directory and no file content.
+  Consumers branch on code, never on title.
+type: object
+allOf:
+  - $ref: ../../_shared/schemas/Problem.yaml
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          const: mission_not_found
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 404
+  - if:
+      required:
+        - code
+      properties:
+        code:
+          const: drift_scan_unreadable
+    then:
+      required:
+        - status
+      properties:
+        status:
+          const: 500
+  - type: object
+    required:
+      - code
+    properties:
+      code:
+        $ref: DriftRefusalCode.yaml
+        description: >-
+          The reason of the refusal. The status is fixed by it: 404 and 500 in the order of the values.
+        x-derived:
+          rule: >-
+            The reason that ended the read: mission_not_found when the missionId names no Mission,
+            drift_scan_unreadable for every other failure of the scan.
+          inputs:
+            - path: src/specify_cli/status/aggregate.py
+              symbol: MissionStatus
+        x-provisional:
+          open_decision: >-
+            The two codes and the status each one takes are a proposal of this contract and are
+            not yet named by the service.
+examples:
+  - $ref: ../examples/DriftRefusal.mission-not-found.yaml
+  - $ref: ../examples/DriftRefusal.scan-unreadable.yaml

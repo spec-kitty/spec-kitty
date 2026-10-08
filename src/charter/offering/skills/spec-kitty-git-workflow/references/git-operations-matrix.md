@@ -35,7 +35,7 @@ command agents are expected to run.
 | `git add <files>` | After writing implementation code | Stage deliverables |
 | `git commit -m "feat(WP##): ..."` | After implementation work | Record changes |
 | `git rebase <mission-branch>` | When the lane is stale relative to the mission branch | Resync the lane before review or merge |
-| `git add . && git rebase --continue` | During rebase conflict resolution | Complete rebase |
+| `git add -- <resolved files> && git rebase --continue` | During rebase conflict resolution | Complete rebase with only the files you resolved |
 | `git push origin <branch>` | When explicitly asked by user | Publish changes |
 
 ## Operations Nobody Should Do

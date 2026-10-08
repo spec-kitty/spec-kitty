@@ -22,6 +22,7 @@ overwritten.
 
 from __future__ import annotations
 
+import io
 import logging
 import re
 from dataclasses import dataclass
@@ -33,6 +34,7 @@ from ruamel.yaml import YAML
 
 from specify_cli.mission_metadata import _coerce_mission_number, locked_update_meta, write_meta
 from specify_cli.status.mission_write import mission_write_lock
+from specify_cli.core.atomic import atomic_write
 
 logger = logging.getLogger(__name__)
 
@@ -287,8 +289,9 @@ def backfill_project_uuid(repo_root: Path) -> str:
     spec_kitty["project_uuid"] = new_uuid
     logger.info("Assigned project_uuid=%s", new_uuid)
 
-    with open(metadata_path, "w", encoding="utf-8") as fh:
-        y.dump(data, fh)
+    buf = io.StringIO()
+    y.dump(data, buf)
+    atomic_write(metadata_path, buf.getvalue())
 
     return new_uuid
 

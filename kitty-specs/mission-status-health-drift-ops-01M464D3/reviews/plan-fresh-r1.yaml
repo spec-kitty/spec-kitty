@@ -1,0 +1,129 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: PLAN-FRESH-001
+    lens: offline-scope completeness (ruling 1 x ruling 4)
+    severity: 3
+    title: The corpus-sized cases moved into the reality module (ruling 4) have no offline rule
+    evidence:
+      - artifact: "plan.md Departs 5 and Reality-check design notes (the closed list of resolver-dependent assertions that skip offline: report equality, Missions examined-plus-skipped and Missions floors, fallback list, kind 1 to 3 oracles, per-Mission equality)"
+      - artifact: "plan.md D-P5, AC-DRIFT 19, AC-CROSS 4 (completion equality with floor 490; real kitty-ops listing; one Project build and one scan at most 120 s; the combined memoised-pass case)"
+      - artifact: "spec.md AC-REALITY 2 and 3, FR-025 Corpus outcome (same closed list; completion_non_coord is not named)"
+      - code: "src/specify_cli/upgrade/metadata.py:77 and plan D-P4 (the Project build reaches the resolver; spec FRESH3-001 says GET /project has the same network behaviour as GET /drift)"
+    claim: >
+      Ruling 1 fixed a closed list of assertions that skip by name offline; ruling 4 then moved five more corpus-sized
+      cases into the same module (AC-DRIFT 19 with its 490 floor, the real-directory listing bound, the Project-build
+      bound, the scan bound, the combined timing case). None of them is on the skip list and none is declared as
+      running offline. Offline the scan and the Project build hit the unreachable-remote path (500 or a failed build),
+      so a literal reading turns the required job red for a case whose bound is meaningless offline, or an
+      implementer invents a skip that the spec's "never a silent pass / closed list" wording does not authorise. The
+      AC-DRIFT 19 completion equality is arguably network-free (the own-directory read), which is the other reading.
+      The red-first offline-skip test of IC-09 therefore cannot say which of these cases must skip, run, or count as
+      executed in the "every generated case executed" tally.
+    remediation: >
+      Add one sentence to Departs 5 / the Reality-check design notes (and the matching test-strategy rows) classifying
+      each moved case: the real kitty-ops listing bound and the AC-DRIFT 19 completion equality (with the 490 floor and
+      its discovered-count guard) run offline because they need no resolver; the Project-build, scan and combined
+      timing cases take a named resolver-dependent skip and count as skipped, not executed. Extend the IC-09 offline
+      red-first test to plant that split. No spec change is needed beyond keeping the closed list in step.
+  - id: PLAN-FRESH-002
+    lens: wrap-up order against existing code
+    severity: 2
+    title: The #5776 in-mission placeholder survives lane consolidation, which evaluates the terminal-verdict merge gate
+    evidence:
+      - artifact: "plan.md W-1 (ii) consolidation, W-4 (a) 'the matrix row stays an in-mission placeholder', W-4 (c) terminal verdict after the squad; Departs 11; Charter Check Standing Order 8 row"
+      - code: "src/specify_cli/policy/merge_gates.py:150-153 and :502 (_evaluate_issue_matrix_verdict_terminality_gate calls _issue_matrix_approval_blocker with target_lane=Lane.DONE)"
+      - code: "src/specify_cli/tasks/issue_matrix_approval.py:178-210 (in-mission is rejected at done)"
+      - code: "packs/built-in/procedures/mission-wrap-up-sequence.procedure.yaml (anti-pattern 'Unresolved issue verdicts at close': an in-mission placeholder must be terminal before the Mission can reach done)"
+    claim: >
+      Ruling 5 (binding, not re-opened) puts the terminal #5776 verdict after the squad, but the plan consolidates
+      first (W-1 ii), and consolidation drives the WPs to done and runs the issue-matrix verdict-terminality merge gate.
+      With the row still in-mission the gate reports a failure: a warning with the default mode (this checkout sets
+      none), a hard abort if the mode is block. The plan never mentions this, so the W-1 evidence will show an
+      unexplained gate warning, and an operator or agent may "fix" it by setting the verdict early, which is the
+      reordering the ruling forbids.
+    remediation: >
+      State in W-1 (ii) and W-4 that the consolidate output is expected to carry the verdict-terminality warning for the
+      #5776 row, that it is classified as the ruled order (not a defect) and recorded in the PR body, and that the merge
+      gate mode is read first (a block mode escalates to the operator rather than setting the verdict early).
+  - id: PLAN-FRESH-003
+    lens: vacuous acceptance criterion (timing method)
+    severity: 2
+    title: The minimum-of-5 timing method does not require each repeat to be a cold, uncached call
+    evidence:
+      - artifact: "plan.md D-P15, AC-OPS 14, AC-CROSS 4, IC-08 Acceptance, P-7"
+      - artifact: "plan.md D-P2 and D-P1 (a per-run memo and a remote-branch lookup cache exist in the reader's world)"
+    claim: >
+      D-P15 takes the minimum of at least 5 in-test repeats and says the planted quadratic mutation must still fail.
+      It does not say that every repeat is an independent cold call on the same input. Any memo, lru cache, warmed
+      directory cache or reused built payload makes the minimum a cache hit, so a bound that is absolute by contract
+      (0.1 s, 5 s, 30 s) is measured on the best case, and a defect that is slow only on first call passes. The
+      quadratic mutation is the only proof the method can still fail, and it does not cover this weakness.
+    remediation: >
+      Add to D-P15: each repeat is a fresh call of the production entry point on an identical input with no state shared
+      between repeats (new reader state, the memo and any cache reset, a fresh opener); the 30 s and 5 s cases rebuild
+      or re-open the directory handle per repeat; the test asserts the cache was not hit (counter) or the call count
+      equals the repeat count. Add a mutation 'cache-the-result' to the Ops catalogue that must turn AC-OPS 14 red.
+  - id: PLAN-FRESH-004
+    lens: budget consistency
+    severity: 2
+    title: D-P5 budget does not price the extra corpus-job cases that ruling 4 and D-P15 add
+    evidence:
+      - artifact: "plan.md D-P5 (about 45 to 60 s local added: second memoised pass, scan reduction, Project reduction; one in-test case times them together)"
+      - artifact: "plan.md AC-CROSS 4 (corpus-sized: the real-directory case at most 5 s, one Project build and one scan at most 120 s each, plus the combined case, each with a guard); D-P15 (minimum of at least 5 repeats of the 5 s real-directory case)"
+    claim: >
+      D-P5's estimate counts one memoised pass, one scan reduction and one Project reduction. The revised plan also
+      requires, in the same serial 10-minute corpus job, separately bounded Project-build and scan cases beside the
+      combined case, and five repeats of the real-directory listing. If these are separate executions they add
+      scan-reduction and Project-reduction time again (3 to 22 s local, about 5 to 37 s on CI by the plan's own factor)
+      to a gain bound that is already described as "not by a wide margin". The plan does not say whether the three
+      timing cases share one execution.
+    remediation: >
+      Say which executions are shared (for example: the combined case produces the Project build and the scan once and
+      the two bounded cases assert on the same measured durations) or add the extra work to the D-P5 estimate and keep
+      the re-plan threshold of 6 minutes explicit.
+  - id: PLAN-FRESH-005
+    lens: stale reference
+    severity: 1
+    title: The restated floor lists in tracer-design-decisions.md (and the spec) omit completion_non_coord 490
+    evidence:
+      - artifact: "tracer-design-decisions.md D-P13 line (floors: Missions 540 ... kind-2 findings 27; no kind-3, no fallback floor)"
+      - artifact: "tracer-approach.md A-4 (same list; A-8 says the new floor is 'beside the floors of A-4')"
+      - artifact: "spec.md FR-025 Floors bullet (the list of floored quantities) versus plan.md D-P13, data-model.md Floors table, contracts/tool-extension-and-reader.md F, IC-09"
+    claim: >
+      The new floor is present and arithmetically right (569 directories, 51 declaring a coordination branch, 518
+      remaining, 95 percent is 492 and rounds down to 490; verified against the checkout) in the plan, the data model,
+      the reader contract and IC-09. The decision register copy (tracer-design-decisions.md D-P13) still lists the
+      old set, so the three places that list floors disagree. The spec's floor list does not name it either, which makes
+      it a plan-added floor not traceable to a spec sentence other than the ruling.
+    remediation: >
+      Append completion_non_coord 490 to the tracer-design-decisions.md D-P13 line (add-only record), and cite ruling 4
+      as its origin in plan D-P13 so the traceability is explicit.
+  - id: PLAN-FRESH-006
+    lens: stale cross-reference
+    severity: 1
+    title: The spec cites tracer-approach.md A-6 for the edit that is recorded in A-7
+    evidence:
+      - artifact: "spec.md Clarifications, Plan-round 1 ('add-only record in tracer-approach.md, A-6')"
+      - artifact: "plan.md intro of Departs from the spec ('add-only record in tracer-approach.md A-7'); tracer-approach.md A-6 and A-7"
+    claim: >
+      A-6 is the earlier 'the only spec edits allowed' record; A-7 records the ruling-driven edit and supersedes A-6's
+      clause. The spec points at the superseded entry.
+    remediation: Change the spec cross-reference to A-7 (an edit of a spec clarification line, same as the other ruling edits).
+  - id: PLAN-FRESH-007
+    lens: terminology drift
+    severity: 1
+    title: Plan D-P15 is a new decision with the id of the spec's D-P15 (floors), and plan D-P13 cites it
+    evidence:
+      - artifact: "plan.md D-P13 heading ('Floors (FR-025, D-P15 of the spec)') versus plan.md D-P15 (timing method)"
+      - artifact: "spec.md PR-5 and AC-REALITY ('floors ... (D-P15)')"
+    claim: >
+      Two decisions now carry the id D-P15 in files that cite each other (the spec's floors rule, the plan's timing
+      method), and the plan's traceability rows use the id for the timing method only. A reader following a spec
+      '(D-P15)' into the plan lands on the timing method.
+    remediation: >
+      Rename the plan's timing decision to D-P16 (and update the references in plan.md, quickstart.md and the tracer
+      note), or write 'spec D-P15' wherever the floors rule is meant.

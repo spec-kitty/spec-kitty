@@ -1,0 +1,17 @@
+title: OpsModeOfWork
+description: >-
+  How the work of an Op was framed: task_execution (a task carried out under a profile), advisory
+  (a recommendation only), mission_step (a step driven by a Mission) or query (a read that records
+  no work). Old records may carry advisory, which new records no longer write.
+type: string
+enum:
+  - task_execution
+  - advisory
+  - mission_step
+  - query
+x-source:
+  path: src/specify_cli/invocation/modes.py
+  symbol: ModeOfWork
+examples:
+  - task_execution
+  - mission_step

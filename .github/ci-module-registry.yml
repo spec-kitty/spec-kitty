@@ -328,6 +328,13 @@ modules:
   # src/specify_cli/design/**; this row's `specify_cli` cov_target covers it, so
   # the tree is enrolled here for per-PR execution (same precedent as above).
   - tests/specify_cli/design
+  # commit-scope rule (#5443): the specify_cli.git owner tests (safe_commit's
+  # link/stage/index-deletion paths and the merge-conclusion owner). They lived
+  # under the out-of-matrix tests/git_ops tree, so no per-PR lane ran them. No row
+  # roots src/specify_cli/git/** (a git/** change is unmatched and selects every
+  # row); this row's `specify_cli` cov_target covers the package, so the tree is
+  # enrolled here for per-PR execution (same precedent as the design enrolment).
+  - tests/specify_cli/git_commit_scope
 - module: unit
   roots:
   - src/specify_cli/status/**

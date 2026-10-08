@@ -191,19 +191,6 @@ class TestWorkspaceCreation:
 class TestCommitOperations:
     """Integration tests for commit operations."""
 
-    def test_commit_changes(self, git_repo, mock_git_only):
-        """Should commit changes successfully."""
-        vcs = get_vcs(git_repo)
-
-        # Make a change
-        (git_repo / "new_file.txt").write_text("new content")
-
-        # Commit
-        change = vcs.commit(git_repo, "Test commit")
-
-        assert change is not None
-        assert change.message == "Test commit"
-
     def test_get_changes_history(self, git_repo, mock_git_only):
         """Should get commit history."""
         vcs = get_vcs(git_repo)
@@ -279,8 +266,12 @@ class TestFullWorkflow:
         (workspace_path / "feature_code.py").write_text("# Feature code")
 
         # Step 3: Commit in workspace
-        change = vcs.commit(workspace_path, "Implement feature")
-        assert change is not None
+        subprocess.run(["git", "-C", str(workspace_path), "add", "--", "feature_code.py"], check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-C", str(workspace_path), "-c", "commit.gpgsign=false", "commit", "-m", "Implement feature", "--", "feature_code.py"],
+            check=True,
+            capture_output=True,
+        )
 
         # Step 4: Verify workspace info
         info = vcs.get_workspace_info(workspace_path)

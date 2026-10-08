@@ -105,6 +105,16 @@ canary or cross-repo end-to-end suites.
 - [ ] Bump `version` in `pyproject.toml`.
 - [ ] Add a populated `## [X.Y.Z] - YYYY-MM-DD` section to `CHANGELOG.md`.
 - [ ] For prereleases, use the exact prerelease heading (`## [X.Y.ZaN] - YYYY-MM-DD`, etc.).
+- [ ] **Keep a populated `## [Unreleased]` heading above the dated section.** A
+  release cut renames `## [Unreleased] - X.Y.Z` to the dated heading *and* leaves
+  a fresh `## [Unreleased]` (with the next version and the one-line candidate
+  placeholder) above it. The docs release-cut fixture (`tests/docs/conftest.py`
+  `release_cut_changelog`) reconstructs a post-cut changelog from the live
+  `## [Unreleased]` heading and fails closed with `StopIteration` if none exists,
+  and branch-mode validation needs that section *populated* — so an empty or
+  absent `## [Unreleased]` reds `test_the_guard_still_passes_right_after_a_release_cut`
+  and `test_unreleased_us_pass_still_clean_right_after_a_release_cut`. Step 8
+  (open the next cycle) carries this heading forward.
 - [ ] Remove any `tool.uv.override-dependencies` entries for `spec-kitty-*` packages before tagging.
 - [ ] Review `README.md` release-track messaging:
   - `main` should be described as the `4.x` release-candidate line until stable acceptance.

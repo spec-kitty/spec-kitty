@@ -1,0 +1,376 @@
+work_packages:
+  - id: WP01
+    title: "Re-measurement and campsite (tidy-first)"
+    dependencies: []
+    owned_files:
+      - "tests/contract/test_mission_status_contract_1_1.py"
+    requirement_refs:
+      - FR-012
+      - FR-013
+      - FR-015
+      - NFR-001
+      - NFR-002
+      - NFR-006
+      - NFR-009
+      - SC-003
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: "tasks/WP01-resync-remeasure-campsite.md"
+  - id: WP02
+    title: "Tool extension: six strict names and plants (FR-027)"
+    dependencies: []
+    owned_files:
+      - "contracts/tools/fixture_builder.py"
+      - "contracts/tools/negative_cases.json"
+      - "tests/contract/test_fixture_builder.py"
+      - "tests/contract/test_leak_scan.py"
+      - "tests/contract/test_run_negative_cases.py"
+    requirement_refs:
+      - FR-027
+      - NFR-004
+      - NFR-006
+      - C-003
+      - SC-005
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T006
+      - T007
+      - T008
+      - T009
+    prompt_file: "tasks/WP02-tool-extension.md"
+  - id: WP03
+    title: "Project vertical: contract, memo, builder and ratchet edits"
+    dependencies: [WP01, WP02]
+    owned_files:
+      - "contracts/mission-status/schemas/Project.yaml"
+      - "contracts/mission-status/schemas/ProjectHealth.yaml"
+      - "contracts/mission-status/examples/Project.example.yaml"
+      - "contracts/mission-status/examples/Project.all-null.yaml"
+      - "contracts/mission-status/examples/Project.schema-drift.yaml"
+      - "contracts/mission-status/paths/project.yaml"
+      - "contracts/mission-status/schemas/_index.yaml"
+      - "contracts/mission-status/examples/_index.yaml"
+      - "contracts/mission-status/CHANGELOG.md"
+      - "contracts/tools/enum_pins.json"
+      - "tests/contract/_mission_status_memo.py"
+      - "tests/contract/_mission_status_project.py"
+      - "tests/contract/test_mission_status_project.py"
+      - "tests/contract/_mission_status_payloads.py"
+      - "tests/contract/test_mission_status_payloads.py"
+      - "tests/contract/test_mission_status_reality.py"
+      - "tests/contract/test_mission_status_examples.py"
+      - "tests/contract/test_enum_pin_check.py"
+      - "tests/contract/test_mission_status_contract_1_1.py"
+      - ".github/workflows/packs.yml"
+      - "tests/architectural/test_ci_corpus_trigger_completeness.py"
+      - ".github/workflows/ci-router.yml"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - FR-005
+      - FR-006
+      - FR-007
+      - FR-015
+      - FR-023
+      - FR-024
+      - FR-025
+      - FR-029
+      - NFR-006
+      - NFR-009
+      - SC-001
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T010
+      - T011
+      - T012
+      - T013
+      - T014
+      - T015
+      - T016
+      - T017
+    prompt_file: "tasks/WP03-project-vertical.md"
+  - id: WP04
+    title: "Contract slice D: the drift read"
+    dependencies: [WP03]
+    owned_files:
+      - "contracts/mission-status/paths/drift.yaml"
+      - "contracts/mission-status/parameters/DriftMissionId.yaml"
+      - "contracts/mission-status/schemas/DriftReport.yaml"
+      - "contracts/mission-status/schemas/DriftFinding.yaml"
+      - "contracts/mission-status/schemas/LaneComparison.yaml"
+      - "contracts/mission-status/schemas/DriftKind.yaml"
+      - "contracts/mission-status/schemas/DriftSeverity.yaml"
+      - "contracts/mission-status/schemas/DriftAuthority.yaml"
+      - "contracts/mission-status/schemas/DriftSide.yaml"
+      - "contracts/mission-status/schemas/DriftRemedy.yaml"
+      - "contracts/mission-status/schemas/DriftRefusalCode.yaml"
+      - "contracts/mission-status/schemas/DriftRefusal.yaml"
+      - "contracts/mission-status/responses/DriftMissionNotFound.yaml"
+      - "contracts/mission-status/responses/DriftScanUnreadable.yaml"
+      - "contracts/mission-status/examples/DriftReport.clean.yaml"
+      - "contracts/mission-status/examples/DriftReport.populated.yaml"
+      - "contracts/mission-status/examples/DriftReport.corrupt-json.yaml"
+      - "contracts/mission-status/examples/DriftReport.truncated.yaml"
+      - "contracts/mission-status/examples/DriftRefusal.mission-not-found.yaml"
+      - "contracts/mission-status/examples/DriftRefusal.scan-unreadable.yaml"
+      - "contracts/mission-status/openapi.yaml"
+      - "contracts/mission-status/schemas/_index.yaml"
+      - "contracts/mission-status/examples/_index.yaml"
+      - "contracts/mission-status/parameters/_index.yaml"
+      - "contracts/mission-status/responses/_index.yaml"
+      - "contracts/mission-status/CHANGELOG.md"
+      - "contracts/tools/enum_pins.json"
+      - "tests/contract/test_mission_status_examples.py"
+      - "tests/contract/test_enum_pin_check.py"
+    requirement_refs:
+      - FR-008
+      - FR-009
+      - FR-010
+      - FR-011
+      - FR-012
+      - FR-013
+      - FR-014
+      - FR-015
+      - FR-023
+      - NFR-006
+      - SC-003
+    plan_concern_refs:
+      - IC-04
+    subtasks:
+      - T018
+      - T019
+      - T020
+      - T021
+      - T022
+    prompt_file: "tasks/WP04-contract-slice-drift.md"
+  - id: WP05
+    title: "Contract slice O: the Ops read"
+    dependencies: [WP04]
+    owned_files:
+      - "contracts/mission-status/paths/ops_invocations.yaml"
+      - "contracts/mission-status/parameters/OpsProfile.yaml"
+      - "contracts/mission-status/schemas/OpsInvocationPage.yaml"
+      - "contracts/mission-status/schemas/OpsInvocation.yaml"
+      - "contracts/mission-status/schemas/OpsModeOfWork.yaml"
+      - "contracts/mission-status/schemas/OpsInvocationStatus.yaml"
+      - "contracts/mission-status/schemas/OpsOutcome.yaml"
+      - "contracts/mission-status/schemas/OpsClosedBy.yaml"
+      - "contracts/mission-status/schemas/OpsEvidence.yaml"
+      - "contracts/mission-status/schemas/OpsEvidenceKind.yaml"
+      - "contracts/mission-status/schemas/OpsRefusalCode.yaml"
+      - "contracts/mission-status/schemas/OpsRefusal.yaml"
+      - "contracts/mission-status/responses/OpsUnreadable.yaml"
+      - "contracts/mission-status/examples/OpsInvocationPage.first.yaml"
+      - "contracts/mission-status/examples/OpsInvocationPage.last.yaml"
+      - "contracts/mission-status/examples/OpsInvocationPage.empty.yaml"
+      - "contracts/mission-status/examples/OpsInvocation.open.yaml"
+      - "contracts/mission-status/examples/OpsInvocation.closed-by-agent.yaml"
+      - "contracts/mission-status/examples/OpsInvocation.closed-by-doctor-sweep.yaml"
+      - "contracts/mission-status/examples/OpsInvocation.evidence-repo-path.yaml"
+      - "contracts/mission-status/examples/OpsInvocation.evidence-url.yaml"
+      - "contracts/mission-status/examples/OpsInvocation.evidence-url-redacted.yaml"
+      - "contracts/mission-status/examples/OpsInvocation.evidence-text.yaml"
+      - "contracts/mission-status/examples/OpsInvocation.evidence-text-redacted.yaml"
+      - "contracts/mission-status/examples/OpsInvocation.evidence-null.yaml"
+      - "contracts/mission-status/examples/OpsRefusal.ops-unreadable.yaml"
+      - "contracts/mission-status/openapi.yaml"
+      - "contracts/mission-status/schemas/_index.yaml"
+      - "contracts/mission-status/examples/_index.yaml"
+      - "contracts/mission-status/parameters/_index.yaml"
+      - "contracts/mission-status/responses/_index.yaml"
+      - "contracts/mission-status/CHANGELOG.md"
+      - "contracts/tools/enum_pins.json"
+      - "tests/contract/test_mission_status_examples.py"
+      - "tests/contract/test_enum_pin_check.py"
+    requirement_refs:
+      - FR-016
+      - FR-017
+      - FR-018
+      - FR-019
+      - FR-020
+      - FR-021
+      - FR-023
+      - NFR-006
+      - SC-004
+    plan_concern_refs:
+      - IC-05
+    subtasks:
+      - T023
+      - T024
+      - T025
+      - T026
+      - T027
+    prompt_file: "tasks/WP05-contract-slice-ops.md"
+  - id: WP06
+    title: "Contract proof edits (frozen copies, qualified names, scope data)"
+    dependencies: [WP05]
+    owned_files:
+      - "tests/contract/test_mission_status_contract_1_1.py"
+      - "contracts/mission-status/CHANGELOG.md"
+      - "tests/contract/fixtures/mission_status_pre_slice/schemas/Project.yaml"
+      - "tests/contract/fixtures/mission_status_pre_slice/examples/Project.example.yaml"
+      - "tests/contract/fixtures/mission_status_pre_slice/paths/project.yaml"
+    requirement_refs:
+      - FR-022
+      - FR-023
+      - FR-027
+      - FR-028
+      - FR-029
+      - NFR-006
+      - NFR-007
+      - C-002
+      - C-003
+      - C-006
+      - C-007
+      - C-008
+      - SC-006
+      - SC-008
+      - SC-009
+    plan_concern_refs:
+      - IC-06
+    subtasks:
+      - T028
+      - T029
+      - T030
+      - T031
+      - T032
+      - T033
+    prompt_file: "tasks/WP06-contract-proof-edits.md"
+  - id: WP07
+    title: "Drift reader and its tests"
+    dependencies: [WP06]
+    owned_files:
+      - "tests/contract/_mission_status_drift.py"
+      - "tests/contract/test_mission_status_drift.py"
+      - ".github/workflows/packs.yml"
+      - "tests/architectural/test_ci_corpus_trigger_completeness.py"
+      - ".github/workflows/ci-router.yml"
+    requirement_refs:
+      - FR-008
+      - FR-009
+      - FR-010
+      - FR-011
+      - FR-012
+      - FR-013
+      - FR-014
+      - FR-015
+      - FR-024
+      - FR-026
+      - NFR-002
+      - NFR-003
+      - NFR-005
+      - NFR-006
+      - NFR-007
+      - C-009
+      - SC-003
+      - SC-010
+    plan_concern_refs:
+      - IC-07
+    subtasks:
+      - T034
+      - T035
+      - T036
+      - T037
+      - T038
+      - T039
+      - T040
+      - T056
+    prompt_file: "tasks/WP07-drift-reader.md"
+  - id: WP08
+    title: "Ops reader and its tests"
+    dependencies: [WP07]
+    owned_files:
+      - "tests/contract/_mission_status_ops.py"
+      - "tests/contract/test_mission_status_ops.py"
+      - ".github/workflows/packs.yml"
+      - "tests/architectural/test_ci_corpus_trigger_completeness.py"
+      - ".github/workflows/ci-router.yml"
+    requirement_refs:
+      - FR-016
+      - FR-017
+      - FR-018
+      - FR-019
+      - FR-020
+      - FR-021
+      - FR-024
+      - FR-026
+      - NFR-002
+      - NFR-003
+      - NFR-004
+      - NFR-005
+      - NFR-006
+      - NFR-008
+      - C-009
+      - SC-004
+      - SC-010
+    plan_concern_refs:
+      - IC-08
+    subtasks:
+      - T041
+      - T042
+      - T043
+      - T044
+      - T045
+      - T046
+    prompt_file: "tasks/WP08-ops-reader.md"
+  - id: WP09
+    title: "Oracles and the reality extension"
+    dependencies: [WP07, WP08]
+    owned_files:
+      - "tests/contract/_mission_status_oracles.py"
+      - "tests/contract/test_mission_status_reality.py"
+      - "tests/contract/_mission_status_payloads.py"
+      - "tests/contract/fixtures/mission_status_health_drift_ops_expected.json"
+      - ".github/workflows/ci-router.yml"
+    requirement_refs:
+      - FR-025
+      - FR-024
+      - NFR-001
+      - NFR-002
+      - NFR-003
+      - NFR-004
+      - NFR-006
+      - NFR-009
+      - SC-002
+      - SC-004
+      - SC-005
+      - SC-007
+    plan_concern_refs:
+      - IC-09
+    subtasks:
+      - T047
+      - T048
+      - T049
+      - T050
+      - T051
+      - T052
+    prompt_file: "tasks/WP09-oracles-reality.md"
+  - id: WP10
+    title: "Close-out evidence, pre-rebase"
+    dependencies: [WP09]
+    owned_files:
+      - "kitty-specs/mission-status-health-drift-ops-01M464D3/tracer-approach.md"
+      - "kitty-specs/mission-status-health-drift-ops-01M464D3/tracer-design-decisions.md"
+      - "kitty-specs/mission-status-health-drift-ops-01M464D3/tracer-tooling-friction.md"
+    requirement_refs:
+      - NFR-006
+      - C-001
+      - C-004
+      - C-005
+    plan_concern_refs:
+      - IC-10
+    subtasks:
+      - T053
+      - T054
+      - T055
+    prompt_file: "tasks/WP10-closeout-evidence.md"

@@ -409,7 +409,9 @@ def resolve_owned_mission(
     # refused there. Validating the top level keeps the boundary tripwire (a
     # symlinked mission-root entry escaping the checkout is refused at resolve,
     # before any effects) at O(top-level entries) instead of O(tree).
-    result.files(list(directory.iterdir()))
+    # ``follow_links``: this screen decides where an entry leads (#5671 made the
+    # default commit semantics keep a link leaf, which would admit an escape).
+    result.files(list(directory.iterdir()), follow_links=True)
     return result
 
 

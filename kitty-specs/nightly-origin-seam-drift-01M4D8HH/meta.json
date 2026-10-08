@@ -1,0 +1,30 @@
+{
+  "accept_commit": "6e21a7b7658656ca48d0fcd00cf9b3b6c0fb3d94",
+  "acceptance_history": [
+    {
+      "accept_commit": "6e21a7b7658656ca48d0fcd00cf9b3b6c0fb3d94",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-08T08:44:58.670679+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "5e04d7a01c719ca88d95b5c425c8fbaa17df07ba"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-08T08:44:58.670679+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "5e04d7a01c719ca88d95b5c425c8fbaa17df07ba",
+  "created_at": "2026-10-08T08:02:23.185701+00:00",
+  "flattened": false,
+  "friendly_name": "Nightly red: test seams after origin freshness",
+  "mid8": "01M4D8HH",
+  "mission_id": "01M4D8HHFQMTP1J8NZ2D3CEJ32",
+  "mission_number": null,
+  "mission_slug": "nightly-origin-seam-drift-01M4D8HH",
+  "mission_type": "software-dev",
+  "purpose_context": "The 2026-10-08 nightly went red in 16 tests across three groups. Research bisected each to PR #5845 (#5780) and found the product behaviour intended and the test seams stale; this mission re-pins the seams so the nightly is an honest signal again.",
+  "purpose_tldr": "Re-pin four nightly test seams that drifted when origin freshness landed (#5845)",
+  "slug": "nightly-origin-seam-drift-01M4D8HH",
+  "status_phase": "1",
+  "target_branch": "issue-5888-nightly-test-seam-drift",
+  "topology": "single_branch"
+}

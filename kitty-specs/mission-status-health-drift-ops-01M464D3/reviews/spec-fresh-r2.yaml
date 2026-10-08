@@ -1,0 +1,192 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-health-drift-ops-01M464D3
+findings:
+  - id: SPEC-FRESH2-001
+    lens: debugging-recurrence (reproduce the ruled read on the real corpus)
+    severity: 4
+    title: The no-fallback resolver rule (FRESH-001) makes GET /drift a 500 over this very repository, so AC-REALITY and SC-002 cannot pass
+    evidence:
+      - artifact: "spec.md § FR-015 (Read directory), AD-10, FR-025 (oracles, named skipped list), AC-REALITY, SC-002, A-2"
+      - code: "src/specify_cli/coordination/surface_resolver.py:193 (CoordinationBranchDeleted: declared coordination branch gone)"
+      - code: "src/specify_cli/status/aggregate.py:194 (MissionStatus.load)"
+      - code: "tests/contract/_mission_status_payloads.py:664 (v1 resolve_read_dir falls back for exactly this case)"
+    claim: >-
+      Reproduced on this checkout (a normal clone with no kitty/* branches): MissionStatus.load over the 569 Mission directories raises
+      CoordinationBranchDeleted for 37 of them (52 meta.json files declare a coordination_branch). FR-015 and AD-10 make each such
+      outcome a whole-scan 500 drift_scan_unreadable, never partial. The project-wide DriftReport over this checkout is therefore a 500,
+      and so is the per-Mission report for each of the 37 and the oracle for kinds 1 and 2 (it resolves through MissionStatus.load
+      itself). The spec's named skipped lists cover only Ops without closed_by and the legacy lanes.json; no list covers resolver
+      failures, and the rule "fail on any 500 outside a named list" plus "per-Mission equals project-wide filtered" cannot hold. A fresh CI
+      clone has the same missing branches. FRESH-001 was ruled without this measurement. FORK: options A / B. A: keep FRESH-001 and add to
+      the reality check an independently derived named list of resolver-500 Missions (expected 37 here, clone-dependent, so no floor), with
+      the corpus project-wide read asserted as a 500 that names them and the per-Mission and kind 1/2 equality asserted over the
+      remaining Missions only. B: return to the operator to amend FRESH-001 to v1's behaviour (fall back to the own directory and carry the
+      named reason) for CoordinationBranchDeleted only. Either way the spec must state the corpus outcome.
+    remediation: >-
+      Put the measured count and the corpus outcome in FR-015/FR-025/AC-REALITY/SC-002, choose A or B (operator for B), and add the
+      resolver-failure named list (or the amended rule) with a stale-entry check, so the proof is satisfiable on a clone.
+  - id: SPEC-FRESH2-002
+    lens: dual-system-divergence (spec cost claims vs measured code)
+    severity: 4
+    title: NFR-009 / FR-007 cost and "no subprocess" claims omit the resolver the Project build must go through
+    evidence:
+      - artifact: "spec.md § FR-006, FR-007 (1.5 seconds for 567 Missions, subprocess.run raising test), NFR-009, AC-PROJECT row 7"
+      - code: "tests/contract/_mission_status_payloads.py:686-710 (load_source -> resolve_read_dir -> MissionStatus.load), :838 (lastActivityAt from the snapshot)"
+      - code: "src/specify_cli/coordination/surface_resolver.py:643-662 (_roots_own_checkout runs git rev-parse), :464 (git worktree list)"
+    claim: >-
+      lastActivityAt is the latest MissionHead.lastActivityAt over the Missions GET /missions lists, and MissionHead is built through
+      load_source, i.e. through MissionStatus.load. The quoted 1.5 s was measured with materialize_snapshot and is_mission_completed only
+      (I reproduce about 1.1 s for those two). Timing MissionStatus.load over the same 569 directories here took about 35 s and 784
+      subprocess.run calls (git symbolic-ref, rev-parse, worktree list; the first 60 older Missions spawn none, coordination-topology
+      Missions spawn many). So (a) the 15 s bound of NFR-009 is not met by the Project build as specified on this checkout, and the
+      "1.5 s measured" figure is not the figure of the thing bounded; (b) the FR-007 promise "starts no subprocess" and the test that
+      replaces subprocess.run with a raising stub are false for any coordination-topology Mission and for this corpus.
+    remediation: >-
+      Re-measure NFR-009 with the full Project build (resolver included) and state that figure and its machine; either exempt the
+      resolver's git calls explicitly in FR-007 ("no subprocess other than the coordination resolver's") with the raising-stub test
+      restricted to fixtures that have no coordination Mission plus a counted-subprocess test for the rest, or define lastActivityAt as
+      read from the Mission's own directory (a FRESH-005 semantic change, so operator). Raise the 15 s bound to a measured basis.
+  - id: SPEC-FRESH2-003
+    lens: dual-system-divergence (NFR arithmetic)
+    severity: 4
+    title: NFR-001 and NFR-002 (time budget, "subprocess counter of at most one", "opens only four files") ignore the coordination resolver added by FRESH-001
+    evidence:
+      - artifact: "spec.md § NFR-001 (60 s scan, 90 s gain, 18 s measured), NFR-002, FR-015, FR-025 (per-Mission report for every directory, oracle through MissionStatus.load), AC-CROSS row 4"
+      - code: "src/specify_cli/status/aggregate.py:194,279 (load -> _is_coord_dir -> is_registered_coord_worktree)"
+      - code: "src/specify_cli/coordination/surface_resolver.py:622-662"
+    claim: >-
+      The scan resolves the read directory per Mission through MissionStatus.load. Measured here: 784 git subprocesses and about 35 s for
+      569 loads. NFR-002's subprocess counter "of at most one" (the single for-each-ref listing) cannot hold, and NFR-001's 60 s bound with
+      18 s measured does not include this cost. The reality check runs the resolver at least five times per Mission (project-wide reader,
+      per-Mission reader for every directory, oracle, Project build, plus the kind 3 oracle), so the "gains at most 90 seconds" budget is not
+      reachable; the spec's own two-reduction accounting counts only reductions. The "18 seconds" figure is a measurement of an
+      unspecified composition ("two comparisons computed twice") and is not reproducible as written.
+    remediation: >-
+      Recompute NFR-001/NFR-002 with the resolver included: count subprocesses as "one listing plus those of the resolver (counted)", name
+      the measured total, memoise the resolution per Mission inside one reality run or state that the per-Mission loop shares the
+      project-wide result, and restate the 90 s gain as a measured figure. Replace "18 seconds measured with two comparisons computed
+      twice" by the exact command measured.
+  - id: SPEC-FRESH2-004
+    lens: contract-vs-helper accuracy
+    severity: 3
+    title: The "test-tree helper resolve_read_dir wraps it" statement is false; the helper falls back, which FR-015 forbids
+    evidence:
+      - artifact: "spec.md § FR-015 (Read directory), Clarifications FRESH-001 ('as resolve_read_dir'), tracer-design-decisions.md FRESH-001"
+      - code: "tests/contract/_mission_status_payloads.py:664-683"
+    claim: >-
+      The existing helper catches CoordinationBranchDeleted, CoordAuthorityUnavailable and MissionMetadataUnavailable and returns the own
+      directory with a reason, and it also falls back for a read directory outside the checkout. FR-015 says kinds 1 to 3 use the resolver
+      "as resolve_read_dir" and then lists exactly those outcomes as 500s. An implementer who reuses the helper (the spec says the helper
+      wraps the resolver) ships the fallback the ruling forbids; one who rewrites it duplicates a second resolver wrapper. The spec does not
+      say whether the helper is edited (it is a ratchet file), split, or left alone.
+    remediation: >-
+      State that the reference reader adds a strict sibling (for example one that lets the five resolver exceptions propagate and returns
+      the directory only when inside the root), that v1's falling helper is untouched, and add an AC row with a plant that proves the strict
+      sibling does not fall back (the existing helper as the control).
+  - id: SPEC-FRESH2-005
+    lens: boundary-and-encoding
+    severity: 3
+    title: Invalid UTF-8 in status.json, lanes.json or meta.json has no stated outcome
+    evidence:
+      - artifact: "spec.md § FR-010 (CORRUPT_JSON, OSError 500), AD-10, FR-012 (raw JSON pre-read), AC-DRIFT rows 2, 9, 10; Edge Cases (Ops only)"
+      - code: "src/specify_cli/audit/classifiers/status_json.py:38-45 (catches OSError and JSONDecodeError only; UnicodeDecodeError is neither)"
+    claim: >-
+      The classifier the oracle is built on reads status.json with read_text and catches only OSError and JSONDecodeError, so a snapshot
+      that is not valid UTF-8 propagates (its docstring says it never raises). The spec defines the outcome for invalid UTF-8 in an Op file
+      and in the spine, but not for the three Mission files. By the stated principle (a broken derived file is a finding) status.json
+      should be CORRUPT_JSON; lanes.json by FR-012 "not JSON" is a 500; meta.json is MissionMetaReadError. None is written, and the
+      oracle would raise where the reader answers, with no plant.
+    remediation: >-
+      Add to FR-010 that undecodable bytes in status.json are CORRUPT_JSON (error), to FR-012/AD-10 that undecodable lanes.json is "not
+      JSON" (500), to the oracle that it maps UnicodeDecodeError the same way, and one plant per file with the clean control.
+  - id: SPEC-FRESH2-006
+    lens: source-of-truth
+    severity: 2
+    title: meta.json and completion are read in the read directory by the product, but the spec says the Mission's own directory
+    evidence:
+      - artifact: "spec.md § FR-015 ('meta.json and lanes.json are read in the Mission's own directory'), FR-012 (completion test in the read directory), AD-4 (merged_at)"
+      - code: "src/specify_cli/status/lifecycle.py:219-233,320-347 (is_mission_completed reads meta.json merged_at from the directory it is given)"
+      - code: "src/specify_cli/status/reducer.py:394 (materialize_snapshot resolves identity, so opens meta.json, in the read directory)"
+    claim: >-
+      For a coordination-topology Mission the read directory is the coordination surface. is_mission_completed(read_dir) therefore reads
+      merged_at from that copy of meta.json, while AD-4's "merged to main" remedy rule and kind 3's coordination_branch read the own
+      directory's copy. The two can disagree (a merge stamped only on the primary copy), giving a Mission that is "completed" by one test and
+      "not merged" by the other. NFR-002's "opens only meta.json ..." is also silent that two copies of meta.json are opened.
+    remediation: >-
+      State which meta.json each rule reads, or call is_mission_completed on the own directory and say so; add a coordination fixture with
+      merged_at on one copy only and the expected finding or non-finding.
+  - id: SPEC-FRESH2-007
+    lens: claim-accuracy
+    severity: 2
+    title: The reducer output is generation-gated by the persisted status.json, which kind 1 and R-8 do not say
+    evidence:
+      - artifact: "spec.md § FR-010, R-8, FR-014 summary 'disagrees with the event log'"
+      - code: "src/specify_cli/status/reducer.py:316-346,382-393 (_target_schema_version keys the replay off the existing snapshot's own schema_version)"
+    claim: >-
+      materialize_snapshot replays at the generation recorded in the existing status.json (legacy snapshots replay at the legacy schema), so
+      a persisted snapshot that lacks fields newer than its recorded generation is by design not a disagreement. R-8 names a ledger entry and a ledger entry
+      as limits of kind 1 but not this one; the summary text "disagrees with the event log" and the DriftFinding description would overstate.
+      The reality-check oracle shares the behaviour, so no test reveals it.
+    remediation: >-
+      Add the generation gate to R-8 and to the DriftFinding description (disagrees with the reducer replay at the snapshot's own
+      generation) and add one fixture pair (snapshot at an older generation, no finding).
+  - id: SPEC-FRESH2-008
+    lens: vacuous-acceptance-criteria
+    severity: 2
+    title: 'The "planted unnamed provisional element fails" check is vacuous for tokens already present in the CHANGELOG Provisional section'
+    evidence:
+      - artifact: "spec.md § FR-023 table (tokens kind, code, truncated, evidence, remedy), AC-VERSION bullet 4, SC-008"
+      - code: "contracts/tools/provisional_check.py:165-167 (whole-word match over the whole section)"
+      - code: "contracts/mission-status/CHANGELOG.md:149-154 (kind, code and truncated already named by the ArtifactKind, ArtifactRefusalCode and ArtifactListing lines)"
+    claim: >-
+      The check matches the bare property name anywhere in the Provisional section. kind, code and truncated are already named there by the
+      previous slice, so the new DriftFinding.kind, DriftRefusal.code, OpsRefusal.code and DriftReport.truncated pass the check with no new
+      text, and a planted entry that omits them cannot fail. The AC (and SC-008's "paired plant") therefore proves nothing for those four.
+    remediation: >-
+      For the non-unique tokens add a committed test that the new CHANGELOG lines contain the qualified names (DriftFinding.kind,
+      DriftReport.truncated, DriftRefusal.code, OpsRefusal.code) literally, with a plant removing each; keep the tool check for the unique
+      tokens (health, remedy, laneComparison, skippedCount, totalCount, DriftKind and the rest).
+  - id: SPEC-FRESH2-009
+    lens: public-repo hygiene
+    severity: 2
+    title: Private defect-ledger ids (a ledger entry, a ledger entry, a ledger entry) are cited in a public artifact
+    evidence:
+      - artifact: "spec.md § Terminology bullet a ledger entry/a ledger entry/a ledger entry, FR-012, GOV-007 line, R-8, AD-10; C-005"
+    claim: >-
+      C-005 forbids any private reference in an artifact. The spec states the ids belong to a ledger that has no public pointer, yet uses
+      them as identifiers in about six places. A reader cannot resolve them and the ids themselves disclose the existence and numbering of
+      an internal tracker. Each is already described in prose where cited.
+    remediation: >-
+      Drop the ids and keep the descriptions (for example "the legacy-manifest refusal of read_lanes_json"), or replace them with a public
+      issue number if one exists; delete the Terminology bullet.
+  - id: SPEC-FRESH2-010
+    lens: cross-reference completeness
+    severity: 2
+    title: The 404 shape and the field catalogue do not agree with FR-023's "every property carries exactly one citation"
+    evidence:
+      - artifact: "spec.md § FR-008 ('shared Problem shape' then 'The 404 and 500 use a module refusal schema DriftRefusal'), Key Entities (Problem codes), FR-023, field catalogue"
+      - code: "contracts/mission-status/schemas/ArtifactRefusal.yaml:1-12,94 (the pattern DriftRefusal copies carries x-derived on code)"
+    claim: >-
+      FR-008 says the 404 is the shared Problem with code mission_not_found and, two sentences later, that the 404 uses DriftRefusal with
+      the titled DriftRefusalCode enum; the Key Entities list mission_not_found as a Problem code. It is unspecified whether DriftRefusalCode
+      holds mission_not_found, which breaks the "no dead value" and pin tests either way. The catalogue also has no rows for DriftRefusal,
+      OpsRefusal or the OpsEvidence members (kind, value, redacted), although FR-023 demands exactly one citation per new property and the
+      citation check will fail the missing ones.
+    remediation: >-
+      State that DriftRefusalCode is {mission_not_found, drift_scan_unreadable} (and OpsRefusalCode {ops_unreadable}, with the pattern
+      the existing ArtifactRefusal uses for its status per code), drop "shared Problem shape" from the 404 sentence, and add catalogue rows for
+      the refusal schemas and the three evidence members.
+  - id: SPEC-FRESH2-011
+    lens: stale wording
+    severity: 1
+    title: tracer-design-decisions.md still states the OR-10 question and its ruling with "cheap" in two places
+    evidence:
+      - artifact: "tracer-design-decisions.md lines 42 and 48 ('/project stays cheap', 'promises that GET /project is cheap')"
+    claim: >-
+      Line 49 carries the FRESH-005 amendment, but line 42 (a ruling bullet) has no amendment note and still says cheap; FRESH-005 dropped
+      the word everywhere. A reader of line 42 alone gets the pre-ruling promise.
+    remediation: >-
+      Add "(amended by FRESH-005)" to line 42 or reword it to "read-only and independent of a scan".

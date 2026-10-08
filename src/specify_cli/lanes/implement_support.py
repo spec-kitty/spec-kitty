@@ -300,6 +300,9 @@ class LaneWorkspaceResult:
     # Every caller MUST surface it (``implement_phases._report_hook_backup``), or
     # the #4895 harm returns: the hook is preserved but nobody is told where.
     hook_backup_path: Path | None = None
+    #: This call wrote ``base_branch``/``base_commit``/``created_at`` into the claimed WP prompt (a fresh lane only).
+    #: Reported by the writer itself, so a concurrent edit to the prompt is never mistaken for the claim's stamp (#5673).
+    wp_stamped: bool = False
 
     def __post_init__(self) -> None:
         if self.lane_test_env is None:
@@ -478,6 +481,7 @@ def create_lane_workspace(
 
     base_branch = honored_base
 
+    wp_stamped = False
     if is_reuse:
         # Reuse — refresh context to reflect the new active WP (#3946).
         refresh_reused_lane_context(repo_root, mission_slug, lane_id, wp_id, declared_deps)
@@ -496,6 +500,7 @@ def create_lane_workspace(
         # A locked read-modify-write of the work package as it is now (plan A10): a field or note another
         # writer landed since the claim began (a map-requirements ref) survives.
         locked_update_frontmatter(wp_file, lambda frontmatter: frontmatter.update(provenance), feature_dir=wp_file.parent.parent, repo_root=repo_root)
+        wp_stamped = True
 
         # FR-006: persist the lane-specific test-DB env so consumers
         # (agents, test runners) do not have to re-derive it. Empty for
@@ -534,6 +539,7 @@ def create_lane_workspace(
         # (e.g. SaaS / Django) cannot collide on a shared test database.
         lane_test_env=lane_test_env(mission_slug, lane_id),
         hook_backup_path=hook_backup_path,
+        wp_stamped=wp_stamped,
     )
 
 

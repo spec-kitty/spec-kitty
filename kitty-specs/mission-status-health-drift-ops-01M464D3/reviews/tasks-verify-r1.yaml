@@ -1,0 +1,35 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-COVER-001
+    status: resolved
+    reason: Ruling 1 (remedy A) is met, since WP07 T056 is an ast-based pin test with planted second uses and a control, listed in wps.yaml, WP07 frontmatter and tasks.md; camel-case plants are concrete in WP03 T011, WP04 T018 and WP05 T023 using the real ENUM_VALUE_ADDED and ENUM_VALUE_REMOVED codes; and WP06's ownership sentence no longer claims AC-VERSION e.
+  - id: TASKS-COVER-002
+    status: resolved
+    reason: SC-009 is in WP06 and C-001 in WP10 requirement_refs, frontmatter and tasks.md, and tasks.md states C-001 is governance-only and SC-009 is realised by J-1, W-2 and T033.
+  - id: TASKS-COVER-003
+    status: resolved
+    reason: WP02 T006 and the DoD now name STRICT_NAMES, NEW_STRICT_NAMES and the strict set at test_run_negative_cases.py (verified to exist), drop the nonexistent manifest length, and scope the eight-old-kinds claim to the OLD_KINDS digest test.
+  - id: TASKS-COVER-006
+    status: resolved
+    reason: WP01 T005 step 2 now reads contracts/tools/leak_scan.py x4, with the f-string note on byte_identity and out_of_scope.
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: Ruling 2 (remedy B) is met, since tasks.md has a Step PD before every dispatch (add-only commit, fast-forward of the Mission branch, merge into the lane workspace, grep of the record inside the lane workspace), WP10 works in the planning branch, --refresh-planning-commit is explicitly excluded, J-1 and Step 0 item 4 point to PD, and every WP prompt carries the pointer.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: Ruling 3 (remedy A strengthened) is met, since WP03, WP07 and WP08 each carry a binding battery section with the three concrete leg commands, job names, shard split via the verified battery_partition_plugin, timeouts and counts, the Step 0 per-leg baseline in tasks.md item 2 and 3, and quickstart is aligned.
+  - id: TASKS-VERIFY-003
+    status: unresolved
+    remaining_severity: 1
+    reason: Registration item 4 and WP03 T017 are fixed (globs land with the first real src import, T017 Files none), but WP07 T040 and WP08 T046 still list `.github/workflows/ci-router.yml` as their Files line while their Purpose says the subtask edits nothing, leaving the same defect class inconsistent across the three WPs.
+  - id: TASKS-VERIFY-004
+    status: resolved
+    reason: The prose line is moved out of the fence, the script asserts files >= FLOOR (28, matching the 28 non-exempt files counted now), and the reviews/ and event-log exemption is explained with who reads them (W-5 and W-7 whole-directory scan).
+  - id: TASKS-VERIFY-005
+    status: resolved
+    reason: WP07 T039 step 2 and the AC-CROSS 4 row now state the 10,000-file timed case is WP08 T045's and the drift module has only counted, not timed, bounds.
+  - id: TASKS-VERIFY-006
+    status: resolved
+    reason: WP08 and WP09 steps and Definitions of Done now carry measure-first and a margin under a factor of 2 reported to the operator without loosening the bound or skipping the case.

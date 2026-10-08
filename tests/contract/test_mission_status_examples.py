@@ -18,6 +18,7 @@ both paths: that proves the validation is not vacuous (FR-025, C-010).
 
 from __future__ import annotations
 
+import re
 import shutil
 from collections.abc import Iterator
 from pathlib import Path
@@ -38,7 +39,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTRACTS = REPO_ROOT / "contracts"
 MODULE = CONTRACTS / "mission-status"
 TOOLS = CONTRACTS / "tools"
-MIN_EXAMPLES = 47
+MIN_EXAMPLES = 77
 PLANTED_FILE = "Planted.malformed.yaml"
 PLANTED_SCHEMA = "MissionOverview"
 MALFORMED_TIMESTAMP = "2026-13-45T25:61:00Z"
@@ -449,6 +450,8 @@ EXPECTED_PATH_KEYS = {
     "/missions/{missionId}/artifacts/content",
     "/missions/{missionId}/work-packages/{wpId}/detail",
     EVENTS_PATH,
+    "/drift",
+    "/ops/invocations",
 }
 
 
@@ -915,7 +918,7 @@ def test_the_module_stays_at_the_unreleased_1_0_0_snapshot_version() -> None:
 
 def test_the_two_artifact_operations_are_mapped_and_tagged_with_the_existing_tag() -> None:
     root = _read(MODULE / "openapi.yaml")
-    assert [tag["name"] for tag in root["tags"]] == ["Project", "Missions", "Events"]
+    assert [tag["name"] for tag in root["tags"]] == ["Project", "Missions", "Events", "Drift", "Ops"]
     listing = _artifact_operation(ARTIFACT_LISTING_PATH)
     content = _artifact_operation(ARTIFACT_CONTENT_PATH)
     assert listing["operationId"] == "listArtifacts" and content["operationId"] == "getArtifactContent"
@@ -1343,8 +1346,6 @@ def test_the_detail_schemas_name_the_provisional_elements() -> None:
 
 
 def test_the_review_cycle_pointer_pattern_is_no_wider_than_the_product_validator() -> None:
-    import re
-
     from specify_cli.review.cycle import ReviewCycleError, validate_review_cycle_pointer
 
     pattern = re.compile(str(_read(MODULE / "schemas" / "ReviewCycle.yaml")["properties"]["feedbackReference"]["pattern"]))
@@ -1386,3 +1387,859 @@ def test_the_review_cycle_pointer_pattern_is_no_wider_than_the_product_validator
         # The schema may never accept what the validator refuses; it need not refuse more.
         assert not matches or valid, f"the schema accepts {pointer!r}, which the validator refuses"
         assert matches == valid, f"the schema and the validator disagree on {pointer!r}"
+
+
+# --------------------------------------------------------------------------------------
+# Project: the five properties of the health, drift and ops slice (FR-001, FR-023)
+# --------------------------------------------------------------------------------------
+
+PROJECT_SCHEMA = "Project"
+PROJECT_REQUIRED = ["name", "missionCount", "specKittyVersion", "schemaVersion", "health", "currentBranch", "lastActivityAt"]
+PROJECT_NULLABLE = ["specKittyVersion", "schemaVersion", "currentBranch", "lastActivityAt"]
+PROJECT_EXAMPLE_FILES = ["Project.all-null.yaml", "Project.example.yaml", "Project.schema-drift.yaml"]
+
+
+def test_the_project_requires_its_five_new_properties_and_stays_closed() -> None:
+    schema = _read(MODULE / "schemas" / "Project.yaml")
+    assert sorted(schema["required"]) == sorted(PROJECT_REQUIRED)
+    assert sorted(schema["properties"]) == sorted(PROJECT_REQUIRED)
+    assert schema["additionalProperties"] is False
+
+
+def test_the_project_examples_cover_the_required_cases() -> None:
+    projects = _instances_of(PROJECT_SCHEMA)
+    assert sorted(projects) == PROJECT_EXAMPLE_FILES, sorted(projects)
+    assert all(sorted(project) == sorted(PROJECT_REQUIRED) for project in projects.values()), "an example lacks a required key"
+    _first(projects, lambda project: project["health"] == "healthy" and all(project[key] is not None for key in PROJECT_NULLABLE))
+    _first(projects, lambda project: project["health"] == "schema_drift" and all(project[key] is None for key in PROJECT_NULLABLE))
+    _first(projects, lambda project: project["health"] == "schema_drift" and project["schemaVersion"] is not None and project["lastActivityAt"] is not None)
+
+
+@pytest.mark.parametrize("missing", PROJECT_REQUIRED)
+def test_a_project_without_one_required_key_is_rejected_through_both_paths(missing: str) -> None:
+    instance = dict(_instances_of(PROJECT_SCHEMA)["Project.example.yaml"])
+    instance.pop(missing)
+    resolver_errors, library_errors = _both_paths(MODULE, PROJECT_SCHEMA, instance)
+    assert resolver_errors and library_errors, f"a Project without {missing} was accepted"
+
+
+def test_a_project_health_outside_the_two_values_is_rejected_through_both_paths() -> None:
+    for value in ("unhealthy", "schemaDrift", "SCHEMA_DRIFT", None):
+        instance = {**_instances_of(PROJECT_SCHEMA)["Project.example.yaml"], "health": value}
+        resolver_errors, library_errors = _both_paths(MODULE, PROJECT_SCHEMA, instance)
+        assert resolver_errors and library_errors, f"health {value!r} was accepted"
+
+
+# --------------------------------------------------------------------------------------
+# Drift: the project-wide drift read, getDriftReport (FR-008 to FR-015, FR-023, AC-DRIFT 22, 24, 28)
+# --------------------------------------------------------------------------------------
+
+DRIFT_PATH = "/drift"
+DRIFT_REPORT_SCHEMA = "DriftReport"
+DRIFT_FINDING_SCHEMA = "DriftFinding"
+DRIFT_REFUSAL_SCHEMA = "DriftRefusal"
+DRIFT_ENUMS = {
+    "DriftKind": ["snapshot_disagrees_with_event_log", "snapshot_or_event_log_missing", "lane_branch_missing"],
+    "DriftSeverity": ["error", "warning"],
+    "DriftAuthority": ["event_log", "git"],
+    "DriftSide": ["status_json", "lanes_json"],
+    "DriftRemedy": ["materialize_status"],
+    "DriftRefusalCode": ["mission_not_found", "drift_scan_unreadable"],
+}
+DRIFT_SCHEMA_FILES = [DRIFT_REPORT_SCHEMA, DRIFT_FINDING_SCHEMA, "LaneComparison", DRIFT_REFUSAL_SCHEMA, *DRIFT_ENUMS]
+DRIFT_REFUSAL_STATUS = {"mission_not_found": 404, "drift_scan_unreadable": 500}
+DRIFT_RESPONSES = {"DriftMissionNotFound": "404", "DriftScanUnreadable": "500"}
+DRIFT_REPORT_EXAMPLES = [
+    "DriftReport.clean.yaml",
+    "DriftReport.corrupt-json.yaml",
+    "DriftReport.populated.yaml",
+    "DriftReport.truncated.yaml",
+]
+DRIFT_REFUSAL_EXAMPLES = ["DriftRefusal.mission-not-found.yaml", "DriftRefusal.scan-unreadable.yaml"]
+DRIFT_FINDING_KEYS = [
+    "kind",
+    "severity",
+    "missionId",
+    "artifactPath",
+    "summary",
+    "authority",
+    "derivedSide",
+    "laneComparison",
+    "remedy",
+    "sourceCode",
+]
+DRIFT_KIND_DISAGREES, DRIFT_KIND_MISSING, DRIFT_KIND_BRANCH = DRIFT_ENUMS["DriftKind"]
+# the closed pair table of the data model: (kind, sourceCode) -> (severity, summary); a pair outside it is a failure
+DRIFT_PAIR_TABLE: dict[tuple[str, str | None], tuple[str, str]] = {
+    (DRIFT_KIND_DISAGREES, "SNAPSHOT_DRIFT"): ("error", "The status snapshot disagrees with the event log."),
+    (DRIFT_KIND_DISAGREES, "SNAPSHOT_DRIFT_PROVENANCE"): ("warning", "The status snapshot differs from the event log only in provenance fields."),
+    (DRIFT_KIND_DISAGREES, "SNAPSHOT_DRIFT_TERMINAL"): ("warning", "The status snapshot differs from the event log and every work package is done."),
+    (DRIFT_KIND_DISAGREES, "CORRUPT_JSON"): ("error", "The status snapshot is not a valid JSON object."),
+    (DRIFT_KIND_MISSING, None): ("warning", "One of the status snapshot and the event log is missing."),
+    (DRIFT_KIND_BRANCH, None): ("warning", "An expected lane or Mission branch has no local branch."),
+}
+DRIFT_FIXED_SIDES = {
+    DRIFT_KIND_DISAGREES: ("event_log", "status_json"),
+    DRIFT_KIND_MISSING: ("event_log", "status_json"),
+    DRIFT_KIND_BRANCH: ("git", "lanes_json"),
+}
+DRIFT_CAP = 1000
+
+
+def _drift_operation() -> dict[str, Any]:
+    return _artifact_operation(DRIFT_PATH)
+
+
+def _drift_findings() -> list[tuple[str, dict[str, Any]]]:
+    return [(name, finding) for name, report in _instances_of(DRIFT_REPORT_SCHEMA).items() for finding in report["findings"]]
+
+
+def _drift_finding(**changes: Any) -> dict[str, Any]:
+    finding = dict(_drift_findings_named(DRIFT_REPORT_EXAMPLES[2])[0])
+    finding.update(changes)
+    return finding
+
+
+def _drift_findings_named(name: str) -> list[dict[str, Any]]:
+    findings: list[dict[str, Any]] = _instances_of(DRIFT_REPORT_SCHEMA)[name]["findings"]
+    assert findings, f"{name} holds no finding"
+    return findings
+
+
+def _drift_report(*findings: dict[str, Any], truncated: bool = False) -> dict[str, Any]:
+    return {"scannedAt": "2026-10-06T09:00:00Z", "findings": list(findings), "truncated": truncated}
+
+
+def _drift_description(schema: str) -> str:
+    return _description(schema)
+
+
+def test_the_drift_operation_is_mapped_tagged_and_answers_the_four_statuses() -> None:
+    root = _read(MODULE / "openapi.yaml")
+    assert [tag["name"] for tag in root["tags"]][-2] == "Drift"
+    assert root["paths"][DRIFT_PATH] == {"$ref": "paths/drift.yaml"}
+    operation = _drift_operation()
+    assert operation["operationId"] == "getDriftReport" and operation["tags"] == ["Drift"]
+    assert set(operation["responses"]) == {"200", "404", "500", "default"}
+    assert "security" not in operation
+    assert operation["parameters"] == [{"$ref": "../parameters/DriftMissionId.yaml"}]
+    assert operation["responses"]["default"] == {"$ref": "../../_shared/responses/Problem.yaml"}
+    ok = operation["responses"]["200"]
+    assert ok["content"]["application/json"]["schema"] == {"$ref": f"../schemas/{DRIFT_REPORT_SCHEMA}.yaml"}
+
+
+def test_the_drift_200_documents_the_no_store_header() -> None:
+    header = _drift_operation()["responses"]["200"]["headers"]["Cache-Control"]
+    assert header["schema"]["const"] == "no-store"
+    assert "no-store" in " ".join(header["description"].split()) and "scan" in header["description"]
+
+
+def test_the_drift_description_states_the_read_rules() -> None:
+    text = " ".join(_drift_operation()["description"].split())
+    for phrase in (
+        "never repairs",
+        "Rescan is a second call",
+        "scannedAt is the time of this scan",
+        "own directory",
+        "lag the coordination surface",
+        "query remotes",
+        "depends on the network",
+        "An unreachable remote leaves the Mission read from its own directory, and the answer is still a 200",
+        "a reachable remote that lacks the declared branch is likewise read from its own directory",
+        "any other resolver error is a 500 drift_scan_unreadable",
+        "findings: [] means the scan ran and found none",
+    ):
+        assert phrase in text, phrase
+    assert "ends the scan" not in text
+
+
+def test_the_two_remedy_rules_state_the_same_cases_as_the_drift_decision() -> None:
+    """AD-4: the x-derived rule is the citation an implementer reads, so both rules name every case that gets a remedy and every one that gets null."""
+    rules = {
+        "DriftRemedy": " ".join(_read(MODULE / "schemas" / "DriftRemedy.yaml")["x-derived"]["rule"].split()),
+        "DriftFinding.remedy": " ".join(_read(MODULE / "schemas" / "DriftFinding.yaml")["properties"]["remedy"]["x-derived"]["rule"].split()),
+    }
+    for place, rule in rules.items():
+        assert "SNAPSHOT_DRIFT and CORRUPT_JSON on a Mission not merged to main" in rule, place
+        assert "a missing status file whose event log exists, merged or not" in rule, place
+        for null_case in ("SNAPSHOT_DRIFT_PROVENANCE", "SNAPSHOT_DRIFT_TERMINAL", "a missing event log", "a missing lane branch"):
+            assert null_case in rule.split("null for")[-1], (place, null_case)
+
+
+def test_the_ops_contract_names_an_op_file_that_cannot_be_opened_as_a_500() -> None:
+    texts = {
+        "operation": _read(MODULE / "paths" / "ops_invocations.yaml")["get"]["description"],
+        "OpsRefusalCode": _read(MODULE / "schemas" / "OpsRefusalCode.yaml")["description"],
+        "OpsUnreadable": _read(MODULE / "responses" / "OpsUnreadable.yaml")["description"],
+        "CHANGELOG": (MODULE / "CHANGELOG.md").read_text(encoding="utf-8"),
+    }
+    for place, text in texts.items():
+        assert "Op file" in " ".join(text.split()), place
+    assert "Legacy or unreadable" not in " ".join(texts["operation"].split())
+
+
+def test_the_drift_tag_is_described() -> None:
+    tags = {tag["name"]: tag for tag in _read(MODULE / "openapi.yaml")["tags"]}
+    assert tags["Drift"]["description"].strip()
+
+
+def test_the_drift_mission_id_parameter_is_the_optional_ulid_query_parameter() -> None:
+    parameter = _read(MODULE / "parameters" / "DriftMissionId.yaml")
+    assert (parameter["name"], parameter["in"], parameter["required"]) == ("missionId", "query", False)
+    assert parameter["schema"] == {"$ref": "../schemas/MissionId.yaml"}
+
+
+def test_the_two_drift_responses_carry_the_drift_refusal_under_problem_json() -> None:
+    mounted = {
+        response["$ref"].removeprefix("../responses/").removesuffix(".yaml"): status
+        for status, response in _drift_operation()["responses"].items()
+        if response.get("$ref", "").startswith("../responses/Drift")
+    }
+    assert mounted == DRIFT_RESPONSES, mounted
+    for name in DRIFT_RESPONSES:
+        body = _read(MODULE / "responses" / f"{name}.yaml")
+        assert body["content"]["application/problem+json"]["schema"]["$ref"] == f"../schemas/{DRIFT_REFUSAL_SCHEMA}.yaml", name
+
+
+@pytest.mark.parametrize("schema", sorted(DRIFT_ENUMS))
+def test_each_drift_enum_holds_its_pinned_snake_case_values(schema: str) -> None:
+    document = _read(MODULE / "schemas" / f"{schema}.yaml")
+    assert document["title"] == schema and document["type"] == "string"
+    assert document["enum"] == DRIFT_ENUMS[schema]
+    assert all(value == value.lower() and "-" not in value and value.replace("_", "").isalpha() for value in document["enum"]), document["enum"]
+
+
+def test_no_drift_enum_carries_a_value_without_a_producer() -> None:
+    values = {value for schema in DRIFT_ENUMS for value in _read(MODULE / "schemas" / f"{schema}.yaml")["enum"]}
+    assert not values & {"info", "derived_view_stale", "derived_views", "meta"}, values
+
+
+def test_the_drift_schemas_are_closed_and_titled_by_their_file() -> None:
+    for name in DRIFT_SCHEMA_FILES:
+        document = _read(MODULE / "schemas" / f"{name}.yaml")
+        assert document["title"] == name, name
+        if name in {DRIFT_REPORT_SCHEMA, DRIFT_FINDING_SCHEMA, "LaneComparison"}:
+            assert document["additionalProperties"] is False, name
+            assert sorted(document["required"]) == sorted(document["properties"]), name
+
+
+def test_the_drift_report_has_its_three_properties_and_the_cap() -> None:
+    document = _read(MODULE / "schemas" / f"{DRIFT_REPORT_SCHEMA}.yaml")
+    assert sorted(document["properties"]) == ["findings", "scannedAt", "truncated"]
+    findings = document["properties"]["findings"]
+    assert findings["maxItems"] == DRIFT_CAP and findings["type"] == "array"
+    assert findings["items"] == {"$ref": f"{DRIFT_FINDING_SCHEMA}.yaml"}
+    assert document["properties"]["scannedAt"]["format"] == "date-time"
+    text = _drift_description(DRIFT_REPORT_SCHEMA)
+    for phrase in ("1000", "no-store", "byte order", "own directory", "network"):
+        assert phrase in text, phrase
+
+
+def test_the_drift_finding_has_its_ten_required_members() -> None:
+    document = _read(MODULE / "schemas" / f"{DRIFT_FINDING_SCHEMA}.yaml")
+    assert sorted(document["properties"]) == sorted(DRIFT_FINDING_KEYS)
+    assert sorted(document["required"]) == sorted(DRIFT_FINDING_KEYS)
+    properties = document["properties"]
+    assert properties["missionId"]["$ref"] == "MissionId.yaml" and properties["artifactPath"]["$ref"] == "ArtifactPath.yaml"
+    assert properties["sourceCode"]["type"] == ["string", "null"] and properties["sourceCode"]["pattern"] == "^[A-Z][A-Z0-9_]*$"
+    assert properties["laneComparison"]["items"] == {"$ref": "LaneComparison.yaml"}
+
+
+def test_the_drift_finding_summary_description_holds_the_six_fixed_sentences_verbatim() -> None:
+    text = _description(DRIFT_FINDING_SCHEMA, "properties", "summary")
+    for _severity, summary in DRIFT_PAIR_TABLE.values():
+        assert summary in text, summary
+
+
+def test_the_drift_finding_description_qualifies_the_kind_one_summaries() -> None:
+    text = _drift_description(DRIFT_FINDING_SCHEMA)
+    assert "reducer replay" in text and "generation" in text and "not with the true event log" in text
+
+
+def test_the_drift_kind_description_states_its_two_checks_and_the_decision() -> None:
+    text = _drift_description("DriftKind")
+    for phrase in ("no local branch", "mission_slug", "not evaluated", "derived_view_stale", "considered", "not shipped"):
+        assert phrase in text, phrase
+
+
+def test_the_drift_remedy_description_maps_the_value_once() -> None:
+    text = _drift_description("DriftRemedy")
+    assert text.count("spec-kitty agent status materialize --mission <slug>") == 1
+    assert "not `spec-kitty materialize`" in text and "MissionHead.slug" in text and "client builds the text" in text
+
+
+def test_the_lane_comparison_says_status_lane_never_code_lane() -> None:
+    document = _read(MODULE / "schemas" / "LaneComparison.yaml")
+    assert sorted(document["properties"]) == ["derivedStatusLane", "persistedStatusLane", "wpId"]
+    text = _drift_description("LaneComparison")
+    assert "status lane" in text and "never a code lane" in text
+
+
+def test_the_drift_refusal_is_a_problem_with_its_code_and_the_status_pinned_per_code() -> None:
+    document = _read(MODULE / "schemas" / f"{DRIFT_REFUSAL_SCHEMA}.yaml")
+    assert document["allOf"][0] == {"$ref": "../../_shared/schemas/Problem.yaml"}
+    pinned = {branch["if"]["properties"]["code"]["const"]: branch["then"]["properties"]["status"]["const"] for branch in document["allOf"][1:3]}
+    assert pinned == DRIFT_REFUSAL_STATUS
+    assert document["allOf"][-1]["required"] == ["code"]
+    assert document["allOf"][-1]["properties"]["code"]["$ref"] == "DriftRefusalCode.yaml"
+
+
+def test_a_drift_refusal_is_valid_exactly_with_the_status_pinned_to_its_code_through_both_paths() -> None:
+    for code, pinned in DRIFT_REFUSAL_STATUS.items():
+        for status in sorted(set(DRIFT_REFUSAL_STATUS.values())):
+            instance = {"type": "about:blank", "title": "refused", "status": status, "code": code, "detail": "x"}
+            resolver_errors, library_errors = _both_paths(MODULE, DRIFT_REFUSAL_SCHEMA, instance)
+            assert bool(resolver_errors) is (status != pinned), f"resolver path: {code} with {status}: {resolver_errors}"
+            assert bool(library_errors) is (status != pinned), f"library path: {code} with {status}: {library_errors}"
+
+
+def test_every_drift_example_exists_and_is_attached_to_its_schema() -> None:
+    assert sorted(_instances_of(DRIFT_REPORT_SCHEMA)) == DRIFT_REPORT_EXAMPLES
+    assert sorted(_instances_of(DRIFT_REFUSAL_SCHEMA)) == DRIFT_REFUSAL_EXAMPLES
+
+
+def test_the_drift_report_examples_cover_the_required_cases() -> None:
+    reports = _instances_of(DRIFT_REPORT_SCHEMA)
+    assert all(sorted(report) == ["findings", "scannedAt", "truncated"] for report in reports.values())
+    assert reports["DriftReport.clean.yaml"]["findings"] == [] and reports["DriftReport.clean.yaml"]["truncated"] is False
+    assert reports["DriftReport.truncated.yaml"]["truncated"] is True and reports["DriftReport.truncated.yaml"]["findings"]
+    corrupt = _drift_findings_named("DriftReport.corrupt-json.yaml")
+    assert [(f["sourceCode"], f["laneComparison"], f["remedy"]) for f in corrupt] == [("CORRUPT_JSON", [], "materialize_status")]
+    populated = _drift_findings_named("DriftReport.populated.yaml")
+    assert {finding["kind"] for finding in populated} == set(DRIFT_ENUMS["DriftKind"])
+    assert any(finding["severity"] == "warning" and finding["remedy"] is None for finding in populated)
+    rows = [row for finding in populated for row in finding["laneComparison"]]
+    assert any(row["persistedStatusLane"] is None for row in rows) or any(row["derivedStatusLane"] is None for row in rows), "no one-sided work package"
+
+
+def test_each_drift_kind_and_each_source_code_of_the_pair_table_occurs_in_an_example() -> None:
+    seen = {(finding["kind"], finding["sourceCode"]) for _name, finding in _drift_findings()}
+    assert set(DRIFT_PAIR_TABLE) <= seen, sorted(set(DRIFT_PAIR_TABLE) - seen, key=str)
+
+
+def test_every_drift_example_finding_is_a_pair_of_the_closed_table_with_its_fixed_fields() -> None:
+    findings = _drift_findings()
+    assert len(findings) >= len(DRIFT_PAIR_TABLE) - 1, "the examples hold too few findings to prove the table"
+    for name, finding in findings:
+        severity, summary = DRIFT_PAIR_TABLE[(finding["kind"], finding["sourceCode"])]
+        assert (finding["severity"], finding["summary"]) == (severity, summary), name
+        assert (finding["authority"], finding["derivedSide"]) == DRIFT_FIXED_SIDES[finding["kind"]], name
+
+
+def test_a_drift_example_orders_its_findings_by_mission_kind_and_path_in_byte_order() -> None:
+    for name, report in _instances_of(DRIFT_REPORT_SCHEMA).items():
+        keys = [(f["missionId"].encode(), f["kind"].encode(), f["artifactPath"].encode()) for f in report["findings"]]
+        assert keys == sorted(keys) and len(set(keys)) == len(keys), name
+
+
+def test_every_drift_refusal_code_has_a_validating_example_with_its_pinned_status() -> None:
+    refusals = _instances_of(DRIFT_REFUSAL_SCHEMA)
+    assert {(refusal["code"], refusal["status"]) for refusal in refusals.values()} == set(DRIFT_REFUSAL_STATUS.items())
+
+
+@pytest.mark.parametrize("key", ["missionId", "artifactPath"])
+def test_a_drift_finding_with_a_null_mission_id_or_artifact_path_is_refused_through_both_paths(key: str) -> None:
+    for host, instance in ((DRIFT_FINDING_SCHEMA, _drift_finding(**{key: None})), (DRIFT_REPORT_SCHEMA, _drift_report(_drift_finding(**{key: None})))):
+        resolver_errors, library_errors = _both_paths(MODULE, host, instance)
+        assert resolver_errors and library_errors, f"a null {key} was accepted by {host}"
+
+
+def _drift_planted() -> dict[str, tuple[str, Any]]:
+    finding = _drift_finding()
+    row = {"wpId": "WP01", "persistedStatusLane": "planned", "derivedStatusLane": "done"}
+    report = _drift_report(finding)
+    return {
+        "report-missing-truncated": (DRIFT_REPORT_SCHEMA, {k: v for k, v in report.items() if k != "truncated"}),
+        "report-extra-property": (DRIFT_REPORT_SCHEMA, {**report, "total": 1}),
+        "report-null-findings": (DRIFT_REPORT_SCHEMA, {**report, "findings": None}),
+        "report-over-the-cap": (DRIFT_REPORT_SCHEMA, _drift_report(*[finding] * (DRIFT_CAP + 1))),
+        "report-malformed-instant": (DRIFT_REPORT_SCHEMA, {**report, "scannedAt": MALFORMED_TIMESTAMP}),
+        "finding-extra-property": (DRIFT_FINDING_SCHEMA, {**finding, "branchName": "x"}),
+        "finding-missing-remedy": (DRIFT_FINDING_SCHEMA, {k: v for k, v in finding.items() if k != "remedy"}),
+        "finding-camel-case-kind": (DRIFT_FINDING_SCHEMA, {**finding, "kind": "snapshotOrEventLogMissing"}),
+        "finding-fourth-kind": (DRIFT_FINDING_SCHEMA, {**finding, "kind": "derived_view_stale"}),
+        "finding-info-severity": (DRIFT_FINDING_SCHEMA, {**finding, "severity": "info"}),
+        "finding-meta-authority": (DRIFT_FINDING_SCHEMA, {**finding, "authority": "meta"}),
+        "finding-derived-views-side": (DRIFT_FINDING_SCHEMA, {**finding, "derivedSide": "derived_views"}),
+        "finding-camel-case-remedy": (DRIFT_FINDING_SCHEMA, {**finding, "remedy": "materializeStatus"}),
+        "finding-lower-case-source-code": (DRIFT_FINDING_SCHEMA, {**finding, "sourceCode": "snapshot_drift"}),
+        "finding-empty-source-code": (DRIFT_FINDING_SCHEMA, {**finding, "sourceCode": ""}),
+        "finding-absolute-artifact-path": (DRIFT_FINDING_SCHEMA, {**finding, "artifactPath": "/status.json"}),
+        "finding-slug-mission-id": (DRIFT_FINDING_SCHEMA, {**finding, "missionId": "mission-status-health-drift-ops"}),
+        "finding-null-lane-comparison": (DRIFT_FINDING_SCHEMA, {**finding, "laneComparison": None}),
+        "row-extra-property": (DRIFT_FINDING_SCHEMA, {**finding, "laneComparison": [{**row, "weight": 1}]}),
+        "row-genesis-lane": (DRIFT_FINDING_SCHEMA, {**finding, "laneComparison": [{**row, "derivedStatusLane": "genesis"}]}),
+        "row-missing-side": (DRIFT_FINDING_SCHEMA, {**finding, "laneComparison": [{"wpId": "WP01", "persistedStatusLane": "planned"}]}),
+        "row-lower-case-work-package": (DRIFT_FINDING_SCHEMA, {**finding, "laneComparison": [{**row, "wpId": "wp01"}]}),
+        "refusal-missing-code": (DRIFT_REFUSAL_SCHEMA, {"title": "x", "status": 404}),
+        "refusal-artifact-code": (DRIFT_REFUSAL_SCHEMA, {"title": "x", "status": 404, "code": "not_found"}),
+    }
+
+
+DRIFT_PLANTED_NAMES = [
+    "report-missing-truncated",
+    "report-extra-property",
+    "report-null-findings",
+    "report-over-the-cap",
+    "report-malformed-instant",
+    "finding-extra-property",
+    "finding-missing-remedy",
+    "finding-camel-case-kind",
+    "finding-fourth-kind",
+    "finding-info-severity",
+    "finding-meta-authority",
+    "finding-derived-views-side",
+    "finding-camel-case-remedy",
+    "finding-lower-case-source-code",
+    "finding-empty-source-code",
+    "finding-absolute-artifact-path",
+    "finding-slug-mission-id",
+    "finding-null-lane-comparison",
+    "row-extra-property",
+    "row-genesis-lane",
+    "row-missing-side",
+    "row-lower-case-work-package",
+    "refusal-missing-code",
+    "refusal-artifact-code",
+]
+
+
+@pytest.mark.parametrize("name", DRIFT_PLANTED_NAMES)
+def test_a_planted_drift_example_is_rejected_through_both_paths(name: str) -> None:
+    planted = _drift_planted()
+    assert sorted(planted) == sorted(DRIFT_PLANTED_NAMES)
+    schema, instance = planted[name]
+    resolver_errors, library_errors = _both_paths(MODULE, schema, instance)
+    assert resolver_errors, f"the resolver path accepted the planted copy {name}"
+    assert library_errors, f"the library path accepted the planted copy {name}"
+
+
+def test_exactly_the_cap_of_findings_is_accepted_through_both_paths() -> None:
+    resolver_errors, library_errors = _both_paths(MODULE, DRIFT_REPORT_SCHEMA, _drift_report(*[_drift_finding()] * DRIFT_CAP))
+    assert resolver_errors == [] and library_errors == []
+
+
+def test_the_changelog_records_the_drift_decisions() -> None:
+    # Which elements are provisional, and that each is named in the Provisional section, is provisional_check's verdict.
+    entry = (MODULE / "CHANGELOG.md").read_text(encoding="utf-8").split("## 1.0.0-SNAPSHOT", 1)[1]
+    for statement in ("derived_view_stale", "1000", "not evaluated"):
+        assert statement in entry, statement
+
+
+# --------------------------------------------------------------------------------------
+# Ops: the Op invocation read, listOpsInvocations (FR-016 to FR-021, FR-023, AC-OPS 10, 11, 13)
+# --------------------------------------------------------------------------------------
+
+OPS_PATH = "/ops/invocations"
+OPS_PAGE_SCHEMA = "OpsInvocationPage"
+OPS_SCHEMA = "OpsInvocation"
+OPS_EVIDENCE_SCHEMA = "OpsEvidence"
+OPS_REFUSAL_SCHEMA = "OpsRefusal"
+OPS_ENUMS = {
+    "OpsModeOfWork": ["task_execution", "advisory", "mission_step", "query"],
+    "OpsInvocationStatus": ["open", "closed"],
+    "OpsOutcome": ["done", "failed", "abandoned"],
+    "OpsClosedBy": ["agent", "doctor_sweep"],
+    "OpsEvidenceKind": ["repo_path", "url", "text"],
+    "OpsRefusalCode": ["ops_unreadable"],
+}
+OPS_SCHEMA_FILES = [OPS_PAGE_SCHEMA, OPS_SCHEMA, OPS_EVIDENCE_SCHEMA, OPS_REFUSAL_SCHEMA, *OPS_ENUMS]
+OPS_KEYS = [
+    "invocationId",
+    "profileId",
+    "action",
+    "actor",
+    "modeOfWork",
+    "startedAt",
+    "missionId",
+    "wpId",
+    "status",
+    "outcome",
+    "closedBy",
+    "completedAt",
+    "evidence",
+]
+OPS_PAGE_EXAMPLES = ["OpsInvocationPage.empty.yaml", "OpsInvocationPage.first.yaml", "OpsInvocationPage.last.yaml"]
+OPS_EVIDENCE_EXAMPLES = {
+    "OpsInvocation.evidence-repo-path.yaml": ("repo_path", False),
+    "OpsInvocation.evidence-text.yaml": ("text", False),
+    "OpsInvocation.evidence-text-redacted.yaml": ("text", True),
+    "OpsInvocation.evidence-url.yaml": ("url", False),
+    "OpsInvocation.evidence-url-redacted.yaml": ("url", True),
+}
+OPS_EVIDENCE_NULL_EXAMPLE = "OpsInvocation.evidence-null.yaml"
+OPS_CLOSURE_EXAMPLES = ["OpsInvocation.closed-by-agent.yaml", "OpsInvocation.closed-by-doctor-sweep.yaml", "OpsInvocation.open.yaml"]
+OPS_EXAMPLE_COUNT = 13
+OPS_REFUSAL_STATUS = {"ops_unreadable": 500}
+OPS_OMITTED_FIELDS = ["request_text", "model_id", "governance_context_hash", "governance_context_available", "router_confidence"]
+OPS_CREDENTIAL_WORDS = {
+    "gh[pousr]_": "GitHub classic",
+    "github_pat_": "fine-grained",
+    "AKIA": "AWS access key id",
+    "PRIVATE KEY": "private-key header",
+}
+OPS_EVIDENCE_MAX = 512
+ID_PATTERN = "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$"
+
+
+def _ops_operation() -> dict[str, Any]:
+    return _artifact_operation(OPS_PATH)
+
+
+def _ops_items() -> list[tuple[str, dict[str, Any]]]:
+    """Every Op the examples hold, from the single-Op examples and from the items of the page examples."""
+    found = [(name, op) for name, op in _instances_of(OPS_SCHEMA).items()]
+    found += [(f"{name}#items", op) for name, page in _instances_of(OPS_PAGE_SCHEMA).items() for op in page["items"]]
+    return found
+
+
+def _ops_op(name: str = "OpsInvocation.closed-by-agent.yaml", **changes: Any) -> dict[str, Any]:
+    op = dict(_instances_of(OPS_SCHEMA)[name])
+    op.update(changes)
+    return op
+
+
+def _ops_page(*items: dict[str, Any], **changes: Any) -> dict[str, Any]:
+    page: dict[str, Any] = {
+        "items": list(items),
+        "pageInfo": {"hasNextPage": False, "nextPageCursor": None, "pageSize": 50},
+        "totalCount": len(items),
+        "skippedCount": 0,
+    }
+    page.update(changes)
+    return page
+
+
+def test_the_ops_operation_is_mapped_tagged_provisional_and_answers_four_statuses() -> None:
+    root = _read(MODULE / "openapi.yaml")
+    assert [tag["name"] for tag in root["tags"]][-1] == "Ops"
+    assert root["paths"][OPS_PATH] == {"$ref": "paths/ops_invocations.yaml"}
+    operation = _ops_operation()
+    assert operation["operationId"] == "listOpsInvocations" and operation["tags"] == ["Ops"]
+    assert set(operation["responses"]) == {"200", "400", "500", "default"}
+    assert "security" not in operation
+    assert operation["parameters"] == [
+        {"$ref": "../../_shared/parameters/PageSize.yaml"},
+        {"$ref": "../../_shared/parameters/PageCursor.yaml"},
+        {"$ref": "../parameters/OpsProfile.yaml"},
+    ]
+    assert operation["responses"]["400"] == {"$ref": "../responses/PageCursorRefused.yaml"}
+    assert operation["responses"]["500"] == {"$ref": "../responses/OpsUnreadable.yaml"}
+    assert operation["responses"]["default"] == {"$ref": "../../_shared/responses/Problem.yaml"}
+    assert operation["responses"]["200"]["content"]["application/json"]["schema"] == {"$ref": f"../schemas/{OPS_PAGE_SCHEMA}.yaml"}
+    assert operation["x-provisional"]["open_decision"].strip()
+
+
+def test_the_ops_description_states_the_read_rules() -> None:
+    text = " ".join(_ops_operation()["description"].split())
+    phrases = (
+        "Records with legacy or malformed content are skipped",
+        "skippedCount",
+        "totalCount is the number of served Ops",
+        "can lag the newest records",
+        "never starts an agent",
+        "never writes",
+    )
+    for phrase in phrases:
+        assert phrase in text, phrase
+
+
+def test_the_ops_tag_is_described() -> None:
+    tags = {tag["name"]: tag for tag in _read(MODULE / "openapi.yaml")["tags"]}
+    assert tags["Ops"]["description"].strip()
+
+
+def test_the_ops_profile_parameter_is_the_optional_strict_query_parameter() -> None:
+    parameter = _read(MODULE / "parameters" / "OpsProfile.yaml")
+    assert (parameter["name"], parameter["in"], parameter["required"]) == ("profile", "query", False)
+    assert parameter["schema"]["type"] == "string" and parameter["schema"]["pattern"] == ID_PATTERN
+
+
+def test_the_ops_unreadable_response_carries_the_ops_refusal_under_problem_json() -> None:
+    body = _read(MODULE / "responses" / "OpsUnreadable.yaml")
+    assert body["content"]["application/problem+json"]["schema"]["$ref"] == f"../schemas/{OPS_REFUSAL_SCHEMA}.yaml"
+
+
+@pytest.mark.parametrize("schema", sorted(OPS_ENUMS))
+def test_each_ops_enum_holds_its_pinned_snake_case_values(schema: str) -> None:
+    document = _read(MODULE / "schemas" / f"{schema}.yaml")
+    assert document["title"] == schema and document["type"] == "string"
+    assert document["enum"] == OPS_ENUMS[schema]
+    assert all(value == value.lower() and "-" not in value and value.replace("_", "").isalpha() for value in document["enum"]), document["enum"]
+
+
+def test_the_ops_status_description_says_closed_counts_the_closure_spine() -> None:
+    assert "closure spine" in _description("OpsInvocationStatus")
+
+
+def test_the_ops_schemas_are_closed_and_titled_by_their_file() -> None:
+    for name in OPS_SCHEMA_FILES:
+        document = _read(MODULE / "schemas" / f"{name}.yaml")
+        assert document["title"] == name, name
+        if name in {OPS_PAGE_SCHEMA, OPS_SCHEMA, OPS_EVIDENCE_SCHEMA}:
+            assert document["additionalProperties"] is False, name
+            assert sorted(document["required"]) == sorted(document["properties"]), name
+
+
+def test_the_ops_page_has_its_four_members_with_two_provisional_counts() -> None:
+    document = _read(MODULE / "schemas" / f"{OPS_PAGE_SCHEMA}.yaml")
+    assert sorted(document["properties"]) == ["items", "pageInfo", "skippedCount", "totalCount"]
+    assert document["properties"]["items"]["items"] == {"$ref": f"{OPS_SCHEMA}.yaml"}
+    assert document["properties"]["pageInfo"]["$ref"] == "../../_shared/schemas/PageInfo.yaml"
+    for count in ("totalCount", "skippedCount"):
+        member = document["properties"][count]
+        assert member["type"] == "integer" and member["minimum"] == 0 and "x-provisional" in member, count
+
+
+def test_the_ops_invocation_has_its_thirteen_required_members() -> None:
+    document = _read(MODULE / "schemas" / f"{OPS_SCHEMA}.yaml")
+    assert sorted(document["properties"]) == sorted(OPS_KEYS)
+    properties = document["properties"]
+    assert properties["profileId"]["pattern"] == ID_PATTERN and properties["action"]["pattern"] == ID_PATTERN
+    assert properties["invocationId"]["pattern"] == ULID_PATTERN
+    assert properties["actor"]["$ref"] == "ActorHandle.yaml"
+    assert properties["evidence"]["x-provisional"]["open_decision"].strip()
+    assert "x-provisional" not in properties["status"]
+
+
+def test_the_ops_invocation_description_names_the_five_omitted_record_fields() -> None:
+    text = _description(OPS_SCHEMA)
+    for name in OPS_OMITTED_FIELDS:
+        assert name in text, name
+
+
+def test_the_ops_evidence_description_names_the_credential_kinds_checked_in_secret_patterns() -> None:
+    text = _description(OPS_SCHEMA, "properties", "evidence")
+    assert "no evidence, or withheld because it holds a credential" in text
+    assert "other secret shapes are not detected" in text
+    sources = [pattern.pattern for pattern in leak_patterns.SECRET_PATTERNS]
+    assert len(sources) == len(OPS_CREDENTIAL_WORDS), "SECRET_PATTERNS changed: the evidence description must follow"
+    for marker, words in OPS_CREDENTIAL_WORDS.items():
+        assert any(marker in source for source in sources), f"no SECRET_PATTERNS kind carries {marker}"
+        assert words in text, words
+
+
+def test_the_ops_evidence_object_has_its_three_members_and_the_512_cap() -> None:
+    document = _read(MODULE / "schemas" / f"{OPS_EVIDENCE_SCHEMA}.yaml")
+    assert sorted(document["properties"]) == ["kind", "redacted", "value"]
+    assert document["properties"]["kind"]["$ref"] == "OpsEvidenceKind.yaml"
+    assert document["properties"]["value"]["type"] == "string" and document["properties"]["value"]["maxLength"] == OPS_EVIDENCE_MAX
+    assert document["properties"]["redacted"]["type"] == "boolean"
+
+
+def test_the_ops_refusal_is_a_problem_with_its_code_and_the_status_pinned() -> None:
+    document = _read(MODULE / "schemas" / f"{OPS_REFUSAL_SCHEMA}.yaml")
+    assert document["allOf"][0] == {"$ref": "../../_shared/schemas/Problem.yaml"}
+    pinned = {branch["if"]["properties"]["code"]["const"]: branch["then"]["properties"]["status"]["const"] for branch in document["allOf"][1:-1]}
+    assert pinned == OPS_REFUSAL_STATUS
+    assert document["allOf"][-1]["required"] == ["code"]
+    assert document["allOf"][-1]["properties"]["code"]["$ref"] == "OpsRefusalCode.yaml"
+    assert "x-provisional" in document["allOf"][-1]["properties"]["code"]
+
+
+def test_an_ops_refusal_is_valid_exactly_with_the_status_pinned_to_its_code_through_both_paths() -> None:
+    for status in (400, 404, 500):
+        instance = {"type": "about:blank", "title": "refused", "status": status, "code": "ops_unreadable", "detail": "x"}
+        resolver_errors, library_errors = _both_paths(MODULE, OPS_REFUSAL_SCHEMA, instance)
+        assert bool(resolver_errors) is (status != 500), f"resolver path: {status}: {resolver_errors}"
+        assert bool(library_errors) is (status != 500), f"library path: {status}: {library_errors}"
+
+
+def test_every_ops_example_exists_and_is_attached_to_its_schema() -> None:
+    assert sorted(_instances_of(OPS_PAGE_SCHEMA)) == OPS_PAGE_EXAMPLES
+    assert sorted(_instances_of(OPS_SCHEMA)) == sorted([*OPS_CLOSURE_EXAMPLES, *OPS_EVIDENCE_EXAMPLES, OPS_EVIDENCE_NULL_EXAMPLE])
+    assert sorted(_instances_of(OPS_REFUSAL_SCHEMA)) == ["OpsRefusal.ops-unreadable.yaml"]
+    ops_files = [name for name in _example_files(MODULE) if name.startswith("Ops")]
+    assert len(ops_files) == OPS_EXAMPLE_COUNT, ops_files
+
+
+def test_the_ops_page_examples_cover_first_last_and_empty() -> None:
+    pages = _instances_of(OPS_PAGE_SCHEMA)
+    first, last, empty = pages["OpsInvocationPage.first.yaml"], pages["OpsInvocationPage.last.yaml"], pages["OpsInvocationPage.empty.yaml"]
+    assert first["pageInfo"]["hasNextPage"] is True and first["pageInfo"]["nextPageCursor"]
+    assert last["pageInfo"]["hasNextPage"] is False and last["items"]
+    assert empty["items"] == [] and empty["totalCount"] == 0 and empty["skippedCount"] == 0 and empty["pageInfo"]["hasNextPage"] is False
+    assert first["totalCount"] >= len(first["items"]) + len(last["items"]) - 1 and first["totalCount"] == last["totalCount"]
+
+
+def test_the_ops_examples_hold_every_closure_state_and_the_sweep_carries_its_completion_instant() -> None:
+    ops = _instances_of(OPS_SCHEMA)
+    assert {(op["status"], op["closedBy"]) for op in ops.values()} >= {("open", None), ("closed", "agent"), ("closed", "doctor_sweep")}
+    sweep = ops["OpsInvocation.closed-by-doctor-sweep.yaml"]
+    assert (sweep["status"], sweep["closedBy"]) == ("closed", "doctor_sweep") and sweep["completedAt"]
+    assert ops["OpsInvocation.open.yaml"]["status"] == "open"
+
+
+def test_every_ops_example_obeys_the_open_and_closed_invariants() -> None:
+    items = _ops_items()
+    assert len(items) >= OPS_EXAMPLE_COUNT - 4, "too few Ops to prove the invariants"
+    for name, op in items:
+        if op["status"] == "open":
+            assert (op["outcome"], op["closedBy"], op["completedAt"], op["evidence"]) == (None, None, None, None), name
+        else:
+            assert op["outcome"] is not None and op["closedBy"] is not None and op["completedAt"] is not None, name
+
+
+def test_each_evidence_kind_and_both_redacted_values_occur_in_an_example() -> None:
+    ops = _instances_of(OPS_SCHEMA)
+    seen = {(op["evidence"]["kind"], op["evidence"]["redacted"]) for _name, op in _ops_items() if op["evidence"] is not None}
+    assert {kind for kind, _ in seen} == set(OPS_ENUMS["OpsEvidenceKind"])
+    assert {redacted for _, redacted in seen} == {True, False}
+    for name, expected in OPS_EVIDENCE_EXAMPLES.items():
+        evidence = ops[name]["evidence"]
+        assert (evidence["kind"], evidence["redacted"]) == expected, name
+        assert len(evidence["value"]) <= OPS_EVIDENCE_MAX, name
+    assert ops[OPS_EVIDENCE_NULL_EXAMPLE]["evidence"] is None
+
+
+def test_the_ops_examples_hold_every_mode_of_work_and_every_outcome() -> None:
+    items = _ops_items()
+    assert {op["modeOfWork"] for _n, op in items} == set(OPS_ENUMS["OpsModeOfWork"])
+    assert {op["outcome"] for _n, op in items} >= {"done", "failed", "abandoned", None}
+
+
+def test_a_redacted_evidence_example_differs_from_a_clean_one_by_its_flag_alone() -> None:
+    ops = _instances_of(OPS_SCHEMA)
+    for name, (kind, redacted) in OPS_EVIDENCE_EXAMPLES.items():
+        if redacted:
+            assert "@" not in ops[name]["evidence"]["value"], f"{name}: a redacted value never holds an at-sign"
+        else:
+            assert ops[name]["evidence"]["kind"] == kind
+
+
+def test_the_ops_refusal_example_carries_its_pinned_status() -> None:
+    refusals = _instances_of(OPS_REFUSAL_SCHEMA)
+    assert {(refusal["code"], refusal["status"]) for refusal in refusals.values()} == set(OPS_REFUSAL_STATUS.items())
+
+
+def test_a_page_ordered_by_start_instant_descending_with_ties_by_id_descending_in_the_examples() -> None:
+    for name, page in _instances_of(OPS_PAGE_SCHEMA).items():
+        keys = [(op["startedAt"], op["invocationId"]) for op in page["items"]]
+        assert keys == sorted(keys, reverse=True) and len(set(keys)) == len(keys), name
+
+
+def _ops_planted() -> dict[str, tuple[str, Any]]:
+    op = _ops_op()
+    evidence = _ops_op("OpsInvocation.evidence-text.yaml")["evidence"]
+    page = _ops_page(op)
+    planted: dict[str, tuple[str, Any]] = {f"op-carries-{field}": (OPS_SCHEMA, {**op, field: "x"}) for field in OPS_OMITTED_FIELDS}
+    planted.update(
+        {
+            "op-missing-evidence": (OPS_SCHEMA, {k: v for k, v in op.items() if k != "evidence"}),
+            "op-missing-actor": (OPS_SCHEMA, {k: v for k, v in op.items() if k != "actor"}),
+            "op-extra-property": (OPS_SCHEMA, {**op, "requestText": "x"}),
+            "op-actor-is-an-address": (OPS_SCHEMA, {**op, "actor": "someone" + chr(64) + "example.org"}),
+            "op-profile-leading-dot": (OPS_SCHEMA, {**op, "profileId": ".hidden"}),
+            "op-profile-too-long": (OPS_SCHEMA, {**op, "profileId": "a" * 129}),
+            "op-action-with-space": (OPS_SCHEMA, {**op, "action": "do it"}),
+            "op-action-empty": (OPS_SCHEMA, {**op, "action": ""}),
+            "op-lower-case-invocation-id": (OPS_SCHEMA, {**op, "invocationId": op["invocationId"].lower()}),
+            "op-short-invocation-id": (OPS_SCHEMA, {**op, "invocationId": op["invocationId"][:-1]}),
+            "op-camel-case-mode": (OPS_SCHEMA, {**op, "modeOfWork": "taskExecution"}),
+            "op-unknown-mode": (OPS_SCHEMA, {**op, "modeOfWork": "chat"}),
+            "op-running-status": (OPS_SCHEMA, {**op, "status": "running"}),
+            "op-cancelled-outcome": (OPS_SCHEMA, {**op, "outcome": "cancelled"}),
+            "op-camel-case-closed-by": (OPS_SCHEMA, {**op, "closedBy": "doctorSweep"}),
+            "op-malformed-start": (OPS_SCHEMA, {**op, "startedAt": MALFORMED_TIMESTAMP}),
+            "op-malformed-completion": (OPS_SCHEMA, {**op, "completedAt": MALFORMED_TIMESTAMP}),
+            "op-slug-mission-id": (OPS_SCHEMA, {**op, "missionId": "mission-status-health-drift-ops"}),
+            "op-lower-case-work-package": (OPS_SCHEMA, {**op, "wpId": "wp01"}),
+            "evidence-unknown-kind": (OPS_SCHEMA, {**op, "evidence": {**evidence, "kind": "file"}}),
+            "evidence-camel-case-kind": (OPS_SCHEMA, {**op, "evidence": {**evidence, "kind": "repoPath"}}),
+            "evidence-over-the-cap": (OPS_SCHEMA, {**op, "evidence": {**evidence, "value": "a" * (OPS_EVIDENCE_MAX + 1)}}),
+            "evidence-missing-redacted": (OPS_SCHEMA, {**op, "evidence": {k: v for k, v in evidence.items() if k != "redacted"}}),
+            "evidence-text-flag": (OPS_SCHEMA, {**op, "evidence": {**evidence, "redacted": "yes"}}),
+            "evidence-extra-property": (OPS_SCHEMA, {**op, "evidence": {**evidence, "original": "x"}}),
+            "evidence-empty-object": (OPS_SCHEMA, {**op, "evidence": {}}),
+            "page-missing-skipped-count": (OPS_PAGE_SCHEMA, {k: v for k, v in page.items() if k != "skippedCount"}),
+            "page-negative-total": (OPS_PAGE_SCHEMA, {**page, "totalCount": -1}),
+            "page-negative-skipped": (OPS_PAGE_SCHEMA, {**page, "skippedCount": -1}),
+            "page-fractional-total": (OPS_PAGE_SCHEMA, {**page, "totalCount": 1.5}),
+            "page-extra-property": (OPS_PAGE_SCHEMA, {**page, "cursor": "x"}),
+            "page-null-items": (OPS_PAGE_SCHEMA, {**page, "items": None}),
+            "page-item-with-extra-property": (OPS_PAGE_SCHEMA, {**page, "items": [{**op, "modelId": "x"}]}),
+            "refusal-missing-code": (OPS_REFUSAL_SCHEMA, {"title": "x", "status": 500}),
+            "refusal-drift-code": (OPS_REFUSAL_SCHEMA, {"title": "x", "status": 500, "code": "drift_scan_unreadable"}),
+        }
+    )
+    return planted
+
+
+OPS_PLANTED_NAMES = [
+    *[f"op-carries-{field}" for field in OPS_OMITTED_FIELDS],
+    "op-missing-evidence",
+    "op-missing-actor",
+    "op-extra-property",
+    "op-actor-is-an-address",
+    "op-profile-leading-dot",
+    "op-profile-too-long",
+    "op-action-with-space",
+    "op-action-empty",
+    "op-lower-case-invocation-id",
+    "op-short-invocation-id",
+    "op-camel-case-mode",
+    "op-unknown-mode",
+    "op-running-status",
+    "op-cancelled-outcome",
+    "op-camel-case-closed-by",
+    "op-malformed-start",
+    "op-malformed-completion",
+    "op-slug-mission-id",
+    "op-lower-case-work-package",
+    "evidence-unknown-kind",
+    "evidence-camel-case-kind",
+    "evidence-over-the-cap",
+    "evidence-missing-redacted",
+    "evidence-text-flag",
+    "evidence-extra-property",
+    "evidence-empty-object",
+    "page-missing-skipped-count",
+    "page-negative-total",
+    "page-negative-skipped",
+    "page-fractional-total",
+    "page-extra-property",
+    "page-null-items",
+    "page-item-with-extra-property",
+    "refusal-missing-code",
+    "refusal-drift-code",
+]
+
+
+@pytest.mark.parametrize("name", OPS_PLANTED_NAMES)
+def test_a_planted_ops_example_is_rejected_through_both_paths(name: str) -> None:
+    planted = _ops_planted()
+    assert sorted(planted) == sorted(OPS_PLANTED_NAMES)
+    schema, instance = planted[name]
+    resolver_errors, library_errors = _both_paths(MODULE, schema, instance)
+    assert resolver_errors, f"the resolver path accepted the planted copy {name}"
+    assert library_errors, f"the library path accepted the planted copy {name}"
+
+
+def test_the_clean_controls_of_the_ops_plants_are_accepted_through_both_paths() -> None:
+    op = _ops_op()
+    evidence = _ops_op("OpsInvocation.evidence-text.yaml")["evidence"]
+    capped = {**op, "evidence": {**evidence, "value": "a" * OPS_EVIDENCE_MAX}}
+    for schema, instance in (
+        (OPS_SCHEMA, op),
+        (OPS_SCHEMA, capped),
+        (OPS_SCHEMA, {**op, "actor": None, "missionId": None, "wpId": None}),
+        (OPS_PAGE_SCHEMA, _ops_page(op)),
+        (OPS_PAGE_SCHEMA, _ops_page(op, skippedCount=7)),
+    ):
+        resolver_errors, library_errors = _both_paths(MODULE, schema, instance)
+        assert resolver_errors == [] and library_errors == [], (schema, resolver_errors, library_errors)
+
+
+def test_a_credential_typed_into_an_ops_example_would_be_caught_by_the_leak_patterns() -> None:
+    clean = (MODULE / "examples" / "OpsInvocation.evidence-text.yaml").read_text(encoding="utf-8")
+    planted = clean + "ghp" + "_" + "a" * 36 + "\n"
+    assert not any(pattern.search(clean) for pattern in leak_patterns.SECRET_PATTERNS)
+    assert any(pattern.search(planted) for pattern in leak_patterns.SECRET_PATTERNS)
+
+
+def test_the_changelog_added_section_states_the_skipped_record_read_behaviour() -> None:
+    entry = (MODULE / "CHANGELOG.md").read_text(encoding="utf-8").split("## 1.0.0-SNAPSHOT", 1)[1]
+    added = entry.split("### Added", 1)[1].split("### Changed", 1)[0]
+    text = " ".join(added.split())
+    for phrase in ("GET /ops/invocations", "listOpsInvocations", "skippedCount", "skipped and counted", "OpsUnreadable", "the tag `Ops`"):
+        assert phrase in text, phrase

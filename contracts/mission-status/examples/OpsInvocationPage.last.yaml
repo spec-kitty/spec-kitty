@@ -1,0 +1,23 @@
+items:
+- invocationId: 01K6TW5B0C1D2E3F4G5H6J7K8M
+  profileId: python-pedro
+  action: implement
+  actor: claude
+  modeOfWork: task_execution
+  startedAt: '2026-10-03T09:10:00Z'
+  missionId: 01JZCB3C4D5E6F7G8H9JKMNPQT
+  wpId: WP01
+  status: closed
+  outcome: done
+  closedBy: agent
+  completedAt: '2026-10-03T10:30:00Z'
+  evidence:
+    kind: repo_path
+    value: src/specify_cli/status/models.py
+    redacted: false
+pageInfo:
+  hasNextPage: false
+  nextPageCursor: null
+  pageSize: 2
+totalCount: 5
+skippedCount: 1

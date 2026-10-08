@@ -1,0 +1,28 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: The spec Plan-round 1 clarification now cites A-7 (the add-only record), and the Departs 5 reword and spec edits from the earlier round remain in place.
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: Departs 5, the Reality-check notes, IC-09 red-first, contract G and the spec Plan-round 4 line now classify each moved case (completion equality and real listing run offline; Project-build, scan and combined skip and count as skipped), a substantive split consistent with ruling 1.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: W-1 (ii), W-4 (a) and Departs 11 now state the expected verdict-terminality warning, and the claims check out (merge_gates.py gate function exists, mode defaults to warn when config.yaml has no policy section, block makes overall_pass false in phase_claim and orchestrator_api consolidation).
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: D-P16 now requires cold repeats with reset memo and cache, rebuilt handles, a no-cache-hit counter assertion and a cache-the-result mutation that must turn AC-OPS 14 red, carried into the AC-OPS 14 row and red-first lines.
+  - id: PLAN-FRESH-004
+    status: resolved
+    reason: D-P5 now says the Project-build, scan and combined cases are one execution asserting on shared durations, prices the completion equality and the 5 repeats separately, and keeps the 6-minute re-plan threshold.
+  - id: PLAN-FRESH-005
+    status: resolved
+    reason: tracer-design-decisions.md D-P13 now lists completion_non_coord 490 and plan D-P13 cites ruling 4 as its origin, with the spec FR-025 floors bullet also naming it.
+  - id: PLAN-FRESH-006
+    status: resolved
+    reason: spec.md Plan-round 1 clarification now cites tracer-approach.md A-7, recorded in the new add-only A-9 entry.
+  - id: PLAN-FRESH-007
+    status: resolved
+    reason: The plan timing decision is renamed D-P16 with references updated in plan, research and the decision register, and plan D-P13 now says spec D-P15 for floors; no remaining plan-side D-P15 means timing.

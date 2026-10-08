@@ -27,6 +27,7 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.retrospect import app as retrospect_app
+from specify_cli.retrospective.generator import _parse_trace_entries
 from specify_cli.retrospective.reader import read_gen_record
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -38,6 +39,25 @@ _MISSION_ID = "01KW4V6CXTRACERINGEST0WP04Z"[:26]
 _MISSION_ID_NOENT = "01KW4V6CXNOENTITYGOVWIRE0AA"[:26]
 _MISSION_ID_ENT = "01KW4V6CXHASENTITYDATAMOD0B"[:26]
 _MISSION_ID_BAD = "01KW4V6CXMALFORMEDTRACER0CC"[:26]
+_TRACER_TEMPLATES = (
+    Path(__file__).parents[3] / "src/charter/offering/templates/mission-tracer-files"
+)
+
+
+@pytest.mark.parametrize("name", ["tooling-friction", "approach", "design-decisions"])
+def test_shipped_tracer_example_is_parseable_without_seeding_a_finding(name: str) -> None:
+    """Each author-facing example can be copied into a tracer as one finding."""
+    template = (_TRACER_TEMPLATES / f"{name}.md").read_text(encoding="utf-8")
+    example = next(
+        line.removeprefix("Example: `").removesuffix("`")
+        for line in template.splitlines()
+        if line.startswith("Example: `- ")
+    )
+
+    assert _parse_trace_entries(template) == []
+    entries = _parse_trace_entries(example)
+    assert len(entries) == 1
+    assert entries[0][0].startswith("[2026-")
 
 
 # ---------------------------------------------------------------------------
@@ -45,7 +65,7 @@ _MISSION_ID_BAD = "01KW4V6CXMALFORMEDTRACER0CC"[:26]
 # ---------------------------------------------------------------------------
 
 # A realistic tooling-friction tracer following the documented entry format:
-#   N. **[phase] SYMPTOM ...** ... disposition (... OPEN/candidate gap/workaround/fixed)
+#   - **[YYYY-MM-DD][phase] SYMPTOM ...** ... disposition (candidate gap/workaround/fixed)
 _TOOLING_FRICTION_TRACE = """\
 # Tooling-Friction Trace — tracer-ingest-mission
 
@@ -58,17 +78,18 @@ this mission. Seeded at spec -> plan; appended during the implement loop.
 
 ## Seeded during spec -> plan
 
-1. **[implement/analyze gate] Every `mark-status` re-stales the analyze report.**
+- **[2026-07-29][implement/analyze gate] Every `mark-status` re-stales the analyze report.**
    Marking a WP's subtasks done edited `tasks.md`, so the recorded
    `analysis-report.md` went `stale_analysis_report` and the next claim refused
    until `/spec-kitty.analyze` was re-run. Disposition: **workaround = re-run
    analyze per WP**. Candidate gap: ignore checkbox-only diffs. **OPEN (candidate gap).**
 
-2. **[implement/auto-commit-off] The claim writes `vcs_locked_at` into `meta.json`,
-   then refuses because that write left the tree dirty.** Self-inflicted dirty-tree
+- **[2026-07-29][implement/auto-commit-off] The claim dirties the tree before checking it.**
+   The claim writes `vcs_locked_at` into `meta.json`, then refuses because that write left
+   the tree dirty. Self-inflicted dirty-tree
    block. Disposition: **workaround = hand-commit the bookkeeping, then re-claim.**
 
-3. **[plan] `plan` blocks until Technical Context is substantive.** Working as
+- **[2026-07-29][plan] `plan` blocks until Technical Context is substantive.** Working as
    designed; authoring + re-run returned `success`. Disposition: **expected** — no gap.
 """
 
@@ -247,7 +268,7 @@ def test_tracer_content_yields_sourced_finding(tmp_path: Path) -> None:
         for f in _all_findings(record)
         if set(f.evidence_refs) & trace_ev_ids  # type: ignore[attr-defined]
     ]
-    assert sourced, "expected at least one finding sourced from the tracer file"
+    assert len(sourced) == 3, "expected all three tracer entries to become findings"
     # The friction entries should surface as tooling-category findings.
     assert any(f.category == "tooling" for f in sourced), (
         f"expected a tooling-category tracer finding; got {[f.category for f in sourced]}"

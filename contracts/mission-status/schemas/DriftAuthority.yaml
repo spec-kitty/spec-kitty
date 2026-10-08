@@ -1,0 +1,19 @@
+title: DriftAuthority
+description: >-
+  Which record decides a finding: event_log, the status event log of the Mission, for the two
+  status-file kinds, or git, the local branch listing, for a missing lane branch. A Mission
+  manifest never decides a finding.
+type: string
+enum:
+  - event_log
+  - git
+x-derived:
+  rule: event_log for snapshot_disagrees_with_event_log and snapshot_or_event_log_missing; git for lane_branch_missing.
+  inputs:
+    - path: src/specify_cli/status/validate.py
+      symbol: _validate_materialization_files
+    - path: src/specify_cli/lanes/_git.py
+      symbol: branch_exists
+examples:
+  - event_log
+  - git

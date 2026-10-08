@@ -29,8 +29,11 @@ git stash
 git stash pop
 
 # Prefer: a worktree-local commit that doesn't touch shared state
-git add -A && git commit -m "wip: checkpoint before rebase"
+git add -- <files you changed>
+git commit -m "wip: checkpoint before rebase"
 ```
+
+Stage only named files: a blanket add sweeps unrelated work and secrets into the checkpoint (Directive 033).
 
 ## Don't move a worktree's HEAD while a background job reads it
 

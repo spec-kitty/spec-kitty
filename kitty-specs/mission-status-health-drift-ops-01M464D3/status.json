@@ -1,0 +1,361 @@
+{
+  "event_count": 98,
+  "last_event_id": "01M4AYXQMJXZN6XJWKPM7G9GXD",
+  "materialized_at": "2026-10-07T10:35:38.514692+00:00",
+  "mission_number": "219",
+  "mission_slug": "mission-status-health-drift-ops-01M464D3",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 10,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4AYXEJ2B561H6N22JSZZ5R6",
+      "last_transition_at": "2026-10-07T10:35:29.219010+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "IC-01: kind-3 re-measured (93 findings, no floor pinned), Gate B and no-op hold, floors below re-measures, proxy sum ~38 s local (below 55/70 lines), campsite commit 0ec1e852c with identical 118 test ids",
+        "Review approved: campsite constants-only, 118 ids identical; re-measure reproduced; proxy ~39 s under 55/70; D-P6 ruling pending operator (no floor pinned)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261006",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1383275,
+      "shell_pid_created_at": "1791282203.78",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4AYXAZ6T3PQ6MJKSKHSCQWJ",
+      "last_transition_at": "2026-10-07T10:35:25.542195+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Six strict names (specKittyVersion, currentBranch, profileId, action, invocationId, sourceCode): STRICT_FIELDS, six kinds, six negative cases; tests red-first then green; tools clean under mypy --strict",
+        "Review approved: six names match spec/data-model, red-first real, plants honest, gates green; two sev-2 campsite nits carried to the wrap-up"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261006",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1484201,
+      "shell_pid_created_at": "1791284250.25",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": null,
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4AYXFM32HC3VA35VB4TYEGZ",
+      "last_transition_at": "2026-10-07T10:35:30.307429+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Project vertical: five Project properties, ProjectHealth, memo and builder, ratchets; battery legs run locally, only the known environmental red",
+        "Fix cycle 1: .inf no longer raises, timeout back to 120, dead guard dropped, gaps asserted",
+        "Cycle 2 approved: all four items resolved, revert experiments red, gates green",
+        "Rework: Project read no longer raises on a non-UTF-8 status.json (plant, mutation, revert)",
+        "Rework approved: undecodable status.json no longer raises from the Project read; plant, mutation and revert verified"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20261007",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4AYXGK8E4FDMDWJ514JBJHS",
+      "last_transition_at": "2026-10-07T10:35:31.304200+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Drift read contract: 10 schemas, path, parameter, 2 responses, 6 examples, 6 pins, CHANGELOG; gates green, breaking=4",
+        "Review approved: shapes faithful, additive, red-first real, three own reverts killed; refinements ruled acceptable",
+        "Rework: contract prose states an unreachable remote keeps the own directory (200, no fallback); pins updated",
+        "Rework approved: contract prose states the real offline outcome (descriptions only, breaking=4 unchanged); consequence (3) verified on real repos"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261006",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4AYXHKSM77VF2DB98GBB5PN",
+      "last_transition_at": "2026-10-07T10:35:32.345570+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ops read contract: 10 schemas, path, parameter, response, 13 examples, 6 pins, CHANGELOG; red-first commit 65d3ee3ae; gates green, battery equals Step 0 baseline",
+        "Review approved: 13 members per FR-017/data-model, shapes faithful, additive, red-first real, own reverts killed"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261006",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1869132,
+      "shell_pid_created_at": "1791295034.33",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4AYXKRYQK40HRMXQ4EN1JEV",
+      "last_transition_at": "2026-10-07T10:35:34.558480+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Contract proof edits: extended scratch pair with frozen Project copies and masked comparison, section-scoped CHANGELOG statements and four qualified provisional names, slice scope and dependency data, OpsEvidence citation fix and pin. contracts-commit 47c18d11c",
+        "Review approved: D-P10 mask exact equivalent, SLICE_ALLOWED matches plan with 0 problems over the real diff, controls run, carry-forwards done"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261006",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2089933,
+      "shell_pid_created_at": "1791297719.37",
+      "subtasks": {
+        "T028": "done",
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4AYXMQT02JFNBYCX43VYHPV",
+      "last_transition_at": "2026-10-07T10:35:35.546391+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Drift reader built: kinds 1 to 3, strict sibling, one local branch listing, order and cap, fixed summaries. 61 tests, 14 mutations killed, 49 guards revert-proven; local battery equals Step 0. Spec/resolver divergence on the unreachable-remote 500 reported in the hand-off.",
+        "Review approved: reader correct; row 14 pins the resolver's real offline behaviour, which the operator ruled the contract text must match (WP04 rework)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20261006",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2282907,
+      "shell_pid_created_at": "1791299765.36",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T056": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": null,
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4AYXNPAWTA8DTRZGWG31AXZ",
+      "last_transition_at": "2026-10-07T10:35:36.522977+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ops reader and tests: 139 tests, 15 mutations killed, 77 revert experiments (16 survivors fixed), battery equals Step 0",
+        "Fix cycle 1: bad closure instant skips and counts; credential-shaped handles skip the record",
+        "Cycle 2 approved: closure-instant skip and credential-handle skip per the operator rulings; reverts killed; gates green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP08:20261007",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T041": "done",
+        "T042": "done",
+        "T043": "done",
+        "T044": "done",
+        "T045": "done",
+        "T046": "done"
+      }
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4AYXPNPFE9M0GN1AHEJG658",
+      "last_transition_at": "2026-10-07T10:35:37.526874+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Oracles and corpus reality extension: independent oracles (kinds 1 to 3, fallback derivation, Ops direct scan), AST independence test, online corpus run (892 passed, 1 named skip) and offline run (881 passed, 12 named skips), floors, anomaly fixture, completion equality and real listing bound, 19 revert experiments red, battery equal to Step 0",
+        "Fix cycle 1: timed block restores the production resolver index walk with a refusing plant (unpatched combined run about 25 s of 120 s); importlib guard closed with plants; undecodable workaround already removed by the WP03 rework",
+        "Cycle 2 approved: timed bounds on the production resolver path, importlib guard, offline arm exact"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP09:20261007",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T047": "done",
+        "T048": "done",
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done"
+      }
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent": null,
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4AYXQMJXZN6XJWKPM7G9GXD",
+      "last_transition_at": "2026-10-07T10:35:38.514692+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-rebase close-out appended to the three tracer files (9c63038db); hygiene files=43 problems=0; append-only",
+        "Two citation fixes per review cycle 1",
+        "Cycle 2 approved: citations corrected, hygiene clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP10:20261007",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T053": "done",
+        "T054": "done",
+        "T055": "done"
+      }
+    }
+  }
+}

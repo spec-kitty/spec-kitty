@@ -1,5 +1,5 @@
 """Claim recording for ``spec-kitty implement``: the pre-lane protected-branch refusal, the claim status
-transition and the claimed->doing auto-commit.
+transition and the claimed->doing auto-commit. The auto-commit carries exactly the paths the claim wrote (#5673).
 
 Stays in the command package because the claim commit imports
 ``cli.commands.agent.tasks._collect_status_artifacts`` (C-004).
@@ -34,7 +34,6 @@ from specify_cli.coordination.coherence import (
 )
 from specify_cli.coordination.surface_resolver import (
     StatusReadPathNotFound,
-    is_under_worktrees_segment,
     resolve_status_surface_with_anchor,
 )
 from specify_cli.status import TransitionError
@@ -52,6 +51,15 @@ from specify_cli.status import (
 #: (``_commit_wp_claim_status`` returns early otherwise); an ``in_progress``
 #: resume commits nothing.
 _CLAIM_COMMITTING_LANES = frozenset({Lane.PLANNED, Lane.CLAIMED})
+
+#: Printed when ``meta.json`` already differed from HEAD before the claim wrote the VCS lock into it (#5673).
+_META_DIRTY_BEFORE_CLAIM_WARNING = (
+    "[yellow]Warning:[/yellow] {meta} had uncommitted changes before the claim; the claim's VCS lock was left uncommitted with them -- commit meta.json yourself."
+)
+_WP_DIRTY_BEFORE_CLAIM_WARNING = (
+    "[yellow]Warning:[/yellow] {wp} had uncommitted changes before the claim; the claim's workspace stamp was left "
+    "uncommitted with them -- commit the WP prompt yourself."
+)
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path, mission_slug: str | None = None) -> str | None:
@@ -142,60 +150,65 @@ def _raise_if_claim_commit_head_mismatch(repo_root: Path, mission_slug: str, wp_
     raise mismatch
 
 
+def claim_status_pair_paths(artifacts: Iterable[Path]) -> list[Path]:
+    """The claim-written status pair (``status.events.jsonl``, ``status.json``) among collected status artifacts (#5673).
+
+    The one selection both claim entry points (``implement`` and ``agent action implement``) commit through:
+    ``tasks.md`` is collected beside the pair but no claim rewrites it, and neither claim rewrites the WP prompt
+    except where :func:`claim_commit_paths` is told allocation stamped it.
+    """
+    return [path.resolve() for path in artifacts if is_status_state_path(path)]
+
+
 def _primary_surface_status_paths(artifacts: Iterable[Path], *, routes_through_coord: bool) -> list[Path]:
-    """Filter collected status artifacts for a PRIMARY-root claim-commit bundle.
+    """Filter collected status artifacts down to the status pair a PRIMARY-root claim commit may carry.
+
+    Only the two STATUS_STATE files (``status.events.jsonl``, ``status.json``) are
+    claim-written (#5673): ``tasks.md`` is collected beside them but the claim never
+    rewrites it, so it never enters the bundle, on any topology.
 
     #2155 / #3784 invariant: NO ``.worktrees/``-nested path may enter a
     primary-root ``safe_commit`` bundle. On coord topology ``feature_dir`` is
-    the coordination worktree, so every coord-owned artifact
-    ``_collect_status_artifacts`` returns — ``status.events.jsonl``,
-    ``status.json``, AND ``tasks.md`` — lives under ``.worktrees/``. The
-    ``is_status_state_path`` check alone drops only the two STATUS_STATE files
-    and lets the coord-worktree ``tasks.md`` (a ``TASKS_INDEX`` kind) survive,
-    tripping the ``SafeCommitPathPolicyError`` guard (#3784). Excluding ANY
-    ``is_under_worktrees_segment`` path keeps the invariant whole; dropping the
-    coord ``tasks.md`` from the CLAIM commit is correct — at claim time it is
-    unchanged and the primary copy was already committed at finalize. On
-    flat/legacy missions these artifacts are canonical on PRIMARY and stay.
+    the coordination worktree, so every coord-owned artifact lives under
+    ``.worktrees/`` and the transactional emitter already committed the status
+    pair to the coordination branch: nothing is left for the primary claim commit.
+    On flat/legacy missions the pair is canonical on PRIMARY and stays.
     """
-    resolved = [path.resolve() for path in artifacts]
-    if not routes_through_coord:
-        return resolved
-    return [path for path in resolved if not (is_status_state_path(path) or is_under_worktrees_segment(path))]
+    if routes_through_coord:
+        return []
+    return claim_status_pair_paths(artifacts)
 
 
 def claim_commit_paths(
     *,
-    repo_root: Path,
     feature_dir: Path,
-    wp_file: Path,
     status_artifacts: Iterable[Path],
     routes_through_coord: bool,
-    include_config: bool = True,
+    meta_written: bool,
+    wp_file: Path | None = None,
+    wp_stamped: bool = False,
 ) -> list[Path]:
-    """Return the exact ordered bundle the claim commit stages.
+    """Return the exact ordered list of paths the claim wrote, which the claim commit carries (#5673).
 
-    Order: the WP file, the primary-surface status artifacts, ``meta.json`` when
-    it exists, then ``.kittify/config.yaml`` when it exists. Pure apart from the
-    two ``exists()`` probes. #5673 (``config.yaml`` is bundled although the claim
-    never changes it) is a one-line change here. ``include_config=False`` leaves
-    ``config.yaml`` out: the ``--no-auto-commit`` staging never stages a file the
-    claim did not write.
+    Order: ``status.events.jsonl``, ``status.json``, the mission's ``meta.json`` iff ``meta_written``
+    (the first claim's VCS lock changed it and it was clean before), then the claimed WP prompt iff
+    ``wp_stamped`` (workspace allocation stamped ``base_branch``/``base_commit``/``created_at`` into it in
+    this claim and it was clean before; lanes and coord topologies). Never another WP's prompt,
+    ``tasks.md`` or ``.kittify/config.yaml`` (no claim path writes them). The caller decides both
+    flags from what the claim observed, never from ``exists()``.
     """
-    paths = [wp_file.resolve(), *_primary_surface_status_paths(status_artifacts, routes_through_coord=routes_through_coord)]
-    meta_file = feature_dir / "meta.json"
-    config_file = repo_root / ".kittify" / "config.yaml"
-    if meta_file.exists():
-        paths.append(meta_file.resolve())
-    if include_config and config_file.exists():
-        paths.append(config_file.resolve())
+    paths = _primary_surface_status_paths(status_artifacts, routes_through_coord=routes_through_coord)
+    if meta_written:
+        paths.append((feature_dir / "meta.json").resolve())
+    if wp_stamped and wp_file is not None:
+        paths.append(wp_file.resolve())
     return paths
 
 
 def _stage_claim_writes(repo_root: Path, wp_id: str, collect_paths: Callable[[], Iterable[Path]]) -> None:
     """``--no-auto-commit``: stage the claim's own writes, so "staged only" is true (#3471).
 
-    Stages the claim-commit bundle (less ``config.yaml``) in the repository root
+    Stages the claim-commit list in the repository root
     checkout and commits nothing. ``git add --force`` matches ``safe_commit``'s
     staging, so a claim file a consumer repository ignores is staged like the auto-commit
     would commit it, and git never stages part of the bundle before refusing an ignored
@@ -207,7 +220,8 @@ def _stage_claim_writes(repo_root: Path, wp_id: str, collect_paths: Callable[[],
     try:
         resolved_root = repo_root.resolve()
         rel_paths = [path.relative_to(resolved_root).as_posix() for path in collect_paths() if path.is_relative_to(resolved_root) and path.exists()]
-        run_git(repo_root, "add", "--force", "--", *rel_paths)
+        if rel_paths:
+            run_git(repo_root, "add", "--force", "--", *rel_paths)
     except Exception as exc:  # staging is best-effort: the claim's status write already landed
         console.print(f"[yellow]Warning:[/yellow] Could not stage the claim's changes: {exc}")
         console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes left unstaged)[/cyan]")
@@ -221,12 +235,23 @@ def _commit_wp_claim_status(
     feature_dir: Path,
     mission_slug: str,
     wp_id: str,
-    wp_file: Path,
+    wp_file: Path | None = None,
     auto_commit: bool | None,
     status_result: Any,
+    meta_written: bool = False,
+    meta_dirty_before: bool = False,
+    wp_stamped: bool = False,
+    wp_dirty_before: bool = False,
 ) -> None:
     """Auto-commit (or staged-only) side effect for a WP's claimed->'doing'
     transition. A no-op when *status_result* shows no lane change occurred.
+
+    The commit carries exactly what the claim wrote (#5673): the status pair, plus
+    ``meta.json`` when ``meta_written`` and it was not ``meta_dirty_before`` (an
+    operator-modified ``meta.json`` stays uncommitted and a warning names it).
+    The claimed WP prompt (*wp_file*) joins it the same way when allocation stamped it in this claim
+    (``wp_stamped``) and it was clean before; one that was ``wp_dirty_before`` stays uncommitted and a
+    warning names it.
 
     Split out of ``implement()`` so the outer try/except there keeps its
     exact ``SafeCommitPathPolicyError`` / ``PlacementResolutionRequired`` /
@@ -238,41 +263,42 @@ def _commit_wp_claim_status(
         return
     from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 
-    if not auto_commit:
-        _stage_claim_writes(
-            repo_root,
-            wp_id,
-            lambda: claim_commit_paths(
-                repo_root=repo_root,
-                feature_dir=feature_dir,
-                wp_file=wp_file,
-                status_artifacts=_collect_status_artifacts(feature_dir),
-                routes_through_coord=routes_through_coordination(resolve_topology(repo_root, mission_slug)),
-                include_config=False,
-            ),
+    # Decided from what the claim observed, never from ``exists()``: a ``meta.json``
+    # the operator had already modified is left as it is (#5673).
+    commit_meta = meta_written and not meta_dirty_before
+    if meta_written and meta_dirty_before:
+        console.print(_META_DIRTY_BEFORE_CLAIM_WARNING.format(meta=f"kitty-specs/{mission_slug}/meta.json"))
+
+    commit_wp = wp_stamped and not wp_dirty_before and wp_file is not None
+    if wp_stamped and wp_dirty_before and wp_file is not None:
+        console.print(_WP_DIRTY_BEFORE_CLAIM_WARNING.format(wp=wp_file.name))
+
+    def gather() -> list[Path]:
+        return claim_commit_paths(
+            feature_dir=feature_dir,
+            status_artifacts=_collect_status_artifacts(feature_dir),
+            routes_through_coord=routes_through_coordination(resolve_topology(repo_root, mission_slug)),
+            meta_written=commit_meta,
+            wp_file=wp_file,
+            wp_stamped=commit_wp,
         )
+
+    if not auto_commit:
+        _stage_claim_writes(repo_root, wp_id, gather)
+        return
+
+    files_to_commit = gather()
+    if not files_to_commit:
+        # Coord topology: the transactional emitter already committed the status pair to the
+        # coordination branch and the claim wrote nothing else; there is nothing to commit.
+        console.print(f"[cyan]→ {wp_id} moved to 'doing'[/cyan]")
         return
 
     commit_msg = f"chore: {wp_id} claimed for implementation"
-    # #2155 (FR-002 / T011) + #3784: bundle ONLY primary-surface artifacts
-    # into the primary-root claim commit. The status transition was already
-    # committed to the coordination branch by ``start_implementation_status``
-    # (the transactional emitter); under coord topology every coord-owned
-    # artifact ``_collect_status_artifacts`` returns (events.jsonl /
-    # status.json / the coord-worktree ``tasks.md``) lives UNDER
-    # ``.worktrees/``, so staging it from the primary root trips the #1887
-    # ``SafeCommitPathPolicyError`` guard. ``claim_commit_paths`` drops ANY
-    # ``.worktrees/``-nested path on coord topology (the
-    # ``is_status_state_path`` check alone let ``tasks.md`` — a TASKS_INDEX
-    # kind — survive, the #3784 residual); on a flat/legacy mission these
-    # artifacts ARE canonical on PRIMARY and stay in the bundle.
-    files_to_commit = claim_commit_paths(
-        repo_root=repo_root,
-        feature_dir=feature_dir,
-        wp_file=wp_file,
-        status_artifacts=_collect_status_artifacts(feature_dir),
-        routes_through_coord=routes_through_coordination(resolve_topology(repo_root, mission_slug)),
-    )
+    # #2155 (FR-002 / T011) + #3784: the list holds ONLY primary-surface paths the claim wrote.
+    # The status transition was already committed to the coordination branch by
+    # ``start_implementation_status`` under coord topology, so ``claim_commit_paths``
+    # returns no status path there; on a flat/legacy mission the pair is canonical on PRIMARY.
 
     # #610: every file gathered above is, by construction, primary-surface
     # (the coord-owned status pair is filtered out above under coord

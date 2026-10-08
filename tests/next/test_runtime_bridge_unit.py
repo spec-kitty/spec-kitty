@@ -2002,6 +2002,51 @@ class TestIsTransientGitWorktreeContention:
         exc = subprocess.CalledProcessError(128, ["git", "worktree", "add"], stderr="fatal: not a git repository")
         assert _is_transient_git_worktree_contention(exc) is False
 
+    @pytest.mark.parametrize(
+        "stderr",
+        [
+            "fatal: failed to read /repo/.git/worktrees/sibling/commondir: Success",
+            "fatal: Invalid path '/repo/.git/worktrees/sibling': No such file or directory",
+            "fatal: failed to read C:\\repo\\.git\\worktrees\\sibling\\commondir: Success",
+        ],
+        ids=["empty-commondir-mid-add", "entry-vanished-mid-remove", "windows-separators"],
+    )
+    def test_sibling_registry_entry_in_flight_is_transient(self, stderr: str) -> None:
+        """#5894: ``git worktree list`` reads every registered entry; a
+        sibling's in-flight ``worktree add`` (zero-byte ``commondir``, written
+        last) or ``worktree remove`` (entry directory gone) makes it die with
+        rc 128. That is the normal mid-mutation state of another process's
+        entry, so it is retried, not refused as durable corruption."""
+        from runtime.next.runtime_bridge import _is_transient_git_worktree_contention
+
+        exc = subprocess.CalledProcessError(128, ["git", "worktree", "list", "--porcelain"], stderr=stderr)
+        assert _is_transient_git_worktree_contention(exc) is True
+
+    @pytest.mark.parametrize(
+        "stderr",
+        [
+            "fatal: failed to read /repo/.git/config: Permission denied",
+            "fatal: Invalid path '/repo/src/module.py': No such file or directory",
+            "fatal: Invalid path '/repo/.worktrees/x-lane-a'",
+            "fatal: failed to read /repo/.git/worktrees/s/commondir: Permission denied",
+            "fatal: Invalid path '/repo/src/a.py'\nnote: see /repo/.git/worktrees/s",
+        ],
+        ids=[
+            "read-failure-outside-registry",
+            "invalid-path-outside-registry",
+            "dot-worktrees-checkout-is-not-the-registry",
+            "commondir-read-failure-is-not-in-flight",
+            "invalid-path-and-registry-mention-on-different-lines",
+        ],
+    )
+    def test_registry_wording_outside_the_worktree_registry_is_not_transient(self, stderr: str) -> None:
+        """The in-flight wordings are retried only when they name an entry of
+        the shared ``worktrees/`` registry."""
+        from runtime.next.runtime_bridge import _is_transient_git_worktree_contention
+
+        exc = subprocess.CalledProcessError(128, ["git", "worktree", "list", "--porcelain"], stderr=stderr)
+        assert _is_transient_git_worktree_contention(exc) is False
+
 
 class TestMissionRoutesThroughCoordinationOwnedCheckout:
     """``_mission_routes_through_coordination``'s ``owned`` fork: reads the

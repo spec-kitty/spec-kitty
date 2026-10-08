@@ -144,7 +144,10 @@ class CoordinationWorkspaceUnavailable(subprocess.CalledProcessError):
     recognising transient lock contention via ``returncode``/``stderr`` —
     the retry-then-raise behaviour in
     :func:`runtime_bridge._resolve_owned_coordination_workspace` is
-    unaffected. Only a DURABLE failure ever reaches a caller as this type.
+    unaffected. Only a DURABLE failure ever reaches a caller as this type:
+    a sibling registry entry caught mid-``worktree add``/``remove`` (a
+    zero-byte ``commondir``, a vanished entry) is retried first (#5894), so
+    a ``commondir: Success`` that reaches a caller has outlasted that window.
 
     Carries the stable ``error_code``
     :data:`mission_runtime.OwnedRefusalCode.OWNED_COORDINATION_WORKSPACE_UNAVAILABLE`
@@ -163,6 +166,12 @@ class CoordinationWorkspaceUnavailable(subprocess.CalledProcessError):
         stderr: str | None = None,
     ) -> None:
         super().__init__(returncode, cmd, output=output, stderr=stderr)
+
+    def __str__(self) -> str:
+        """Name git's own diagnostic; the base message omits stderr (#5894)."""
+        detail = " ".join((self.stderr or "").split())
+        base = super().__str__()
+        return f"{base} git: {detail}" if detail else base
 
 
 def _require_mid8(mission_slug: str, mid8: str) -> None:

@@ -11,4 +11,4 @@
 
 ## Entries
 
-<!-- YYYY-MM-DD — 1-3 sentences: what happened, why it slowed you down. -->
+Example: `- **[2026-07-29][implement] The analysis report went stale after marking a task done.** Re-running analysis delayed the next claim; candidate gap #1234.`

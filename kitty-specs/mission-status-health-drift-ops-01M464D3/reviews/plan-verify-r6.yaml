@@ -1,0 +1,10 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH5-001
+    status: resolved
+    reason: IC-01 step 4 now times the proxy, the scan, the listing repeated at least 5 times and the AC-DRIFT row 19 completion equality over the real corpus and records the sum, and the R-12 table carries both as to-be-measured rows.
+  - id: PLAN-FRESH5-002
+    status: resolved
+    reason: tracer-design-decisions.md now has item 11 appended add-only and tracer-approach.md A-11 cites it together with reviews/plan.ruling.md note 11.

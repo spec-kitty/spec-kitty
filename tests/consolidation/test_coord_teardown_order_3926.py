@@ -28,14 +28,20 @@ from types import SimpleNamespace
 
 import pytest
 
+from kernel.git import GitCommandError
+from specify_cli.coordination.transaction_errors import BookkeepingPolicyRefused
+from specify_cli.coordination.types import Refused
 from specify_cli.lanes.branch_naming import coord_dir_name
 from specify_cli.consolidation import executor as ex
+from specify_cli.consolidation.bookkeeping_projection import AliasStatusEventsNotPreserved
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.mission_metadata import load_meta
 from specify_cli.consolidation import (
     phase_teardown,
     run_state,
 )
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -181,6 +187,96 @@ def test_a_leg_that_does_not_come_down_raises_instead_of_flattening(coord_repo_w
         "#3926: the marker was flattened while the branch and worktree both survived — the inverted #3086 shape INV-2 forbids"
     )
     assert _branch_exists(repo, _MISSION_BRANCH)
+
+
+def test_teardown_folds_coord_seed_events_onto_primary(coord_repo_with_live_worktree: Path) -> None:
+    """A late coord-only seed must be committed before its branch is removed (#3272)."""
+    repo = coord_repo_with_live_worktree
+    _git(repo, "branch", "-m", "main")
+    coord_path = repo / ".worktrees" / coord_dir_name(_SLUG, mid8=_MID8)
+    coord_dir = coord_path / "kitty-specs" / _SLUG
+    coord_dir.mkdir(parents=True)
+    append_event(
+        coord_dir,
+        StatusEvent(
+            event_id="01M1VRA2ZSEED00000000000000",
+            mission_slug=_SLUG,
+            mission_id=_MISSION_ID,
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.PLANNED,
+            at="2026-08-08T09:59:00+00:00",
+            actor="migration:backfill_runtime_state",
+            force=False,
+            execution_mode="worktree",
+        ),
+    )
+    _git(coord_path, "add", ".")
+    _git(coord_path, "commit", "-m", "seed")
+
+    run = _run_state(repo)
+    run.feature_dir = coord_dir
+    tip_before = _git(repo, "rev-parse", "main").stdout.strip()
+    phase_teardown._teardown_coordination_triple(run)
+
+    subjects = _git(repo, "log", "--format=%s", f"{tip_before}..main").stdout.splitlines()
+    assert subjects.count(phase_teardown.COORD_STATUS_FOLD_SUBJECT.format(slug=_SLUG)) == 1, subjects
+    primary_log = repo / "kitty-specs" / _SLUG / "status.events.jsonl"
+    assert "01M1VRA2ZSEED00000000000000" in primary_log.read_text()
+    assert "01M1VRA2ZSEED00000000000000" in _git(repo, "show", f"HEAD:kitty-specs/{_SLUG}/status.events.jsonl").stdout
+
+
+def _refused() -> BookkeepingPolicyRefused:
+    verdict = Refused(error_code="PROTECTED_BRANCH_REFUSED", message="scratch refusal", destination_ref="main", next_step="none")
+    return BookkeepingPolicyRefused(verdict)
+
+
+@pytest.mark.parametrize(
+    ("failure", "wrapped"),
+    [
+        (OSError("disk full"), True),
+        (GitCommandError(argv=("status",), cwd=Path("."), returncode=1, stderr="disk full"), True),
+        (AliasStatusEventsNotPreserved("disk full", composed_dir=Path("."), missing_event_ids=("x",)), True),
+        (_refused(), False),
+        (RuntimeError("unrelated"), False),
+    ],
+    ids=["io-failure-wrapped", "git-failure-wrapped", "alias-proof-wrapped", "policy-refusal-propagates", "unrelated-error-propagates"],
+)
+def test_a_failed_coord_status_fold_keeps_the_coord_branch_and_marker(
+    coord_repo_with_live_worktree: Path, monkeypatch: pytest.MonkeyPatch, failure: Exception, wrapped: bool
+) -> None:
+    """A fold that cannot land refuses before anything is torn down (#3272).
+
+    Only git, alias-proof and I/O failures become a ``CoordinationTeardownError``; a policy
+    refusal propagates unchanged so its own ``PROTECTED_BRANCH_REFUSED`` remedy is not
+    replaced by a misleading ``--resume`` hint.
+    """
+    repo = coord_repo_with_live_worktree
+    _git(repo, "branch", "-m", "main")
+    coord_path = repo / ".worktrees" / coord_dir_name(_SLUG, mid8=_MID8)
+    coord_dir = coord_path / "kitty-specs" / _SLUG
+    coord_dir.mkdir(parents=True)
+    (coord_dir / "status.events.jsonl").write_text('{"event_id": "x"}\n', encoding="utf-8")
+
+    def _boom(**_: object) -> None:
+        raise failure
+
+    monkeypatch.setattr(phase_teardown, "_project_status_bookkeeping_to_target", _boom)
+    run = _run_state(repo)
+    run.feature_dir = coord_dir
+    tip_before = _git(repo, "rev-parse", "main").stdout.strip()
+
+    expected = run_state.CoordinationTeardownError if wrapped else type(failure)
+    with pytest.raises(expected) as caught:
+        phase_teardown._teardown_coordination_triple(run)
+    assert (type(caught.value) is run_state.CoordinationTeardownError) is wrapped
+    if wrapped:
+        assert "disk full" in str(caught.value)
+
+    assert _git(repo, "rev-parse", "main").stdout.strip() == tip_before, "a failed fold must not move the target"
+    assert _branch_exists(repo, _MISSION_BRANCH)
+    assert coord_path.is_dir()
+    assert load_meta(repo / "kitty-specs" / _SLUG).get("coordination_branch")
 
 
 def test_teardown_reads_identity_from_the_primary_metadata_not_the_status_dir(

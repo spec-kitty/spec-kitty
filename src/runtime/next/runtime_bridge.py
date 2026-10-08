@@ -73,6 +73,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -144,7 +145,9 @@ def _resolve_owned_coordination_workspace(
     Two distinct owned missions may reach ``git worktree add`` concurrently.
     Their filesystem destinations do not overlap, but git serializes updates to
     the shared worktree registry.  Retry only that subprocess failure; durable
-    failures still surface unchanged after a short bounded window.  This avoids
+    failures still surface unchanged once the bounded window is spent: at
+    most 20 attempts with a linear back-off of 0.05 s x 1..19, i.e. a
+    worst case of about 9.5 s of sleeping.  This avoids
     a second persistent lock file and therefore cannot leak ownership locks.
     """
     import subprocess
@@ -167,12 +170,45 @@ def _resolve_owned_coordination_workspace(
 def _is_transient_git_worktree_contention(
     exc: Any,
 ) -> bool:
-    """Recognize only Git's shared lock-contention diagnostics."""
+    """Recognize Git's shared worktree-registry contention diagnostics.
+
+    Two kinds are transient: lock contention, and a sibling registry entry
+    caught mid-mutation by another process (#5894).
+    """
     if getattr(exc, "returncode", None) != 128:
         return False
     output = "\n".join(str(value) for value in (getattr(exc, "stderr", ""), getattr(exc, "stdout", "")) if value).casefold()
+    return _is_git_lock_contention(output) or _is_sibling_registry_entry_in_flight(output)
+
+
+def _is_git_lock_contention(output: str) -> bool:
+    """Git's lock-file diagnostics (another process holds the lock)."""
     lock_exists = "file exists" in output and ("config.lock" in output or ("unable to create" in output and ".lock" in output))
     return lock_exists or ("could not lock config file" in output and "file exists" in output) or ("another git process" in output and "lock" in output)
+
+
+# A shared-registry entry path: ``.../worktrees/<id>``. The lookbehind keeps
+# this repository's own ``.worktrees/<slug>`` checkouts from matching.
+_REGISTRY_ENTRY = r"(?<!\.)/worktrees/[^/'\s]+"
+_EMPTY_COMMONDIR = re.compile(_REGISTRY_ENTRY + r"/commondir: success\b")
+_VANISHED_ENTRY = re.compile(r"invalid path '[^']*" + _REGISTRY_ENTRY + r"/?'")
+
+
+def _is_sibling_registry_entry_in_flight(output: str) -> bool:
+    """A sibling ``.git/worktrees/<id>`` entry another process is mutating.
+
+    ``git worktree list`` reads every registered entry. ``git worktree add``
+    writes the entry's ``commondir`` last (truncate, then write), so a reader
+    can find it zero bytes long (``failed to read .../worktrees/<id>/commondir:
+    Success``); ``git worktree remove`` deletes the entry directory under a
+    reader (``Invalid path '.../worktrees/<id>'``). Both are the normal
+    in-flight state of another process's entry. Each wording must name a
+    registry entry on the same match: a real read failure (``Permission
+    denied``, ``Is a directory``) or a path outside the registry is durable.
+    An entry that stays broken still refuses once the bounded retry is spent.
+    """
+    normalized = output.replace("\\", "/")
+    return bool(_EMPTY_COMMONDIR.search(normalized) or _VANISHED_ENTRY.search(normalized))
 
 
 # ---------------------------------------------------------------------------

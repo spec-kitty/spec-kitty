@@ -369,10 +369,10 @@ class TestCheckConcernRefsCoverage:
         assert len(warnings) == 1
         assert "WP01" in warnings[0]
 
-    def test_loaded_manifest_with_explicit_empty_refs_warns(
+    def test_loaded_manifest_with_explicit_empty_refs_is_quiet_without_plan_ics(
         self, tmp_path: object
     ) -> None:
-        """An opted-in manifest with empty refs and no cross_cutting still warns."""
+        """Empty concern refs are fine when plan.md declares no concerns."""
         from pathlib import Path
 
         feature_dir = Path(str(tmp_path))
@@ -384,6 +384,24 @@ class TestCheckConcernRefsCoverage:
             encoding="utf-8",
         )
         manifest = load_wps_manifest(feature_dir)
+        assert manifest is not None
+        assert check_concern_refs_coverage(manifest) == []
+
+    def test_loaded_manifest_with_explicit_empty_refs_warns_when_plan_has_ics(
+        self, tmp_path: Path
+    ) -> None:
+        """Empty refs still warn when plan.md declares implementation concerns."""
+        (tmp_path / "plan.md").write_text("### IC-01 - Runtime boundary\n", encoding="utf-8")
+        (tmp_path / "wps.yaml").write_text(
+            "work_packages:\n"
+            "  - id: WP01\n"
+            "    title: New WP\n"
+            "    plan_concern_refs: []\n",
+            encoding="utf-8",
+        )
+
+        manifest = load_wps_manifest(tmp_path)
+
         assert manifest is not None
         warnings = check_concern_refs_coverage(manifest)
         assert len(warnings) == 1
