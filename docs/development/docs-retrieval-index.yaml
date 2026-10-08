@@ -3547,7 +3547,7 @@ pages:
   - path: "docs/adr/4.x/2026-10-06-1-charter-offering-active-charter-and-activation-presets.md"
     title: "ADR: charter offering, active charter and activation presets"
     divio_type: "none"
-    abstract: "A Charter Pack bundles charter components with activation presets; applying a preset is an activation. Fixes the vocabulary for the doctrine-pack rename and cuts the old names over with no aliases or shims."
+    abstract: "A Charter Pack bundles charter components with activation presets applied by charter activate; the doctrine names are cut over with no aliases or shims."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision", text: "Decision", level: 2}

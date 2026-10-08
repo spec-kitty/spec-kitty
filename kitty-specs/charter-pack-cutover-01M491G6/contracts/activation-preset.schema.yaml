@@ -1,0 +1,37 @@
+# Activation preset file: <pack>/presets/<name>.yaml  (FR-019, ADR 2026-10-06-1 §2-3)
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://spec-kitty.ai/schemas/activation-preset.schema.yaml"
+title: Activation preset
+type: object
+additionalProperties: false
+required: [name, description]
+properties:
+  name:
+    type: string
+    pattern: "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    maxLength: 64
+    description: Must equal the file stem.
+  description:
+    type: string
+    minLength: 1
+  activated_kinds:
+    type: array
+    uniqueItems: true
+    items:
+      type: string   # any ArtifactKind plural; the validator checks membership against ArtifactKind (the kind gate covers every kind, not only governed ones)
+  mission_type_activations:
+    type: array
+    uniqueItems: true
+    items: { type: string, minLength: 1 }
+patternProperties:
+  "^activated_(directives|tactics|styleguides|toolguides|paradigms|procedures|agent_profiles|mission_step_contracts|anti_patterns)$":
+    type: array
+    uniqueItems: true
+    items: { type: string, minLength: 1 }
+# Semantic rules enforced by `charter pack validate` / `charter org validate` (not expressible here):
+#  - the kind list is derived from ArtifactKind (presets govern every charter-activatable kind except skill and
+#    glossary_pack, so anti_pattern is included (#5409); template and asset are not activatable);
+#    this enum is illustrative and the validator reads the authority, never this list;
+#  - every id resolves somewhere in the offering (built-in, org chain, project layer); the error names file and id;
+#  - when activated_kinds is present it includes every kind the preset lists ids for;
+#  - name equals the file stem.
