@@ -1,9 +1,12 @@
 """The independent oracles of the Mission Status health, drift and Ops reads (plan D-P14, D-P6; spec FR-025).
 
 An oracle answers the same question as a reference reader by a different route, so that a reader that is consistently wrong is
-caught by the comparison. This module therefore imports no reader module of ``tests/contract`` (an AST test of the reality
-module asserts it); it shares only the resolver memo (a helper that holds raw resolver outcomes and decides nothing) and public
-product readers: the status classifier, the reducer snapshot, the lifecycle test and the lane branch naming.
+caught by the comparison. It is independent of the reader modules of ``tests/contract`` (an AST test of the reality module
+asserts it), but it is not independent of production code: it shares the resolver memo (a helper that holds raw resolver
+outcomes and decides nothing) and these production derivations with the readers: ``classify_status_json`` (the status
+classifier), ``code_lane_branch_name`` and ``PLANNING_LANE_ID`` (lane branch naming), ``derive_mission_lifecycle`` and
+``is_mission_completed`` (the lifecycle test), ``materialize_snapshot`` (the reducer snapshot) and the clock. A defect in one of
+those is invisible to the comparison; the reality test pins this list, so a new shared import is a reviewed decision.
 
 What is read here is read in a different way from the readers: ``meta.json``, ``lanes.json`` and every Op line are parsed as raw
 JSON; the branches are tested with one ``git rev-parse --verify --quiet`` per expected name, never from the readers' single

@@ -2954,6 +2954,38 @@ def function_tree(function: Callable[..., Any]) -> ast.AST:
     return ast.parse(textwrap.dedent(inspect.getsource(function)))
 
 
+# Every production symbol the oracle module shares with the readers, and why it is shared rather than re-derived. A new
+# production import must be added here with a rationale (a reviewed decision), or the test below fails.
+SHARED_PRODUCTION_SYMBOLS = {
+    ("kernel.clock", "datetime"): "the repository clock type: an instant is an argument, nothing reads a wall clock",
+    ("specify_cli.audit.classifiers.status_json", "classify_status_json"): "the status.json classifier is the definition of kind 1",
+    ("specify_cli.lanes.branch_naming", "PLANNING_LANE_ID"): "the planning lane id is a product constant, not a derivation",
+    ("specify_cli.lanes.branch_naming", "code_lane_branch_name"): "the lane branch name is the product's naming rule",
+    ("specify_cli.status.lifecycle", "derive_mission_lifecycle"): "the lifecycle state is the product's derivation",
+    ("specify_cli.status.lifecycle", "is_mission_completed"): "the completion test is the product's derivation",
+    ("specify_cli.status.reducer", "materialize_snapshot"): "the reducer snapshot is the product's event-log reduction",
+}
+
+
+def production_imports(tree: ast.AST) -> set[tuple[str, str]]:
+    """Every ``(module, name)`` the tree imports from outside the standard library and ``tests.contract``."""
+    found: set[tuple[str, str]] = set()
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.module
+            and node.module.split(".")[0] in {"kernel", "specify_cli", "charter", "runtime", "glossary", "mission_runtime"}
+        ):
+            found.update((node.module, alias.name) for alias in node.names)
+        elif isinstance(node, ast.Import):
+            found.update(
+                (alias.name, "")
+                for alias in node.names
+                if alias.name.split(".")[0] in {"kernel", "specify_cli", "charter", "runtime", "glossary", "mission_runtime"}
+            )
+    return found
+
+
 def test_corpus_the_oracles_neither_call_nor_import_a_reader() -> None:
     """The oracle module and the oracle functions of this module never call or import a reader module."""
     oracle_source = ast.parse(ORACLES_FILE.read_text(encoding="utf-8"))
@@ -2966,6 +2998,9 @@ def test_corpus_the_oracles_neither_call_nor_import_a_reader() -> None:
     for function in ORACLE_FUNCTIONS:
         assert reader_references(function_tree(function)) == [], function.__name__
     assert len(ORACLE_FUNCTIONS) == 4
+    assert production_imports(oracle_source) == set(SHARED_PRODUCTION_SYMBOLS), (
+        "the oracle module shares production code with the readers beyond the allow-list (add the symbol with its rationale, or re-derive it)"
+    )
 
 
 def test_corpus_case_dispositions_follow_the_resolver_use() -> None:
