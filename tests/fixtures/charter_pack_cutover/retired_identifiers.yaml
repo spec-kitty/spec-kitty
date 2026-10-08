@@ -72,6 +72,11 @@ slices:
     exclude_patterns:
       - "docs/changelog/*"
       - "docs/context/charter.md"
+      # Generated (scripts/docs/docs_index.py): it indexes every docs page, the
+      # historical roots included (ADR titles, plans, docs/reports, docs/migrations),
+      # and is never hand-edited. Same exemption as the removed-command gate
+      # (docs/development/reference/terminology-exemptions.md). Added by WP22 (#3732).
+      - "docs/development/docs-retrieval-index.yaml"
     identifiers:
       - doctrine pack
       - project doctrine
