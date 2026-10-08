@@ -127,6 +127,9 @@
       "last_event_id": "01M4E16K1BWV5MV4NWR89857AN",
       "last_transition_at": "2026-10-08T15:13:09.163120+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Frontmatter, finalize and matrix writers take the Mission lock: locked_update_frontmatter (body byte-for-byte); map-requirements plan+write in one hold; finalize flush applies its field delta under the lock; write-scope and meta restores are compare-and-swap with kept-file reporting; matrix helpers/guard/issue-verdict/scaffold key through mission_write_lock; remaining frontmatter and tasks.md writers locked. Red-first and mutation checks recorded in the tracer; 5x repeats green."
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 5306,
