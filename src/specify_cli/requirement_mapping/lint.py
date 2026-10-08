@@ -113,7 +113,7 @@ def _normalise_lead(token: str) -> str:
     return stripped
 
 
-def _is_well_formed_declaration(token: str) -> bool:
+def _is_well_formed_declaration(token: str, mission_type: str) -> bool:
     """True when *token* is a genuine, unambiguous requirement ID.
 
     Two independent grammar checks must agree: the token canonicalises at
@@ -121,39 +121,39 @@ def _is_well_formed_declaration(token: str) -> bool:
     bare token (spec_scan=True -- rejects an uppercase suffix letter and any
     trailing matter the strict canonical form would otherwise tolerate).
     """
-    canonical_form = grammar.canonical(token)
+    canonical_form = grammar.canonical(token, mission_type=mission_type)
     if canonical_form is None:
         return False
-    matches = grammar.find_all(token, spec_scan=True)
+    matches = grammar.find_all(token, spec_scan=True, mission_type=mission_type)
     return len(matches) == 1 and matches[0].canonical == canonical_form
 
 
-def _rule_for_malformed(token: str) -> str:
+def _rule_for_malformed(token: str, mission_type: str) -> str:
     """FR-013's rule text: the uppercase-suffix/placeholder case gets its own
     remediation; everything else names the grammar rule verbatim."""
-    if grammar.parse(token) is not None:
+    if grammar.parse(token, mission_type=mission_type) is not None:
         return RULE_LOWERCASE_SUFFIX
     return grammar.RULE_TEXT
 
 
-def _record_malformed_lead(line: str, line_no: int, errors: list[InvalidRequirementId]) -> bool:
+def _record_malformed_lead(line: str, line_no: int, errors: list[InvalidRequirementId], mission_type: str) -> bool:
     """Record an FR-013 error for *line* when it holds a malformed declared
     lead. Returns True when this line was an error line (the caller must
     not also warn on it -- an error line never doubles as a warning)."""
-    match = grammar.MALFORMED_DECLARED_LEAD.match(line)
+    match = grammar.malformed_declared_lead(mission_type).match(line)
     if match is None:
         return False
     token = _normalise_lead(match.group("lead"))
-    if _is_well_formed_declaration(token):
+    if _is_well_formed_declaration(token, mission_type):
         return False
-    errors.append(InvalidRequirementId(token=token, line=line_no, rule=_rule_for_malformed(token)))
+    errors.append(InvalidRequirementId(token=token, line=line_no, rule=_rule_for_malformed(token, mission_type)))
     return True
 
 
-def _matches_declared_shape(line: str) -> bool:
+def _matches_declared_shape(line: str, mission_type: str) -> bool:
     """True when *line* is a declaration line under any of the four shapes
     (first-ID-per-line: a table row's other cells never warn)."""
-    return any(pattern.match(line) is not None for pattern in grammar.DECLARED_SHAPE_PATTERNS)
+    return any(pattern.match(line) is not None for pattern in grammar.declared_shape_patterns(mission_type))
 
 
 def _warning_message(token: str) -> str:
@@ -166,10 +166,11 @@ def _lint_prose_line(
     declared: AbstractSet[str],
     warned: set[str],
     warnings: list[RequirementIdWarning],
+    mission_type: str,
 ) -> None:
     """FR-014: warn once per distinct undeclared, unqualified, well-formed
     token, at its first occurrence."""
-    for requirement_id in grammar.find_all(line, spec_scan=True):
+    for requirement_id in grammar.find_all(line, spec_scan=True, mission_type=mission_type):
         if requirement_id.is_foreign:
             continue
         canonical_form = requirement_id.canonical
@@ -179,7 +180,7 @@ def _lint_prose_line(
         warnings.append(RequirementIdWarning(token=canonical_form, line=line_no, message=_warning_message(canonical_form)))
 
 
-def lint_spec_requirement_ids(spec_text: str) -> SpecLintResult:
+def lint_spec_requirement_ids(spec_text: str, *, mission_type: str = "software-dev") -> SpecLintResult:
     """FR-013/FR-014: the setup-plan requirement-ID lint over one spec.md text.
 
     Errors are malformed kind-prefixed tokens in a declared position
@@ -188,14 +189,14 @@ def lint_spec_requirement_ids(spec_text: str) -> SpecLintResult:
     declaration line's non-lead cells never warn (first-ID-per-line).
     """
     visible = grammar.blank_html_comments(spec_text)
-    declared = set(parse_requirement_ids_from_spec_md(spec_text)["all"])
+    declared = set(parse_requirement_ids_from_spec_md(spec_text, mission_type=mission_type)["all"])
     errors: list[InvalidRequirementId] = []
     warnings: list[RequirementIdWarning] = []
     warned: set[str] = set()
     for line_no, line in enumerate(visible.splitlines(), start=1):
-        if _record_malformed_lead(line, line_no, errors):
+        if _record_malformed_lead(line, line_no, errors, mission_type):
             continue
-        if _matches_declared_shape(line):
+        if _matches_declared_shape(line, mission_type):
             continue
-        _lint_prose_line(line, line_no, declared, warned, warnings)
+        _lint_prose_line(line, line_no, declared, warned, warnings, mission_type)
     return SpecLintResult(errors=tuple(errors), warnings=tuple(warnings))

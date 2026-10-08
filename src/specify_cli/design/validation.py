@@ -48,7 +48,7 @@ def _validate_manifest_graph(manifest: WpsManifest, mission_dir: Path) -> None:
     if not packages or len(packages) > 64 or len(ids) != len(packages):
         raise DesignError("DESIGN_PREREQUISITES_FAILED", "The outline requires 1–64 unique package keys")
     specification = resolve_configured_artifact_name("input.spec.main", get_mission_type(mission_dir))
-    declared = set(parse_requirement_ids_from_spec_md((mission_dir / specification).read_text(encoding="utf-8"))["all"])
+    declared = set(parse_requirement_ids_from_spec_md((mission_dir / specification).read_text(encoding="utf-8"), mission_type=get_mission_type(mission_dir))["all"])
     for entry in packages:
         manifest_prompt_name(manifest, entry.id)
         if len(entry.dependencies) > 64 or set(entry.dependencies) - ids:
@@ -82,7 +82,7 @@ def _validate_source(repo_root: Path, mission_dir: Path, item: ArtifactInput) ->
         substantive = is_substantive(path, kind, mission_type=get_mission_type(mission_dir), project_dir=repo_root)
     if not substantive:
         raise DesignError("DESIGN_PREREQUISITES_FAILED", "The authored source is still a placeholder scaffold")
-    if kind == "spec" and lint_spec_requirement_ids(item.content).blocking:
+    if kind == "spec" and lint_spec_requirement_ids(item.content, mission_type=get_mission_type(mission_dir)).blocking:
         raise DesignError("DESIGN_PREREQUISITES_FAILED", "The specification declares invalid requirement identifiers")
 
 

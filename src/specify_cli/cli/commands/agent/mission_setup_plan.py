@@ -480,8 +480,10 @@ def _evaluate_spec_gate(
     if mission_type == "research":
         blocked_reason = (
             "spec.md must be committed AND substantive before setup-plan can run. "
-            "Populate the primary research question, in-scope boundary, and at least one "
-            "substantive DR/AR/QR requirement each; commit spec.md, then re-run setup-plan."
+            "Under the exact 'Research Question & Scope' heading, populate the primary research "
+            "question and a bare '**Scope**:' line with an in-scope boundary; author at least one "
+            "substantive DR/AR/QR requirement each, replacing shipped template lines; "
+            "commit spec.md, then re-run setup-plan."
         )
     else:
         blocked_reason = (
@@ -557,7 +559,7 @@ def _evaluate_requirement_id_gate(
     """
     from specify_cli.requirement_mapping.lint import lint_spec_requirement_ids
 
-    result = lint_spec_requirement_ids(spec_file.read_text(encoding="utf-8"))
+    result = lint_spec_requirement_ids(spec_file.read_text(encoding="utf-8"), mission_type=get_mission_type(feature_dir))
     if not result.blocking:
         return None, None
 
@@ -590,7 +592,7 @@ def _spec_requirement_id_warnings(spec_file: Path) -> list[dict[str, object]]:
         return []
     from specify_cli.requirement_mapping.lint import lint_spec_requirement_ids
 
-    result = lint_spec_requirement_ids(spec_file.read_text(encoding="utf-8"))
+    result = lint_spec_requirement_ids(spec_file.read_text(encoding="utf-8"), mission_type=get_mission_type(spec_file.parent))
     return [warning.as_dict() for warning in result.warnings]
 
 

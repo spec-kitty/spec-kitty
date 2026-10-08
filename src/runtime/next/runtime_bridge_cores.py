@@ -170,7 +170,7 @@ def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
     return sections
 
 
-def _parse_requirement_refs_from_tasks_md(tasks_content: str, *, grammar: RequirementGrammarLike) -> dict[str, list[str]]:
+def _parse_requirement_refs_from_tasks_md(tasks_content: str, *, grammar: RequirementGrammarLike, mission_type: str = "software-dev") -> dict[str, list[str]]:
     """Parse requirement references per WP from tasks.md content.
 
     ``grammar`` is required, keyword-only, with no default (C-001/C-002):
@@ -178,12 +178,12 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str, *, grammar: Requir
     ``RequirementGrammarLike`` Protocol below.
     """
     return {
-        wp_id: _collect_requirement_refs_for_section(section_content, grammar=grammar)
+        wp_id: _collect_requirement_refs_for_section(section_content, grammar=grammar, mission_type=mission_type)
         for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items()
     }
 
 
-def _collect_requirement_refs_for_section(section_content: str, *, grammar: RequirementGrammarLike) -> list[str]:
+def _collect_requirement_refs_for_section(section_content: str, *, grammar: RequirementGrammarLike, mission_type: str = "software-dev") -> list[str]:
     """Collect deduplicated requirement refs from one WP section."""
     refs: list[str] = []
     in_requirement_ref_list = False
@@ -193,20 +193,20 @@ def _collect_requirement_refs_for_section(section_content: str, *, grammar: Requ
             if not stripped_line:
                 continue
             if stripped_line.startswith(("-", "*")):
-                refs.extend(_iter_requirement_refs(stripped_line, grammar=grammar))
+                refs.extend(_iter_requirement_refs(stripped_line, grammar=grammar, mission_type=mission_type))
                 continue
             in_requirement_ref_list = False
 
         suffix = _requirement_inline_refs_suffix(line)
         if suffix is not None:
-            refs.extend(_iter_requirement_refs(suffix, grammar=grammar))
+            refs.extend(_iter_requirement_refs(suffix, grammar=grammar, mission_type=mission_type))
             continue
         if _is_requirement_heading(stripped_line):
             in_requirement_ref_list = True
     return list(dict.fromkeys(refs))
 
 
-def _iter_requirement_refs(text: str, *, grammar: RequirementGrammarLike) -> list[str]:
+def _iter_requirement_refs(text: str, *, grammar: RequirementGrammarLike, mission_type: str = "software-dev") -> list[str]:
     """Return normalized requirement refs found in ``text`` via the injected grammar.
 
     Uses the same ``find_all(text, spec_scan=False)`` mode the tasks.md
@@ -215,7 +215,8 @@ def _iter_requirement_refs(text: str, *, grammar: RequirementGrammarLike) -> lis
     foreign, else the canonical (kind-uppercase, suffix-lowercase) string.
     No case change happens here: the grammar already canonicalised it.
     """
-    return [str(requirement_id) for requirement_id in grammar.find_all(text, spec_scan=False)]
+    matches = grammar.find_all(text, spec_scan=False, mission_type=mission_type) if mission_type == "research" else grammar.find_all(text, spec_scan=False)
+    return [str(requirement_id) for requirement_id in matches]
 
 
 def _requirement_inline_refs_suffix(line: str) -> str | None:
@@ -315,9 +316,9 @@ class RequirementGrammarLike(Protocol):
 
     # ``Sequence`` (covariant), not ``list``: the cores only iterate the result,
     # and the grammar module returns ``list[RequirementId]`` (#2560 type-check).
-    def find_all(self, text: str, *, spec_scan: bool) -> Sequence[_RequirementIdLike]: ...
+    def find_all(self, text: str, *, spec_scan: bool, mission_type: str = "software-dev") -> Sequence[_RequirementIdLike]: ...
 
-    def classify(self, raw: str, declared: AbstractSet[str]) -> _AcceptedLike | _RejectedLike: ...
+    def classify(self, raw: str, declared: AbstractSet[str], *, mission_type: str = "software-dev") -> _AcceptedLike | _RejectedLike: ...
 
 
 # ---------------------------------------------------------------------------
@@ -341,6 +342,7 @@ class RequirementMappingFacts:
     wp_requirement_refs: Mapping[str, tuple[str, ...]]
     feature_dir_name: str
     grammar: RequirementGrammarLike
+    mission_type: str = "software-dev"
 
 
 def _classify_wp_refs(
@@ -348,6 +350,7 @@ def _classify_wp_refs(
     *,
     grammar: RequirementGrammarLike,
     declared: AbstractSet[str],
+    mission_type: str = "software-dev",
 ) -> tuple[list[str], list[tuple[str, str]]]:
     """Per-ref FR-019 verdicts for one WP's raw refs, via the injected grammar.
 
@@ -361,7 +364,7 @@ def _classify_wp_refs(
     accepted: list[str] = []
     rejected: list[tuple[str, str]] = []
     for raw in refs:
-        verdict = grammar.classify(raw, declared)
+        verdict = grammar.classify(raw, declared, mission_type=mission_type) if mission_type == "research" else grammar.classify(raw, declared)
         if isinstance(verdict, _AcceptedLike):
             accepted.append(verdict.requirement_id.canonical)
         elif isinstance(verdict, _RejectedLike) and verdict.reason in grammar.FAILING_REASONS:
@@ -389,7 +392,7 @@ def _evaluate_requirement_mapping(facts: RequirementMappingFacts) -> list[str]:
 
     for wp_id in facts.wp_ids:
         refs = facts.wp_requirement_refs.get(wp_id, ())
-        accepted, rejected = _classify_wp_refs(refs, grammar=facts.grammar, declared=facts.spec_requirement_ids)
+        accepted, rejected = _classify_wp_refs(refs, grammar=facts.grammar, declared=facts.spec_requirement_ids, mission_type=facts.mission_type)
         if rejected:
             rejected_requirement_refs[wp_id] = sorted(rejected)
         if not accepted:

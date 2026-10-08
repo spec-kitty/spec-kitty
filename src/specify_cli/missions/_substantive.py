@@ -202,6 +202,14 @@ def _has_substantive_fr_row(body: str) -> bool:
 
 def _has_substantive_research_spec(body: str) -> bool:
     """Require a populated research question and scope with native requirements."""
+    from charter.missions import MissionTemplateRepository
+
+    template = (MissionTemplateRepository.default_missions_root() / "research/templates/research-spec-template.md").read_text(encoding="utf-8")
+    template_lines: dict[str, str] = {}
+    for template_line in template.splitlines():
+        template_match = grammar.declared_shape_patterns("research")[2].match(template_line)
+        if template_match is not None:
+            template_lines[template_match.group(1)] = template_line.strip()
     section = _extract_section_body(body, "Research Question & Scope")
     if section is None:
         return False
@@ -217,14 +225,14 @@ def _has_substantive_research_spec(body: str) -> bool:
         return False
     found: set[str] = set()
     for line in grammar.blank_html_comments(requirements).splitlines():
-        match = grammar.DECLARED_LIST_ITEM.match(line)
+        match = grammar.declared_shape_patterns("research")[2].match(line)
         if match is None or grammar.is_compound_tail(line, match.end(1)):
             continue
-        requirement_id = grammar.parse(match.group(1))
+        requirement_id = grammar.parse(match.group(1), mission_type="research")
         if requirement_id is None or requirement_id.kind not in {"DR", "AR", "QR"}:
             continue
         description = line[match.end(1) :].lstrip("* :\t-")
-        if description and "[" not in description and _is_substantive_text(description):
+        if description and "[" not in description and _is_substantive_text(description) and line.strip() != template_lines.get(requirement_id.canonical):
             found.add(requirement_id.kind)
     return found == {"DR", "AR", "QR"}
 

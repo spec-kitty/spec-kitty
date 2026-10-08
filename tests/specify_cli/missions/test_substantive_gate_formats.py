@@ -59,6 +59,15 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
+def test_research_template_with_only_question_and_scope_filled_is_not_substantive(tmp_path: Path) -> None:
+    template = (_REPO_ROOT / "packs/built-in/missions/research/templates/research-spec-template.md").read_text()
+    body = template.replace("[What specific question does this research aim to answer?]", "Which process is most reliable?")
+    body = body.replace("[What will be investigated]", "The process in three teams")
+    spec = tmp_path / "spec.md"
+    spec.write_text(body)
+    assert not is_substantive(spec, "spec", mission_type="research")
+
+
 # Canonical bulleted Technical Context (real values) — the plan-template shape.
 _BULLETED_REAL = """# Implementation Plan
 
