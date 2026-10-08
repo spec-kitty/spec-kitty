@@ -162,7 +162,6 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         # lock around a whole-file replace; none appends an event-log row.
         "specify_cli.doc_analysis.doc_state",
         "specify_cli.migration.backfill_identity",
-        "specify_cli.migration.backfill_topology",
         "specify_cli.migration.mission_state",
         "specify_cli.migration.runtime_state_cutover",
         "specify_cli.upgrade.feature_meta",

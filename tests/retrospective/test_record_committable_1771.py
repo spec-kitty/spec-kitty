@@ -80,7 +80,7 @@ def _seed_divergent_coord_topology(repo_root: Path) -> None:
     leaks into ``.worktrees``; the durable-home authority must not.
     """
     from mission_runtime import MissionTopology
-    from specify_cli.migration.backfill_topology import _write_meta_canonical
+    from tests._meta_write_support import write_meta_canonical as _write_meta_canonical
     from specify_cli.missions._read_path_resolver import coord_feature_dir
 
     meta: dict[str, object] = {

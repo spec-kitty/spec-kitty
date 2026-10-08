@@ -20,7 +20,7 @@ Two contracts are pinned as **executable** assertions:
 Discipline: assertions are over the **observable return value** of each surface
 (topology / kind / bool), never the internal call graph (CT4 / D036). Fixtures are
 production-shaped — a real 26-char ULID + 8-char mid8 — and use the canonical
-``meta.json`` serializer (:func:`_write_meta_canonical`) rather than a hand-rolled
+``meta.json`` serializer (`tests._meta_write_support.write_meta_canonical`) rather than a hand-rolled
 writer that rots (CT3). The relay EXCEPTION arms (meta.json absent / no stored
 ``topology`` field) are degraded inputs that no production create path emits by
 design, so they are constructed directly as the minimal faithful fixture for the
@@ -99,7 +99,7 @@ def test_routes_through_coordination_covers_every_member() -> None:
 # --------------------------------------------------------------------------- #
 def _write_meta(feature_dir: Path, meta: dict[str, object]) -> None:
     """Persist meta via the canonical sorted-key serializer (NOT a rotting writer)."""
-    from specify_cli.migration.backfill_topology import _write_meta_canonical
+    from tests._meta_write_support import write_meta_canonical as _write_meta_canonical
 
     feature_dir.mkdir(parents=True, exist_ok=True)
     _write_meta_canonical(feature_dir / "meta.json", meta)

@@ -31,8 +31,7 @@ from mission_runtime import MissionTopology, classify_topology, routes_through_c
 
 from specify_cli.lanes import CorruptLanesError, read_lanes_json
 from specify_cli.lanes.compute import has_code_lanes
-from specify_cli.mission_metadata import locked_update_meta, write_meta
-from specify_cli.status.mission_write import mission_write_lock
+from specify_cli.mission_metadata import locked_update_meta
 
 logger = logging.getLogger(__name__)
 
@@ -126,16 +125,6 @@ def topology_from_meta(meta: Mapping[str, Any], feature_dir: Path) -> MissionTop
     # (:func:`backfill_mission_topology` via :func:`_derive_topology`) keeps
     # the classic 2x2 cell. See :func:`mission_runtime.unstamped_runtime_topology`.
     return unstamped_runtime_topology(_derive_topology(dict(meta), feature_dir))
-
-
-def _write_meta_canonical(meta_path: Path, meta: dict[str, Any]) -> None:
-    """Persist ``meta`` in the canonical sorted-key form, under the Mission write lock.
-
-    A whole-file replace, for callers that build the complete dict themselves; the backfill writers in
-    this module use :func:`~specify_cli.mission_metadata.locked_update_meta` instead.
-    """
-    with mission_write_lock(meta_path.parent, fallback_to_dir_name=True):
-        write_meta(meta_path.parent, meta, validate=False)
 
 
 def read_topology(feature_dir: Path) -> MissionTopology:
