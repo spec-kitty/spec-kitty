@@ -208,6 +208,8 @@ git status --porcelain --untracked-files=all -- .kittify/doctrine .kittify/chart
 spec-kitty safe-commit <each path git status listed> -m "feat(charter): promote project-local doctrine from generated inputs"
 ```
 
+A renamed file is listed as `R  old -> new`: pass **both** paths to `safe-commit`, or the old path stays in HEAD and a staged deletion is left behind.
+
 ---
 
 ---

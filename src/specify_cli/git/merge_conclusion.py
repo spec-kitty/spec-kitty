@@ -8,6 +8,10 @@ through this module, and the commit-scope gate
 (``tests/architectural/test_commit_scope_owner.py``) exempts only
 :func:`run_committing_op` and :func:`conclude_in_progress_op`, by symbol.
 
+This module only concludes the operation it was handed: it never moves a ref outside
+the commit it concludes. Undoing a conclusion (restoring a branch tip) stays with
+``consolidation/rollback.py``, the single rollback authority.
+
 The design relies on these git behaviours (verified on 2026-10-07 and pinned by
 ``tests/specify_cli/git_commit_scope/test_merge_conclusion_owner.py``):
 
