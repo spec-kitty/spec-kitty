@@ -399,3 +399,7 @@ make docs-lint
 ### Updating Status
 
 Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task <WPID> --to <status>` to change WP status.
+
+## Carry-over from WP20
+
+Test file names still carrying the retired service/bundle names: `test_doctrine_service_*.py`, `test_action_doctrine_bundle_*.py`, `test_doctrine_service_builder_unification.py`, `test_charter_sole_door_doctrine_service.py`, plus test function names containing `doctrine_service` / `doctrine_bundle` (rename only where in your owned scope; otherwise list for WP25).

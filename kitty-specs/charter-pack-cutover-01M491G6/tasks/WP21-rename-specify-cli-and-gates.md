@@ -366,3 +366,12 @@ uv run --frozen ruff format --check --force-exclude <touched files>
 ### Updating Status
 
 Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task <WPID> --to <status>` to change WP status.
+
+## Carry-over from WP20
+
+- Step 0 (red at WP20's base, separate commit, red → green): `tests/architectural/...::test_no_dead_src_path_literals_in_live_docs` — live docs cite src paths renamed/moved by WP19/WP20 (e.g. `doctrine_service_builder.py`, `action_doctrine_bundle.py`, `_doctrine_paths.py`); repoint those literals (path literals only; broader prose stays WP22's).
+- `specify_cli.doctrine_service_factory` now only re-exports `build_active_charter_service` — delete it and repoint importers (no alias).
+- `_build_doctrine_service_with_org_layer` still used in `charter/generate.py`, `charter/activate.py`.
+- `doctrine_root` locals in `pack_tooling.py` (value = built-in pack root → `pack_root`), `authoring.py`, `_status_collectors.py`, `init.py`, `skills/registry.py`; `_fresh_doctrine.py` / `_planned_fresh_doctrine_paths`.
+- Naming convention established: `offering_root` when the value is `resolve_offering_root()` (the charter.offering package dir); `pack_root` when it is a pack root; `charter_service` for service locals.
+- TOOLING CAUTION: `.github/CHANGELOG.md` is a symlink to `docs/changelog/CHANGELOG.md`; textual renames over `git ls-files .github` write through it. Exclude symlinks from bulk rewrites; CHANGELOG is WP24's.
