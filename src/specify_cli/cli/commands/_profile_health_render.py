@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING
 
 from rich.console import Console
 
-from charter.offering.artifact_kinds import ArtifactKind
+from charter.drg import ArtifactKind
 from specify_cli.cli.console import console
 
 if TYPE_CHECKING:
