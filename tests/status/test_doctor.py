@@ -1057,14 +1057,18 @@ class TestRunDoctor:
 def test_doctor_reports_event_wp_without_prompt_even_when_snapshot_is_stale(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "034-test"
     (feature_dir / "tasks").mkdir(parents=True)
-    _create_events_file(feature_dir, {"WP08": "planned"}, "2026-01-01T00:00:00Z", create_prompts=False)
+    _create_events_file(feature_dir, {"WP08": "planned", "WP09": "done"}, "2026-01-01T00:00:00Z", create_prompts=False)
+    _create_wp_prompt(feature_dir, "WP02")
     (feature_dir / "status.json").write_text(json.dumps({"work_packages": {}}), encoding="utf-8")
 
     result = run_doctor(feature_dir, "034-test", tmp_path)
 
     findings = result.findings_by_category(Category.WP_FILE_DRIFT)
-    assert len(findings) == 1
-    assert findings[0].wp_id == "WP08"
+    assert [(finding.wp_id, finding.severity) for finding in findings] == [
+        ("WP08", Severity.ERROR),
+        ("WP09", Severity.WARNING),
+        ("WP02", Severity.ERROR),
+    ]
     assert "tasks/" in findings[0].message
     assert result.has_errors
 
@@ -1089,19 +1093,6 @@ def test_wp_reconciliation_reports_prompt_without_event_and_ignores_readme(tmp_p
     assert findings[0].message == "tasks/WP02-work-copy.md and tasks/WP02-work.md both declare WP02."
     assert findings[0].recommended_action == "Keep one prompt per work package."
     assert findings[1].message == "Cannot read work-package identity from tasks/WP05-bad.md."
-
-
-def test_doctor_reports_prompt_without_event_status(tmp_path: Path) -> None:
-    feature_dir = tmp_path / "kitty-specs" / "034-test"
-    feature_dir.mkdir(parents=True)
-    _create_events_file(feature_dir, {"WP01": "planned"}, "2026-01-01T00:00:00Z")
-    _create_wp_prompt(feature_dir, "WP02")
-
-    result = run_doctor(feature_dir, "034-test", tmp_path)
-
-    findings = result.findings_by_category(Category.WP_FILE_DRIFT)
-    assert [finding.wp_id for finding in findings] == ["WP02"]
-    assert result.has_errors
 
 
 # ---------------------------------------------------------------------------
