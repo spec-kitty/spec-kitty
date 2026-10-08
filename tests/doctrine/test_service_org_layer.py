@@ -1,4 +1,4 @@
-"""Unit tests for DoctrineService three-layer (shipped/org/project) resolution.
+"""Unit tests for CharterOfferingService three-layer (shipped/org/project) resolution.
 
 Covers T015 of WP03 in mission ``layered-doctrine-org-layer-01KRNPEE``.
 
@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -52,7 +52,7 @@ def _directive_yaml(
 def _packs_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     """Point ``SPEC_KITTY_PACKS_ROOT`` at an isolated flat ``<tmp>/packs/built-in/`` tree.
 
-    Replaces the retired ``DoctrineService(built_in_root=...)`` param (C-007):
+    Replaces the retired ``CharterOfferingService(built_in_root=...)`` param (C-007):
     the built-in tier is now injected via the env override instead of a
     constructor kwarg, and the on-disk layout is FLAT (``packs/built-in/<kind>/``),
     not the old nested ``<root>/<kind>/built-in/`` shape.
@@ -70,7 +70,7 @@ class TestNoOrgRoot:
     """When org_roots is empty, _org_dirs returns [] for all artifact types."""
 
     def test_org_dirs_empty_when_org_roots_empty(self) -> None:
-        service = DoctrineService(org_roots=[])
+        service = CharterOfferingService(org_roots=[])
         for artifact in (
             "directives",
             "tactics",
@@ -85,7 +85,7 @@ class TestNoOrgRoot:
 
     def test_org_dirs_empty_when_org_roots_not_provided(self) -> None:
         """Default (None passed for org_roots) is equivalent to empty list."""
-        service = DoctrineService()
+        service = CharterOfferingService()
         assert service._org_dirs("directives") == []
         assert service._org_roots == []
 
@@ -96,7 +96,7 @@ class TestNoOrgRoot:
         # Use an isolated (empty) packs root so we don't pick up the real
         # shipped directives.
         _packs_root(monkeypatch, tmp_path)
-        service = DoctrineService(org_roots=[])
+        service = CharterOfferingService(org_roots=[])
         # Accessing the repository must not raise
         repo = service.directives
         assert repo is not None
@@ -108,7 +108,7 @@ class TestSingleOrgRoot:
 
     def test_org_dirs_returns_correct_path(self, tmp_path: Path) -> None:
         org_root = tmp_path / "org"
-        service = DoctrineService(org_roots=[org_root])
+        service = CharterOfferingService(org_roots=[org_root])
 
         assert service._org_dirs("directives") == [org_root / "directives"]
         assert service._org_dirs("tactics") == [org_root / "tactics"]
@@ -117,7 +117,7 @@ class TestSingleOrgRoot:
     def test_org_roots_internal_list(self, tmp_path: Path) -> None:
         """org_roots stores the provided paths verbatim."""
         org_root = tmp_path / "org"
-        service = DoctrineService(org_roots=[org_root])
+        service = CharterOfferingService(org_roots=[org_root])
         assert service._org_roots == [org_root]
 
     def test_all_org_roots_returned_in_declaration_order(self, tmp_path: Path) -> None:
@@ -125,7 +125,7 @@ class TestSingleOrgRoot:
         first = tmp_path / "org-first"
         second = tmp_path / "org-second"
         third = tmp_path / "org-third"
-        service = DoctrineService(org_roots=[first, second, third])
+        service = CharterOfferingService(org_roots=[first, second, third])
 
         assert service._org_dirs("directives") == [
             first / "directives",
@@ -135,7 +135,7 @@ class TestSingleOrgRoot:
 
     def test_org_dirs_empty_when_no_org_roots(self) -> None:
         """_org_dirs returns an empty list when no org roots are configured."""
-        service = DoctrineService()
+        service = CharterOfferingService()
         assert service._org_dirs("directives") == []
 
 
@@ -146,7 +146,7 @@ class TestOrgRootMissingOnDisk:
         nonexistent = tmp_path / "no-such-org"
         assert not nonexistent.exists()
 
-        service = DoctrineService(org_roots=[nonexistent])
+        service = CharterOfferingService(org_roots=[nonexistent])
         # _org_dirs still returns the path (existence check is repo's responsibility)
         assert service._org_dirs("directives") == [nonexistent / "directives"]
 
@@ -161,7 +161,7 @@ class TestOrgRootMissingOnDisk:
         )
 
         nonexistent_org = tmp_path / "no-such-org"
-        service = DoctrineService(org_roots=[nonexistent_org])
+        service = CharterOfferingService(org_roots=[nonexistent_org])
 
         # Must not raise; shipped artifact is still accessible
         directive = service.directives.get("DIRECTIVE_001")
@@ -177,7 +177,7 @@ class TestOrgRootMissingOnDisk:
             _directive_yaml("DIRECTIVE_001", title="Shipped Only"),
         )
 
-        service = DoctrineService(org_roots=[tmp_path / "nonexistent"])
+        service = CharterOfferingService(org_roots=[tmp_path / "nonexistent"])
 
         assert service.directives.get("DIRECTIVE_001") is not None
         assert service.directives.get_provenance("DIRECTIVE_001") == "builtin"
@@ -203,7 +203,7 @@ class TestOrgRootArtifactsResolved:
             _directive_yaml("DIRECTIVE_ORG", title="Org Title"),
         )
 
-        service = DoctrineService(org_roots=[org_root])
+        service = CharterOfferingService(org_roots=[org_root])
 
         org_directive = service.directives.get("DIRECTIVE_ORG")
         assert org_directive is not None
@@ -225,7 +225,7 @@ class TestOrgRootArtifactsResolved:
             _directive_yaml("DIRECTIVE_001", title="Org Override"),
         )
 
-        service = DoctrineService(org_roots=[org_root])
+        service = CharterOfferingService(org_roots=[org_root])
 
         directive = service.directives.get("DIRECTIVE_001")
         assert directive is not None
@@ -252,7 +252,7 @@ class TestOrgRootArtifactsResolved:
             _directive_yaml("DIRECTIVE_001", title="Project Override"),
         )
 
-        service = DoctrineService(org_roots=[org_root], project_root=project_root)
+        service = CharterOfferingService(org_roots=[org_root], project_root=project_root)
 
         directive = service.directives.get("DIRECTIVE_001")
         assert directive is not None
@@ -275,8 +275,8 @@ class TestOrgRootArtifactsResolved:
             _directive_yaml("DIRECTIVE_ORG"),
         )
 
-        svc_a = DoctrineService(org_roots=[org_root])
-        svc_b = DoctrineService(org_roots=[org_root])
+        svc_a = CharterOfferingService(org_roots=[org_root])
+        svc_b = CharterOfferingService(org_roots=[org_root])
 
         assert svc_a.directives is not svc_b.directives
 
@@ -299,8 +299,8 @@ class TestDeterminism:
             _directive_yaml("DIRECTIVE_002", title="Org"),
         )
 
-        service_a = DoctrineService(org_roots=[org_root])
-        service_b = DoctrineService(org_roots=[org_root])
+        service_a = CharterOfferingService(org_roots=[org_root])
+        service_b = CharterOfferingService(org_roots=[org_root])
 
         ids_a = {d.id for d in service_a.directives.list_all()}
         ids_b = {d.id for d in service_b.directives.list_all()}
@@ -311,7 +311,7 @@ class TestDeterminism:
 
     def test_repeated_property_access_returns_cached_object(self, tmp_path: Path) -> None:
         """The lazy cache returns the same repository object on subsequent accesses."""
-        service = DoctrineService(org_roots=[tmp_path / "org"])
+        service = CharterOfferingService(org_roots=[tmp_path / "org"])
 
         first = service.directives
         second = service.directives
@@ -327,8 +327,8 @@ class TestDeterminism:
             _directive_yaml("DIRECTIVE_001"),
         )
 
-        svc_explicit = DoctrineService(org_roots=[])
-        svc_default = DoctrineService()
+        svc_explicit = CharterOfferingService(org_roots=[])
+        svc_default = CharterOfferingService()
 
         ids_explicit = {d.id for d in svc_explicit.directives.list_all()}
         ids_default = {d.id for d in svc_default.directives.list_all()}
@@ -360,7 +360,7 @@ class TestMultiplePackPrecedence:
             _directive_yaml("DIRECTIVE_001", title="Pack B"),
         )
 
-        service = DoctrineService(org_roots=[pack_a, pack_b])
+        service = CharterOfferingService(org_roots=[pack_a, pack_b])
 
         directive = service.directives.get("DIRECTIVE_001")
         assert directive is not None
@@ -388,7 +388,7 @@ class TestMultiplePackPrecedence:
             _directive_yaml("DIRECTIVE_COMP", title="Compliance"),
         )
 
-        service = DoctrineService(org_roots=[pack_security, pack_compliance])
+        service = CharterOfferingService(org_roots=[pack_security, pack_compliance])
 
         ids = {d.id for d in service.directives.list_all()}
         assert ids == {"DIRECTIVE_001", "DIRECTIVE_SEC", "DIRECTIVE_COMP"}
@@ -415,7 +415,7 @@ class TestMultiplePackPrecedence:
                 _directive_yaml("DIRECTIVE_001", title=label),
             )
 
-        service = DoctrineService(org_roots=[pack1, pack2, pack3])
+        service = CharterOfferingService(org_roots=[pack1, pack2, pack3])
 
         directive = service.directives.get("DIRECTIVE_001")
         assert directive is not None
@@ -447,7 +447,7 @@ class TestMultiplePackPrecedence:
             _directive_yaml("DIRECTIVE_001", title="Project"),
         )
 
-        service = DoctrineService(
+        service = CharterOfferingService(
             org_roots=[pack_a, pack_b],
             project_root=project_root,
         )
@@ -474,7 +474,7 @@ class TestMultiplePackPrecedence:
             _directive_yaml("DIRECTIVE_REAL", title="Real"),
         )
 
-        service = DoctrineService(org_roots=[pack_missing, pack_real])
+        service = CharterOfferingService(org_roots=[pack_missing, pack_real])
 
         ids = {d.id for d in service.directives.list_all()}
         assert ids == {"DIRECTIVE_001", "DIRECTIVE_REAL"}

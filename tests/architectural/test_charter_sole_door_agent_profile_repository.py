@@ -50,7 +50,7 @@ Gate 2.
 Structural exemptions (directory/file keyed, never line keyed)
 ---------------------------------------------------------------
 * ``src/charter/offering/`` — the doctrine layer *owns* this class and the raw
-  ``charter.offering.service.DoctrineService`` that composes it
+  ``charter.offering.service.CharterOfferingService`` that composes it
   (``doctrine/service.py``'s ``DoctrineService.agent_profiles`` cache). That
   construction is the thing the sole door wraps, not a bypass of it — the same
   shape as Gate 5's ``src/charter/`` exemption.

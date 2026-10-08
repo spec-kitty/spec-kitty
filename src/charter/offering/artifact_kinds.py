@@ -412,8 +412,8 @@ _SINGULAR_PROJECT_DIR_KINDS: frozenset[ArtifactKind] = frozenset(
 #: **Canonical project-tier directory authority** (WP03 / R-009 / CC-4).
 #:
 #: Maps every :class:`ArtifactKind` to the directory name its artifacts live
-#: under in a project overlay (``.kittify/doctrine/<dir>/``). This is the single
-#: source of truth the ``charter new`` scaffolder, :class:`DoctrineService`'s
+#: under in a project overlay (``.kittify/charter-packs/<dir>/``). This is the single
+#: source of truth the ``charter new`` scaffolder, :class:`~charter.offering.service.CharterOfferingService`'s
 #: project-dir resolver (``charter.offering.service``), and the charter resolvers
 #: (``charter.activation.kind_vocabulary`` / ``charter.activation.pack_manager``) all import — **no
 #: consumer re-declares it** (the module docstring's "no second kind

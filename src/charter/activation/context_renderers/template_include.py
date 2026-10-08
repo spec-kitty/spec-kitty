@@ -52,7 +52,7 @@ from charter.activation.context_renderers.section_bodies import render_critical_
 from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 
 if TYPE_CHECKING:
-    import charter.offering.service as _doctrine_service_module
+    import charter.offering.service as _offering_service_module
     from charter.offering.artifact_kinds import ArtifactKind
 
     from charter.repository_protocol import ArtifactRepository
@@ -171,7 +171,7 @@ def _render_tactic_include(tactics: ArtifactRepository[Any], identifier: str, se
     )
 
 
-def _render_generic_artifact_include(service: _doctrine_service_module.DoctrineService, identifier: str) -> str:
+def _render_generic_artifact_include(service: _offering_service_module.CharterOfferingService, identifier: str) -> str:
     """Resolve a best-effort ``artifact:<id>`` selector emitted by activations."""
 
     from charter.offering.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
@@ -384,7 +384,7 @@ def _render_agent_profile_include_selector(
 
 
 def _render_catalog_kind_include_selector(
-    service: _doctrine_service_module.DoctrineService,
+    service: _offering_service_module.CharterOfferingService,
     canonical_kind: str,
     identifier: str,
     selector: str,

@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -73,8 +73,8 @@ def test_doctrine_service_overlay_dir_directs_project_dir(tmp_path: Path) -> Non
     overlay = tmp_path / _PROJECT_OVERLAY
     overlay.mkdir(parents=True)
 
-    unset = DoctrineService(project_root=tmp_path)
+    unset = CharterOfferingService(project_root=tmp_path)
     assert unset.agent_profiles._project_dir == unset._project_dir("agent_profiles")
 
-    directed = DoctrineService(project_root=tmp_path, agent_profile_overlay_dir=overlay)
+    directed = CharterOfferingService(project_root=tmp_path, agent_profile_overlay_dir=overlay)
     assert directed.agent_profiles._project_dir == overlay

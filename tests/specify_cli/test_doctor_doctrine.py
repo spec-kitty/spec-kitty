@@ -570,7 +570,7 @@ def test_collector_crash_is_unhealthy_not_vacuous_green() -> None:
 
     # ``DoctrineService`` is imported locally inside ``_collect_profile_health``,
     # so patch it at its definition site to force the load to crash.
-    with patch("charter.offering.service.DoctrineService", side_effect=_boom):
+    with patch("charter.offering.service.CharterOfferingService", side_effect=_boom):
         report = doctor_mod._collect_profile_health(_Path("/nonexistent-repo"))
 
     assert report.healthy is False, "a crashed collector must not be green"

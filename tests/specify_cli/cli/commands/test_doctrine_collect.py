@@ -104,7 +104,7 @@ def test_collect_profile_health_records_crash(monkeypatch: pytest.MonkeyPatch, t
     def _boom(*_a: Any, **_k: Any) -> Any:
         raise RuntimeError("load failed")
 
-    monkeypatch.setattr(svc, "DoctrineService", _boom)
+    monkeypatch.setattr(svc, "CharterOfferingService", _boom)
     report = collect._collect_profile_health(tmp_path)
     assert any("profile-health load error" in e for e in report.org_drg["errors"])
     # Honest unhealthy: a recorded crash must not be vacuously green.
@@ -246,7 +246,7 @@ def test_build_selection_block_dedup_and_order(monkeypatch: pytest.MonkeyPatch, 
 
     import charter.offering.service as svc
 
-    monkeypatch.setattr(svc, "DoctrineService", lambda **k: object())
+    monkeypatch.setattr(svc, "CharterOfferingService", lambda **k: object())
 
     block = collect._build_selection_block(tmp_path)
     ids = [e["id"] for e in block["directives"]]

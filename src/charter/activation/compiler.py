@@ -348,7 +348,7 @@ def resolve_config_activated_roots(
 if TYPE_CHECKING:
     # WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011): this name
     # now denotes the activation-aware wrapper, not the raw
-    # ``charter.offering.service.DoctrineService``. Every real caller already passes
+    # ``charter.offering.service.CharterOfferingService``. Every real caller already passes
     # (or, after this WP, receives from :func:`_default_doctrine_service`) a
     # wrapped instance -- ``generate.py``/``pack.py`` via
     # ``_build_doctrine_service_with_org_layer``, this module via the change
@@ -1100,7 +1100,7 @@ def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
     and byte-identical behaviour to the pre-Phase-3 default (R-2 mitigation).
 
     WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011): this used
-    to construct a raw, unwrapped ``charter.offering.service.DoctrineService``
+    to construct a raw, unwrapped ``charter.offering.service.CharterOfferingService``
     directly -- one of the six original FR-002 violation sites. When
     *repo_root* is available, construction now routes through WP01's single
     unified builder, :func:`charter.activation.doctrine_service_builder.
@@ -1142,13 +1142,13 @@ def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
         return build_activation_aware_doctrine_service(repo_root)
 
     from charter.activation.resolver import DoctrineService as _ActivationAwareDoctrineService
-    from charter.offering.service import DoctrineService as _RawDoctrineService
+    from charter.offering.service import CharterOfferingService
 
     # No built_in_root kwarg: repositories self-resolve packs/built-in/<kind>
     # via the built_in_dir seam (default None is behaviour-preserving here;
     # WP04 drops the now-dead param from DoctrineService entirely).
     # resolve_doctrine_root() post-relocation points at the emptied src/doctrine tree.
-    return _ActivationAwareDoctrineService(_RawDoctrineService(project_root=None))
+    return _ActivationAwareDoctrineService(CharterOfferingService(project_root=None))
 
 
 def _build_references(
@@ -1194,7 +1194,7 @@ def _raw_kind_repository(doctrine_service: DoctrineService, kind: str) -> Any:
       ACTIVATION-FILTERED dict -- so its dedicated ``raw_repository(kind)``
       accessor is used instead (#4785 Finding 4b: a DRG-transitively-reached
       id can legitimately fall outside that filtered subset);
-    - a raw, unwrapped ``charter.offering.service.DoctrineService``, whose
+    - a raw, unwrapped ``charter.offering.service.CharterOfferingService``, whose
       same-named properties are ALREADY the unfiltered repository object (no
       ``raw_repository`` method exists on it, nor is one needed).
 

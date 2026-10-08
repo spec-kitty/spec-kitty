@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    import charter.offering.service as _doctrine_service_module
+    import charter.offering.service as _offering_service_module
 
 from ruamel.yaml.error import YAMLError
 
@@ -183,7 +183,7 @@ def _load_project_directives(
     return local_by_id, directive_ids
 
 
-def _maybe_build_doctrine_service(repo_root: Path) -> _doctrine_service_module.DoctrineService | None:
+def _maybe_build_doctrine_service(repo_root: Path) -> _offering_service_module.CharterOfferingService | None:
     try:
         from charter.activation.context import _build_doctrine_service  # noqa: PLC0415
 
@@ -209,7 +209,7 @@ _EMPTY_ORG_CHARTER: dict[str, object] = {"present": False, "packs": []}
 def _assemble_directive_entries(
     directive_ids: list[str],
     local_by_id: dict[str, object],
-    service: _doctrine_service_module.DoctrineService | None,
+    service: _offering_service_module.CharterOfferingService | None,
 ) -> list[dict[str, object]]:
     """Build the per-directive ``all_directives`` entries from resolved IDs."""
     entries: list[dict[str, object]] = []

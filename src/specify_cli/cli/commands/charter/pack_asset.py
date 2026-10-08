@@ -2,7 +2,7 @@
 
 WP05 (``doctrine-delivery-reachability``). Two read-only commands let an
 operator see and resolve shipped/overlay doctrine assets, reading exclusively
-through :class:`charter.offering.service.DoctrineService` ``.assets`` (the WP04
+through :class:`charter.offering.service.CharterOfferingService` ``.assets`` (the WP04
 :class:`~charter.offering.assets.repository.AssetRepository`):
 
 * ``asset list [--json]`` — every resolvable asset with its source tier.
@@ -65,7 +65,7 @@ def _build_asset_repository() -> AssetRepository:
     ``charter.activation.resolver.DoctrineService`` wrapper (normal, activation-aware
     construction — a real ``PackContext`` when *repo_root* is available) so
     no code outside ``charter.activation.resolver``/the unified builder constructs
-    ``charter.offering.service.DoctrineService`` directly (NFR-001). ``.assets`` is a
+    ``charter.offering.service.CharterOfferingService`` directly (NFR-001). ``.assets`` is a
     non-charter-activatable kind (``ArtifactKind.ASSET`` is excluded via
     ``_NON_AUGMENTATION_ELIGIBLE_KINDS``), so it has no gated property on the
     wrapper and falls through ``__getattr__`` to the raw
@@ -74,7 +74,7 @@ def _build_asset_repository() -> AssetRepository:
     pre-existing ``repo_root is None`` clean-install branch (no project
     overlay, no org packs) is unchanged.
     """
-    from charter.offering.service import DoctrineService as RawDoctrineService
+    from charter.offering.service import CharterOfferingService
     from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.activation.pack_context import PackContext
     from specify_cli.core.paths import locate_project_root
@@ -91,7 +91,7 @@ def _build_asset_repository() -> AssetRepository:
         org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
         pack_context = PackContext.from_config(repo_root)
 
-    inner = RawDoctrineService(project_root=project_root, org_roots=org_roots)
+    inner = CharterOfferingService(project_root=project_root, org_roots=org_roots)
     service = ActivationAwareDoctrineService(inner, pack_context=pack_context)
     # ``.assets`` delegates through the wrapper's ``__getattr__`` (typed
     # ``-> Any``, since it forwards arbitrary attribute names), so mypy

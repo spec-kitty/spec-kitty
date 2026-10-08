@@ -615,7 +615,7 @@ def test_i1_i2_carve_out_transitive_only_id_under_graph_load_failure(tmp_path: P
 
 
 class _RawUnwrappedDoctrineServiceDouble:
-    """A raw/unwrapped ``charter.offering.service.DoctrineService`` double: no
+    """A raw/unwrapped ``charter.offering.service.CharterOfferingService`` double: no
     ``raw_repository`` method (per ``_raw_kind_repository``'s own docstring
     branch), and no attribute matching an untracked kind such as
     ``"templates"``/``"anti_patterns"``.

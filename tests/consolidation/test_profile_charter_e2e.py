@@ -12,7 +12,7 @@ from typer.testing import CliRunner
 
 import pytest
 
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 from specify_cli.cli.commands.charter import app
 from charter.activation.catalog import DoctrineCatalog
 from charter.activation.compiler import compile_charter, write_compiled_charter
@@ -39,8 +39,8 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
 ) -> None:
     # ``built_in_root`` still simulates the doctrine root ``resolve_doctrine_root``
     # is patched to return below (missions/ and the synthetic graph.yaml -- both
-    # unrelated to the WP04 DoctrineService seam). The directive/tactic/
-    # styleguide/agent_profile content DoctrineService itself resolves lives in
+    # unrelated to the WP04 CharterOfferingService seam). The directive/tactic/
+    # styleguide/agent_profile content CharterOfferingService itself resolves lives in
     # a SEPARATE flat ``packs/built-in/<kind>/`` tree, injected via
     # SPEC_KITTY_PACKS_ROOT (the removed built_in_root= param's replacement).
     built_in_root = tmp_path / "doctrine"
@@ -188,7 +188,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
         },
     )
 
-    doctrine_service = DoctrineService()
+    doctrine_service = CharterOfferingService()
     doctrine_catalog = DoctrineCatalog(
         paradigms=frozenset(),
         directives=frozenset({"REVIEW_FIRST", "INTERVIEW_ONLY"}),

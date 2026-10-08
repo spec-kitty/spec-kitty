@@ -664,8 +664,8 @@ reports `synced=False` / `files_written=[]`, regardless of `--force`.
 `charter.activation.resolver.DoctrineService` — built through
 `charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service` —
 is the single, sanctioned entry point for programmatic access to all doctrine
-artifacts. It wraps the inner `charter.offering.service.DoctrineService` and applies
-charter activation filtering; never construct `charter.offering.service.DoctrineService`
+artifacts. It wraps the inner `charter.offering.service.CharterOfferingService` and applies
+charter activation filtering; never construct `charter.offering.service.CharterOfferingService`
 or `charter.offering.agent_profiles.AgentProfileRepository` directly (five
 architectural gates in `tests/architectural/` ban that construction outside
 this module).

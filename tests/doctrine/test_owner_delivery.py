@@ -123,9 +123,9 @@ def test_directive_052_is_carried_by_test_first_bug_fixing(tmp_path: Path) -> No
 
 def test_disposition_contract_ships_inside_the_delivered_procedure() -> None:
     """The contract is part of the procedure, so procedure delivery carries it."""
-    from charter.offering.service import DoctrineService
+    from charter.offering.service import CharterOfferingService
 
-    procedure = DoctrineService().procedures.get("adversarial-squad-deployment")
+    procedure = CharterOfferingService().procedures.get("adversarial-squad-deployment")
     assert procedure is not None
     text = procedure.model_dump_json()
     for disposition in ("accepted", "changed", "deferred_with_rationale"):

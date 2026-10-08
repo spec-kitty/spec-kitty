@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from charter.activation.pack_context import PackContext
     from charter.offering.drg.models import DRGGraph
-    import charter.offering.service as _doctrine_service_module
+    import charter.offering.service as _offering_service_module
 
 from charter.activation.catalog import load_doctrine_catalog
 from charter.activation.language_scope import infer_repo_languages
@@ -126,7 +126,7 @@ class _ActionDoctrineBundle:
     toolguide_ids: list[str]
     procedure_ids: list[str]
     asset_ids: list[str]
-    service: _doctrine_service_module.DoctrineService
+    service: _offering_service_module.CharterOfferingService
     # WP01 (deliver-loaded-doctrine, FR-001/FR-002): glossary-pack ids delivered
     # to the ``glossary_packs`` slot, mirroring ``procedure_ids``/``asset_ids``.
     # Defaulted (not a trailing required field) so the pre-existing bundle
@@ -165,7 +165,7 @@ _LANGUAGE_SCOPED_SLOTS = ("tactics", "styleguides", "toolguides", "procedures")
 
 def _drop_scope_filtered_ids(
     ids_by_slot: Mapping[str, tuple[str, ...]],
-    service: _doctrine_service_module.DoctrineService,
+    service: _offering_service_module.CharterOfferingService,
     repo_root: Path,
 ) -> Mapping[str, tuple[str, ...]]:
     """For any project with a language signal, drop ids the service scope-filtered out (FR-009, #5357).

@@ -36,7 +36,7 @@ from charter.activation.compiler import compile_charter
 from charter.activation.effective_set import resolve_effective_sets
 from charter.activation.interview import CharterInterview, default_interview
 from charter.activation.pack_context import PackContext
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 from charter.activation.org_charter import (
     REQUIRED_KIND_FIELDS,
     apply_org_charter_to_interview,
@@ -137,7 +137,7 @@ def _read_config_yaml(consumer: Path) -> dict:
 
 def _compile(project_root: Path, interview: CharterInterview):
     pack_context = PackContext.from_config(project_root)
-    doctrine_service = DoctrineService()
+    doctrine_service = CharterOfferingService()
     return compile_charter(
         mission=interview.mission,
         interview=interview,

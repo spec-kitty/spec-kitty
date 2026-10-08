@@ -144,7 +144,7 @@ def _write_org_directive(org_pack_root: Path, *, stem: str, canonical_id: str) -
     ``<root>/<plural>/built-in/*.yaml``. This mirrors that exact shape so the
     fixture is reachable through the precise code path Fix A repairs -- not
     the (different) ``<root>/<plural>/*.yaml`` layout used by
-    ``charter.offering.service.DoctrineService``'s org layer elsewhere in the suite.
+    ``charter.offering.service.CharterOfferingService``'s org layer elsewhere in the suite.
     """
     directive_dir = org_pack_root / "directives" / "built-in"
     directive_dir.mkdir(parents=True, exist_ok=True)

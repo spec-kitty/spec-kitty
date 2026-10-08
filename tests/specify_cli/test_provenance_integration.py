@@ -55,7 +55,7 @@ def _directive(directive_id: str, title: str) -> dict:
 
 
 class TestProvenanceServiceIntegration:
-    """End-to-end provenance via the shared ``DoctrineService`` factory."""
+    """End-to-end provenance via the shared ``CharterOfferingService`` factory."""
 
     def test_org_overrides_builtin_provenance_resolves_to_org(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -81,9 +81,9 @@ class TestProvenanceServiceIntegration:
             _directive("ORG-001", "Org-only Directive"),
         )
 
-        from charter.offering.service import DoctrineService
+        from charter.offering.service import CharterOfferingService
 
-        service = DoctrineService(org_roots=[org_root])
+        service = CharterOfferingService(org_roots=[org_root])
 
         assert service.directives.get_provenance("DIRECTIVE_001") == "org"
         assert service.directives.get_provenance("ORG-001") == "org"
@@ -166,7 +166,7 @@ class TestLintOrgOverridesAdvisory:
         assert "org_charter_deviation" in _CHECK_MAP
 
     def test_org_overrides_checker_emits_advisory(self, tmp_path: Path, monkeypatch) -> None:
-        """Patch ``DoctrineService`` factories to point at controllable directories."""
+        """Patch ``CharterOfferingService`` factories to point at controllable directories."""
         # Build the shipped + org snapshots used by both services.
         built_in_root = tmp_path / "built-in"
         _write_yaml(
@@ -183,7 +183,7 @@ class TestLintOrgOverridesAdvisory:
         repo_root.mkdir()
         write_org_packs(repo_root, [{"name": "acme", "local_path": org_root}])
 
-        # Patch the lazy ``DoctrineService`` builders inside the checker so
+        # Patch the lazy ``CharterOfferingService`` builders inside the checker so
         # they consume the synthetic shipped/project roots.  We swap the
         # underlying resolver before invoking ``checker.run``.
         from specify_cli.charter_runtime.lint.checks import org_layer

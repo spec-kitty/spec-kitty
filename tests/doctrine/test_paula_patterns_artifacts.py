@@ -5,19 +5,19 @@ from __future__ import annotations
 import pytest
 
 from charter.offering.drg.models import DRGGraph
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 @pytest.fixture(scope="module")
-def service() -> DoctrineService:
+def service() -> CharterOfferingService:
     # No explicit built-in root: repositories self-resolve packs/built-in/<kind>
     # (WP04 seam); src/doctrine is emptied post-relocation.
-    return DoctrineService()
+    return CharterOfferingService()
 
 
-def test_paula_patterns_tactic_loads(service: DoctrineService) -> None:
+def test_paula_patterns_tactic_loads(service: CharterOfferingService) -> None:
     tactic = service.tactics.get("paula-patterns-architecture-scout-review")
 
     assert tactic is not None
@@ -28,7 +28,7 @@ def test_paula_patterns_tactic_loads(service: DoctrineService) -> None:
     assert "InstalledCliRuntime" in (tactic.notes or "")
 
 
-def test_paula_patterns_profile_loads(service: DoctrineService) -> None:
+def test_paula_patterns_profile_loads(service: CharterOfferingService) -> None:
     profile = service.agent_profiles.get("paula-patterns")
 
     assert profile is not None

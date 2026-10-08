@@ -68,7 +68,7 @@ SOLE_DOOR_REL_PATH = "src/charter/activation/resolver.py"
 #: The ONE unified builder (FR-008).
 UNIFIED_BUILDER_REL_PATH = "src/charter/activation/doctrine_service_builder.py"
 #: The doctrine layer owns the wrapped subject (Gate 1/Gate 2's shared
-#: rationale: the raw charter.offering.service.DoctrineService construction inside
+#: rationale: the raw charter.offering.service.CharterOfferingService construction inside
 #: doctrine/service.py IS the thing the sole door wraps, not a bypass of it).
 DOCTRINE_LAYER_PREFIX = "src/charter/offering/"
 
@@ -452,7 +452,7 @@ def scan_file_constructions(
     Passing more than one target lets a caller classify sibling classes that
     share a source spelling in a **single parse**, so the resulting node
     identities are comparable (Gate 2 needs exactly that for
-    ``charter.offering.service.DoctrineService`` vs ``charter.activation.resolver.DoctrineService``).
+    ``charter.offering.service.CharterOfferingService`` vs ``charter.activation.resolver.DoctrineService``).
 
     Returns ``None`` when a cheap substring pre-check (below) proves the file
     holds no possible match — every caller treats that as "nothing here" (see e.g.

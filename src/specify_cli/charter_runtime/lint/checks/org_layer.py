@@ -267,7 +267,7 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     treats ``pack_context is None`` as "admit all"; this call site is
     distinguished from every activation-gated caller ONLY by that explicit
     argument, never by a different class or a raw, unwrapped
-    ``charter.offering.service.DoctrineService`` returned directly (the cycle-1
+    ``charter.offering.service.CharterOfferingService`` returned directly (the cycle-1
     violation: this function previously returned the raw inner service
     under a docstring-authorized "exception" that C-002 does not sanction —
     a docstring is not an escalation, and the claimed
@@ -290,7 +290,7 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     The inner service is built via
     :func:`charter.activation.doctrine_service_builder._build_doctrine_service` — the
     ONE function in this codebase permitted to construct a raw
-    ``charter.offering.service.DoctrineService`` (NFR-001) — so this scan path
+    ``charter.offering.service.CharterOfferingService`` (NFR-001) — so this scan path
     shares the same ``active_languages``/``project_root`` resolution as
     every other consumer of the unified builder, rather than a bespoke
     shape that could silently drift from it.

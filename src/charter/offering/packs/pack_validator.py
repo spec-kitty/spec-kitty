@@ -1208,18 +1208,18 @@ def _check_profile_skipped_diagnostics(
     (AC-5).
 
     Construction seam: ``AgentProfileRepository`` is built directly, on
-    purpose — NOT routed through ``charter.offering.service.DoctrineService``. This
+    purpose — NOT routed through ``charter.offering.service.CharterOfferingService``. This
     call site validates an arbitrary ``pack_dir`` (a pack under authoring,
     not this repo's own doctrine layer), so it needs an explicit
     ``org_roots`` override; the sole-door architectural gate
     (``tests/architectural/test_charter_sole_door_doctrine_service.py``)
-    bans raw ``charter.offering.service.DoctrineService`` construction outside
+    bans raw ``charter.offering.service.CharterOfferingService`` construction outside
     ``charter.activation.doctrine_service_builder``, and that builder's public entry
     point (``build_activation_aware_doctrine_service``) takes only
     ``repo_root`` and self-resolves ``org_roots`` — it cannot target an
     arbitrary pack directory. The gate's documented escape hatch,
     constructing ``charter.activation.resolver.DoctrineService`` directly, requires an
-    *already-built* raw inner ``charter.offering.service.DoctrineService``, which is
+    *already-built* raw inner ``charter.offering.service.CharterOfferingService``, which is
     the very construction the gate forbids here. Direct
     ``AgentProfileRepository`` construction is therefore the correct seam;
     do not "fix" this back to a ``DoctrineService`` wrapper.

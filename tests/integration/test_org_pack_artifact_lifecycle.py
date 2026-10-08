@@ -328,7 +328,7 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
     every artifact kind that becomes per-artifact selectable.
     """
     from charter.offering.base import DoctrineLayerCollisionWarning
-    from charter.offering.service import DoctrineService
+    from charter.offering.service import CharterOfferingService
 
     consumer = tmp_path / "consumer"
     consumer.mkdir()
@@ -350,7 +350,7 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
     # ``python-conventions`` -- the collision this test asserts requires
     # the built-in styleguide to actually load (a stale ``src/doctrine``
     # root loads zero styleguides, so nothing could ever collide).
-    service = DoctrineService(
+    service = CharterOfferingService(
         project_root=consumer / ".kittify" / "doctrine",
         org_roots=[pack_path],
     )

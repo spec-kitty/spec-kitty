@@ -208,7 +208,7 @@ def _summarize_org_charter(snapshot_path: Path) -> dict[str, object]:
 def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     """Build the agent-profile + org-DRG health report once (WP08, NFR-001).
 
-    Instantiates a single :class:`~charter.offering.service.DoctrineService` rooted at
+    Instantiates a single :class:`~charter.offering.service.CharterOfferingService` rooted at
     the configured org packs, reads the WP05
     ``AgentProfileRepository.skipped_profiles()`` diagnostics (no regex
     scraping), and groups valid + skipped counts into one ``PackHealth`` per
@@ -230,7 +230,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     inner service is wrapped via ``charter.activation.resolver.DoctrineService(inner,
     pack_context=None)`` -- the sanctioned unfiltered-diagnostic construction
     (data-model.md "unfiltered-diagnostic contract") -- rather than
-    constructing ``charter.offering.service.DoctrineService`` directly. The
+    constructing ``charter.offering.service.CharterOfferingService`` directly. The
     ``AgentProfileRepository``-specific ``get_provenance()`` /
     ``skipped_profiles()`` calls below need the raw repository object (a
     ``dict`` has neither method), so this reads through the wrapper's
@@ -245,13 +245,13 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     skipped: list[SkippedProfile] = []
     load_error: str | None = None
     try:
-        from charter.offering.service import DoctrineService as RawDoctrineService
+        from charter.offering.service import CharterOfferingService
         from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
         from charter.drg import resolve_org_roots
 
         org_roots = resolve_org_roots(repo_root)
         project_root = _project_pack_root_or_none(repo_root)
-        inner = RawDoctrineService(
+        inner = CharterOfferingService(
             org_roots=list(org_roots),
             project_root=project_root,
         )
@@ -341,13 +341,13 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     the raw inner service is wrapped via ``charter.activation.resolver.DoctrineService(
     inner, pack_context=None)`` -- the sanctioned unfiltered-diagnostic
     construction (data-model.md "unfiltered-diagnostic contract") -- rather
-    than constructing ``charter.offering.service.DoctrineService`` directly. FR-005
+    than constructing ``charter.offering.service.CharterOfferingService`` directly. FR-005
     made ``glossary_packs`` a gated property that always returns a filtered
     ``dict`` (no ``.list_all()``), so this reads through
     :meth:`~charter.activation.resolver.DoctrineService.raw_repository` to reach the raw
     repository's ``list_all()``.
     """
-    from charter.offering.service import DoctrineService as RawDoctrineService
+    from charter.offering.service import CharterOfferingService
     from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
 
@@ -358,7 +358,7 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     try:
         org_roots = resolve_org_roots(repo_root)
         project_root = _project_pack_root_or_none(repo_root)
-        inner = RawDoctrineService(
+        inner = CharterOfferingService(
             org_roots=list(org_roots), project_root=project_root
         )
         service = ActivationAwareDoctrineService(inner, pack_context=None)
@@ -604,7 +604,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     service is wrapped via ``charter.activation.resolver.DoctrineService(inner,
     pack_context=None)`` -- the sanctioned unfiltered-diagnostic construction
     (data-model.md "unfiltered-diagnostic contract") -- rather than
-    constructing ``charter.offering.service.DoctrineService`` directly. Each gated
+    constructing ``charter.offering.service.CharterOfferingService`` directly. Each gated
     property below still triggers the same eager, warning-emitting
     repository ``_load()`` as the raw accessor did (``BaseDoctrineRepository.
     __init__`` loads eagerly); only the return *value* is now a filtered
@@ -615,14 +615,14 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     import warnings as _warnings
 
     from charter.drg import DoctrineLayerCollisionWarning
-    from charter.offering.service import DoctrineService as RawDoctrineService
+    from charter.offering.service import CharterOfferingService
     from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
 
     org_roots = resolve_org_roots(repo_root)
     project_root = _project_pack_root_or_none(repo_root)
 
-    inner = RawDoctrineService(
+    inner = CharterOfferingService(
         org_roots=list(org_roots),
         project_root=project_root,
     )
@@ -1208,13 +1208,13 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
     ``charter.activation.resolver.DoctrineService(inner, pack_context=None)`` -- the
     sanctioned unfiltered-diagnostic construction (data-model.md
     "unfiltered-diagnostic contract") -- rather than constructing
-    ``charter.offering.service.DoctrineService`` directly.
+    ``charter.offering.service.CharterOfferingService`` directly.
     ``_resolve_artifact_source`` reads through the wrapper's
     ``raw_repository(plural)`` accessor (FR-002 Option A) to reach
     ``get_provenance()``, since the gated per-kind properties always return
     a filtered ``dict``.
     """
-    from charter.offering.service import DoctrineService as RawDoctrineService
+    from charter.offering.service import CharterOfferingService
     from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
 
@@ -1224,7 +1224,7 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
     # DoctrineService instance for provenance lookup.
     org_roots = resolve_org_roots(repo_root)
     project_root = _project_pack_root_or_none(repo_root)
-    inner = RawDoctrineService(
+    inner = CharterOfferingService(
         org_roots=list(org_roots),
         project_root=project_root,
     )

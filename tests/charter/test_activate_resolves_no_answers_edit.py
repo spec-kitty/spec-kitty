@@ -24,7 +24,7 @@ from charter.activation.compiler import compile_charter
 from charter.activation.interview import default_interview, read_interview_answers
 from charter.activation.pack_context import PackContext
 from charter.activation.schemas import DirectivesConfig, DoctrineSelectionConfig, GovernanceConfig
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 from charter.offering.spdd_reasons.activation import clear_activation_cache, is_spdd_reasons_active
 from specify_cli.cli.commands.charter import charter_app
 
@@ -82,7 +82,7 @@ def project_root(tmp_path: Path) -> Path:
 
 def _compiled_reference_ids(project_root: Path) -> set[str]:
     pack_context = PackContext.from_config(project_root)
-    doctrine_service = DoctrineService()
+    doctrine_service = CharterOfferingService()
     compiled = compile_charter(
         mission="software-dev",
         interview=default_interview(mission="software-dev"),
@@ -163,7 +163,7 @@ class TestDeactivateDropsNoAnswersEdit:
         # for a `test_no_new_charter_reference_danglers`-style guard to trip
         # on for THIS artefact).
         pack_context = PackContext.from_config(project_root)
-        doctrine_service = DoctrineService()
+        doctrine_service = CharterOfferingService()
         compiled = compile_charter(
             mission="software-dev",
             interview=default_interview(mission="software-dev"),
@@ -202,7 +202,7 @@ class TestSpddActivationDoesNotFlip:
         # deactivation regression on this project's own charter.
         assert "DIRECTIVE_038" in interview.selected_directives
 
-        doctrine_service = DoctrineService()
+        doctrine_service = CharterOfferingService()
         pack_context = PackContext.from_config(REPO_ROOT)
         compiled = compile_charter(
             mission=interview.mission,

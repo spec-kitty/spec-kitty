@@ -1166,7 +1166,7 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
 ) -> None:
     calls: dict[str, object] = {}
 
-    class StubDoctrineService:
+    class StubOfferingService:
         def __init__(
             self, *, built_in_root: Path | None = None, project_root: Path | None, active_languages: list[str]
         ) -> None:
@@ -1181,11 +1181,11 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
 
     monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: built_in_root)
     monkeypatch.setattr("charter.activation.context.infer_repo_languages", lambda repo_root: ["python", "typescript"])
-    monkeypatch.setattr("charter.offering.service.DoctrineService", StubDoctrineService)
+    monkeypatch.setattr("charter.offering.service.CharterOfferingService", StubOfferingService)
 
     service = _build_doctrine_service(tmp_path)
 
-    assert isinstance(service, StubDoctrineService)
+    assert isinstance(service, StubOfferingService)
     # Relocation (WP02, mission doctrine-built-in-seam-consolidation-01KYW3TX):
     # _build_doctrine_service no longer passes a built_in_root kwarg at all --
     # each repository self-resolves the flattened built-in tier via
@@ -1219,7 +1219,7 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
 
     calls: dict[str, object] = {}
 
-    class StubDoctrineService:
+    class StubOfferingService:
         def __init__(
             self, *, built_in_root: Path | None = None, project_root: Path | None, active_languages: list[str]
         ) -> None:
@@ -1258,9 +1258,9 @@ def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
         )
 
     monkeypatch.setattr("charter.activation.catalog.resolve_doctrine_root", lambda: built_in_root)
-    monkeypatch.setattr("charter.offering.service.DoctrineService", StubDoctrineService)
+    monkeypatch.setattr("charter.offering.service.CharterOfferingService", StubOfferingService)
 
     service = _build_doctrine_service(tmp_path)
 
-    assert isinstance(service, StubDoctrineService)
+    assert isinstance(service, StubOfferingService)
     assert calls == {"active_languages": ["rust"]}
