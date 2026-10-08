@@ -44,6 +44,7 @@ from runtime.next._internal_runtime.schema import NextDecision
 from runtime.next.decision import Decision, DecisionKind
 from specify_cli.events.decision_log import DecisionGitLog
 from runtime.next import runtime_bridge_decision_mapping as decision_mapping
+from runtime.next.runtime_bridge_io import STATE_FILE
 
 pytestmark = [pytest.mark.regression, pytest.mark.unit, pytest.mark.fast]
 
@@ -98,7 +99,7 @@ def _mission(tmp_path: Path, slug: str = SLUG) -> tuple[Path, Path]:
     )
     run_dir = tmp_path / "run"
     run_dir.mkdir(exist_ok=True)
-    (run_dir / rb.STATE_FILE).write_text("{}", encoding="utf-8")
+    (run_dir / STATE_FILE).write_text("{}", encoding="utf-8")
     (run_dir / "run.events.jsonl").write_text("", encoding="utf-8")
     return feature_dir, run_dir
 
@@ -381,7 +382,7 @@ def test_real_composition_advances_and_logs_despite_optional_seed_failure(
     # A real run on disk: the engine's plan_advance/commit_advance read the
     # snapshot and the frozen template themselves (#2562 re-seam).
     snapshot = MissionRunSnapshot(run_id=RUN_ID, mission_key=MISSION_TYPE, template_path="", template_hash="h", issued_step_id="plan")
-    (h.run_dir / rb.STATE_FILE).write_text(json.dumps(snapshot.model_dump(mode="json")), encoding="utf-8")
+    (h.run_dir / STATE_FILE).write_text(json.dumps(snapshot.model_dump(mode="json")), encoding="utf-8")
     (h.run_dir / "mission_template_frozen.yaml").write_text(_MINIMAL_FROZEN_TEMPLATE, encoding="utf-8")
     planned: list[Any] = []
 
