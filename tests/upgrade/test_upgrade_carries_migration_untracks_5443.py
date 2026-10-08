@@ -139,3 +139,78 @@ def test_only_ignored_present_non_baseline_deletions_are_the_migrations_untracks
     git(project, env, "rm", "-q", "--", "kitty-specs/001-demo/meta.json")
     assert migration_index_untracks(project, baseline) == [Path(_SKILL)]
     assert migration_index_untracks(project, None) == []
+
+
+def test_index_residue_after_the_commit_landed_is_reported_as_landed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A residue check that fails AFTER the temp-index commit landed must say "DID land".
+
+    ``SafeCommitIndexResidue`` is raised once HEAD has moved. If it were a plain
+    ``SafeCommitError``, ``commit_touched_checkout`` would flatten it into the generic
+    "Could not auto-commit" skip warning and the upgrade would report the commit as not made.
+    Fault injection: ``changed_paths`` fails only once HEAD has moved past the baseline commit.
+    """
+    import os
+    import subprocess
+
+    from kernel.git import GitCommandError
+    from specify_cli.cli.commands import upgrade as upgrade_cmd
+    from specify_cli.git import commit_helpers
+    from specify_cli.upgrade.autocommit import UPGRADE_COMMIT_SKIP_WARNING, capture_upgrade_baseline
+    from specify_cli.upgrade.outcome import UpgradeOutcome
+    from specify_cli.upgrade.runner import UpgradeResult
+
+    for key in list(os.environ):
+        if key.startswith(("GIT_", "SPEC_KITTY_")):
+            monkeypatch.delenv(key)
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(home / ".gitconfig"))
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def _git(*args: str) -> str:
+        return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True, check=True).stdout.strip()
+
+    _git("init", "--template=", "-b", "work")
+    _git("config", "user.email", "t@example.com")
+    _git("config", "user.name", "T")
+    _git("config", "commit.gpgsign", "false")
+    (repo / _SKILL).parent.mkdir(parents=True)
+    (repo / _SKILL).write_text(_SKILL_BYTES, encoding="utf-8")
+    (repo / ".gitignore").write_text(".kittify/workspaces/\n", encoding="utf-8")
+    _git("add", "-A")
+    _git("commit", "-q", "-m", "init")
+    head0 = _git("rev-parse", "HEAD")
+
+    baseline = capture_upgrade_baseline(repo)
+    assert baseline is not None
+    # what the 3.2.5 backfill does: ignore the skills dir and untrack what was committed there
+    (repo / ".gitignore").write_text(".kittify/workspaces/\n.agents/skills/\n", encoding="utf-8")
+    _git("rm", "--cached", "-q", "--", _SKILL)
+
+    real_changed_paths = commit_helpers.changed_paths
+
+    def _fails_after_landing(*args: object, **kwargs: object) -> object:
+        if _git("rev-parse", "HEAD") != head0:
+            raise GitCommandError(argv=("diff", "--cached"), cwd=repo, returncode=128, stderr="fatal: index file corrupt (injected)")
+        return real_changed_paths(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(commit_helpers, "changed_paths", _fails_after_landing)
+
+    outcome = UpgradeOutcome(result=UpgradeResult(success=True, from_version="3.2.4", to_version="3.2.5"))
+    ctx = upgrade_cmd._FinalizerRenderContext()
+    committed = upgrade_cmd._finalizer_step_commit_churn(outcome, ctx, project_path=repo, baseline_changed_paths=baseline)
+
+    landed = _git("rev-parse", "HEAD")
+    assert landed != head0, "the temp-index commit must have landed before the injected failure"
+    assert committed is True, "HEAD moved, so the outcome must report the commit as made"
+    assert ctx.commit_warning != UPGRADE_COMMIT_SKIP_WARNING
+    assert outcome.commit_recovery_failed is True
+    assert [reason.value for reason in outcome.reasons] == ["commit_recovery_failed"]
+    rendered = " ".join(outcome.result.errors)
+    assert f"Commit {landed} DID land." in rendered
+    assert "Could not auto-commit" not in rendered
+    assert "No commit landed" not in rendered

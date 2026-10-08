@@ -924,7 +924,7 @@ transition — it never invokes the WP-loop or `next` engines.
 | `SAFE_COMMIT_PATH_POLICY` | append-history | Safe commit refused to stage a path under `.worktrees/` from the primary repo root before mutating the index |
 | `SAFE_COMMIT_PATH_LOOP` | append-history | Safe commit refused a requested path that is, or sits under, a symlink loop, before mutating the index |
 | `SAFE_COMMIT_INDEX_DELETION_CONFLICT` | append-history | Safe commit refused a path that was both requested for commit and listed as an index deletion, before committing |
-| `SAFE_COMMIT_INDEX_RESIDUE` | append-history | An index-deletion commit DID land (`commit_sha`), but the real index still stages a committed path |
+| `SAFE_COMMIT_INDEX_RESIDUE` | append-history | An index-deletion commit DID land (`commit_sha`), but the real index still stages a committed path; a `SAFE_COMMIT_RECOVERY_FAILED` refinement |
 | `STATUS_READ_PATH_NOT_FOUND` | all mission-scoped commands | Coord topology with a stale/unaddressable primary surface (fail-closed read-path guard fired; carries coord/primary candidates) |
 
 ---

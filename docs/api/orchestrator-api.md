@@ -895,7 +895,7 @@ Current machine-readable error codes (the authoritative list is
 - `SAFE_COMMIT_PATH_POLICY`
 - `SAFE_COMMIT_PATH_LOOP`
 - `SAFE_COMMIT_INDEX_DELETION_CONFLICT`
-- `SAFE_COMMIT_INDEX_RESIDUE` (the commit DID land; `commit_sha` names it)
+- `SAFE_COMMIT_INDEX_RESIDUE` (the commit DID land; `commit_sha` names it; a `SAFE_COMMIT_RECOVERY_FAILED` refinement)
 - `SAFE_COMMIT_RECOVERY_FAILED`
 
 Added in contract `1.4.0` (#3837), for the 11 design-phase verbs above:

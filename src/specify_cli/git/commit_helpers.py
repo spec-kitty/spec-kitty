@@ -416,18 +416,33 @@ class SafeCommitIndexDeletionConflict(SafeCommitError):
         self.conflicting_paths = tuple(conflicting_paths)
 
 
-class SafeCommitIndexResidue(SafeCommitError):
-    """An index-deletion commit landed but the real index still stages a committed path (FR-022)."""
+class SafeCommitIndexResidue(SafeCommitRecoveryFailed):
+    """An index-deletion commit landed but the real index still stages a committed path (FR-022).
+
+    Raised only AFTER HEAD moved, so it is a :class:`SafeCommitRecoveryFailed` carrying
+    ``commit_sha``: callers that flatten a plain ``SafeCommitError`` into "not committed"
+    (``upgrade.autocommit.commit_touched_checkout``) re-raise it instead, and the upgrade
+    renderer reports that the commit DID land. It keeps its own ``error_code``.
+    """
 
     error_code = "SAFE_COMMIT_INDEX_RESIDUE"
 
-    def __init__(self, *, residue: Sequence[str], commit_sha: str, worktree_root: Path) -> None:
+    def __init__(
+        self,
+        *,
+        residue: Sequence[str],
+        commit_sha: str,
+        worktree_root: Path,
+        destination_ref: str | None = None,
+    ) -> None:
         super().__init__(
             f"safe_commit: commit {commit_sha} landed, but the index still stages: {', '.join(residue)}",
+            destination_ref=destination_ref,
             worktree_root=worktree_root,
+            unrecovered_paths=residue,
+            commit_sha=commit_sha,
         )
         self.residue = tuple(residue)
-        self.commit_sha = commit_sha
 
 
 # ---------------------------------------------------------------------------
@@ -1013,7 +1028,7 @@ def _sync_real_index_after_commit(worktree_root: Path, destination_ref: str, sha
     except GitCommandError:
         leftover = list(paths)  # an unreadable index is not proof that it is clean
     if leftover:
-        raise SafeCommitIndexResidue(residue=leftover, commit_sha=sha, worktree_root=worktree_root)
+        raise SafeCommitIndexResidue(residue=leftover, commit_sha=sha, worktree_root=worktree_root, destination_ref=destination_ref)
 
 
 def _commit_with_index_deletions(
