@@ -1169,6 +1169,7 @@ def _build_expected_parent_tree(
     *,
     env: dict[str, str],
     expected_path_bytes: Mapping[str, bytes],
+    index_only_removals: frozenset[str] = frozenset(),
 ) -> str:
     """Run commit-message hooks and build a tree containing only requested paths."""
     read_tree = _run_git_for_commit(worktree_root, ["read-tree", expected_parent_sha], env=env)
@@ -1177,7 +1178,8 @@ def _build_expected_parent_tree(
     for file_path in normalized_files:
         if Path(file_path).is_absolute() or ".." in Path(file_path).parts:
             raise RuntimeError(f"safe_commit: expected-parent path must be worktree-relative: {file_path!r}")
-        staged = _run_git_for_commit(worktree_root, ["add", "--force", "--", file_path], env=env)
+        operation = ["update-index", "--force-remove", "--", file_path] if file_path in index_only_removals else ["add", "--force", "--", file_path]
+        staged = _run_git_for_commit(worktree_root, operation, env=env)
         if staged.returncode != 0:
             raise RuntimeError(f"safe_commit: failed to stage expected-parent path {file_path!r}: {staged.stderr.strip()}")
 
@@ -1190,7 +1192,8 @@ def _build_expected_parent_tree(
     if reset_index.returncode != 0:
         raise RuntimeError(f"safe_commit: could not isolate expected-parent paths: {reset_index.stderr.strip()}")
     for file_path in normalized_files:
-        staged = _run_git_for_commit(worktree_root, ["add", "--force", "--", file_path], env=env)
+        operation = ["update-index", "--force-remove", "--", file_path] if file_path in index_only_removals else ["add", "--force", "--", file_path]
+        staged = _run_git_for_commit(worktree_root, operation, env=env)
         if staged.returncode != 0:
             raise RuntimeError(f"safe_commit: failed to stage expected-parent path {file_path!r}: {staged.stderr.strip()}")
 
@@ -1199,6 +1202,9 @@ def _build_expected_parent_tree(
         requested = ", ".join(normalized_files)
         raise RuntimeError(f"safe_commit: commit hook changed requested path contents after staging; refusing expected-parent commit for {requested}")
     _verify_expected_parent_tree_bytes(worktree_root, tree, expected_path_bytes, env=env)
+    for removed_path in index_only_removals:
+        if _run_git_for_commit(worktree_root, ["ls-tree", tree, "--", removed_path], env=env).stdout.strip():
+            raise RuntimeError("safe_commit: decision runtime lock remains in candidate tree")
     return tree
 
 
@@ -1362,6 +1368,7 @@ def _safe_commit_with_expected_parent(
     message: str,
     normalized_files: list[str],
     expected_path_bytes: Mapping[str, bytes],
+    index_only_removals: frozenset[str] = frozenset(),
 ) -> CommitResult:
     """Create a hook-checked commit and atomically compare-and-swap its ref."""
     landed_sha: str | None = None
@@ -1382,6 +1389,7 @@ def _safe_commit_with_expected_parent(
                 message_file,
                 env=candidate_env,
                 expected_path_bytes=expected_path_bytes,
+                index_only_removals=index_only_removals,
             )
             expected_tree = _run_git_text(worktree_root, ["show", "-s", "--format=%T", expected_parent_sha])
             if tree_sha == expected_tree:
@@ -1571,6 +1579,36 @@ def preflight_commit(
     return normalized_files
 
 
+def _validate_runtime_lock_removal(
+    worktree_root: Path,
+    paths: tuple[Path, ...],
+    expected_parent_sha: str | None,
+    expected_path_bytes: Mapping[Path, bytes] | None,
+    index_only_removals: tuple[Path, ...],
+    owned: OwnedCheckout | OwnedCreateMission | None,
+) -> frozenset[str]:
+    """Restrict index-only deletion to the one validated decision lock owner."""
+    from mission_runtime import OwnedCheckout
+    from specify_cli.decisions.service import _decisions_lock_path
+
+    if not index_only_removals:
+        return frozenset()
+    if expected_parent_sha is None or not isinstance(owned, OwnedCheckout):
+        raise ValueError("index-only removal requires an owned decision runtime lock and expected parent")
+    lock_path = _decisions_lock_path(owned.mission_dir)
+    if worktree_root.resolve() != owned.owned_root or index_only_removals != (lock_path,) or lock_path not in paths:
+        raise ValueError("index-only removal is restricted to the owned decision runtime lock")
+    owned.files([lock_path])
+    current = lock_path
+    while current != owned.owned_root:
+        if current.is_symlink():
+            raise ValueError("decision runtime lock must not have a symlink ancestor")
+        current = current.parent
+    if expected_path_bytes and lock_path in expected_path_bytes:
+        raise ValueError("decision runtime lock removal cannot assert a payload blob")
+    return frozenset([str(lock_path.relative_to(owned.owned_root))])
+
+
 def safe_commit(
     *,
     repo_root: Path,
@@ -1582,6 +1620,7 @@ def safe_commit(
     capability: GuardCapability = GuardCapability.STANDARD,
     expected_parent_sha: str | None = None,
     expected_path_bytes: Mapping[Path, bytes] | None = None,
+    index_only_removals: tuple[Path, ...] = (),
     owned: OwnedCheckout | OwnedCreateMission | None = None,
     index_deletions: Sequence[Path] = (),
 ) -> CommitResult:
@@ -1649,6 +1688,8 @@ def safe_commit(
         expected_parent_sha: Optional exact parent for a conditional ref update.
             When supplied, a commit is built against this SHA and the target
             branch advances only if it still points to that SHA.
+        index_only_removals: Internal owner-bound decision lock removal; requires
+            a validated owned fact and expected parent. Keeps physical files.
         expected_path_bytes: Optional exact raw bytes expected in selected
             staged blobs. Requires ``expected_parent_sha`` and refuses before
             ref update if a clean filter changes any asserted path.
@@ -1703,6 +1744,8 @@ def safe_commit(
 
     if index_deletions and expected_parent_sha is not None:
         raise ValueError("index_deletions cannot be combined with expected_parent_sha")
+    removals = _validate_runtime_lock_removal(worktree_root, paths, expected_parent_sha, expected_path_bytes, index_only_removals, owned)
+
     normalized_files = preflight_commit(
         repo_root=repo_root,
         worktree_root=worktree_root,
@@ -1734,6 +1777,7 @@ def safe_commit(
             message=message,
             normalized_files=normalized_files,
             expected_path_bytes=normalized_expected_path_bytes,
+            index_only_removals=removals,
         )
     if expected_path_bytes is not None:
         raise ValueError("expected_path_bytes requires expected_parent_sha")

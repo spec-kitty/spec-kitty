@@ -998,3 +998,114 @@ def cmd_widen(
 
 
 __all__ = ["decision_app"]
+
+
+def _runtime_lock_git(root: Path, *args: str) -> str:
+    """Read selected Git state, refusing an incomplete observation."""
+    import subprocess
+
+    return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _runtime_lock_preflight(owned: OwnedCheckout) -> tuple[Path, Path, bool, bool]:
+    """Validate only the service-owned lock and its local ignore file."""
+    from specify_cli.decisions.service import _decisions_lock_path
+
+    from specify_cli.decisions.service import _runtime_lock_ignore_state
+
+    lock = _decisions_lock_path(owned.mission_dir)
+    ignore, ignored = _runtime_lock_ignore_state(owned)
+    relative_lock = str(lock.relative_to(owned.owned_root))
+    relative_ignore = str(ignore.relative_to(owned.owned_root))
+    status = _runtime_lock_git(owned.owned_root, "status", "--porcelain=v1", "--untracked-files=all", "--", relative_lock, relative_ignore)
+    for line in status.splitlines():
+        # An untracked service lock is normal; operator ignore edits and
+        # any staged/unstaged tracked-lock change belong to the operator.
+        if line != f"?? {relative_lock}":
+            raise ValueError("Runtime lock repair refuses preexisting changes or staging on its lock or .gitignore")
+    tracked = bool(_runtime_lock_git(owned.owned_root, "ls-files", "--", relative_lock))
+    return lock, ignore, tracked, ignored
+
+
+def _repair_runtime_lock(owned: OwnedCheckout, *, dry_run: bool) -> dict[str, object]:
+    """Untrack one exact service lock without unlinking its synchronization inode."""
+    from kernel.locks import machine_file_lock
+    from mission_runtime import CommitTarget
+    from specify_cli.decisions.service import _LOCK_ACQUIRE_TIMEOUT_S
+    from specify_cli.git.commit_helpers import preflight_commit, safe_commit
+    from specify_cli.decisions.service import _ensure_runtime_lock_ignore, _restore_runtime_lock_ignore, _runtime_lock_ignore_state
+
+    lock, ignore, tracked, ignored = _runtime_lock_preflight(owned)
+    paths = (ignore, lock) if tracked else (ignore,)
+    target = CommitTarget(ref=owned.write_branch)
+    message = f"chore(decisions): stop tracking runtime lock for {owned.mission_slug}"
+    preflight_commit(repo_root=owned.owned_root, worktree_root=owned.owned_root, target=target, message=message, paths=paths, owned=owned)
+    payload: dict[str, object] = {
+        "status": "ok", "mission_slug": owned.mission_slug, "dry_run": dry_run,
+        "tracked": tracked, "ignored": ignored, "changed": tracked or not ignored,
+    }
+    if dry_run or not payload["changed"]:
+        return payload
+    # All destinations have been validated before creating the owner lock.
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    with machine_file_lock(lock, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S):
+        # The OS lock holder metadata itself changes the tracked lock bytes;
+        # don't interpret that owned write as an operator modification.
+        ignore, ignored_now = _runtime_lock_ignore_state(owned)
+        relative_lock = str(lock.relative_to(owned.owned_root))
+        if bool(_runtime_lock_git(owned.owned_root, "ls-files", "--", relative_lock)) != tracked:
+            raise RuntimeError("Runtime lock index changed while waiting for the owner lock")
+        if _runtime_lock_git(owned.owned_root, "diff", "--cached", "HEAD", "--", relative_lock):
+            raise RuntimeError("Runtime lock staging changed while waiting for the owner lock")
+        parent = _runtime_lock_git(owned.owned_root, "rev-parse", "HEAD")
+        old_ignore = ignore.read_bytes() if ignore.exists() else None
+        written_ignore: bytes | None = None
+        try:
+            if not ignored_now:
+                _ensure_runtime_lock_ignore(owned)
+            written_ignore = ignore.read_bytes() if ignore.exists() else None
+            commit_paths = paths if written_ignore is not None else (lock,)
+            result = safe_commit(
+                repo_root=owned.owned_root, worktree_root=owned.owned_root, target=target,
+                message=message, paths=commit_paths, owned=owned,
+                expected_parent_sha=parent,
+                expected_path_bytes={ignore: written_ignore} if written_ignore is not None else {},
+                index_only_removals=(lock,) if tracked else (),
+            )
+        except Exception:
+            # Ref updates are conditional. Restore our ignore bytes only when
+            # the branch has not moved and nobody subsequently changed them.
+            if _runtime_lock_git(owned.owned_root, "rev-parse", "HEAD") == parent and written_ignore is not None and ignore.read_bytes() == written_ignore:
+                _restore_runtime_lock_ignore(ignore, old_ignore, written_ignore)
+            raise
+        payload["commit"] = result.sha
+        if result.diagnostic:
+            raise RuntimeError(result.diagnostic)
+    return payload
+
+
+@decision_app.command("repair-runtime-lock")
+def cmd_repair_runtime_lock(
+    mission: str = typer.Option(..., "--mission", help="Mission whose decision runtime lock needs repair"),
+    owned_checkout: OwnedCheckoutOption = None,
+    dry_run: bool = typer.Option(False, "--dry-run", help="Validate and inspect without acquiring the lock or writing"),
+) -> None:
+    """Stop tracking the exact decision lock in an explicitly owned mission."""
+    from typing import cast
+    from specify_cli.cli.commands._owned_checkout import resolve_owned_or_refuse
+    from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
+
+    if owned_checkout is None:
+        raise typer.BadParameter("repair-runtime-lock requires explicit --owned-checkout")
+    owned = resolve_owned_or_refuse(
+        locate_project_root() or Path.cwd(), cast(Path, owned_checkout), mission,
+        cwd=Path.cwd(), allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
+        json_output=True, envelope=lambda code, message: {"status": "error", "code": code, "message": message},
+    )
+    assert owned is not None
+    try:
+        payload = _repair_runtime_lock(owned, dry_run=dry_run)
+    except Exception as exc:
+        typer.echo(json.dumps({"status": "error", "message": str(exc)}))
+        raise typer.Exit(1) from exc
+    typer.echo(json.dumps(payload))

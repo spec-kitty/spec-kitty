@@ -384,10 +384,22 @@ def _commit_owned_next_mutations(owned: OwnedCheckout) -> None:
     Every input is read straight off the fact -- no handle walk, no resolver.
     """
     from specify_cli.core.commit_guard import GuardCapability
-    from specify_cli.git.commit_helpers import safe_commit
+    from specify_cli.git.commit_helpers import _run_git_text, preflight_commit, safe_commit
 
     lifecycle = owned.owned_root / "kitty-ops" / "lifecycle.jsonl"
-    mission_files = tuple(path for path in sorted(owned.mission_dir.rglob("*")) if path.is_file())
+    from specify_cli.decisions.service import _decisions_lock_path, _ensure_runtime_lock_ignore, _restore_runtime_lock_ignore
+
+    runtime_lock = _decisions_lock_path(owned.mission_dir)
+    target = placement_seam(owned.repository_root, owned.mission_slug, owned=owned).write_target(MissionArtifactKind.PRIMARY_METADATA)
+    if runtime_lock.exists():
+        preflight_commit(
+            repo_root=owned.owned_root, worktree_root=owned.owned_root, target=target,
+            message=f"chore(next): persist {owned.mission_slug} advancement [skip ci]",
+            paths=(runtime_lock.parent / ".gitignore",), owned=owned,
+        )
+    parent = _run_git_text(owned.owned_root, ["rev-parse", "HEAD"]) if runtime_lock.exists() else None
+    ignore_delta = _ensure_runtime_lock_ignore(owned) if runtime_lock.exists() else None
+    mission_files = tuple(path for path in sorted(owned.mission_dir.rglob("*")) if path.is_file() and path != runtime_lock)
     paths = mission_files + ((lifecycle,) if lifecycle.is_file() else ())
     if not paths:
         return
@@ -396,7 +408,7 @@ def _commit_owned_next_mutations(owned: OwnedCheckout) -> None:
     # deterministically to CommitTarget(ref=owned.write_branch) -- the SAME
     # value the fact already carries -- via the one placement authority
     # rather than constructing CommitTarget(ref=...) by hand here.
-    target = placement_seam(owned.repository_root, owned.mission_slug, owned=owned).write_target(MissionArtifactKind.PRIMARY_METADATA)
+
     try:
         safe_commit(
             repo_root=owned.owned_root,
@@ -407,14 +419,16 @@ def _commit_owned_next_mutations(owned: OwnedCheckout) -> None:
             capability=GuardCapability.STANDARD,
             owned=owned,
         )
-    except RuntimeError as exc:
+    except Exception as exc:
         # safe_commit's benign no-op sentinel: the staged tree already
         # matches HEAD (e.g. a terminal owned advance that writes no new
         # mission content and appends no lifecycle record). That is a
         # successful no-op here, not a command failure. Any OTHER
-        # RuntimeError (protection refusal, HEAD mismatch, genuine commit
+        # failure (protection refusal, HEAD mismatch, genuine commit
         # failure, ...) must stay fail-closed and propagate unchanged.
-        if "empty changeset" not in str(exc):
+        if not isinstance(exc, RuntimeError) or "empty changeset" not in str(exc):
+            if ignore_delta is not None and _run_git_text(owned.owned_root, ["rev-parse", "HEAD"]) == parent:
+                _restore_runtime_lock_ignore(*ignore_delta)
             raise
 
 

@@ -53,7 +53,7 @@ cli: click.Group = get_command(_typer_app)  # type: ignore[assignment]
 # so parents[3] points to <repo>.
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
-EXPECTED_SUBCOMMANDS = {"open", "resolve", "defer", "cancel", "verify", "list"}
+EXPECTED_SUBCOMMANDS = {"open", "resolve", "defer", "cancel", "verify", "list", "repair-runtime-lock"}
 
 # Non-canonical decision-command shapes that must NOT appear anywhere.
 # Two alternations, both anchored on the ``spec-kitty`` prefix:
