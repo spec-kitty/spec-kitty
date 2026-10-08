@@ -313,7 +313,8 @@
       "notes": [
         "Stream B (runtime/templates) in the stream/runtime worktree",
         "Stream B (runtime/templates) in the stream/runtime worktree",
-        "69cdbeeb1 red parity test (4 failed pre-fix), 23372a49f pack mission.yaml byte-equal to src for all four types, wording fixes in both copies, mission_loader comment. Forced only because the stream claim has no claim base."
+        "69cdbeeb1 red parity test (4 failed pre-fix), 23372a49f pack mission.yaml byte-equal to src for all four types, wording fixes in both copies, mission_loader comment. Forced only because the stream claim has no claim base.",
+        "Approved: 4 pack mission.yaml byte-equal to src; parity test kills revert mutation; no behavioural reader of pack task_types/paths.deliverables (compiler embeds parsed dict only into uncommitted _LIBRARY; charter.yaml summary unchanged); whole-repo ruff format clean; terminology/provenance/manifest gates + 504 targeted green. Non-blocking: spec-kitty-mission-system SKILL.md still documents mission.yaml task_types."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
