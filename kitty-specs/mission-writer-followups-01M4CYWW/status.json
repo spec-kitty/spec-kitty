@@ -202,6 +202,7 @@
         "Stream B (runtime/templates) in the stream/runtime worktree",
         "Stream B (runtime/templates) in the stream/runtime worktree",
         "Forced only because the stream claim has no claim base; commits 5b4a8c857..9651145e2 merged from stream/runtime. next reads built-in runtime templates from the pack via builtin_missions_root(); src runtime copies deleted; ledger 23->22; query mode reads the frozen template; per-type parity fixture recorded first.",
+        "Stream B WP06 rework cycle 1",
         "Stream B WP06 rework cycle 1"
       ],
       "provider": "__resolved_provider_absent__",
