@@ -986,7 +986,7 @@ def flatten_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
 
     # The three mutations stay in THIS function (the sole-owner ratchet pins it), so it takes the
     # Mission write lock itself rather than going through a ``locked_update_meta`` closure.
-    with mission_write_lock(feature_dir):
+    with mission_write_lock(feature_dir, fallback_to_dir_name=True):
         meta = _require_meta(feature_dir)
 
         if "coordination_branch" not in meta:

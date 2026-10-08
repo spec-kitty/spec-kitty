@@ -281,7 +281,7 @@ def _surface_unbaked_mission_number(
     )
 
 
-def _locked_assign_mission_number(feature_dir: Path, number: int, *, repo_root: Path | None) -> bytes | None:
+def _locked_assign_mission_number(feature_dir: Path, number: int, *, repo_root: Path | None) -> tuple[bytes, bytes] | None:
     """Record ``mission_number`` in *feature_dir*'s ``meta.json`` under the Mission write lock.
 
     The read, the idempotency check and the write run in ONE hold of the lock, on a fresh read, so a
@@ -289,10 +289,12 @@ def _locked_assign_mission_number(feature_dir: Path, number: int, *, repo_root: 
     ``meta.json`` write only: every ``git`` subprocess of the bake runs after it is released.
 
     Returns:
-        The exact ``meta.json`` bytes written, recorded inside the hold; ``None`` when the number was
+        ``(bytes before, bytes written)``, both read inside the hold; ``None`` when the number was
         already recorded by the time the lock was held (an idempotency hit; nothing written).
     """
+    meta_path = feature_dir / "meta.json"
     wrote = False
+    before: list[bytes] = []
     written: list[bytes] = []
 
     def assign(fresh: dict[str, Any]) -> bool:
@@ -300,6 +302,7 @@ def _locked_assign_mission_number(feature_dir: Path, number: int, *, repo_root: 
         existing = fresh.get("mission_number")
         if _is_assigned_mission_number(existing) and existing == number:
             return False
+        before.append(meta_path.read_bytes())
         fresh["mission_number"] = number
         wrote = True
         return True
@@ -309,7 +312,7 @@ def _locked_assign_mission_number(feature_dir: Path, number: int, *, repo_root: 
         locked_update_meta(feature_dir, assign, repo_root=repo_root, validate=False)
     finally:
         stop_observing_writes(token)
-    return written[-1] if wrote and written else None
+    return (before[-1], written[-1]) if wrote and before and written else None
 
 
 def _undo_primary_bake(primary_meta_path: Path, original: bytes, written: bytes, repo_root: Path) -> str | None:
@@ -474,9 +477,8 @@ def _bake_mission_number_on_primary_tree(
         # ``target_branch``, so the executor's own target-read resolves it).
         return False
 
-    original = primary_meta_path.read_bytes()
-    written = _locked_assign_mission_number(primary_meta_path.parent, next_number, repo_root=main_repo)
-    if written is None:
+    assigned = _locked_assign_mission_number(primary_meta_path.parent, next_number, repo_root=main_repo)
+    if assigned is None:
         _merge_logger.info(
             "mission_number=%d already present on primary meta.json for %s; skipping write (idempotency check)",
             next_number,
@@ -500,6 +502,7 @@ def _bake_mission_number_on_primary_tree(
     except (SafeCommitError, RuntimeError) as exc:
         # A race since the precheck (SafeCommitHeadMismatch) or a rejecting
         # hook: the operator's tree must look untouched. Never retry without hooks.
+        original, written = assigned
         kept_note = _undo_primary_bake(primary_meta_path, original, written, main_repo)
         _surface_unbaked_mission_number(
             mission_slug,

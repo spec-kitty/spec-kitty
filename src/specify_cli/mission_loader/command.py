@@ -45,7 +45,7 @@ from specify_cli.mission_loader.errors import (
 )
 from specify_cli.mission_loader.registry import get_runtime_contract_registry
 from specify_cli.mission_loader.validator import validate_custom_mission
-from specify_cli.status.mission_write import mission_write_lock
+from specify_cli.status import mission_write_lock
 from specify_cli.mission_metadata import load_meta_or_empty, locked_update_meta, write_meta
 from runtime.next import runtime_bridge
 from runtime.next.runtime_bridge_io import resolve_builtin_missions_root

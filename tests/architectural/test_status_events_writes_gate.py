@@ -176,6 +176,8 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         "specify_cli.cli.commands.agent.mission_finalize_commit",
         "specify_cli.tasks.issue_matrix",
         "specify_cli.task_metadata_validation",
+        # mission-loader: the custom-mission meta.json writer holds the Mission write lock; it appends no event-log row.
+        "specify_cli.mission_loader.command",
         "specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep",
         # concurrent-mission-writers WP03 (#5468, #5796): ``implement`` holds the
         # Mission write lock from the claim emit through the claim commit, and
