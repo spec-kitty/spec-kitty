@@ -107,7 +107,9 @@ def test_repair_preserves_payload_inode_and_other_roots(owned_checkouts, monkeyp
         assert git(c.owned_root, "rev-parse", "HEAD") == head
 
 
-@pytest.mark.parametrize("fault", ["branch", "detached", "foreign", "root", "symlink", "ignore_symlink", "dirty_ignore", "staged_ignore", "dirty_lock", "staged_lock"])
+@pytest.mark.parametrize(
+    "fault", ["branch", "detached", "foreign", "root", "symlink", "ignore_symlink", "dirty_ignore", "staged_ignore", "dirty_lock", "staged_lock"]
+)
 def test_repair_refuses_before_any_write(owned_checkouts, monkeypatch, fault):
     c = owned_checkouts
     lock = seed(c)

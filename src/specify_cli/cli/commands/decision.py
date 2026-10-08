@@ -1106,7 +1106,11 @@ def _repair_runtime_lock(owned: OwnedCheckout, *, dry_run: bool) -> dict[str, ob
             # Ref updates are conditional. Restore our ignore bytes only when
             # the branch has not moved and nobody subsequently changed them.
             # check=False: a failing rev-parse must not mask the original error.
-            if _runtime_lock_git(owned.owned_root, "rev-parse", "HEAD", check=False) == parent and written_ignore is not None and ignore.read_bytes() == written_ignore:
+            if (
+                _runtime_lock_git(owned.owned_root, "rev-parse", "HEAD", check=False) == parent
+                and written_ignore is not None
+                and ignore.read_bytes() == written_ignore
+            ):
                 _restore_runtime_lock_ignore(ignore, old_ignore, written_ignore)
             raise
         payload["commit"] = result.sha
