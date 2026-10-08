@@ -33,7 +33,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from charter.activation._doctrine_paths import resolve_project_root
+from charter.activation._project_root_candidates import resolve_project_root
 from charter.bundle import CHARTER_MD
 from charter.activation.context_json import _bundle_root_for_json
 from charter.activation.context_renderers.artifact_bodies import (

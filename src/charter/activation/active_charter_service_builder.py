@@ -81,7 +81,7 @@ if TYPE_CHECKING:
     import charter.offering.service as _offering_service_module
     from charter.activation.interview import CharterInterview
 
-from charter.activation._doctrine_paths import resolve_project_root
+from charter.activation._project_root_candidates import resolve_project_root
 
 __all__ = [
     "_build_active_charter_service",
@@ -109,7 +109,7 @@ def _build_offering_service(
     projects see byte-identical behaviour (R-2 mitigation).
 
     Cross-reference: ``compiler._default_active_charter_service`` uses the same
-    ``resolve_project_root`` helper from ``charter.activation._doctrine_paths``.
+    ``resolve_project_root`` helper from ``charter.activation._project_root_candidates``.
 
     WP07: callers in ``specify_cli`` may supply explicit *org_roots* (a list
     of org doctrine snapshot paths) so the resulting service includes the

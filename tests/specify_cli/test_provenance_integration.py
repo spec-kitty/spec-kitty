@@ -198,7 +198,7 @@ class TestLintOrgOverridesAdvisory:
             "charter.activation.catalog.resolve_offering_root", _fake_resolve_offering_root
         )
         monkeypatch.setattr(
-            "charter.activation._doctrine_paths.resolve_project_root", _fake_resolve_project_root
+            "charter.activation._project_root_candidates.resolve_project_root", _fake_resolve_project_root
         )
 
         checker = org_layer.OrgOverridesBuiltinChecker(repo_root=repo_root)

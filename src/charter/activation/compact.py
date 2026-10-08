@@ -19,7 +19,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from charter.activation._doctrine_paths import resolve_project_root
+from charter.activation._project_root_candidates import resolve_project_root
 from charter.activation._io import CharterEncodingError
 from charter.bundle import CHARTER_MD
 from charter.activation.language_advisory import CHARTER_EXTENSION_ADVISORY

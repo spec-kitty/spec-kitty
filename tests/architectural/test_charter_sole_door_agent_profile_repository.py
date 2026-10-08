@@ -101,7 +101,7 @@ The four named exclusions, and their provenance
    as an in-scope FR-001 migration target and then could not close it: the
    factory's ``agent_profile_repository`` accessor is built from a raw service
    whose project-overlay directory comes from
-   ``charter.activation._doctrine_paths.resolve_project_root``'s three fixed candidates
+   ``charter.activation._project_root_candidates.resolve_project_root``'s three fixed candidates
    (``.kittify/doctrine``, ``src/doctrine``, ``doctrine``), none of which is
    ``.kittify/agent_profiles``, and ``build_active_charter_service``
    exposes no parameter to retarget it. Both WP02's implementer and its reviewer

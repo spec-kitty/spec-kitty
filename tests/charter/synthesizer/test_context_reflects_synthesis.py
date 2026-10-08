@@ -12,7 +12,7 @@ from typing import Any
 
 import pytest
 
-from charter.activation._doctrine_paths import resolve_project_root
+from charter.activation._project_root_candidates import resolve_project_root
 from charter.activation.compiler import _default_active_charter_service
 from charter.activation.context import _build_offering_service
 from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize

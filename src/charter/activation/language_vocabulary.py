@@ -23,7 +23,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from charter.activation._doctrine_paths import resolve_project_root
+from charter.activation._project_root_candidates import resolve_project_root
 from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
 from charter.offering.drg.org_pack_config import resolve_existing_org_roots
 from charter.offering.pack_paths import built_in_dir

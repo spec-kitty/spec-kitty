@@ -18,7 +18,7 @@ _PROVENANCE_FILENAME = "PROVENANCE.md"
 
 # T031 (#839 minimal artifact set): the runtime consumes ``.kittify/charter-packs/``
 # via ``ActiveCharterService(project_root=...)``. The candidate-list resolver in
-# ``src/charter/activation/_doctrine_paths.py::resolve_project_root`` treats project-root
+# ``src/charter/activation/_project_root_candidates.py::resolve_project_root`` treats project-root
 # discovery as **directory-presence only** — an empty ``.kittify/charter-packs/`` is
 # a valid candidate, and the built-in layer (``packs/built-in/``) supplies content
 # until the project layer is populated. The minimal artifact set
@@ -54,7 +54,7 @@ References
 ----------
 - GitHub issue: https://github.com/spec-kitty/spec-kitty/issues/839
 - Spec assumption A2: public CLI synthesize works on a fresh project.
-- Project-root resolution: `src/charter/activation/_doctrine_paths.py`.
+- Project-root resolution: `src/charter/activation/_project_root_candidates.py`.
 """
 
 

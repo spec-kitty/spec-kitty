@@ -84,7 +84,7 @@ def _build_asset_repository() -> AssetRepository:
     pack_context: PackContext | None = None
     repo_root = locate_project_root()
     if repo_root is not None:
-        from charter.activation._doctrine_paths import resolve_project_root
+        from charter.activation._project_root_candidates import resolve_project_root
         from charter.drg import resolve_org_roots
 
         project_root = resolve_project_root(repo_root)

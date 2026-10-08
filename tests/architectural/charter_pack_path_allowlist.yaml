@@ -10,7 +10,7 @@
 #
 # Landed by WP03 (2026-10-07) with 25 entries: WP04 6, WP05 1, WP14 11, WP25 7.
 # WP03 review cycle 2 (2026-10-07): the gate learned the loop-then-join shape;
-# +2 WP14 entries (_doctrine_paths.py, agent_profiles.py) -> 27 entries:
+# +2 WP14 entries (_project_root_candidates.py, agent_profiles.py) -> 27 entries:
 # WP04 6, WP05 1, WP14 13, WP25 7.
 # WP04 (2026-10-07) drained its 6 entries (pack_validator x4, pack_assembler,
 # org_charter) through kernel.charter_pack_paths -> 21 entries.

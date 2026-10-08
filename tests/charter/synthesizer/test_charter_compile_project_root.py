@@ -9,7 +9,7 @@ Three locked cases (R-2 / FR-009):
 3. ``.kittify/charter-packs/`` present but empty → ``project_root`` points there but
    repositories resolve to empty overlays with no shipped-layer impact.
 
-Also covers ``charter.activation._doctrine_paths.resolve_project_root`` directly and
+Also covers ``charter.activation._project_root_candidates.resolve_project_root`` directly and
 verifies the compiler's ``_default_active_charter_service`` uses it correctly.
 """
 
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter.activation._doctrine_paths import resolve_project_root, _project_root_candidates
+from charter.activation._project_root_candidates import resolve_project_root, _project_root_candidates
 from charter.activation.compiler import _default_active_charter_service
 
 
@@ -50,7 +50,7 @@ def _write_min_config(repo_root: Path) -> None:
 
 
 class TestResolveProjectRoot:
-    """Tests for the shared _doctrine_paths.resolve_project_root() helper."""
+    """Tests for the shared _project_root_candidates.resolve_project_root() helper."""
 
     def test_returns_none_when_no_candidate_exists(self, tmp_path: Path) -> None:
         """Case R-2.1: no candidate directories → None (legacy behaviour)."""
