@@ -2164,6 +2164,7 @@ RESOLVER_CASES = frozenset(
         "test_corpus_project_report_equals_the_oracles",
         "test_corpus_per_mission_reports_equal_the_filtered_findings",
         "test_corpus_payloads_validate_and_leak_clean",
+        "test_corpus_run_walked_the_production_index_and_meets_the_floors",
         "test_corpus_project_build_is_within_its_bound",
         "test_corpus_scan_is_within_its_bound",
         "test_corpus_combined_run_is_within_its_bound",
@@ -2172,6 +2173,17 @@ RESOLVER_CASES = frozenset(
 )
 OFFLINE_ONLY_CASES = frozenset({"test_corpus_offline_scan_is_a_200_with_no_fallback_entry"})
 CORPUS_CASES = ALWAYS_CASES | RESOLVER_CASES | OFFLINE_ONLY_CASES
+# The wall-clock cases: ``performance``-marked, so tests/conftest.py skips them (before any fixture is built, so before the case ledger
+# sees them) unless SPEC_KITTY_RUN_PERFORMANCE=1, which only the nightly ``performance`` job sets. They stay in the plan; the accounting
+# test takes them out of it in a per-PR run (``plan_for_environment``).
+PERFORMANCE_CASES = frozenset(
+    {
+        "test_corpus_ops_listing_is_within_five_seconds",
+        "test_corpus_project_build_is_within_its_bound",
+        "test_corpus_scan_is_within_its_bound",
+        "test_corpus_combined_run_is_within_its_bound",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -2702,26 +2714,38 @@ def test_corpus_payloads_validate_and_leak_clean(corpus_run: CorpusRun, tools: h
     assert not problems, "; ".join(problems[:5])
 
 
+def test_corpus_run_walked_the_production_index_and_meets_the_floors(corpus_run: CorpusRun) -> None:
+    """The correctness half of the three bound cases below: the timed run used the production index walk and found at least the floors."""
+    run = corpus_run
+    assert not run.index_problems, "; ".join(run.index_problems)
+    assert run.project.body["missionCount"] >= FLOORS.missions_examined, _discovered_line(run)
+    assert len(run.oracle.names) >= FLOORS.missions_examined, _discovered_line(run)
+    assert len(run.per_mission) >= FLOORS.missions_examined, _discovered_line(run)
+
+
+@pytest.mark.performance
 def test_corpus_project_build_is_within_its_bound(corpus_run: CorpusRun) -> None:
     run = corpus_run
-    problems = run.index_problems + timing_problems("one Project build", run.seconds_project, BOUND_SECONDS, _discovered_line(run))
-    assert not problems and run.project.body["missionCount"] >= FLOORS.missions_examined, "; ".join(problems)
+    budget_problems = timing_problems("one Project build", run.seconds_project, BOUND_SECONDS, _discovered_line(run))
+    assert not budget_problems, "; ".join(budget_problems)
 
 
+@pytest.mark.performance
 def test_corpus_scan_is_within_its_bound(corpus_run: CorpusRun) -> None:
     """``seconds_scan`` is the warm reduction only; the combined case carries the resolver-inclusive bound (Project plus scan plus per-Mission)."""
     run = corpus_run
-    problems = run.index_problems + timing_problems("one project-wide scan", run.seconds_scan, BOUND_SECONDS, _discovered_line(run))
-    assert not problems and len(run.oracle.names) >= FLOORS.missions_examined, "; ".join(problems)
+    budget_problems = timing_problems("one project-wide scan", run.seconds_scan, BOUND_SECONDS, _discovered_line(run))
+    assert not budget_problems, "; ".join(budget_problems)
 
 
+@pytest.mark.performance
 def test_corpus_combined_run_is_within_its_bound(corpus_run: CorpusRun) -> None:
     """The memoised pass, the Project build and the per-Mission reductions together, from the same execution as the two bounds above."""
     run = corpus_run
     detail = f"project {run.seconds_project:.1f} s, scan {run.seconds_scan:.1f} s, per-Mission {run.seconds_per_mission:.1f} s; {_discovered_line(run)}"
-    problems = run.index_problems + timing_problems("the combined run", run.seconds_combined, BOUND_SECONDS, detail)
+    budget_problems = timing_problems("the combined run", run.seconds_combined, BOUND_SECONDS, detail)
     print(f"combined run: {detail}")
-    assert not problems and len(run.per_mission) >= FLOORS.missions_examined, "; ".join(problems)
+    assert not budget_problems, "; ".join(budget_problems)
 
 
 def test_the_timed_block_runs_the_production_index_walk_and_a_patched_one_is_refused() -> None:
@@ -2919,12 +2943,13 @@ def test_corpus_completion_equals_is_mission_completed() -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 def test_corpus_ops_listing_is_within_five_seconds(tools: helper.ContractTools) -> None:
-    problems, measured = listing_problems(REPO_ROOT, tools, expected_files=expect_discovered_ops(REPO_ROOT))
+    budget_problems, measured = listing_problems(REPO_ROOT, tools, expected_files=expect_discovered_ops(REPO_ROOT))
     print(
         f"real kitty-ops listing: minimum {measured.minimum:.4f} s of {len(measured.seconds)} cold repeats, margin {LISTING_BOUND_SECONDS / measured.minimum:.0f}x"
     )
-    assert not problems, "; ".join(problems)
+    assert not budget_problems, "; ".join(budget_problems)
 
 
 # ---------------------------------------------------------------------------
@@ -3622,6 +3647,7 @@ OFFLINE_MUST_SKIP = frozenset(
         "test_corpus_project_report_equals_the_oracles",
         "test_corpus_per_mission_reports_equal_the_filtered_findings",
         "test_corpus_payloads_validate_and_leak_clean",
+        "test_corpus_run_walked_the_production_index_and_meets_the_floors",
         "test_corpus_project_build_is_within_its_bound",
         "test_corpus_scan_is_within_its_bound",
         "test_corpus_combined_run_is_within_its_bound",
@@ -3841,6 +3867,13 @@ def ledger_problems(ledger: CaseLedger, plan: CasePlan) -> list[str]:
     return problems
 
 
+def plan_for_environment(plan: CasePlan, environ: Mapping[str, str]) -> CasePlan:
+    """The plan without the wall-clock cases unless this run opted in to them (SPEC_KITTY_RUN_PERFORMANCE=1, the nightly job): conftest skips them otherwise."""
+    if environ.get("SPEC_KITTY_RUN_PERFORMANCE") == "1":
+        return plan
+    return CasePlan(plan.run - PERFORMANCE_CASES, {name: reason for name, reason in plan.skip.items() if name not in PERFORMANCE_CASES})
+
+
 def actions_origin_failure(state: oracles.RemoteState, environ: Mapping[str, str]) -> str | None:
     """The failure message when, on GitHub Actions, the checkout's own ``origin`` cannot be reached (the checkout just fetched from it, so an
     unreachable origin there is a broken probe, not an offline machine); None otherwise. Locally, and for any other remote, the named skip stays."""
@@ -3894,6 +3927,9 @@ def test_the_case_ledger_fails_on_a_vanished_case_and_on_a_case_that_slipped_int
     )
     assert ledger_problems(slipped, plan), "a case that slipped into the named skip must be reported"
     assert ledger_problems(CaseLedger(set(), {}), case_plan(True)), "an empty ledger proves nothing"
+    nightly = plan_for_environment(plan, {"SPEC_KITTY_RUN_PERFORMANCE": "1"})
+    assert nightly is plan and PERFORMANCE_CASES <= CORPUS_CASES, "the nightly run plans every case, the wall-clock ones included"
+    assert not PERFORMANCE_CASES & plan_for_environment(case_plan(True), {}).run, "a per-PR run does not plan the wall-clock cases"
 
 
 # Keep this test LAST in the file: under ``--dist loadfile`` the file runs on one worker in
@@ -3905,10 +3941,10 @@ def test_every_generated_case_executed_and_the_count_is_not_vacuous(remote_state
     if annotation is not None:
         with capsys.disabled():  # past the capture, so the runner log carries it
             print("\n" + annotation, flush=True)  # a workflow command is read only at the start of a line
-    assert ledger_problems(CASE_LEDGER, case_plan(remote_state.online)) == [], (
+    assert ledger_problems(CASE_LEDGER, plan_for_environment(case_plan(remote_state.online), os.environ)) == [], (
         "a corpus case of the health, drift and Ops reads did not run, or ran when it should have skipped by name"
     )
-    assert len(CORPUS_CASES) == 20
+    assert len(CORPUS_CASES) == 21
     with_meta = enumerate_missions(REPO_ROOT)
     assert len(CASES) == len(with_meta) >= FLOORS.missions, "the case list must equal the Missions with a meta.json"
     assert set(CASES) == EXECUTED, f"{len(CASES) - len(EXECUTED)} generated cases did not execute"
