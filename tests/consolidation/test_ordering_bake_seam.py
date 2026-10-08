@@ -12,6 +12,7 @@ distinct concern from one-way-import.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from subprocess import CompletedProcess
 from unittest.mock import patch
@@ -210,35 +211,43 @@ def test_planning_only_assignment_noop_when_not_needed(tmp_path: Path) -> None:
         assert bake._assign_planning_only_mission_number_if_needed(tmp_path, tmp_path) is None
 
 
-def test_planning_only_assignment_writes_meta(tmp_path: Path) -> None:
+def _seed_planning_meta(tmp_path: Path, meta: dict[str, object]) -> Path:
     feature_dir = tmp_path / "kitty-specs" / "m"
     feature_dir.mkdir(parents=True)
-    written: list[dict[str, object]] = []
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    return feature_dir
+
+
+def test_planning_only_assignment_writes_meta(tmp_path: Path) -> None:
+    """The number lands in the real meta.json (written under the Mission lock), other fields kept."""
+    feature_dir = _seed_planning_meta(tmp_path, {"mission_slug": "m", "mission_number": None})
     with (
         patch("specify_cli.consolidation.state.needs_number_assignment", return_value=True),
         patch.object(bake, "assign_next_mission_number", return_value=4),
-        patch.object(bake, "load_meta", return_value={"mission_slug": "m"}),
-        patch.object(bake, "write_meta", side_effect=lambda _d, meta, **_k: written.append(meta)),
     ):
         result = bake._assign_planning_only_mission_number_if_needed(tmp_path, feature_dir)
     assert result == 4
-    assert written[0]["mission_number"] == 4
+    written = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert written["mission_number"] == 4
+    assert written["mission_slug"] == "m"
 
 
-def test_planning_only_assignment_writes_meta_when_load_returns_none(tmp_path: Path) -> None:
-    """load_meta returning None must still produce a fresh meta dict (the ``or {}``)."""
+def test_planning_only_assignment_missing_meta_is_not_fabricated(tmp_path: Path) -> None:
+    """A missing meta.json raises instead of becoming a one-key stub.
+
+    The old ``load_meta_fail_closed(...) or {}`` fabricated ``{"mission_number": N}``. The locked
+    write refuses a missing file; ``needs_number_assignment`` already returns False for one, so the
+    case is reachable only through a race (the file vanishing after that check).
+    """
     feature_dir = tmp_path / "kitty-specs" / "m"
     feature_dir.mkdir(parents=True)
-    written: list[dict[str, object]] = []
     with (
         patch("specify_cli.consolidation.state.needs_number_assignment", return_value=True),
         patch.object(bake, "assign_next_mission_number", return_value=2),
-        patch.object(bake, "load_meta", return_value=None),
-        patch.object(bake, "write_meta", side_effect=lambda _d, meta, **_k: written.append(meta)),
+        pytest.raises(FileNotFoundError),
     ):
-        result = bake._assign_planning_only_mission_number_if_needed(tmp_path, feature_dir)
-    assert result == 2
-    assert written[0] == {"mission_number": 2}
+        bake._assign_planning_only_mission_number_if_needed(tmp_path, feature_dir)
+    assert not (feature_dir / "meta.json").exists()
 
 
 # --- has_dependency_info ----------------------------------------------------
