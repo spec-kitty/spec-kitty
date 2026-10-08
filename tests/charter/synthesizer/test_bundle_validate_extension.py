@@ -60,7 +60,7 @@ def _write_artifact(
 ) -> Path:
     """Write a synthesized artifact file to the doctrine tree."""
     subdir = {"directive": "directive", "tactic": "tactic", "styleguide": "styleguide"}[kind]
-    path = repo / ".kittify" / "doctrine" / subdir / filename
+    path = repo / ".kittify" / "charter-packs" / subdir / filename
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
     return path
@@ -174,7 +174,7 @@ def test_no_synthesis_state_passes_as_legacy(tmp_path: Path) -> None:
     """
     repo = tmp_path / "repo"
     repo.mkdir()
-    # No .kittify/doctrine/ or .kittify/charter/provenance/ directories.
+    # No .kittify/charter-packs/ or .kittify/charter/provenance/ directories.
 
     result = validate_synthesis_state(repo)
 
@@ -186,7 +186,7 @@ def test_no_synthesis_state_passes_as_legacy(tmp_path: Path) -> None:
 def test_empty_doctrine_tree_without_provenance_is_treated_as_legacy(tmp_path: Path) -> None:
     """An empty doctrine tree alone must not flip synthesis_state_present."""
     repo = tmp_path / "repo"
-    (repo / ".kittify" / "doctrine").mkdir(parents=True)
+    (repo / ".kittify" / "charter-packs").mkdir(parents=True)
 
     result = validate_synthesis_state(repo)
 
@@ -256,7 +256,7 @@ def test_valid_synthesis_bundle_passes(tmp_path: Path) -> None:
             ManifestArtifactEntry(
                 kind="tactic",
                 slug="my-tactic",
-                path=".kittify/doctrine/tactic/my-tactic.tactic.yaml",
+                path=".kittify/charter-packs/tactic/my-tactic.tactic.yaml",
                 provenance_path=".kittify/charter/provenance/tactic-my-tactic.yaml",
                 content_hash=content_hash,
             )
@@ -307,7 +307,7 @@ def test_provenance_without_artifact_is_error(tmp_path: Path) -> None:
 
     # Write provenance but no artifact
     # Create doctrine dir so synthesis_state_present is True
-    (repo / ".kittify" / "doctrine" / "tactic").mkdir(parents=True, exist_ok=True)
+    (repo / ".kittify" / "charter-packs" / "tactic").mkdir(parents=True, exist_ok=True)
     _write_provenance(
         repo, "tactic", "ghost-tactic", _prov_yaml("tactic", "ghost-tactic", "a" * 64)
     )
@@ -362,7 +362,7 @@ def test_manifest_hash_mismatch_is_error(tmp_path: Path) -> None:
             ManifestArtifactEntry(
                 kind="tactic",
                 slug="hash-mismatch-tactic",
-                path=".kittify/doctrine/tactic/hash-mismatch-tactic.tactic.yaml",
+                path=".kittify/charter-packs/tactic/hash-mismatch-tactic.tactic.yaml",
                 provenance_path=".kittify/charter/provenance/tactic-hash-mismatch-tactic.yaml",
                 content_hash="0" * 64,  # wrong hash
             )
@@ -382,7 +382,7 @@ def test_invalid_manifest_yaml_is_reported(tmp_path: Path) -> None:
     """A malformed synthesis manifest surfaces a structured load error."""
     repo = tmp_path / "repo"
     repo.mkdir()
-    (repo / ".kittify" / "doctrine").mkdir(parents=True, exist_ok=True)
+    (repo / ".kittify" / "charter-packs").mkdir(parents=True, exist_ok=True)
     (repo / ".kittify" / "charter" / "provenance").mkdir(parents=True, exist_ok=True)
     manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
@@ -480,7 +480,7 @@ def test_multiple_failed_dirs_multiple_warnings(tmp_path: Path) -> None:
 def test_malformed_provenance_filename_is_error(tmp_path: Path) -> None:
     """Provenance filenames must be <kind>-<slug>.yaml."""
     repo = tmp_path / "repo"
-    (repo / ".kittify" / "doctrine" / "tactic").mkdir(parents=True, exist_ok=True)
+    (repo / ".kittify" / "charter-packs" / "tactic").mkdir(parents=True, exist_ok=True)
     bad_prov = repo / ".kittify" / "charter" / "provenance" / "badformat.yaml"
     bad_prov.parent.mkdir(parents=True, exist_ok=True)
     bad_prov.write_text("schema_version: '1'\n", encoding="utf-8")
@@ -494,7 +494,7 @@ def test_malformed_provenance_filename_is_error(tmp_path: Path) -> None:
 def test_unknown_provenance_kind_is_error(tmp_path: Path) -> None:
     """Unknown provenance kinds should fail validation with a clear error."""
     repo = tmp_path / "repo"
-    (repo / ".kittify" / "doctrine" / "tactic").mkdir(parents=True, exist_ok=True)
+    (repo / ".kittify" / "charter-packs" / "tactic").mkdir(parents=True, exist_ok=True)
     bad_prov = repo / ".kittify" / "charter" / "provenance" / "unknown-slug.yaml"
     bad_prov.parent.mkdir(parents=True, exist_ok=True)
     bad_prov.write_text("schema_version: '1'\n", encoding="utf-8")
@@ -525,7 +525,7 @@ def test_check_artifacts_have_provenance_ignores_unrecognized_files(tmp_path: Pa
 
     _check_artifacts_have_provenance(
         repo_root=repo,
-        artifact_files=[repo / ".kittify" / "doctrine" / "misc" / "notes.yaml"],
+        artifact_files=[repo / ".kittify" / "charter-packs" / "misc" / "notes.yaml"],
         provenance_root=repo / ".kittify" / "charter" / "provenance",
         manifest_by_path={},
         result=result,
@@ -536,7 +536,7 @@ def test_check_artifacts_have_provenance_ignores_unrecognized_files(tmp_path: Pa
 
 def test_find_artifact_returns_none_for_unknown_kind(tmp_path: Path) -> None:
     """Unknown artifact kinds should short-circuit without scanning the tree."""
-    doctrine_root = tmp_path / ".kittify" / "doctrine"
+    doctrine_root = tmp_path / ".kittify" / "charter-packs"
     doctrine_root.mkdir(parents=True)
 
     assert _find_artifact(doctrine_root, "unknown", "slug") is None
@@ -558,21 +558,21 @@ def test_manifest_hash_is_deterministic(tmp_path: Path) -> None:
         ManifestArtifactEntry(
             kind="tactic",
             slug="z-tactic",
-            path=".kittify/doctrine/tactic/z-tactic.tactic.yaml",
+            path=".kittify/charter-packs/tactic/z-tactic.tactic.yaml",
             provenance_path=".kittify/charter/provenance/tactic-z-tactic.yaml",
             content_hash="a" * 64,
         ),
         ManifestArtifactEntry(
             kind="directive",
             slug="a-directive",
-            path=".kittify/doctrine/directive/001-a-directive.directive.yaml",
+            path=".kittify/charter-packs/directive/001-a-directive.directive.yaml",
             provenance_path=".kittify/charter/provenance/directive-a-directive.yaml",
             content_hash="b" * 64,
         ),
         ManifestArtifactEntry(
             kind="tactic",
             slug="a-tactic",
-            path=".kittify/doctrine/tactic/a-tactic.tactic.yaml",
+            path=".kittify/charter-packs/tactic/a-tactic.tactic.yaml",
             provenance_path=".kittify/charter/provenance/tactic-a-tactic.yaml",
             content_hash="c" * 64,
         ),
@@ -597,14 +597,14 @@ def test_manifest_hash_is_stable_regardless_of_artifact_insertion_order(tmp_path
         ManifestArtifactEntry(
             kind="directive",
             slug="a-directive",
-            path=".kittify/doctrine/directive/001-a-directive.directive.yaml",
+            path=".kittify/charter-packs/directive/001-a-directive.directive.yaml",
             provenance_path=".kittify/charter/provenance/directive-a-directive.yaml",
             content_hash="b" * 64,
         ),
         ManifestArtifactEntry(
             kind="tactic",
             slug="a-tactic",
-            path=".kittify/doctrine/tactic/a-tactic.tactic.yaml",
+            path=".kittify/charter-packs/tactic/a-tactic.tactic.yaml",
             provenance_path=".kittify/charter/provenance/tactic-a-tactic.yaml",
             content_hash="c" * 64,
         ),
@@ -644,7 +644,7 @@ def test_dump_manifest_uses_path_guard_write_text(tmp_path: Path) -> None:
     repo.mkdir()
 
     # Guard whose allowlist excludes any write location — repo is not added.
-    guard = PathGuard(repo_root=repo)  # default allowlist: .kittify/doctrine + .kittify/charter
+    guard = PathGuard(repo_root=repo)  # default allowlist: .kittify/charter-packs + .kittify/charter
 
     # Target outside the allowed prefixes (parent of repo is not in allowlist)
     forbidden_path = tmp_path / "evil-manifest.yaml"
@@ -685,7 +685,7 @@ def test_manifest_self_hash_mismatch_is_error(tmp_path: Path) -> None:
             ManifestArtifactEntry(
                 kind="tactic",
                 slug="selfhash-tactic",
-                path=".kittify/doctrine/tactic/selfhash-tactic.tactic.yaml",
+                path=".kittify/charter-packs/tactic/selfhash-tactic.tactic.yaml",
                 provenance_path=".kittify/charter/provenance/tactic-selfhash-tactic.yaml",
                 content_hash=content_hash,
             )
@@ -769,7 +769,7 @@ def test_orphan_agent_profile_provenance_without_artifact_is_error(tmp_path: Pat
     definition unregistered, so there is no manifest entry to drive through.
     """
     repo = tmp_path / "repo"
-    (repo / ".kittify" / "doctrine" / "agent_profiles").mkdir(parents=True, exist_ok=True)
+    (repo / ".kittify" / "charter-packs" / "agent_profiles").mkdir(parents=True, exist_ok=True)
     _write_provenance(
         repo, "agent_profile", "ghost", _prov_yaml("agent_profile", "ghost", "a" * 64)
     )

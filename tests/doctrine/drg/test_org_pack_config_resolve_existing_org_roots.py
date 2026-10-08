@@ -31,9 +31,9 @@ def _write_config(repo_root: Path, packs: list[tuple[str, Path]]) -> None:
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     if not packs:
-        lines = ["doctrine:", "  org:", "    packs: []"]
+        lines = ["charter_packs:", "  org:", "    packs: []"]
     else:
-        lines = ["doctrine:", "  org:", "    packs:"]
+        lines = ["charter_packs:", "  org:", "    packs:"]
         for name, local_path in packs:
             lines.append(f"      - name: {name}")
             lines.append(f"        local_path: {local_path}")

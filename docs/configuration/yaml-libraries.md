@@ -51,7 +51,7 @@ PyYAML's `yaml.safe_load` is a single-call read with no write path. It is approp
 | `src/specify_cli/frontmatter.py` | 16–18 | `from ruamel.yaml import YAML, CommentedMap` | `FrontmatterManager` — read and write WP frontmatter files in place (rule 1: always use ruamel.yaml; rule 4: preserve comments) |
 | `src/charter/offering/yaml_utils.py` | 21 | `from ruamel.yaml import YAML` | `canonical_yaml()` — deterministic sorted-key serializer for hashing; uses ruamel for consistent output |
 | `src/charter/offering/drg/loader.py` | 12–13 | `from ruamel.yaml import YAML, YAMLError` | Doctrine relationship graph (DRG) loader — round-trip parse |
-| `src/charter/activation/pack_manager.py` | 453–454 | `YAML(); yaml.preserve_quotes = True` | `_load_config()` / `_save_config()` — read + write `.kittify/config.yaml` in `CharterPackManager` |
+| `src/charter/activation/pack_manager.py` | 453–454 | `YAML(); yaml.preserve_quotes = True` | `_load_config()` / `_save_config()` — read + write `.kittify/config.yaml` in `ActiveCharterManager` |
 | `src/specify_cli/review/artifacts.py` | 20 | `from ruamel.yaml import YAML` | Review artifact serialization — preserve existing frontmatter style |
 
 ### 2.2 PyYAML `safe_load` sites (read-only)
@@ -61,7 +61,7 @@ PyYAML's `yaml.safe_load` is a single-call read with no write path. It is approp
 | `src/charter/offering/drg/org_pack_loader.py` | 504 | `fragment.yaml` from an org pack's `drg/` subdirectory — generated, no comments |
 | `src/charter/offering/drg/org_pack_loader.py` | 617 | Individual doctrine artifact YAML files — read-only inspection of `id` key |
 | `src/charter/offering/drg/override_policy.py` | 130 | Override policy file — read-only load |
-| `src/specify_cli/doctrine/pack_assembler.py` | 572–575, 617–621 | Generated graph fragment and `org-charter.yaml` — write path uses `pyyaml.safe_dump`, not round-trip |
+| `src/charter/offering/packs/pack_assembler.py` | 667–669 | Generated graph fragment and `org-charter.yaml` — write path uses `pyyaml.safe_dump`, not round-trip |
 | `src/runtime/next/_internal_runtime/discovery.py` | 128, 191 | Runtime discovery config files — read-only |
 
 ---
@@ -88,7 +88,7 @@ These callers are read-only (no write-back) so PyYAML `safe_load` does not corru
 
 ### 3.2 Secondary: `pack_assembler.py` dual-use
 
-`src/specify_cli/doctrine/pack_assembler.py` imports both ruamel (top-level, line 34) for the main assembly pipeline and PyYAML (`import yaml as pyyaml`, lines 572–575, 617–621) for write-back of generated `graph.yaml` and `org-charter.yaml`. The generated files have no user-authored comments, so `safe_dump` is acceptable. (A former `# ruamel.yaml or pyyaml` ambiguity in the local dashboard's glossary handler went away when the bundled dashboard was removed.)
+`src/charter/offering/packs/pack_assembler.py` imports both ruamel (top-level, line 38) for the main assembly pipeline and PyYAML (`import yaml as pyyaml`, lines 667–669) for write-back of generated `graph.yaml` and `org-charter.yaml`. The generated files have no user-authored comments, so `safe_dump` is acceptable. (A former `# ruamel.yaml or pyyaml` ambiguity in the local dashboard's glossary handler went away when the bundled dashboard was removed.)
 
 ---
 

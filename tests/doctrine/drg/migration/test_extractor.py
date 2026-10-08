@@ -858,7 +858,7 @@ class TestGenerateGraph:
         assert regenerated, "generate_graph produced no fragments"
         assert regenerated == committed, (
             "packs/built-in/*.graph.yaml fragments are stale. Regenerate the "
-            "shipped DRG with `spec-kitty doctrine regenerate-graph` and commit "
+            "shipped DRG with `spec-kitty charter pack regenerate-graph` and commit "
             "the result."
         )
 

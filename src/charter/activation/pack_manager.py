@@ -1,6 +1,6 @@
 """Charter pack activation manager (FR-001, FR-002, FR-026, FR-027).
 
-Provides ``CharterPackManager`` — the single interface for activating and
+Provides ``ActiveCharterManager`` — the single interface for activating and
 deactivating doctrine artifacts in a project's ``.kittify/config.yaml`` and for
 discovering which artifacts are *available* across the built-in, org-pack, and
 project doctrine layers.
@@ -64,7 +64,7 @@ from __future__ import annotations
 
 import functools
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -90,7 +90,7 @@ from charter.activation.charter_yaml_io import (
     yaml_documents_equal,
     update_charter_yaml_section,
 )
-from charter.activation.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
+from charter.activation.pack_context import ActiveCharterConfigError, PackContext, resolve_charter_yaml_pointer
 from charter.offering.missions.mission_type_repository import (
     ORG_MISSION_TYPES_SUBDIR,
     PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT,
@@ -113,8 +113,7 @@ __all__ = [
     "ACTIVATION_YAML_KEYS",
     "ActivationResult",
     "AvailableArtifact",
-    "CharterPackManager",
-    "MergeResult",
+    "ActiveCharterManager",
     "YAML_KEY_MAP",
     "resolve_activation_write_target",
     "prepare_activation_write",
@@ -172,7 +171,17 @@ YAML_KEY_MAP: dict[str, str] = {token: _yaml_key_for_token(token) for token in C
 #: ``charter_yaml_io._activation_keys`` /
 #: ``m_unify_charter_activation_finalize._activation_keys``). Guarded by
 #: ``tests/charter/test_activation_vocabulary_setequal.py``.
-ACTIVATION_YAML_KEYS: tuple[str, ...] = ("activated_kinds", *YAML_KEY_MAP.values())
+#:
+#: Charter-activatable kinds that have no operator token (today only
+#: ``anti_pattern``: charter-activatable per ``ArtifactKind.activatable``, #5409,
+#: but excluded from :data:`CHARTER_KIND_TOKENS` because it has no standalone
+#: artifact file) are appended, derived from the enum, so the single writer
+#: (:func:`prepare_activation_write`) can set and remove ``activated_anti_patterns``
+#: when ``charter activate --preset`` applies a preset that governs it (#3732).
+_TOKENLESS_ACTIVATION_KEYS: tuple[str, ...] = tuple(
+    f"activated_{kind.plural}" for kind in ArtifactKind if kind.activatable and f"activated_{kind.plural}" not in YAML_KEY_MAP.values()
+)
+ACTIVATION_YAML_KEYS: tuple[str, ...] = ("activated_kinds", *YAML_KEY_MAP.values(), *_TOKENLESS_ACTIVATION_KEYS)
 
 
 #: Layer segments scanned for artifact availability (FR-026), in precedence
@@ -181,7 +190,6 @@ ACTIVATION_YAML_KEYS: tuple[str, ...] = ("activated_kinds", *YAML_KEY_MAP.values
 _LAYER_SEGMENTS: tuple[str, ...] = ("built-in", "org", "project")
 _KITTIFY_DIRNAME = ".kittify"
 _CONFIG_FILENAME = "config.yaml"
-_CHARTER_FILENAME = "charter.md"
 #: The project-tier overlay directory name per kind is the single canonical
 #: authority :data:`charter.offering.artifact_kinds.PROJECT_KIND_DIRS` (imported above
 #: as ``_PROJECT_KIND_DIRS``). It is *total*, so the ``.get(kind, kind.plural)``
@@ -219,7 +227,8 @@ def _scan_layout_for(kind: ArtifactKind | None) -> tuple[str, str, bool]:
     is not an :class:`ArtifactKind`, so its flat-directory layout and ``*.yaml``
     glob are spelled out explicitly.
 
-    Two base-dir outliers do not follow ``doctrine/<plural>``:
+    The standard kinds' ``base_dir`` is ``<plural>``. Two base-dir outliers
+    do not follow it:
 
     * ``mission-step-contract`` lives under
       ``missions/built_in_step_contracts`` (a flat directory, not a
@@ -232,7 +241,7 @@ def _scan_layout_for(kind: ArtifactKind | None) -> tuple[str, str, bool]:
     (``packs/built-in/missions/``), **not** ``_SRC_ROOT`` — mission
     ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005)
     relocated ``missions/``'s data subdirectories there; see
-    :meth:`CharterPackManager._scan_layer_dirs`'s flat-kind branch, the one
+    :meth:`ActiveCharterManager._scan_layer_dirs`'s flat-kind branch, the one
     place this distinction actually matters for resolution.
 
     Templates (FR-025) are intentionally **not** handled here; ``template`` is
@@ -245,27 +254,34 @@ def _scan_layout_for(kind: ArtifactKind | None) -> tuple[str, str, bool]:
     if kind is ArtifactKind.MISSION_STEP_CONTRACT:
         # Step contracts live in a single flat directory (no layer segment).
         return ("missions/built_in_step_contracts", kind.glob_pattern, False)
-    # The 7 standard artifact kinds: doctrine/<plural>/<layer>/ with the
-    # canonical glob from ArtifactKind.
-    return (f"doctrine/{kind.plural}", kind.glob_pattern, True)
+    # The standard artifact kinds: a flat <plural>/ directory per layer root,
+    # with the canonical glob from ArtifactKind.
+    return (kind.plural, kind.glob_pattern, True)
 
 
-def _resolve_org_layer_dir(root: Path, kind: ArtifactKind, base_dir: str) -> Path:
-    """Resolve the org-layer scan directory, tolerant of flat vs nested layouts.
+def _resolve_org_layer_dir(root: Path, kind: ArtifactKind) -> Path:
+    """Return the org-layer scan directory: the flat ``<pack>/<plural>/`` layout.
 
     FR-013 unifies the charter activation subsystem with runtime, which resolves
-    org packs from the **flat** ``<pack>/<plural>/`` layout
-    (``resolve_org_roots`` → ``DoctrineService``). Flat is therefore the
-    canonical, preferred layout. The legacy nested
-    ``<pack>/doctrine/<plural>/org/`` layout is kept as a fallback so packs that
-    already ship the nested layout keep resolving — a layout-tolerant default,
-    not a hard cutover (post-tasks squad decision; keeps the un-owned nested
-    catalog fixtures green).
+    org packs from the flat layout (``resolve_org_roots`` → ``DoctrineService``).
+    The retired nested ``<pack>/doctrine/<plural>/org/`` layout is not read
+    (mission ``charter-pack-cutover-01M491G6``, FR-011: no read-side fallback
+    for the retired doctrine layout).
     """
-    flat = root / kind.plural
-    if flat.is_dir():
-        return cast(Path, flat)
-    return root / base_dir / "org"
+    return cast(Path, root / kind.plural)
+
+
+def _kittify_root_of_project_pack(project_pack_root: Path) -> Path:
+    """Return the ``.kittify`` directory that holds *project_pack_root*.
+
+    The project layer root handed out by
+    :func:`charter.activation.layer_roots.resolve_layer_roots` is always a
+    direct child of ``<repo>/.kittify`` (the project pack root), so its parent
+    is ``.kittify``.
+    Project mission types live at ``.kittify/missions/mission_types/``, outside
+    the pack, and are resolved from here.
+    """
+    return project_pack_root.parent
 
 
 def _resolve_layer_candidate(
@@ -279,15 +295,16 @@ def _resolve_layer_candidate(
     """Resolve the scan directory for one ``(layer, root)`` pair.
 
     Returns ``None`` when the ``(layer, kind, layered)`` combination has no
-    known directory layout — :meth:`CharterPackManager._scan_layer_dirs`
+    known directory layout — :meth:`ActiveCharterManager._scan_layer_dirs`
     then skips that layer for this kind (mirrors the pre-extraction
     ``else: continue`` branch).
     """
     if layered and layer == "project" and kind is not None:
+        # ``root`` is the project pack root (``.kittify/charter-packs/``).
         kind_dir = _PROJECT_KIND_DIRS.get(kind, kind.plural)
-        return cast(Path, root / "doctrine" / kind_dir)
+        return cast(Path, root / kind_dir)
     if layered and layer == "org" and kind is not None:
-        return _resolve_org_layer_dir(root, kind, base_dir)
+        return _resolve_org_layer_dir(root, kind)
     if layered and layer == "built-in" and kind is not None:
         # The built-in layer relocated from ``src/charter/offering/<plural>/built-in``
         # to the flattened ``packs/built-in/<plural>`` tree
@@ -334,9 +351,9 @@ def _resolve_layer_candidate(
         # <pack_root>/mission_types/*.yaml (CL-005; see ADR
         # docs/adr/3.x/2026-08-13-1-mission-type-roster-layering-seam.md).
         # `root` here is the org pack root itself (see
-        # specify_cli.cli.commands.charter._layer_roots.resolve_layer_roots
+        # charter.activation.layer_roots.resolve_layer_roots
         # -> charter.drg.resolve_org_roots), the same root
-        # _resolve_org_layer_dir's flat-layout branch joins onto for the
+        # _resolve_org_layer_dir joins onto for the
         # ArtifactKind case above. The ``mission_types`` segment is the
         # authority's own constant (#3427) -- the same one
         # resolve_layered_mission_types scans -- never a locally re-spelled
@@ -345,19 +362,20 @@ def _resolve_layer_candidate(
     if kind is None and layer == "project":
         # FR-005: the project-layer mission-type roster is flat and
         # non-recursive -- .kittify/missions/mission_types/*.yaml (CL-005).
-        # `root` here is already `repo_root / ".kittify"` (see
-        # resolve_layer_roots), so the join consumes the authority's own
-        # under-`.kittify` tail constant (derived in
-        # charter.offering.missions.mission_type_repository beside the
-        # repo-root-relative tuple it comes from, #3427) rather than
-        # re-spelling the layout locally. This joins to a FLAT sibling of, not
-        # nested inside, the pre-existing per-mission-instance
+        # `root` here is the project pack root (see
+        # charter.activation.layer_roots.resolve_layer_roots), which is NOT
+        # where the roster lives: the roster sits under `.kittify` itself, so
+        # the join starts from `_kittify_root_of_project_pack(root)` and
+        # consumes the authority's own under-`.kittify` tail constant
+        # (charter.offering.missions.mission_type_repository, #3427) rather
+        # than re-spelling the layout locally. This joins to a FLAT sibling
+        # of, not nested inside, the pre-existing per-mission-instance
         # `.kittify/missions/<mission_name>/` convention --
         # `_mission_dir_if_valid` (src/specify_cli/mission.py) only
         # recognizes a subdirectory holding a file literally named
         # `mission.yaml`, which this roster's `*.yaml` files (named after
         # mission-type ids) never are.
-        return root.joinpath(*PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT)
+        return _kittify_root_of_project_pack(root).joinpath(*PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT)
     return None
 
 
@@ -407,103 +425,54 @@ def _declared_id(path: Path, kind: ArtifactKind | None, yaml: YAML) -> str | Non
 logger = logging.getLogger(__name__)
 
 
-def _chain_complete_available(
-    manager: CharterPackManager,
-    ctx: ProjectContext,
-    kind: str,
+def _preservation_set(
     repo_root: Path,
-    layer_roots: dict[str, Path] | None,
-) -> frozenset[str]:
-    """``list_available`` across EVERY declared org pack, not just pack #1.
+    kind: str,
+    yaml_key: str,
+    data: Mapping[str, Any],
+    available: frozenset[str],
+    when_absent: str,
+) -> tuple[list[str], list[str], bool]:
+    """What ``activate`` materializes for an absent key (#4253, #4399, #4400).
 
-    #4399 squad MAJOR: the CLI's ``layer_roots`` map deliberately truncates the
-    org chain to the first pack — a documented back-compat contract for
-    ``charter list --all-layers`` and every consumer typed
-    ``dict[str, Path]`` (see ``_layer_roots.resolve_org_root_chain``). Reusing
-    that map as the preservation source meant artifacts in org packs 2+ were
-    absent from the preserved set, so the first activation kept silently
-    deactivating them — #4253's exact failure mode in a supported
-    configuration. Scanning once per declared root and unioning keeps the
-    truncated contract intact for its own callers while giving activation the
-    whole picture.
+    Returns ``(ids, warnings, in_force)``. ``in_force`` is ``True`` when *ids*
+    is what was in force while the key was absent, so the engine may say that
+    nothing in force was deactivated; ``False`` when *ids* is a substitute and
+    *warnings* already says what was used.
+
+    A present key needs no set (it is appended to). For an absent key of a
+    "required" kind (skills) the in-force set is what ``PackContext`` puts in
+    force while the key is absent (org-required plus built-in defaults), never
+    the whole catalogue (``activate skill X`` would activate every skill). For
+    an "all" kind the set comes from the one public seam. When the seam cannot
+    resolve it, activation stays tolerant but never narrower than the whole
+    readable chain: it seeds from the seam's ``fallback_ids`` (built-in, every
+    readable declared org root, project). ``mission-type`` is an activation
+    ledger whose absent key puts nothing in force; it is seeded from the same
+    chain-wide ``fallback_ids``, so every org pack is treated alike.
     """
-    from charter.offering.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415 — lazy: avoids an import cycle
+    if data.get(yaml_key) is not None:
+        return [], [], True
+    if when_absent != "all":
+        in_force = getattr(PackContext.from_config(repo_root), yaml_key, None)
+        return sorted(str(item) for item in in_force or ()), [], True
+    from charter.activation.effective_set import resolve_effective_sets
 
-    available: set[str] = set(manager.list_available(ctx, kind, layer_roots=layer_roots))
-    try:
-        org_roots = [root for root in resolve_org_roots(repo_root, quiet=True) if root.is_dir()]
-    except Exception as exc:  # noqa: BLE001 — a malformed pack registry must not fail the activation
-        logger.debug("org-chain scan unavailable: %s", exc)
-        return frozenset(available)
-
-    for org_root in org_roots:
-        roots = dict(layer_roots or {})
-        roots["org"] = org_root
-        try:
-            available.update(manager.list_available(ctx, kind, layer_roots=roots))
-        except Exception as exc:  # noqa: BLE001 — one unreadable pack must not drop the rest
-            logger.debug("org pack %s unreadable for kind %r: %s", org_root, kind, exc)
-    return frozenset(available)
-
-
-def _kind_stays_absent(token: str) -> bool:
-    """Whether *token*'s activation key must stay absent until explicitly activated."""
-    kind = _resolve_kind(token)
-    return kind is not None and kind.effective_when_absent == "required"
-
-
-def _effective_ids_for_kind(repo_root: Path, kind: str) -> tuple[str, ...]:
-    """What the activation-aware resolver currently has in force for *kind*.
-
-    #4253's fix materializes this set when a kind's activation key is absent
-    (the unrestricted state), instead of the narrower default pack. #4399's
-    squad round showed why it must come from the RESOLVER rather than from
-    :meth:`CharterPackManager.list_available`:
-
-    * ``list_available`` is handed the CLI's ``layer_roots`` map, which
-      deliberately truncates the declared org chain to pack #1 (a documented
-      back-compat contract — see ``_layer_roots.resolve_org_root_chain``), so
-      artifacts in org packs 2+ were absent from the preserved set and stayed
-      deactivated;
-    * the resolver filters Pattern-B/C kinds (procedures, agent profiles, …)
-      on each artifact's declared ``id:`` by plain membership, so a set
-      written as filename stems is filtered straight back out whenever a
-      declared id diverges from its stem.
-
-    Reading the service's own mapping avoids both: it spans every declared
-    layer and its keys are, by construction, the keys the filter compares
-    against.
-
-    Returns an empty tuple — leaving the caller on its previous
-    ``available_ids`` behaviour — when the kind has no service-side mapping
-    (``mission-type`` is an activation ledger, not a doctrine corpus) or when
-    the service cannot be built at all. Diagnostics must never turn an
-    activation into a failure.
-    """
-    yaml_key = YAML_KEY_MAP.get(kind, "")
-    if not yaml_key.startswith("activated_"):
-        return ()  # mission-type: an activation ledger, not a resolvable corpus
-    if kind == "directive":
-        # Pattern A: the directive getter resolves config stems through the
-        # shared vocabulary (``_normalize_directive_id``), so the authored
-        # stem spelling already satisfies the filter. Emitting the resolver's
-        # canonical ``DIRECTIVE_NNN`` keys here would rewrite every project's
-        # ``activated_directives`` into a second spelling for no gain.
-        return ()
-    attribute = yaml_key.removeprefix("activated_")
-    try:
-        from charter.activation.doctrine_service_builder import (  # noqa: PLC0415 — lazy: avoids an import cycle
-            build_activation_aware_doctrine_service,
+    effective = resolve_effective_sets(repo_root, [yaml_key])[yaml_key]
+    if effective.resolved:
+        return sorted(effective.ids), [], True
+    seeded = sorted(effective.fallback_ids | available)
+    if kind == MISSION_TYPE_TOKEN:
+        note = (
+            f"Kind {kind!r} had no explicit activation set, so no mission type was in force; "
+            f"initialized from the {len(seeded)} mission types available across all readable layers."
         )
-
-        service = build_activation_aware_doctrine_service(repo_root)
-        mapping = getattr(service, attribute, None)
-        if not isinstance(mapping, Mapping):
-            return ()
-        return tuple(str(key) for key in mapping)
-    except Exception as exc:  # noqa: BLE001 — preservation is best-effort; never fail an activation over it
-        logger.debug("effective-set read for kind %r unavailable: %s", kind, exc)
-        return ()
+        return seeded, [note], False
+    logger.debug("effective set for %r unresolved: %s", yaml_key, effective.reason)
+    warning = (
+        f"The effective {kind} set could not be resolved because {effective.reason}; initialized from the {len(seeded)} ids available across all readable layers."
+    )
+    return seeded, [warning], False
 
 
 @dataclass(frozen=True)
@@ -536,20 +505,9 @@ class ActivationResult:
     warnings: list[str] = field(default_factory=list)
 
 
-@dataclass
-class MergeResult:
-    """Result of a merge_defaults() operation."""
-
-    kinds_written: list[str] = field(default_factory=list)
-    backup_path: Path | None = None
-    warnings: list[str] = field(default_factory=list)
-
-
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
-
-_DEFAULT_PACK_PATH = Path(__file__).parent / "packs" / "default.yaml"
 
 #: Doctrine is installed alongside the charter package in ``src/``.
 #: ``pack_manager.py`` lives one level deeper than before (moved into
@@ -604,9 +562,9 @@ def _save_charter_yaml_activation(charter_path: Path, data: dict[str, Any]) -> N
     ``"activation"`` pseudo-section — so unrelated sections are structurally
     preserved rather than conventionally preserved (Landmine 3 / INV-9).
 
-    Safe to call once per changed key (``CharterPackManager.activate`` /
-    ``deactivate``) or once for a batch of keys (``merge_defaults``,
-    ``charter.activation.activation_engine.promote_activations``): only the keys
+    Safe to call once per changed key (``ActiveCharterManager.activate`` /
+    ``deactivate``) or once for a batch of keys
+    (``charter.activation.activation_engine.promote_activations``): only the keys
     actually present in ``data`` are written, and re-writing an unchanged
     key is idempotent.
     """
@@ -620,9 +578,9 @@ def resolve_activation_write_target(
 ) -> tuple[Path, dict[str, Any], Callable[[Path, dict[str, Any]], None]]:
     """Resolve the ``(path, loaded document, save)`` triple for activation writes.
 
-    Shared by :class:`CharterPackManager` and the two other activation
+    Shared by :class:`ActiveCharterManager` and the two other activation
     writers (``specify_cli.cli.commands.charter.interview`` and
-    ``specify_cli.doctrine.org_charter``) so pointer resolution has exactly
+    ``charter.activation.org_charter``) so pointer resolution has exactly
     one implementation on the write side — mirroring
     :meth:`charter.activation.pack_context.PackContext.from_config` on the read side
     (INV-2/INV-5/INV-9).
@@ -635,7 +593,7 @@ def resolve_activation_write_target(
 
     Present pointer -> migrated project: the target is the pointed-at
     ``charter.yaml``; a dangling/unreadable pointer is a fail-loud
-    :class:`~charter.activation.pack_context.CharterPackConfigError` (INV-5, re-homed
+    :class:`~charter.activation.pack_context.ActiveCharterConfigError` (INV-5, re-homed
     #2530) rather than a silent fallback to the legacy config-embedded keys.
     Writes route through :func:`_save_charter_yaml_activation`, touching
     only the flat activation keys (INV-9).
@@ -648,7 +606,7 @@ def resolve_activation_write_target(
         return config_path, config_data, functools.partial(_save_config, yaml=yaml_inst)
 
     if not charter_path.exists():
-        raise CharterPackConfigError(
+        raise ActiveCharterConfigError(
             f".kittify/config.yaml 'charter:' pointer names {charter_path}, "
             f"which does not exist.\nRemediation: run the charter-bundle "
             f"migration (`spec-kitty upgrade`) to (re)generate it, or fix "
@@ -656,15 +614,25 @@ def resolve_activation_write_target(
         )
     charter_data = load_charter_yaml(charter_path)
     if not isinstance(charter_data, dict):
-        raise CharterPackConfigError(f"{charter_path} root must be a mapping.")
+        raise ActiveCharterConfigError(f"{charter_path} root must be a mapping.")
     return charter_path, charter_data, _save_charter_yaml_activation
 
 
-def prepare_activation_write(repo_root: Path, values: dict[str, Any]) -> PreparedYamlWrite:
-    """Prepare the canonical activation target, retaining config/pointer identity."""
-    unknown = set(values) - set(ACTIVATION_YAML_KEYS)
+def prepare_activation_write(repo_root: Path, values: dict[str, Any], *, remove: Iterable[str] = ()) -> PreparedYamlWrite:
+    """Prepare the canonical activation target, retaining config/pointer identity.
+
+    *values* are written; the keys named in *remove* are deleted (an absent key
+    is a no-op). Both name keys of :data:`ACTIVATION_YAML_KEYS`; a key in both is
+    a ``ValueError``. This is the single activation writer for both targets
+    (``config.yaml`` and a pointed ``charter.yaml``).
+    """
+    removals = tuple(dict.fromkeys(remove))
+    unknown = (set(values) | set(removals)) - set(ACTIVATION_YAML_KEYS)
     if unknown:
         raise ValueError(f"Unknown activation key(s): {sorted(unknown)}")
+    overlap = sorted(set(values) & set(removals))
+    if overlap:
+        raise ValueError(f"Activation key(s) both written and removed: {overlap}")
     config = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
     inputs = tuple(observe_yaml_input(path) for path in (*reversed(config.parents), config))
     target, data, _save = resolve_activation_write_target(repo_root)
@@ -672,33 +640,24 @@ def prepare_activation_write(repo_root: Path, values: dict[str, Any]) -> Prepare
     if before.content is not None and not yaml_documents_equal(YAML().load(before.content) or {}, data):
         raise ValueError(f"precondition_changed: {target}")
     if target != config:
-        section = prepare_charter_yaml_section(target, "activation", values)
+        section = prepare_charter_yaml_section(target, "activation", values, remove=removals)
         desired = section.desired_bytes
     else:
         for key, value in values.items():
             if key not in data or data[key] != value:
                 data[key] = value
+        for key in removals:
+            data.pop(key, None)
         desired = render_yaml_document(before.content, data, YAML())
     return prepare_yaml_write(target, desired, section="activation", inputs=inputs + (before,))
 
 
-def _load_default_pack() -> dict[str, list[str]]:
-    """Load the built-in default pack IDs from the shipped default.yaml."""
-    import yaml as _yaml
-
-    with _DEFAULT_PACK_PATH.open("r", encoding="utf-8") as fh:
-        raw: Any = _yaml.safe_load(fh)
-    if not isinstance(raw, dict):
-        return {}
-    return {k: list(v) for k, v in raw.items() if isinstance(v, list)}
-
-
 # ---------------------------------------------------------------------------
-# CharterPackManager
+# ActiveCharterManager
 # ---------------------------------------------------------------------------
 
 
-class CharterPackManager:
+class ActiveCharterManager:
     """Manages activation/deactivation and availability of doctrine artifacts.
 
     All mutating methods read from and write to ``.kittify/config.yaml`` using
@@ -737,11 +696,14 @@ class CharterPackManager:
         :func:`~charter.activation.activation_engine.commit_plan` (WP10). The engine
         validates the artifact ID *before* computing any post-state and, when
         the kind has no explicit activation set, materializes what is
-        currently IN FORCE into the plan (#4253) — not the narrower default
-        pack, whose materialization silently deactivated everything outside
-        it. This method supplies that effective set (see
-        :func:`_effective_ids_for_kind`) and performs the single
-        ``commit_plan`` write.
+        currently IN FORCE into the plan (#4253) — not a narrower shipped
+        list, whose materialization silently deactivated everything outside
+        it. This method supplies that effective set from the one public seam,
+        :func:`charter.activation.effective_set.resolve_effective_sets`, and
+        performs the single ``commit_plan`` write. Activation stays tolerant:
+        when the set cannot be resolved it falls back to the available ids
+        (an explicit activation has already validated its id) and says so in
+        :attr:`ActivationResult.warnings`.
 
         Parameters
         ----------
@@ -779,16 +741,8 @@ class CharterPackManager:
         target_path, data, save = resolve_activation_write_target(repo_root)
 
         available = self.list_available(ctx, kind, layer_roots=layer_roots)
-        # Preservation source (#4253 + #4399): every declared org pack, plus —
-        # for the kinds the resolver filters by raw ``id:`` — the resolver's
-        # own keys, so a declared id that diverges from its filename stem is
-        # not written in a spelling the filter drops.
         when_absent = self._effective_when_absent(kind)
-        # A "required" kind (skills) has a narrower absent-key meaning than
-        # "everything available": preserving the whole catalog would turn
-        # `activate skill X` into "activate every skill".
-        preserved = set(_chain_complete_available(self, ctx, kind, repo_root, layer_roots)) if when_absent == "all" else set()
-        preserved.update(_effective_ids_for_kind(repo_root, kind))
+        preserved, preservation_warnings, in_force = _preservation_set(repo_root, kind, yaml_key, data, available, when_absent)
 
         # plan_activation validates BEFORE computing any post-state (NFR-003);
         # on an unknown ID it raises UnknownActivationIdError and no write
@@ -799,11 +753,12 @@ class CharterPackManager:
             yaml_key=yaml_key,
             available_ids=available,
             config_data=data,
-            effective_ids=sorted(preserved),
+            effective_ids=preserved,
             effective_when_absent=when_absent,
+            effective_ids_in_force=in_force,
         )
 
-        result = ActivationResult(activated=list(plan.activated), warnings=list(plan.warnings))
+        result = ActivationResult(activated=list(plan.activated), warnings=preservation_warnings + list(plan.warnings))
 
         commit_plan(target_path, data, plan, save=save)
         return result
@@ -920,9 +875,9 @@ class CharterPackManager:
 
         The built-in layer is rooted under the installed doctrine package
         (``src/doctrine``). Org/project roots are supplied **as data** (C-008).
-        Org roots use the pack layout ``doctrine/<plural>/org``. Project roots
-        use the live project overlay layout ``doctrine/<singular>`` for kinds
-        synthesized into ``.kittify/doctrine``. Non-existent directories are
+        Org roots use the flat pack layout ``<plural>/``. The project
+        root is the project pack root (``.kittify/charter-packs/``) and uses
+        the flat ``<singular>`` kind layout. Non-existent directories are
         skipped so a layer that is simply not present contributes nothing.
         """
         kind = _resolve_kind(kind_token)
@@ -1079,64 +1034,6 @@ class CharterPackManager:
             If ``kind`` is not in the canonical charter kind universe.
         """
         return frozenset(entry.artifact_id for entry in self.list_available_detailed(ctx, kind, layer_roots=layer_roots))
-
-    def merge_defaults(
-        self,
-        ctx: ProjectContext,
-    ) -> MergeResult:
-        """Merge the default pack into the activation source for all absent kinds.
-
-        Only absent keys are written; present keys are not overwritten. The
-        activation source is ``charter.yaml`` for a migrated project (a
-        ``charter:`` pointer is present in ``config.yaml``) or ``config.yaml``
-        itself for a legacy/un-migrated one — see
-        :func:`resolve_activation_write_target`. If ``.kittify/charter/charter.md``
-        exists it is backed up before any write.
-
-        Parameters
-        ----------
-        ctx:
-            Project context providing access to the repository root.
-
-        Returns
-        -------
-        MergeResult
-            Contains kinds written, backup path (if any), and warnings.
-        """
-        from kernel.clock import now_utc_compact_stamp
-
-        repo_root = ctx.require_repo_root()
-        charter_md_path = repo_root / _KITTIFY_DIRNAME / "charter" / _CHARTER_FILENAME
-
-        result = MergeResult()
-
-        # Backup charter.md if it exists before any write
-        if charter_md_path.exists():
-            ts = now_utc_compact_stamp()
-            backup_dir = repo_root / _KITTIFY_DIRNAME / "charter" / "backups"
-            backup_dir.mkdir(parents=True, exist_ok=True)
-            backup_path = backup_dir / f"charter-{ts}.md"
-            backup_path.write_bytes(charter_md_path.read_bytes())
-            result.backup_path = backup_path
-
-        target_path, data, save = resolve_activation_write_target(repo_root)
-        default_pack = _load_default_pack()
-
-        # A "required" kind (skills) keeps an absent key absent: writing the
-        # default pack's (empty) list would flip default-in-force
-        # ("org-required only") to an explicit empty set that drops them.
-        for kind, yaml_key in YAML_KEY_MAP.items():
-            if _kind_stays_absent(kind):
-                continue
-            raw = _activation_list_or_error(data, yaml_key)
-            if raw is None:
-                data[yaml_key] = list(default_pack.get(yaml_key, []))
-                result.kinds_written.append(kind)
-
-        if result.kinds_written:
-            save(target_path, data)
-
-        return result
 
 
 # Re-export the engine's structured errors for callers that import them from

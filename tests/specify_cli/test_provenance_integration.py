@@ -1,4 +1,4 @@
-"""Integration tests for WP07: provenance, doctor doctrine, and lint advisories.
+"""Integration tests for WP07: provenance, doctor charter-packs, and lint advisories.
 
 Covers T037 of mission ``layered-doctrine-org-layer-01KRNPEE``.
 
@@ -6,7 +6,7 @@ These tests exercise the full org-layer flow end-to-end:
 
 * `charter context --json` surfaces ``source`` provenance per artifact and an
   ``org_charter`` block.
-* `spec-kitty doctor doctrine` reports configured packs, version, and counts.
+* `spec-kitty doctor charter-packs` reports configured packs, version, and counts.
 * `charter lint` registers org-layer advisory checkers and surfaces a finding
   when an org pack overrides a shipped artifact.
 """
@@ -20,8 +20,8 @@ from ruamel.yaml import YAML
 
 from specify_cli.charter_runtime.lint import LintEngine
 from specify_cli.charter_runtime.lint.engine import _ALL_CHECKS, _CHECK_MAP
-from charter.offering.drg.org_pack_config import OrgPackConfig, PackRegistry, save_pack_registry
-from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
+from tests._support.org_pack_config import write_org_packs
+from charter.activation.org_charter_loader import load_org_charter_json_block
 
 pytestmark = [pytest.mark.integration]
 
@@ -107,7 +107,7 @@ class TestOrgCharterJsonBlock:
 
 
 class TestDoctorDoctrineCommand:
-    """`spec-kitty doctor doctrine` reports configured packs."""
+    """`spec-kitty doctor charter-packs` reports configured packs."""
 
     def test_no_org_configured(self, tmp_path: Path) -> None:
         from specify_cli.cli.commands.doctor import (
@@ -181,10 +181,7 @@ class TestLintOrgOverridesAdvisory:
         # Configure the registry on the synthetic repo root.
         repo_root = tmp_path / "repo"
         repo_root.mkdir()
-        save_pack_registry(
-            repo_root,
-            PackRegistry(packs=[OrgPackConfig(name="acme", local_path=org_root)]),
-        )
+        write_org_packs(repo_root, [{"name": "acme", "local_path": org_root}])
 
         # Patch the lazy ``DoctrineService`` builders inside the checker so
         # they consume the synthetic shipped/project roots.  We swap the

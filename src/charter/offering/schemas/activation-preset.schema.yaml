@@ -1,0 +1,69 @@
+# Activation preset file: <pack>/presets/<name>.yaml (FR-019, ADR 2026-10-06-1 §2-3).
+#
+# The kind enums below are documentation. The single authority is
+# charter.offering.artifact_kinds.ArtifactKind: the governed per-kind keys are
+# every charter-activatable kind except skill and glossary_pack (each has its
+# own absence contract), and activated_kinds accepts every ArtifactKind plural.
+# tests/charter/presets/test_builtin_presets.py pins both enums to the derived
+# sets, so a new kind fails that test rather than a user.
+#
+# Semantic rules checked by `validate_pack` (`charter org validate`, and
+# `charter pack validate`), not expressible here:
+#  - name equals the file stem;
+#  - every id resolves in the offering the validator can see (built-in plus the
+#    pack's own artifacts); the error names the file and the id;
+#  - when activated_kinds is present it includes the plural of every kind the
+#    preset lists ids for.
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/activation-preset.schema.yaml
+title: Activation preset
+description: >-
+  A named, replace-semantics set of activation keys a charter pack ships under
+  presets/. A key that is absent leaves its kind unrestricted; an empty list
+  activates nothing of that kind.
+type: object
+additionalProperties: false
+required:
+- name
+- description
+properties:
+  name:
+    type: string
+    pattern: ^[a-z][a-z0-9]*(-[a-z0-9]+)*$
+    maxLength: 64
+    description: Must equal the file stem.
+  description:
+    type: string
+    minLength: 1
+  activated_kinds:
+    type: array
+    uniqueItems: true
+    items:
+      type: string
+      enum:
+      - directives
+      - tactics
+      - styleguides
+      - toolguides
+      - paradigms
+      - procedures
+      - agent_profiles
+      - mission_step_contracts
+      - templates
+      - assets
+      - glossary_packs
+      - anti_patterns
+      - skills
+  mission_type_activations:
+    type: array
+    uniqueItems: true
+    items:
+      type: string
+      minLength: 1
+patternProperties:
+  ^activated_(directives|tactics|styleguides|toolguides|paradigms|procedures|agent_profiles|mission_step_contracts|anti_patterns)$:
+    type: array
+    uniqueItems: true
+    items:
+      type: string
+      minLength: 1

@@ -1,4 +1,4 @@
-"""Single-source doctrine health model for ``spec-kitty doctor doctrine`` (WP08).
+"""Single-source doctrine health model for ``spec-kitty doctor charter-packs`` (WP08).
 
 Both the human-readable renderer and the ``--json`` emitter consume one
 :class:`DoctrineHealthReport`; neither assembles its own parallel view of the
@@ -287,7 +287,7 @@ class DoctrineHealthReport:
         return flattened
 
     def to_dict(self) -> dict[str, object]:
-        """The single JSON shape for ``doctor doctrine --json``."""
+        """The single JSON shape for ``doctor charter-packs --json``."""
         return {
             "healthy": self.healthy,
             "packs": [pack.to_dict() for pack in self.packs],

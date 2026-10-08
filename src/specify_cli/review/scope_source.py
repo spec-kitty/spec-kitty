@@ -6,7 +6,7 @@ layout-agnostic: everything that varies with a repo's *shape* — how to run
 its tests, how a changed file maps to a test target, how a completed run's
 output is parsed into per-failure identities — lives behind this
 ``typing.Protocol``, mirroring ``OrgDoctrineSource``
-(:mod:`specify_cli.doctrine.sources.protocol`): ``@runtime_checkable``, and
+(:mod:`specify_cli.charter_packs.sources.protocol`): ``@runtime_checkable``, and
 methods that never raise for environmental problems (surfaced via return
 value instead).
 

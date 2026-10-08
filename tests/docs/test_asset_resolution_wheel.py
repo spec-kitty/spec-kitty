@@ -13,7 +13,7 @@ This harness:
 1. builds ``spec_kitty_cli-*.whl`` from the repository (shared session
    ``installed_wheel_venv`` fixture — ``tests/conftest.py``),
 2. installs it into a throwaway virtualenv,
-3. invokes the installed ``spec-kitty doctrine asset path`` console entry point
+3. invokes the installed ``spec-kitty charter pack asset path`` console entry point
    from a working directory **outside** the repository, with ``PYTHONPATH`` and
    the source-template pointer scrubbed from the child environment, and
 4. asserts the shipped asset resolves to a path **inside the venv's
@@ -91,7 +91,7 @@ def test_shipped_asset_resolves_from_clean_wheel_install(
     outside.mkdir()
 
     result = subprocess.run(
-        [str(script), "doctrine", "asset", "path", _SHIPPED_ASSET_ID],
+        [str(script), "charter", "pack", "asset", "path", _SHIPPED_ASSET_ID],
         cwd=str(outside),
         env=_clean_child_env(),
         capture_output=True,
@@ -132,7 +132,7 @@ def test_unknown_asset_id_exits_nonzero_from_clean_wheel_install(
     outside.mkdir()
 
     result = subprocess.run(
-        [str(script), "doctrine", "asset", "path", "no-such-asset-xyz"],
+        [str(script), "charter", "pack", "asset", "path", "no-such-asset-xyz"],
         cwd=str(outside),
         env=_clean_child_env(),
         capture_output=True,

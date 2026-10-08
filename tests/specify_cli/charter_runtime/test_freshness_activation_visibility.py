@@ -253,7 +253,10 @@ def test_graph_schema_valid_seed_used_by_this_suite(tmp_path: Path) -> None:
     pydantic validation surprises at the freshness layer, which only checks
     existence/mtime of ``graph.yaml`` — unlike ``consistency_check``, which
     this module no longer calls at all)."""
-    graph_path = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+    # The shared ``seed_graph`` fixture (tests/specify_cli/charter_preflight/_fixtures.py,
+    # used by ~15 suites) still seeds the retired root; freshness reads it through
+    # the temporary read fallback (FR-011) until WP14 removes it.
+    graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
     seed_graph(tmp_path)
     assert graph_path.exists()
     assert "nodes" in graph_path.read_text(encoding="utf-8")

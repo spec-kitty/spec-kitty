@@ -2,7 +2,7 @@
 
 The manifest is the declared authority over ``graph.yaml`` presence (#083).
 When the synthesis manifest declares ``built_in_only=true`` while a project
-``.kittify/doctrine/graph.yaml`` is still present (e.g. left behind after a
+``.kittify/charter-packs/graph.yaml`` is still present (e.g. left behind after a
 branch checkout), the graph is **residue**, not a contradiction:
 
 * the freshness computer MUST report the authoritative ``built_in_only`` state

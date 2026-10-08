@@ -34,7 +34,7 @@ from typing import Any
 import pytest
 
 import charter.activation.context as context_module
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 from charter.activation.context import build_charter_context_include
 from charter.activation.context_renderers import template_include as template_include_module
 
@@ -289,7 +289,7 @@ class TestTemplateInclude:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         def _raise_pack_config_error(_repo_root: Path) -> Path | None:
-            raise CharterPackConfigError("broken pack config")
+            raise ActiveCharterConfigError("broken pack config")
 
         # WP05 (#2532): ``_render_template_include`` relocated to
         # ``context_renderers/template_include.py``; it resolves
@@ -301,7 +301,7 @@ class TestTemplateInclude:
             template_include_module, "resolve_project_root", _raise_pack_config_error
         )
 
-        with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+        with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID"):
             build_charter_context_include(
                 tmp_path, "template:software-dev/spec-template.md"
             )

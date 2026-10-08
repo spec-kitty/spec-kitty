@@ -12,9 +12,10 @@ Covers:
   those IDs, is idempotent on a second call, and writes via ``commit_plan``
   only (no direct ``save``).
 - T022(b) LAND-BLOCKER — first-run parity: promoting into a previously-absent
-  key preserves all-built-ins-active (the caller-supplied ``default_ids`` are
-  unioned into the plan before the promoted IDs are appended) rather than
-  writing a bare restrictive list. Pinned against
+  key preserves everything effective (the caller-supplied ``EffectiveSet`` is
+  materialized into the plan before the promoted IDs are appended) rather than
+  writing a bare restrictive list; an absent key with no resolved set is left
+  absent and reported (FR-015, #4400). Pinned against
   ``charter.activation.pack_context.PackContext.from_config``'s three-state absent-key
   contract so a ~19-built-in drop regression would fail this test.
 - T022(c): this module carries no ``specify_cli`` import (layer rule,
@@ -30,7 +31,7 @@ from typing import Any
 import pytest
 from ruamel.yaml import YAML
 
-from charter.activation.activation_engine import ActivationPlan, promote_activations
+from charter.activation.activation_engine import ActivationPlan, EffectiveSet, promote_activations
 from charter.activation.pack_context import PackContext
 
 pytestmark = pytest.mark.unit
@@ -86,7 +87,7 @@ def test_promote_arbitrary_kinds_appends_exactly_those_ids(tmp_path: Path) -> No
     data, yaml = _load(config_path)
     save = _save_with(yaml)
 
-    plans = promote_activations(
+    outcome = promote_activations(
         {
             "activated_directives": ["002-bar"],
             "activated_paradigms": ["tdd"],
@@ -95,7 +96,9 @@ def test_promote_arbitrary_kinds_appends_exactly_those_ids(tmp_path: Path) -> No
         config_path=config_path,
         config_data=data,
         save=save,
+        effective_sets={"activated_styleguides": EffectiveSet(kind="styleguide", yaml_key="activated_styleguides", ids=frozenset({"kotlin-style"}))},
     )
+    plans = outcome.committed
 
     assert [p.yaml_key for p in plans] == [
         "activated_directives",
@@ -103,13 +106,13 @@ def test_promote_arbitrary_kinds_appends_exactly_those_ids(tmp_path: Path) -> No
         "activated_styleguides",
     ]
     assert all(isinstance(p, ActivationPlan) for p in plans)
+    assert outcome.left_absent == {}
 
     reloaded, _ = _load(config_path)
     assert list(reloaded["activated_directives"]) == ["001-foo", "002-bar"]
     assert list(reloaded["activated_paradigms"]) == ["ddd", "tdd"]
-    # Absent-key kind (styleguides) gets exactly the promoted id — no
-    # pre-existing default_ids were supplied for this key.
-    assert list(reloaded["activated_styleguides"]) == ["py-style"]
+    # Absent-key kind (styleguides): the effective set first, then the promoted id.
+    assert list(reloaded["activated_styleguides"]) == ["kotlin-style", "py-style"]
 
 
 def test_promote_is_idempotent_on_repeated_calls(tmp_path: Path) -> None:
@@ -123,6 +126,7 @@ def test_promote_is_idempotent_on_repeated_calls(tmp_path: Path) -> None:
         config_path=config_path,
         config_data=data,
         save=save,
+        effective_sets={},
     )
     # Re-load fresh config_data the way a real caller would on a second
     # invocation (e.g. re-interview run twice).
@@ -132,7 +136,8 @@ def test_promote_is_idempotent_on_repeated_calls(tmp_path: Path) -> None:
         config_path=config_path,
         config_data=data2,
         save=save,
-    )
+        effective_sets={},
+    ).committed
 
     assert second_plans[0].activated == []
     assert any("already activated" in w for w in second_plans[0].warnings)
@@ -146,10 +151,10 @@ def test_promote_is_idempotent_on_repeated_calls(tmp_path: Path) -> None:
 
 
 def test_promote_into_absent_key_preserves_all_builtins_active(tmp_path: Path) -> None:
-    """Promoting into an absent key unions built-ins first — never a bare list.
+    """Promoting into an absent key seeds the effective set first — never a bare list.
 
-    Stands in for the real ~24-directive built-in set with a small synthetic
-    default_ids set so the test stays hermetic (no doctrine-tree scan). The
+    Stands in for the real effective directive set with a small synthetic
+    ``EffectiveSet`` so the test stays hermetic (no doctrine-tree scan). The
     key point pinned here: after the commit, none of the un-promoted
     "built-ins" (d1, d2, d3) are dropped — the promoted id (d4) is *added*,
     not substituted.
@@ -168,8 +173,8 @@ def test_promote_into_absent_key_preserves_all_builtins_active(tmp_path: Path) -
         config_path=config_path,
         config_data=data,
         save=save,
-        default_ids={"activated_directives": builtin_directives},
-    )
+        effective_sets={"activated_directives": EffectiveSet(kind="directive", yaml_key="activated_directives", ids=frozenset(builtin_directives))},
+    ).committed
 
     plan = plans[0]
     assert plan.new_list == ["d1", "d2", "d3", "d4"]
@@ -189,8 +194,8 @@ def test_promote_into_absent_key_preserves_all_builtins_active(tmp_path: Path) -
     assert ctx.activated_directives == frozenset({"d1", "d2", "d3", "d4"})
 
 
-def test_promote_into_present_key_ignores_default_ids(tmp_path: Path) -> None:
-    """When the key is already present, default_ids must not be materialized."""
+def test_promote_into_present_key_ignores_effective_set(tmp_path: Path) -> None:
+    """When the key is already present, the effective set must not be materialized."""
     config_path = _write_config(tmp_path, "activated_directives:\n  - 001-foo\n")
     data, yaml = _load(config_path)
     save = _save_with(yaml)
@@ -200,8 +205,8 @@ def test_promote_into_present_key_ignores_default_ids(tmp_path: Path) -> None:
         config_path=config_path,
         config_data=data,
         save=save,
-        default_ids={"activated_directives": ["999-should-not-appear"]},
-    )
+        effective_sets={"activated_directives": EffectiveSet(kind="directive", yaml_key="activated_directives", ids=frozenset({"999-should-not-appear"}))},
+    ).committed
 
     reloaded, _ = _load(config_path)
     assert list(reloaded["activated_directives"]) == ["001-foo", "002-bar"]

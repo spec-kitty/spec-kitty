@@ -41,7 +41,7 @@ def test_single_local_directive_unions_onto_catalog_base(tmp_path: Path, monkeyp
     _patch_catalog(monkeypatch)
     _write_charter_files(
         tmp_path,
-        governance="doctrine: {}\n",
+        governance="charter: {}\n",
         directives="""
 directives:
   - id: LOCAL_QA_PROBE
@@ -62,7 +62,7 @@ def test_multiple_local_directives_lose_no_base_ids(tmp_path: Path, monkeypatch:
     _patch_catalog(monkeypatch)
     _write_charter_files(
         tmp_path,
-        governance="doctrine: {}\n",
+        governance="charter: {}\n",
         directives="""
 directives:
   - id: LOCAL_A

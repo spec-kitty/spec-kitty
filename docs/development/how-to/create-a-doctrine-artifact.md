@@ -182,7 +182,7 @@ spec-kitty charter context --action specify --json
 If `charter status` reports the bundle as stale, run `spec-kitty charter synthesize` (dry-run
 first) to promote it — see
 [How to Synthesize and Maintain Doctrine](../../guides/how-to/governance/synthesize-doctrine.md) for the full
-synthesis workflow. If something looks wrong at any step, `spec-kitty doctor doctrine` and
+synthesis workflow. If something looks wrong at any step, `spec-kitty doctor charter-packs` and
 [Troubleshooting Charter Failures](../../guides/how-to/governance/troubleshoot-charter.md) are the first places to
 check.
 
@@ -232,18 +232,18 @@ This recipe is executable against a fresh project — copy it verbatim.
 
 ### Step A: place the blob
 
-The project-tier asset directory is `.kittify/doctrine/assets/` (from the single canonical
+The project-tier asset directory is `.kittify/charter-packs/assets/` (from the single canonical
 `PROJECT_KIND_DIRS` mapping). Put the blob there. For a worked example, a shared release checklist:
 
 ```bash
-mkdir -p .kittify/doctrine/assets
-printf '# Release checklist\n- [ ] Tests green\n' > .kittify/doctrine/assets/team-release-checklist.md
+mkdir -p .kittify/charter-packs/assets
+printf '# Release checklist\n- [ ] Tests green\n' > .kittify/charter-packs/assets/team-release-checklist.md
 ```
 
 ### Step B: write the sidecar manifest
 
 Alongside the blob, create a manifest named `<blob>.asset.yaml` — here
-`.kittify/doctrine/assets/team-release-checklist.md.asset.yaml`. The manifest is the validated
+`.kittify/charter-packs/assets/team-release-checklist.md.asset.yaml`. The manifest is the validated
 surface; it requires `id`, `mime`, and `path`, with an optional `title`:
 
 ```yaml
@@ -270,15 +270,15 @@ step. Confirm the asset is discoverable and resolves to your blob:
 
 ```bash
 # List every resolvable asset and its source tier (built-in / org / project)
-spec-kitty doctrine asset list
+spec-kitty charter pack asset list
 
 # Resolve one identifier to a filesystem path (exit 0 on success;
 # an unknown id exits non-zero and names the id)
-spec-kitty doctrine asset path team-release-checklist
+spec-kitty charter pack asset path team-release-checklist
 ```
 
 The `path` command prints the absolute path to your blob and exits `0`. Downstream code (a mission
-step, a hook, a shipped lint) consumes the asset by calling `spec-kitty doctrine asset path <id>`
+step, a hook, a shipped lint) consumes the asset by calling `spec-kitty charter pack asset path <id>`
 and reading the file at the returned path — never by hard-coding a source-tree path. A more
 specific tier wins: a project or org asset of the same `id` shadows the built-in, and the shadow is
 reported by `asset list`.

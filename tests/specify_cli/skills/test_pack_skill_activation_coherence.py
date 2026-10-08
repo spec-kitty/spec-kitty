@@ -103,7 +103,7 @@ def test_refused_projection_leaves_config_and_disk_coherent_with_a_recovery_mess
     project = tmp_path / "project"
     project.mkdir()
     support.write_config(project, pack, extra=AGENTS + "activated_skills: []\n", project_namespace="a-b")
-    support.write_skill(project / ".kittify" / "doctrine", "c")  # project namespace "a-b" -> a-b-c (collision)
+    support.write_skill(project / ".kittify" / "charter-packs", "c")  # project namespace "a-b" -> a-b-c (collision)
 
     code, output = _activate(project, "skill", "b-c")
     assert code == 0, output

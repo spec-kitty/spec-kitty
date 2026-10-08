@@ -15,8 +15,9 @@ below directly rather than re-deriving a classification (or re-reading prose fro
 
 The census is **re-run against the live tree** on every invocation (an AST sweep of
 the ``_SCAN_ROOTS`` — ``src/specify_cli/`` and, since the #3522 widening,
-``src/runtime/`` — excluding the exempt ``src/specify_cli/doctrine/`` management
-subpackage) — the disposition table is not trusted from a stale snapshot. A newly
+``src/runtime/``; no subpackage is exempt since mission
+``charter-pack-cutover-01M491G6`` WP05 deleted the former management package
+rather than moving its exemption, NFR-002) — the disposition table is not trusted from a stale snapshot. A newly
 reach-through-ed, undoored doctrine path therefore fails CI (FR-002 / SC-002).
 
 Census numbers, re-measured on this tip (post WP05–WP07 migration + the #3522
@@ -73,11 +74,13 @@ _MISSION_TASKS = _REPO_ROOT / "kitty-specs" / "doctrine-public-api-surface-01KZP
 # Manifest — the machine-readable disposition surface (imported by WP02 / WP04)
 # ---------------------------------------------------------------------------
 
-#: The inbound-only *management surface*: the only runtime location permitted to
-#: import ``doctrine.*`` directly. WP01 is the SOLE owner of this enumeration — no
-#: later WP may reclassify a module into the exempt surface, so it is pinned as a
-#: frozen set and any growth must be a deliberate, reviewed diff (test below).
-EXEMPT_MANAGEMENT_SURFACE: frozenset[str] = frozenset({"src/specify_cli/doctrine"})
+#: The inbound-only *management surface*: runtime locations permitted to import
+#: ``charter.offering.*`` directly. Empty: mission ``charter-pack-cutover-01M491G6``
+#: WP05 (#3732, FR-010 / NFR-002) deleted the one exempt package and removed its
+#: exemption rather than moving it; its adapters reach the offering tier only
+#: through the ``charter.drg`` / ``charter.packs`` doors. Pinned empty (test below):
+#: any entry is a deliberate, reviewed widening.
+EXEMPT_MANAGEMENT_SURFACE: frozenset[str] = frozenset()
 
 #: The full disposition taxonomy (data-model.md "Taxonomy (value set)" + the two
 #: census-only tags: TICKETED-BASELINE for doorless management internals, and
@@ -104,7 +107,8 @@ TICKETED_BASELINE: dict[str, str] = {
         "Doctrine-management internal consumed by _doctrine_collect.py (override-audit paths); no clean charter door. Ratchet allowlist, #3179."
     ),
     "charter.offering.drg.migration.hand_authored_overlay": (
-        "write_reference_graph_with_overlay is a DRG-regeneration internal consumed by cli/commands/doctrine.py; no clean charter door. Ratchet allowlist, #3179."
+        "write_reference_graph_with_overlay is a DRG-regeneration internal consumed by cli/commands/charter/pack_tooling.py; "
+        "no clean charter door. Ratchet allowlist, #3179."
     ),
 }
 
@@ -120,7 +124,7 @@ DISPOSITION: dict[str, str] = {
     "charter.offering.agent_profiles.capabilities": "FACADE-ONLY",
     "charter.offering.agent_profiles.diagnostics": "FACADE-ONLY",
     # operating_procedures: the single-authority operating-procedures harvest,
-    # reached by _doctrine_collect.py (doctor doctrine) + the DRG extractor.
+    # reached by _doctrine_collect.py (doctor charter-packs) + the DRG extractor.
     # FACADE-ONLY per the cluster: it belongs behind the charter.profiles door;
     # the op-procedures door is a tracked follow-up (see PR #3593).
     "charter.offering.agent_profiles.operating_procedures": "FACADE-ONLY",
@@ -176,8 +180,8 @@ DISPOSITION: dict[str, str] = {
 #: (ArtifactKind) directly while being owned by no migration WP. Mission
 #: ``doctrine-public-api-surface-01KZPDSR`` WP07 folded it in (out-of-map, justified):
 #: its ArtifactKind import now routes through ``charter.drg`` and its
-#: ``specify_cli.doctrine.org_charter`` usage is a first-party call into the exempt
-#: management surface (not a laundered doctrine symbol). Any NEW orphan (reached,
+#: ``charter.activation.org_charter`` usage is a first-party call into the
+#: activation tier (not a laundered doctrine symbol). Any NEW orphan (reached,
 #: unowned, not listed here) fails ``test_no_reached_file_is_orphaned``.
 #: Tracker: #3179.
 ORPHAN_REACHED_EXCEPTIONS: frozenset[tuple[str, str]] = frozenset(
@@ -281,18 +285,8 @@ class _ReachVisitor(ast.NodeVisitor):
             self.visit(child)
 
 
-def _is_exempt(path: Path) -> bool:
-    """True when ``path`` lives inside the exempt management subpackage."""
-    exempt_root = _REPO_ROOT / "src" / "specify_cli" / "doctrine"
-    try:
-        path.relative_to(exempt_root)
-    except ValueError:
-        return False
-    return True
-
-
 def reached_doctrine_paths() -> dict[str, set[str]]:
-    """Map each non-exempt runtime file → the set of doctrine module-paths it reaches.
+    """Map each runtime file → the set of doctrine module-paths it reaches.
 
     Reach = a direct ``from charter.offering…`` / ``import charter.offering`` with
     ``ImportFrom.level == 0``, at module level *or* inside a function body,
@@ -301,8 +295,6 @@ def reached_doctrine_paths() -> dict[str, set[str]]:
     """
     result: dict[str, set[str]] = {}
     for path in sorted(p for root in _SCAN_ROOTS for p in root.rglob("*.py")):
-        if _is_exempt(path):
-            continue
         tree = parse_file(path)
         visitor = _ReachVisitor()
         for child in tree.body:
@@ -369,15 +361,16 @@ def test_no_reached_path_tagged_management() -> None:
 
 
 def test_management_surface_is_frozen() -> None:
-    """Pin the inbound-only management surface as a frozen, reviewed constant.
+    """Pin the management surface empty: the exemption was deleted, not moved (NFR-002).
 
-    WP01 is the sole owner of this enumeration; any growth must be a deliberate diff
-    to this literal, not a silent per-path judgment in a later WP.
+    Mission ``charter-pack-cutover-01M491G6`` WP05 deleted the one exempt package
+    (FR-010); its fetch/scaffold adapters moved to ``specify_cli.charter_packs``
+    with no exemption. Any entry here is a deliberate, reviewed widening.
     """
-    expected = frozenset({"src/specify_cli/doctrine"})
-    assert expected == EXEMPT_MANAGEMENT_SURFACE
-    exempt_dir = _REPO_ROOT / "src" / "specify_cli" / "doctrine"
-    assert exempt_dir.is_dir(), "exempt management subpackage missing from the tree"
+    assert not EXEMPT_MANAGEMENT_SURFACE, sorted(EXEMPT_MANAGEMENT_SURFACE)
+    retired = _REPO_ROOT.joinpath("src", "specify_cli", "doctrine")
+    assert not retired.exists(), "the retired management package is back in the tree"
+    assert _REPO_ROOT.joinpath("src", "specify_cli").is_dir(), "control: the scan root exists"
 
 
 def test_ticketed_baseline_paths_are_classified() -> None:

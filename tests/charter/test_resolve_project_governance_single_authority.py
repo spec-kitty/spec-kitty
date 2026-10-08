@@ -50,7 +50,7 @@ _CATALOG_DEFAULT_DIRECTIVES = frozenset({"DIRECTIVE_003", "DIRECTIVE_010"})
 def _write_charter_files(
     root: Path,
     *,
-    governance: str = "doctrine: {}\n",
+    governance: str = "charter: {}\n",
     directives: str = "directives: []\n",
 ) -> None:
     """Write governance/directives bodies into ``charter.yaml``'s sections.

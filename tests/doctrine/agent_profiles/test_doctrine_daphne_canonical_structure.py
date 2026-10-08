@@ -63,7 +63,7 @@ _REQUIRED_RULES: tuple[tuple[str, str], ...] = (
     ("no enum widening", "schema enum"),
     ("no new inline references", "inline `references:`"),
     ("fragments are sharded per kind", "<kind>.graph.yaml"),
-    ("regeneration command", "spec-kitty doctrine regenerate-graph"),
+    ("regeneration command", "spec-kitty charter pack regenerate-graph"),
     ("monolith is gone", "no longer exists"),
     ("golden-count ledger duty", "composition ledger"),
     ("authoring does not activate", "does not make it live"),

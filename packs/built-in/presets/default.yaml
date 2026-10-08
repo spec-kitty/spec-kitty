@@ -1,0 +1,14 @@
+# The `default` activation preset of the built-in pack.
+#
+# It lists no artifact ids and carries no kind gate: a kind whose activation
+# key is absent is unrestricted, so every built-in artifact is effective after
+# `spec-kitty charter activate --preset default`, and new built-in artifacts
+# are effective without editing this file. It activates the built-in mission
+# types.
+name: default
+description: Every built-in artifact is effective; activates the built-in mission types.
+mission_type_activations:
+  - software-dev
+  - documentation
+  - research
+  - plan

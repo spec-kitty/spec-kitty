@@ -1,6 +1,6 @@
 """T023 – Validate-time guard: applies_to_languages [any]/[all] rejection.
 
-FR-012: ``spec-kitty doctrine validate`` must reject an artifact that declares
+FR-012: ``spec-kitty charter validate`` must reject an artifact that declares
 ``applies_to_languages: [any]`` (or ``[all]``) with an actionable message
 pointing the author at the correct fix (omit the field to mean always-applicable).
 
@@ -28,7 +28,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.doctrine import app
+from specify_cli.cli.commands.charter import charter_app as app
 
 runner = CliRunner()
 

@@ -195,34 +195,6 @@ AGENT_PROFILE_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
             "through the factory."
         ),
     ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/doctrine/pack_validator.py",
-        qualname="_check_profile_skipped_diagnostics",
-        token_substring="AgentProfileRepository (",
-        occurrence=None,
-        rationale=(
-            "OPERATOR DECISION for mission org-pack-authoring-diagnostics-01KZY463 "
-            "(issue #3387). FR-002 requires `pack validate` to read agent profiles "
-            "from an arbitrary pack directory supplied on the CLI, using the same "
-            "load path the runtime uses - not this repo's own doctrine layer, so "
-            "no self-resolving builder can reach it. No sanctioned builder accepts "
-            "an explicit org_roots override for this: the public "
-            "build_activation_aware_doctrine_service(repo_root) and "
-            "_collect_profile_health(repo_root) both take only repo_root and "
-            "self-resolve org_roots, and charter.activation.resolver.DoctrineService.__init__ "
-            "requires an already-constructed raw inner charter.offering.service.DoctrineService "
-            "to wrap, which is itself the construction the sibling gate forbids. "
-            "Routing this through DoctrineService was tried on a previous tip and "
-            "reverted precisely because it trips the sibling sole-door gate "
-            "(test_charter_sole_door_doctrine_service.py) - see commit 863b85e77 "
-            "'fix(landing): revert profile diagnostics to direct "
-            "AgentProfileRepository construction'. The call is read-only diagnostic "
-            "(pack validate never mutates), and is guarded: a load failure here is "
-            "caught and reported as a profile_skipped ValidationIssue rather than "
-            "crashing the validator, per pack_validator.py's own docstring for this "
-            "function."
-        ),
-    ),
 )
 
 

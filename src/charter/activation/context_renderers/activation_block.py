@@ -47,14 +47,21 @@ def _load_governance_activations(repo_root: Path) -> list[ActivationEntry]:
 
     The activation registry is a top-level governance field (per
     :mod:`charter.activation.activations`).  We isolate the load here so the call
-    site in :func:`_render_bootstrap_text` stays small and any parse
-    failure collapses to an empty list (mirrors
-    :func:`_load_doctrine_selection`'s resilience pattern).
+    site in :func:`_render_bootstrap_text` stays small and a parse failure
+    collapses to an empty list (mirrors :func:`_load_doctrine_selection`'s
+    resilience pattern). A retired shape is not a parse failure and is never
+    dropped in silence (#3732, FR-011): a retired pack field
+    (``RetiredPackFieldError``) or the retired ``governance.doctrine`` key
+    (``ActiveCharterConfigError``) propagates, naming its remedy.
     """
+    from charter.activation.pack_context import ActiveCharterConfigError
     from charter.activation.sync import load_governance_config
+    from charter.offering.packs.retired_fields import RetiredPackFieldError
 
     try:
         governance = load_governance_config(repo_root)
+    except (RetiredPackFieldError, ActiveCharterConfigError):
+        raise
     except Exception:  # noqa: BLE001 — best-effort governance load
         return []
     return list(governance.activations)

@@ -851,7 +851,7 @@ def _write_org_pack_config(
     for mission_type in activated_mission_types:
         lines.append(f"  - {mission_type}")
     if packs:
-        lines += ["doctrine:", "  org:", "    packs:"]
+        lines += ["charter_packs:", "  org:", "    packs:"]
         for name, local_path in packs:
             lines.append(f"      - name: {name}")
             lines.append(f"        local_path: {local_path}")

@@ -30,6 +30,8 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from kernel.charter_pack_paths import project_pack_root
+
 from .hasher import hash_content
 from .offering.artifact_kinds import DIRECT_WRITE_KINDS, ArtifactKind
 
@@ -63,7 +65,6 @@ BUNDLE_CONTENT_HASH_FILES: tuple[str, ...] = ("charter.yaml",)
 # Synthesis state paths (all relative to repo root)
 SYNTHESIS_MANIFEST_PATH = Path(".kittify/charter/synthesis-manifest.yaml")
 PROVENANCE_DIR = Path(".kittify/charter/provenance")
-DOCTRINE_DIR = Path(".kittify/doctrine")
 STAGING_DIR = Path(".kittify/charter/.staging")
 
 # Artifact file-extension suffixes for each kind, derived from the single
@@ -271,7 +272,7 @@ def validate_synthesis_state(repo_root: Path) -> BundleValidationResult:
 
     Checks (additive — legacy bundles without synthesis state pass unchanged):
 
-    1. Every artifact file under ``.kittify/doctrine/`` has a provenance sidecar.
+    1. Every artifact file under ``.kittify/charter-packs/`` has a provenance sidecar.
        For an artifact *registered* in the synthesis manifest, the expected
        sidecar is resolved from the manifest entry's own ``provenance_path``
        field; for an unregistered (orphan/legacy) artifact, the expected
@@ -306,7 +307,7 @@ def validate_synthesis_state(repo_root: Path) -> BundleValidationResult:
     result = BundleValidationResult()
     _check_stale_failed_dirs(repo_root, result)
 
-    doctrine_root = repo_root / DOCTRINE_DIR
+    doctrine_root = project_pack_root(repo_root)
     provenance_root = repo_root / PROVENANCE_DIR
     manifest_path = repo_root / SYNTHESIS_MANIFEST_PATH
 
@@ -393,7 +394,7 @@ def _check_no_doubled_leaf_paths(
     A path-join defect can append a directory leaf onto a base that already
     ends in that same leaf, producing byte-identical duplicates nested one
     level too deep: ``.kittify/charter/provenance/provenance/<file>`` or
-    ``.kittify/doctrine/styleguide/styleguide/<file>``.
+    ``.kittify/charter-packs/styleguide/styleguide/<file>``.
     :func:`_check_artifacts_have_provenance` / :func:`_check_provenance_have_artifacts`
     cannot catch this class of corruption — they key off ``Path.name`` after
     an ``rglob`` walk, so a doubled copy sharing its correctly-placed

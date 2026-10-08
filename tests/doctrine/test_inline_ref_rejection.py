@@ -313,7 +313,7 @@ def test_agent_profile_repository_surfaces_inline_refs_as_skip(tmp_path: Path) -
     Unlike the other doctrine repositories (which still propagate the raise so
     the author fixes the YAML), the agent-profile loader catches the inline-ref
     rejection in ``_load_layer`` and records it via ``skipped_profiles()`` so
-    valid sibling profiles keep loading and the doctor ``doctor doctrine`` health
+    valid sibling profiles keep loading and the doctor ``doctor charter-packs`` health
     surface can report ``healthy=false`` without blanking the surface (#1584
     false-healthy class). A general caller never silently returns a wrong/empty
     result — the skip is loud and carries the readable error (operator

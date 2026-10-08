@@ -25,6 +25,7 @@ from charter.bundle import CHARTER_MD
 from charter.activation.language_advisory import CHARTER_EXTENSION_ADVISORY
 from charter.activation.language_scope import infer_repo_languages, lacks_specialist_guidance
 from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
+from charter.offering.packs.retired_fields import RetiredPackFieldError
 
 
 __all__ = [
@@ -321,6 +322,10 @@ def _resolve_governance_summary(
     except GovernanceResolutionError as exc:
         diagnostics.append(f"governance unresolved ({exc})")
         return template_set, paradigms, tools, diagnostics, resolver_directives
+    except RetiredPackFieldError:
+        # Fail closed (#3732): a retired field in charter.yaml is
+        # operator-actionable, never a degraded "governance unavailable" line.
+        raise
     except Exception as exc:  # pragma: no cover - defensive degrade
         diagnostics.append(f"governance unavailable ({exc})")
         return template_set, paradigms, tools, diagnostics, resolver_directives

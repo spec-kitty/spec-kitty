@@ -12,11 +12,11 @@ summary: >
   attaches git provenance (when a file was added, by which commit, when it was
   last touched), and writes a ranked worklist plus one resumable review ledger
   per domain. Covers the make target, the direct invocation through the
-  doctrine asset resolver, the window mode (--since), what each flag code
+  `charter pack asset` resolver, the window mode (--since), what each flag code
   means and how it maps to the review rubric, how to read the outputs, and the
   known false positives that make every flag a candidate rather than a
   verdict.
 commands:
   - make test-quality-scan
-  - spec-kitty doctrine asset path test-quality-scan
+  - spec-kitty charter pack asset path test-quality-scan
   - test-quality-scan.py

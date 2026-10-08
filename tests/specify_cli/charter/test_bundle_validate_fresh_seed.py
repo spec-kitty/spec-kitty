@@ -123,7 +123,7 @@ def test_fresh_seed_manifest_with_stale_sidecars_passes(tmp_path: Path) -> None:
     Reproduces the pre-fix bug (Defect 3):
     - synthesis-manifest.yaml has built_in_only=True and artifacts=[]
     - Three stale adapter_id=fixture sidecar files are present with no
-      corresponding .kittify/doctrine/ artifacts
+      corresponding .kittify/charter-packs/ artifacts
     - Before the fix, validate_synthesis_state() found the sidecar files,
       skipped the original (all-absent) early-exit, and raised errors because
       the sidecars referenced non-existent artifacts.
@@ -136,8 +136,8 @@ def test_fresh_seed_manifest_with_stale_sidecars_passes(tmp_path: Path) -> None:
     _write_stale_fixture_sidecar(tmp_path, "directive", "neutrality-posture-directive")
     _write_stale_fixture_sidecar(tmp_path, "tactic", "testing-philosophy-tactic")
 
-    # No .kittify/doctrine/ artifacts exist — the sidecars are orphaned.
-    assert not (tmp_path / ".kittify" / "doctrine").exists(), (
+    # No .kittify/charter-packs/ artifacts exist — the sidecars are orphaned.
+    assert not (tmp_path / ".kittify" / "charter-packs").exists(), (
         "Precondition: no doctrine artifacts exist"
     )
 
@@ -173,7 +173,7 @@ def test_manifest_with_real_artifacts_gets_full_validation(tmp_path: Path) -> No
             {
                 "kind": "tactic",
                 "slug": "some-tactic",
-                "path": ".kittify/doctrine/tactic/some-tactic.tactic.yaml",
+                "path": ".kittify/charter-packs/tactic/some-tactic.tactic.yaml",
                 "provenance_path": ".kittify/charter/provenance/tactic-some-tactic.yaml",
                 "content_hash": "a" * 64,
             }
@@ -191,7 +191,7 @@ def test_manifest_with_real_artifacts_gets_full_validation(tmp_path: Path) -> No
         "artifacts:\n"
         "- content_hash: " + "a" * 64 + "\n"
         "  kind: tactic\n"
-        "  path: .kittify/doctrine/tactic/some-tactic.tactic.yaml\n"
+        "  path: .kittify/charter-packs/tactic/some-tactic.tactic.yaml\n"
         "  provenance_path: .kittify/charter/provenance/tactic-some-tactic.yaml\n"
         "  slug: some-tactic\n"
         "built_in_only: true\n"

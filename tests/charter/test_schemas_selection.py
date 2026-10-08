@@ -136,7 +136,7 @@ def test_governance_config_carries_activations_field(tmp_path: Path) -> None:
         activations=[
             ActivationEntry(
                 activation_context={"action": "implement"},
-                doctrine_pack_id="project",
+                charter_pack_id="project",
                 artifact_id="caveman-comments",
                 artifact_kind="styleguides",
             )

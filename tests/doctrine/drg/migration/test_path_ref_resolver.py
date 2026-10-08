@@ -459,5 +459,5 @@ class TestGraphWithStyleguideEdges:
         assert regenerated == committed, (
             "The committed built-in DRG source is stale after WP08 styleguide "
             "walk (DD-11 per-file byte-identity). Regenerate: "
-            "spec-kitty doctrine regenerate-graph"
+            "spec-kitty charter pack regenerate-graph"
         )

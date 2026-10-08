@@ -86,7 +86,7 @@ class PathGuardViolation(SynthesisError):
         return (
             f"PathGuard blocked write to '{self.attempted_path}' "
             f"(caller: {self.caller}). "
-            f"Synthesizer writes must target .kittify/doctrine/ (content) "
+            f"Synthesizer writes must target .kittify/charter-packs/ (content) "
             f"or .kittify/charter/ (bookkeeping) only."
         )
 

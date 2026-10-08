@@ -9,7 +9,7 @@ tests pin:
 
 * :func:`specify_cli.cli.commands._doctrine_collect._resolve_pack_version`
   (the real resolver; ``doctor.py`` only re-exports it).
-* :func:`specify_cli.doctrine.pack_assembler._has_recognisable_pack_manifest`
+* :func:`charter.offering.packs.pack_assembler._has_recognisable_pack_manifest`
   (must still recognise a fetched-pack manifest that carries the generated
   ``pack_version`` key, AND must newly recognise a built-in-shaped manifest
   that omits it in favour of a sibling authored ``pack.yaml``).
@@ -29,7 +29,7 @@ import pytest
 import yaml
 
 from specify_cli.cli.commands._doctrine_collect import _resolve_pack_version
-from specify_cli.doctrine.pack_assembler import _has_recognisable_pack_manifest
+from charter.offering.packs.pack_assembler import _has_recognisable_pack_manifest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 

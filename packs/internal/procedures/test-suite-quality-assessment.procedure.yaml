@@ -44,7 +44,7 @@ steps:
     description: >
       Kick off the pass with `make test-quality-scan` (whole corpus) or run
       the asset directly through the doctrine layer:
-      python "$(spec-kitty doctrine asset path test-quality-scan)" --out
+      python "$(spec-kitty charter pack asset path test-quality-scan)" --out
       work/test-quality/<date> [--paths tests/<domain>] [--since <rev>].
       It parses every test with ast and runs none of them, so the whole
       corpus scans in well under a minute. It flags the weak-oracle and

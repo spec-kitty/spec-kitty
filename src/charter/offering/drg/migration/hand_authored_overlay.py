@@ -19,7 +19,7 @@ Two consumers depend on this registry so a pure extractor regeneration never
 silently regresses (or perpetually misreports staleness on) the hand-authored
 content:
 
-1. ``spec-kitty doctrine regenerate-graph`` (:mod:`specify_cli.cli.commands.doctrine`)
+1. ``spec-kitty charter pack regenerate-graph`` (:mod:`specify_cli.cli.commands.charter.pack_tooling`)
    -- both its ``--check`` freshness comparison and its write path must merge
    this overlay in, or running the command for real would overwrite
    ``packs/built-in/*.graph.yaml`` with a version that has silently dropped
@@ -2024,7 +2024,7 @@ HAND_AUTHORED_EDGES: tuple[DRGEdge, ...] = (
     # mission-qualified) backed by src/charter/offering/templates/architecture/ — they are
     # not one mission's step-output template, so that extractor mechanism does not
     # derive them, and action.graph.yaml is itself extractor-regenerated (a manual
-    # edit there would be dropped on `spec-kitty doctrine regenerate-graph`). Per
+    # edit there would be dropped on `spec-kitty charter pack regenerate-graph`). Per
     # this module's own docstring scope ("content the extractor has no frontmatter
     # mechanism to mint"), HAND_AUTHORED_EDGES is the correct home. Following the
     # existing one-edge-per-template convention: 3 edges.

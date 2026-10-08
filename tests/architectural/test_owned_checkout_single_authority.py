@@ -26,7 +26,7 @@ G6            Each nine-consumer of ``contracts/owned-checkout-carrier.md`` s7
 
 The org-pack module rule (``ORG_PACK_MODULE_RULE``) is the one written
 exemption of G4/G5: ``effective_root`` under ``src/charter/**``,
-``src/specify_cli/doctrine/**``, ``_doctrine_collect.py`` and
+``_doctrine_collect.py`` and
 ``analysis_inputs.py`` is ``OrgPackConfig.effective_root`` -- the org-pack
 root, a different concept from the owned checkout.  The remaining named
 scanner rules (org-pack method call, carrier fields, ``CLI_CLAIM_INPUT_RULE``,

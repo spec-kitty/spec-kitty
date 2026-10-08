@@ -104,27 +104,6 @@ def test_compiler_legacy_activation_keys_set_equal_to_authority() -> None:
     assert frozenset(_legacy_activation_keys()) == _authority()
 
 
-def test_normalize_migration_per_artifact_plus_coarse_keys_set_equal_to_authority() -> None:
-    """The 4th activation-key copy: the normalize-absence migration's split.
-
-    ``m_3_2_x_normalize_activation_absence._per_artifact_activation_keys()``
-    (derived from the authority) UNIONED with its sibling
-    ``_COARSE_ACTIVATION_KEYS`` constant (the two coarse gates intentionally
-    excluded from normalization) must reconstitute the full authority --
-    this is the split-vocabulary analogue of the whole-vocabulary guards
-    above, for the fourth copy (mission
-    ``doctrine-built-in-seam-consolidation-01KYW3TX``).
-    """
-    from specify_cli.upgrade.migrations.m_3_2_x_normalize_activation_absence import (
-        _COARSE_ACTIVATION_KEYS,
-        _per_artifact_activation_keys,
-    )
-
-    assert frozenset(_per_artifact_activation_keys()) | frozenset(
-        _COARSE_ACTIVATION_KEYS
-    ) == _authority()
-
-
 # ---------------------------------------------------------------------------
 # T032 -- end-to-end finalize-migration regression for the glossary-pack drift
 # ---------------------------------------------------------------------------
@@ -148,7 +127,7 @@ branch_strategy:
   main_branch: main
   dev_branch: null
   rules: []
-doctrine:
+charter:
   selected_paradigms: []
   selected_directives: []
   available_tools:

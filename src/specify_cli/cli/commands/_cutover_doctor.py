@@ -145,7 +145,7 @@ def run_cutover_audit(repo_root: Path, *, json_output: bool) -> None:
 
     Informational only (T021): always exits 0 with a clear count, regardless
     of how many missions are un-cut-over. This audits standing drift; it does
-    not gate a workflow on it (unlike ``doctor doctrine`` / ``coordination``,
+    not gate a workflow on it (unlike ``doctor charter-packs`` / ``coordination``,
     which reflect health in their exit code).
     """
     entries = collect_cutover_audit(repo_root)

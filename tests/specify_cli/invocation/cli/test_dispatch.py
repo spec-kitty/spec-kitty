@@ -328,9 +328,9 @@ def test_dispatch_empty_charter_auto_routes_to_generic_agent(tmp_path: Path) -> 
 def test_dispatch_empty_charter_rich_output_shows_warning_panel(tmp_path: Path) -> None:
     """The one-shot warning (Decision 5) renders in the rich (non-JSON) path.
 
-    The wording is honest about what applying a pack does and does not do
+    The wording is honest about what applying a preset does and does not do
     (#3064 follow-up): it must not promise a working dispatch route --
-    applying a pack only records activations in config.yaml, and an
+    applying a preset only records activations in config.yaml, and an
     unmatched request may still need an explicit --profile.
     """
     project = _setup_project(tmp_path)
@@ -340,8 +340,10 @@ def test_dispatch_empty_charter_rich_output_shows_warning_panel(tmp_path: Path) 
     assert result.exit_code == 0, result.output
     assert "Empty Charter" in result.output
     assert "generic-agent" in result.output
-    assert "charter pack apply minimal" in result.output
-    # Honest caveat: applying a pack is not a promise of a working dispatch.
+    assert "charter activate --preset minimal" in result.output
+    # The retired spelling (#3732) must not come back.
+    assert "charter pack apply" not in result.output
+    # Honest caveat: applying a preset is not a promise of a working dispatch.
     assert "--profile" in result.output
 
 

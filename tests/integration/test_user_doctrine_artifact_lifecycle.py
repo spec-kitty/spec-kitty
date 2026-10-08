@@ -119,9 +119,9 @@ def _write_project_styleguide(repo_root: Path, *, styleguide_id: str, body: str)
     """Drop a user-authored styleguide into the project doctrine layer.
 
     The path layout matches the synthesized project-doctrine convention
-    (``.kittify/doctrine/<kind>/<id>.<kind>.yaml``).
+    (``.kittify/charter-packs/<kind>/<id>.<kind>.yaml``).
     """
-    target_dir = repo_root / ".kittify" / "doctrine" / "styleguide"
+    target_dir = repo_root / ".kittify" / "charter-packs" / "styleguide"
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / f"{styleguide_id}.styleguide.yaml"
     target.write_text(body, encoding="utf-8")
@@ -166,7 +166,7 @@ whose body cites the styleguide id.
 ### DIRECTIVE_CAVEMAN_WRAPPER — Caveman Comment Wrapper (severity: warn)
 
 When you write a code comment, apply the ``caveman-comments`` styleguide.
-The styleguide body lives at ``.kittify/doctrine/styleguide/``.
+The styleguide body lives at ``.kittify/charter-packs/styleguide/``.
 
 ## Doctrine Selection
 
@@ -199,7 +199,7 @@ available_tools: [git, spec-kitty, pytest]
 activations:
   - activation_context:
       action: write_comment
-    doctrine_pack_id: project
+    charter_pack_id: project
     artifact_id: caveman-comments
     artifact_kind: styleguide
 ```
@@ -238,7 +238,7 @@ _CHARTER_YAML_SELECTING_STYLEGUIDE = textwrap.dedent(
     """\
     schema_version: '2.0.0'
     governance:
-      doctrine:
+      charter:
         selected_styleguides:
           - caveman-comments
     catalog:
@@ -256,7 +256,7 @@ _CHARTER_YAML_CONTEXT_SCOPED_ACTIVATION = textwrap.dedent(
       activations:
         - activation_context:
             action: write_comment
-          doctrine_pack_id: project
+          charter_pack_id: project
           artifact_id: caveman-comments
           artifact_kind: styleguide
     """
@@ -485,7 +485,7 @@ def test_case_1_styleguide_render_includes_trigger_stanza(
     project_with_caveman_styleguide: Path,
 ) -> None:
     """A charter that declares an ``activations:`` registry entry of
-    ``(activation_context: {action: write_comment}, doctrine_pack_id: project,
+    ``(activation_context: {action: write_comment}, charter_pack_id: project,
     artifact_id: caveman-comments)`` MUST cause the implement prompt to carry
     an explicit *when-doing* stanza naming the artifact and instructing the
     agent to fetch it.

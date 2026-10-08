@@ -1,8 +1,10 @@
-"""CLI tests for ``spec-kitty doctrine mission-type list``.
+"""CLI tests for ``spec-kitty charter mission-type list --include-inactive``.
 
-WP13 / T081 — Tests for ``doctrine mission-type list [--json]``.
+WP13 / T081 — the all-layers mission-type listing. It was
+``doctrine mission-type list [--json]`` until the doctrine group was removed
+(mission charter-pack-cutover-01M491G6, FR-007).
 
-Owner: ``src/specify_cli/cli/commands/doctrine.py``
+Owner: ``src/specify_cli/cli/commands/charter/mission_type.py``
 Mission: charter-doctrine-mission-type-configuration-01KSWJVX
 """
 
@@ -15,7 +17,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.doctrine import app
+from specify_cli.cli.commands.charter import charter_app as app
 
 runner = CliRunner()
 
@@ -42,16 +44,15 @@ def _write_org_mission_type_yaml(
 
 
 # ---------------------------------------------------------------------------
-# T081-a: mission-type sub-group is registered under doctrine
+# T081-a: mission-type sub-group is registered under charter
 # ---------------------------------------------------------------------------
 
 
-def test_doctrine_mission_type_subgroup_registered() -> None:
-    """``doctrine mission-type --help`` exits 0 (group is registered).
+def test_charter_mission_type_subgroup_registered() -> None:
+    """``charter mission-type --help`` exits 0 (group is registered).
 
     This is the T077 guard: verifies the ``mission-type`` sub-group
-    exists and the doctrine group was NOT accidentally deregistered (see
-    the PR #1352 regression incident).
+    exists (see the PR #1352 regression incident).
     """
     result = runner.invoke(app, ["mission-type", "--help"])
     assert result.exit_code == 0, result.output
@@ -64,8 +65,8 @@ def test_doctrine_mission_type_subgroup_registered() -> None:
 
 
 def test_mission_type_list_returns_built_in_types() -> None:
-    """``doctrine mission-type list`` returns at least the four canonical types."""
-    result = runner.invoke(app, ["mission-type", "list"])
+    """``charter mission-type list --include-inactive`` returns at least the four canonical types."""
+    result = runner.invoke(app, ["mission-type", "list", "--include-inactive"])
 
     assert result.exit_code == 0, result.output
 
@@ -79,7 +80,7 @@ def test_mission_type_list_returns_built_in_types() -> None:
 
 def test_mission_type_list_shows_built_in_source_layer() -> None:
     """Each row in table output carries ``built-in`` as the source layer."""
-    result = runner.invoke(app, ["mission-type", "list"])
+    result = runner.invoke(app, ["mission-type", "list", "--include-inactive"])
 
     assert result.exit_code == 0, result.output
     assert "built-in" in result.output
@@ -87,7 +88,7 @@ def test_mission_type_list_shows_built_in_source_layer() -> None:
 
 def test_mission_type_list_shows_display_names() -> None:
     """Table output includes human-readable display names for well-known types."""
-    result = runner.invoke(app, ["mission-type", "list"])
+    result = runner.invoke(app, ["mission-type", "list", "--include-inactive"])
 
     assert result.exit_code == 0, result.output
     # Check at least one canonical display name is present.
@@ -101,7 +102,7 @@ def test_mission_type_list_shows_display_names() -> None:
 
 def test_mission_type_list_json_is_valid() -> None:
     """``--json`` flag produces a valid JSON array."""
-    result = runner.invoke(app, ["mission-type", "list", "--json"])
+    result = runner.invoke(app, ["mission-type", "list", "--include-inactive", "--json"])
 
     assert result.exit_code == 0, result.output
 
@@ -117,7 +118,7 @@ def test_mission_type_list_json_is_valid() -> None:
 
 def test_mission_type_list_json_has_required_keys() -> None:
     """Each JSON item has ``id``, ``source_layer``, and ``display_name``."""
-    result = runner.invoke(app, ["mission-type", "list", "--json"])
+    result = runner.invoke(app, ["mission-type", "list", "--include-inactive", "--json"])
 
     assert result.exit_code == 0, result.output
 
@@ -132,7 +133,7 @@ def test_mission_type_list_json_has_required_keys() -> None:
 
 def test_mission_type_list_json_contains_built_in_software_dev() -> None:
     """JSON output includes the software-dev built-in type with correct fields."""
-    result = runner.invoke(app, ["mission-type", "list", "--json"])
+    result = runner.invoke(app, ["mission-type", "list", "--include-inactive", "--json"])
 
     assert result.exit_code == 0, result.output
 
@@ -147,7 +148,7 @@ def test_mission_type_list_json_contains_built_in_software_dev() -> None:
 
 def test_mission_type_list_json_all_built_in_types() -> None:
     """JSON output contains all four canonical built-in mission types."""
-    result = runner.invoke(app, ["mission-type", "list", "--json"])
+    result = runner.invoke(app, ["mission-type", "list", "--include-inactive", "--json"])
 
     assert result.exit_code == 0, result.output
 
@@ -165,13 +166,13 @@ def test_mission_type_list_json_all_built_in_types() -> None:
 
 
 def test_mission_type_list_works_without_kittify(tmp_path: object) -> None:
-    """``doctrine mission-type list`` works from a directory without a project.
+    """``charter mission-type list --include-inactive`` works from a directory without a project.
 
     The command must not require ``.kittify/config.yaml`` to return
     built-in types.
     """
     # tmp_path has no .kittify directory — simulate a bare filesystem location.
-    result = runner.invoke(app, ["mission-type", "list"])
+    result = runner.invoke(app, ["mission-type", "list", "--include-inactive"])
     # Built-in types should always be accessible.
     assert result.exit_code == 0, result.output
     assert "software-dev" in result.output
@@ -184,7 +185,7 @@ def test_mission_type_list_works_without_kittify(tmp_path: object) -> None:
 
 def test_mission_type_list_json_source_layers_canonical() -> None:
     """All ``source_layer`` values in JSON are from the canonical set."""
-    result = runner.invoke(app, ["mission-type", "list", "--json"])
+    result = runner.invoke(app, ["mission-type", "list", "--include-inactive", "--json"])
 
     assert result.exit_code == 0, result.output
 
@@ -197,7 +198,7 @@ def test_mission_type_list_json_source_layers_canonical() -> None:
 
 
 # ---------------------------------------------------------------------------
-# FR-008 (WP07/T018) -- doctrine mission-type list implements its own
+# FR-008 (WP07/T018) -- the all-layers listing implements its own
 # already-documented built-in -> org -> project layering, instead of only
 # ever calling the built-in-only collector.
 # ---------------------------------------------------------------------------
@@ -230,7 +231,7 @@ def test_mission_type_list_includes_registered_org_type_regardless_of_activation
     MissionTypeRepository.cache_clear()
     try:
         with patch("charter.activation.pack_context.PackContext.from_config", return_value=pack_context):
-            result = runner.invoke(app, ["mission-type", "list", "--json"])
+            result = runner.invoke(app, ["mission-type", "list", "--include-inactive", "--json"])
     finally:
         MissionTypeRepository.cache_clear()
 

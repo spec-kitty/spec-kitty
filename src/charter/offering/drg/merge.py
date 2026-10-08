@@ -555,7 +555,7 @@ def _resolve_edge_endpoint(
 
     Rule 3 reads the built-in layer ONLY, never the running merge state. Were
     it to consult earlier fragments, whether a pack's bare cross-pack
-    reference resolved would depend on the operator's ``organisation_packs:``
+    reference resolved would depend on the operator's ``charter_packs.org.packs``
     ordering — an order-dependent graph is a silent-difference generator of
     the same family this mission closes. Cross-pack references must be
     qualified (rule 2), which is order-independent by construction.
@@ -840,7 +840,7 @@ def _warn_dangling_org_endpoints(
             "any merged layer. The edge is kept (the endpoint may belong to a "
             "sibling pack this merge did not load) but it resolves to nothing "
             "here — check the token for a typo, or configure the pack that "
-            "declares it. `spec-kitty doctor doctrine` reports this as an error.",
+            "declares it. `spec-kitty doctor charter-packs` reports this as an error.",
             source_marker,
             urn,
         )

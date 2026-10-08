@@ -117,18 +117,25 @@ def _emit_error(
     message: str,
     unexpected: bool = False,
     extra: dict[str, Any] | None = None,
+    code: str | None = None,
 ) -> None:
     """Emit a charter command error while preserving ``--json`` parseability.
 
     *extra* adds machine-readable keys to the ``--json`` envelope only (the text
     rendering already carries them in *message*); it can never replace the
     ``result``/``success``/``error`` keys.
+
+    *code* is a coded error's code (``contracts/errors.md``): the text line reads
+    ``Error (<CODE>): <message>`` (``contracts/cli.md`` "Error text format") and
+    the ``--json`` envelope carries it as ``code``.
     """
     if json_output:
+        coded = {"code": code} if code is not None else {}
         print(
             json.dumps(
                 {
                     **(extra or {}),
+                    **coded,
                     "result": "error",
                     "success": False,
                     "error": message,
@@ -139,6 +146,8 @@ def _emit_error(
         return
 
     label = "Unexpected error" if unexpected else "Error"
+    if code is not None:
+        label = f"{label} ({escape(code)})"
     # Escape the message so Rich does not eat bracketed tokens in it (e.g. a
     # doctrine selector like ``[build]`` or ``tactic:<id>`` echoed in an error).
     # The ``[red]…[/red]`` label is intentional markup and stays literal; only

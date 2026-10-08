@@ -2,7 +2,7 @@
 
 Covers SEC-1 from the post-merge review: a malicious or buggy
 retrospective.yaml MUST NOT be able to write outside the project's
-``.kittify/glossary/`` or ``.kittify/doctrine/{kind}/`` buckets via crafted
+``.kittify/glossary/`` or ``.kittify/charter-packs/{kind}/`` buckets via crafted
 ``term_key`` or ``artifact_id`` strings.
 
 Schema-level: ``term_key`` and ``artifact_id`` carry a Pydantic ``pattern``

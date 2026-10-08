@@ -72,7 +72,7 @@ def _seed_project_doctrine_profile(repo_root: Path) -> None:
 
 def _write_config(repo_root: Path, pack_root: Path) -> None:
     data: dict[str, object] = {
-        "doctrine": {"org": {"packs": [{"name": _PACK_NAME, "local_path": str(pack_root)}]}},
+        "charter_packs": {"org": {"packs": [{"name": _PACK_NAME, "local_path": str(pack_root)}]}},
     }
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)

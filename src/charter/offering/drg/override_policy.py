@@ -5,7 +5,7 @@ to override a built-in node in place (recorded as an ``org_override`` conflict).
 The merge does not *govern* whether a particular repo sanctions that override.
 That decision is made here, from two sources:
 
-* the consumer allowlist ``.kittify/doctrine/replaceable-builtins.yaml``, which
+* the consumer allowlist ``.kittify/charter-packs/replaceable-builtins.yaml``, which
   may also carry ``revoked_pack_sanctions`` to withdraw what a pack delivered;
 * each configured org pack's own ``replaceable-builtins.yaml`` at its pack root,
   effective only for overrides that same pack contributes.
@@ -41,6 +41,7 @@ from charter.offering.drg.org_pack_config import (
     load_pack_registry,
     resolve_relative_path_within_root,
 )
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT, project_pack_root
 from kernel.resolution import resolve_rejecting_loops
 
 if TYPE_CHECKING:
@@ -66,8 +67,6 @@ __all__ = [
     "sanction_reason_missing",
 ]
 
-#: Repo-root-relative path of the allowlist file.
-POLICY_RELPATH = Path(".kittify/doctrine/replaceable-builtins.yaml")
 
 #: Top-level YAML key holding the list of allowlist entries.
 _TOP_LEVEL_KEY = "replaceable_builtins"
@@ -77,6 +76,19 @@ _REVOCATIONS_KEY = "revoked_pack_sanctions"
 
 #: File name of a pack's own sanction, at the pack root.
 PACK_POLICY_FILENAME = "replaceable-builtins.yaml"
+
+#: Repo-root-relative path of the consumer allowlist file, for display. The
+#: file itself is read through :func:`_consumer_policy_path`.
+POLICY_RELPATH = PROJECT_PACK_ROOT / PACK_POLICY_FILENAME
+
+
+def _consumer_policy_path(repo_root: Path) -> Path:
+    """Return the consumer allowlist path to read for *repo_root*.
+
+    Resolved through the project pack root (FR-016); the retired
+    ``.kittify/doctrine/`` tree is never read (FR-011).
+    """
+    return project_pack_root(repo_root) / PACK_POLICY_FILENAME
 
 #: Pre-contract location some packs still ship; advisory only, never a sanction.
 LEGACY_TEMPLATE_RELPATH = "templates/setup/replaceable-builtins.yaml"
@@ -248,12 +260,12 @@ def _read_policy_file(
 def _load_consumer_policy(repo_root: Path) -> ReplaceableBuiltinsPolicy:
     """Load the per-repo built-in-override allowlist (fail-closed).
 
-    Reads ``<repo_root>/.kittify/doctrine/replaceable-builtins.yaml``. When the
+    Reads ``<repo_root>/.kittify/charter-packs/replaceable-builtins.yaml``. When the
     file is absent or empty, returns an empty policy that forbids every override.
     A present-but-malformed file raises :class:`OverridePolicyError` so a typo
     cannot silently disable governance.
     """
-    policy_path = repo_root / POLICY_RELPATH
+    policy_path = _consumer_policy_path(repo_root)
     if not policy_path.is_file():
         return ReplaceableBuiltinsPolicy(entries=())
     return _read_policy_file(
@@ -438,7 +450,7 @@ def load_effective_override_policy(
         consumer = ReplaceableBuiltinsPolicy(entries=())
         consumer_error = str(exc)
 
-    consumer_path = repo_root / POLICY_RELPATH
+    consumer_path = _consumer_policy_path(repo_root)
     packs: dict[str, ReplaceableBuiltinsPolicy] = {}
     pack_errors: list[str] = []
     pack_error_names: set[str] = set()

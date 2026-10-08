@@ -44,9 +44,7 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.activation.activation_engine import promote_activations
-from charter.activation.invocation_context import ProjectContext
-from charter.activation.pack_manager import CharterPackManager
+from charter.activation.activation_engine import EffectiveSet, promote_activations
 from specify_cli.charter_runtime.freshness import compute_freshness
 from specify_cli.cli.commands.charter import charter_app
 
@@ -147,7 +145,7 @@ def _write_references(charter_dir: Path, entries: list[dict[str, str]]) -> None:
 
 
 def _seed_project_graph(repo: Path) -> Path:
-    """Create a schema-valid, empty ``.kittify/doctrine/graph.yaml``.
+    """Create a schema-valid, empty ``.kittify/charter-packs/graph.yaml``.
 
     Matches ``test_freshness_activation_visibility.py``'s own local helper:
     a bare ``schema_version``/``nodes``/``edges`` document is REJECTED by
@@ -155,7 +153,7 @@ def _seed_project_graph(repo: Path) -> Path:
     required) once ``charter.activation.consistency_check``'s graph-kind-parity check
     pydantic-validates it via ``load_validated_graph``.
     """
-    graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
+    graph_path = repo / ".kittify" / "charter-packs" / "graph.yaml"
     graph_path.parent.mkdir(parents=True, exist_ok=True)
     graph_path.write_text(
         dedent(
@@ -231,10 +229,6 @@ def _seed_synthesized_repo(
         "charter: .kittify/charter/charter.yaml\n", encoding="utf-8"
     )
     return charter_dir
-
-
-def _ctx(repo: Path) -> ProjectContext:
-    return ProjectContext.from_repo(repo)
 
 
 def _synthesized_drg_state(repo: Path) -> str:
@@ -519,22 +513,9 @@ def test_promote_activations_migration_path_triggers_no_synthesis(
         config_path=config_path,
         config_data=config_data,
         save=_save,
+        effective_sets={"activated_paradigms": EffectiveSet(kind="paradigm", yaml_key="activated_paradigms")},
     )
 
     assert saved["data"]["activated_paradigms"] == [_REAL_PARADIGM_STEM_A]
     assert mock_generate.call_count == 0
     assert mock_synthesize.call_count == 0
-
-
-# ---------------------------------------------------------------------------
-# Sanity: writer-agnostic activation is not accidentally required for the
-# flag to exist -- CharterPackManager itself is untouched (C-001 sanity via
-# direct exercise, complementing the AST-level guard other WPs already run).
-# ---------------------------------------------------------------------------
-
-
-def test_merge_defaults_writer_unaffected_by_resynthesize_flag(tmp_path: Path) -> None:
-    """The ``merge_defaults`` bypass writer still works with the flag machinery present."""
-    _seed_synthesized_repo(tmp_path, ref_entries=[])
-    result = CharterPackManager().merge_defaults(_ctx(tmp_path))
-    assert result.kinds_written  # sanity: the bypass writer still works unmodified

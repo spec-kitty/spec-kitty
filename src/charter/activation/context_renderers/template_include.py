@@ -82,7 +82,7 @@ def _render_template_include(
     project-scoped override/legacy tiers participate in resolution.
 
     Fails closed on malformed pack configuration: a
-    :class:`charter.activation.pack_context.CharterPackConfigError` raised while
+    :class:`charter.activation.pack_context.ActiveCharterConfigError` raised while
     resolving the project root is re-raised rather than swallowed, matching
     WP12's fail-closed contract for the context entry point.
     """

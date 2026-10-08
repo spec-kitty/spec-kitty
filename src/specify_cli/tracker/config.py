@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import functools
 import io
-import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar, Final
@@ -29,40 +27,12 @@ class TrackerConfigError(RuntimeError):
 
 
 # ---------------------------------------------------------------------------
-# CR-03 (mission `charter-code-topology-01M152G1` S4): tracker mode key
-# `doctrine` -> `ownership` (NOT `charter` -- this surface names field
-# OWNERSHIP, a distinct concept from the charter/doctrine topology rename).
-# Precedent for the read-both/canonical-wins/warn-once shape: `charter.activation.sync`
-# CR-01 (`src/charter/activation/sync.py:245-311`).
+# Field ownership (CR-03): the ``ownership`` block is the only key read. The
+# retired ``doctrine`` key is rewritten by ``spec-kitty upgrade``; a project
+# that still carries it is refused at the CLI root (``LEGACY_CHARTER_STATE``,
+# mission ``charter-pack-cutover-01M491G6`` FR-011).
 # ---------------------------------------------------------------------------
 _CANONICAL_OWNERSHIP_KEY: Final = "ownership"
-_LEGACY_OWNERSHIP_KEY: Final = "doctrine"
-
-
-class LegacyTrackerOwnershipKeyWarning(UserWarning):
-    """Emitted once per process when a project's ``tracker:`` block still
-    carries the retired ``doctrine`` ownership surface instead of the
-    canonical ``ownership`` surface (CR-03)."""
-
-
-@functools.lru_cache(maxsize=1)
-def _warn_legacy_ownership_key_once() -> None:
-    """Emit the CR-03 compat warning exactly once per process.
-
-    Gated by ``lru_cache`` rather than the ``warnings`` module's own de-dup
-    filter (precedent: ``charter.activation.sync._warn_legacy_governance_key_once``,
-    CR-01) -- a caller running under a stricter ``filterwarnings``
-    configuration could otherwise turn a *repeated* warning into a hard
-    failure. Tests reset this gate via
-    ``_warn_legacy_ownership_key_once.cache_clear()``.
-    """
-    warnings.warn(
-        "tracker: the legacy 'doctrine' ownership key/option was used; "
-        "reading it as 'ownership'. Use the canonical config key or "
-        "`--ownership-mode`.",
-        LegacyTrackerOwnershipKeyWarning,
-        stacklevel=3,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -211,11 +181,6 @@ class TrackerProjectConfig:
             "display_label": self.display_label,
             "provider_context": dict(self.provider_context) if self.provider_context else None,
             "workspace": self.workspace,
-            # CR-03: writes only ever emit the canonical `ownership` key now.
-            # A stale `doctrine` key already on disk (a KNOWN key, per
-            # `_KNOWN_KEYS` below -- never captured into `_extra`) is dropped
-            # on save, same as CR-04's `save_pack_registry`: an operator who
-            # binds again adopts the canonical key by construction.
             _CANONICAL_OWNERSHIP_KEY: {
                 "mode": self.ownership_mode,
                 "field_owners": dict(self.ownership_field_owners),
@@ -233,18 +198,16 @@ class TrackerProjectConfig:
     _KNOWN_KEYS: ClassVar[frozenset[str]] = frozenset({
         "provider", "binding_ref", "project_slug", "display_label",
         "provider_context", "workspace",
-        _CANONICAL_OWNERSHIP_KEY, _LEGACY_OWNERSHIP_KEY, _EGRESS_KEY,
+        _CANONICAL_OWNERSHIP_KEY, _EGRESS_KEY,
     })
 
     @staticmethod
     def _parse_ownership_block(block: object) -> tuple[str, dict[str, str]] | None:
-        """Parse an ``ownership``- or ``doctrine``-shaped mode/field_owners block.
+        """Parse the ``ownership`` mode/field_owners block.
 
         Returns ``None`` when *block* is not a mapping (the caller's "this
         key wasn't a usable block" signal), else the parsed
-        ``(mode, field_owners)`` pair -- shared by both the canonical and
-        legacy readers below since the two keys carry an identical shape
-        (CR-03).
+        ``(mode, field_owners)`` pair.
         """
         if not isinstance(block, dict):
             return None
@@ -267,23 +230,11 @@ class TrackerProjectConfig:
         if not isinstance(data, dict):
             return cls()
 
-        # CR-03 (mission `charter-code-topology-01M152G1` S4): canonical
-        # `ownership` key wins outright when present -- silently, no warning,
-        # even if a stale legacy `doctrine` key is also there (CR-01
-        # precedent: an operator who already carries the canonical key is
-        # never nagged about a legacy value nothing reads any more). Only
-        # when `ownership` is entirely absent does the legacy `doctrine` key
-        # get read, with a one-shot deprecation notice.
         ownership_mode = "external_authoritative"
         ownership_field_owners: dict[str, str] = {}
         canonical_parsed = cls._parse_ownership_block(data.get(_CANONICAL_OWNERSHIP_KEY))
         if canonical_parsed is not None:
             ownership_mode, ownership_field_owners = canonical_parsed
-        else:
-            legacy_parsed = cls._parse_ownership_block(data.get(_LEGACY_OWNERSHIP_KEY))
-            if legacy_parsed is not None:
-                _warn_legacy_ownership_key_once()
-                ownership_mode, ownership_field_owners = legacy_parsed
 
         provider = data.get("provider")
         binding_ref = data.get("binding_ref")

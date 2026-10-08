@@ -78,7 +78,7 @@ def _write_governance_yaml(repo_root: Path) -> None:
         """\
 schema_version: '2.0.0'
 governance:
-  doctrine:
+  charter:
     governance_references:
       - spec/constitution.md
       - docs/missing-governance.md
@@ -183,7 +183,7 @@ class TestCharterStatus:
         doctrine_path = (
             tmp_path
             / ".kittify"
-            / "doctrine"
+            / "charter-packs"
             / "directive"
             / "001-mission-type-scope-directive.directive.yaml"
         )

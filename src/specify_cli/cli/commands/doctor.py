@@ -88,6 +88,8 @@ from ._doctrine_collect import (  # noqa: E402
     _collect_doctrine_collisions,
     _run_cross_grain_check,
     _run_operating_procedures_check,
+    _run_retired_governance_key_check,
+    _run_retired_layout_check,
     _sanction_entry_snippet,
     _sanction_file_labels,
 )
@@ -1070,15 +1072,16 @@ def mission_state(
 
 
 # ---------------------------------------------------------------------------
-# WP07 T035 + T048: `spec-kitty doctor doctrine` — org-layer snapshot health.
+# WP07 T035 + T048: `spec-kitty doctor charter-packs` — org-layer snapshot health
+# (formerly `doctor doctrine`; renamed by mission charter-pack-cutover-01M491G6, FR-006).
 # ---------------------------------------------------------------------------
 
 
-@app.command(name="doctrine")
-def doctrine_check(
+@app.command(name="charter-packs")
+def charter_packs_check(
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
-    """Check org doctrine snapshot status and list installed pack artifacts.
+    """Check org charter pack snapshot status and list installed pack artifacts.
 
     Exit code reflects health (WP01, operator directive: loud over hidden): the
     command exits **1 when the report is unhealthy** and 0 only when healthy
@@ -1091,20 +1094,20 @@ def doctrine_check(
 
     Override governance (FR-010 / FR-012): when org packs are configured, any
     ``org:``-provenance override of a built-in DRG node that is NOT sanctioned
-    by ``.kittify/doctrine/replaceable-builtins.yaml`` or by the overriding
+    by ``.kittify/charter-packs/replaceable-builtins.yaml`` or by the overriding
     pack's own pack-root ``replaceable-builtins.yaml`` is reported as an
     ``unsanctioned_overrides`` finding and flips the report unhealthy (RC=1).
     A pack sanction applies only to overrides that same pack contributes, and
     the consumer file can withdraw it with ``revoked_pack_sanctions``. Sanctioned
     overrides and their source are listed as ``sanctioned_overrides``.
-    Project-tier (``.kittify/doctrine/``) overrides of built-ins are
-    intentionally **ungoverned** — project doctrine is the trusted operator tier
+    Project-tier (``.kittify/charter-packs/``) overrides of built-ins are
+    intentionally **ungoverned** — the project layer is the trusted operator tier
     and is not gated by the consumer-facing allowlist; only org-tier overrides
     are adjudicated.
 
     Examples:
-        spec-kitty doctor doctrine
-        spec-kitty doctor doctrine --json
+        spec-kitty doctor charter-packs
+        spec-kitty doctor charter-packs --json
     """
     from charter.drg import load_pack_registry
 
@@ -1130,6 +1133,11 @@ def doctrine_check(
     # Folded in before ``exit_code`` is derived, same as the cross-grain scan.
     _run_operating_procedures_check(report)
 
+    # #3732 FR-011: a retired ``governance.doctrine`` key in charter.yaml is a
+    # finding (the CLI-root gate does not read charter.yaml).
+    _run_retired_governance_key_check(report, repo_root)
+    _run_retired_layout_check(report, repo_root)
+
     # WP09 T050 / FR-018: the Selections diagnostic is independent of whether
     # org packs are configured, so build it for both branches.
     selection_block = _build_selection_block(repo_root)
@@ -1142,6 +1150,8 @@ def doctrine_check(
         _emit_doctrine_no_packs(report, selection_block, json_output=json_output)
         if not json_output:
             _render_cross_grain_findings(report)
+            _render_retired_governance_key_finding(report)
+            _render_retired_layout_findings(report)
         raise typer.Exit(exit_code)
 
     pack_entries = _build_pack_entries(registry, repo_root)
@@ -1178,6 +1188,8 @@ def doctrine_check(
     # WP05 (#2666): surface FR-013 built-in cross-grain collisions loudly (the
     # JSON surface already carries them via the ``org_drg`` passthrough).
     _render_cross_grain_findings(report)
+    _render_retired_governance_key_finding(report)
+    _render_retired_layout_findings(report)
     raise typer.Exit(exit_code)
 
 
@@ -1294,7 +1306,29 @@ def _render_unsanctioned_override_findings(report: DoctrineHealthReport) -> None
         f"its pack-root {pack_file}, or remove the org override.[/dim]",
         soft_wrap=True,
     )
-    console.print("  [dim]Only org-tier overrides are adjudicated; project-tier (.kittify/doctrine/) overrides are intentionally ungoverned (FR-012).[/dim]")
+    console.print("  [dim]Only org-tier overrides are adjudicated; project-tier (.kittify/charter-packs/) overrides are intentionally ungoverned (FR-012).[/dim]")
+
+
+def _render_retired_governance_key_finding(report: DoctrineHealthReport) -> None:
+    """Render the ``org_drg['retired_governance_key']`` finding (#3732); a no-op without one."""
+    org_drg = report.org_drg
+    finding = org_drg.get("retired_governance_key") if isinstance(org_drg, dict) else None
+    if not isinstance(finding, dict):
+        return
+    console.print(f"\n[bold red]Retired charter key[/bold red] — {finding.get('key')} is not read; the project's selections are ignored\n")
+    console.print(f"  {finding.get('message')}", markup=False, soft_wrap=True)
+
+
+def _render_retired_layout_findings(report: DoctrineHealthReport) -> None:
+    """Render the ``org_drg['retired_layouts']`` findings (#3732); a no-op without any."""
+    org_drg = report.org_drg
+    findings = org_drg.get("retired_layouts") if isinstance(org_drg, dict) else None
+    if not isinstance(findings, list) or not findings:
+        return
+    console.print(f"\n[bold red]Retired layout[/bold red] — {len(findings)} location(s) no longer read\n")
+    for finding in findings:
+        if isinstance(finding, dict):
+            console.print(f"  • {finding.get('message')}", markup=False, soft_wrap=True)
 
 
 def _render_cross_grain_findings(report: DoctrineHealthReport) -> None:

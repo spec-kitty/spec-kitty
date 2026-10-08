@@ -10,7 +10,7 @@ pair. This file pins the half of that contract available on WP04's lane:
   (data-model.md) -- not generated-manifest fields (``constituents``,
   ``schema_version``, hashes) leaking in;
 * neither of this WP's owned source modules
-  (``src/specify_cli/doctrine/pack_assembler.py``,
+  (``src/charter/offering/packs/pack_assembler.py``,
   ``src/specify_cli/cli/commands/_doctrine_collect.py``) contains a write
   call targeting the authored filenames.
 
@@ -39,7 +39,7 @@ import pytest
 import yaml
 
 from charter.offering.pack_paths import built_in_root
-from specify_cli.doctrine.builtin_manifest import (
+from charter.offering.packs.builtin_manifest import (
     MANIFEST_FILENAME,
     generate_builtin_manifest,
 )
@@ -53,7 +53,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # authored files. Other owned_files entries in that WP (packs/built-in/pack.*
 # themselves, and the two test files) are data/tests, not writers.
 _OWNED_SOURCE_MODULES = (
-    _REPO_ROOT / "src" / "specify_cli" / "doctrine" / "pack_assembler.py",
+    _REPO_ROOT / "src" / "charter" / "offering" / "packs" / "pack_assembler.py",
     _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "_doctrine_collect.py",
 )
 
@@ -64,7 +64,7 @@ _AUTHORED_FILENAMES = frozenset({"pack.yaml", "pack.md"})
 # ``constituents``/``schema_version``/``manifest_hash`` leaking in would be a
 # split-boundary violation) and no fewer.
 _PACK_DESCRIPTOR_FIELDS = frozenset(
-    {"pack_id", "pack_version", "parent_pack", "accompanies_doctrine_pack", "name"}
+    {"pack_id", "pack_version", "parent_pack", "name"}
 )
 
 
@@ -88,10 +88,8 @@ def test_authored_pack_yaml_exists_and_is_shaped_as_a_pack_descriptor() -> None:
     assert isinstance(pack_version, str) and pack_version, "pack_version must be authored (non-empty)"
 
     # The built-in pack is the root of every lineage chain (no built-in-of-a-
-    # built-in), and does not itself accompany a doctrine pack (that field is
-    # only meaningful for charter/synthesized packs).
+    # built-in).
     assert data["parent_pack"] is None
-    assert data["accompanies_doctrine_pack"] is None
     assert data["name"] == "built-in"
 
 
@@ -221,5 +219,5 @@ def test_regenerate_leaves_authored_files_byte_unchanged() -> None:
     # (c) the committed manifest is already fresh (stale => FIX-1-class drift).
     assert after[MANIFEST_FILENAME] == before[MANIFEST_FILENAME], (
         "committed packs/built-in/pack-manifest.yaml is stale; run "
-        "`spec-kitty doctrine regenerate-graph` and commit the result"
+        "`spec-kitty charter pack regenerate-graph` and commit the result"
     )

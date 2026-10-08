@@ -10,7 +10,7 @@ and in each configured org pack's own ``replaceable-builtins.yaml``.
 This architectural test loads the repo's built-in graph plus any configured
 org fragments, runs the live merge, and asserts that every built-in URN that
 ends up overridden by an org node is sanctioned by the effective policy (the
-same loader ``doctor doctrine`` uses). A built-in **directive** override
+same loader ``doctor charter-packs`` uses). A built-in **directive** override
 additionally requires a non-empty reason.
 
 With no overrides authored in this repo, the test passes vacuously (this repo
@@ -53,7 +53,7 @@ def _load_org_fragments(repo_root: Path) -> list[OrgDRGFragment]:
     """Load configured org fragments, tolerating a repo with none.
 
     The org-pack registry loader lives in the charter layer; the architectural
-    suite is allowed to reach across layers. A repo with no ``organisation_packs``
+    suite is allowed to reach across layers. A repo with no ``charter_packs.org.packs``
     yields an empty list (the common case, including this repo).
     """
     from charter.activation.drg_activation import load_org_drg
@@ -67,7 +67,7 @@ def test_builtin_overrides_are_sanctioned() -> None:
 
     Vacuously green for this repo (no overrides authored). The assertion logic
     is the governance gate a consumer repo inherits, and it adjudicates through
-    the same effective-policy loader as ``doctor doctrine`` (FR-013).
+    the same effective-policy loader as ``doctor charter-packs`` (FR-013).
     """
     built_in = load_graph_or_dir(_BUILT_IN_GRAPH)
     org_fragments = _load_org_fragments(_REPO_ROOT)

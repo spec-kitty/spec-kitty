@@ -239,10 +239,14 @@ class TestContentRewriting:
         content = (claude_dir / "spec-kitty.charter.md").read_text()
         assert "constitution" not in content.lower()
 
-    def test_skill_directory_renamed(
+    def test_skill_directory_left_alone(
         self, tmp_path: Path, migration: CharterRenameMigration
     ) -> None:
-        """spec-kitty-constitution-doctrine skill dir is renamed to spec-kitty-charter-doctrine."""
+        """A spec-kitty-constitution-doctrine skill dir is left untouched.
+
+        Its charter-era name spec-kitty-charter-doctrine is retired by the
+        charter-pack cutover, so the rename must never recreate it.
+        """
         skills_dir = tmp_path / ".claude" / "skills"
         old_skill = skills_dir / "spec-kitty-constitution-doctrine"
         old_skill.mkdir(parents=True)
@@ -252,15 +256,13 @@ class TestContentRewriting:
             "agents:\n  available:\n    - claude\n"
         )
 
+        assert migration.detect(tmp_path) is False, "a skill dir alone is not constitution-era state to migrate"
         result = migration.apply(tmp_path)
 
         assert result.success
-        assert not old_skill.exists()
-        new_skill = skills_dir / "spec-kitty-charter-doctrine"
-        assert new_skill.exists()
-        content = (new_skill / "SKILL.md").read_text()
-        assert "constitution" not in content.lower()
-        assert "Charter" in content or "charter" in content
+        assert (old_skill / "SKILL.md").read_text() == "Constitution doctrine skill"
+        assert not (skills_dir / "spec-kitty-charter-doctrine").exists()
+        assert not any("skills" in change for change in result.changes_made), result.changes_made
 
 
 # ── T044: Metadata normalization tests ─────────────────────────────────────
