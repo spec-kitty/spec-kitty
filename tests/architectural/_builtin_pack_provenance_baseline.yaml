@@ -177,8 +177,6 @@ missions/software-dev/expected-artifacts.yaml:
 missions/software-dev/governance-profile.yaml:
   repo_paths: 1
   provenance: 1
-missions/software-dev/mission-runtime.yaml:
-  provenance: 1
 missions/software-dev/templates/plan-template.md:
   repo_paths: 2
 missions/software-dev/templates/spec-template.md:
