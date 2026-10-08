@@ -36,6 +36,7 @@ import specify_cli.cli.commands.agent.tasks_move_task_executor as move_task_exec
 import specify_cli.lanes.implement_support as implement_support
 import specify_cli.orchestrator_api.wp_lifecycle as wp_lifecycle
 import specify_cli.status.locking as locking
+from specify_cli.status import mission_write_lock
 from specify_cli import app as root_app
 from specify_cli.cli.commands import implement_claim
 from specify_cli.lanes.persistence import write_lanes_json
@@ -319,6 +320,18 @@ def test_overlapping_single_branch_claims_leave_exactly_one_wp_in_progress(
     assert b_rc != [0], out
     assert "WRITE_CHECKOUT_OCCUPIED" in out or "already in_progress in the shared write checkout" in out
     assert held == [True], "writer A did not hold the checkout lock between its scan and its claim (#5796)"
+
+
+def test_start_implementation_lets_a_lock_order_violation_propagate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Taking the checkout lock under a Mission lock is a programming error, not a retryable STATUS_LOCK_HELD."""
+    repo = _single_branch_repo(tmp_path / "repo")
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+    mission, mission_id = "lock-order-alpha", "01LOCKORDERALPHA00000001"
+    _build_mission(repo, mission, mission_id)
+
+    with mission_write_lock(repo / "kitty-specs" / mission, repo_root=repo), pytest.raises(RuntimeError, match="checkout claim lock must be taken before"):
+        _claim_via(_ORCHESTRATOR, mission, "WP01", "alice")
 
 
 def test_start_implementation_reports_a_held_checkout_lock_as_an_envelope_not_a_traceback(
