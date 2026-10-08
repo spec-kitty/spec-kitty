@@ -376,12 +376,15 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     console.print(f"  Projected the coordination commit(s) that landed during teardown onto {target}")
 
 
+COORD_STATUS_FOLD_SUBJECT = "chore({slug}): fold coordination status before flatten (#3272)"
+
+
 def _fold_coord_status_before_flatten(run: _MergeRunState) -> None:
     """Commit every coord status event to the primary corpus before deleting its branch.
 
     Reads the coordination worktree's WORKING-TREE log (``run.feature_dir``), not the
-    committed coordination tip, so uncommitted seed events are folded too. A git or
-    alias-proof failure is wrapped as :class:`CoordinationTeardownError` (branch kept);
+    committed coordination tip, so uncommitted seed events are folded too. A git, alias-proof or
+    I/O failure is wrapped as :class:`CoordinationTeardownError` (branch kept);
     any other error, notably a workflow-mutation policy refusal, propagates unchanged.
     """
     source = run.feature_dir / "status.events.jsonl"
@@ -398,9 +401,9 @@ def _fold_coord_status_before_flatten(run: _MergeRunState) -> None:
         assert_alias_events_preserved(alias_events_path=source, primary_events_path=events_path)
         paths = [events_path, status_path]
         if _paths_have_status_changes(run.main_repo, paths):
-            _commit_projection_and_carry(run, paths, f"chore({run.mission_slug}): fold coordination status before flatten (#3272)")
+            _commit_projection_and_carry(run, paths, COORD_STATUS_FOLD_SUBJECT.format(slug=run.mission_slug))
             console.print(f"  Folded the coordination status onto {target_branch} before teardown")
-    except (GitCommandError, AliasStatusEventsNotPreserved) as exc:
+    except (GitCommandError, AliasStatusEventsNotPreserved, OSError) as exc:
         raise CoordinationTeardownError(
             f"coordination status could not be folded onto {target_branch!r} ({escape(str(exc))}); "
             f"branch {run.lanes_manifest.mission_branch!r} was NOT deleted and the mission's coordination marker was left intact. "

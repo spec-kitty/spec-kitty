@@ -33,6 +33,7 @@ from specify_cli.coordination.transaction_errors import BookkeepingPolicyRefused
 from specify_cli.coordination.types import Refused
 from specify_cli.lanes.branch_naming import coord_dir_name
 from specify_cli.consolidation import executor as ex
+from specify_cli.consolidation.bookkeeping_projection import AliasStatusEventsNotPreserved
 from specify_cli.consolidation.state import ConsolidationState
 from specify_cli.mission_metadata import load_meta
 from specify_cli.consolidation import (
@@ -219,7 +220,7 @@ def test_teardown_folds_coord_seed_events_onto_primary(coord_repo_with_live_work
     phase_teardown._teardown_coordination_triple(run)
 
     subjects = _git(repo, "log", "--format=%s", f"{tip_before}..main").stdout.splitlines()
-    assert sum("fold coordination status before flatten" in subject for subject in subjects) == 1, subjects
+    assert subjects.count(phase_teardown.COORD_STATUS_FOLD_SUBJECT.format(slug=_SLUG)) == 1, subjects
     primary_log = repo / "kitty-specs" / _SLUG / "status.events.jsonl"
     assert "01M1VRA2ZSEED00000000000000" in primary_log.read_text()
     assert "01M1VRA2ZSEED00000000000000" in _git(repo, "show", f"HEAD:kitty-specs/{_SLUG}/status.events.jsonl").stdout
@@ -233,18 +234,20 @@ def _refused() -> BookkeepingPolicyRefused:
 @pytest.mark.parametrize(
     ("failure", "wrapped"),
     [
-        (OSError("disk full"), False),
+        (OSError("disk full"), True),
         (GitCommandError(argv=("status",), cwd=Path("."), returncode=1, stderr="disk full"), True),
+        (AliasStatusEventsNotPreserved("disk full", composed_dir=Path("."), missing_event_ids=("x",)), True),
         (_refused(), False),
+        (RuntimeError("unrelated"), False),
     ],
-    ids=["unrelated-error-propagates", "git-failure-wrapped", "policy-refusal-propagates"],
+    ids=["io-failure-wrapped", "git-failure-wrapped", "alias-proof-wrapped", "policy-refusal-propagates", "unrelated-error-propagates"],
 )
 def test_a_failed_coord_status_fold_keeps_the_coord_branch_and_marker(
     coord_repo_with_live_worktree: Path, monkeypatch: pytest.MonkeyPatch, failure: Exception, wrapped: bool
 ) -> None:
     """A fold that cannot land refuses before anything is torn down (#3272).
 
-    Only git / alias-proof failures become a ``CoordinationTeardownError``; a policy
+    Only git, alias-proof and I/O failures become a ``CoordinationTeardownError``; a policy
     refusal propagates unchanged so its own ``PROTECTED_BRANCH_REFUSED`` remedy is not
     replaced by a misleading ``--resume`` hint.
     """
