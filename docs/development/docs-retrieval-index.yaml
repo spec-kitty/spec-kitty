@@ -4937,7 +4937,7 @@ pages:
   - path: "docs/architecture/charter-pack-usage-journey.md"
     title: "Activation Preset Usage Journey: Activate, Generate, and the Dispatch Safety Net"
     divio_type: "none"
-    abstract: "Why `charter activate --preset` alone does not deliver working governance on a fresh project, the required `generate` follow-up, and how the dispatch fallback behaves before and after compilation."
+    abstract: "Why `charter activate --preset` alone does not deliver governance on a fresh project, the `generate` follow-up, and how the dispatch fallback behaves around compilation."
     anchors:
     - {slug: "tl-dr", text: "TL;DR", level: 2}
     - {slug: "three-tiers-not-two", text: "Three tiers, not two", level: 2}
