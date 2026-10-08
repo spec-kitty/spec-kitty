@@ -53,7 +53,7 @@ from charter.offering.missions.action_index import ActionIndex, load_action_inde
 # ``aggregate_action_grain`` and ``scan_builtin_cross_grain_duplicates`` are
 # exported: both now have a real ``src`` caller.  ``aggregate_action_grain``
 # is the seam ``charter.activation.mission_type_profiles`` imports; ``scan_builtin_cross_grain_duplicates``
-# is called from ``specify_cli.cli.commands._doctrine_collect._run_cross_grain_check``
+# is called from ``specify_cli.cli.commands._charter_pack_collect._run_cross_grain_check``
 # (WP05, #2666), which wires the FR-013 built-in dup-scan into
 # ``spec-kitty doctor doctrine`` so the integrity gate is load-bearing outside
 # pytest. ``action_index_to_mapping`` stays out of ``__all__`` — it is a pure

@@ -493,7 +493,7 @@ def test_shipped_prose_would_false_red_without_the_path_shape_discriminator() ->
     # failure message, so it is not part of the pinned identity.
     #
     # 2026-07-29 (PR #3070 landing pass, WP05 doctrine-delivery-reachability):
-    # widened by one entry for `src/specify_cli/cli/commands/_doctrine_asset.py`
+    # widened by one entry for `src/specify_cli/cli/commands/charter/pack_asset.py`
     # — its module docstring reads "...resolve shipped/overlay doctrine assets",
     # genuine English prose (no `<segment>/` immediately precedes `shipped/`),
     # not a `<kind>/shipped/` pack-layer path reference.
@@ -501,7 +501,7 @@ def test_shipped_prose_would_false_red_without_the_path_shape_discriminator() ->
     assert excluded == [
         "src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml",
         "src/runtime/next/_internal_runtime/planner.py",
-        "src/specify_cli/cli/commands/_doctrine_asset.py",
+        "src/specify_cli/cli/commands/charter/pack_asset.py",
     ], f"B1's effect set moved -- widening it needs a reason: {_render(scan.prose)}"
 
 

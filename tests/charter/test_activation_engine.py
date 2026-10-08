@@ -140,7 +140,7 @@ def test_unknown_id_error_names_kind_id_and_recovery(config_path: Path) -> None:
     assert "directive" in message
     assert "999-nonexistent" in message
     assert "charter list --show-available" in message
-    assert "doctor doctrine" in message
+    assert "doctor charter-packs" in message
 
 
 # ---------------------------------------------------------------------------

@@ -404,7 +404,22 @@ def test_missing_declared_org_root_refuses_a_preset_listing_ids(tmp_path: Path) 
 
     assert caught.value.unresolved == {}
     assert any("not a directory" in why for why in caught.value.reasons.values()), caught.value.reasons
+    # The reason names the declared-but-unfetched org pack and the remedy, and the
+    # headline does not claim the ids resolve nowhere (they could not be checked).
+    message = str(caught.value)
+    assert "'ghost'" in message and "not fetched" in message and "spec-kitty charter fetch" in message, message
+    assert "resolve nowhere" not in message, message
+    assert caught.value.code == "PRESET_ID_UNRESOLVED"
     assert (root / ".kittify" / "config.yaml").read_bytes() == before
+
+
+def test_unresolved_ids_headline_still_says_they_resolve_nowhere(tmp_path: Path) -> None:
+    root = _with_org_pack(_project(tmp_path), presets={"ghost": {"activated_tactics": ["no-such-tactic"]}})
+
+    with pytest.raises(PresetIdUnresolvedError) as caught:
+        plan_preset_application(root, ORG, "ghost")
+
+    assert "resolve nowhere" in str(caught.value)
 
 
 def test_missing_declared_org_root_does_not_block_a_preset_listing_no_ids(tmp_path: Path) -> None:

@@ -18,9 +18,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from charter.activation.pack_context import PackContext
-from charter.activation.resolver import DoctrineService
+from charter.activation.resolver import ActiveCharterService
 from charter.offering.agent_profiles import AgentProfileRepository
-from charter.offering.service import DoctrineService as InnerDoctrineService
+from charter.offering.service import CharterOfferingService
 
 pytestmark = pytest.mark.fast
 
@@ -37,8 +37,8 @@ class TestAccessorReturnsRawRepository:
     """The accessor returns the SAME raw repository object ``_inner`` holds."""
 
     def test_returns_the_inner_agent_profiles_repository(self) -> None:
-        inner = InnerDoctrineService()
-        wrapped = DoctrineService(inner, pack_context=None)
+        inner = CharterOfferingService()
+        wrapped = ActiveCharterService(inner, pack_context=None)
 
         assert wrapped.agent_profile_repository is inner.agent_profiles
 
@@ -48,13 +48,13 @@ class TestRegisterOverlayDoesNotBypassActivationFilter:
     the gated ``agent_profiles`` property's three-state activation filter."""
 
     def test_overlaid_non_activated_profile_stays_gated_out(self) -> None:
-        inner = InnerDoctrineService()
+        inner = CharterOfferingService()
         pack_ctx = MagicMock(spec=PackContext)
         # Explicit activation set that excludes the profile we are about to
         # overlay -- proves the filter, not a bare-project "admit all" no-op.
         pack_ctx.activated_agent_profiles = frozenset({"reviewer-renata"})
 
-        wrapped = DoctrineService(inner, pack_context=pack_ctx)
+        wrapped = ActiveCharterService(inner, pack_context=pack_ctx)
 
         shadow_profile = MagicMock()
         shadow_profile.profile_id = "shadow-sam"
@@ -74,11 +74,11 @@ class TestRegisterOverlayDoesNotBypassActivationFilter:
         Without this, the previous test could pass vacuously if the filter
         excluded everything regardless of the overlay.
         """
-        inner = InnerDoctrineService()
+        inner = CharterOfferingService()
         pack_ctx = MagicMock(spec=PackContext)
         pack_ctx.activated_agent_profiles = frozenset({"shadow-sam"})
 
-        wrapped = DoctrineService(inner, pack_context=pack_ctx)
+        wrapped = ActiveCharterService(inner, pack_context=pack_ctx)
 
         shadow_profile = MagicMock()
         shadow_profile.profile_id = "shadow-sam"
@@ -94,13 +94,13 @@ class TestGetProvenanceIsReadOnlyOnRawRepository:
 
     def test_returns_builtin_for_a_known_builtin_profile(self) -> None:
         profile_id = _known_builtin_profile_id()
-        inner = InnerDoctrineService()
-        wrapped = DoctrineService(inner, pack_context=None)
+        inner = CharterOfferingService()
+        wrapped = ActiveCharterService(inner, pack_context=None)
 
         assert wrapped.agent_profile_repository.get_provenance(profile_id) == "builtin"
 
     def test_returns_none_for_an_unknown_profile(self) -> None:
-        inner = InnerDoctrineService()
-        wrapped = DoctrineService(inner, pack_context=None)
+        inner = CharterOfferingService()
+        wrapped = ActiveCharterService(inner, pack_context=None)
 
         assert wrapped.agent_profile_repository.get_provenance("no-such-profile") is None

@@ -3,31 +3,31 @@
 Resolves active governance from charter selections and validates
 selected references against available profile/tool catalogs.
 
-Exports ``DoctrineService`` — an activation-aware wrapper around
-:class:`charter.offering.service.DoctrineService`.  The wrapper applies per-kind
+Exports ``ActiveCharterService`` — an activation-aware wrapper around
+:class:`charter.offering.service.CharterOfferingService`.  The wrapper applies per-kind
 activation filters from :class:`~charter.activation.pack_context.PackContext` to nine
 gated properties: ``paradigms``, ``procedures``, ``agent_profiles``
 (pre-existing) plus ``directives``, ``tactics``, ``styleguides``,
 ``toolguides``, ``mission_step_contracts``, and ``glossary_packs`` (FR-005,
 charter-sole-door-bypass-closure-01KZ3WAA WP01).  All other properties
-delegate to the inner doctrine service transparently via ``__getattr__``.
+delegate to the inner offering service transparently via ``__getattr__``.
 
-It also exposes :attr:`DoctrineService.agent_profile_repository` — a second,
+It also exposes :attr:`ActiveCharterService.agent_profile_repository` — a second,
 explicitly-named accessor (FR-001) returning the raw, lineage/mutation-capable
 :class:`~charter.offering.agent_profiles.repository.AgentProfileRepository` for
 callers that need ``register_overlay()`` or ``get_provenance()``, which the
 filtered ``agent_profiles`` dict cannot support; and
-:meth:`DoctrineService.raw_repository` (FR-002 Option A) — the generic,
+:meth:`ActiveCharterService.raw_repository` (FR-002 Option A) — the generic,
 per-kind form of that same "filtered dict can't do repository ops" escape
 hatch, for provenance-scan callers that need raw ``list_all()``/
 ``get_provenance()`` access across any of the nine gated kinds.
 
 Finally (FR-003, charter-sole-door-bypass-closure-01KZ3WAA WP05) this module
-is the **sole charter-layer door** onto ``doctrine/resolver.py``'s 6-tier
+is the **sole charter-layer door** onto ``charter/offering/resolver.py``'s 6-tier
 asset resolution chain. The tier functions themselves stay in
-``doctrine/resolver.py`` (charter must import charter.offering, never the reverse);
+``charter/offering/resolver.py`` (charter must import charter.offering, never the reverse);
 what lives here is the entry point — see the "6-tier resolution axis"
-section of :class:`DoctrineService`. Before WP05,
+section of :class:`ActiveCharterService`. Before WP05,
 ``charter.activation.template_resolver.CharterTemplateResolver`` was a *second*
 charter-layer object reaching ``charter.offering.resolver`` independently of this
 one; it is now a thin delegate onto these methods.
@@ -41,11 +41,11 @@ from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
+from charter.activation.catalog import OfferingCatalog, load_offering_catalog, resolve_offering_root
 from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn
 from charter.activation.reference_resolver import resolve_references_transitively
-from kernel.charter_pack_paths import resolve_project_pack_read_root
-from charter.activation.schemas import DirectivesConfig, DoctrineSelectionConfig
+from kernel.charter_pack_paths import project_pack_root
+from charter.activation.schemas import DirectivesConfig, GovernanceCharterConfig
 from charter.activation.sync import (
     load_directives_config,
     load_governance_config,
@@ -54,19 +54,19 @@ from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 from charter.offering.missions.repository import MissionTemplateRepository
 
 # FR-003: the ONLY import of ``charter.offering.resolver``'s tier functions in the
-# charter layer. Aliased with a ``_doctrine_`` prefix so a reader of a call
-# site inside this module can never mistake the doctrine tier function for a
+# charter layer. Aliased with an ``_offering_`` prefix so a reader of a call
+# site inside this module can never mistake the offering tier function for a
 # charter-layer helper of the same bare name.
 from charter.offering.resolver import (
     ResolutionResult,
-    resolve_command as _doctrine_resolve_command,
-    resolve_mission as _doctrine_resolve_mission,
-    resolve_template as _doctrine_resolve_template,
+    resolve_command as _offering_resolve_command,
+    resolve_mission as _offering_resolve_mission,
+    resolve_template as _offering_resolve_template,
 )
 
 __all__ = [
     "DEFAULT_TOOL_REGISTRY",
-    "DoctrineService",
+    "ActiveCharterService",
     "GovernanceResolution",
     "GovernanceResolutionError",
     "collect_governance_diagnostics",
@@ -88,7 +88,7 @@ if TYPE_CHECKING:
     from charter.offering.styleguides.models import Styleguide
     from charter.offering.tactics.models import Tactic
     from charter.offering.toolguides.models import Toolguide
-    import charter.offering.service as _doctrine_service_module
+    import charter.offering.service as _offering_service_module
     from charter.activation.interview import CharterInterview
     from charter.activation.pack_context import PackContext
 
@@ -97,7 +97,7 @@ _LOGGER = logging.getLogger(__name__)
 DEFAULT_TEMPLATE_SET = "software-dev-default"
 DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git"})
 
-#: The nine gated-property kinds :meth:`DoctrineService.raw_repository`
+#: The nine gated-property kinds :meth:`ActiveCharterService.raw_repository`
 #: recognizes -- exactly the kinds with a gated ``dict`` property above.
 #: Derived from the single :class:`ArtifactKind` authority (issue #5409): the
 #: charter-activatable kinds that own a standalone repository. ``ANTI_PATTERN``
@@ -164,24 +164,24 @@ def _resolve_unmatched_directive_token(token: str, all_directives: dict[str, Dir
 
 
 # ---------------------------------------------------------------------------
-# Activation-aware DoctrineService wrapper (Pattern B + C wiring)
+# Activation-aware ActiveCharterService wrapper (Pattern B + C wiring)
 # ---------------------------------------------------------------------------
 
 
-class DoctrineService:
-    """Activation-aware wrapper around :class:`charter.offering.service.DoctrineService`.
+class ActiveCharterService:
+    """Activation-aware wrapper around :class:`charter.offering.service.CharterOfferingService`.
 
     Applies per-kind activation filters from
     :class:`~charter.activation.pack_context.PackContext` when accessing the nine gated
     properties: ``paradigms``, ``procedures``, ``agent_profiles``,
     ``directives``, ``tactics``, ``styleguides``, ``toolguides``,
     ``mission_step_contracts``, and ``glossary_packs``.  All other attributes
-    delegate transparently to the underlying doctrine service.
+    delegate transparently to the underlying offering service.
 
     Layer rule
     ----------
     This class lives in ``charter.*`` so it can import ``PackContext``
-    without violating the ``doctrine ← charter`` dependency direction.
+    without violating the ``charter.offering ← charter.activation`` dependency direction.
     Callers in ``specify_cli.*`` pass a real :class:`PackContext`; callers
     in ``charter.*`` may pass ``pack_context=None`` for unfiltered access.
 
@@ -197,7 +197,7 @@ class DoctrineService:
 
     def __init__(
         self,
-        _inner: _doctrine_service_module.DoctrineService,
+        _inner: _offering_service_module.CharterOfferingService,
         pack_context: PackContext | None = None,
     ) -> None:
         # Use object.__setattr__ to bypass any potential descriptor magic.
@@ -267,16 +267,16 @@ class DoctrineService:
         # PackContext and the inner repositories are snapshots. Resolve once
         # for this service; a newly built service observes changed files/config.
         if self._resolved_directive_activation_ids is None:
-            doctrine_root = resolve_doctrine_root()
+            offering_root = resolve_offering_root()
             activated: set[str] = set()
             for token in pack_ctx.activated_directives:
                 try:
                     urn = resolve_artifact_urn(
                         ArtifactKind.DIRECTIVE,
                         token,
-                        doctrine_root=doctrine_root,
+                        offering_root=offering_root,
                         org_roots=list(pack_ctx.org_roots),
-                        layer_roots={"project": resolve_project_pack_read_root(pack_ctx.repo_root, quiet=True)},
+                        layer_roots={"project": project_pack_root(pack_ctx.repo_root)},
                     )
                     activated.add(urn.split(":", 1)[1])
                 except UnknownArtifactIdError:
@@ -405,7 +405,7 @@ class DoctrineService:
         ``specify_cli.charter_runtime.lint.checks.org_layer.OrgOverridesBuiltinChecker``)
         need those raw repository operations directly. This is the named,
         sanctioned way to reach them without either (a) reconstructing a
-        second, unwrapped ``charter.offering.service.DoctrineService`` (the FR-002
+        second, unwrapped ``charter.offering.service.CharterOfferingService`` (the FR-002
         violation this accessor exists to close) or (b) reaching into
         ``._inner`` from outside ``charter.activation.resolver`` (the FR-010
         reach-around this module's accessors close generally).
@@ -432,10 +432,10 @@ class DoctrineService:
     # FR-003 (charter-sole-door-bypass-closure-01KZ3WAA WP05): the 6-tier
     # template/command/mission resolution axis.
     #
-    # ONE charter-layer door. ``doctrine/resolver.py``'s tier functions
+    # ONE charter-layer door. ``charter/offering/resolver.py``'s tier functions
     # (``_resolve_asset``, ``resolve_mission``) are NOT moved, renamed, or
-    # duplicated — they stay in doctrine because charter imports doctrine and
-    # never the reverse. What consolidates here is the *entry point*: before
+    # duplicated — they stay in ``charter.offering`` because charter.activation
+    # imports the offering and never the reverse. What consolidates here is the *entry point*: before
     # WP05, ``charter.activation.template_resolver.CharterTemplateResolver`` reached
     # ``charter.offering.resolver`` independently of this class, giving the charter
     # layer two doors onto the same chain (C-001 violation). It is now a thin
@@ -492,7 +492,7 @@ class DoctrineService:
         Raises:
             FileNotFoundError: If no tier provides the requested template.
         """
-        return _doctrine_resolve_template(name, project_dir, mission)
+        return _offering_resolve_template(name, project_dir, mission)
 
     @staticmethod
     def resolve_command_asset(
@@ -517,7 +517,7 @@ class DoctrineService:
         Raises:
             FileNotFoundError: If no tier provides the requested command template.
         """
-        return _doctrine_resolve_command(name, project_dir, mission)
+        return _offering_resolve_command(name, project_dir, mission)
 
     @staticmethod
     def resolve_mission_definition(name: str, project_dir: Path) -> ResolutionResult:
@@ -538,7 +538,7 @@ class DoctrineService:
         Raises:
             FileNotFoundError: If no tier provides the mission config.
         """
-        return _doctrine_resolve_mission(name, project_dir)
+        return _offering_resolve_mission(name, project_dir)
 
     @staticmethod
     def resolve_package_default_asset_path(
@@ -616,7 +616,7 @@ class DoctrineService:
     # ------------------------------------------------------------------
 
     def __getattr__(self, name: str) -> Any:
-        """Delegate unknown attribute access to the inner doctrine service."""
+        """Delegate unknown attribute access to the inner offering service."""
         inner = object.__getattribute__(self, "_inner")
         return getattr(inner, name)
 
@@ -654,24 +654,24 @@ class GovernanceResolution:
 
 def _validate_paradigm_selection(
     selected_paradigms: list[str],
-    doctrine_catalog: DoctrineCatalog,
+    offering_catalog: OfferingCatalog,
 ) -> None:
     """Raise GovernanceResolutionError if any selected paradigm is not in the built-in catalog."""
-    if not selected_paradigms or "paradigms" not in doctrine_catalog.domains_present:
+    if not selected_paradigms or "paradigms" not in offering_catalog.domains_present:
         return
-    missing = sorted(p for p in selected_paradigms if p not in doctrine_catalog.paradigms)
+    missing = sorted(p for p in selected_paradigms if p not in offering_catalog.paradigms)
     if missing:
         raise GovernanceResolutionError(
             [
                 "Charter selected unavailable paradigm(s): " + ", ".join(missing),
-                "Available built-in paradigms: " + (", ".join(sorted(doctrine_catalog.paradigms)) or "(none)"),
+                "Available built-in paradigms: " + (", ".join(sorted(offering_catalog.paradigms)) or "(none)"),
                 "Update charter selected_paradigms to values present in packs/built-in/paradigms/.",
             ]
         )
 
 
 def _resolve_paradigm_base(
-    doctrine_catalog: DoctrineCatalog,
+    offering_catalog: OfferingCatalog,
     repo_root: Path,
     diagnostics: list[str],
 ) -> tuple[list[str], str]:
@@ -688,7 +688,7 @@ def _resolve_paradigm_base(
 
     * ``activated_paradigms is None`` (key absent from config; e.g. a bare,
       unconfigured project) → the built-in catalog default
-      (``sorted(doctrine_catalog.paradigms)``), source ``"catalog_fallback"``,
+      (``sorted(offering_catalog.paradigms)``), source ``"catalog_fallback"``,
       with a diagnostic naming the fallback and its size.
     * ``activated_paradigms == frozenset()`` (explicit opt-out) → ``[]``,
       source ``"activation"``.
@@ -705,14 +705,14 @@ def _resolve_paradigm_base(
 
     activated_paradigms = PackContext.from_config(repo_root).activated_paradigms
     if activated_paradigms is None:
-        base = sorted(doctrine_catalog.paradigms)
+        base = sorted(offering_catalog.paradigms)
         diagnostics.append(f"No activated paradigm set configured; using built-in catalog default ({len(base)} paradigms).")
         return base, "catalog_fallback"
     return sorted(activated_paradigms), "activation"
 
 
 def _resolve_tools_selection(
-    doctrine: DoctrineSelectionConfig,
+    charter_config: GovernanceCharterConfig,
     available_tools: set[str],
     diagnostics: list[str],
 ) -> tuple[list[str], str]:
@@ -736,7 +736,7 @@ def _resolve_tools_selection(
     pre-union behaviour so operators continue to see the "fallback applied"
     cue when their charter omits the declaration.
     """
-    selected_tools = doctrine.available_tools
+    selected_tools = charter_config.available_tools
     if selected_tools:
         unioned = sorted(set(selected_tools) | available_tools)
         added_from_charter = sorted(set(selected_tools) - available_tools)
@@ -749,9 +749,9 @@ def _resolve_tools_selection(
 
 
 def _resolve_directive_base(
-    doctrine: DoctrineSelectionConfig,
+    charter_config: GovernanceCharterConfig,
     directives_cfg: DirectivesConfig,
-    doctrine_catalog: DoctrineCatalog,
+    offering_catalog: OfferingCatalog,
     repo_root: Path,
     diagnostics: list[str],
 ) -> tuple[list[str], str]:
@@ -760,11 +760,11 @@ def _resolve_directive_base(
 
     Base authority order (INVERTED from the pre-FR-012 priority): the
     ``activated_*``-derived value is ALWAYS computed first as the base, and
-    ``doctrine.selected_directives`` — the charter-authored selection — is
+    ``charter_config.selected_directives`` — the charter-authored selection — is
     then UNIONED onto that base when non-empty. It never substitutes for the
     base (mirrors :func:`_resolve_directives_selection`'s existing
     base-plus-project-local union shape). Previously, a non-empty
-    ``doctrine.selected_directives`` short-circuited and returned verbatim,
+    ``charter_config.selected_directives`` short-circuited and returned verbatim,
     silently overriding ``activated_directives`` any time a project had ever
     made an explicit charter selection (FR-012).
 
@@ -772,7 +772,7 @@ def _resolve_directive_base(
 
     * ``activated_directives is None`` (key absent from config; e.g. a bare,
       unconfigured project) → the built-in catalog default
-      (``sorted(doctrine_catalog.directives)``), source ``"catalog_fallback"``,
+      (``sorted(offering_catalog.directives)``), source ``"catalog_fallback"``,
       with a diagnostic naming the fallback and its size.
     * ``activated_directives == frozenset()`` (explicit opt-out) → ``[]``,
       source ``"activation"``.
@@ -791,7 +791,7 @@ def _resolve_directive_base(
     collapse would silently re-route the explicit opt-out case back to the
     catalog default it exists to suppress.
 
-    ``doctrine.selected_directives`` is validated against the local + built-in
+    ``charter_config.selected_directives`` is validated against the local + built-in
     catalog BEFORE the union runs — an entry not in ``valid_ids`` raises
     ``GovernanceResolutionError`` rather than silently dropping (boundary 2,
     unchanged, already "fails loud").
@@ -810,24 +810,24 @@ def _resolve_directive_base(
     # normalizer this function already applies to the base below.
     local_ids = {_normalize_directive_id(d.id) for d in directives_cfg.directives}
     valid_ids = set(local_ids)
-    if doctrine_catalog.directives:
-        valid_ids.update(_normalize_directive_id(d) for d in doctrine_catalog.directives)
-    selected_directives = list(dict.fromkeys(_normalize_directive_id(d) for d in doctrine.selected_directives))
+    if offering_catalog.directives:
+        valid_ids.update(_normalize_directive_id(d) for d in offering_catalog.directives)
+    selected_directives = list(dict.fromkeys(_normalize_directive_id(d) for d in charter_config.selected_directives))
 
     activated_directives = PackContext.from_config(repo_root).activated_directives
     if activated_directives is None:
-        base = sorted({_normalize_directive_id(d) for d in doctrine_catalog.directives})
+        base = sorted({_normalize_directive_id(d) for d in offering_catalog.directives})
         diagnostics.append(f"No activated directive set configured; using built-in catalog default ({len(base)} directives).")
         base_source = "catalog_fallback"
     else:
         base = sorted({_normalize_directive_id(d) for d in activated_directives})
         base_source = "activation"
 
-    if not doctrine.selected_directives:
+    if not charter_config.selected_directives:
         return base, base_source
 
     # Report the authored spelling in the error, match on the normalized one.
-    missing = sorted(raw for raw in doctrine.selected_directives if _normalize_directive_id(raw) not in valid_ids)
+    missing = sorted(raw for raw in charter_config.selected_directives if _normalize_directive_id(raw) not in valid_ids)
     if missing:
         raise GovernanceResolutionError(
             [
@@ -852,9 +852,9 @@ def _resolve_directive_base(
 
 
 def _resolve_directives_selection(
-    doctrine: DoctrineSelectionConfig,
+    charter_config: GovernanceCharterConfig,
     directives_cfg: DirectivesConfig,
-    doctrine_catalog: DoctrineCatalog,
+    offering_catalog: OfferingCatalog,
     repo_root: Path,
     diagnostics: list[str],
 ) -> tuple[list[str], str]:
@@ -875,7 +875,7 @@ def _resolve_directives_selection(
       directives merged and onto which base. Base order is preserved and no base
       id is ever dropped (INV-1/INV-2/INV-3/INV-5).
     """
-    base, base_source = _resolve_directive_base(doctrine, directives_cfg, doctrine_catalog, repo_root, diagnostics)
+    base, base_source = _resolve_directive_base(charter_config, directives_cfg, offering_catalog, repo_root, diagnostics)
 
     local_ids = [d.id for d in directives_cfg.directives]
     if not local_ids:
@@ -892,22 +892,22 @@ def _resolve_directives_selection(
 
 
 def _resolve_template_set_selection(
-    doctrine: DoctrineSelectionConfig,
-    doctrine_catalog: DoctrineCatalog,
+    charter_config: GovernanceCharterConfig,
+    offering_catalog: OfferingCatalog,
     fallback_template_set: str,
     diagnostics: list[str],
 ) -> tuple[str, str]:
     """Resolve template set from charter selection or fallback."""
-    if doctrine.template_set:
-        if "template_sets" in doctrine_catalog.domains_present and doctrine.template_set not in doctrine_catalog.template_sets:
+    if charter_config.template_set:
+        if "template_sets" in offering_catalog.domains_present and charter_config.template_set not in offering_catalog.template_sets:
             raise GovernanceResolutionError(
                 [
-                    f"Charter selected unavailable template_set: '{doctrine.template_set}'",
-                    "Available template sets: " + (", ".join(sorted(doctrine_catalog.template_sets)) or "(none)"),
-                    "Update charter template_set to a value available in doctrine missions.",
+                    f"Charter selected unavailable template_set: '{charter_config.template_set}'",
+                    "Available template sets: " + (", ".join(sorted(offering_catalog.template_sets)) or "(none)"),
+                    "Update charter template_set to a value available in the built-in missions.",
                 ]
             )
-        return doctrine.template_set, "charter"
+        return charter_config.template_set, "charter"
 
     diagnostics.append(f"Template set not selected in charter; fallback '{fallback_template_set}' applied.")
     return fallback_template_set, "fallback"
@@ -942,17 +942,17 @@ def resolve_project_governance(
     """
     governance = load_governance_config(repo_root)
     directives_cfg = load_directives_config(repo_root)
-    doctrine_catalog = load_doctrine_catalog()
-    doctrine = governance.charter
+    offering_catalog = load_offering_catalog()
+    charter_config = governance.charter
     diagnostics: list[str] = []
 
-    # FR-013: activated_paradigms is the base; doctrine.selected_paradigms
+    # FR-013: activated_paradigms is the base; charter_config.selected_paradigms
     # (validated exactly as before, unchanged — boundary 4, already "fails
     # loud") unions onto it, never substitutes for it. Previously this was an
     # unconditional passthrough with no activated_* read at all.
-    selected_paradigms_raw = list(doctrine.selected_paradigms)
-    _validate_paradigm_selection(selected_paradigms_raw, doctrine_catalog)
-    paradigm_base, paradigm_base_source = _resolve_paradigm_base(doctrine_catalog, repo_root, diagnostics)
+    selected_paradigms_raw = list(charter_config.selected_paradigms)
+    _validate_paradigm_selection(selected_paradigms_raw, offering_catalog)
+    paradigm_base, paradigm_base_source = _resolve_paradigm_base(offering_catalog, repo_root, diagnostics)
     if selected_paradigms_raw:
         paradigm_base_set = set(paradigm_base)
         added_paradigms = [p for p in selected_paradigms_raw if p not in paradigm_base_set]
@@ -968,9 +968,9 @@ def resolve_project_governance(
         selected_paradigms = paradigm_base
 
     available_tools = tool_registry or set(DEFAULT_TOOL_REGISTRY)
-    resolved_tools, tools_source = _resolve_tools_selection(doctrine, available_tools, diagnostics)
-    resolved_directives, directives_source = _resolve_directives_selection(doctrine, directives_cfg, doctrine_catalog, repo_root, diagnostics)
-    template_set, template_set_source = _resolve_template_set_selection(doctrine, doctrine_catalog, fallback_template_set, diagnostics)
+    resolved_tools, tools_source = _resolve_tools_selection(charter_config, available_tools, diagnostics)
+    resolved_directives, directives_source = _resolve_directives_selection(charter_config, directives_cfg, offering_catalog, repo_root, diagnostics)
+    template_set, template_set_source = _resolve_template_set_selection(charter_config, offering_catalog, fallback_template_set, diagnostics)
 
     return GovernanceResolution(
         paradigms=selected_paradigms,
@@ -993,7 +993,7 @@ def resolve_project_governance(
 def resolve_governance_for_profile(
     profile_id: str,
     role: str | None,
-    doctrine_service: DoctrineService,
+    charter_service: ActiveCharterService,
     interview: CharterInterview,
     *,
     graph: DRGGraph | None = None,
@@ -1004,9 +1004,9 @@ def resolve_governance_for_profile(
     if not normalized_profile_id:
         raise ValueError("Profile ID is required for profile-aware governance resolution.")
 
-    # Pattern C: agent_profiles may be a filtered dict (DoctrineService wrapper)
-    # or a repository (raw charter.offering.service.DoctrineService / MagicMock in tests).
-    agent_profiles_attr = doctrine_service.agent_profiles
+    # Pattern C: agent_profiles may be a filtered dict (ActiveCharterService wrapper)
+    # or a repository (raw charter.offering.service.CharterOfferingService / MagicMock in tests).
+    agent_profiles_attr = charter_service.agent_profiles
     if isinstance(agent_profiles_attr, dict):
         profile = agent_profiles_attr.get(normalized_profile_id)
         if profile is None:
@@ -1021,7 +1021,7 @@ def resolve_governance_for_profile(
     merged_directives = _merge_unique(profile_directives, interview.selected_directives)
     resolution_graph = resolve_references_transitively(
         merged_directives,
-        doctrine_service,
+        charter_service,
         graph=graph,
         repo_root=repo_root,
     )

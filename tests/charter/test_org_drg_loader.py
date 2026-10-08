@@ -3,8 +3,7 @@
 Owner: ``src/charter/drg.py`` (Slice F WP06).
 
 Covers loader edge cases (no config; multi-pack declaration order;
-missing local_path → ``OrgPackMissingError``; ``source: url|package`` →
-``NotImplementedError``); schema validation (8-kind C-009 enforcement);
+missing local_path → ``OrgPackMissingError``); schema validation (8-kind C-009 enforcement);
 merge edge cases (provenance threading; layer-rule hard-fail;
 shipped-invariant hard-fail; backward-compat empty-org case).
 """
@@ -188,11 +187,11 @@ class TestLoadOrgDrg:
         behave identically to today (no org layer)."""
         assert load_org_drg(tmp_path) == []
 
-    def test_empty_organisation_packs_returns_empty_list(self, tmp_path: Path) -> None:
-        _make_config(tmp_path, "organisation_packs: []\n")
+    def test_empty_org_packs_list_returns_empty_list(self, tmp_path: Path) -> None:
+        _make_config(tmp_path, "charter_packs:\n  org:\n    packs: []\n")
         assert load_org_drg(tmp_path) == []
 
-    def test_missing_organisation_packs_key_returns_empty_list(
+    def test_missing_org_packs_key_returns_empty_list(
         self, tmp_path: Path
     ) -> None:
         _make_config(tmp_path, "other_setting: value\n")
@@ -207,13 +206,13 @@ class TestLoadOrgDrg:
             tmp_path,
             dedent(
                 f"""\
-                organisation_packs:
-                  - name: alpha
-                    source: local_path
-                    path: {pack_a}
-                  - name: bravo
-                    source: local_path
-                    path: {pack_b}
+                charter_packs:
+                  org:
+                    packs:
+                      - name: alpha
+                        local_path: {pack_a}
+                      - name: bravo
+                        local_path: {pack_b}
                 """
             ),
         )
@@ -228,10 +227,11 @@ class TestLoadOrgDrg:
             tmp_path,
             dedent(
                 f"""\
-                organisation_packs:
-                  - name: vanished
-                    source: local_path
-                    path: {tmp_path}/no-such-dir
+                charter_packs:
+                  org:
+                    packs:
+                      - name: vanished
+                        local_path: {tmp_path}/no-such-dir
                 """
             ),
         )
@@ -252,10 +252,11 @@ class TestLoadOrgDrg:
             tmp_path,
             dedent(
                 f"""\
-                organisation_packs:
-                  - name: empty-pack
-                    source: local_path
-                    path: {pack_dir}
+                charter_packs:
+                  org:
+                    packs:
+                      - name: empty-pack
+                        local_path: {pack_dir}
                 """
             ),
         )
@@ -264,50 +265,17 @@ class TestLoadOrgDrg:
         assert "empty-pack" in str(exc_info.value)
         assert "fragment.yaml" in str(exc_info.value)
 
-    def test_source_url_not_yet_implemented(self, tmp_path: Path) -> None:
-        """NEW-1 — only ``local_path`` ships in this mission."""
-        _make_config(
-            tmp_path,
-            dedent(
-                """\
-                organisation_packs:
-                  - name: remote-pack
-                    source: url
-                    path: https://example.org/pack
-                """
-            ),
-        )
-        with pytest.raises(NotImplementedError) as exc_info:
-            load_org_drg(tmp_path)
-        assert "url" in str(exc_info.value)
-
-    def test_source_package_not_yet_implemented(self, tmp_path: Path) -> None:
-        """NEW-1 — package sources are reserved."""
-        _make_config(
-            tmp_path,
-            dedent(
-                """\
-                organisation_packs:
-                  - name: pypi-pack
-                    source: package
-                    path: some-pypi-name
-                """
-            ),
-        )
-        with pytest.raises(NotImplementedError) as exc_info:
-            load_org_drg(tmp_path)
-        assert "package" in str(exc_info.value)
-
     def test_relative_path_resolved_against_repo_root(self, tmp_path: Path) -> None:
         _make_pack(tmp_path, "rel-pack")
         _make_config(
             tmp_path,
             dedent(
                 """\
-                organisation_packs:
-                  - name: rel-pack
-                    source: local_path
-                    path: rel-pack
+                charter_packs:
+                  org:
+                    packs:
+                      - name: rel-pack
+                        local_path: rel-pack
                 """
             ),
         )
@@ -338,10 +306,11 @@ class TestLoadOrgDrg:
             tmp_path,
             dedent(
                 f"""\
-                organisation_packs:
-                  - name: operator-name
-                    source: local_path
-                    path: {pack_dir}
+                charter_packs:
+                  org:
+                    packs:
+                      - name: operator-name
+                        local_path: {pack_dir}
                 """
             ),
         )
@@ -390,13 +359,13 @@ class TestLoadOrgDrgUnreadableFragmentDegrade:
             tmp_path,
             dedent(
                 f"""\
-                organisation_packs:
-                  - name: {self._HEALTHY_PACK_NAME}
-                    source: local_path
-                    path: {healthy}
-                  - name: {self._UNREADABLE_PACK_NAME}
-                    source: local_path
-                    path: {unreadable}
+                charter_packs:
+                  org:
+                    packs:
+                      - name: {self._HEALTHY_PACK_NAME}
+                        local_path: {healthy}
+                      - name: {self._UNREADABLE_PACK_NAME}
+                        local_path: {unreadable}
                 """
             ),
         )
@@ -455,13 +424,13 @@ class TestLoadOrgDrgUnreadableFragmentDegrade:
             tmp_path,
             dedent(
                 f"""\
-                organisation_packs:
-                  - name: {self._HEALTHY_PACK_NAME}
-                    source: local_path
-                    path: {healthy}
-                  - name: {self._UNREADABLE_PACK_NAME}
-                    source: local_path
-                    path: {unreadable}
+                charter_packs:
+                  org:
+                    packs:
+                      - name: {self._HEALTHY_PACK_NAME}
+                        local_path: {healthy}
+                      - name: {self._UNREADABLE_PACK_NAME}
+                        local_path: {unreadable}
                 """
             ),
         )

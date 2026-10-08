@@ -14,7 +14,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from kernel.charter_pack_paths import resolve_project_pack_read_root
+from kernel.charter_pack_paths import project_pack_root
 
 from .findings import GraphState
 
@@ -50,7 +50,7 @@ def _load_project_drg(repo_root: Path) -> Any | None:
 
         graph.yaml > merged_drg.json > drg.json > compiled_drg.json
     """
-    drg_dir = resolve_project_pack_read_root(repo_root, quiet=True)
+    drg_dir = project_pack_root(repo_root)
     candidates = ["graph.yaml", "merged_drg.json", "drg.json", "compiled_drg.json"]
     for name in candidates:
         path = drg_dir / name

@@ -39,7 +39,7 @@ rather than dropped: the env var is set/cleared directly (a plain literal,
 matching ``tests/kernel/test_paths.py``'s own convention) and ``__file__`` is
 patched on :mod:`kernel.paths` instead of ``charter.offering.pack_paths``. ``files``
 stays patched on ``pack_paths`` for symmetry with
-:func:`charter.offering.pack_paths.doctrine_package_dir` callers, even though
+:func:`charter.offering.pack_paths.offering_package_dir` callers, even though
 ``_resolve_built_in`` has not called it directly since FR-004 -- so the
 resolver's inputs stay fully controlled and hermetic (the real repository
 tree is never consulted).
@@ -93,7 +93,7 @@ def _isolate(
     ``charter.offering.pack_paths`` anymore -- ``pack_paths.__file__`` is no longer
     consulted by ``_resolve_built_in`` at all. ``files`` stays patched on
     ``pack_paths`` for symmetry with
-    :func:`charter.offering.pack_paths.doctrine_package_dir` callers, though
+    :func:`charter.offering.pack_paths.offering_package_dir` callers, though
     ``_resolve_built_in`` itself never calls it (has not since FR-004).
     """
     monkeypatch.delenv(_PACKS_ROOT_ENV, raising=False)

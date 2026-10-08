@@ -26,7 +26,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 runner = CliRunner()
 
-# Real built-in artifacts (this module never mocks resolve_doctrine_root()).
+# Real built-in artifacts (this module never mocks resolve_offering_root()).
 _DIRECTIVE_010_STEM = "010-specification-fidelity-requirement"
 _DIRECTIVE_010_CANONICAL = "DIRECTIVE_010"
 _PARADIGM_DDD = "domain-driven-design"

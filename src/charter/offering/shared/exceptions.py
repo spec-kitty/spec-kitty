@@ -1,4 +1,4 @@
-"""Shared exceptions for the doctrine package."""
+"""Shared exceptions for the charter offering."""
 
 
 class InlineReferenceRejectedError(ValueError):
@@ -51,7 +51,7 @@ class InlineReferenceRejectedError(ValueError):
         )
 
 
-class DoctrineArtifactLoadError(Exception):
+class ArtifactLoadError(Exception):
     """Raised when a doctrine artifact file cannot be loaded or parsed.
 
     Used when YAML is malformed or the file content is not a valid dict.
@@ -60,7 +60,7 @@ class DoctrineArtifactLoadError(Exception):
     """
 
 
-class DoctrineResolutionCycleError(Exception):
+class ArtifactResolutionCycleError(Exception):
     """Raised when a cycle is detected in doctrine artifact references.
 
     A cycle in the reference graph (e.g. Tactic A → Tactic B → Tactic A)

@@ -221,7 +221,7 @@ def _write_org_pack_activation_config(
     for mission_type in activated_mission_types:
         lines.append(f"  - {mission_type}")
     lines += [
-        "doctrine:",
+        "charter_packs:",
         "  org:",
         "    packs:",
         f"      - name: {org_pack_name}",

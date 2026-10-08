@@ -38,7 +38,7 @@ def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) ->
     config_dir.mkdir(parents=True, exist_ok=True)
     lines: list[str] = []
     if packs:
-        lines += ["doctrine:", "  org:", "    packs:"]
+        lines += ["charter_packs:", "  org:", "    packs:"]
         for name, local_path in packs:
             lines.append(f"      - name: {name}")
             lines.append(f"        local_path: {local_path}")

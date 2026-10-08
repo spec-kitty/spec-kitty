@@ -609,7 +609,7 @@ def _get_package_templates_root() -> Path | None:
       kernel sibling-path primitive to ``packs/built-in/missions``, whose
       *actual* parent (``packs/built-in``) does **not** carry ``templates/``
       (that stays under ``src/charter/offering/templates``, untouched by this
-      mission). Falls back to :func:`charter.activation.catalog.resolve_doctrine_root`
+      mission). Falls back to :func:`charter.activation.catalog.resolve_offering_root`
       for this shape.
     """
     try:
@@ -621,11 +621,11 @@ def _get_package_templates_root() -> Path | None:
     if sibling_templates_dir.is_dir():
         return Path(sibling_templates_dir)
 
-    from charter.activation.catalog import resolve_doctrine_root  # noqa: PLC0415
+    from charter.activation.catalog import resolve_offering_root  # noqa: PLC0415
 
     try:
-        doctrine_root = resolve_doctrine_root()
-        templates_dir = doctrine_root / "templates"
+        offering_root = resolve_offering_root()
+        templates_dir = offering_root / "templates"
         if templates_dir.is_dir():
             return Path(templates_dir)
     except FileNotFoundError:

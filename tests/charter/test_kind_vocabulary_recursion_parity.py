@@ -44,7 +44,7 @@ def test_nested_org_styleguide_resolves(tmp_path: Path) -> None:
     urn = resolve_artifact_urn(
         ArtifactKind.STYLEGUIDE,
         "wp02sg",
-        doctrine_root=tmp_path / "doctrine_root",
+        offering_root=tmp_path / "offering_root",
         org_roots=[pack],
     )
     assert urn == "styleguide:wp02-nested-styleguide"
@@ -62,7 +62,7 @@ def test_nested_org_tactic_resolves(tmp_path: Path) -> None:
     urn = resolve_artifact_urn(
         ArtifactKind.TACTIC,
         "wp02t",
-        doctrine_root=tmp_path / "doctrine_root",
+        offering_root=tmp_path / "offering_root",
         org_roots=[pack],
     )
     assert urn == "tactic:wp02-nested-tactic"
@@ -78,7 +78,7 @@ def test_nested_project_tactic_resolves(tmp_path: Path) -> None:
     urn = resolve_artifact_urn(
         ArtifactKind.TACTIC,
         "wp02p",
-        doctrine_root=tmp_path / "doctrine_root",
+        offering_root=tmp_path / "offering_root",
         layer_roots={"project": proj / "doctrine"},
     )
     assert urn == "tactic:wp02-project-tactic"
@@ -114,7 +114,7 @@ def test_resolver_matches_loader_for_nested_org_tactic(tmp_path: Path) -> None:
     urn = resolve_artifact_urn(
         ArtifactKind.TACTIC,
         "parity",
-        doctrine_root=tmp_path / "doctrine_root",
+        offering_root=tmp_path / "offering_root",
         org_roots=[pack],
     )
     assert urn == "tactic:parity-tactic"
@@ -127,7 +127,7 @@ def test_flat_org_styleguide_still_resolves(tmp_path: Path) -> None:
     urn = resolve_artifact_urn(
         ArtifactKind.STYLEGUIDE,
         "flat",
-        doctrine_root=tmp_path / "doctrine_root",
+        offering_root=tmp_path / "offering_root",
         org_roots=[pack],
     )
     assert urn == "styleguide:flat-sg"
@@ -139,6 +139,6 @@ def test_missing_config_id_still_raises(tmp_path: Path) -> None:
         resolve_artifact_urn(
             ArtifactKind.STYLEGUIDE,
             "does-not-exist-wp02",
-            doctrine_root=tmp_path / "doctrine_root",
+            offering_root=tmp_path / "offering_root",
             org_roots=[tmp_path / "empty"],
         )

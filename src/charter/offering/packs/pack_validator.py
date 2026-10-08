@@ -95,6 +95,8 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.packs.pack_descriptor import load_pack_descriptor
+from charter.offering.packs.retired_fields import RETIRED_PACK_FIELD, RetiredPackFieldError
 from charter.offering.drg.merge import _EndpointResolutionError, _resolve_edge_endpoint
 from charter.offering.drg.override_policy import (
     PACK_POLICY_FILENAME,
@@ -526,6 +528,9 @@ def validate_pack(
         errors.extend(sanction_errors)
         advisories.extend(sanction_advisories)
 
+    # The authored pack.yaml descriptor (a retired field is RETIRED_PACK_FIELD, #3732).
+    errors.extend(_validate_pack_descriptor(pack_dir))
+
     # FR-019: activation presets under presets/ (format, id resolution, kind gate).
     errors.extend(_validate_presets(pack_dir))
 
@@ -626,6 +631,49 @@ def _validate_presets(pack_dir: Path) -> list[ValidationIssue]:
                 _preset_issue(path, f"preset {path.name}: {ACTIVATED_KINDS_KEY} omits {', '.join(omitted)}, which the preset lists ids for", "preset_kind_gate")
             )
     return issues
+
+
+# ---------------------------------------------------------------------------
+# Authored pack.yaml descriptor
+# ---------------------------------------------------------------------------
+
+#: The authored descriptor's file name and ``artifact_type``.
+_PACK_DESCRIPTOR_FILENAME = "pack.yaml"
+_PACK_DESCRIPTOR_ARTIFACT_TYPE = "pack"
+
+
+def _descriptor_issue(path: Path, message: str, category: str, artifact_id: str | None = None) -> ValidationIssue:
+    return ValidationIssue(
+        severity="error",
+        artifact_type=_PACK_DESCRIPTOR_ARTIFACT_TYPE,
+        artifact_id=artifact_id,
+        file=str(path),
+        message=message,
+        category=category,
+    )
+
+
+def _validate_pack_descriptor(pack_dir: Path) -> list[ValidationIssue]:
+    """Validate the pack's authored ``pack.yaml``, when it has one.
+
+    A retired field is one ``RETIRED_PACK_FIELD`` error naming the file, the
+    field and its replacement (the message of
+    :class:`~charter.offering.packs.retired_fields.RetiredPackFieldError`); any
+    other schema failure is ``schema_invalid`` and an unparseable or unreadable
+    file is ``parse_error``.
+    """
+    path = pack_dir / _PACK_DESCRIPTOR_FILENAME
+    if not path.is_file():
+        return []
+    try:
+        load_pack_descriptor(path)
+    except RetiredPackFieldError as exc:
+        return [_descriptor_issue(path, f"{RETIRED_PACK_FIELD}: {exc}", RETIRED_PACK_FIELD, artifact_id=exc.field)]
+    except ValidationError as exc:
+        return [_descriptor_issue(path, f"{_PACK_DESCRIPTOR_FILENAME} schema validation failed: {exc.errors()[0].get('msg', exc)}", "schema_invalid")]
+    except (YAMLError, OSError) as exc:
+        return [_descriptor_issue(path, f"unreadable {_PACK_DESCRIPTOR_FILENAME}: {exc}", "parse_error")]
+    return []
 
 
 # ---------------------------------------------------------------------------
@@ -1160,21 +1208,21 @@ def _check_profile_skipped_diagnostics(
     (AC-5).
 
     Construction seam: ``AgentProfileRepository`` is built directly, on
-    purpose — NOT routed through ``charter.offering.service.DoctrineService``. This
+    purpose — NOT routed through ``charter.offering.service.CharterOfferingService``. This
     call site validates an arbitrary ``pack_dir`` (a pack under authoring,
     not this repo's own doctrine layer), so it needs an explicit
     ``org_roots`` override; the sole-door architectural gate
-    (``tests/architectural/test_charter_sole_door_doctrine_service.py``)
-    bans raw ``charter.offering.service.DoctrineService`` construction outside
-    ``charter.activation.doctrine_service_builder``, and that builder's public entry
-    point (``build_activation_aware_doctrine_service``) takes only
+    (``tests/architectural/test_charter_sole_door_offering_service.py``)
+    bans raw ``charter.offering.service.CharterOfferingService`` construction outside
+    ``charter.activation.active_charter_service_builder``, and that builder's public entry
+    point (``build_active_charter_service``) takes only
     ``repo_root`` and self-resolves ``org_roots`` — it cannot target an
     arbitrary pack directory. The gate's documented escape hatch,
-    constructing ``charter.activation.resolver.DoctrineService`` directly, requires an
-    *already-built* raw inner ``charter.offering.service.DoctrineService``, which is
+    constructing ``charter.activation.resolver.ActiveCharterService`` directly, requires an
+    *already-built* raw inner ``charter.offering.service.CharterOfferingService``, which is
     the very construction the gate forbids here. Direct
     ``AgentProfileRepository`` construction is therefore the correct seam;
-    do not "fix" this back to a ``DoctrineService`` wrapper.
+    do not "fix" this back to an ``ActiveCharterService`` wrapper.
 
     PR-M-001: direct construction does not remove the need for a guard —
     ``AgentProfileRepository.__init__`` resolves the built-in content

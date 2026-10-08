@@ -1,7 +1,7 @@
 """Permanent guard (#4908, fixed): charter recompile preserves the recorded mission type.
 
 Root cause (SSOT violation, ``kitty-specs/silent-destructive-write-hardening-01M355VK/``
-WP01): ``charter activate``/``deactivate`` and ``charter pack apply --compile``
+WP01): ``charter activate``/``deactivate``
 refresh the derived ``catalog`` section of an already-compiled ``charter.yaml``
 via :func:`specify_cli.cli.commands.charter.generate._load_interview_for_generate`
 called with ``from_interview=False`` (a #2940 guard so a malformed
@@ -89,7 +89,7 @@ def _invoke_generate(repo: Path, *args: str) -> object:
 
     ``generate`` resolves its root from ``Path.cwd()``
     (``resolve_charter_write_root``) and ``find_repo_root()`` -- neither
-    accepts a ``--repo-root`` option (unlike ``activate``/``pack apply``) --
+    accepts a ``--repo-root`` option (unlike ``activate``) --
     so a real ``os.chdir`` round trip is required, mirroring
     ``tests/charter/test_active_languages_idempotency.py``'s
     ``_invoke_generate`` helper.

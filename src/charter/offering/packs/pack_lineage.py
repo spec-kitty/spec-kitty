@@ -1,12 +1,11 @@
 """Pack lineage resolution: a data-only adapter over ``extends`` (FR-006, FR-007).
 
-This module resolves two `id`-keyed pack-lineage edges introduced by the
-pack-metadata manifest unification:
-
-* ``parent_pack`` — a pack's parent, by ``pack_id`` (see
-  ``data-model.md``'s ``PackDescriptor.parent_pack``).
-* ``accompanies_doctrine_pack`` — a charter pack's pack-level binding to its
-  accompanying doctrine pack, by ``pack_id``.
+This module resolves the `id`-keyed pack-lineage edge introduced by the
+pack-metadata manifest unification: ``parent_pack`` — a pack's parent, by
+``pack_id`` (see ``data-model.md``'s ``PackDescriptor.parent_pack``). The
+former ``accompanies_doctrine_pack`` binding was retired with no replacement
+concept (#3732): a pack that still declares it is rejected with
+``RETIRED_PACK_FIELD``.
 
 C-002 / NFR-001 (no parallel resolver)
 ---------------------------------------
@@ -38,7 +37,7 @@ collection down to these plain mappings before calling in.
 
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping
+from collections.abc import Mapping
 
 from charter.offering.packs.extends import (
     ExtendsBaseNotFoundError,
@@ -48,9 +47,7 @@ from charter.offering.packs.extends import (
 
 __all__ = [
     "PackLineageCycleError",
-    "UnresolvedDoctrinePackError",
     "UnresolvedPackParentError",
-    "resolve_accompanying_doctrine_pack",
     "resolve_pack_lineage_order",
 ]
 
@@ -91,24 +88,6 @@ class PackLineageCycleError(ValueError):
     def __init__(self, cycle_path: list[str]) -> None:
         self.cycle_path = list(cycle_path)
         super().__init__("Cycle detected in parent_pack chain: " + " → ".join(cycle_path))
-
-
-class UnresolvedDoctrinePackError(ValueError):
-    """Raised when ``accompanies_doctrine_pack`` names an unknown pack (FR-007).
-
-    Fail-closed: a *set* ``accompanies_doctrine_pack`` value that does not
-    match a known ``pack_id`` surfaces this error rather than silently
-    resolving to ``None`` or leaving an inert binding.
-    """
-
-    def __init__(self, charter_pack_id: str, target_pack_id: str) -> None:
-        self.charter_pack_id = charter_pack_id
-        self.target_pack_id = target_pack_id
-        super().__init__(
-            f"Charter pack {charter_pack_id!r} declares "
-            f"accompanies_doctrine_pack={target_pack_id!r}, but no pack "
-            "with that pack_id is known (fail-closed, not a silent no-op)."
-        )
 
 
 def _resolvable_key(pack_id: str, pack_names: Mapping[str, str]) -> str:
@@ -193,44 +172,3 @@ def resolve_pack_lineage_order(
         raise UnresolvedPackParentError(missing, chain) from exc
 
     return [_original_pack_id(key, pack_id_by_name) for key in order_keys]
-
-
-def resolve_accompanying_doctrine_pack(
-    charter_pack_id: str,
-    accompanies_doctrine_pack: str | None,
-    known_pack_ids: Collection[str],
-) -> str | None:
-    """Resolve a charter pack's ``accompanies_doctrine_pack`` binding (FR-007).
-
-    A pack-level charter-pack -> doctrine-pack binding, replacing reliance
-    on per-activation ``charter_pack_id``. Fail-closed: a *set* target
-    that is not present in *known_pack_ids* raises
-    :class:`UnresolvedDoctrinePackError` rather than resolving to ``None``
-    or an inert binding.
-
-    Parameters
-    ----------
-    charter_pack_id:
-        ``pack_id`` of the charter pack declaring the binding.
-    accompanies_doctrine_pack:
-        The declared target ``pack_id``, or ``None`` if unset.
-    known_pack_ids:
-        The universe of ``pack_id`` values known to exist.
-
-    Returns
-    -------
-    str | None
-        The resolved target ``pack_id``, or ``None`` if the pack declares
-        no binding.
-
-    Raises
-    ------
-    UnresolvedDoctrinePackError
-        When *accompanies_doctrine_pack* is set but not a member of
-        *known_pack_ids*.
-    """
-    if accompanies_doctrine_pack is None:
-        return None
-    if accompanies_doctrine_pack not in known_pack_ids:
-        raise UnresolvedDoctrinePackError(charter_pack_id, accompanies_doctrine_pack)
-    return accompanies_doctrine_pack

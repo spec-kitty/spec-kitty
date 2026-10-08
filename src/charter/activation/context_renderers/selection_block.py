@@ -63,7 +63,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from charter.repository_protocol import ArtifactRepository
-    from charter.activation.schemas import DoctrineSelectionConfig
+    from charter.activation.schemas import GovernanceCharterConfig
 
 # The 5 ``_SELECTED_*_HEADER`` constants, ``_collect_org_source_map``,
 # ``_provenance_suffix``, and the 4 ``_render_selected_<kind>`` helpers listed
@@ -397,7 +397,7 @@ def _collect_org_source_map(
     (R-3 mitigation: ``Provenance source map computed N times per build``).
 
     The repository tracks provenance as one of ``"builtin"`` / ``"org"`` /
-    ``"project"`` (see :meth:`charter.offering.base.BaseDoctrineRepository.get_provenance`);
+    ``"project"`` (see :meth:`charter.offering.base.BaseArtifactRepository.get_provenance`);
     today there is no per-pack attribution at the repository layer.  When
     that lands, the value here will gain pack-name semantics — for now
     we use an empty-string sentinel so the suffix collapses to
@@ -418,7 +418,7 @@ def _collect_org_source_map(
 
 
 def _render_selection_block(
-    doctrine_selection: DoctrineSelectionConfig | None,
+    charter_config: GovernanceCharterConfig | None,
     service: object,
     *,
     repo_root: Path | None = None,
@@ -437,9 +437,9 @@ def _render_selection_block(
     a styleguide whose YAML failed schema validation) still surface their
     org provenance in the prompt.  The catalog-derived map wins when
     both are present — that path retains the per-artifact provenance the
-    DoctrineService computed.
+    ActiveCharterService computed.
     """
-    if doctrine_selection is None or service is None:
+    if charter_config is None or service is None:
         return ""
 
     # WP04 T020: compute the provenance source map ONCE per build, then
@@ -473,68 +473,68 @@ def _render_selection_block(
         return merged
 
     paradigm_org = _merge(
-        _collect_org_source_map(getattr(service, "paradigms", None), doctrine_selection.selected_paradigms),
+        _collect_org_source_map(getattr(service, "paradigms", None), charter_config.selected_paradigms),
         "paradigms",
-        doctrine_selection.selected_paradigms,
+        charter_config.selected_paradigms,
     )
     directive_org = _merge(
-        _collect_org_source_map(getattr(service, "directives", None), doctrine_selection.selected_directives),
+        _collect_org_source_map(getattr(service, "directives", None), charter_config.selected_directives),
         "directives",
-        doctrine_selection.selected_directives,
+        charter_config.selected_directives,
     )
     tactic_org = _merge(
-        _collect_org_source_map(getattr(service, "tactics", None), doctrine_selection.selected_tactics),
+        _collect_org_source_map(getattr(service, "tactics", None), charter_config.selected_tactics),
         "tactics",
-        doctrine_selection.selected_tactics,
+        charter_config.selected_tactics,
     )
     styleguide_org = _merge(
-        _collect_org_source_map(getattr(service, "styleguides", None), doctrine_selection.selected_styleguides),
+        _collect_org_source_map(getattr(service, "styleguides", None), charter_config.selected_styleguides),
         "styleguides",
-        doctrine_selection.selected_styleguides,
+        charter_config.selected_styleguides,
     )
     toolguide_org = _merge(
-        _collect_org_source_map(getattr(service, "toolguides", None), doctrine_selection.selected_toolguides),
+        _collect_org_source_map(getattr(service, "toolguides", None), charter_config.selected_toolguides),
         "toolguides",
-        doctrine_selection.selected_toolguides,
+        charter_config.selected_toolguides,
     )
     procedure_org = _merge(
-        _collect_org_source_map(getattr(service, "procedures", None), doctrine_selection.selected_procedures),
+        _collect_org_source_map(getattr(service, "procedures", None), charter_config.selected_procedures),
         "procedures",
-        doctrine_selection.selected_procedures,
+        charter_config.selected_procedures,
     )
     agent_profile_org = _merge(
         _collect_org_source_map(
             getattr(service, "agent_profiles", None),
-            doctrine_selection.selected_agent_profiles,
+            charter_config.selected_agent_profiles,
         ),
         "agent_profiles",
-        doctrine_selection.selected_agent_profiles,
+        charter_config.selected_agent_profiles,
     )
     step_contract_org = _merge(
         _collect_org_source_map(
             getattr(service, "mission_step_contracts", None),
-            doctrine_selection.selected_mission_step_contracts,
+            charter_config.selected_mission_step_contracts,
         ),
         "mission_step_contracts",
-        doctrine_selection.selected_mission_step_contracts,
+        charter_config.selected_mission_step_contracts,
     )
 
     blocks: list[str] = []
     sections = (
-        _render_selected_paradigms(doctrine_selection.selected_paradigms, service, org_source_map=paradigm_org, repo_root=repo_root),
-        _render_selected_directives(doctrine_selection.selected_directives, service, org_source_map=directive_org, repo_root=repo_root),
-        _render_selected_tactics(doctrine_selection.selected_tactics, service, org_source_map=tactic_org, repo_root=repo_root),
-        _render_selected_styleguides(doctrine_selection.selected_styleguides, service, org_source_map=styleguide_org, repo_root=repo_root),
-        _render_selected_toolguides(doctrine_selection.selected_toolguides, service, org_source_map=toolguide_org, repo_root=repo_root),
-        _render_selected_procedures(doctrine_selection.selected_procedures, service, org_source_map=procedure_org, repo_root=repo_root),
+        _render_selected_paradigms(charter_config.selected_paradigms, service, org_source_map=paradigm_org, repo_root=repo_root),
+        _render_selected_directives(charter_config.selected_directives, service, org_source_map=directive_org, repo_root=repo_root),
+        _render_selected_tactics(charter_config.selected_tactics, service, org_source_map=tactic_org, repo_root=repo_root),
+        _render_selected_styleguides(charter_config.selected_styleguides, service, org_source_map=styleguide_org, repo_root=repo_root),
+        _render_selected_toolguides(charter_config.selected_toolguides, service, org_source_map=toolguide_org, repo_root=repo_root),
+        _render_selected_procedures(charter_config.selected_procedures, service, org_source_map=procedure_org, repo_root=repo_root),
         _render_selected_agent_profiles(
-            doctrine_selection.selected_agent_profiles,
+            charter_config.selected_agent_profiles,
             service,
             org_source_map=agent_profile_org,
             repo_root=repo_root,
         ),
         _render_selected_mission_step_contracts(
-            doctrine_selection.selected_mission_step_contracts,
+            charter_config.selected_mission_step_contracts,
             service,
             org_source_map=step_contract_org,
             repo_root=repo_root,

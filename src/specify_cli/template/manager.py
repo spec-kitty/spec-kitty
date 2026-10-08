@@ -217,12 +217,12 @@ def copy_specify_base_from_package(project_path: Path) -> TemplateCopyResult:
         copy_package_tree(memory_resource, specify_root / "memory", preserve_existing=True)
 
     try:
-        doctrine_data_root = files("charter.offering")
+        offering_data_root = files("charter.offering")
     except (ModuleNotFoundError, TypeError):
-        doctrine_data_root = specify_data_root
+        offering_data_root = specify_data_root
 
     templates_resource_candidates = [
-        doctrine_data_root.joinpath("templates"),
+        offering_data_root.joinpath("templates"),
         specify_data_root.joinpath("templates"),  # Legacy fallback
     ]
     for templates_resource in templates_resource_candidates:
@@ -241,7 +241,7 @@ def copy_specify_base_from_package(project_path: Path) -> TemplateCopyResult:
 
     # HIGH SEVERITY finding (R-13) — the single default `spec-kitty init` code
     # path (no `--local` flag). Before FR-005, the first candidate was
-    # `doctrine_data_root.joinpath("missions")` — a resource-package-relative
+    # `offering_data_root.joinpath("missions")` — a resource-package-relative
     # join that resolved to `src/charter/offering/missions`. Mission
     # doctrine-consumer-surface-missions-extraction-01KZ6G6H relocated the
     # missions data to `packs/built-in/missions`, which ships as a

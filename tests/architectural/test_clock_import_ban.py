@@ -1,6 +1,6 @@
 """Import-ban gate (FR-012(a) / SC-001 / C-008): repo-wide raw ``datetime`` import ban.
 
-Modelled on ``tests/architectural/test_kernel_no_doctrine_import.py``: walks
+Modelled on ``tests/architectural/test_kernel_no_charter_offering_import.py``: walks
 the FULL AST (``ast.walk``) over every ``.py`` file under ``src/``, ``tests/``,
 and ``scripts/`` (C-008's scope), so an in-function or in-``try`` stdlib
 ``datetime`` import is caught, not merely a module-level ``import``
@@ -98,7 +98,7 @@ def test_no_raw_datetime_import_outside_the_door() -> None:
 
 
 def test_every_import_exemption_entry_is_a_real_violation() -> None:
-    """Anti-staleness (mirrors test_kernel_no_doctrine_import's exemption self-check).
+    """Anti-staleness (mirrors test_kernel_no_charter_offering_import's exemption self-check).
 
     Every entry in every ``_exemptions/*.txt`` IMPORT line must correspond to
     an actual violation this detector finds today; a WP that fixes its site

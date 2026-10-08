@@ -4,7 +4,7 @@ flattened ``packs/built-in/`` home.
 The flatten (WP03) moved the built-in artifact content and the sharded
 ``*.graph.yaml`` fragments from ``src/charter/offering/`` to ``packs/built-in/`` and this
 WP repointed the regeneration surface (the extractor's artifact walks +
-``_PATH_KIND_PATTERNS`` and the CLI's ``_doctrine_root``) to that home. This
+``_PATH_KIND_PATTERNS`` and the CLI's ``_built_in_pack_root``) to that home. This
 module is the committed proof that a real regeneration reproduces the on-disk
 fragments **exactly** — not as a byte diff alone but as a *full projection*
 (nodes + edges, edges carrying their ``when``/``reason`` metadata) so a dropped
@@ -29,7 +29,7 @@ from charter.offering.drg.migration.hand_authored_overlay import (
     write_reference_graph_with_overlay,
 )
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode
-from specify_cli.cli.commands.doctrine import _doctrine_root
+from specify_cli.cli.commands.charter.pack_tooling import _built_in_pack_root
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
@@ -65,7 +65,7 @@ class TestRegenerationWriteTarget:
     retired ``src/charter/offering/`` tree."""
 
     def test_doctrine_root_resolves_flattened_pack_home(self) -> None:
-        resolved = _doctrine_root()
+        resolved = _built_in_pack_root()
         assert resolved.name == "built-in"
         assert resolved.parent.name == "packs"
         assert resolved == built_in_graph_source()

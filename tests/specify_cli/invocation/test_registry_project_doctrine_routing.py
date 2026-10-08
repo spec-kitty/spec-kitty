@@ -2,7 +2,7 @@
 
 Before #4114, ``ProfileRegistry`` filtered the activation-aware doctrine
 service down to the built-in + org provenance layers, so a project-layer
-profile authored under ``.kittify/doctrine/agent_profiles/`` and activated
+profile authored under ``.kittify/charter-packs/agent_profiles/`` and activated
 via ``charter activate agent-profile <id>`` was never routable: the router
 saw only built-in/org profiles, and deactivating the shipped profiles left
 ``dispatch`` with ``ROUTER_NO_MATCH: No profiles available`` even though the
@@ -55,8 +55,8 @@ def _profile_yaml(profile_id: str, *, name: str, role: str) -> str:
 
 
 def _write_doctrine_project_profile(repo_root: Path, profile_id: str = _PROJECT_ID) -> None:
-    """Seed one doctrine project-layer profile under ``.kittify/doctrine``."""
-    profiles_dir = repo_root / ".kittify" / "doctrine" / "agent_profiles"
+    """Seed one doctrine project-layer profile under ``.kittify/charter-packs``."""
+    profiles_dir = repo_root / ".kittify" / "charter-packs" / "agent_profiles"
     profiles_dir.mkdir(parents=True, exist_ok=True)
     (profiles_dir / f"{profile_id}.agent.yaml").write_text(
         _profile_yaml(profile_id, name="Seeker Implementer", role="implementer"),
@@ -186,10 +186,10 @@ class TestGateInertRegime:
         assert _PROJECT_ID in _ids(ProfileRegistry(tmp_path))
 
     def test_no_doctrine_dir_leaves_catalog_unchanged(self, tmp_path: Path) -> None:
-        """A project with no ``.kittify/doctrine`` tree sees no new layer (NFR-001)."""
+        """A project with no ``.kittify/charter-packs`` tree sees no new layer (NFR-001)."""
         _write_config(tmp_path, activated=None)
 
-        # No .kittify/doctrine/ and no .kittify/profiles/: built-ins only.
+        # No .kittify/charter-packs/ and no .kittify/profiles/: built-ins only.
         ids = _ids(ProfileRegistry(tmp_path))
 
         assert _BUILTIN_ID in ids

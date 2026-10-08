@@ -83,7 +83,7 @@ mission_type_activations:
   - documentation
   - research
   - plan
-doctrine:
+charter_packs:
   org:
     packs:
       - name: acme-pack
@@ -524,7 +524,7 @@ def test_from_config_unset_pack_env_var_propagates_fail_closed(
     content = f"""\
 vcs:
   type: git
-doctrine:
+charter_packs:
   org:
     packs:
       - name: acme-pack
@@ -557,7 +557,7 @@ def test_from_config_subdir_escape_propagates_fail_closed(tmp_path: Path) -> Non
     content = f"""\
 vcs:
   type: git
-doctrine:
+charter_packs:
   org:
     packs:
       - name: acme-pack

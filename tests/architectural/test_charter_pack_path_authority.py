@@ -39,16 +39,14 @@ A tuple of bare words that is never splatted or loop-joined into a path
 
 Known limits (no live ``src`` site uses them; WP03 review cycle 1 probe): a
 function-local alias (``seg = "doctrine"; root / seg``), ``os.path.join``,
-attribute access to the authority's legacy name (``p.LEGACY_PROJECT_PACK_DIRNAME``),
 string concatenation, a parameter default and a class attribute.
 
 Authority and exemptions
 ------------------------
 * :data:`AUTHORITY_REL_PATH` (``src/kernel/charter_pack_paths.py``) is the only
-  file allowed to spell the clause (b) literals. It also spells the retired
-  ``doctrine`` segment, for the temporary read fallback, **until WP14** deletes
-  ``LEGACY_PROJECT_PACK_DIRNAME``: :func:`test_authority_legacy_segment_exemption_is_temporary`
-  fails the day WP14 deletes it and tells WP14 to drop that exemption.
+  file allowed to spell the clause (b) literals. It is scanned for clause (a)
+  like every other module: WP14 deleted its temporary read fallback (FR-011),
+  so it spells no retired segment (:func:`test_authority_spells_no_retired_segment`).
 * :data:`FILE_EXEMPTIONS` is a closed, by-file list (no globs), each entry with
   its reason: the cutover migration (WP11) and the frozen upgrade migrations
   whose dead ``parents[3] / "doctrine" / "skills"`` fallbacks point at the
@@ -219,28 +217,9 @@ def _assign_pairs(tree: ast.Module) -> Iterator[tuple[str, ast.expr]]:
             yield node.target.id, node.value
 
 
-#: The authority module, and the names it exports that stand for the retired
-#: segment. Importing one of them into a path context is the CR-07 trap one
-#: import away (``f"{_K}/{LEGACY_PROJECT_PACK_DIRNAME}/..."``), so the scan
-#: resolves them; the authority's other names are the sanctioned route.
-AUTHORITY_MODULE = "kernel.charter_pack_paths"
-AUTHORITY_LEGACY_NAMES: dict[str, str] = {"LEGACY_PROJECT_PACK_DIRNAME": LEGACY_SEGMENT}
-
-
-def _authority_legacy_imports(tree: ast.Module) -> dict[str, str]:
-    bound: dict[str, str] = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module == AUTHORITY_MODULE:
-            for alias in node.names:
-                if alias.name in AUTHORITY_LEGACY_NAMES:
-                    bound[alias.asname or alias.name] = AUTHORITY_LEGACY_NAMES[alias.name]
-    return bound
-
-
 def _module_aliases(tree: ast.Module) -> _Aliases:
-    """Resolve module-level ``NAME = "..."`` (one alias hop), ``NAME = ("...", ...)``
-    and the authority's legacy names imported into the module."""
-    strings: dict[str, str] = _authority_legacy_imports(tree)
+    """Resolve module-level ``NAME = "..."`` (one alias hop) and ``NAME = ("...", ...)``."""
+    strings: dict[str, str] = {}
     sequences: dict[str, list[str]] = {}
     pairs = list(_assign_pairs(tree))
     for name, value in pairs:
@@ -444,10 +423,18 @@ def scan(paths: Iterable[Path]) -> list[Finding]:
 
 
 def source_files(src_root: Path) -> list[Path]:
-    """Every ``src`` Python file the gate covers: all of them except the authority and the exemptions."""
-    excluded = {AUTHORITY_REL_PATH, *FILE_EXEMPTIONS}
+    """Every ``src`` Python file the gate covers: all of them except the exemptions.
+
+    The authority is covered too; :func:`governed_findings` drops only its
+    clause (b) findings (it is the one module allowed to spell them).
+    """
     files = [p for p in sorted(src_root.rglob("*.py")) if "__pycache__" not in p.parts]
-    return [p for p in files if _rel(p) not in excluded]
+    return [p for p in files if _rel(p) not in FILE_EXEMPTIONS]
+
+
+def governed_findings(findings: Iterable[Finding]) -> list[Finding]:
+    """Drop the authority's own clause (b) findings; keep everything else."""
+    return [f for f in findings if not (f.rel_path == AUTHORITY_REL_PATH and f.clause == "b")]
 
 
 def check(findings: Iterable[Finding], allowlist: set[AllowKey]) -> list[str]:
@@ -504,7 +491,7 @@ def load_baseline(path: Path = ALLOWLIST_PATH) -> int:
 @lru_cache(maxsize=1)
 def _live() -> tuple[tuple[Path, ...], tuple[Finding, ...]]:
     files = tuple(source_files(SRC_ROOT))
-    return files, tuple(scan(files))
+    return files, tuple(governed_findings(scan(files)))
 
 
 def _live_findings() -> tuple[Finding, ...]:
@@ -561,18 +548,19 @@ def test_file_exemptions_exist() -> None:
     assert (_REPO_ROOT / AUTHORITY_REL_PATH).is_file()
 
 
-def test_authority_legacy_segment_exemption_is_temporary() -> None:
-    """The authority spells the retired segment only for the FR-011 read fallback.
-
-    When WP14 deletes ``LEGACY_PROJECT_PACK_DIRNAME`` this test fails: WP14 then
-    drops the authority's clause (a) exemption (scan the authority for clause (a)
-    like every other module) and deletes this test.
-    """
-    paths = importlib.import_module("kernel.charter_pack_paths")
-    assert hasattr(paths, "LEGACY_PROJECT_PACK_DIRNAME"), "WP14 removed the legacy read fallback: drop the authority's clause (a) exemption from this gate"
-    # Control: while the fallback exists the authority does spell the retired segment.
+def test_authority_spells_no_retired_segment() -> None:
+    """The authority is scanned for clause (a) like every module, and spells none (FR-011)."""
     authority = scan([_REPO_ROOT / AUTHORITY_REL_PATH])
-    assert {f.clause for f in authority} == {"a", "b"}
+    assert {f.clause for f in authority} == {"b"}, "the authority may spell only the clause (b) literals"
+    assert _REPO_ROOT / AUTHORITY_REL_PATH in _live()[0], "the authority must be in the tree walk"
+
+
+def test_the_authoritys_clause_b_literals_are_its_own(tmp_path: Path) -> None:
+    """Only the authority's clause (b) findings are dropped; a planted clause (a) one there is kept."""
+    planted = Finding(AUTHORITY_REL_PATH, "<module>", "doctrine", "a", 1)
+    own = Finding(AUTHORITY_REL_PATH, "<module>", "charter-packs", "b", 2)
+    elsewhere = Finding("src/x.py", "<module>", "charter-packs", "b", 3)
+    assert governed_findings([planted, own, elsewhere]) == [planted, elsewhere]
 
 
 # --------------------------------------------------------------------------- #
@@ -626,11 +614,6 @@ def test_state_contract_pattern_is_kernel_built() -> None:
             'K = ".kittify"\nS = "doctrine"\ndef f(kind):\n    return f"{K}/{S}/{kind}"\n',
             ".kittify/doctrine/{}",
             id="alias-f-string",
-        ),
-        pytest.param(
-            'from kernel.charter_pack_paths import KITTIFY_DIRNAME, LEGACY_PROJECT_PACK_DIRNAME as _L\nPREFIXES = (f"{KITTIFY_DIRNAME}/{_L}/",)\n',
-            "{}/doctrine/",
-            id="imported-legacy-name",
         ),
         pytest.param('POLICY = ".kittify/doctrine/replaceable-builtins.yaml"\n', ".kittify/doctrine/replaceable-builtins.yaml", id="assign"),
         pytest.param('def f(p):\n    return p.startswith(".kittify/doctrine/")\n', ".kittify/doctrine/", id="kittify-string"),
@@ -690,11 +673,10 @@ def test_stale_allowlist_entry_is_detected() -> None:
     assert speculative not in {f.key for f in _live_findings()}
 
 
-def test_authority_and_exemptions_are_skipped_by_the_tree_walk(tmp_path: Path) -> None:
+def test_exemptions_are_skipped_by_the_tree_walk(tmp_path: Path) -> None:
     files = {_rel(p) for p in _live()[0]}
-    assert AUTHORITY_REL_PATH not in files
     assert not files.intersection(FILE_EXEMPTIONS)
-    # Control: the authority does spell the governed literals, so skipping it is load-bearing.
+    # Control: the authority does spell the governed clause (b) literals, so dropping them is load-bearing.
     assert scan([_REPO_ROOT / AUTHORITY_REL_PATH])
 
 

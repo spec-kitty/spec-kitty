@@ -1,7 +1,7 @@
 """Stem → canonical parity guard for ``config.activated_*`` (WP01, C-006, FR-001).
 
 C-006 requires that every ``config.activated_*`` slug-stem normalizes to a
-canonical DRG URN node ID *exactly* as the live ``DoctrineService``/DRG
+canonical DRG URN node ID *exactly* as the live ``ActiveCharterService``/DRG
 resolution does, and that a stem which cannot be resolved is **rejected**
 (raises), never silently dropped. A silent drop would remove the artefact
 *and* its entire transitive closure (tactics → styleguides → toolguides →
@@ -33,7 +33,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
@@ -92,8 +92,8 @@ def _load_config(repo_root: Path) -> dict[str, object]:
 
 
 @pytest.fixture(scope="module")
-def doctrine_root() -> Path:
-    return resolve_doctrine_root()
+def offering_root() -> Path:
+    return resolve_offering_root()
 
 
 @pytest.fixture(scope="module")
@@ -113,14 +113,14 @@ def activated_directive_stems(repo_root: Path) -> list[str]:
 
 
 def test_resolve_artifact_urn_is_reject_not_drop_on_unresolvable_stem(
-    doctrine_root: Path,
+    offering_root: Path,
 ) -> None:
     """An unresolvable stem raises — it is never silently skipped (C-006)."""
     with pytest.raises(UnknownArtifactIdError):
         resolve_artifact_urn(
             ArtifactKind.DIRECTIVE,
             "999-does-not-exist-anywhere",
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
         )
 
 
@@ -148,7 +148,7 @@ def _directive_stems_for_parametrize() -> list[str]:
 
 @pytest.mark.parametrize("stem", _directive_stems_for_parametrize())
 def test_every_activated_directive_stem_round_trips_to_canonical_urn(
-    stem: str, doctrine_root: Path
+    stem: str, offering_root: Path
 ) -> None:
     """Every real ``config.activated_directives`` stem resolves and round-trips.
 
@@ -166,11 +166,11 @@ def test_every_activated_directive_stem_round_trips_to_canonical_urn(
     only pins that a *canonical* directive URN came back, not a particular id
     spelling.
     """
-    urn = resolve_artifact_urn(ArtifactKind.DIRECTIVE, stem, doctrine_root=doctrine_root)
+    urn = resolve_artifact_urn(ArtifactKind.DIRECTIVE, stem, offering_root=offering_root)
     assert re.fullmatch(
         r"directive:[A-Z][A-Z0-9_]+", urn
     ), f"expected a canonical directive URN, got {urn!r}"
-    assert resolve_config_id(urn, doctrine_root=doctrine_root) == stem
+    assert resolve_config_id(urn, offering_root=offering_root) == stem
 
 
 @pytest.mark.parametrize(
@@ -184,7 +184,7 @@ def test_every_activated_directive_stem_round_trips_to_canonical_urn(
     ],
 )
 def test_spot_check_one_activated_entry_per_other_kind_round_trips(
-    kind: ArtifactKind, config_key: str, repo_root: Path, doctrine_root: Path
+    kind: ArtifactKind, config_key: str, repo_root: Path, offering_root: Path
 ) -> None:
     """Spot-check: one real activated stem per remaining kind round-trips.
 
@@ -204,9 +204,9 @@ def test_spot_check_one_activated_entry_per_other_kind_round_trips(
     assert stems, f"expected config.{config_key} (or the built-in {kind.plural}) to be non-empty"
     stem = str(stems[0])
 
-    urn = resolve_artifact_urn(kind, stem, doctrine_root=doctrine_root)
+    urn = resolve_artifact_urn(kind, stem, offering_root=offering_root)
     assert urn.startswith(f"{kind.value}:")
-    assert resolve_config_id(urn, doctrine_root=doctrine_root) == stem
+    assert resolve_config_id(urn, offering_root=offering_root) == stem
 
 
 # --------------------------------------------------------------------------- #
@@ -217,7 +217,7 @@ def test_spot_check_one_activated_entry_per_other_kind_round_trips(
 
 @pytest.mark.parametrize("malformed_stem", _MALFORMED_DIRECTIVE_STEMS)
 def test_malformed_stem_is_rejected_not_silently_dropped(
-    malformed_stem: str, doctrine_root: Path, activated_directive_stems: list[str]
+    malformed_stem: str, offering_root: Path, activated_directive_stems: list[str]
 ) -> None:
     """A stem with no matching artefact raises — proving reject-not-drop bites.
 
@@ -229,4 +229,4 @@ def test_malformed_stem_is_rejected_not_silently_dropped(
     """
     assert malformed_stem not in activated_directive_stems
     with pytest.raises(UnknownArtifactIdError):
-        resolve_artifact_urn(ArtifactKind.DIRECTIVE, malformed_stem, doctrine_root=doctrine_root)
+        resolve_artifact_urn(ArtifactKind.DIRECTIVE, malformed_stem, offering_root=offering_root)

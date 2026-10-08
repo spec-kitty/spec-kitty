@@ -3,7 +3,7 @@
 WP08 re-review fold. The first fold wired
 :func:`charter.offering.drg.validate_dangling_references` into ONE of the callers that
 merges the real built-in layer against the operator's real configured packs
-(``doctor doctrine``'s JSON collector) and justified stopping there by calling
+(``doctor charter-packs``'s JSON collector) and justified stopping there by calling
 that caller "the one place that holds a graph it can call complete".
 
 That was factually wrong. :func:`_collect_org_layer_status` builds its merged
@@ -60,10 +60,11 @@ def tmp_repo_with_org_pack(tmp_path: Path) -> Path:
     (kittify / "config.yaml").write_text(
         dedent(
             f"""\
-            organisation_packs:
-              - name: example-org
-                source: local_path
-                path: {pack_dest}
+            charter_packs:
+              org:
+                packs:
+                  - name: example-org
+                    local_path: {pack_dest}
             """
         )
     )
@@ -75,7 +76,7 @@ def test_collect_org_layer_status_reports_a_dangling_org_endpoint(
 ) -> None:
     """A qualified endpoint that binds to nothing reaches ``org_layer['errors']``.
 
-    RED before this fold: ``errors == []`` while ``doctor doctrine --json``
+    RED before this fold: ``errors == []`` while ``doctor charter-packs --json``
     reported the very same finding from the very same merge inputs.
     """
     from specify_cli.cli.commands.charter import _collect_org_layer_status

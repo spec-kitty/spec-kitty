@@ -4,7 +4,7 @@ Two jobs live in this module (T003):
 
 1. A **characterization test** pinning the CURRENT (pre-refactor)
    behavior of ``_read_org_required_selections`` / the org-union branch
-   of ``_load_doctrine_selection`` (``charter/context.py:795-813``) —
+   of ``_load_governance_charter_config`` (``charter/context.py:795-813``) —
    this branch had ZERO existing coverage before WP01 (the sibling
    ``test_org_charter_union.py`` covers a *different* function,
    ``charter.activation.org_charter.apply_org_charter_to_interview``).
@@ -88,7 +88,7 @@ def _register_org_pack(repo_root: Path, pack_root: Path, *, name: str = "securit
                 # this key; unrelated to the org-pack union this fixture
                 # exercises, so no other activation key is written.
                 "mission_type_activations": ["software-dev"],
-                "doctrine": {"org": {"packs": [{"name": name, "local_path": str(pack_root)}]}},
+                "charter_packs": {"org": {"packs": [{"name": name, "local_path": str(pack_root)}]}},
             },
             fh,
         )
@@ -109,7 +109,7 @@ class TestRequiredKindUnionCharacterization:
     ) -> None:
         """Golden-master: an org pack's ``required_directives:`` entry
         already surfaces in the ``Selected directives:`` stanza via the
-        ``_read_org_required_selections`` -> ``_load_doctrine_selection``
+        ``_read_org_required_selections`` -> ``_load_governance_charter_config``
         union, with NO project-local mirroring. This must stay green,
         unchanged, through the T005 ``_iter_org_charter_docs``
         extraction (pure move, no semantic change)."""
@@ -128,7 +128,7 @@ class TestRequiredKindUnionCharacterization:
         mock_graph = _load_mock_graph()
         with (
             patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=repo),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=repo),
             patch("charter.offering.drg.validator.assert_valid"),
             patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
         ):

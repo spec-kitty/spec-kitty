@@ -93,7 +93,7 @@ _CORPUS_DATA_ROOTS = (
 # tests/doctrine/conftest.py `built_in_graph`/`shipped_drg_graph` fixtures,
 # `load_built_in_graph()`/`built_in_graph_source()`, `resolve_pack_root()`,
 # `BUILT_IN_MISSIONS_ROOT`, a bare `AgentProfileRepository()`/
-# `DoctrineService()`, or a real-`REPO_ROOT`-anchored path) or the narrow
+# `CharterOfferingService()`, or a real-`REPO_ROOT`-anchored path) or the narrow
 # kitty-specs mission-spec leaves (spec.md/plan.md/tasks/contracts) this
 # WP's globs cover. Enumerated from research/corpus-suite-inventory.md plus
 # a full grep sweep for these entry points, then hand-verified file-by-file

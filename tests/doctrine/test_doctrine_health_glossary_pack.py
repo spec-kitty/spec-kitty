@@ -1,23 +1,23 @@
-"""Glossary-pack health in ``spec-kitty doctor doctrine --json`` (WP05, T024-T026).
+"""Glossary-pack health in ``spec-kitty doctor charter-packs --json`` (WP05, T024-T026).
 
-FR-012 / NFR-005 / SC-001: ``doctor doctrine --json`` must surface glossary-pack
+FR-012 / NFR-005 / SC-001: ``doctor charter-packs --json`` must surface glossary-pack
 counts + health, an invalid member pack must degrade the aggregate to
 **unhealthy** (never silently healthy — the exact anti-pattern SC-001
 forbids), and the command must stay fast.
 
 This is a three-layer seam (squad finding F1/M1/M2 on the WP05 prompt):
 
-* **MODEL** (``_doctrine_health.py``) — :class:`GlossaryPackHealth` /
+* **MODEL** (``_charter_pack_health.py``) — :class:`GlossaryPackHealth` /
   :class:`SkippedGlossaryPack`, nested inside
-  :class:`DoctrineHealthReport` and folded into its ``healthy`` property.
-* **COLLECT** (``_doctrine_collect.py``) — :func:`_collect_glossary_pack_health`
-  sources loaded packs from ``DoctrineService.glossary_packs`` (the real
+  :class:`CharterPackHealthReport` and folded into its ``healthy`` property.
+* **COLLECT** (``_charter_pack_collect.py``) — :func:`_collect_glossary_pack_health`
+  sources loaded packs from ``ActiveCharterService.glossary_packs`` (the real
   production repository, WP02) and attaches the result to the report built by
   ``_collect_profile_health``. Without this layer the MODEL type would exist
   but the ``--json`` payload would stay silent (the squad's HIGH finding).
 * **RENDER** (``_profile_health_render.py``) — untouched: nesting the new
-  health dimension inside ``DoctrineHealthReport.to_dict()`` means
-  ``_emit_doctrine_json``'s existing ``report.to_dict()`` passthrough already
+  health dimension inside ``CharterPackHealthReport.to_dict()`` means
+  ``_emit_charter_packs_json``'s existing ``report.to_dict()`` passthrough already
   carries it, with no render-layer edit required.
 
 Each class of test below exercises one layer, plus an end-to-end CLI test
@@ -37,12 +37,12 @@ from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from charter.offering.glossary_packs import GlossaryPackRepository
-from specify_cli.cli.commands._doctrine_collect import (
+from specify_cli.cli.commands._charter_pack_collect import (
     _collect_glossary_pack_health,
     _parse_skipped_glossary_pack_warning,
 )
-from specify_cli.cli.commands._doctrine_health import (
-    DoctrineHealthReport,
+from specify_cli.cli.commands._charter_pack_health import (
+    CharterPackHealthReport,
     GlossaryPackHealth,
     PackHealth,
     SkippedGlossaryPack,
@@ -70,7 +70,7 @@ def bare_repo_root(tmp_path: Path) -> Path:
 
     Mirrors the ``kittify_project`` fixture in
     ``tests/specify_cli/cli/commands/test_doctor_doctrine_integrity.py``: just
-    enough for ``locate_project_root``/``DoctrineService`` to resolve without
+    enough for ``locate_project_root``/``ActiveCharterService`` to resolve without
     a real git checkout.
     """
     project_root = tmp_path / "project"
@@ -96,7 +96,7 @@ def expected_builtin_term_count() -> int:
 
 
 # ---------------------------------------------------------------------------
-# MODEL — GlossaryPackHealth / SkippedGlossaryPack / DoctrineHealthReport nesting
+# MODEL — GlossaryPackHealth / SkippedGlossaryPack / CharterPackHealthReport nesting
 # ---------------------------------------------------------------------------
 
 
@@ -134,7 +134,7 @@ class TestGlossaryPackHealthModel:
             pack_id="builtin", layer="builtin", discovered_count=1, valid_count=1
         )
 
-        healthy_report = DoctrineHealthReport(
+        healthy_report = CharterPackHealthReport(
             packs=[agent_pack],
             glossary_packs=GlossaryPackHealth(pack_count=1, term_count=104),
         )
@@ -143,7 +143,7 @@ class TestGlossaryPackHealthModel:
         assert "glossary_packs" in report_dict
         assert report_dict["glossary_packs"]["healthy"] is True
 
-        unhealthy_report = DoctrineHealthReport(
+        unhealthy_report = CharterPackHealthReport(
             packs=[agent_pack],
             glossary_packs=GlossaryPackHealth(
                 pack_count=1,
@@ -166,7 +166,7 @@ class TestGlossaryPackHealthModel:
         must not spuriously flip unhealthy just because they never attached
         glossary-pack health.
         """
-        report = DoctrineHealthReport(
+        report = CharterPackHealthReport(
             packs=[
                 PackHealth(
                     pack_id="builtin", layer="builtin", discovered_count=1, valid_count=1
@@ -219,7 +219,7 @@ class TestCollectGlossaryPackHealth:
         self, bare_repo_root: Path
     ) -> None:
         """INVALID arm (T024): a term missing ``definition`` fails schema validation."""
-        project_glossary_dir = bare_repo_root / ".kittify" / "doctrine" / "glossary_packs"
+        project_glossary_dir = bare_repo_root / ".kittify" / "charter-packs" / "glossary_packs"
         _write_glossary_pack(
             project_glossary_dir,
             "broken.glossary-pack.yaml",
@@ -253,7 +253,7 @@ class TestCollectGlossaryPackHealth:
             "confidence": 0.9,
             "status": "active",
         }
-        project_glossary_dir = bare_repo_root / ".kittify" / "doctrine" / "glossary_packs"
+        project_glossary_dir = bare_repo_root / ".kittify" / "charter-packs" / "glossary_packs"
         _write_glossary_pack(
             project_glossary_dir,
             "dup.glossary-pack.yaml",
@@ -277,7 +277,7 @@ def _invoke_doctrine_json(project_root: Path) -> tuple[int, dict[str, object]]:
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=project_root,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
     payload = json.loads(result.output)
     return result.exit_code, payload
 
@@ -299,7 +299,7 @@ class TestDoctorDoctrineGlossaryPackJson:
         self, bare_repo_root: Path
     ) -> None:
         """INVALID arm (T024): a malformed pack flips RC=1, never silently healthy."""
-        project_glossary_dir = bare_repo_root / ".kittify" / "doctrine" / "glossary_packs"
+        project_glossary_dir = bare_repo_root / ".kittify" / "charter-packs" / "glossary_packs"
         _write_glossary_pack(
             project_glossary_dir,
             "broken.glossary-pack.yaml",

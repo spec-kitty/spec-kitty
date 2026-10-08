@@ -657,7 +657,7 @@ class TestReplaceableBuiltinsPolicy:
     whether the override is sanctioned. The loader fails closed."""
 
     def _write_policy(self, root: Path, body: str) -> None:
-        policy_dir = root / ".kittify" / "doctrine"
+        policy_dir = root / ".kittify" / "charter-packs"
         policy_dir.mkdir(parents=True, exist_ok=True)
         (policy_dir / "replaceable-builtins.yaml").write_text(
             body, encoding="utf-8"

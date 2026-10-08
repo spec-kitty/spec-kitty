@@ -205,7 +205,7 @@ def test_allowlist_is_scoped_to_the_moved_ids() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Structural check: activation packs and action indexes list no retired tactic.
+# Structural check: built-in presets and action indexes list no retired tactic.
 # --------------------------------------------------------------------------- #
 
 _RETIRED_BY_LIST_KEY: dict[str, frozenset[str]] = {
@@ -245,9 +245,9 @@ def _yaml(path: Path) -> dict[str, object]:
     return data if isinstance(data, dict) else {}
 
 
-@pytest.mark.parametrize("pack", ["default.yaml", "minimal.yaml"])
-def test_activation_pack_lists_no_retired_id(pack: str) -> None:
-    data = _yaml(_REPO_ROOT / "src/charter/activation/packs" / pack)
+@pytest.mark.parametrize("preset", ["default.yaml", "minimal.yaml"])
+def test_builtin_preset_lists_no_retired_id(preset: str) -> None:
+    data = _yaml(_REPO_ROOT / "packs/built-in/presets" / preset)
     assert _structural_hits(data, action_index=False) == []
 
 

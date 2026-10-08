@@ -67,13 +67,13 @@ from __future__ import annotations
 # ``charter.offering.api`` (not ``charter.offering.artifact_kinds`` directly) so the
 # PUBLIC wheel symbols gain a live in-repo caller — the from-``charter.offering.api``
 # wiring the no-dead-symbol gate (``tests/architectural/test_no_dead_symbols.py``) and
-# the strict T007 live-caller assertion (``test_doctrine_public_surface.py``) depend
+# the strict T007 live-caller assertion (``test_charter_offering_public_surface.py``) depend
 # on. Object identity is unchanged: ``charter.offering.api.ArtifactKind is
 # charter.offering.artifact_kinds.ArtifactKind`` (mission ``doctrine-public-api-surface``
 # WP03, FR-003 / NFR-002 / contract C1).
 from charter.offering.api import ArtifactKind, slug_for
 from charter.offering.artifact_kinds import CORE_KIND_PLURALS
-from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.base import ArtifactLayerCollisionWarning
 from charter.offering.drg import (
     DRGLoadError,
     DRGValidationError,
@@ -128,7 +128,7 @@ __all__ = [
     "DRGLoadError",
     "DRGNode",
     "DRGValidationError",
-    "DoctrineLayerCollisionWarning",
+    "ArtifactLayerCollisionWarning",
     "FIELDS_WITHHELD_FROM_GRAPH_OUTPUT",
     "NodeKind",
     "OrgDRGConflict",

@@ -172,9 +172,9 @@ class GateRow:
 GATE_ROWS: tuple[GateRow, ...] = (
     GateRow("census_exemptions", _census_row, None),
     GateRow("boundary_exemptions", _boundary_row, None),
-    GateRow("cr02_compat_test_deleted", _cr02_row, "WP16"),
-    GateRow("lifted_retirement_gate_closes_empty", _lifted_retirement_row, "WP16"),
-    GateRow("guidance_gate_is_removed_command_gate", _guidance_row, "WP16"),
+    GateRow("cr02_compat_test_deleted", _cr02_row, None),
+    GateRow("lifted_retirement_gate_closes_empty", _lifted_retirement_row, None),
+    GateRow("guidance_gate_is_removed_command_gate", _guidance_row, None),
     GateRow("fr016_allowlist_empty", _fr016_row, "WP25"),
     GateRow("fr018_allowlist_c004_only", _fr018_row, "WP25"),
     # These two already close empty at base: unmarked regression guards.
@@ -184,7 +184,6 @@ GATE_ROWS: tuple[GateRow, ...] = (
 
 
 _GATE_PENDING = {
-    "WP16": pending_until("WP16", "doctrine-group gates closed (NFR-002)"),
     "WP25": pending_until("WP25", "FR-016/FR-018 gate allowlists close empty (NFR-002)"),
 }
 

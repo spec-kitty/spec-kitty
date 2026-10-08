@@ -7,7 +7,7 @@ The ``src/doctrine`` → ``src/charter/offering`` module move rewrote the token
 the old ``doctrine`` key was rewritten with it, so operator surfaces sent
 people to keys that do not exist:
 
-* ``doctor doctrine`` told operators to add a ``'charter.offering.org'`` block
+* ``doctor charter-packs`` told operators to add a ``'charter.offering.org'`` block
   to ``.kittify/config.yaml`` (the key is ``charter_packs.org``);
 * shipped skills cited ``governance.charter.offering.governance_references``
   and ``charter.offering.selected_paradigms`` (the keys live under
@@ -16,7 +16,7 @@ people to keys that do not exist:
 
 Rule: ``charter.offering.<name>`` must never appear on a living surface when
 ``<name>`` is a charter config key. The key set is derived from the schema
-(:class:`DoctrineSelectionConfig` fields plus the ``charter_packs`` tier
+(:class:`GovernanceCharterConfig` fields plus the ``charter_packs`` tier
 keys), so there is nothing to hand-maintain and no allowlist. Real module
 references (``charter.offering.artifact_kinds``) and mentions of retired
 modules are untouched.
@@ -34,7 +34,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.activation.schemas import DoctrineSelectionConfig
+from charter.activation.schemas import GovernanceCharterConfig
 from tests._support.terminology_scope import FORBIDDEN_SCAN_ROOTS
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
@@ -49,7 +49,7 @@ _EXCLUDED_PREFIXES = (*FORBIDDEN_SCAN_ROOTS, "docs/changelog/")
 
 #: ``charter_packs.<tier>`` keys in ``.kittify/config.yaml``.
 _PACK_TIER_KEYS = frozenset({"org", "project"})
-_CONFIG_KEYS = frozenset(DoctrineSelectionConfig.model_fields) | _PACK_TIER_KEYS
+_CONFIG_KEYS = frozenset(GovernanceCharterConfig.model_fields) | _PACK_TIER_KEYS
 
 _TOKEN = re.compile(r"charter\.offering\.([A-Za-z_][A-Za-z0-9_]*)")
 

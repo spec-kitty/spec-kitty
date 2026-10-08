@@ -12,7 +12,7 @@ from typing import Any, cast
 from ruamel.yaml import YAML
 
 from charter.activation._io import load_charter_file
-from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog
+from charter.activation.catalog import OfferingCatalog, load_offering_catalog
 from charter.activation.resolver import DEFAULT_TOOL_REGISTRY
 
 __all__ = [
@@ -83,7 +83,7 @@ def _declared_action_labels(repo_root: Path) -> frozenset[str]:
 
     Best-effort: any DRG load failure degrades to an empty set (the fast-path
     set alone still governs acceptance), mirroring
-    ``_load_action_doctrine_bundle``'s WARNING-and-degrade posture for the
+    ``_load_action_governance_bundle``'s WARNING-and-degrade posture for the
     same failure mode -- interview validation must not hard-fail on a
     charter-less or malformed project. ``FileNotFoundError``/``OSError`` are
     caught alongside ``DRGLoadError`` -- the shipped-graph-missing case
@@ -310,10 +310,10 @@ def default_interview(
     *,
     mission: str,
     profile: str = "minimal",
-    doctrine_catalog: DoctrineCatalog | None = None,
+    offering_catalog: OfferingCatalog | None = None,
 ) -> CharterInterview:
     """Return deterministic default interview answers."""
-    catalog = doctrine_catalog or load_doctrine_catalog()
+    catalog = offering_catalog or load_offering_catalog()
     defaults = _load_packaged_defaults()
     raw_default_answers = defaults.get("answers", {})
     answers: dict[str, str] = (

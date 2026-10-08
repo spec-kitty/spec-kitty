@@ -634,21 +634,6 @@ def test_synthesized_drg_fresh_when_hash_matches(tmp_path: Path) -> None:
     assert result.synthesized_drg.state == "fresh"
 
 
-def test_synthesized_drg_legacy_root_read_fallback(tmp_path: Path) -> None:
-    """TEMPORARY (FR-011, deleted by WP14 with the read shim).
-
-    A project whose graph is still only under the retired ``.kittify/doctrine/``
-    root reads as ``fresh``; with the graph gone it reads as ``missing``.
-    """
-    _seed_fresh_bundle_and_manifest(tmp_path)
-    graph = _seed_graph(tmp_path)
-    legacy = tmp_path / ".kittify" / "doctrine"
-    graph.parent.rename(legacy)
-    assert compute_freshness(tmp_path).synthesized_drg.state == "fresh"
-    (legacy / "graph.yaml").unlink()
-    assert compute_freshness(tmp_path).synthesized_drg.state == "missing"
-
-
 # ---------------------------------------------------------------------------
 # Content-identity comparison (WP03 / #2681 reader swap; WP06 re-pointed at
 # charter.yaml)

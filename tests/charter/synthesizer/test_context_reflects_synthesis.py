@@ -12,9 +12,9 @@ from typing import Any
 
 import pytest
 
-from charter.activation._doctrine_paths import resolve_project_root
-from charter.activation.compiler import _default_doctrine_service
-from charter.activation.context import _build_doctrine_service
+from charter.activation._project_root_candidates import resolve_project_root
+from charter.activation.compiler import _default_active_charter_service
+from charter.activation.context import _build_offering_service
 from charter.activation.synthesizer import FixtureAdapter, SynthesisRequest, SynthesisTarget, synthesize
 
 
@@ -77,12 +77,12 @@ def synthesis_request() -> SynthesisRequest:
 def _project_directive_ids(service: Any) -> set[str]:
     """Return PROJECT_-prefixed directive ids visible on *service*.
 
-    *service* is either the raw ``charter.offering.service.DoctrineService``
-    returned by ``charter.activation.context._build_doctrine_service`` (``.directives``
+    *service* is either the raw ``charter.offering.service.CharterOfferingService``
+    returned by ``charter.activation.context._build_offering_service`` (``.directives``
     is the repository itself, with ``.list_all()``) or, since WP03
     (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011),
-    ``charter.activation.compiler._default_doctrine_service``'s activation-aware
-    ``charter.activation.resolver.DoctrineService`` wrapper (``.directives`` is a
+    ``charter.activation.compiler._default_active_charter_service``'s activation-aware
+    ``charter.activation.resolver.ActiveCharterService`` wrapper (``.directives`` is a
     gated, filtered ``dict`` with no ``.list_all()``). The wrapper's
     ``raw_repository(kind)`` accessor (FR-002 Option A) is the sanctioned
     way to reach the raw repository either way, so this helper prefers it
@@ -116,8 +116,8 @@ def test_compiler_service_reflects_project_directives_after_synthesis(
     synthesis_request: SynthesisRequest,
     adapter: FixtureAdapter,
 ) -> None:
-    # ``_default_doctrine_service`` routes through
-    # ``build_activation_aware_doctrine_service``, which calls
+    # ``_default_active_charter_service`` routes through
+    # ``build_active_charter_service``, which calls
     # ``PackContext.from_config(tmp_path)`` whenever a repo_root is supplied.
     # ``mission_type_activations`` is provisioned so that call (WP04, C-A1:
     # the provisioned charter is the sole activation authority for mission
@@ -129,12 +129,12 @@ def test_compiler_service_reflects_project_directives_after_synthesis(
         "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
     )
 
-    before_ids = _project_directive_ids(_default_doctrine_service(tmp_path))
+    before_ids = _project_directive_ids(_default_active_charter_service(tmp_path))
     assert before_ids == set()
 
     synthesize(synthesis_request, adapter=adapter, repo_root=tmp_path)
 
-    after_ids = _project_directive_ids(_default_doctrine_service(tmp_path))
+    after_ids = _project_directive_ids(_default_active_charter_service(tmp_path))
     assert after_ids - before_ids, "Expected synthesis to surface at least one project directive"
 
 
@@ -143,10 +143,10 @@ def test_context_service_reflects_project_directives_after_synthesis(
     synthesis_request: SynthesisRequest,
     adapter: FixtureAdapter,
 ) -> None:
-    before_ids = _project_directive_ids(_build_doctrine_service(tmp_path))
+    before_ids = _project_directive_ids(_build_offering_service(tmp_path))
     assert before_ids == set()
 
     synthesize(synthesis_request, adapter=adapter, repo_root=tmp_path)
 
-    after_ids = _project_directive_ids(_build_doctrine_service(tmp_path))
+    after_ids = _project_directive_ids(_build_offering_service(tmp_path))
     assert after_ids - before_ids, "Expected context service to expose project-local doctrine after synthesis"

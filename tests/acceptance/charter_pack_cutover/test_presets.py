@@ -15,7 +15,7 @@ import pytest
 
 from ._effective_set import builtin_inventory, effective_set, expand
 from ._requirements import REPO_ROOT
-from ._support import active_charter, activation_store, covers, describe, load_yaml, output_of, pending_until, read_json_output, run_cli, tree_digest
+from ._support import active_charter, activation_store, covers, describe, load_yaml, output_of, read_json_output, run_cli, tree_digest
 from .conftest import build_migrated_project
 from .legacy_fixtures import (
     ORG_DIRECTIVE_ID,
@@ -381,7 +381,6 @@ VALID_PRESET = {"name": "valid", "description": "A valid preset", "activated_tac
 
 @covers("FR-019")
 @pytest.mark.integration
-@pending_until("WP15", "`charter pack validate` validates presets")
 def test_fr019_validate_names_malformed_file_and_unresolved_id(tmp_path: Path) -> None:
     good = _pack_with_presets(tmp_path / "good", {"valid": VALID_PRESET})
     ok = run_cli(["charter", "pack", "validate", str(good)], tmp_path)
@@ -420,7 +419,7 @@ MALFORMED_PRESETS: dict[str, tuple[str, dict[str, Any]]] = {
 
 @covers("FR-019")
 @pytest.mark.integration
-@pytest.mark.parametrize("case", [pytest.param(c, marks=pending_until("WP15", "malformed preset named by `charter pack validate`")) for c in MALFORMED_PRESETS])
+@pytest.mark.parametrize("case", list(MALFORMED_PRESETS))
 def test_fr019_malformed_preset_cases(case: str, tmp_path: Path) -> None:
     file_stem, body = MALFORMED_PRESETS[case]
     assert (body["name"] == file_stem) is (case != "name_not_stem"), "each case breaks exactly one rule"

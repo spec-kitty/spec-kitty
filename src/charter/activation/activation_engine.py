@@ -105,7 +105,7 @@ class UnknownActivationIdError(ValueError):
             f"Unknown {kind} ID {artifact_id!r}. "
             f"No artifact with that ID is available for kind {kind!r}. "
             f"Run `charter list --show-available` to inspect available IDs, "
-            f"or `doctor doctrine` to verify the doctrine corpus is intact."
+            f"or `doctor charter-packs` to verify the doctrine corpus is intact."
         )
 
 

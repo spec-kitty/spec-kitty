@@ -37,7 +37,7 @@ def _write_kittify_config(repo_root: Path, packs: list[tuple[str, Path]]) -> Non
     """Write ``.kittify/config.yaml`` with the given pack entries."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
-    lines = ["doctrine:", "  org:", "    packs:"]
+    lines = ["charter_packs:", "  org:", "    packs:"]
     for name, path in packs:
         lines.append(f"      - name: {name}")
         lines.append(f"        local_path: {path}")

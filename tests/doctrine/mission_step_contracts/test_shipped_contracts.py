@@ -5,7 +5,7 @@ These tests verify:
 2. Every step contract passes model validation
 3. Delegates-to references point to valid ArtifactKind values
 4. Step IDs are unique within each contract
-5. Contracts are loadable via DoctrineService
+5. Contracts are loadable via CharterOfferingService
 6. Round-trip serialization preserves all fields
 """
 
@@ -14,7 +14,7 @@ import pytest
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.missions.step_contracts import MissionStepContract
 from charter.offering.missions.step_contracts import MissionStepContractRepository
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 
 
 SOFTWARE_DEV_ACTIONS = ("specify", "plan", "implement", "review")
@@ -71,22 +71,22 @@ class TestShippedContractsExistAndValidate:
 
 
 class TestContractsAccessibleViaService:
-    """DoctrineService exposes step contracts via lazy repository."""
+    """CharterOfferingService exposes step contracts via lazy repository."""
 
     def test_service_has_mission_step_contracts_property(self) -> None:
-        service = DoctrineService()
+        service = CharterOfferingService()
         repo = service.mission_step_contracts
         assert isinstance(repo, MissionStepContractRepository)
 
     def test_service_caches_repository(self) -> None:
-        service = DoctrineService()
+        service = CharterOfferingService()
         first = service.mission_step_contracts
         second = service.mission_step_contracts
         assert first is second
 
     @pytest.mark.parametrize("action", SOFTWARE_DEV_ACTIONS)
     def test_service_loads_shipped_contracts(self, action: str) -> None:
-        service = DoctrineService()
+        service = CharterOfferingService()
         contract = service.mission_step_contracts.get_by_action("software-dev", action)
         assert contract is not None
         assert isinstance(contract, MissionStepContract)
@@ -130,7 +130,7 @@ class TestImplementContractStructure:
         assert workspace is not None
         assert workspace.delegates_to is not None
 
-        paradigms = DoctrineService().paradigms
+        paradigms = CharterOfferingService().paradigms
         missing = [
             candidate
             for candidate in workspace.delegates_to.candidates

@@ -1,7 +1,7 @@
 """Canonical exception hierarchy for Spec Kitty internal-consistency errors.
 
-Lives in ``kernel`` because every other package (``charter``, ``doctrine``,
-``specify_cli``) is allowed to depend on ``kernel`` but ``kernel`` depends on
+Lives in ``kernel`` because every other package (``charter`` with
+``charter.offering``, ``specify_cli``) is allowed to depend on ``kernel`` but ``kernel`` depends on
 nothing else. This breaks the import cycle that would otherwise prevent
 ``charter`` from referencing the base error type when ``specify_cli``'s
 package init eagerly registers commands that touch ``charter`` back.

@@ -22,7 +22,7 @@ from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Re
 
 pytestmark = pytest.mark.architectural
 
-_DOCTRINE_ROOT = Path(__file__).resolve().parents[2] / "packs" / "built-in"
+_BUILT_IN_PACK_ROOT = Path(__file__).resolve().parents[2] / "packs" / "built-in"
 _FORBIDDEN = Relation.APPLIES
 
 
@@ -105,19 +105,19 @@ def _graph_with(relation: Relation) -> DRGGraph:
 
 
 def test_shipped_fragments_have_no_authored_applies_edge() -> None:
-    fragments = iter_fragments(_DOCTRINE_ROOT)
+    fragments = iter_fragments(_BUILT_IN_PACK_ROOT)
     assert fragments, "doctrine fragment scan collected zero files"
-    assert authored_applies_edges(_DOCTRINE_ROOT) == ()
+    assert authored_applies_edges(_BUILT_IN_PACK_ROOT) == ()
 
 
 def test_loaded_shipped_graph_has_no_applies_edge() -> None:
-    graph = load_graph_or_dir(_DOCTRINE_ROOT)
+    graph = load_graph_or_dir(_BUILT_IN_PACK_ROOT)
     assert graph.nodes, "loaded doctrine graph has an empty corpus"
     assert applies_edges_in(graph) == ()
 
 
 def test_generated_shipped_graph_has_no_applies_edge() -> None:
-    graph = generate_reference_graph_with_overlay(_DOCTRINE_ROOT)
+    graph = generate_reference_graph_with_overlay(_BUILT_IN_PACK_ROOT)
     assert graph.nodes, "generated doctrine graph has an empty corpus"
     assert applies_edges_in(graph) == ()
 

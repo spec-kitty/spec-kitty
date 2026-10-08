@@ -46,7 +46,7 @@ MANIFEST_FILENAME = "pack-manifest.yaml"
 #: Stable provenance marker. Kept constant (and ``generated_at`` left unset —
 #: emitted as a present null key, excluded from the hash + byte-diff) so the
 #: committed built-in manifest is byte-identical on every regeneration.
-GENERATED_BY = "spec-kitty doctrine regenerate-graph"
+GENERATED_BY = "spec-kitty charter pack regenerate-graph"
 
 #: The artifact id field is ``id`` for every kind except agent profiles, whose
 #: canonical id lives under ``profile-id`` (codified by the DRG extractor).

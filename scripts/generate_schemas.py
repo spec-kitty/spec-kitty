@@ -528,7 +528,7 @@ register(
     "charter.offering.agent_profiles.schema_models",
     "AgentProfileSchema",
     "Agent Profile",
-    "Rich agent profile schema with 6-section structure for spec-kitty doctrine framework",
+    "Rich agent profile schema with 6-section structure for the Spec Kitty charter offering",
     extra=_agent_profile_fixups,
     by_alias=True,
 )

@@ -60,11 +60,11 @@ class NodeKind(StrEnum):
     # -- Retiring runtime glossary-term nodes (deleted in Mission C) ---------
     # ``GLOSSARY_SCOPE`` and ``GLOSSARY`` are the *runtime* glossary-term node
     # kinds. They are slated for deletion in Mission C; keep them fenced off
-    # from the doctrine-owned kind below so that deletion is a clean, isolated
+    # from the offering-owned kind below so that deletion is a clean, isolated
     # excision and does not disturb ``GLOSSARY_PACK``.
     GLOSSARY_SCOPE = "glossary_scope"
     GLOSSARY = "glossary"           # URN prefix: "glossary:<id>"
-    # -- Doctrine-owned node (keep) -----------------------------------------
+    # -- Offering-owned node (keep) -----------------------------------------
     # ``GLOSSARY_PACK`` is a first-order, charter-activatable doctrine kind
     # addressed by the underscore URN ``glossary_pack:<id>``. It is NOT part of
     # the retiring runtime term nodes above and survives Mission C.

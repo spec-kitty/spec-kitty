@@ -2,20 +2,31 @@
 
 The ``PackDescriptor`` represents the stable, immutable identity and lineage
 metadata for a pack — the ``pack_id`` (ULID), ``pack_version`` (scoped to
-built-in; authored here), lineage edges (``parent_pack``, ``accompanies_doctrine_pack``),
-and human handle (``name``).
+built-in; authored here), lineage edge (``parent_pack``), and human handle
+(``name``).
 
 This is distinct from the generated ``PackManifest`` (``pack-manifest.yaml``),
 which holds the manifest schema, constituents, and provenance.
 
-**Not for direct I/O**: this module defines the schema only. Authored
-persistence and identity resolution are handled elsewhere (pack.yaml round-trip,
-backed by the single-authority ``extends`` resolver via an id→key adapter).
+:func:`load_pack_descriptor` reads one ``pack.yaml``. A descriptor that still
+carries a retired field (``accompanies_doctrine_pack``, #3732) is rejected with
+:class:`~charter.offering.packs.retired_fields.RetiredPackFieldError` (code
+``RETIRED_PACK_FIELD``) naming the file, the field and its replacement, before
+pydantic's generic "extra fields not permitted" error. Identity resolution is
+handled elsewhere (the single-authority ``extends`` resolver via an id→key
+adapter).
 """
 
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+from pathlib import Path
+
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+from ruamel.yaml import YAML
+
+from charter.offering.packs.retired_fields import SCOPE_PACK_DESCRIPTOR, raise_retired_field_at, reject_retired_fields
+
+__all__ = ["load_pack_descriptor"]
 
 
 class PackDescriptor(BaseModel):
@@ -36,16 +47,20 @@ class PackDescriptor(BaseModel):
         identity→key adapter feeding ``extends.resolve_extends_order``.
         ``None`` for root packs. An unresolvable ``parent_pack`` (pre-backfill)
         fails closed, never silently degrades.
-    accompanies_doctrine_pack : str | None
-        ULID of the paired doctrine pack for charter packs. Binding at the pack
-        level (was per-activation in an earlier model). ``None`` for non-charter packs.
-        Unresolvable values fail closed.
     name : str
         Human-readable handle. No longer the identity key; used for display and
         in resolved commands. Resolver disambiguates with no silent fallback.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_retired_fields(cls, data: object) -> object:
+        # Runs before the generic extra-field check; ``load_pack_descriptor``
+        # relocates the error to the file it read (``raise_retired_field_at``).
+        reject_retired_fields(data, scope=SCOPE_PACK_DESCRIPTOR, path=None)
+        return data
 
     pack_id: str = Field(
         ...,
@@ -59,11 +74,25 @@ class PackDescriptor(BaseModel):
         default=None,
         description="Parent pack ULID; None for root packs.",
     )
-    accompanies_doctrine_pack: str | None = Field(
-        default=None,
-        description="Doctrine pack ULID for charter packs; None for non-charter.",
-    )
     name: str = Field(
         ...,
         description="Human-readable handle; not the runtime identity.",
     )
+
+
+def load_pack_descriptor(path: Path) -> PackDescriptor:
+    """Read and validate the authored ``pack.yaml`` at *path*.
+
+    Raises:
+        RetiredPackFieldError: the descriptor carries a retired field; the
+            error names *path*, the field and its replacement.
+        pydantic.ValidationError: any other schema failure (an unknown field,
+            a missing ``pack_id``, ...).
+        ruamel.yaml.YAMLError, OSError: the file cannot be read or parsed.
+    """
+    data = YAML(typ="safe").load(path.read_text(encoding="utf-8"))
+    try:
+        return PackDescriptor.model_validate(data)
+    except ValidationError as exc:
+        raise_retired_field_at(exc, path)
+        raise

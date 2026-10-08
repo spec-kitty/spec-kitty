@@ -28,7 +28,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from charter.activation.pack_context import ActiveCharterConfigError
-from kernel.charter_pack_paths import resolve_project_pack_read_root
+from kernel.charter_pack_paths import project_pack_root
 from ruamel.yaml.error import YAMLError
 
 from specify_cli.core.agent_config import AgentConfigError, load_agent_config
@@ -576,11 +576,8 @@ def _profile_input_roots(root: Path) -> tuple[Path, ...]:
         if observe_node(org).kind != "directory":
             raise ValueError(f"Required org profile root unavailable: {org}")
     paths = [package, Path(__file__).parent.parent / "profiles", *org_roots]
-    # The bare repo-root ``doctrine`` entry is not the project layer: it is the
-    # flat built-in fallback candidate ``charter.activation._doctrine_paths``
-    # still hands DoctrineService, so it stays a fingerprint input.
-    paths.extend(root / p for p in (".kittify/config.yaml", ".kittify/charter", ".kittify/agent_profiles", "doctrine", "pyproject.toml"))
-    paths.append(resolve_project_pack_read_root(root, quiet=True))
+    paths.extend(root / p for p in (".kittify/config.yaml", ".kittify/charter", ".kittify/agent_profiles", "pyproject.toml"))
+    paths.append(project_pack_root(root))
     paths.append(manifest_path_for(root))
     config = root / ".kittify/config.yaml"
     if observe_node(config).kind == "file":

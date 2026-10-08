@@ -293,7 +293,7 @@ def e2e_project(tmp_path: Path) -> Path:
         "# Spec Kitty Doctrine — Fresh Project Seed\n\n"
         "This `.kittify/doctrine/` tree was materialized by `spec-kitty charter\n"
         "synthesize` running against a **fresh project** (no LLM-authored YAML under\n"
-        "`.kittify/charter/generated/`). It exists so `DoctrineService` discovers a\n"
+        "`.kittify/charter/generated/`). It exists so `ActiveCharterService` discovers a\n"
         "project layer and the runtime can advance; it is intentionally empty.\n\n"
         "The runtime falls back to the in-package built-in doctrine\n"
         "(`src/charter/offering/`) for all artifact lookups until the LLM harness writes\n"

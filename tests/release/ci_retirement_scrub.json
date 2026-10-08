@@ -185,7 +185,7 @@
         "src/charter/offering/**",
         "src/specify_cli/core/**",
         "src/specify_cli/coordination/**",
-        "src/specify_cli/doctrine_synthesizer/**",
+        "src/specify_cli/charter_pack_synthesizer/**",
         "src/specify_cli/status/**",
         "src/specify_cli/tool_surface/**",
         "src/specify_cli/zeitgeist_client/**"

@@ -19,7 +19,7 @@ Two tracks exist and should remain distinct:
    steps a mission follows, what procedures each step delegates to, which
    directives and tactics scope each action.
 
-Skills may *consume* doctrine outputs (e.g., calling `DoctrineService` to
+Skills may *consume* doctrine outputs (e.g., calling `ActiveCharterService` to
 load a tactic, reading an action index to scope context). Skills should
 **not** become a second source of truth for mission behavior.
 
@@ -111,7 +111,7 @@ the public user-facing hierarchy moves to `spk-*`.
 | `spk-team-sync` | Tracker sync (local pull/push/run, hosted binding) |
 | `spk-team-tracker` | Tracker workflows |
 | `spk-team-connectors` | Connector integrations |
-| `spk-charter-governance` | Charter lifecycle + `DoctrineService` programmatic access |
+| `spk-charter-governance` | Charter lifecycle + `ActiveCharterService` programmatic access |
 | `spk-charter-glossary` | Terminology curation and semantic integrity |
 | `spk-charter-spdd-reasons` | REASONS Canvas |
 | `spk-charter-profile-load` | Load an agent profile on demand for interactive sessions outside the mission loop |

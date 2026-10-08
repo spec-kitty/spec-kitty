@@ -150,7 +150,7 @@ _ARTIFACT_SUBDIRS = (
 )
 
 
-def _build_partial_doctrine_root(dest: Path, *, include_glossary_packs: bool) -> Path:
+def _build_partial_pack_root(dest: Path, *, include_glossary_packs: bool) -> Path:
     """Symlink the real built-in artifact subdirs into a fresh *dest* root.
 
     Omitting ``glossary_packs`` reproduces "the emission block has nothing to
@@ -158,12 +158,12 @@ def _build_partial_doctrine_root(dest: Path, *, include_glossary_packs: bool) ->
     content stays reachable, so the control proves the absence is specific
     to glossary packs, not an artefact of an empty root.
     """
-    doctrine_root = built_in_graph_source()
+    pack_root = built_in_graph_source()
     dest.mkdir(parents=True, exist_ok=True)
     for name in _ARTIFACT_SUBDIRS:
         if name == "glossary_packs" and not include_glossary_packs:
             continue
-        source = doctrine_root / name
+        source = pack_root / name
         if source.is_dir():
             (dest / name).symlink_to(source, target_is_directory=True)
     return dest
@@ -179,7 +179,7 @@ class TestExtractorEmissionControlsResolution:
         ``glossary_packs/`` emits the glossary_pack node (proves the emission
         block is wired at all, using the same harness as the negative arm).
         """
-        root = _build_partial_doctrine_root(
+        root = _build_partial_pack_root(
             tmp_path / "with-glossary-packs", include_glossary_packs=True
         )
         nodes, _edges = extract_artifact_edges(root)
@@ -194,7 +194,7 @@ class TestExtractorEmissionControlsResolution:
         glossary_pack node -- this is what a deleted/never-added emission
         block (the B2 defect) would look like.
         """
-        root = _build_partial_doctrine_root(
+        root = _build_partial_pack_root(
             tmp_path / "without-glossary-packs", include_glossary_packs=False
         )
         assert not (root / "glossary_packs").exists()

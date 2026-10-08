@@ -235,7 +235,7 @@ def infer_repo_languages(
     """Infer active project languages — the SINGLE authority for this signal.
 
     Every consumer (``compile_charter``'s ``catalog.languages`` stamp and the
-    doctrine service builder's language gate) calls this one function so they
+    active charter service builder's language gate) calls this one function so they
     can never compute diverging answers (#3292).
 
     Result states (the distinction is load-bearing for

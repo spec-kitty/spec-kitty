@@ -259,12 +259,12 @@ class ClaudeBundleProjector:
 
     @staticmethod
     def _profile_members(directory: Path, root: OperationRoot) -> tuple[tuple[StagedFile, ...], tuple[BundleObservation, ...]]:
-        from charter.activation.doctrine_service_builder import _build_activation_aware_doctrine_service
+        from charter.activation.active_charter_service_builder import _build_active_charter_service
         from ..profiles.projection import ProfileProjector
 
         source = _built_in_profiles_dir().resolve()
         observations = observe_tree(source)
-        repository = _build_activation_aware_doctrine_service(
+        repository = _build_active_charter_service(
             root.path,
             org_roots=[],
         ).agent_profile_repository

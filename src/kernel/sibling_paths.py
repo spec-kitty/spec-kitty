@@ -6,7 +6,7 @@ editable (development) checkout, or inside an installed wheel where a shared
 tree was force-included as a top-level sibling of every package (see the
 root ``pyproject.toml``'s ``force-include`` mapping for ``packs/``).
 
-This module holds no ``doctrine``-, ``specify_cli``-, or mission-type-
+This module holds no ``charter``-, ``specify_cli``-, or mission-type-
 identifying string anywhere: every caller supplies its own ``__file__`` as
 ``anchor_file`` and the relative shape it is looking for as
 ``sibling_relative_path``. Three call sites converge on this primitive:

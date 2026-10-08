@@ -24,7 +24,7 @@ __all__ = [
     "CommitConfig",
     "Directive",
     "DirectivesConfig",
-    "DoctrineSelectionConfig",
+    "GovernanceCharterConfig",
     "ExtractionMetadata",
     "GovernanceConfig",
     "PerformanceConfig",
@@ -89,43 +89,45 @@ class BranchStrategyConfig(BaseModel):
     rules: list[str] = Field(default_factory=list)
 
 
-class DoctrineSelectionConfig(BaseModel):
-    """Charter-level selection of active doctrine elements.
+class GovernanceCharterConfig(BaseModel):
+    """The ``governance.charter`` block: the charter-authored selection of governance artifacts.
 
-    Field naming MUST exactly mirror the corresponding ``DoctrineService``
-    property name (e.g. ``selected_styleguides`` mirrors
-    ``DoctrineService.styleguides``). This parity rule is pinned by
-    ``tests/architectural/test_artifact_selection_completeness.py`` —
-    adding a new ``@property`` to ``DoctrineService`` without the matching
-    ``selected_<kind>`` field here is a CI failure.
+    Field naming mirrors the corresponding ``ActiveCharterService`` property
+    name (e.g. ``selected_styleguides`` mirrors
+    ``ActiveCharterService.styleguides``). The ``selected_<kind>`` field set is
+    pinned against the ``ArtifactKind``-derived kind tables by
+    ``tests/architectural/test_kind_table_derivation.py``
+    (``test_overlayable_is_the_selected_fields_minus_the_non_overlaid_kinds``).
+    The former property-introspection guard
+    (``test_artifact_selection_completeness.py``) no longer exists.
     """
 
     selected_paradigms: list[str] = Field(default_factory=list)
     selected_directives: list[str] = Field(default_factory=list)
     selected_tactics: list[str] = Field(default_factory=list)
     selected_styleguides: list[str] = Field(default_factory=list)
-    """Charter-active styleguide IDs (mirrors ``DoctrineService.styleguides``).
+    """Charter-active styleguide IDs (mirrors ``ActiveCharterService.styleguides``).
     Default empty preserves backwards compatibility (NFR-005)."""
     selected_toolguides: list[str] = Field(default_factory=list)
-    """Charter-active toolguide IDs (mirrors ``DoctrineService.toolguides``).
+    """Charter-active toolguide IDs (mirrors ``ActiveCharterService.toolguides``).
     Default empty preserves backwards compatibility (NFR-005)."""
     selected_procedures: list[str] = Field(default_factory=list)
-    """Charter-active procedure IDs (mirrors ``DoctrineService.procedures``).
+    """Charter-active procedure IDs (mirrors ``ActiveCharterService.procedures``).
     Default empty preserves backwards compatibility (NFR-005)."""
     selected_agent_profiles: list[str] = Field(default_factory=list)
     """Charter-active agent-profile IDs (mirrors
-    ``DoctrineService.agent_profiles``). Default empty preserves backwards
+    ``ActiveCharterService.agent_profiles``). Default empty preserves backwards
     compatibility (NFR-005)."""
     selected_mission_step_contracts: list[str] = Field(default_factory=list)
     """Charter-active mission-step-contract IDs (mirrors
-    ``DoctrineService.mission_step_contracts``). Default empty preserves
+    ``ActiveCharterService.mission_step_contracts``). Default empty preserves
     backwards compatibility (NFR-005)."""
     selected_glossary_packs: list[str] = Field(default_factory=list)
     """Charter-active glossary-pack IDs (mirrors
-    ``DoctrineService.glossary_packs``). Default empty preserves backwards
+    ``ActiveCharterService.glossary_packs``). Default empty preserves backwards
     compatibility (NFR-005)."""
     selected_assets: list[str] = Field(default_factory=list)
-    """Charter-active asset IDs (mirrors ``DoctrineService.assets``).
+    """Charter-active asset IDs (mirrors ``ActiveCharterService.assets``).
     Default empty preserves backwards compatibility (NFR-005)."""
     available_tools: list[str] = Field(default_factory=list)
     template_set: str | None = None
@@ -206,19 +208,18 @@ class GovernanceConfig(BaseModel):
     commits: CommitConfig = Field(default_factory=CommitConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
     branch_strategy: BranchStrategyConfig = Field(default_factory=BranchStrategyConfig)
-    charter: DoctrineSelectionConfig = Field(default_factory=DoctrineSelectionConfig)
-    """Charter-level selection of active doctrine elements (CR-01: field
+    charter: GovernanceCharterConfig = Field(default_factory=GovernanceCharterConfig)
+    """Charter-level selection of governance artifacts (CR-01: field
     renamed from ``doctrine`` -- ``kitty-specs/retire-doctrine-term-
-    01M0JMK9/inventory.md`` line 163). The value CLASS name
-    ``DoctrineSelectionConfig`` is unchanged (renamed separately, M2); only
-    this field key flips. No populate-by-name alias: the legacy ``doctrine``
-    key is read via a dict-level compat shim in
+    01M0JMK9/inventory.md`` line 163). The value class was renamed
+    separately (#3732: ``DoctrineSelectionConfig`` -> ``GovernanceCharterConfig``).
+    No populate-by-name alias: the legacy ``doctrine`` key is read via a dict-level compat shim in
     ``charter.activation.sync.load_governance_config``, not a pydantic alias (a silent
     alias remap would defeat that shim's warn-once contract)."""
     activations: list[ActivationEntry] = Field(default_factory=list)
     """Charter-level activation registry (FR-006 / WP01 T008). The registry
     lives on :class:`GovernanceConfig` (the top-level governance namespace),
-    NOT on :class:`DoctrineSelectionConfig`, because activations pair
+    NOT on :class:`GovernanceCharterConfig`, because activations pair
     artifacts with runtime contexts rather than selecting global defaults.
     Default empty preserves backwards compatibility (NFR-005): existing
     ``governance.yaml`` files without this key parse unchanged, and the
@@ -252,7 +253,7 @@ class Directive(BaseModel):
     """Catalog IDs (e.g. ``["DIRECTIVE_032"]`` or tactic-id slugs) cross-linked
     from the body of a charter-extracted directive. Populated by WP02 (charter
     sync) from cited catalog IDs detected in the directive body; consumed by
-    WP03/WP04 resolver/renderer via ``DoctrineService``. Default empty preserves
+    WP03/WP04 resolver/renderer via ``ActiveCharterService``. Default empty preserves
     backwards compatibility (NFR-005): existing YAML without this key parses
     unchanged."""
 
@@ -324,8 +325,8 @@ class CharterCatalog(BaseModel):
     ``languages`` is nullable (issue #3292 fix): ``None`` distinguishes "no
     active-language signal was found at compile time" from a genuinely
     persisted empty list. ``charter.activation.language_scope.infer_repo_languages``
-    (the single authority both this compiler and the doctrine-service
-    language gate consume) treats a ``None``/absent field as "keep looking,
+    (the single authority both this compiler and the active charter
+    service's language gate consume) treats a ``None``/absent field as "keep looking,
     then admit all" and a present-but-empty list as authoritative "admit
     none" — collapsing the former into the latter on write is exactly the
     compile-then-read feedback loop #3292 closes. See that function's
@@ -364,8 +365,8 @@ class CharterYaml(BaseModel):
 
     ⚠ Activation is FLAT AT THE ROOT (paula BLOCKER-1) — the ten
     ``activated_*`` / ``mission_type_activations`` fields below are NOT
-    nested under an ``activation:`` key, matching
-    ``src/charter/activation/packs/default.yaml:5-38``, so
+    nested under an ``activation:`` key, matching the activation presets
+    (``packs/built-in/presets/<name>.yaml``), so
     ``pack_context._read_activated_*`` / ``_read_list_key`` and
     ``activation_engine.commit_plan`` read/write them unchanged.
     ``model_config`` forbids extra fields, which doubles as the structural
@@ -374,9 +375,9 @@ class CharterYaml(BaseModel):
     ``extra="forbid"`` rejects it).
 
     Each ``activated_*`` field is three-state (charter contract G3):
-    ``None`` == absent key == default-pack fallback/seed
-    (``load_default_pack_activation_ids``); ``[]`` == explicit fail-closed
-    empty; a non-empty list == the activated set.
+    ``None`` == absent key == the kind is unrestricted (every available
+    artifact of it is effective); ``[]`` == explicit fail-closed empty; a
+    non-empty list == the activated set.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -408,8 +409,8 @@ class CharterYaml(BaseModel):
 # join the same allow-list without touching the writer logic.
 _OPTIONAL_EMPTY_OMIT_KEYS: frozenset[str] = frozenset({
     "references",                        # Directive.references (cross-link list)
-    "authority_paths",                   # DoctrineSelectionConfig.authority_paths
-    "governance_references",             # DoctrineSelectionConfig.governance_references
+    "authority_paths",                   # GovernanceCharterConfig.authority_paths
+    "governance_references",             # GovernanceCharterConfig.governance_references
     # WP01 (charter-mediated-doctrine-selection): additive `selected_<kind>`
     # parity fields. Keep empty values out of emitted YAML so existing
     # serialized fixtures and user charters stay byte-identical pre-/post-

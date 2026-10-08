@@ -1,6 +1,6 @@
 """Regression tests for the silent-swallow finding (S1/S2) from the
 post-merge mission review of ``review-merge-gate-hardening-3-2-x-01KRC57C``,
-plus ATDD for Pattern C activation filtering in ``charter.activation.resolver.DoctrineService``
+plus ATDD for Pattern C activation filtering in ``charter.activation.resolver.ActiveCharterService``
 (WP09, T042).
 
 The chokepoint at ``src/charter/activation/_io.py`` correctly raises ``CharterEncodingError``
@@ -21,7 +21,7 @@ long as the diagnostic propagation contract is honored.
 
 Pattern C ATDD (T042)
 ---------------------
-``DoctrineService.agent_profiles`` applies a three-state activation filter:
+``ActiveCharterService.agent_profiles`` applies a three-state activation filter:
 
 * ``pack_context=None`` → unfiltered (all profiles returned)
 * ``pack_context.activated_agent_profiles is None`` → unfiltered (key absent from config)
@@ -31,7 +31,7 @@ Pattern C ATDD (T042)
 These tests use lightweight ``types.SimpleNamespace`` objects as mock pack
 contexts because ``PackContext``'s per-kind three-state fields are added by
 WP02 (approved dependency) and may not yet be available in the merged tree.
-The ``DoctrineService`` wrapper only requires duck-typing on the per-kind
+The ``ActiveCharterService`` wrapper only requires duck-typing on the per-kind
 fields, so ``SimpleNamespace`` is the simplest correct fixture.
 """
 
@@ -172,11 +172,11 @@ def test_unsafe_bypass_propagates_through_compiler(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Pattern C ATDD — DoctrineService.agent_profiles activation filter (WP09 T042)
+# Pattern C ATDD — ActiveCharterService.agent_profiles activation filter (WP09 T042)
 # ---------------------------------------------------------------------------
 #
 # These tests verify the three-state activation semantics for
-# ``DoctrineService.agent_profiles``:
+# ``ActiveCharterService.agent_profiles``:
 #
 #   1. ``pack_context=None``                         → full unfiltered dict
 #   2. ``pack_context.activated_agent_profiles=None``  → full unfiltered dict
@@ -186,7 +186,7 @@ def test_unsafe_bypass_propagates_through_compiler(tmp_path: Path) -> None:
 # A ``SimpleNamespace`` is used as a stand-in for a real ``PackContext``
 # because the three-state per-kind fields are added by WP02 (approved
 # dependency) and may not yet be present in the dataclass.  The wrapper in
-# ``charter.activation.resolver.DoctrineService`` only duck-types the per-kind fields,
+# ``charter.activation.resolver.ActiveCharterService`` only duck-types the per-kind fields,
 # so the namespace fixture is fully faithful.
 
 
@@ -221,12 +221,12 @@ def test_doctrine_service_agent_profiles_no_pack_context_returns_all() -> None:
     This is the backward-compat contract: callers that do not supply a
     ``PackContext`` receive every profile the inner service exposes.
     """
-    from charter.activation.resolver import DoctrineService
+    from charter.activation.resolver import ActiveCharterService
 
     profiles = {"alpha": MagicMock(), "beta": MagicMock()}
     mock_inner = _make_mock_inner_with_profiles(profiles)
 
-    wrapper = DoctrineService(mock_inner, pack_context=None)
+    wrapper = ActiveCharterService(mock_inner, pack_context=None)
     result = wrapper.agent_profiles
 
     assert set(result.keys()) == {"alpha", "beta"}
@@ -238,7 +238,7 @@ def test_doctrine_service_agent_profiles_none_field_returns_all() -> None:
     The ``None`` sentinel means "key absent from config.yaml" → all built-in
     profiles are available (three-state: absent = all built-ins).
     """
-    from charter.activation.resolver import DoctrineService
+    from charter.activation.resolver import ActiveCharterService
 
     profiles = {"alpha": MagicMock(), "beta": MagicMock()}
     mock_inner = _make_mock_inner_with_profiles(profiles)
@@ -246,7 +246,7 @@ def test_doctrine_service_agent_profiles_none_field_returns_all() -> None:
     pack_ctx = types.SimpleNamespace(
         activated_agent_profiles=None,
     )
-    wrapper = DoctrineService(mock_inner, pack_context=pack_ctx)
+    wrapper = ActiveCharterService(mock_inner, pack_context=pack_ctx)
     result = wrapper.agent_profiles
 
     assert set(result.keys()) == {"alpha", "beta"}
@@ -259,7 +259,7 @@ def test_doctrine_service_agent_profiles_empty_frozenset_returns_empty() -> None
     config.yaml" → explicit opt-out; no profiles should be surfaced.
     This is the primary T042 ATDD assertion.
     """
-    from charter.activation.resolver import DoctrineService
+    from charter.activation.resolver import ActiveCharterService
 
     profiles = {"alpha": MagicMock(), "beta": MagicMock()}
     mock_inner = _make_mock_inner_with_profiles(profiles)
@@ -267,7 +267,7 @@ def test_doctrine_service_agent_profiles_empty_frozenset_returns_empty() -> None
     pack_ctx = types.SimpleNamespace(
         activated_agent_profiles=frozenset(),
     )
-    wrapper = DoctrineService(mock_inner, pack_context=pack_ctx)
+    wrapper = ActiveCharterService(mock_inner, pack_context=pack_ctx)
     result = wrapper.agent_profiles
 
     assert result == {}, (
@@ -281,7 +281,7 @@ def test_doctrine_service_agent_profiles_specific_ids_returns_subset() -> None:
 
     Profiles whose ID is NOT in the activated set must be excluded.
     """
-    from charter.activation.resolver import DoctrineService
+    from charter.activation.resolver import ActiveCharterService
 
     profiles = {"alpha": MagicMock(), "beta": MagicMock(), "gamma": MagicMock()}
     mock_inner = _make_mock_inner_with_profiles(profiles)
@@ -289,7 +289,7 @@ def test_doctrine_service_agent_profiles_specific_ids_returns_subset() -> None:
     pack_ctx = types.SimpleNamespace(
         activated_agent_profiles=frozenset({"alpha", "gamma"}),
     )
-    wrapper = DoctrineService(mock_inner, pack_context=pack_ctx)
+    wrapper = ActiveCharterService(mock_inner, pack_context=pack_ctx)
     result = wrapper.agent_profiles
 
     assert set(result.keys()) == {"alpha", "gamma"}, (

@@ -1,7 +1,7 @@
 """T033 (WP06, #2532) — focused unit tests for the 5 service/profile-
 resolution seams extracted from ``charter.activation.context``: ``context_json``,
-``org_pack_discovery``, ``action_doctrine_bundle``, ``profile_resolution``,
-and ``doctrine_service_builder``.
+``org_pack_discovery``, ``action_governance_bundle``, ``profile_resolution``,
+and ``active_charter_service_builder``.
 
 Each seam module is imported from its NEW home (not re-exported through
 ``charter.activation.context``) so these tests pin the seam itself, independent of the
@@ -9,7 +9,7 @@ FR-009 preserved-surface re-export — mirroring the WP04/WP05 precedent
 (``tests/charter/test_context_leaf_seams.py`` /
 ``tests/charter/test_context_render_seams.py``). Also doubles as the
 seam-existence manifest's real-consumer wiring for ``context_json``,
-``action_doctrine_bundle``, and ``doctrine_service_builder`` — the 3 seams
+``action_governance_bundle``, and ``active_charter_service_builder`` — the 3 seams
 whose only OTHER consumer is a lazy, function-local import from
 ``charter.activation.context`` itself (see ``tests/charter/test_context_decomposition_completion.py``).
 """
@@ -21,9 +21,9 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.activation.action_doctrine_bundle import (
-    _ActionDoctrineBundle,
-    _load_action_doctrine_bundle,
+from charter.activation.action_governance_bundle import (
+    _ActionGovernanceBundle,
+    _load_action_governance_bundle,
 )
 from charter.activation.context_json import (
     _EMPTY_ORG_CHARTER,
@@ -33,10 +33,10 @@ from charter.activation.context_json import (
     _project_charter_json_block,
     _relative_json_path,
 )
-from charter.activation.doctrine_service_builder import _build_doctrine_service
+from charter.activation.active_charter_service_builder import _build_offering_service
 from charter.activation.org_pack_discovery import (
     _enumerate_org_pack_paths,
-    _load_doctrine_selection,
+    _load_governance_charter_config,
     _missing_pack_diagnostic,
     _read_org_required_selections,
 )
@@ -146,18 +146,18 @@ class TestReadOrgRequiredSelections:
 
 class TestLoadDoctrineSelection:
     def test_missing_governance_yields_default_selection(self, tmp_path: Path) -> None:
-        selection = _load_doctrine_selection(tmp_path)
+        selection = _load_governance_charter_config(tmp_path)
         assert selection.selected_directives == []
 
 
 # ---------------------------------------------------------------------------
-# action_doctrine_bundle.py
+# action_governance_bundle.py
 # ---------------------------------------------------------------------------
 
 
-class TestActionDoctrineBundle:
+class TestActionGovernanceBundle:
     def test_optional_fields_default_empty(self) -> None:
-        bundle = _ActionDoctrineBundle(
+        bundle = _ActionGovernanceBundle(
             mission="software-dev",
             directive_ids=[],
             tactic_ids=[],
@@ -172,12 +172,12 @@ class TestActionDoctrineBundle:
         assert bundle.bridge_urns == ()
 
 
-class TestLoadActionDoctrineBundleTypeless:
+class TestLoadActionGovernanceBundleTypeless:
     def test_typeless_mission_degrades_to_empty_bundle(self, tmp_path: Path) -> None:
         """FR-003a: no mission_type and no feature_dir -> no DRG action node
         is resolved; the bundle is empty rather than defaulting to
         software-dev."""
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action="implement",
             effective_depth=2,
@@ -227,32 +227,32 @@ def test_reset_agent_profile_cache_clears_both_stores() -> None:
 
 
 # ---------------------------------------------------------------------------
-# doctrine_service_builder.py
+# active_charter_service_builder.py
 # ---------------------------------------------------------------------------
 
 
-class TestBuildDoctrineService:
+class TestBuildOfferingService:
     def test_org_roots_kwarg_omitted_when_empty(self, tmp_path: Path) -> None:
         calls: dict[str, object] = {}
 
-        class _StubDoctrineService:
+        class _StubOfferingService:
             def __init__(self, **kwargs: object) -> None:
                 calls.update(kwargs)
 
         built_in_root = tmp_path / "built-in"
         built_in_root.mkdir()
         with (
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=built_in_root),
-            patch("charter.offering.service.DoctrineService", _StubDoctrineService),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=built_in_root),
+            patch("charter.offering.service.CharterOfferingService", _StubOfferingService),
             patch("charter.activation.context.infer_repo_languages", return_value=["python"]),
         ):
-            _build_doctrine_service(tmp_path, org_roots=None)
+            _build_offering_service(tmp_path, org_roots=None)
         assert "org_roots" not in calls
 
     def test_org_roots_kwarg_threaded_when_present(self, tmp_path: Path) -> None:
         calls: dict[str, object] = {}
 
-        class _StubDoctrineService:
+        class _StubOfferingService:
             def __init__(self, **kwargs: object) -> None:
                 calls.update(kwargs)
 
@@ -260,9 +260,9 @@ class TestBuildDoctrineService:
         built_in_root.mkdir()
         org_root = tmp_path / "org"
         with (
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=built_in_root),
-            patch("charter.offering.service.DoctrineService", _StubDoctrineService),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=built_in_root),
+            patch("charter.offering.service.CharterOfferingService", _StubOfferingService),
             patch("charter.activation.context.infer_repo_languages", return_value=["python"]),
         ):
-            _build_doctrine_service(tmp_path, org_roots=[org_root])
+            _build_offering_service(tmp_path, org_roots=[org_root])
         assert calls["org_roots"] == [org_root]

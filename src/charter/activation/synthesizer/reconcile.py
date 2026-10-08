@@ -44,7 +44,7 @@ from charter.offering.drg.loader import DRGLoadError as DRGLoadError  # re-expor
 from charter.offering.drg.loader import has_graph_files, load_graph_or_dir, merge_layers
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode
 from charter.offering.drg.validator import dangling_endpoints, duplicate_edge_triples
-from kernel.charter_pack_paths import PROJECT_PACK_ROOT, resolve_project_pack_read_root
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT, project_pack_root
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -280,7 +280,7 @@ def rewrite_manifest(
 
     from charter.bundle import compute_bundle_content_hash  # noqa: PLC0415
 
-    from .artifact_naming import artifact_filename, doctrine_kind_subdir  # noqa: PLC0415
+    from .artifact_naming import artifact_filename, pack_kind_subdir  # noqa: PLC0415
     from .manifest import ManifestArtifactEntry, SynthesisManifest, finalize_manifest  # noqa: PLC0415
     from .provenance import provenance_path_for  # noqa: PLC0415
     from .synthesize_pipeline import _get_synthesizer_version, canonical_yaml  # noqa: PLC0415
@@ -300,7 +300,7 @@ def rewrite_manifest(
         yaml_bytes = canonical_yaml(body)
         content_hash = hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
-        rel_content = (PROJECT_PACK_ROOT / doctrine_kind_subdir(kind) / filename).as_posix()
+        rel_content = (PROJECT_PACK_ROOT / pack_kind_subdir(kind) / filename).as_posix()
         rel_prov = provenance_path_for(kind, slug)
 
         new_entries_by_key[(kind, slug)] = ManifestArtifactEntry(
@@ -536,7 +536,7 @@ def _classify_conflicts(
 # ---------------------------------------------------------------------------
 
 
-def _load_existing_overlay(doctrine_dir: Path) -> DRGGraph | None:
+def _load_existing_overlay(pack_dir: Path) -> DRGGraph | None:
     """Load the on-disk project overlay, or ``None`` when there is none yet.
 
     Fail-closed (FR-007, amendment #2): a *present but unparseable* overlay
@@ -545,9 +545,9 @@ def _load_existing_overlay(doctrine_dir: Path) -> DRGGraph | None:
     at all (e.g. only artifact-body subdirectories from a prior built-in-only
     run) is legitimately "nothing to reconcile against", not corruption.
     """
-    if not doctrine_dir.exists() or not has_graph_files(doctrine_dir):
+    if not pack_dir.exists() or not has_graph_files(pack_dir):
         return None
-    return load_graph_or_dir(doctrine_dir)
+    return load_graph_or_dir(pack_dir)
 
 
 def reconcile_synthesis(
@@ -596,8 +596,8 @@ def reconcile_synthesis(
     # root (warn-once) only while a project has not been migrated. The
     # manifest bookkeeping paths (`rel_content`) always name the project
     # charter pack root (FR-016).
-    doctrine_dir = resolve_project_pack_read_root(repo_root)
-    existing_overlay = _load_existing_overlay(doctrine_dir)
+    pack_dir = project_pack_root(repo_root)
+    existing_overlay = _load_existing_overlay(pack_dir)
     merged_overlay = (
         fresh_overlay
         if existing_overlay is None

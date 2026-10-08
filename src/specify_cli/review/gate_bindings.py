@@ -45,7 +45,7 @@ from charter.drg import (
 )
 from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
 from charter.mission_steps import MissionStepContract, MissionStepContractRepository
-from kernel.charter_pack_paths import resolve_project_pack_read_root
+from kernel.charter_pack_paths import project_pack_root
 from specify_cli.mission_metadata import resolve_mission_identity
 
 if TYPE_CHECKING:
@@ -172,7 +172,7 @@ def _build_repository(repo_root: Path) -> MissionStepContractRepository:
     while never gating anything (User Story 3).
     """
     return MissionStepContractRepository(
-        project_dir=resolve_project_pack_read_root(repo_root, quiet=True) / _PROJECT_CONTRACTS_DIRNAME,
+        project_dir=project_pack_root(repo_root) / _PROJECT_CONTRACTS_DIRNAME,
         org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
     )
 

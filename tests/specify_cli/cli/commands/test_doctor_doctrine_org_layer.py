@@ -1,12 +1,12 @@
-"""Unit tests for ``doctor doctrine`` org-layer section (WP07 / FR-007).
+"""Unit tests for ``doctor charter-packs`` org-layer section (WP07 / FR-007).
 
 Verifies:
 - ``_render_org_layer_section`` prints pack name + node/edge counts for fetched packs.
 - ``_render_org_layer_section`` handles OrgPackMissingError gracefully (no crash).
 - ``_collect_org_layer_data`` returns structured dict for JSON output.
-- ``doctor doctrine`` command includes ``org_drg`` key in ``--json`` output
+- ``doctor charter-packs`` command includes ``org_drg`` key in ``--json`` output
   when org packs are configured.
-- ``doctor doctrine`` does not crash when no org packs are configured.
+- ``doctor charter-packs`` does not crash when no org packs are configured.
 
 Per WP07: diagnostic commands are READ-ONLY and must never crash on operator
 misconfiguration. All exception paths must produce a usable (non-crashing)
@@ -56,10 +56,11 @@ def tmp_repo_with_org_pack(tmp_path: Path) -> Path:
     (kittify / "config.yaml").write_text(
         dedent(
             f"""\
-            organisation_packs:
-              - name: example-org
-                source: local_path
-                path: {pack_dest}
+            charter_packs:
+              org:
+                packs:
+                  - name: example-org
+                    local_path: {pack_dest}
             """
         )
     )
@@ -116,7 +117,7 @@ def test_render_org_layer_section_names_a_dangling_org_endpoint(
     ``_collect_org_layer_data`` declares itself a mirror of *this* function
     ("Mirrors the human-readable output of ``_render_org_layer_section``"). The
     first WP08 fold wired the completeness check into the JSON collector only,
-    so the mirror broke: ``doctor doctrine --json`` reported the dangling
+    so the mirror broke: ``doctor charter-packs --json`` reported the dangling
     endpoint under ``org_drg.errors`` while the same command's human output
     showed the pack ``✓ loaded``, a ``collisions: none`` line, and nothing at
     all about the endpoint — a clean-looking section for the exact graph the
@@ -190,10 +191,11 @@ def test_render_org_layer_section_no_crash_on_missing_pack(
     (kittify / "config.yaml").write_text(
         dedent(
             """\
-            organisation_packs:
-              - name: missing-pack
-                source: local_path
-                path: /nonexistent/path/to/pack
+            charter_packs:
+              org:
+                packs:
+                  - name: missing-pack
+                    local_path: /nonexistent/path/to/pack
             """
         )
     )
@@ -261,8 +263,8 @@ def test_collect_org_layer_data_reports_a_dangling_org_endpoint(
 
     ``_collect_org_layer_data`` is the caller that DOES hold a complete graph:
     the real shipped built-in against the operator's real configured packs. So
-    it escalates, and — because ``DoctrineHealthReport.healthy`` reads
-    ``org_drg['errors']`` — a typo'd endpoint now flips ``doctor doctrine`` to
+    it escalates, and — because ``CharterPackHealthReport.healthy`` reads
+    ``org_drg['errors']`` — a typo'd endpoint now flips ``doctor charter-packs`` to
     RC=1 instead of passing clean.
 
     Before the fold, no production caller of ``merge_three_layers`` ran
@@ -291,7 +293,7 @@ def test_collect_org_layer_data_reports_a_dangling_org_endpoint(
     assert isinstance(errors, list)
     assert any("styleguide:plain-languagee" in e for e in errors), (
         "the finding must reach org_drg['errors'] — that is the channel "
-        f"DoctrineHealthReport.healthy reads; got {errors}"
+        f"CharterPackHealthReport.healthy reads; got {errors}"
     )
 
 
@@ -309,7 +311,7 @@ def test_collect_org_layer_data_reports_no_dangling_endpoint_when_clean(
     assertion previously read ``is None`` and so pinned the key's conditional
     presence — under which "the check ran and found nothing" and "the check
     never ran" produced the identical payload. See
-    ``test_doctrine_hard_fail_surfacing.test_dangling_endpoints_key_is_always_present``.
+    ``test_charter_pack_hard_fail_surfacing.test_dangling_endpoints_key_is_always_present``.
     """
     from specify_cli.cli.commands.doctor import _collect_org_layer_data
 
@@ -329,7 +331,7 @@ def test_collect_org_layer_data_surfaces_a_failed_merge_check(
     bare ``except Exception: pass``. Since the fold, the merge inside it also
     decides whether the org layer is reported complete, so swallowing the
     failure turns "the completeness check crashed" into ``errors: []`` — and
-    ``DoctrineHealthReport.healthy`` reads that array, so ``doctor doctrine``
+    ``CharterPackHealthReport.healthy`` reads that array, so ``doctor charter-packs``
     would exit 0 having verified nothing.
     """
     import charter.activation.drg_activation as drg_activation
@@ -374,10 +376,11 @@ def test_collect_org_layer_data_error_on_missing_pack(
     (kittify / "config.yaml").write_text(
         dedent(
             """\
-            organisation_packs:
-              - name: ghost-pack
-                source: local_path
-                path: /nonexistent/path/to/ghost-pack
+            charter_packs:
+              org:
+                packs:
+                  - name: ghost-pack
+                    local_path: /nonexistent/path/to/ghost-pack
             """
         )
     )
@@ -388,7 +391,7 @@ def test_collect_org_layer_data_error_on_missing_pack(
 
 
 # ---------------------------------------------------------------------------
-# CLI integration: doctor doctrine --json includes org_drg key
+# CLI integration: doctor charter-packs --json includes org_drg key
 # ---------------------------------------------------------------------------
 
 
@@ -401,7 +404,7 @@ def _build_kittify_config_for_test(
     (config_dir / "config.yaml").write_text(
         dedent(
             f"""
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: {pack_name}
@@ -415,9 +418,9 @@ def test_doctor_doctrine_json_includes_org_drg_key_when_packs_configured(
     tmp_repo_with_org_pack: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``doctor doctrine --json`` includes ``org_drg`` key when org packs configured.
+    """``doctor charter-packs --json`` includes ``org_drg`` key when org packs configured.
 
-    Uses the WP06 ``organisation_packs`` config format (which ``load_org_drg`` reads),
+    Uses the canonical ``charter_packs.org.packs`` config format (which ``load_org_drg`` reads),
     distinct from the ``doctrine.org.packs`` format (which ``load_pack_registry`` reads).
     The ``org_drg`` key is populated from ``_collect_org_layer_data`` regardless
     of whether ``load_pack_registry`` finds packs.
@@ -430,23 +433,23 @@ def test_doctor_doctrine_json_includes_org_drg_key_when_packs_configured(
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=tmp_repo_with_org_pack,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
 
-    # Exit code is always 0 for doctor doctrine (diagnostic only)
+    # Exit code is always 0 for doctor charter-packs (diagnostic only)
     assert result.exit_code == 0, (
-        f"doctor doctrine exited with code {result.exit_code}: {result.output}"
+        f"doctor charter-packs exited with code {result.exit_code}: {result.output}"
     )
 
     try:
         payload = json.loads(result.output)
     except json.JSONDecodeError as exc:
         pytest.fail(
-            f"doctor doctrine --json did not produce valid JSON: {exc}\n"
+            f"doctor charter-packs --json did not produce valid JSON: {exc}\n"
             f"output: {result.output!r}"
         )
 
     assert "org_drg" in payload, (
-        f"doctor doctrine JSON must include 'org_drg' key. Got keys: {list(payload.keys())}"
+        f"doctor charter-packs JSON must include 'org_drg' key. Got keys: {list(payload.keys())}"
     )
 
 
@@ -454,7 +457,7 @@ def test_doctor_doctrine_json_includes_org_drg_key_when_no_packs(
     tmp_repo_without_org_pack: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``doctor doctrine --json`` includes ``org_drg`` key even when no packs configured."""
+    """``doctor charter-packs --json`` includes ``org_drg`` key even when no packs configured."""
     from specify_cli.cli.commands.doctor import app as doctor_app
 
     monkeypatch.chdir(tmp_repo_without_org_pack)
@@ -463,22 +466,22 @@ def test_doctor_doctrine_json_includes_org_drg_key_when_no_packs(
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=tmp_repo_without_org_pack,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
 
     assert result.exit_code == 0, (
-        f"doctor doctrine exited with code {result.exit_code}: {result.output}"
+        f"doctor charter-packs exited with code {result.exit_code}: {result.output}"
     )
 
     try:
         payload = json.loads(result.output)
     except json.JSONDecodeError as exc:
         pytest.fail(
-            f"doctor doctrine --json did not produce valid JSON: {exc}\n"
+            f"doctor charter-packs --json did not produce valid JSON: {exc}\n"
             f"output: {result.output!r}"
         )
 
     assert "org_drg" in payload, (
-        f"doctor doctrine JSON must always include 'org_drg' key. Got: {list(payload.keys())}"
+        f"doctor charter-packs JSON must always include 'org_drg' key. Got: {list(payload.keys())}"
     )
     org_drg = payload["org_drg"]
     packs = org_drg.get("configured_packs", [])

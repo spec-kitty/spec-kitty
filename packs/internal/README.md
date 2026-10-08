@@ -80,7 +80,7 @@ packs/internal/
 ```
 
 Asset sidecar `path` values are relative to this `assets/` folder (org-tier
-anchor), so `spec-kitty doctrine asset path <id>` resolves them to a real file.
+anchor), so `spec-kitty charter pack asset path <id>` resolves them to a real file.
 The debrief files sit in a `debrief/` subfolder so the template's relative links
 to the logo and fonts keep working.
 

@@ -182,12 +182,12 @@ def test_missing_middle_org_root_fallback_spans_every_readable_root(project: Pat
 
 
 def test_service_build_failure_fallback_spans_both_org_packs(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import charter.activation.doctrine_service_builder as builder
+    import charter.activation.active_charter_service_builder as builder
 
     def broken(repo_root: Path) -> None:
         raise RuntimeError(f"cannot build for {repo_root.name}")
 
-    monkeypatch.setattr(builder, "build_activation_aware_doctrine_service", broken)
+    monkeypatch.setattr(builder, "build_active_charter_service", broken)
 
     result = _resolve(project, ["activated_tactics"])["activated_tactics"]
 
@@ -259,12 +259,12 @@ def test_org_root_that_raises_on_scan_is_unresolved(project: Path, monkeypatch: 
 
 
 def test_service_build_failure_is_unresolved(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import charter.activation.doctrine_service_builder as builder
+    import charter.activation.active_charter_service_builder as builder
 
     def broken(repo_root: Path) -> None:
         raise RuntimeError(f"cannot build for {repo_root.name}")
 
-    monkeypatch.setattr(builder, "build_activation_aware_doctrine_service", broken)
+    monkeypatch.setattr(builder, "build_active_charter_service", broken)
 
     result = _resolve(project, ["activated_procedures"])["activated_procedures"]
 
@@ -273,12 +273,12 @@ def test_service_build_failure_is_unresolved(project: Path, monkeypatch: pytest.
 
 
 def test_directives_alone_do_not_build_the_service(project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import charter.activation.doctrine_service_builder as builder
+    import charter.activation.active_charter_service_builder as builder
 
     def broken(repo_root: Path) -> None:
         raise AssertionError(f"service built for {repo_root.name}")
 
-    monkeypatch.setattr(builder, "build_activation_aware_doctrine_service", broken)
+    monkeypatch.setattr(builder, "build_active_charter_service", broken)
 
     assert _resolve(project, ["activated_directives"])["activated_directives"].resolved
 

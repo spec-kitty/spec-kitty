@@ -202,8 +202,8 @@ def test_promote_validation_failure_no_files_in_live_tree(tmp_path: Path) -> Non
         )
 
     # No files in live tree
-    doctrine_root = repo / ".kittify" / "charter-packs"
-    assert not list(doctrine_root.rglob("*.tactic.yaml"))
+    pack_root = repo / ".kittify" / "charter-packs"
+    assert not list(pack_root.rglob("*.tactic.yaml"))
 
     # Manifest NOT written
     manifest_path = repo / MANIFEST_PATH
@@ -319,8 +319,8 @@ def test_schema_failure_no_files_in_live_tree(tmp_path: Path) -> None:
         raise RuntimeError("schema failure: body does not match directive schema")
 
     # No files in live doctrine tree
-    doctrine_root = repo / ".kittify" / "charter-packs"
-    assert not list(doctrine_root.rglob("*.yaml"))
+    pack_root = repo / ".kittify" / "charter-packs"
+    assert not list(pack_root.rglob("*.yaml"))
 
     # Staging preserved as .failed/
     failed_dir = stage.root.parent / f"{RUN_ID}S.failed"

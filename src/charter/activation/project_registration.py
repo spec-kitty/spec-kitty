@@ -33,7 +33,7 @@ from charter.offering.drg.models import DRGGraph
 from charter.offering.drg.org_pack_config import resolve_existing_org_roots
 from charter.offering.drg.project_scan import ProjectArtifact, project_reference_edges, scan_project_artifacts
 from charter.offering.drg.validator import assert_valid
-from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_path, resolve_project_pack_read_root
+from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_path, project_pack_root
 from kernel.clock import now_utc_seconds
 
 __all__ = ["plan_project_registration", "commit_project_registration"]
@@ -117,7 +117,7 @@ def _project_graph(
     base: DRGGraph,
     stale_urns: frozenset[str] = frozenset(),
 ) -> tuple[DRGGraph, tuple[str, ...]]:
-    directory = resolve_project_pack_read_root(root, quiet=True)
+    directory = project_pack_root(root)
     existing = load_graph_or_dir(directory) if has_graph_files(directory) else None
     nodes = {node.urn: node for node in existing.nodes} if existing else {}
     # Prune phantom nodes (#4121): a committed registration whose URN the

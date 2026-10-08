@@ -23,9 +23,9 @@ NFR-001):
 - ``test_non_activated_directive_is_still_excluded``: proves the gate still
   filters (a populated set that does not include the node's canonical id
   drops it).
-- ``test_root_divergence_follows_resolve_doctrine_root``: install-layout
-  guard (research.md D2) -- the gate must source ``doctrine_root`` from
-  ``charter.activation.catalog.resolve_doctrine_root()``, never
+- ``test_root_divergence_follows_resolve_offering_root``: install-layout
+  guard (research.md D2) -- the gate must source ``offering_root`` from
+  ``charter.activation.catalog.resolve_offering_root()``, never
   ``pack_context.pack_roots[0]``.
 - ``test_resolution_is_batched_once_not_per_node``: proves the stem-to-
   canonical resolution is hoisted once per filter call (O(kinds)), not
@@ -50,7 +50,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation import drg_activation as drg_module
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.drg import load_built_in_graph
 from charter.activation.drg_activation import filter_graph_by_activation
 from charter.activation.kind_vocabulary import MissionTypeNotAnArtifactKind
@@ -74,7 +74,7 @@ def _pack_context(
     """Build a real, hermetic ``PackContext`` inline (no shared fixtures).
 
     ``pack_roots=()`` by default: the gate must resolve the built-in
-    doctrine root via ``resolve_doctrine_root()``, never
+    doctrine root via ``resolve_offering_root()``, never
     ``pack_context.pack_roots[0]`` (research.md D2), so an empty tuple here
     is itself a mild divergence check -- ``test_root_divergence_...`` below
     makes the same point explicitly with a *populated but wrong* root.
@@ -111,7 +111,7 @@ def _glossary_pack_survivors(
 ) -> set[str]:
     """Filter the built-in graph with ``glossary_packs`` activated to the given
     per-ID set; return the surviving ``glossary_pack:`` node URNs. ``pack_roots=()``
-    + ``repo_root=/nonexistent`` force resolution through ``resolve_doctrine_root()``,
+    + ``repo_root=/nonexistent`` force resolution through ``resolve_offering_root()``,
     exactly like the directive tests above.
     """
     ctx = PackContext(
@@ -195,8 +195,8 @@ def test_non_activated_directive_is_still_excluded() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_root_divergence_follows_resolve_doctrine_root() -> None:
-    """The gate must source ``doctrine_root`` from ``resolve_doctrine_root()``,
+def test_root_divergence_follows_resolve_offering_root() -> None:
+    """The gate must source ``offering_root`` from ``resolve_offering_root()``,
     never ``pack_context.pack_roots[0]`` -- a naive ``__file__`` join that can
     disagree with the projection root in installed/wheel layouts (D2).
 
@@ -205,10 +205,10 @@ def test_root_divergence_follows_resolve_doctrine_root() -> None:
     against ``pack_roots[0]`` it could not find ``001-architectural-
     integrity-standard`` there and would (per the contract's
     skip-with-report rule) drop the node. The node must still survive,
-    proving resolution followed ``resolve_doctrine_root()`` instead.
+    proving resolution followed ``resolve_offering_root()`` instead.
     """
     wrong_root = Path("/nonexistent/not-the-doctrine-root")
-    assert wrong_root != resolve_doctrine_root()
+    assert wrong_root != resolve_offering_root()
 
     ctx = _pack_context(
         activated_directives=frozenset({_REAL_DIRECTIVE_STEM}),
@@ -302,7 +302,7 @@ def test_unresolvable_kind_token_yields_empty_resolution(
     result = drg_module._resolve_activated_urns_for_kind(
         "directive",
         frozenset({_REAL_DIRECTIVE_STEM}),
-        doctrine_root=resolve_doctrine_root(),
+        offering_root=resolve_offering_root(),
         org_roots=[],
     )
 
@@ -351,7 +351,7 @@ def test_cross_layer_ambiguous_directive_id_resolves_to_no_urn(tmp_path: Path) -
     resolved = drg_module._resolve_activated_urns_for_kind(
         "directive",
         frozenset({"CHOSEN-POLICY"}),
-        doctrine_root=resolve_doctrine_root(),
+        offering_root=resolve_offering_root(),
         org_roots=[company, team],
     )
 

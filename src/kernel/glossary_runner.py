@@ -3,7 +3,7 @@
 This module defines the ``GlossaryRunnerProtocol`` — the abstract contract
 that any concrete glossary-aware primitive runner must satisfy — and a
 module-level registry (``register()`` / ``get_runner()`` / ``clear_registry()``,
-the last one test-only) so that ``doctrine``-layer consumers can invoke the
+the last one test-only) so that ``charter.offering`` consumers can invoke the
 runner without importing the ``glossary`` package eagerly.
 
 Registration contract — the lazy self-bootstrap
@@ -18,7 +18,7 @@ retry.  ``specify_cli`` plays no role.
 
 Degradation rule: the hook runs the primitive without glossary checks only
 when its bootstrap fails — normally because ``import_module("glossary.attachment")``
-raises ``ImportError`` (pure-doctrine environments without the ``glossary``
+raises ``ImportError`` (offering-only environments without the ``glossary``
 package); the hook swallows any exception raised while importing or registering
 the provider, so a broken provider degrades the same way.  "No runner
 registered" is not a steady state in a full install — the first enabled call
@@ -28,9 +28,9 @@ Dependency direction
 --------------------
 ::
 
-    doctrine  →  kernel.glossary_runner  ←  charter.offering.missions.glossary_hook (lazy provider)  ←  glossary.attachment
+    charter.offering  →  kernel.glossary_runner  ←  charter.offering.missions.glossary_hook (lazy provider)  ←  glossary.attachment
 
-Usage — consumer (doctrine)::
+Usage — consumer (``charter.offering``)::
 
     from kernel.glossary_runner import get_runner
 

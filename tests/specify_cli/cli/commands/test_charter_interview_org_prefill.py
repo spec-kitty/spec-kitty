@@ -51,7 +51,7 @@ def _write_org_pack_with_charter(pack_dir: Path, body: str) -> Path:
 def _write_kittify_config_with_packs(repo_root: Path, packs: list[dict[str, str]]) -> None:
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
-    lines = ["doctrine:", "  org:", "    packs:"]
+    lines = ["charter_packs:", "  org:", "    packs:"]
     for pack in packs:
         lines.append(f"      - name: {pack['name']}")
         lines.append(f"        local_path: {pack['local_path']}")

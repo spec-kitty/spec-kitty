@@ -615,9 +615,9 @@ def test_size_assumption_bypass_failure_mode_reaches_rendered_profile_context(
         _render_profile_sections,
     )
     from charter.offering.agent_profiles import AgentProfileRepository
-    from charter.offering.service import DoctrineService
+    from charter.offering.service import CharterOfferingService
 
-    service = DoctrineService()
+    service = CharterOfferingService()
     profile = AgentProfileRepository().resolve_profile(profile_id)
     assert profile is not None, f"expected the shipped {profile_id} profile to resolve"
 

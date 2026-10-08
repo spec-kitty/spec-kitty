@@ -19,7 +19,7 @@
 # job below reports `if: false` (skipped) — zero packs work runs (NFR-002).
 #
 # - **Built-in lane** (`packs/built-in/**`, PUBLIC, ships in the wheel): regen
-#   `--check`, DRG `regenerate-graph --check`, the pack-manifest freshness +
+#   `--check`, DRG `charter pack regenerate-graph --check`, the pack-manifest freshness +
 #   authored-only guard, the `-m corpus` suite, and the Claude Code plugin
 #   build + `claude plugin validate --strict` (zero errors AND warnings). The
 #   corpus suite is the SOLE, ADVISORY owner of `-m corpus` (FR-009; router
@@ -222,11 +222,11 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
-          uv run --frozen spec-kitty doctrine regenerate-graph --check
+          uv run --frozen spec-kitty charter pack regenerate-graph --check
       - name: Surface remediation command on drift
         if: failure()
         run: |
-          echo "::error::packs/built-in DRG fragments are stale. Run: spec-kitty doctrine regenerate-graph (then commit the diff)."
+          echo "::error::packs/built-in DRG fragments are stale. Run: spec-kitty charter pack regenerate-graph (then commit the diff)."
 
   built-in-pack-manifest:
     name: built-in / pack-manifest freshness + authored-only guard

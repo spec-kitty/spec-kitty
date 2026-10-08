@@ -1,4 +1,4 @@
-"""OrgDoctrineSource protocol and FetchResult contract.
+"""OrgCharterPackSource protocol and FetchResult contract.
 
 The protocol is intentionally structural (``typing.Protocol``) so that third
 parties can supply their own adapters without inheriting from a spec-kitty
@@ -61,7 +61,7 @@ class FetchResult:
 
 
 @runtime_checkable
-class OrgDoctrineSource(Protocol):
+class OrgCharterPackSource(Protocol):
     """Fetch-time source adapter for org doctrine packs.
 
     Implementations pull governance artifacts from a remote location and

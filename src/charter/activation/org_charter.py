@@ -85,7 +85,7 @@ __all__ = [
 # Constants — the canonical list of artifact kinds an org pack can mandate.
 #
 # Naming parity rule (Mission B WP01 + WP06): every entry here corresponds
-# to a ``selected_<kind>`` field on :class:`charter.activation.schemas.DoctrineSelectionConfig`
+# to a ``selected_<kind>`` field on :class:`charter.activation.schemas.GovernanceCharterConfig`
 # and a ``required_<kind>`` field on :class:`OrgCharterPolicy`.  The
 # byte-identical parity is pinned by
 # ``tests/architectural/test_artifact_selection_completeness.py``.
@@ -145,7 +145,7 @@ class OrgCharterPolicy(BaseModel):
     Mission B WP06 extends this model with one ``required_<kind>`` list
     per :data:`REQUIRED_KIND_FIELDS` entry.  Each list mirrors the
     matching ``selected_<kind>`` field on
-    :class:`charter.activation.schemas.DoctrineSelectionConfig` (parity pinned by
+    :class:`charter.activation.schemas.GovernanceCharterConfig` (parity pinned by
     ``tests/architectural/test_artifact_selection_completeness.py``).
     Empty defaults preserve NFR-005 backward compatibility — existing
     ``org-charter.yaml`` files that only declare ``required_directives``
@@ -295,7 +295,7 @@ def _normalize_required_ids(
     kind_plural: str,
     raw_ids: list[str],
     *,
-    doctrine_root: Path | None,
+    offering_root: Path | None,
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
     warnings: list[str] | None = None,
@@ -309,12 +309,12 @@ def _normalize_required_ids(
     (e.g. ``DIRECTIVE_001``) writes a value the derivation can never match,
     historically crashing the compiled reference set (#2529). Declared
     directive IDs remain readable for recovery, but producers always write
-    stems. An unavailable *doctrine_root* or unknown ID preserves the raw
+    stems. An unavailable *offering_root* or unknown ID preserves the raw
     input for existing downstream validation. A known identity whose filenames
     select another directive raises instead; promotion callers may collect
     warnings and skip only that ambiguous identity.
     """
-    if doctrine_root is None:
+    if offering_root is None:
         return list(raw_ids)
     kind = ArtifactKind.from_plural(kind_plural)
     normalized: list[str] = []
@@ -323,7 +323,7 @@ def _normalize_required_ids(
             stem = resolve_selected_id_to_stem(
                 kind,
                 raw_id,
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
             )
@@ -396,7 +396,7 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
     it; a bare restrictive list is never written.
     """
     from charter.activation.activation_engine import promote_activations
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
     from charter.activation.pack_manager import resolve_activation_write_target
 
     target_path, config_data, save = resolve_activation_write_target(repo_root)
@@ -409,9 +409,9 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
         return []
 
     try:
-        doctrine_root: Path | None = resolve_doctrine_root()
+        offering_root: Path | None = resolve_offering_root()
     except Exception:  # noqa: BLE001 — normalization is best-effort, see docstring
-        doctrine_root = None
+        offering_root = None
 
     from charter.activation.layer_roots import (
         resolve_layer_roots,
@@ -425,7 +425,7 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
         f"activated_{kind}": _normalize_required_ids(
             kind,
             raw_ids,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=org_roots,
             layer_roots=layer_roots,
             warnings=warnings,
@@ -953,7 +953,7 @@ def validate_org_required_directive_stems(repo_root: Path) -> None:
     may still append encoding-provenance ledger entries. Unknown-ID validation
     retains its existing path.
     """
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
 
     from charter.activation.layer_roots import resolve_layer_roots, resolve_org_root_chain
 
@@ -962,7 +962,7 @@ def validate_org_required_directive_stems(repo_root: Path) -> None:
         _normalize_required_ids(
             "directives",
             list(policy.required_directives),
-            doctrine_root=resolve_doctrine_root(),
+            offering_root=resolve_offering_root(),
             org_roots=resolve_org_root_chain(repo_root),
             layer_roots=resolve_layer_roots(repo_root),
         )

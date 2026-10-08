@@ -1,7 +1,7 @@
-"""WP08 — ``doctor doctrine`` health report tests (FR-008/009/010, NFR-001).
+"""WP08 — ``doctor charter-packs`` health report tests (FR-008/009/010, NFR-001).
 
 Covers:
-- ``PackHealth`` / ``DoctrineHealthReport`` derived health (I-H1 / FR-010):
+- ``PackHealth`` / ``CharterPackHealthReport`` derived health (I-H1 / FR-010):
   ``healthy = (valid_count == discovered_count) and not invalid_profiles``.
 - ``to_dict()`` emits stable invalid-profile fields
   (layer/path/profile_id/error_summary) as a passthrough of ``SkippedProfile``.
@@ -23,8 +23,8 @@ import pytest
 from typer.testing import CliRunner
 
 from charter.offering.agent_profiles.diagnostics import SkippedProfile
-from specify_cli.cli.commands._doctrine_health import (
-    DoctrineHealthReport,
+from specify_cli.cli.commands._charter_pack_health import (
+    CharterPackHealthReport,
     PackHealth,
     build_pack_health_by_layer,
 )
@@ -35,7 +35,7 @@ runner = CliRunner()
 
 
 # ---------------------------------------------------------------------------
-# T034 — PackHealth / DoctrineHealthReport derived health + stable fields
+# T034 — PackHealth / CharterPackHealthReport derived health + stable fields
 # ---------------------------------------------------------------------------
 
 
@@ -76,7 +76,7 @@ def test_pack_health_degraded_when_invalid_profiles_present() -> None:
 def test_pack_health_to_dict_emits_stable_invalid_profile_fields() -> None:
     skipped = SkippedProfile(
         layer="project",
-        path="/repo/.kittify/doctrine/agent_profiles/bad.yaml",
+        path="/repo/.kittify/charter-packs/agent_profiles/bad.yaml",
         profile_id="broken-bart",
         error_summary="Missing required field 'identity'",
     )
@@ -95,7 +95,7 @@ def test_pack_health_to_dict_emits_stable_invalid_profile_fields() -> None:
     assert out["invalid_profiles"] == [
         {
             "layer": "project",
-            "path": "/repo/.kittify/doctrine/agent_profiles/bad.yaml",
+            "path": "/repo/.kittify/charter-packs/agent_profiles/bad.yaml",
             "profile_id": "broken-bart",
             "error_summary": "Missing required field 'identity'",
         }
@@ -113,13 +113,13 @@ def test_report_healthy_only_when_every_pack_healthy() -> None:
             SkippedProfile("org", "/p/bad.yaml", None, "YAML error")
         ],
     )
-    assert DoctrineHealthReport(packs=[healthy]).healthy is True
-    assert DoctrineHealthReport(packs=[healthy, degraded]).healthy is False
+    assert CharterPackHealthReport(packs=[healthy]).healthy is True
+    assert CharterPackHealthReport(packs=[healthy, degraded]).healthy is False
 
 
 def test_report_to_dict_is_single_json_shape() -> None:
     skipped = SkippedProfile("org", "/p/bad.yaml", "x", "boom")
-    report = DoctrineHealthReport(
+    report = CharterPackHealthReport(
         packs=[PackHealth("org", "org", 2, 1, invalid_profiles=[skipped])],
         org_drg={"configured_packs": [], "errors": []},
     )
@@ -197,7 +197,7 @@ _INVALID_PROFILE = dedent(
 @pytest.fixture
 def repo_with_invalid_project_profile(tmp_path: Path) -> Path:
     """Repo whose project doctrine layer contains one invalid agent profile."""
-    profiles_dir = tmp_path / ".kittify" / "doctrine" / "agent_profiles"
+    profiles_dir = tmp_path / ".kittify" / "charter-packs" / "agent_profiles"
     profiles_dir.mkdir(parents=True)
     (profiles_dir / "tester-tina.agent.yaml").write_text(
         _VALID_PROFILE, encoding="utf-8"
@@ -248,7 +248,7 @@ def test_doctor_doctrine_json_reports_false_healthy_fixed(
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=repo_with_invalid_project_profile,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
 
     # WP01 (C5): an invalid profile makes the report unhealthy → RC=1.
     assert result.exit_code == 1, result.output
@@ -270,8 +270,8 @@ def test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles(
 ) -> None:
     """Human render shows a degraded pack header + invalid profiles by layer/path/error.
 
-    Drives the human renderer (``_render_doctrine_pack``) from the same
-    ``DoctrineHealthReport`` the JSON surface uses (T035/T036 validation): a
+    Drives the human renderer (``_render_charter_pack``) from the same
+    ``CharterPackHealthReport`` the JSON surface uses (T035/T036 validation): a
     present snapshot whose profiles failed to load renders *degraded*, not green.
     """
     from io import StringIO
@@ -295,7 +295,7 @@ def test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles(
         "pack_health": project_pack.to_dict(),
     }
 
-    # WP08 (#1623): ``_render_doctrine_pack`` and the ``console`` singleton it
+    # WP08 (#1623): ``_render_charter_pack`` and the ``console`` singleton it
     # emits through were extracted to ``_profile_health_render``; patch the
     # canonical owner so the renderer writes to our buffer.
     from specify_cli.cli.commands import _profile_health_render as render_mod
@@ -304,7 +304,7 @@ def test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles(
     original = render_mod.console
     render_mod.console = Console(file=buf, highlight=False, markup=True, width=200)
     try:
-        doctor_mod._render_doctrine_pack(entry, 0)
+        doctor_mod._render_charter_pack(entry, 0)
     finally:
         render_mod.console = original
     output = buf.getvalue()
@@ -318,20 +318,20 @@ def test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles(
 def test_doctor_doctrine_human_and_json_share_one_report(
     repo_with_invalid_project_profile: Path,
 ) -> None:
-    """Human + JSON derive from the same DoctrineHealthReport (no parallel assembly)."""
+    """Human + JSON derive from the same CharterPackHealthReport (no parallel assembly)."""
     from specify_cli.cli.commands import doctor as doctor_mod
 
     calls: list[int] = []
     real = doctor_mod._collect_profile_health
 
-    def _counting(repo_root: Path) -> DoctrineHealthReport:
+    def _counting(repo_root: Path) -> CharterPackHealthReport:
         calls.append(1)
         return real(repo_root)
 
     with patch.object(doctor_mod, "_collect_profile_health", _counting), patch.object(
         doctor_mod, "locate_project_root", return_value=repo_with_invalid_project_profile
     ):
-        result = runner.invoke(doctor_mod.app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_mod.app, ["charter-packs", "--json"])
     # WP01 (C5): the fixture's invalid profile makes the report unhealthy → RC=1.
     assert result.exit_code == 1, result.output
     # The report is built exactly once per invocation (single source).
@@ -436,7 +436,7 @@ def repo_with_inline_ref_org_profile(tmp_path: Path) -> Path:
         "agents:\n"
         "  available:\n"
         "    - claude\n"
-        "doctrine:\n"
+        "charter_packs:\n"
         "  org:\n"
         "    packs:\n"
         "      - name: example-org\n"
@@ -453,7 +453,7 @@ def test_collect_profile_health_surfaces_inline_ref_and_keeps_siblings(
     """C1/C2: inline-ref org profile ⇒ surfaced skip + healthy=false + valid sibling visible.
 
     Function-level integration override (module marker is ``unit``, P-4): this
-    drives the real ``DoctrineService``/``AgentProfileRepository`` org load.
+    drives the real ``CharterOfferingService``/``AgentProfileRepository`` org load.
     """
     from specify_cli.cli.commands.doctor import _collect_profile_health
 
@@ -493,7 +493,7 @@ def test_doctor_doctrine_json_inline_ref_unhealthy_and_rc1(
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=repo_with_inline_ref_org_profile,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
 
     # C5: loud RC=1 over a hidden RC=0.
     assert result.exit_code == 1, result.output
@@ -501,7 +501,7 @@ def test_doctor_doctrine_json_inline_ref_unhealthy_and_rc1(
     payload = json.loads(result.output)
     # Contract pin: stable top-level + health keys cannot silently regress.
     # WP05 (glossary-pack-doctrine-kind): ``glossary_packs`` is a new nested
-    # health dimension (FR-012/SC-001) folded into ``DoctrineHealthReport``
+    # health dimension (FR-012/SC-001) folded into ``CharterPackHealthReport``
     # alongside the pre-existing agent-profile ``packs``/``org_drg`` keys.
     assert "profile_health" in payload
     health = payload["profile_health"]
@@ -538,7 +538,7 @@ def test_doctor_doctrine_json_healthy_exits_zero(
     clean = repo_with_invalid_project_profile
     # Remove the invalid profile so the report is healthy.
     bad = (
-        clean / ".kittify" / "doctrine" / "agent_profiles" / "broken-bart.agent.yaml"
+        clean / ".kittify" / "charter-packs" / "agent_profiles" / "broken-bart.agent.yaml"
     )
     bad.unlink()
 
@@ -547,7 +547,7 @@ def test_doctor_doctrine_json_healthy_exits_zero(
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=clean,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
 
     payload = json.loads(result.output)
     assert payload["profile_health"]["healthy"] is True
@@ -568,9 +568,9 @@ def test_collector_crash_is_unhealthy_not_vacuous_green() -> None:
     def _boom(*_args: object, **_kwargs: object):  # noqa: ANN202
         raise RuntimeError("simulated profile-load crash")
 
-    # ``DoctrineService`` is imported locally inside ``_collect_profile_health``,
+    # ``CharterOfferingService`` is imported locally inside ``_collect_profile_health``,
     # so patch it at its definition site to force the load to crash.
-    with patch("charter.offering.service.DoctrineService", side_effect=_boom):
+    with patch("charter.offering.service.CharterOfferingService", side_effect=_boom):
         report = doctor_mod._collect_profile_health(_Path("/nonexistent-repo"))
 
     assert report.healthy is False, "a crashed collector must not be green"
@@ -587,7 +587,7 @@ def test_report_unhealthy_when_org_drg_has_errors() -> None:
     blind spot (kills the ``all(...)``-only health computation).
     """
     healthy_pack = PackHealth("builtin", "builtin", 2, 2)
-    report = DoctrineHealthReport(
+    report = CharterPackHealthReport(
         packs=[healthy_pack],
         org_drg={"configured_packs": [], "collision_warnings": [], "errors": ["boom"]},
     )
@@ -596,4 +596,4 @@ def test_report_unhealthy_when_org_drg_has_errors() -> None:
 
 def test_report_empty_packs_is_not_vacuously_healthy() -> None:
     """(b) honest flag: an empty pack list must NOT be vacuously healthy (all([])==True)."""
-    assert DoctrineHealthReport(packs=[]).healthy is False
+    assert CharterPackHealthReport(packs=[]).healthy is False

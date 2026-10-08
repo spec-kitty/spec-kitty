@@ -3,7 +3,7 @@
 Covers the shared, declaration-order, existing-path-filtered primitive that
 :func:`charter.offering.drg.org_pack_config.resolve_org_dirs` and every runtime
 "does this org root actually exist" consumer (``charter.activation.mission_type_profiles``,
-``specify_cli.dossier.manifest``, ``charter.activation.doctrine_service_builder``) now
+``specify_cli.dossier.manifest``, ``charter.activation.active_charter_service_builder``) now
 route onto, instead of each re-implementing the same filter comprehension
 independently.
 """
@@ -31,9 +31,9 @@ def _write_config(repo_root: Path, packs: list[tuple[str, Path]]) -> None:
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     if not packs:
-        lines = ["doctrine:", "  org:", "    packs: []"]
+        lines = ["charter_packs:", "  org:", "    packs: []"]
     else:
-        lines = ["doctrine:", "  org:", "    packs:"]
+        lines = ["charter_packs:", "  org:", "    packs:"]
         for name, local_path in packs:
             lines.append(f"      - name: {name}")
             lines.append(f"        local_path: {local_path}")

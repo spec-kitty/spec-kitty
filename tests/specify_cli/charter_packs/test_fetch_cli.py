@@ -36,36 +36,36 @@ def _write_config(repo_root: Path, body: str) -> Path:
 # load_pack_registry
 # ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
-# doctrine fetch CLI
+# charter fetch CLI
 # ----------------------------------------------------------------------
 @pytest.fixture
 def fetch_app(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> typer.Typer:
-    """Build a small Typer app that just hosts the doctrine subcommands.
+    """Return the charter app that hosts ``fetch``.
 
     Patching ``locate_project_root`` lets us bypass the real .kittify
     discovery and point fetch at ``tmp_path``.
     """
-    import specify_cli.cli.commands.doctrine as doctrine_module
+    from specify_cli.cli.commands.charter import charter_app
 
     monkeypatch.setattr(
         "specify_cli.core.paths.locate_project_root",
         lambda start=None: tmp_path,
     )
-    return doctrine_module.app
+    return charter_app
 
 
-class TestDoctrineFetchCLI:
+class TestCharterFetchCLI:
     def test_fetch_no_config(self, fetch_app: typer.Typer, tmp_path: Path) -> None:
         runner = CliRunner()
         result = runner.invoke(fetch_app, ["fetch"])
         assert result.exit_code == 1
-        assert "No org doctrine packs configured" in result.stdout
+        assert "No org charter packs configured" in result.stdout
 
     def test_fetch_unknown_pack_flag(self, fetch_app: typer.Typer, tmp_path: Path) -> None:
         _write_config(
             tmp_path,
             """
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: security
@@ -87,7 +87,7 @@ class TestDoctrineFetchCLI:
         _write_config(
             tmp_path,
             """
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: security
@@ -125,7 +125,7 @@ class TestDoctrineFetchCLI:
         _write_config(
             tmp_path,
             """
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: security
@@ -152,7 +152,7 @@ class TestDoctrineFetchCLI:
         _write_config(
             tmp_path,
             """
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: security
@@ -176,7 +176,7 @@ class TestDoctrineFetchCLI:
         _write_config(
             tmp_path,
             """
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: security

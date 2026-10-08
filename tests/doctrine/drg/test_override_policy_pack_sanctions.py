@@ -287,7 +287,7 @@ def test_malformed_consumer_is_recorded_empty_and_packs_still_load(tmp_path: Pat
 
 
 def test_pack_whose_sanction_path_is_the_consumer_file_counts_once(tmp_path: Path) -> None:
-    # A pack rooted at the consumer's own ``.kittify/doctrine`` dir: the file there
+    # A pack rooted at the consumer's own ``.kittify/charter-packs`` dir: the file there
     # is the consumer allowlist, so its consumer-only key must not be a pack error.
     _consumer(
         tmp_path,
@@ -302,11 +302,11 @@ def test_pack_whose_sanction_path_is_the_consumer_file_counts_once(tmp_path: Pat
 
 def test_consumer_dedupe_survives_a_symlinked_kittify_dir(tmp_path: Path) -> None:
     real = tmp_path / "real_kittify"
-    _write(real / "doctrine" / PACK_POLICY_FILENAME, _VALID + "revoked_pack_sanctions: []\n")
+    _write(real / "charter-packs" / PACK_POLICY_FILENAME, _VALID + "revoked_pack_sanctions: []\n")
     repo = tmp_path / "repo"
     repo.mkdir()
     _symlink(repo / ".kittify", real, is_dir=True)
-    effective = load_effective_override_policy(repo, {"self": real / "doctrine"})
+    effective = load_effective_override_policy(repo, {"self": real / "charter-packs"})
     assert effective.pack_errors == ()
     assert effective.consumer.is_allowed("directive:risk")
 

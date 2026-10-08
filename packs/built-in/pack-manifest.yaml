@@ -35,7 +35,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/diagram-daisy.agent.yaml
   provenance_path:
-- content_hash: 6c1779acaa8c11438846a30f347bb636dae1a4521bf1297b038e3349ad3f54d9
+- content_hash: 9121635d67c58fa61e91d590ecb9bd8153d1511999529d9459f617ad64abe5db
   id: doctrine-daphne
   kind: agent_profile
   path: agent_profiles/doctrine-daphne.agent.yaml
@@ -505,7 +505,7 @@ constituents:
   kind: procedure
   path: procedures/mission-wrap-up-sequence.procedure.yaml
   provenance_path:
-- content_hash: 75ac49ff16ed3048baaa9f34bdeb954d1d80281eb928dd0d68906b90a74a6e53
+- content_hash: c3abf9d84634b30c3ffb52db3185446f82fc7df98344756c200cd8075260c289
   id: onboard-external-agent-to-pack
   kind: procedure
   path: procedures/onboard-external-agent-to-pack.procedure.yaml
@@ -795,7 +795,7 @@ constituents:
   kind: tactic
   path: tactics/code-review-incremental.tactic.yaml
   provenance_path:
-- content_hash: 2517927f2b9eb57dd41806e56cea99e4718d3440b6c9394762a7deb4b905461e
+- content_hash: a7dca3b32e4d3c5bf7ea748aa4647ce3bf0e0c5fb94a8299ded68af9190d74b6
   id: common-docs-find
   kind: tactic
   path: tactics/common-docs-find.tactic.yaml
@@ -805,7 +805,7 @@ constituents:
   kind: tactic
   path: tactics/common-docs-scaffold.tactic.yaml
   provenance_path:
-- content_hash: 37897afb862e200a6caf82b6a6db0ffbb8520646d4a390ca97f2f9c8890fa15d
+- content_hash: 51121b75effcf08eefc6d5d8d1d648cf4a70e4594c2a46377974c61b83390575
   id: common-docs-write
   kind: tactic
   path: tactics/common-docs-write.tactic.yaml
@@ -1374,8 +1374,8 @@ constituents:
   provenance_path:
 fetched_at:
 generated_at:
-generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 7dbfe9f2dfe2f47004ce724b7c6f437a80bd78c5ce3295dced0c9b120b151bb8
+generated_by: spec-kitty charter pack regenerate-graph
+manifest_hash: 96a2c548c19c471c599716d90062f41a4ab15e9352ec0076bb3afc0a90cf3c6b
 presets:
 - content_hash: f0e3e26b23029c9073d5d7799d41f5ca8bd35e7a13f370d7e1bf400705552fc7
   name: default

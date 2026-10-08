@@ -19,12 +19,11 @@ from ulid import ULID
 
 from charter.offering.pack_paths import built_in_root
 from charter.offering.packs.pack_descriptor import PackDescriptor
+from tests._support.org_pack_config import write_org_packs
 from charter.offering.drg.org_pack_config import (
     _BUILTIN_PACK_ID,
     OrgPackConfig,
-    PackRegistry,
     ensure_pack_identity,
-    save_pack_registry,
     load_pack_registry,
 )
 
@@ -43,20 +42,17 @@ class TestPackDescriptorModel:
         """Create a PackDescriptor with all fields set."""
         pack_id = str(ULID())
         parent_id = str(ULID())
-        doctrine_id = str(ULID())
 
         descriptor = PackDescriptor(
             pack_id=pack_id,
             pack_version="1.0.0",
             parent_pack=parent_id,
-            accompanies_doctrine_pack=doctrine_id,
             name="my-pack",
         )
 
         assert descriptor.pack_id == pack_id
         assert descriptor.pack_version == "1.0.0"
         assert descriptor.parent_pack == parent_id
-        assert descriptor.accompanies_doctrine_pack == doctrine_id
         assert descriptor.name == "my-pack"
 
     def test_pack_descriptor_minimal(self) -> None:
@@ -72,7 +68,6 @@ class TestPackDescriptorModel:
         assert descriptor.pack_id == pack_id
         assert descriptor.pack_version == "1.0.0"
         assert descriptor.parent_pack is None
-        assert descriptor.accompanies_doctrine_pack is None
         assert descriptor.name == "minimal-pack"
 
     def test_pack_descriptor_frozen(self) -> None:
@@ -185,7 +180,7 @@ class TestOrgPackConfigPackId:
     def test_ensure_pack_identity_idempotent(self) -> None:
         """ensure_pack_identity is idempotent for built-in pack."""
         config1 = OrgPackConfig(
-            name="default",
+            name="built-in",
             local_path=Path("/path/to/builtin"),
         )
 
@@ -200,7 +195,7 @@ class TestOrgPackConfigPackId:
 
         # Creating a new instance and calling again yields the same stable id
         config3 = OrgPackConfig(
-            name="default",
+            name="built-in",
             local_path=Path("/path/to/builtin"),
         )
         result3 = ensure_pack_identity(config3)
@@ -209,11 +204,11 @@ class TestOrgPackConfigPackId:
     def test_ensure_pack_identity_stable_builtin_ulid(self) -> None:
         """Built-in pack_id is deterministic across multiple runs."""
         config1 = OrgPackConfig(
-            name="default",
+            name="built-in",
             local_path=Path("/path/to/builtin"),
         )
         config2 = OrgPackConfig(
-            name="default",
+            name="built-in",
             local_path=Path("/path/to/builtin"),
         )
 
@@ -224,6 +219,11 @@ class TestOrgPackConfigPackId:
         assert result1.pack_id is not None
         assert len(result1.pack_id) == 26
         ULID.from_str(result1.pack_id)  # Parses as valid ULID
+
+    def test_ensure_pack_identity_does_not_misidentify_an_org_pack_named_default(self) -> None:
+        """An org pack named ``default`` is not the built-in pack: no built-in pack_id (#3732)."""
+        result = ensure_pack_identity(OrgPackConfig(name="default", local_path=Path("/path/to/org")))
+        assert result.pack_id is None
 
     def test_ensure_pack_identity_noop_for_non_builtin(self) -> None:
         """ensure_pack_identity is a no-op for non-builtin packs without pack_id."""
@@ -255,101 +255,34 @@ class TestOrgPackConfigPackId:
 
 
 class TestPackRegistryPersistence:
-    """PackRegistry serialization and idempotent backfill."""
+    """``pack_id`` is read back from the canonical config block."""
 
-    def test_pack_registry_roundtrip_with_pack_id(self, tmp_path: Path) -> None:
-        """PackRegistry with pack_id persists and reloads correctly."""
+    def test_pack_id_is_read_from_config(self, tmp_path: Path) -> None:
         pack_id = str(ULID())
-        registry = PackRegistry(
-            packs=[
-                OrgPackConfig(
-                    name="test-pack",
-                    pack_id=pack_id,
-                    local_path=Path("./local/pack"),
-                )
-            ]
+        write_org_packs(tmp_path, [{"name": "test-pack", "pack_id": pack_id, "local_path": "./local/pack"}])
+
+        loaded = load_pack_registry(tmp_path)
+
+        assert [(pack.name, pack.pack_id) for pack in loaded.packs] == [("test-pack", pack_id)]
+
+    def test_absent_pack_id_reads_as_none(self, tmp_path: Path) -> None:
+        write_org_packs(tmp_path, [{"name": "unminted-pack", "local_path": "./local/unminted"}])
+
+        loaded = load_pack_registry(tmp_path)
+
+        assert [(pack.name, pack.pack_id) for pack in loaded.packs] == [("unminted-pack", None)]
+
+    def test_multiple_packs_keep_distinct_ids(self, tmp_path: Path) -> None:
+        id1, id2 = str(ULID()), str(ULID())
+        write_org_packs(
+            tmp_path,
+            [
+                {"name": "pack1", "pack_id": id1, "local_path": "./local/pack1"},
+                {"name": "pack2", "pack_id": id2, "local_path": "./local/pack2"},
+            ],
         )
 
-        repo_root = tmp_path
-        save_pack_registry(repo_root, registry)
-        loaded = load_pack_registry(repo_root)
-
-        assert len(loaded.packs) == 1
-        assert loaded.packs[0].pack_id == pack_id
-        assert loaded.packs[0].name == "test-pack"
-
-    def test_pack_registry_roundtrip_without_pack_id(self, tmp_path: Path) -> None:
-        """PackRegistry without pack_id persists as None."""
-        registry = PackRegistry(
-            packs=[
-                OrgPackConfig(
-                    name="legacy-pack",
-                    local_path=Path("./local/legacy"),
-                )
-            ]
-        )
-
-        repo_root = tmp_path
-        save_pack_registry(repo_root, registry)
-        loaded = load_pack_registry(repo_root)
-
-        assert len(loaded.packs) == 1
-        assert loaded.packs[0].pack_id is None
-        assert loaded.packs[0].name == "legacy-pack"
-
-    def test_pack_registry_yaml_structure(self, tmp_path: Path) -> None:
-        """Saved PackRegistry YAML includes pack_id when present."""
-        pack_id = str(ULID())
-        registry = PackRegistry(
-            packs=[
-                OrgPackConfig(
-                    name="test-pack",
-                    pack_id=pack_id,
-                    local_path=Path("./local/pack"),
-                )
-            ]
-        )
-
-        repo_root = tmp_path
-        save_pack_registry(repo_root, registry)
-
-        config_path = repo_root / ".kittify" / "config.yaml"
-        assert config_path.exists()
-        content = config_path.read_text(encoding="utf-8")
-
-        # YAML should contain both name and pack_id
-        assert "test-pack" in content
-        assert pack_id in content
-
-    def test_pack_registry_multiple_packs_distinct_ids(
-        self, tmp_path: Path
-    ) -> None:
-        """Multiple packs with distinct pack_ids persist correctly."""
-        id1 = str(ULID())
-        id2 = str(ULID())
-
-        registry = PackRegistry(
-            packs=[
-                OrgPackConfig(
-                    name="pack1",
-                    pack_id=id1,
-                    local_path=Path("./local/pack1"),
-                ),
-                OrgPackConfig(
-                    name="pack2",
-                    pack_id=id2,
-                    local_path=Path("./local/pack2"),
-                ),
-            ]
-        )
-
-        repo_root = tmp_path
-        save_pack_registry(repo_root, registry)
-        loaded = load_pack_registry(repo_root)
-
-        assert len(loaded.packs) == 2
-        ids = {pack.pack_id for pack in loaded.packs}
-        assert ids == {id1, id2}
+        assert {pack.pack_id for pack in load_pack_registry(tmp_path).packs} == {id1, id2}
 
 
 # =============================================================================

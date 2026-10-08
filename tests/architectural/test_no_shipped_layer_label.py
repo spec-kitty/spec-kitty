@@ -65,7 +65,7 @@ def _materialise_fixture_pack(root: Path) -> Path:
     """Create a minimal, schema-valid org doctrine pack on disk.
 
     Returns the pack directory. The pack contains one directive so that
-    ``doctrine pack validate`` exercises every code path that could emit a
+    ``charter pack validate`` exercises every code path that could emit a
     layer label (existence check, schema check, collision detection).
     """
     pack_dir = root / "fixture-pack"
@@ -186,35 +186,35 @@ def test_charter_preflight_has_no_shipped_layer_label(tmp_path: Path) -> None:
     )
 
 
-def test_doctrine_pack_validate_has_no_shipped_layer_label(
+def test_charter_pack_validate_has_no_shipped_layer_label(
     runner: CliRunner, fixture_pack: Path
 ) -> None:
-    """FR-016 — 5th surface: ``doctrine pack validate --json`` against a
+    """FR-016 — 5th surface: ``charter pack validate --json`` against a
     fixture pack must not surface ``"shipped"`` as a layer label in any
     validation message or advisory.
     """
-    cmd = ["doctrine", "pack", "validate", str(fixture_pack), "--json"]
+    cmd = ["charter", "pack", "validate", str(fixture_pack), "--json"]
     result = runner.invoke(spec_kitty_app, cmd)
     assert result.exit_code in (0, 1), (
-        f"doctrine pack validate exited unexpectedly: "
+        f"charter pack validate exited unexpectedly: "
         f"exit={result.exit_code} stdout={result.stdout[:500]!r}"
     )
     assert result.stdout.strip(), (
-        "doctrine pack validate --json produced no JSON; the architectural "
+        "charter pack validate --json produced no JSON; the architectural "
         "regression test cannot skip silently (FR-016)."
     )
     try:
         payload = json.loads(result.stdout)
     except json.JSONDecodeError as exc:
         pytest.fail(
-            f"doctrine pack validate did not emit valid JSON: {exc}\n"
+            f"charter pack validate did not emit valid JSON: {exc}\n"
             f"stdout: {result.stdout[:500]!r}"
         )
 
     labels = list(_layer_label_values(payload))
     forbidden = [label for label in labels if label == FORBIDDEN_LAYER_LABEL]
     assert not forbidden, (
-        f"doctrine pack validate --json still emits "
+        f"charter pack validate --json still emits "
         f"{FORBIDDEN_LAYER_LABEL!r} as a layer label. "
         f"Payload: {json.dumps(payload)[:600]}"
     )
@@ -236,7 +236,7 @@ def test_doctrine_pack_validate_has_no_shipped_layer_label(
         msg for msg in _iter_messages(payload) if FORBIDDEN_LAYER_LABEL in msg
     ]
     assert not messages_with_shipped, (
-        "doctrine pack validate --json messages still mention "
+        "charter pack validate --json messages still mention "
         f"{FORBIDDEN_LAYER_LABEL!r}: {messages_with_shipped}"
     )
 

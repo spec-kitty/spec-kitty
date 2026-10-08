@@ -8,7 +8,7 @@ rendered), while an activated profile renders normally.
 
 Crucially, this gate is scoped to **only** the ``agent-profile`` include
 branch. The other include kinds (directive / tactic / paradigm / template /
-section) and the five non-profile callers of ``_build_doctrine_service`` are
+section) and the five non-profile callers of ``_build_offering_service`` are
 left on the unwrapped service and must keep their pre-#1636 behaviour.
 
 The doctrine-service-backed kinds are exercised against stub doubles so the
@@ -37,7 +37,7 @@ pytestmark = pytest.mark.fast
 class _StubRepo:
     """Repository stub exposing both ``get`` and ``list_all``.
 
-    The activation-aware wrapper (:class:`charter.activation.resolver.DoctrineService`)
+    The activation-aware wrapper (:class:`charter.activation.resolver.ActiveCharterService`)
     calls ``agent_profiles.list_all()`` to build its filtered dict, so the
     profile repo stub must provide ``list_all`` in addition to the ``get``
     used by the unwrapped render path.
@@ -57,7 +57,7 @@ class _StubRepo:
 
 
 class _StubService:
-    """DoctrineService stand-in carrying the kinds WP05 routes."""
+    """ActiveCharterService stand-in carrying the kinds WP05 routes."""
 
     def __init__(
         self,
@@ -86,15 +86,15 @@ class _DummyParadigm:
 
 
 def _patch_service(monkeypatch: pytest.MonkeyPatch, service: _StubService) -> None:
-    """Route ``_build_doctrine_service`` onto a stub doctrine service.
+    """Route ``_build_offering_service`` onto a stub doctrine service.
 
-    Because ``_build_activation_aware_doctrine_service`` builds its inner
-    service via ``_build_doctrine_service``, patching this single seam covers
+    Because ``_build_active_charter_service`` builds its inner
+    service via ``_build_offering_service``, patching this single seam covers
     both the wrapped (agent-profile) and unwrapped (everything else) paths.
     """
     monkeypatch.setattr(
         context_module,
-        "_build_doctrine_service",
+        "_build_offering_service",
         lambda repo_root, *, org_roots=None: service,
     )
 
@@ -104,7 +104,7 @@ def _write_activation_config(repo_root: Path, *, activated: list[str]) -> None:
 
     Also provisions ``mission_type_activations`` (WP04, C-A1: the provisioned
     charter is the sole activation authority for mission types) so
-    ``PackContext.from_config`` -- which ``_build_activation_aware_doctrine_service``
+    ``PackContext.from_config`` -- which ``_build_active_charter_service``
     always calls for the agent-profile include branch -- does not hard-fail on
     a genuinely absent key. These tests are only exercising the
     ``activated_agent_profiles`` gate, so a generic mission type is fine.
@@ -218,7 +218,7 @@ class TestScopedToAgentProfileOnly:
         # activation-aware wrapper, whether or not a restriction is configured.
         # The unrestricted (``None``) case stays byte-identical in *behaviour*
         # because the wrapper's None branch admits every profile.
-        from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
+        from charter.activation.resolver import ActiveCharterService
 
         stub = _StubService(
             agent_profiles=_StubRepo(
@@ -229,8 +229,8 @@ class TestScopedToAgentProfileOnly:
 
         # Restriction present -> wrapped (activation-aware) service.
         _write_activation_config(tmp_path, activated=["python-pedro"])
-        wrapped = context_module._build_activation_aware_doctrine_service(tmp_path)
-        assert isinstance(wrapped, ActivationAwareDoctrineService)
+        wrapped = context_module._build_active_charter_service(tmp_path)
+        assert isinstance(wrapped, ActiveCharterService)
 
         # No restriction -> STILL wrapped, and the None branch admits all so the
         # gated map carries the profile unchanged (single contract, R5).
@@ -240,8 +240,8 @@ class TestScopedToAgentProfileOnly:
         (tmp_path / ".kittify" / "config.yaml").write_text(
             "mission_type_activations:\n  - software-dev\n", encoding="utf-8"
         )
-        unrestricted = context_module._build_activation_aware_doctrine_service(tmp_path)
-        assert isinstance(unrestricted, ActivationAwareDoctrineService)
+        unrestricted = context_module._build_active_charter_service(tmp_path)
+        assert isinstance(unrestricted, ActiveCharterService)
         assert object.__getattribute__(unrestricted, "_inner") is stub
         assert "python-pedro" in unrestricted.agent_profiles
 
@@ -250,7 +250,7 @@ class TestScopedToAgentProfileOnly:
     ) -> None:
         # Even with an agent-profile activation restriction in place, the
         # non-profile include branches (e.g. paradigm) must continue to use the
-        # plain ``_build_doctrine_service`` and render without any activation
+        # plain ``_build_offering_service`` and render without any activation
         # filtering — the gate must not bleed into other kinds.
         _write_activation_config(tmp_path, activated=["reviewer-renata"])
         paradigm = _DummyParadigm(paradigm_id="tdd", name="Test Driven Development")
@@ -267,7 +267,7 @@ class TestScopedToAgentProfileOnly:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         # Regression guard: the non-profile branches call the *unwrapped*
-        # ``_build_doctrine_service`` exactly once and never construct an
+        # ``_build_offering_service`` exactly once and never construct an
         # activation-aware wrapper (the helper must not be invoked).
         _write_activation_config(tmp_path, activated=["reviewer-renata"])
         paradigm = _DummyParadigm(paradigm_id="tdd", name="Test Driven Development")
@@ -279,7 +279,7 @@ class TestScopedToAgentProfileOnly:
             plain_calls.append(repo_root)
             return stub
 
-        monkeypatch.setattr(context_module, "_build_doctrine_service", _record)
+        monkeypatch.setattr(context_module, "_build_offering_service", _record)
 
         def _explode(*_args: Any, **_kwargs: Any) -> Any:
             raise AssertionError(
@@ -287,7 +287,7 @@ class TestScopedToAgentProfileOnly:
             )
 
         monkeypatch.setattr(
-            context_module, "_build_activation_aware_doctrine_service", _explode
+            context_module, "_build_active_charter_service", _explode
         )
 
         build_charter_context_include(tmp_path, "paradigm:tdd")

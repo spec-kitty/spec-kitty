@@ -234,7 +234,7 @@ class TestBackwardCompatibility:
         config_dir = tmp_path / ".kittify"
         config_dir.mkdir(parents=True)
         (config_dir / "config.yaml").write_text(
-            f"doctrine:\n  org:\n    packs:\n      - name: legacy\n        local_path: {pack!s}\n",
+            f"charter_packs:\n  org:\n    packs:\n      - name: legacy\n        local_path: {pack!s}\n",
             encoding="utf-8",
         )
 
@@ -320,7 +320,7 @@ class TestNoConfigYamlReadInResolver:
         config_dir = tmp_path / ".kittify"
         config_dir.mkdir(parents=True)
         (config_dir / "config.yaml").write_text(
-            f"doctrine:\n  org:\n    packs:\n      - name: decoy-pack\n        local_path: {decoy_pack!s}\n",
+            f"charter_packs:\n  org:\n    packs:\n      - name: decoy-pack\n        local_path: {decoy_pack!s}\n",
             encoding="utf-8",
         )
 

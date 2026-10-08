@@ -57,10 +57,10 @@ def _lint_module() -> Iterator[ModuleType]:
     fixture, which a module-scoped fixture cannot depend on — keeps that
     registration and undoes it once every test in this module has run.
     """
-    from charter.offering.service import DoctrineService
+    from charter.offering.service import CharterOfferingService
 
     global LintConfig, check_one_index_per_dir, check_sanctioned_section_membership
-    asset_path = DoctrineService().assets.resolve_path("common-docs-structural-lint")
+    asset_path = CharterOfferingService().assets.resolve_path("common-docs-structural-lint")
     with pytest.MonkeyPatch.context() as mp:
         spec = importlib.util.spec_from_file_location(_LINT_ASSET_MODULE_NAME, asset_path)
         assert spec is not None and spec.loader is not None

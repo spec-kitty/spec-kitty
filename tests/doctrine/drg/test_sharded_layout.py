@@ -1,6 +1,6 @@
 """WP05 (mission #2680) — sharded built-in DRG layout invariants.
 
-After ``spec-kitty doctrine regenerate-graph`` the shipped built-in DRG is
+After ``spec-kitty charter pack regenerate-graph`` the shipped built-in DRG is
 stored as one ``src/charter/offering/<kind>.graph.yaml`` fragment per **populated**
 node-kind, and the ``src/charter/offering/graph.yaml`` monolith is removed in the same
 change (DD-7 atomic retire; DD-8 partition totality).

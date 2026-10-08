@@ -1,4 +1,4 @@
-"""Tests for DoctrineService lazy aggregation behavior."""
+"""Tests for CharterOfferingService lazy aggregation behavior."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.offering.drg.models import DRGGraph, Relation
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -24,7 +24,7 @@ def _write_yaml(path: Path, data: dict) -> None:
 def _packs_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     """Point ``SPEC_KITTY_PACKS_ROOT`` at an isolated flat ``<tmp>/packs/built-in/`` tree.
 
-    Replaces the retired ``DoctrineService(built_in_root=...)`` param (C-007):
+    Replaces the retired ``CharterOfferingService(built_in_root=...)`` param (C-007):
     the built-in tier is now injected via the env override instead of a
     constructor kwarg, and the on-disk layout is FLAT (``packs/built-in/<kind>/``),
     not the old nested ``<root>/<kind>/built-in/`` shape.
@@ -87,7 +87,7 @@ def test_service_loads_all_repositories_from_built_in_defaults(
          }},
     )
 
-    service = DoctrineService()
+    service = CharterOfferingService()
 
     assert {d.id for d in service.directives.list_all()} == {"DIRECTIVE_001"}
     assert service.tactics.get("test-tactic") is not None
@@ -99,7 +99,7 @@ def test_service_loads_all_repositories_from_built_in_defaults(
 
 
 def test_service_repositories_are_lazily_cached() -> None:
-    service = DoctrineService()
+    service = CharterOfferingService()
     assert service._cache == {}
 
     first_directives = service.directives
@@ -143,7 +143,7 @@ def test_service_honors_custom_built_in_and_project_roots(
         project_override,
     )
 
-    service = DoctrineService(project_root=project_root)
+    service = CharterOfferingService(project_root=project_root)
     directive = service.directives.get("DIRECTIVE_CUSTOM")
     assert directive is not None
     assert directive.title == "Overridden Directive"
@@ -154,7 +154,7 @@ def test_service_loads_synthesized_project_root_singular_kind_dirs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _packs_root(monkeypatch, tmp_path)
-    project_root = tmp_path / ".kittify" / "doctrine"
+    project_root = tmp_path / ".kittify" / "charter-packs"
 
     _write_yaml(
         project_root / "directive" / "001-project.directive.yaml",
@@ -186,7 +186,7 @@ def test_service_loads_synthesized_project_root_singular_kind_dirs(
         },
     )
 
-    service = DoctrineService(project_root=project_root)
+    service = CharterOfferingService(project_root=project_root)
 
     assert service.directives.get("PROJECT_001") is not None
     assert service.tactics.get("project-tactic") is not None
@@ -197,7 +197,7 @@ def test_service_ignores_legacy_plural_dirs_for_synthesized_project_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     _packs_root(monkeypatch, tmp_path)
-    project_root = tmp_path / ".kittify" / "doctrine"
+    project_root = tmp_path / ".kittify" / "charter-packs"
 
     _write_yaml(
         project_root / "directives" / "001-legacy.directive.yaml",
@@ -229,7 +229,7 @@ def test_service_ignores_legacy_plural_dirs_for_synthesized_project_root(
         },
     )
 
-    service = DoctrineService(project_root=project_root)
+    service = CharterOfferingService(project_root=project_root)
 
     assert service.directives.get("PROJECT_LEGACY") is None
     assert service.tactics.get("legacy-tactic") is None
@@ -326,7 +326,7 @@ def test_service_filters_language_scoped_artifacts_when_active_languages_do_not_
         },
     )
 
-    service = DoctrineService(active_languages=["typescript"])
+    service = CharterOfferingService(active_languages=["typescript"])
 
     assert service.styleguides.get("generic-style") is not None
     assert service.styleguides.get("python-style") is None
@@ -381,7 +381,7 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
         },
     )
 
-    service = DoctrineService()
+    service = CharterOfferingService()
 
     assert service.styleguides.get("python-style") is not None
     assert service.toolguides.get("python-tool") is not None
@@ -389,7 +389,7 @@ def test_service_keeps_language_scoped_artifacts_when_active_languages_are_unset
 
 
 def test_service_exposes_specification_by_example_artifacts(built_in_graph: DRGGraph) -> None:
-    service = DoctrineService()
+    service = CharterOfferingService()
     graph = built_in_graph
 
     paradigm = service.paradigms.get("specification-by-example")
@@ -435,9 +435,9 @@ def test_service_project_dir_uses_hoisted_authority(tmp_path: Path) -> None:
     """T023 (contract A-5): the project-tier dir comes from the single authority."""
     from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
 
-    project_root = tmp_path / ".kittify" / "doctrine"
+    project_root = tmp_path / ".kittify" / "charter-packs"
     project_root.mkdir(parents=True)
-    service = DoctrineService(project_root=project_root)
+    service = CharterOfferingService(project_root=project_root)
 
     # A singular-mapped kind (directive -> "directive") proves the authority
     # is consulted rather than an identity fallback on the plural.
@@ -452,8 +452,8 @@ def test_service_project_dir_uses_hoisted_authority(tmp_path: Path) -> None:
 
 
 def test_service_assets_resolves_shipped_asset() -> None:
-    """T024: ``DoctrineService.assets`` resolves the one shipped asset."""
-    service = DoctrineService()
+    """T024: ``CharterOfferingService.assets`` resolves the one shipped asset."""
+    service = CharterOfferingService()
     resolved = service.assets.resolve_path("common-docs-structural-lint")
     assert resolved.exists()
     assert resolved.name == "docs_structural_lint.py"
@@ -461,7 +461,7 @@ def test_service_assets_resolves_shipped_asset() -> None:
 
 
 def test_service_assets_is_lazily_cached() -> None:
-    service = DoctrineService()
+    service = CharterOfferingService()
     assert "assets" not in service._cache
     first = service.assets
     assert "assets" in service._cache

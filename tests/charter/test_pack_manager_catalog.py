@@ -165,7 +165,7 @@ class TestListAvailableAcrossLayers:
         """FR-026: org + project doctrine roots (passed as data) are scanned."""
         org_root = tmp_path / "org-doctrine"
         project_root = tmp_path / "project-doctrine"
-        _write_directive(org_root / "doctrine" / "directives" / "org", "900-org-rule", "DIRECTIVE_900")
+        _write_directive(org_root / "directives", "900-org-rule", "DIRECTIVE_900")
         _write_directive(
             project_root / "doctrine" / "directive",
             "950-project-rule",
@@ -206,7 +206,7 @@ class TestListAvailableAcrossLayers:
 
     def test_detailed_carries_layer_per_artifact(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
         org_root = tmp_path / "org-doctrine"
-        _write_directive(org_root / "doctrine" / "directives" / "org", "900-org-rule", "DIRECTIVE_900")
+        _write_directive(org_root / "directives", "900-org-rule", "DIRECTIVE_900")
 
         detailed = manager.list_available_detailed(
             ctx, kind="directive", layer_roots={"org": org_root}
@@ -218,7 +218,7 @@ class TestListAvailableAcrossLayers:
     def test_layer_roots_default_is_built_in_only(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
         """Omitting layer_roots scans built-in only (backward compatible)."""
         org_root = tmp_path / "org-doctrine"
-        _write_directive(org_root / "doctrine" / "directives" / "org", "900-org-rule", "DIRECTIVE_900")
+        _write_directive(org_root / "directives", "900-org-rule", "DIRECTIVE_900")
         result = manager.list_available(ctx, kind="directive")
         assert "900-org-rule" not in result
 
@@ -227,7 +227,7 @@ class TestListAvailableIdAware:
     def test_skips_files_without_declared_id(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
         """R-011-D: a file with no ``id:`` field is not a catalog artifact."""
         org_root = tmp_path / "org-doctrine"
-        good_dir = org_root / "doctrine" / "directives" / "org"
+        good_dir = org_root / "directives"
         good_dir.mkdir(parents=True)
         # Valid artifact (has id:)
         (good_dir / "900-good.directive.yaml").write_text(
@@ -275,7 +275,7 @@ class TestActivationDelegation:
     ) -> None:
         org_root = tmp_path / "org-doctrine"
         _write_directive(
-            org_root / "doctrine" / "directives" / "org",
+            org_root / "directives",
             "900-org-rule",
             "DIRECTIVE_900",
         )
@@ -366,18 +366,18 @@ class TestResolveLayerCandidate:
 
     def test_project_layer_layered_uses_project_kind_dir(self, tmp_path: Path) -> None:
         candidate = _resolve_layer_candidate(
-            "project", tmp_path, ArtifactKind.DIRECTIVE, "doctrine/directives", layered=True
+            "project", tmp_path, ArtifactKind.DIRECTIVE, "directives", layered=True
         )
         # ``root`` is the project pack root: the kind dir joins straight onto it.
         assert candidate == tmp_path / "directive"
 
     def test_org_layer_layered_delegates_to_org_layer_resolver(self, tmp_path: Path) -> None:
-        # No flat ``tmp_path/directives`` dir exists, so the org resolver's
-        # nested-layout fallback applies (see ``_resolve_org_layer_dir``).
+        # The org layer is the flat ``<pack>/<plural>/`` dir; the retired nested
+        # layout is not read (FR-011, see ``_resolve_org_layer_dir``).
         candidate = _resolve_layer_candidate(
-            "org", tmp_path, ArtifactKind.DIRECTIVE, "doctrine/directives", layered=True
+            "org", tmp_path, ArtifactKind.DIRECTIVE, "directives", layered=True
         )
-        assert candidate == tmp_path / "doctrine/directives" / "org"
+        assert candidate == tmp_path / "directives"
 
     def test_built_in_layer_layered_delegates_to_built_in_dir(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -387,7 +387,7 @@ class TestResolveLayerCandidate:
             "charter.activation.pack_manager.built_in_dir", lambda kind: sentinel if kind is ArtifactKind.DIRECTIVE else None
         )
         candidate = _resolve_layer_candidate(
-            "built-in", tmp_path, ArtifactKind.DIRECTIVE, "doctrine/directives", layered=True
+            "built-in", tmp_path, ArtifactKind.DIRECTIVE, "directives", layered=True
         )
         assert candidate == sentinel
 

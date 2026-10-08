@@ -281,7 +281,7 @@ Each procedure describes a complete mini-workflow (e.g., a refactoring
 sequence, a test-first bug fix, a situational assessment).
 
 Procedures live in `packs/built-in/procedures/` (shipped) or
-`.kittify/procedures/` (project-local). Access via `DoctrineService`:
+`.kittify/procedures/` (project-local). Access via `ActiveCharterService`:
 
 ```python
 procedure = service.procedures.get("refactoring")

@@ -480,37 +480,27 @@ def _verify_single_artifact(tmp_path: Path, artifact_rel: str) -> None:
     verify(manifest, tmp_path)
 
 
-def test_verify_legacy_root_read_fallback(tmp_path: Path) -> None:
-    """TEMPORARY (FR-011, deleted by WP14): a pre-cutover manifest still verifies.
-
-    Manifests written before the cutover migration list artifacts under the
-    retired ``.kittify/doctrine/`` prefix; until WP11 rewrites them, ``verify``
-    accepts that prefix on read through ``_is_legacy_artifact_prefix``.
-    """
-    _verify_single_artifact(tmp_path, ".kittify/doctrine/tactic/legacy-tactic.tactic.yaml")
-
-
-def test_verify_legacy_root_read_fallback_still_rejects_traversal(tmp_path: Path) -> None:
-    """TEMPORARY (deleted by WP14): the legacy prefix does not open a traversal hole."""
-    with pytest.raises(ValueError, match="repo-relative"):
-        _verify_single_artifact(tmp_path, ".kittify/doctrine/../charter/provenance/tactic-escape.yaml")
-
-
-def test_verify_rejects_artifact_path_outside_both_prefixes(tmp_path: Path) -> None:
-    """Only the project charter pack root (and, until WP14, the retired root) is accepted."""
+@pytest.mark.parametrize(
+    "artifact_rel",
+    [".kittify/elsewhere/tactic/legacy-tactic.tactic.yaml", ".kittify/doctrine/tactic/legacy-tactic.tactic.yaml"],
+    ids=["elsewhere", "retired-root"],
+)
+def test_verify_rejects_artifact_path_outside_the_project_pack_root(tmp_path: Path, artifact_rel: str) -> None:
+    """Only the project charter pack root is accepted; the retired root no longer is (FR-011)."""
     with pytest.raises(ValueError, match=r"must be under \.kittify/charter-packs"):
-        _verify_single_artifact(tmp_path, ".kittify/elsewhere/tactic/legacy-tactic.tactic.yaml")
+        _verify_single_artifact(tmp_path, artifact_rel)
 
 
-def test_artifact_prefix_is_project_pack_root_and_legacy_predicate_is_narrow(tmp_path: Path) -> None:
+def test_verify_accepts_an_artifact_under_the_project_pack_root(tmp_path: Path) -> None:
+    """Control: the same artifact under the project charter pack root verifies."""
+    _verify_single_artifact(tmp_path, ".kittify/charter-packs/tactic/legacy-tactic.tactic.yaml")
+
+
+def test_artifact_prefix_is_project_pack_root(tmp_path: Path) -> None:
     """New manifest entries always carry the project charter pack root (FR-016)."""
-    from charter.activation.synthesizer.manifest import _ARTIFACT_PATH_PREFIX, _is_legacy_artifact_prefix
+    from charter.activation.synthesizer.manifest import _ARTIFACT_PATH_PREFIX
 
     assert _ARTIFACT_PATH_PREFIX.as_posix() == ".kittify/charter-packs"
-    assert _is_legacy_artifact_prefix(".kittify/doctrine/tactic/x.tactic.yaml")
-    assert _is_legacy_artifact_prefix(".kittify\\doctrine\\tactic\\x.tactic.yaml")
-    assert not _is_legacy_artifact_prefix(".kittify/charter-packs/tactic/x.tactic.yaml")
-    assert not _is_legacy_artifact_prefix(".kittify/doctrinex/tactic/x.tactic.yaml")
 
 
 # ---------------------------------------------------------------------------

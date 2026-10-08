@@ -1,4 +1,4 @@
-"""Contract tests for the OrgDoctrineSource protocol and the three concrete
+"""Contract tests for the OrgCharterPackSource protocol and the three concrete
 implementations: GitSource, HttpsBundleSource, ApiSource.
 
 These tests intentionally exercise the **public contract** (the protocol
@@ -28,7 +28,7 @@ from specify_cli.charter_packs.sources import (
     FetchResult,
     GitSource,
     HttpsBundleSource,
-    OrgDoctrineSource,
+    OrgCharterPackSource,
 )
 
 
@@ -39,20 +39,20 @@ from specify_cli.charter_packs.sources import (
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-class TestOrgDoctrineSourceProtocol:
+class TestOrgCharterPackSourceProtocol:
     """The runtime_checkable protocol must accept all three concrete sources."""
 
     def test_git_source_satisfies_protocol(self) -> None:
         source = GitSource(url="git@example.com:org/charter.offering.git")
-        assert isinstance(source, OrgDoctrineSource)
+        assert isinstance(source, OrgCharterPackSource)
 
     def test_https_source_satisfies_protocol(self) -> None:
         source = HttpsBundleSource(url="https://example.com/pack.tar.gz")
-        assert isinstance(source, OrgDoctrineSource)
+        assert isinstance(source, OrgCharterPackSource)
 
     def test_api_source_satisfies_protocol(self) -> None:
         source = ApiSource(url="https://example.com/api")
-        assert isinstance(source, OrgDoctrineSource)
+        assert isinstance(source, OrgCharterPackSource)
 
     def test_fetch_result_defaults(self) -> None:
         result = FetchResult(ok=True, artifacts_written=0, pack_version=None)

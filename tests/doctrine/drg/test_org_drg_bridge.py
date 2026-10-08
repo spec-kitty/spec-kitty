@@ -1076,7 +1076,7 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
     validator, not the URN minter". The reasoning is right and the deferral is
     sound — but the control it defers to has to actually run somewhere, and it
     did not: no production caller of :func:`merge_three_layers`
-    (``_doctrine_collect``, ``charter.lint``, ``_profile_health_render``,
+    (``_charter_pack_collect``, ``charter.lint``, ``_profile_health_render``,
     ``charter._status_collectors``) called
     :func:`charter.offering.drg.validator.validate_graph` or ``assert_valid``. Measured
     consequence: a one-character typo in a qualified endpoint merged clean.
@@ -1102,7 +1102,7 @@ class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
         from a legitimate reference into a sibling pack the caller did not load
         (``charter lint`` merges org fragments against an EMPTY built-in graph
         on purpose). Escalation to an error belongs to the caller that holds a
-        complete graph — see the ``doctor doctrine`` coverage.
+        complete graph — see the ``doctor charter-packs`` coverage.
         """
         fragment = _fragment(
             [{"id": "mine", "kind": "directives"}],
@@ -1310,7 +1310,7 @@ class TestResolutionPrecedence:
 
         If a bare id could bind to an *earlier fragment's* node, whether a
         pack's edge resolved would depend on the operator's
-        ``organisation_packs:`` ordering — an order-dependent graph is a
+        ``charter_packs.org.packs`` ordering — an order-dependent graph is a
         silent-difference generator of the same family this mission closes.
         Both orderings must produce the same verdict.
         """

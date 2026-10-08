@@ -147,7 +147,7 @@ edges, so its `SKILL.md` has no such section.
 
 ### What Spec Kitty refuses
 
-For project and org skills, Spec Kitty skips the skill file with a warning (and `doctor doctrine`
+For project and org skills, Spec Kitty skips the skill file with a warning (and `doctor charter-packs`
 reports it) when:
 
 - the id or its rendered name starts with `spk-`, `spec-kitty-` or `spec-kitty.`;
@@ -166,7 +166,7 @@ Projection refuses, and writes no skill file, when:
 - a skill is installed or listed in `activated_skills`, and a configured org pack is not fetched or its
   `org-charter.yaml` cannot be read (run `spec-kitty charter fetch --pack <name>` or fix the file).
 
-To see the skipped files, run `spec-kitty doctor doctrine --json` and read
+To see the skipped files, run `spec-kitty doctor charter-packs --json` and read
 `profile_health.skills.invalid_skills`.
 
 A skipped file is harmless while nothing activates it. If a skill that is **already in force**

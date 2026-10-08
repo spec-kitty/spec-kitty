@@ -40,7 +40,7 @@ from charter.activation.cascade import (
     referenced_but_not_cascaded,
 )
 from charter.drg import DRGLoadError
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.drg_activation import load_org_drg
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
@@ -157,7 +157,7 @@ def _source_urn(
         resolved: str = resolve_artifact_urn(
             kind_enum,
             artifact_id,
-            doctrine_root=resolve_doctrine_root(),
+            offering_root=resolve_offering_root(),
             org_roots=org_roots,
             layer_roots=layer_roots,
         )
@@ -326,7 +326,7 @@ def _render_cascade_activation(
         org_fragments=load_org_drg(repo_root, strict=False),
     )
     result = cascade_activation_targets(graph, source_urn, scope)
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
 
     for kind_value in sorted(result.activated):
         kind_token = ArtifactKind(kind_value).operator_token
@@ -334,7 +334,7 @@ def _render_cascade_activation(
             # The cascade engine reports DRG bare IDs; activation lists use
             # config-stem IDs. Resolve back through the kind-vocabulary bridge.
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{cascade_drg_id}", doctrine_root, layer_roots, org_roots
+                f"{kind_value}:{cascade_drg_id}", offering_root, layer_roots, org_roots
             )
             try:
                 _activate_cascade_target(
@@ -357,7 +357,7 @@ def _render_cascade_activation(
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_id in result.skipped_by_scope[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{skipped_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{skipped_id}", offering_root, layer_roots, org_roots, render_pass
             )
             console.print(
                 f"[dim]Skipped (out of scope)[/dim]: {kind_token}/{config_id}"
@@ -374,7 +374,7 @@ def _render_cascade_activation(
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in result.not_cascaded_kind_filtered[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{filtered_id}", offering_root, layer_roots, org_roots, render_pass
             )
             render_kind_filtered_line(kind_token, config_id)
 
@@ -401,12 +401,12 @@ def _render_tension_warnings(repo_root: Path) -> None:
     """Surface unreconciled tension findings as activate-time warnings (FR-010).
 
     Calls the SAME scan :func:`charter.activation.consistency_check.scan_unreconciled_tensions`
-    that ``spec-kitty charter pack consistency-check`` uses (single canonical
+    that ``spec-kitty charter consistency-check`` uses (single canonical
     authority, contracts/tension-finding.md SC-001) so this warning and that
     JSON surface can never render a tension pair differently.
 
     Builds its own fully-populated :class:`ProjectContext` via
-    :meth:`ProjectContext.from_repo` (matching ``pack.py``'s consistency-check
+    :meth:`ProjectContext.from_repo` (matching ``consistency_check.py``'s
     command) rather than reusing the caller's ``ctx_project`` -- the
     ``activate_cmd``/``deactivate_cmd`` local is a bare
     ``ProjectContext(repo_root=repo_root)`` with ``pack_context=None``, which
@@ -462,7 +462,7 @@ def _render_no_cascade_warning(
     report = referenced_but_not_cascaded(graph, source_urn)
     if not report.has_skipped:
         return
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     # A read-only render: one resolution pass parses each artifact file once
     # for every warning line, not once per referenced artifact (#5526).
     render_pass = ResolutionPass()
@@ -470,7 +470,7 @@ def _render_no_cascade_warning(
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_drg_id in report.skipped[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{skipped_drg_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{skipped_drg_id}", offering_root, layer_roots, org_roots, render_pass
             )
             console.print(
                 f"[yellow]Warning[/yellow]: referenced {kind_token}/{config_id} "
@@ -502,7 +502,7 @@ def _render_no_cascade_warning(
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in report.not_cascaded_kind_filtered[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{filtered_id}", offering_root, layer_roots, org_roots, render_pass
             )
             render_kind_filtered_line(kind_token, config_id)
 
@@ -517,8 +517,7 @@ def recompile_catalog(repo_root: Path) -> list[str]:
     `activate_cmd` and `deactivate_cmd` (FR-001/FR-002) unless `--no-compile`
     is passed.
 
-    Modeled EXACTLY on `pack.py`'s `_compile_bundle_after_merge` (the
-    `charter pack apply --compile` seam) -- the same
+    Uses the same
     `_load_interview_for_generate(..., from_interview=False, ...)` ->
     `compile_charter` -> `write_compiled_charter` call chain `charter
     generate --no-from-interview` itself uses (single compiler authority,
@@ -547,7 +546,7 @@ def recompile_catalog(repo_root: Path) -> list[str]:
 
     from specify_cli.cli.commands.charter._common import _interview_path  # noqa: PLC0415
     from specify_cli.cli.commands.charter.generate import (  # noqa: PLC0415
-        _build_doctrine_service_with_org_layer,
+        _build_active_charter_service_with_org_layer,
         _load_interview_for_generate,
     )
 
@@ -585,7 +584,7 @@ def recompile_catalog(repo_root: Path) -> list[str]:
         mission=resolved_mission,
         interview=interview_data,
         repo_root=repo_root,
-        doctrine_service=_build_doctrine_service_with_org_layer(repo_root),
+        charter_service=_build_active_charter_service_with_org_layer(repo_root),
         pack_context=PackContext.from_config(repo_root),
     )
     bundle_result = write_compiled_charter(charter_dir, compiled, repo_root=repo_root)
