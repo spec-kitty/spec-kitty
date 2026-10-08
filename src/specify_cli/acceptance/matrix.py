@@ -22,7 +22,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 from kernel.atomic import atomic_write
 from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
-from specify_cli.status import BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS, feature_status_lock
+from specify_cli.status import BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS, mission_write_lock
 
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
@@ -581,10 +581,12 @@ def locked_reread_splice_and_write(
     ``matrix_dir`` MUST be resolved ONCE by the caller, BEFORE any slow
     check/subprocess AND before this lock is acquired, and reused unchanged
     as both the re-read base and the write target (C-004): the lock key is
-    ``matrix_dir.name`` -- never re-derived inside this function or after the
-    lock is released.
+    the Mission's canonical key (:func:`specify_cli.status.mission_lock_key`,
+    one key for the primary and the coordination directory of a Mission),
+    resolved before the lock is entered -- never re-derived inside this
+    function or after the lock is released.
 
-    Under :func:`specify_cli.status.feature_status_lock` (NFR-002's bounded
+    Under :func:`specify_cli.status.mission_write_lock` (NFR-002's bounded
     ``timeout`` -- read at CALL TIME via the ``timeout`` parameter, never
     baked into a default argument, so a test can shorten it), this:
 
@@ -610,7 +612,7 @@ def locked_reread_splice_and_write(
     """
     if timeout is None:
         timeout = BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS
-    with feature_status_lock(repo_root, matrix_dir.name, timeout=timeout):
+    with mission_write_lock(matrix_dir, repo_root=repo_root, timeout=timeout):
         fresh_matrix = read_acceptance_matrix(matrix_dir)
         if fresh_matrix is None:
             # The matrix vanished between the pre-lock existence check and
@@ -775,8 +777,8 @@ def locked_acceptance_verdict_guard(
 ) -> Iterator[AcceptanceMatrix]:
     """FR-010 primitive: hold the lock across the pre-stamp verdict re-check.
 
-    Takes the SAME per-mission status lock (keyed on ``matrix_dir.name``,
-    C-004) as :func:`locked_reread_splice_and_write`, re-reads the matrix
+    Takes the SAME per-mission lock (keyed on the Mission's canonical lock
+    key, C-004) as :func:`locked_reread_splice_and_write`, re-reads the matrix
     fresh, and raises :class:`AcceptanceVerdictNotReadyError` unless its
     ``overall_verdict`` is ``"pass"`` or
     :data:`VERDICT_PASS_PENDING_CONSOLIDATION` -- then YIELDS the fresh
@@ -793,7 +795,7 @@ def locked_acceptance_verdict_guard(
     """
     if timeout is None:
         timeout = BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS
-    with feature_status_lock(repo_root, matrix_dir.name, timeout=timeout):
+    with mission_write_lock(matrix_dir, repo_root=repo_root, timeout=timeout):
         fresh_matrix = read_acceptance_matrix(matrix_dir)
         if fresh_matrix is None:
             # Treated as "pending" -- never ready -- and raised explicitly
