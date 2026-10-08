@@ -79,7 +79,6 @@ def _doctrine_named_src_paths() -> list[str]:
 
 
 @covers("FR-010")
-@pending_until("WP21", "no src path segment named for the retired tier")
 def test_fr010_no_src_module_named_for_retired_tier() -> None:
     assert all((REPO_ROOT / p).exists() for p in KEPT_DOCTRINE_PATHS), "control: the kept migrations exist"
     offenders = [p for p in _doctrine_named_src_paths() if (REPO_ROOT / p).exists()]
@@ -217,7 +216,6 @@ def _plant(slice_: Slice, root: Path) -> None:
 
 
 _SLICE_PENDING = {
-    "WP21": pending_until("WP21", "FR-010 r3/r4 identifiers renamed (specify_cli)"),
     "WP22": pending_until("WP22", "FR-010 prose renamed (packs, living docs)"),
 }
 
