@@ -1,4 +1,4 @@
-# Built-in Doctrine Pack
+# Built-in Charter Pack
 
 The **built-in** pack ships with Spec Kitty itself: the baseline directives,
 tactics, styleguides, toolguides, paradigms, procedures, agent profiles, and

@@ -1,13 +1,13 @@
 # Mission-type governance profile — plan
 #
 # Pinned by `tests/missions/test_mission_type_profile_resolution.py`.
-# Schema: `charter.mission_type_profiles.MissionTypeProfile`
+# Schema: `charter.activation.mission_type_profiles.MissionTypeProfile`
 # Contract: kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/contracts/mission-type-profile.md
 #
-# `id` is the overlay identity for the `doctrine/base.py` builtin → org →
-# project stack (it keys overlays on `id` and skips id-less files, base.py:249).
+# `id` is the overlay identity for the `charter/offering/base.py` built-in → org →
+# project stack (it keys overlays on `id` and skips id-less files, base.py:320).
 # INVARIANT (WP05): `id == mission_type` for every governance-profile.yaml —
-# shipped or a project override at `.kittify/doctrine/mission_types/<type>/`.
+# shipped or a project override at `.kittify/charter-packs/mission_types/<type>/`.
 #
 # `template_set: null` keeps `software-dev-default` from leaking into a plan
 # mission (FR-011 / journey 4): plan missions are decomposition/design/decision

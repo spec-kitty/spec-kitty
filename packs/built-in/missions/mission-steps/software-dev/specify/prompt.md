@@ -9,7 +9,7 @@ description: Create a mission specification
 
 ### REASONS Guidance — Specify
 
-This project's charter selected the SPDD/REASONS doctrine pack. While capturing
+This project's active charter includes the SPDD/REASONS artifacts. While capturing
 the spec, populate or update these REASONS canvas sections:
 
 - **Requirements** — problem statement, acceptance criteria, definition of done.

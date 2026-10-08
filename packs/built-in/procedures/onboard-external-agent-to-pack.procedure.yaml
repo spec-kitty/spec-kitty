@@ -3,7 +3,7 @@ id: onboard-external-agent-to-pack
 name: Onboard an External Agent into the Pack
 purpose: >
   Guide a team member through bringing an agent that was built outside the framework — in any
-  tool or format — into the doctrine pack as typed YAML artifacts. The source agent might be a
+  tool or format — into a Charter Pack as typed YAML artifacts. The source agent might be a
   set of Cursor rules, a system prompt, a no-code bot, a framework script (LangChain, CrewAI,
   AutoGen), a custom GPT, or an assistant described only in a wiki page or Markdown document;
   the procedure treats them all the same way. It first ensures the agent is fully understood —
@@ -38,8 +38,8 @@ steps:
       registered, and verified with different commands:
 
         - Project tier — the artifacts govern only this repository. They are authored under
-          .kittify/doctrine/ with spec-kitty charter new and validated with
-          spec-kitty charter validate .kittify/doctrine.
+          .kittify/charter-packs/ with spec-kitty charter new and validated with
+          spec-kitty charter validate .kittify/charter-packs.
         - Org pack — the artifacts are shared across repositories through a pack directory
           configured under charter_packs.org.packs in .kittify/config.yaml. The pack is validated
           with spec-kitty charter org validate <pack-dir>.
@@ -304,7 +304,7 @@ references:
     reason: Every classification, overlap-versus-augment call, and the profile-or-no-profile decision must be recorded with rationale.
   - type: directive
     id: DIRECTIVE_018
-    reason: Onboarded artifacts change doctrine layers and must be versioned with documented change rationale.
+    reason: Onboarded artifacts change charter offering layers and must be versioned with documented change rationale.
   - type: directive
     id: DIRECTIVE_032
     reason: Confirm shared understanding of artifact-kind terminology with the owner before decomposing.
