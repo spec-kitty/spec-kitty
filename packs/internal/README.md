@@ -1,6 +1,6 @@
-# `spec-kitty-internal` — org-tier doctrine pack (NOT shipped to consumers)
+# `spec-kitty-internal` — org-tier Charter Pack (NOT shipped to consumers)
 
-This is Spec Kitty's own **internal** doctrine pack: the doctrine that governs
+This is Spec Kitty's own **internal** Charter Pack: the doctrine that governs
 *contributors, maintainers, and the core team* of the Spec Kitty project itself.
 It is loaded as an **org-tier** pack (registered in `.kittify/config.yaml` under
 `charter_packs.org.packs`), overlaying the public `packs/built-in/` product doctrine.
@@ -126,7 +126,7 @@ for the setup steps and [Create and activate a pack skill](../../docs/developmen
 
 ## Reference, don't duplicate
 
-Built-in doctrine is repository-agnostic; the Spec Kitty specifics of a
+The built-in Charter Pack is repository-agnostic; the Spec Kitty specifics of a
 built-in artifact live here in a node that **refines** it (the `spec-kitty-*`
 nodes above, #5203), rather than re-authoring the built-in artifact. A
 shrink-only census (`tests/architectural/test_builtin_pack_provenance_ratchet.py`)

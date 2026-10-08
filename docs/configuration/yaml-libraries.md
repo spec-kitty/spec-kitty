@@ -2,7 +2,7 @@
 title: 'YAML library choice: ruamel.yaml vs PyYAML'
 description: 'When Spec Kitty uses ruamel.yaml versus PyYAML: the round-trip-vs-read-only deciding criterion and the named codebase sites that currently deviate from it.'
 doc_status: active
-updated: '2026-09-08'
+updated: '2026-10-08'
 ---
 # YAML library choice: ruamel.yaml vs PyYAML
 
@@ -18,7 +18,7 @@ updated: '2026-09-08'
 
 | Criterion | Library |
 |-----------|---------|
-| **Round-trip read/write** — file must be rewritten while preserving quotes, comments, indentation, and original formatting (e.g., frontmatter, `config.yaml`, doctrine packs) | **ruamel.yaml** |
+| **Round-trip read/write** — file must be rewritten while preserving quotes, comments, indentation, and original formatting (e.g., frontmatter, `config.yaml`, Charter Packs) | **ruamel.yaml** |
 | **Read-only simple data** — file is only ever consumed (never rewritten by Spec Kitty), contains no user-authored comments or formatting worth preserving, and the data is flat/simple | **PyYAML `safe_load`** |
 
 ### Why ruamel.yaml for round-trip
@@ -28,7 +28,7 @@ updated: '2026-09-08'
 - quoted-string style (single vs double quotes, block scalars)
 - mapping key order and indentation
 
-Spec Kitty rewrites `.kittify/config.yaml`, WP frontmatter files, and doctrine pack YAMLs in-place. Without round-trip parsing, every write would destroy user comments and reformat the file — which breaks diff readability and silently corrupts user customization.
+Spec Kitty rewrites `.kittify/config.yaml`, WP frontmatter files, and Charter Pack YAMLs in-place. Without round-trip parsing, every write would destroy user comments and reformat the file — which breaks diff readability and silently corrupts user customization.
 
 ### Why PyYAML `safe_load` for read-only data
 

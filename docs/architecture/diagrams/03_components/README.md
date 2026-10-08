@@ -2,7 +2,7 @@
 title: Components (living)
 description: 'Living components view (C4 level 3): current Spec Kitty internals and the planned charter service hexagon.'
 doc_status: active
-updated: '2026-10-03'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/01_context/README.md
@@ -44,7 +44,7 @@ flowchart TB
       activation["Charter Activation Engine"]
       cascade["Charter Cascade (DRG-driven)"]
       orgExtends["Org Charter Extends Resolver"]
-      doctrineCatalog["Doctrine Catalog Loader"]
+      doctrineCatalog["Charter Offering Loader"]
       drg["Doctrine Relationship Graph"]
       profileRepo["Agent Profile Repository"]
       glossaryCorpus["Glossary Corpus"]
@@ -187,7 +187,7 @@ the charter layer and holds only a transport client. Service launch and lifecycl
 | Charter Activation Engine | Governance | Plan/commit activation seam; writes config only after plan succeeds |
 | Charter Cascade | Governance | Follows DRG `requires`/`suggests` edges for cascade (de)activation |
 | Org Charter Extends Resolver | Governance | Canonical `org-charter.yaml extends:` chain resolver (`charter.org_extends`): base-first order, fail-closed on cycles/missing bases; the legacy loader delegates here |
-| Doctrine Catalog Loader | Governance | Loads doctrine assets as typed artifacts; surfaces load diagnostics |
+| Charter Offering Loader | Governance | Loads doctrine assets as typed artifacts; surfaces load diagnostics |
 | Doctrine Relationship Graph | Governance | Generated edge graph; resolves profile lineage (`specializes_from`) |
 | Agent Profile Repository | Governance | Resolves agent profiles via DRG traversal |
 | Glossary Corpus | Governance | Canonical terminology surface and drift guard |
@@ -220,7 +220,7 @@ the charter layer and holds only a transport client. Service launch and lifecycl
 
 | Domain (bounded module) | Primary Components |
 |---|---|
-| Governance | `Charter Activation Engine`, `Charter Cascade`, `Org Charter Extends Resolver`, `Doctrine Catalog Loader`, `Doctrine Relationship Graph`, `Agent Profile Repository`, `Glossary Corpus` |
+| Governance | `Charter Activation Engine`, `Charter Cascade`, `Org Charter Extends Resolver`, `Charter Offering Loader`, `Doctrine Relationship Graph`, `Agent Profile Repository`, `Glossary Corpus` |
 | Mission Management | `Mission + WP Lifecycle`, `Lifecycle Command Gateway`, `Event Reducer + Snapshot Materializer`, `Append-only Event Store`, `WP Lane State` |
 | Execution / Runtime | `resolve_action_context`, `resolve_placement_only`, `resolve_status_surface_with_anchor`, `Context Fragments`, `Workspace + Worktree Coordinator` |
 | Shared Kernel | `CommitTarget(ref, kind)`, `commit_guard.evaluate`, `GuardCapability` |

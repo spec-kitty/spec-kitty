@@ -40,7 +40,7 @@
   href: pip-vs-pipx-vs-uv.md
 - name: "Understanding Charter: Synthesis, DRG, and Governed Context"
   href: charter-synthesis-drg.md
-- name: Understanding the Org Doctrine Layer
+- name: Understanding the Org Layer of the Charter Offering
   href: org-doctrine-layer.md
 - name: Understanding Governed Profile Invocation
   href: governed-profile-invocation.md

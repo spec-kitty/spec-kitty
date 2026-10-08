@@ -2,7 +2,7 @@
 title: Profile-Load Reliability (Squads & WP Prompts)
 description: 'Why adversarial and research squads stopped loading charter agent profiles, and the stabilization design: resolve-then-inject, fail-loud dispatch, and /spk-load-profile.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/architecture/governed-profile-invocation.md
@@ -78,7 +78,7 @@ matches "recently stopped."
 
 ### 2.3 It ships upstream
 
-`src/charter/activation/packs/default.yaml:187` — the built-in default charter pack — carries its own
+`src/charter/activation/packs/default.yaml:187` — the built-in `default` preset as it then stood — carried its own
 narrower (16-entry) allowlist that **also omits both profiles**. **Every new project inherits the gap**,
 not just this dogfooding checkout.
 
@@ -124,7 +124,9 @@ orchestrator-injects contract closes the failure **class**.
 Activate the two doctrine lenses everywhere the allowlist is authored:
 - This project: `spec-kitty charter activate agent-profile doctrine-daphne randy-reducer`
   (or edit `charter.yaml` + `charter sync`).
-- Upstream default pack: add both to `src/charter/activation/packs/default.yaml:187`.
+- Upstream default preset: none needed now. The registry file `src/charter/activation/packs/default.yaml`
+  was retired by #3732; its successor `packs/built-in/presets/default.yaml` carries no agent-profile
+  allowlist.
 - **Regression guard:** a test asserting *every lens the `adversarial-squad` skill names
   resolves `EXIT 0`* (or, equivalently, source-profile-count parity for squad-eligible
   lenses). This discharges directive 043 (close-by-construction) for these two instances; the failure **class** closes on §4.2 — see §6 D4.

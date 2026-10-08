@@ -28,13 +28,13 @@ __all__ = ["org_app"]
 
 org_app = typer.Typer(
     name="org",
-    help="Manage org-layer doctrine pack authoring (init, validate).",
+    help="Manage org Charter Pack authoring (init, validate).",
     no_args_is_help=True,
 )
 
 
 # ----------------------------------------------------------------------
-# org init — scaffold a minimal org doctrine pack skeleton (FR-006 / WP08)
+# org init — scaffold a minimal org Charter Pack skeleton (FR-006 / WP08)
 # ----------------------------------------------------------------------
 
 #: Minimal ``org-charter.yaml`` body.  All fields are optional in
@@ -74,7 +74,7 @@ edges: []
 
 #: Minimal ``README.md`` stub.
 _ORG_PACK_README_STUB = """\
-# Org Doctrine Pack
+# Org Charter Pack
 
 > Scaffolded by `spec-kitty charter org init`.
 
@@ -223,10 +223,10 @@ def _run_template_render(
 def org_validate(
     pack_path: Path = typer.Argument(
         ...,
-        help="Path to the org doctrine pack directory to validate.",
+        help="Path to the org Charter Pack directory to validate.",
     ),
 ) -> None:
-    """Validate an org doctrine pack using schema and DRG checks (FR-006).
+    """Validate an org Charter Pack using schema and DRG checks (FR-006).
 
     Calls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`
     loader.  Prints per-file findings with file paths.  Exits non-zero when

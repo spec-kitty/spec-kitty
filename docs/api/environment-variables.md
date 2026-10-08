@@ -2,7 +2,7 @@
 title: Environment Variables Reference
 description: Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, and test configuration.
 doc_status: active
-updated: '2026-09-26'
+updated: '2026-10-08'
 related:
 - docs/api/cli-commands.md
 - docs/api/configuration.md
@@ -41,7 +41,7 @@ spec-kitty verify-setup
 
 ### SPEC_KITTY_PACKS_ROOT
 
-Override the root directory the CLI resolves built-in doctrine packs from.
+Override the root directory the CLI resolves the built-in Charter Pack from.
 
 **Purpose**: Committed governance files (`charter.yaml`'s catalog,
 `agent_profiles_manifest.json`) store built-in pack paths as the portable token
@@ -83,10 +83,9 @@ spec-kitty init my-project --ai claude
 
 Not read directly by Spec Kitty — this is the conventional variable name used
 in org-pack `local_path` indirection examples (see
-[Create an Org Doctrine Pack](../guides/how-to/governance/create-an-org-doctrine-pack.md)). Any
+[Create an Org Charter Pack](../guides/how-to/governance/create-an-org-doctrine-pack.md)). Any
 environment variable name works; `${VAR}`/`$VAR` tokens in
-`doctrine.org.packs[].local_path` (and the legacy `organisation_packs[].path`)
-are expanded at pack-resolution time, not stored expanded on disk.
+`charter_packs.org.packs[].local_path` are expanded at pack-resolution time, not stored expanded on disk.
 
 **Purpose**: Let each operator/machine point a shared, portable
 `.kittify/config.yaml` at a machine-local org-pack checkout without editing
@@ -98,7 +97,7 @@ export SPEC_KITTY_PACK_HOME=/opt/acme-doctrine
 ```
 ```yaml
 # .kittify/config.yaml
-doctrine:
+charter_packs:
   org:
     packs:
       - name: acme

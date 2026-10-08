@@ -2,7 +2,7 @@
 title: 'Context: Execution'
 description: 'Glossary context for execution semantics: tool invocation and the semantic safety gates applied during generation within a Spec Kitty mission.'
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-08'
 related:
 - docs/context/governance.md
 - docs/context/identity.md
@@ -59,7 +59,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 
 | | |
 |---|---|
-| **Definition** | A thin, parameterized entry point that a team shares through a charter pack instead of through private per-user copies. It is a doctrine artifact of kind `skill` (`ArtifactKind.SKILL`, URN `skill:<id>`), declared as a `<id>.skill.yaml` record (plus a body file in the `prompt` form) in an org pack's `skills/` directory or in the project's `.kittify/doctrine/skills/` directory. A maintainer switches it on with `spec-kitty charter activate skill <id>`. Spec Kitty then renders it as `<skill_namespace>-<id>/SKILL.md` into the project skill root of each configured tool, and records ownership in `.kittify/skills-manifest.json`. A pack skill carries no doctrine substance of its own: it `requires` the procedures and directives that do. |
+| **Definition** | A thin, parameterized entry point that a team shares through a charter pack instead of through private per-user copies. It is a doctrine artifact of kind `skill` (`ArtifactKind.SKILL`, URN `skill:<id>`), declared as a `<id>.skill.yaml` record (plus a body file in the `prompt` form) in an org pack's `skills/` directory or in the project's `.kittify/charter-packs/skills/` directory. A maintainer switches it on with `spec-kitty charter activate skill <id>`. Spec Kitty then renders it as `<skill_namespace>-<id>/SKILL.md` into the project skill root of each configured tool, and records ownership in `.kittify/skills-manifest.json`. A pack skill carries no doctrine substance of its own: it `requires` the procedures and directives that do. |
 | **Context** | Execution |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |

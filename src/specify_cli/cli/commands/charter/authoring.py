@@ -46,7 +46,7 @@ def fetch(
         help="Show what would be fetched without contacting any remote.",
     ),
 ) -> None:
-    """Fetch org doctrine pack(s) from their configured remote sources."""
+    """Fetch org Charter Pack(s) from their configured remote sources."""
     from charter.drg import load_pack_registry
     from specify_cli.core.paths import locate_project_root
     from specify_cli.charter_packs.snapshot import fetch_pack
@@ -264,7 +264,7 @@ def new(
     pack: Path | None = typer.Option(
         None,
         "--pack",
-        help=(f"Scaffold inside a doctrine pack directory instead of the project layer. When omitted, the stub lands under {PROJECT_PACK_ROOT_POSIX}/."),
+        help=(f"Scaffold inside a Charter Pack directory instead of the project layer. When omitted, the stub lands under {PROJECT_PACK_ROOT_POSIX}/."),
     ),
 ) -> None:
     """Scaffold a stub doctrine artifact YAML (FR-016).

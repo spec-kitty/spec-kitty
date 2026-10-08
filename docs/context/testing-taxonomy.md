@@ -2,7 +2,7 @@
 title: 'Context: Testing Taxonomy'
 description: 'Glossary context for the testing taxonomy: the canonical pytest-marker categories for the tests/ tree and how to choose markers for a new test file.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 ---
 ## Context: Testing Taxonomy
 
@@ -112,8 +112,8 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A smoke or integration test against the doctrine package — verifying that directives, tactics, paradigms, styleguides, toolguides, procedures, agent profiles, and mission step contracts load correctly from `src/charter/offering/`, merge across layers (built-in / org / project), and surface through `DoctrineService`. |
-| **Use when** | The test exercises the three-layer doctrine model, the DRG (doctrine reference graph) loader, profile resolution, or the doctrine catalog. |
+| **Definition** | A smoke or integration test against the charter offering package — verifying that directives, tactics, paradigms, styleguides, toolguides, procedures, agent profiles, and mission step contracts load correctly from `src/charter/offering/`, merge across layers (built-in / org / project), and surface through `CharterOfferingService`. |
+| **Use when** | The test exercises the three-layer charter offering, the DRG (doctrine reference graph) loader, profile resolution, or the offering catalog. |
 | **Do NOT use when** | The test is for charter-side composition (use `unit` and let the file live under `tests/charter/`) or for a single doctrine helper function (use `unit`). |
 | **CI role** | Dedicated `-m doctrine` profile for fast feedback on doctrine drift. |
 | **Context** | Testing Taxonomy |

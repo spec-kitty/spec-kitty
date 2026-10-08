@@ -2,7 +2,7 @@
 title: System Landscape (living)
 description: "Living system landscape (C4 level 0): Spec Kitty's domain containers, their interaction directions, and the packages that implement them today."
 doc_status: active
-updated: '2026-10-01'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/system-architect.md
 ---
 # System Landscape (living)
@@ -290,7 +290,7 @@ flowchart TB
 
 ## Dependency Rules
 
-1. **Kernel is a root dependency** — zero-dependency shared primitives (`atomic_write`, etc.) consumed by `specify_cli`, `charter`, and `doctrine`. Nothing imports from Kernel except to use its utilities; Kernel imports nothing from them.
+1. **Kernel is a root dependency** — zero-dependency shared primitives (`atomic_write`, etc.) consumed by `specify_cli` and `charter` (including `charter.offering`). Nothing imports from Kernel except to use its utilities; Kernel imports nothing from them.
 2. **Doctrine ships inside Charter, not as a separate dependency peer** — the knowledge store lives at `src/charter/offering/` and depends on nothing except Kernel. Agent Tool Connectors still consume Doctrine content (directive/tactic/paradigm context) through Charter's offering surface at execution time.
 3. **Charter depends only on Kernel** — never on Kitty-core, Orchestration, or Event Store. (Doctrine's content is carried internally within Charter, not consumed as an external dependency.)
 4. **Event Store is a shared persistence boundary** — writers (Kitty-core, Orchestration) and readers (Dashboard, Orchestration) interact through interface contracts, never directly with each other through the store.

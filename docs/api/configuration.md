@@ -41,7 +41,7 @@ for the design rationale.
 
 | Key | Type | Description |
 |-----|------|-------------|
-| `env_file` | string | `${VAR}`-expandable pointer to the home-tier `.kitty.env`. Read via a targeted top-level-key scan (not a full YAML/model load), so it never collides with `doctrine.org`'s `extra="forbid"` schema in the same file. |
+| `env_file` | string | `${VAR}`-expandable pointer to the home-tier `.kitty.env`. Read via a targeted top-level-key scan (not a full YAML/model load), so it never collides with `charter_packs.org`'s `extra="forbid"` schema in the same file. |
 
 There is no separate `CONFIG_HOME`-style variable — the pointer is always anchored on the
 existing `SPEC_KITTY_HOME` locator, which itself cannot be redefined from inside the file

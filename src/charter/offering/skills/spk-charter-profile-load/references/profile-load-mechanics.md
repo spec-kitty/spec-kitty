@@ -37,7 +37,7 @@ spec-kitty charter context --action <action> --json
 ```
 
 Use the actual lifecycle action, such as `specify`, `plan`, `implement`,
-`review`, or `merge`. Do not load the whole doctrine catalog when an
+`review`, or `merge`. Do not load the whole charter offering when an
 action-scoped context is available.
 
 ## 3. Apply The Resolved Definition

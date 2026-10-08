@@ -2,7 +2,7 @@
 title: Create and activate a pack skill
 description: Author a pack skill, set its namespace, activate it into each configured tool's project skill root, and keep it healthy with doctor skills and upgrade.
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -57,9 +57,9 @@ namespace to render under` and names the config key to set.
 
 ## Step 2: Write the skill
 
-Create two files in `.kittify/doctrine/skills/`.
+Create two files in `.kittify/charter-packs/skills/`.
 
-`.kittify/doctrine/skills/release-notes.skill.yaml`:
+`.kittify/charter-packs/skills/release-notes.skill.yaml`:
 
 ```yaml
 schema_version: "1.0"
@@ -77,7 +77,7 @@ version: 1.0.0
 maintainers: ["@acme/platform"]
 ```
 
-`.kittify/doctrine/skills/release-notes.skill.md`:
+`.kittify/charter-packs/skills/release-notes.skill.md`:
 
 ```markdown
 Draft release notes for the version the user names.
@@ -284,7 +284,7 @@ An org pack works the same way, with two differences:
   project that registers the pack, without a `charter activate` step. Two sibling org packs must
   not declare the same skill id.
 
-See [Understanding the Org Doctrine Layer](../../architecture/org-doctrine-layer.md) for how a
+See [Understanding the Org Layer of the Charter Offering](../../architecture/org-doctrine-layer.md) for how a
 project registers a pack.
 
 ## See also

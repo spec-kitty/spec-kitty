@@ -4,7 +4,7 @@
 downstream reader cannot follow. The remedy is only real if the published
 how-to's commands actually run. This is the doc-as-test that keeps them running:
 it reads the **asset section of the published how-to**
-(``docs/doctrine/create-a-doctrine-artifact.md``), lifts the manifest example and
+(``docs/development/how-to/create-a-doctrine-artifact.md``), lifts the manifest example and
 the asset directory and the ``spec-kitty charter pack asset path`` invocation
 *out of the doc*, replays them
 against a **fresh project**, and asserts the documented command resolves the

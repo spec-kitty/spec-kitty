@@ -2,15 +2,15 @@
 title: Governance Files Reference
 description: Authoritative reference for every file under .kittify/charter/ — who writes it, what it contains, and whether you can edit it.
 doc_status: active
-updated: '2026-07-18'
+updated: '2026-10-08'
 related:
 - docs/context/charter-overview.md
 - docs/architecture/charter-pack-usage-journey.md
 ---
 # Governance Files Reference
 
-The Charter governance layer lives primarily in `.kittify/charter/`, with promoted project-local
-doctrine under `.kittify/doctrine/`. Most files are runtime-managed or agent-generated inputs and
+The Charter governance layer lives primarily in `.kittify/charter/`, with the promoted project layer
+under `.kittify/charter-packs/`. Most files are runtime-managed or agent-generated inputs and
 must not be hand-edited. This page describes the common Charter-era files and the commands that
 own them.
 
@@ -29,7 +29,7 @@ own them.
 
 | File path | Who writes it | Contains | Edit directly? |
 |---|---|---|---|
-| `.kittify/charter/charter.yaml` | **Human** (`governance`/`directives`/activation/`overrides`); `charter generate` (`catalog`/`metadata` sections only) | The single structured charter: hand-authored policy plus a generator-refreshed doctrine catalog | `governance`/`directives`/activation/`overrides`: yes. `catalog`/`metadata`: no |
+| `.kittify/charter/charter.yaml` | **Human** (`governance`/`directives`/activation/`overrides`); `charter generate` (`catalog`/`metadata` sections only) | The single structured charter: hand-authored policy plus a generator-refreshed offering catalog | `governance`/`directives`/activation/`overrides`: yes. `catalog`/`metadata`: no |
 | `.kittify/charter/charter.md` | **Human**, or an agent during `/spec-kitty.charter`'s chat flow — never `charter generate` | Narrative summary of policy; may reference or summarize an external constitution | Yes — but edits have no runtime effect |
 | `.kittify/config.yaml` (`charter:` key) | Minted once by `charter generate` on first bootstrap; human-editable afterward | The single pointer resolving to the active `charter.yaml` | Yes, to redirect to a different charter file |
 | `.kittify/charter/interview/answers.yaml` | `charter interview` | Captured answers used by `charter generate` | Prefer re-running `charter interview` |
@@ -38,13 +38,13 @@ own them.
 | `.kittify/charter/synthesis-manifest.yaml` | `charter synthesize` / `charter resynthesize` | Manifest of promoted synthesized artifacts and content hashes | No |
 | `.kittify/charter/provenance/*.yaml` | `charter synthesize` / `charter resynthesize` | Provenance sidecars for project-local doctrine artifacts | No |
 | `.kittify/charter/.staging/` | Synthesizer | Temporary validation/promote workspace; `.failed` dirs may remain for diagnosis | No |
-| `.kittify/doctrine/` | `charter synthesize` / `charter resynthesize` | Project-local doctrine overlay used with built-in doctrine | No |
-| `.kittify/doctrine/PROVENANCE.md` | `charter synthesize` fresh-project path | Human-readable provenance for the minimal fresh-project doctrine seed | No |
+| `.kittify/charter-packs/` | `charter synthesize` / `charter resynthesize` | Project layer, used with the built-in Charter Pack | No |
+| `.kittify/charter-packs/PROVENANCE.md` | `charter synthesize` fresh-project path | Human-readable provenance for the minimal doctrine seed of a fresh project | No |
 
 `charter generate` refreshes `charter.yaml`'s `catalog` (doctrine reference manifest) and
 `metadata` (generation timestamp) sections deterministically; it never writes `charter.md`. It no
 longer materializes doctrine library pages as authoritative `library/*.md` files; doctrine content
-is resolved through `charter.yaml`'s `catalog` section and the built-in/project doctrine service.
+is resolved through `charter.yaml`'s `catalog` section and the active charter service over the built-in Charter Pack and the project layer.
 
 Normal hand-authored `.kittify/charter/charter.md` is the supported default. `charter generate`
 refuses to overwrite a symlinked `charter.md`, including with `--force`; replace the symlink with
@@ -113,10 +113,10 @@ projects:
 | `.kittify/charter/charter.yaml` | Commit. This is the Spec Kitty runtime policy source. | Edit `governance:`/`directives:`/activation/`overrides:` directly; run `spec-kitty charter generate` to refresh `catalog`/`metadata`. |
 | `.kittify/charter/charter.md` | Commit. Curated narrative companion, not a runtime source. | Edit directly, whenever convenient. |
 | `.kittify/config.yaml` | Commit. Holds the `charter:` pointer plus agent/pack config. | Edit directly to redirect the pointer. |
-| `.kittify/charter/provenance/*` | Do not commit. Synthesis provenance is regenerated with the promoted doctrine overlay. | `spec-kitty charter synthesize` |
+| `.kittify/charter/provenance/*` | Do not commit. Synthesis provenance is regenerated with the promoted project layer. | `spec-kitty charter synthesize` |
 | `.kittify/charter/synthesis-manifest.yaml` | Do not commit. Generated synthesis manifest. | `spec-kitty charter synthesize` |
-| `.kittify/doctrine/graph.yaml` | Do not commit. Project-local DRG overlay synthesized locally when needed. | `spec-kitty charter synthesize` |
-| `.kittify/doctrine/{directive,tactic,procedure,overlays}/` | Commit only when the project intentionally carries a durable project-local doctrine overlay. | `spec-kitty charter synthesize` or `spec-kitty charter resynthesize` |
+| `.kittify/charter-packs/graph.yaml` | Do not commit. Project-local DRG overlay synthesized locally when needed. | `spec-kitty charter synthesize` |
+| `.kittify/charter-packs/{directive,tactic,procedure,overlays}/` | Commit only when the project intentionally carries a durable project layer. | `spec-kitty charter synthesize` or `spec-kitty charter resynthesize` |
 
 If a project has a public governance document, keep it in that public location and reference it
 from `charter.yaml`:
@@ -133,7 +133,7 @@ Do not enforce markdown equality between the public document and `.kittify/chart
 Spec Kitty's defaults.
 
 Spec Kitty's own repository follows this split: `charter.yaml`, `charter.md`, and selected
-project-local doctrine overlays are tracked, while synthesis provenance and `graph.yaml` remain
+project-layer artifacts are tracked, while synthesis provenance and `graph.yaml` remain
 local.
 
 When a required local generated file is missing, do not hand-create it. Run:
@@ -149,8 +149,8 @@ a missing synthesized DRG. Use `charter synthesize` to regenerate that local
 state. `charter bundle validate` validates the committed charter-bundle
 manifest and reports missing tracked policy, missing `.gitignore` entries (if any project-local
 entries are required), and invalid synthesis state when synthesis artifacts are present; it does
-not require a project-local DRG to exist in fresh checkouts that intentionally rely on built-in
-doctrine.
+not require a project-local DRG to exist in fresh checkouts that intentionally rely on the built-in
+Charter Pack.
 
 ---
 
@@ -223,10 +223,10 @@ These two operations are different:
 |---|---|
 | `charter generate` | Refreshes `charter.yaml`'s `catalog` and `metadata` sections from interview answers + doctrine references. Bootstraps `governance`/`directives` from a legacy triad only on first creation of `charter.yaml`; on every later run it leaves them untouched. Never writes `charter.md`. |
 | `charter sync` | Retained for canonical-root resolution and back-compat call sites. Performs no extraction — always a no-op (`synced=False`, `files_written=[]`). |
-| `charter synthesize` | Validates and promotes agent-generated project-local doctrine artifacts from `.kittify/charter/generated/` to `.kittify/doctrine/`. |
+| `charter synthesize` | Validates and promotes agent-generated project-local doctrine artifacts from `.kittify/charter/generated/` to `.kittify/charter-packs/`. |
 
 Edit `charter.yaml`'s `governance`/`directives` sections directly for policy changes; run
-`charter synthesize` when the doctrine overlay needs to be refreshed.
+`charter synthesize` when the project layer needs to be refreshed.
 
 ---
 

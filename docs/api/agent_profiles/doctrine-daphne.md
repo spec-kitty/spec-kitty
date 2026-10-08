@@ -2,7 +2,7 @@
 title: Doctrine Daphne — Agent Profile
 description: External-agent onboarding and doctrine artifact curation specialist
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-10-08'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
@@ -11,7 +11,7 @@ related:
 # Doctrine Daphne — Agent Profile
 
 Onboards agents built outside the framework — Cursor rules, system prompts, no-code bots,
-LangChain/CrewAI/AutoGen scripts, custom GPTs — into well-formed, validated doctrine pack
+LangChain/CrewAI/AutoGen scripts, custom GPTs — into well-formed, validated Charter Pack
 content.
 
 ## What this profile is for

@@ -2,7 +2,7 @@
 title: Mission-Type Resolution — the doctrine → charter → core seam
 description: "Why per-mission-type behaviour resolves through one doctrine → charter → core seam keyed off mission_type in meta.json."
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/lead-developer.md
 type: explanation
 related:
@@ -144,14 +144,14 @@ at the doctrine-module and integration level.
 
 The charter "activate and customise" step is where a project adjusts a shipped
 mission type. The per-type project override lives at
-`.kittify/doctrine/mission_types/<type>/governance-profile.yaml` and is resolved
-through the **existing** doctrine overlay loader — inheriting builtin → org →
-project ordering and `DoctrineLayerCollisionWarning` field-merge semantics. Reusing
+`.kittify/charter-packs/mission_types/<type>/governance-profile.yaml` and is resolved
+through the **existing** charter offering overlay loader — inheriting builtin → org →
+project ordering and `ArtifactLayerCollisionWarning` field-merge semantics. Reusing
 that loader avoids duplicating the merge contract, but it is not zero-cost: the
 loader keys on an `id` field the profile does not carry (it keys on `mission_type`),
 so an adapter — an `id` on the profile plus a repository subclass, or an explicit
 field-merge in the resolver — is owned, tested work. See
-[Understanding the Org Doctrine Layer](org-doctrine-layer.md#per-mission-type-governance-override)
+[Understanding the Org Layer of the Charter Offering](org-doctrine-layer.md#per-mission-type-governance-override)
 for how that overlay stack resolves collisions.
 
 ## `governance_refs` is retired
@@ -278,6 +278,6 @@ deliberately omits both.
 
 - [The Mission System Explained](mission-system.md) — mission types, missions, work packages, and the two state machines.
 - [The Runtime Loop Explained](runtime-loop.md) — how the FSM core consumes the resolved mission type.
-- [Understanding the Org Doctrine Layer](org-doctrine-layer.md) — the builtin → org → project overlay stack the per-type override rides.
+- [Understanding the Org Layer of the Charter Offering](org-doctrine-layer.md) — the builtin → org → project overlay stack the per-type override rides.
 - [Understanding Charter: Synthesis, DRG, and Governed Context](charter-synthesis-drg.md) — how governed context flows to agents.
 - [ADR 2026-07-14-2 — Doctrine → Charter → Core Mission-Type Resolution Unification](../adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md) — the decision record.

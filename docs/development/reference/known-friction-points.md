@@ -2,7 +2,7 @@
 title: 'Known Current Friction Points'
 description: 'A time-stamped, fast-drifting list of current repo and tooling friction points a maintainer or agent hits mid-mission; re-verify against the tracker before trusting specifics.'
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -57,17 +57,17 @@ closed — so the "known reds" below are already a different set than a month ag
   evidence the change is safe; a skipped job is unverified, not clean. (See
   [pr-landing.md §4](../how-to/pr-landing.md) for how to classify checks once
   you *do* have real CI results to read.)
-- **`charter lint`'s project-DRG input (`.kittify/doctrine/graph.yaml`) looks
+- **`charter lint`'s project-DRG input (`.kittify/charter-packs/graph.yaml`) looks
   gitignored but is deliberately un-ignored — confirm it is tracked and
   in-diff before filing a lint finding.** `.gitignore` blanket-excludes
-  `.kittify/doctrine/**` and then re-includes specific subpaths, including
-  `!.kittify/doctrine/graph.yaml`; the file is meant to be committed and is
+  `.kittify/charter-packs/**` and then re-includes specific subpaths, including
+  `!.kittify/charter-packs/graph.yaml`; the file is meant to be committed and is
   the first candidate `charter_runtime/lint/_drg.py::_load_project_drg`
   reads (ahead of `merged_drg.json` / `drg.json` / `compiled_drg.json`). If
   it is stale or absent, `charter lint` silently falls back to
   `GraphState.BUILT_IN_ONLY` (or `MISSING`) and skips project-layer checks
   rather than failing loudly — so before treating a `charter lint` result as
-  authoritative, confirm `git ls-files .kittify/doctrine/graph.yaml` shows it
+  authoritative, confirm `git ls-files .kittify/charter-packs/graph.yaml` shows it
   tracked and that `spec-kitty charter synthesize` regenerated it in your
   diff if doctrine artifacts changed.
 - **In a lane or clone, a bare `python` / `pytest` imports the PRIMARY `src`, not

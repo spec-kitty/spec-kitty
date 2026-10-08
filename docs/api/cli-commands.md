@@ -457,7 +457,7 @@ _Charter management commands_
 │ new                Scaffold a stub doctrine artifact YAML (FR-016).          │
 │ validate           Validate project-layer doctrine artifacts against their   │
 │                    schemas (FR-017).                                         │
-│ fetch              Fetch org doctrine pack(s) from their configured remote   │
+│ fetch              Fetch org Charter Pack(s) from their configured remote    │
 │                    sources.                                                  │
 │ interview          Capture charter interview answers for later generation.   │
 │ generate           Generate charter bundle from interview answers + doctrine │
@@ -478,8 +478,7 @@ _Charter management commands_
 │ mission-type       Mission type commands (activated types only).             │
 │ list               List activated doctrine artifacts by kind.                │
 │ pack               Charter pack management commands.                         │
-│ org                Manage org-layer doctrine pack authoring (init,           │
-│                    validate).                                                │
+│ org                Manage org Charter Pack authoring (init, validate).       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -723,7 +722,7 @@ _Charter bundle validation commands._
 ```
  Usage: spec-kitty charter fetch [OPTIONS]
 
- Fetch org doctrine pack(s) from their configured remote sources.
+ Fetch org Charter Pack(s) from their configured remote sources.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --pack             TEXT  Fetch only the named pack (default: fetch all       │
@@ -916,7 +915,7 @@ _Mission type commands (activated types only)._
 │                             [required]                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
+│ --pack          PATH  Scaffold inside a Charter Pack directory instead of    │
 │                       the project layer. When omitted, the stub lands under  │
 │                       .kittify/charter-packs/.                               │
 │ --help  -h            Show this message and exit.                            │
@@ -925,20 +924,19 @@ _Mission type commands (activated types only)._
 
 ## spec-kitty charter org
 
-_Manage org-layer doctrine pack authoring (init, validate)._
+_Manage org Charter Pack authoring (init, validate)._
 
 ```
  Usage: spec-kitty charter org [OPTIONS] COMMAND [ARGS]...
 
- Manage org-layer doctrine pack authoring (init, validate).
+ Manage org Charter Pack authoring (init, validate).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ init      Scaffold a minimal org pack or render from a template.             │
-│ validate  Validate an org doctrine pack using schema and DRG checks          │
-│           (FR-006).                                                          │
+│ validate  Validate an org Charter Pack using schema and DRG checks (FR-006). │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -989,7 +987,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 ```
  Usage: spec-kitty charter org validate [OPTIONS] PACK_PATH
 
- Validate an org doctrine pack using schema and DRG checks (FR-006).
+ Validate an org Charter Pack using schema and DRG checks (FR-006).
 
  Calls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`
  loader.  Prints per-file findings with file paths.  Exits non-zero when
@@ -999,7 +997,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
  Validation uses the runtime loader, which supplies pack provenance fields.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the org doctrine pack directory to         │
+│ *    pack_path      PATH  Path to the org Charter Pack directory to          │
 │                           validate.                                          │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1025,9 +1023,9 @@ _Charter pack management commands._
 │                   each ships (FR-004).                                       │
 │ path              Print a pack's root, or with --preset the preset file      │
 │                   (FR-006).                                                  │
-│ validate          Validate a doctrine pack against schema and DRG            │
+│ validate          Validate a Charter Pack against schema and DRG             │
 │                   constraints.                                               │
-│ assemble          Assemble multiple doctrine packs into a single             │
+│ assemble          Assemble multiple Charter Packs into a single              │
 │                   distributable.                                             │
 │ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
 │                   (FR-009).                                                  │
@@ -1041,7 +1039,7 @@ _Charter pack management commands._
 ```
  Usage: spec-kitty charter pack assemble [OPTIONS] OUTPUT_PATH INPUT_PACKS...
 
- Assemble multiple doctrine packs into a single distributable.
+ Assemble multiple Charter Packs into a single distributable.
 
  Exits 0 on success and 1 when conflicts block the merge or when the
  assembled output fails validation.
@@ -1194,13 +1192,13 @@ _Resolve shipped and overlay doctrine assets (no install — C-002)._
 ```
  Usage: spec-kitty charter pack validate [OPTIONS] PACK_PATH
 
- Validate a doctrine pack against schema and DRG constraints.
+ Validate a Charter Pack against schema and DRG constraints.
 
  Exits 0 when the pack passes validation (advisories do not affect the
  exit code) and 1 when at least one error is reported.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the doctrine pack directory to validate.   │
+│ *    pack_path      PATH  Path to the Charter Pack directory to validate.    │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮

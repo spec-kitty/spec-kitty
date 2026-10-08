@@ -198,7 +198,7 @@ def _emit_regen_result(
 def pack_validate(
     pack_path: Path = typer.Argument(
         ...,
-        help="Path to the doctrine pack directory to validate.",
+        help="Path to the Charter Pack directory to validate.",
     ),
     json_output: bool = typer.Option(
         False,
@@ -206,7 +206,7 @@ def pack_validate(
         help=_JSON_OPTION_HELP,
     ),
 ) -> None:
-    """Validate a doctrine pack against schema and DRG constraints.
+    """Validate a Charter Pack against schema and DRG constraints.
 
     Exits 0 when the pack passes validation (advisories do not affect the
     exit code) and 1 when at least one error is reported.
@@ -246,7 +246,7 @@ def pack_assemble(
         help=_JSON_OPTION_HELP,
     ),
 ) -> None:
-    """Assemble multiple doctrine packs into a single distributable.
+    """Assemble multiple Charter Packs into a single distributable.
 
     Exits 0 on success and 1 when conflicts block the merge or when the
     assembled output fails validation.

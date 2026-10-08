@@ -82,7 +82,7 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
                 )
             )
 
-    # Org missions, if an org doctrine pack is configured. Flat layout
+    # Org missions, if an org Charter Pack is configured. Flat layout
     # (``<org_root>/missions``, no ``doctrine/`` subdir) and ``ResolutionTier.ORG``
     # match what the resolver actually reads (WP03) — see FR-006/DEC-009.
     org_root = layer_roots.get("org")

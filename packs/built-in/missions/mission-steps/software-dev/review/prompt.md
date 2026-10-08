@@ -128,7 +128,7 @@ implementer profile anyway and note the oversight in your review comments.
 
 ### REASONS Canvas Comparison (active for this project)
 
-This project's charter selected the SPDD/REASONS doctrine pack. Use the
+This project's active charter includes the SPDD/REASONS artifacts. Use the
 mission's REASONS canvas as a comparison surface for this work package.
 
 **1. Load the canvas.** Read `kitty-specs/<mission>/reasons-canvas.md`. If it
@@ -152,7 +152,7 @@ completing review. Do not auto-approve in the absence of a canvas.
 | approved_with_deviation | Divergence is acceptable; reviewer adds a Deviations entry. | APPROVE + canvas update |
 | canvas_update_needed | Code reality reveals the canvas was wrong. | APPROVE conditionally; open canvas update task |
 | glossary_update_needed | Term drift surfaced. | APPROVE conditionally; open glossary update task |
-| charter_follow_up | Charter selection should change. | APPROVE conditionally; open charter follow-up |
+| charter_follow_up | The active charter should change. | APPROVE conditionally; open charter follow-up |
 | follow_up_mission | Out-of-scope work surfaced. | APPROVE current scope; open follow-up mission |
 | scope_drift_block | Out-of-bounds undocumented work. | REJECT |
 | safeguard_violation_block | Safeguard rule violated. | REJECT |
