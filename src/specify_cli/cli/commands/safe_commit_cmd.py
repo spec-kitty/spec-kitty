@@ -60,13 +60,14 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 import typer
 from specify_cli.cli.console import console
 from specify_cli.cli.commands._commit_message import MESSAGE_OPTION_HELP, join_message_paragraphs
 
-from kernel.git import GitCommandError, GitPath, is_tracked, status_entries
+from kernel.git import GitCommandError, GitPath, StatusEntry, is_tracked, status_entries
 from kernel.resolution import resolve_commit_path
 from mission_runtime import (
     CommitTarget,
@@ -139,7 +140,16 @@ def _current_worktree_root() -> Path:
     return fallback_root
 
 
-def _changed_paths_under(repo_root: Path, rel_dir: str) -> list[str]:
+def _worktree_status_entries(repo_root: Path, rel_dir: str) -> tuple[StatusEntry, ...]:
+    """One whole-worktree ``git status`` (untracked files expanded); a failed probe aborts the command."""
+    try:
+        return status_entries(repo_root, untracked="all")
+    except GitCommandError as exc:
+        # Guard: this decides what a directory argument commits, so a failed probe aborts.
+        raise RuntimeError(f"Unable to inspect directory '{rel_dir}' before commit.") from exc
+
+
+def _changed_paths_under(repo_root: Path, rel_dir: str, entries: Sequence[StatusEntry] | None = None) -> list[str]:
     """Return changed / untracked files (relative to ``repo_root``) under ``rel_dir``.
 
     Uses ``kernel.git.status_entries`` (untracked files expanded), filtered to the
@@ -152,15 +162,13 @@ def _changed_paths_under(repo_root: Path, rel_dir: str) -> list[str]:
     pairs a rename when both sides are in the status scope, so the status is
     read for the whole worktree and filtered here by component-wise containment.
 
-    Cost: each directory argument runs one whole-repository ``git status
-    --untracked-files=all``, so a large untracked, non-ignored tree anywhere in
-    the checkout slows the expansion even when it is outside ``rel_dir``.
+    Cost: one whole-repository ``git status --untracked-files=all`` per command
+    (the caller passes the *entries* it read once for every directory argument), so a
+    large untracked, non-ignored tree anywhere in the checkout slows the expansion even
+    when it is outside ``rel_dir``.
     """
-    try:
-        entries = status_entries(repo_root, untracked="all")
-    except GitCommandError as exc:
-        # Guard: this decides what a directory argument commits, so a failed probe aborts.
-        raise RuntimeError(f"Unable to inspect directory '{rel_dir}' before commit.") from exc
+    if entries is None:
+        entries = _worktree_status_entries(repo_root, rel_dir)
     directory = GitPath(()) if rel_dir == "." else GitPath.parse(rel_dir)
 
     def _inside(path: GitPath) -> bool:
@@ -192,6 +200,7 @@ def _expand_arguments(
     expanded: list[Path] = []
     report_lines: list[str] = []
     seen: set[Path] = set()
+    entries: tuple[StatusEntry, ...] | None = None
 
     def _add(path: Path) -> None:
         if path not in seen:
@@ -203,7 +212,9 @@ def _expand_arguments(
         # guard reports a bogus "Expanding linkdir/ → 1 files: linkdir" (pinned by the symlinked-dir test).
         if path.is_dir() and not path.is_symlink():
             rel_dir = str(path.relative_to(repo_root))
-            contained = _changed_paths_under(repo_root, rel_dir)
+            if entries is None:
+                entries = _worktree_status_entries(repo_root, rel_dir)
+            contained = _changed_paths_under(repo_root, rel_dir, entries)
             contained_abs = [repo_root / rel for rel in contained]
             display = ", ".join(contained) if contained else "(no changed files)"
             report_lines.append(
