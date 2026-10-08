@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from kernel.atomic import notify_written
 from specify_cli.identity.aliases import with_tracked_mission_slug_aliases
 from specify_cli.mission_metadata import mission_identity_fields
 
@@ -239,3 +240,4 @@ def generate_progress_json(
     tmp_path = out_path.with_suffix(".json.tmp")
     tmp_path.write_text(json_str, encoding="utf-8")
     os.replace(str(tmp_path), str(out_path))
+    notify_written(out_path, json_str.encode("utf-8"))

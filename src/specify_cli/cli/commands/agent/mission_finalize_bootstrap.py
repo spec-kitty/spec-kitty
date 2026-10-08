@@ -36,6 +36,7 @@ from specify_cli.ownership.validation import (
 )
 from specify_cli.status import Lane, WPMetadata, _Builder
 from specify_cli.status.mission_write import locked_rewrite_text, mission_write_lock
+from specify_cli.cli.commands.agent.mission_finalize_commit import note_status_files_written
 from specify_cli.core.wps_manifest import (
     WpsManifest,
     generate_tasks_md_from_manifest,
@@ -944,3 +945,6 @@ def _emit_local_canonical_events(
     except Exception as local_wp_exc:  # noqa: BLE001 — non-blocking emission
         if not json_output:
             _mf.console.print(f"[yellow]Warning:[/yellow] Local canonical WPCreated/TasksCompleted persistence failed: {local_wp_exc}")
+    finally:
+        # The emissions append status rows: record the in-directory status files in the run's write ledger (plan A8).
+        note_status_files_written(planning_dir, owned.repository_root if owned else None)

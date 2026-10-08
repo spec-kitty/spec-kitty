@@ -240,6 +240,7 @@ from specify_cli.cli.commands.agent.mission_finalize_lanes import (
 )
 from specify_cli.cli.commands.agent.mission_finalize_commit import (
     OwnedCheckoutCandidateOutsidePlanningError as OwnedCheckoutCandidateOutsidePlanningError,
+    FinalizeWriteLedger as FinalizeWriteLedger,
     WRITE_SCOPE_KEPT_WARNING as WRITE_SCOPE_KEPT_WARNING,
     _META_CHANGED_BY_ANOTHER_WRITER as _META_CHANGED_BY_ANOTHER_WRITER,
     _bytes_or_none as _bytes_or_none,
@@ -272,6 +273,12 @@ from specify_cli.cli.commands.agent.mission_finalize_commit import (
     _report_write_scope_kept as _report_write_scope_kept,
     _snapshot_mission_write_scope as _snapshot_mission_write_scope,
     _undo_finalize_write_scope as _undo_finalize_write_scope,
+    _STATUS_FILE_NAMES as _STATUS_FILE_NAMES,
+    _ACTIVE_LEDGER as _ACTIVE_LEDGER,
+    active_write_ledger as active_write_ledger,
+    begin_write_ledger as begin_write_ledger,
+    end_write_ledger as end_write_ledger,
+    note_status_files_written as note_status_files_written,
     _warn_missing_meta as _warn_missing_meta,
 )
 
@@ -742,8 +749,6 @@ class _FinalizeBranchSetup:
     meta_json_persisted: bool
     owned_derived_dir: Path | None
     owned_derived_snapshot: dict[Path, bytes]
-    #: The ``meta.json`` text this run wrote when it persisted the branch contract: what its revert compares against.
-    meta_written_text: str | None = None
 
 
 def _run_finalize_branch_setup(
@@ -800,7 +805,6 @@ def _run_finalize_branch_setup(
     mission_write_scope_dir: Path | None = None
     meta_path_for_revert: Path | None = None
     meta_original_text: str | None = None
-    meta_written_text: str | None = None
     target_branch_persist = TargetBranchPersistOutcome(persisted=False)
     owned_derived_dir: Path | None = None
     owned_derived_snapshot: dict[Path, bytes] = {}
@@ -832,8 +836,6 @@ def _run_finalize_branch_setup(
             invocation_identity=ctx.invocation_identity,
             json_output=json_output,
         )
-        if target_branch_persist.persisted and meta_path_for_revert.exists():
-            meta_written_text = meta_path_for_revert.read_text(encoding="utf-8")
     return _FinalizeBranchSetup(
         target_branch=target_branch,
         merge_target_branch=merge_target_branch,
@@ -845,7 +847,6 @@ def _run_finalize_branch_setup(
         meta_original_text=meta_original_text,
         target_branch_persist=target_branch_persist,
         meta_json_persisted=target_branch_persist.persisted,
-        meta_written_text=meta_written_text,
     )
 
 
@@ -1160,7 +1161,6 @@ def finalize_tasks(
     commit_landed = _FinalizeCommitLanded()
     meta_path_for_revert: Path | None = None
     meta_original_text: str | None = None
-    meta_written_text: str | None = None
     # FR-015/NFR-001: the write-then-restore atomicity guard (T070/T073;
     # operator decision on T072/T073, follow-up: #5343 -- a true plan/apply
     # split is NOT implemented). What a refused run is guaranteed to leave
@@ -1216,6 +1216,8 @@ def finalize_tasks(
     # envelope omits the key exactly as a non-owned run's does).
     owned: OwnedCheckout | None = None
     envelope_token = _OWNED_ENVELOPE_EXTRAS.set(None)
+    # Every file this run writes is recorded as it is written; the except handlers restore only those, by compare-and-swap.
+    write_ledger, ledger_token, observer_token = begin_write_ledger()
     try:
         ctx = _resolve_finalize_context(
             feature,
@@ -1246,7 +1248,6 @@ def finalize_tasks(
         owned_derived_snapshot = branch_setup.owned_derived_snapshot
         meta_path_for_revert = branch_setup.meta_path_for_revert
         meta_original_text = branch_setup.meta_original_text
-        meta_written_text = branch_setup.meta_written_text
         target_branch_persist = branch_setup.target_branch_persist
         meta_json_persisted = branch_setup.meta_json_persisted
 
@@ -1434,7 +1435,7 @@ def finalize_tasks(
             meta_original_text,
             meta_json_persisted=meta_json_persisted,
             meta_commit_progress=meta_commit_progress,
-            written_text=meta_written_text,
+            written_text=write_ledger.text_for(meta_path_for_revert) if meta_path_for_revert is not None else None,
         )
         # FR-015/NFR-001: only undo the mission-directory writes when the
         # finalize commit never landed. ``commit_landed`` (set inside
@@ -1464,7 +1465,7 @@ def finalize_tasks(
             meta_original_text,
             meta_json_persisted=meta_json_persisted,
             meta_commit_progress=meta_commit_progress,
-            written_text=meta_written_text,
+            written_text=write_ledger.text_for(meta_path_for_revert) if meta_path_for_revert is not None else None,
         )
         if mission_write_scope_dir is not None and not commit_landed.landed:
             status_leftover, kept_files = _undo_finalize_write_scope(
@@ -1477,4 +1478,5 @@ def finalize_tasks(
         _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output, status_leftover=status_leftover, kept_files=kept_files)
         raise typer.Exit(1) from None
     finally:
+        end_write_ledger(ledger_token, observer_token)
         _OWNED_ENVELOPE_EXTRAS.reset(envelope_token)

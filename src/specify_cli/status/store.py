@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.paths import is_windows
+from kernel.atomic import notify_written
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import (
     MissionMetaReadError,
@@ -407,6 +408,7 @@ def append_raw_rows_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
             os.fsync(fh.fileno())
         os.replace(tmp_path, path)
         replaced = True
+        notify_written(path, (existing + additions).encode("utf-8"))
         _fsync_directory(path.parent)
     finally:
         if not replaced:

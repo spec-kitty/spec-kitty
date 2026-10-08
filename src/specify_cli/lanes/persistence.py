@@ -16,6 +16,7 @@ import tempfile
 from pathlib import Path, PurePath, PureWindowsPath
 
 from charter.hasher import hash_content
+from kernel.atomic import notify_written
 from kernel.errors import GuardedReadError
 from kernel.git_topology import GitTopologyError, NotAGitRepositoryError, git_common_dir, git_toplevel
 from kernel.locks import SyncMachineFileLock, machine_file_lock
@@ -103,6 +104,7 @@ def write_lanes_json(feature_dir: Path, manifest: LanesManifest) -> Path:
             os.write(fd, content.encode("utf-8"))
             os.close(fd)
             os.replace(tmp_path, str(lanes_path))
+            notify_written(lanes_path, content.encode("utf-8"))
         except BaseException:
             os.close(fd) if not os.get_inheritable(fd) else None  # noqa: E501
             if os.path.exists(tmp_path):
@@ -127,6 +129,7 @@ def write_lanes_json_if_bytes_match(feature_dir: Path, expected: bytes, replacem
                 os.unlink(tmp_path)
                 return False
             os.replace(tmp_path, str(lanes_path))
+            notify_written(lanes_path, replacement)
         except BaseException:
             os.close(fd) if not os.get_inheritable(fd) else None  # noqa: E501
             if os.path.exists(tmp_path):

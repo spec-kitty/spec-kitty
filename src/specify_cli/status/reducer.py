@@ -17,6 +17,7 @@ from typing import Any, cast
 from spec_kitty_events.diary import State, reduce_parsed
 from spec_kitty_events.status import reduce as reduce_shared_state
 
+from kernel.atomic import notify_written
 from specify_cli.mission_metadata import resolve_mission_identity
 
 from .models import (
@@ -419,5 +420,6 @@ def materialize(feature_dir: Path) -> StatusSnapshot:
     if not (out_path.exists() and out_path.read_text(encoding="utf-8") == json_str):
         tmp_path.write_text(json_str, encoding="utf-8")
         os.replace(tmp_path, out_path)
+        notify_written(out_path, json_str.encode("utf-8"))
 
     return snapshot

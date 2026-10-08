@@ -22,6 +22,8 @@ import os
 import tempfile
 from pathlib import Path
 
+from kernel.atomic import notify_written
+
 __all__ = [
     "atomic_write",
 ]
@@ -54,6 +56,7 @@ def atomic_write(path: Path, content: str | bytes, *, mkdir: bool = False) -> No
             f.write(raw)
         # fd is now closed by the context manager
         os.replace(tmp_path, str(path))
+        notify_written(path, raw)  # the finalize write ledger, when a run installed one
     except BaseException:
         with contextlib.suppress(OSError):
             os.close(fd)

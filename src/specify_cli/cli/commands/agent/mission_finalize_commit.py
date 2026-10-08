@@ -17,11 +17,15 @@ from __future__ import annotations
 
 import contextlib
 import json
+from collections.abc import Callable
+from contextvars import ContextVar, Token
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, cast
 
 import typer
+
+from kernel.atomic import observe_writes, stop_observing_writes
 
 
 if TYPE_CHECKING:
@@ -606,6 +610,9 @@ def _emit_tasks_started(
         )
     except Exception as tasks_started_exc:  # noqa: BLE001 — non-blocking emission call (not the write-location resolution above)
         logger.debug("TasksStarted emission skipped: %s", tasks_started_exc)
+    finally:
+        if planning_dir is not None:
+            note_status_files_written(planning_dir, owned.repository_root if owned else None)
 
 
 def _run_commit_pipeline(
@@ -1045,6 +1052,69 @@ def _snapshot_mission_write_scope(mission_dir: Path) -> dict[Path, bytes]:
     return {path: path.read_bytes() for path in _mission_write_scope_files(mission_dir)}
 
 
+class FinalizeWriteLedger:
+    """The exact bytes one finalize run wrote, per file (mission-writer-followups plan A8, FR-003).
+
+    Every write finalize makes through :func:`kernel.atomic.atomic_write` is recorded at the moment it
+    happens (the writers hold the Mission write lock then), and the status files finalize's emissions
+    touched are noted by :func:`note_status_files_written`. The write-scope restore acts on a path only
+    when it is in the ledger and the file still holds the recorded bytes: a file finalize never wrote,
+    or one another writer changed since, is never put back.
+    """
+
+    def __init__(self) -> None:
+        self.written: dict[Path, bytes] = {}
+
+    def record(self, path: Path, content: bytes) -> None:
+        """Remember that *path* now holds *content* (the latest write of the run wins)."""
+        self.written[path.resolve()] = content
+
+    def text_for(self, path: Path) -> str | None:
+        """The text the run last wrote to *path*, or ``None`` when it wrote nothing there."""
+        content = self.written.get(path.resolve())
+        return content.decode("utf-8") if content is not None else None
+
+
+_ACTIVE_LEDGER: ContextVar[FinalizeWriteLedger | None] = ContextVar("finalize_write_ledger", default=None)
+
+
+def begin_write_ledger() -> tuple[FinalizeWriteLedger, Token[FinalizeWriteLedger | None], Token[Callable[[Path, bytes], None] | None]]:
+    """Start recording this run's writes; hand the tokens to :func:`end_write_ledger`."""
+    ledger = FinalizeWriteLedger()
+    return ledger, _ACTIVE_LEDGER.set(ledger), observe_writes(ledger.record)
+
+
+def end_write_ledger(ledger_token: Token[FinalizeWriteLedger | None], observer_token: Token[Callable[[Path, bytes], None] | None]) -> None:
+    """Stop recording the run's writes."""
+    stop_observing_writes(observer_token)
+    _ACTIVE_LEDGER.reset(ledger_token)
+
+
+def active_write_ledger() -> FinalizeWriteLedger | None:
+    """The ledger of the finalize run in progress in this context, if any."""
+    return _ACTIVE_LEDGER.get()
+
+
+def note_status_files_written(planning_dir: Path, repo_root: Path | None = None) -> None:
+    """Record the Mission's in-directory status files as finalize's emissions left them.
+
+    Status rows are appended, not atomically replaced, so the ledger reads the files back right after the
+    emission, inside the Mission write lock. A no-op outside a finalize run.
+    """
+    ledger = _ACTIVE_LEDGER.get()
+    if ledger is None:
+        return
+    with mission_write_lock(planning_dir, repo_root=repo_root):
+        for name in _STATUS_FILE_NAMES:
+            content = _bytes_or_none(planning_dir / name)
+            if content is not None:
+                ledger.record(planning_dir / name, content)
+
+
+#: The in-directory status files a finalize emission writes by appending.
+_STATUS_FILE_NAMES: Final = ("status.events.jsonl", "status.json")
+
+
 def _bytes_or_none(path: Path) -> bytes | None:
     """The bytes at *path*, or ``None`` when it is not a readable file."""
     try:
@@ -1076,10 +1146,13 @@ def _restore_mission_write_scope(
     it, never a replacement diagnostic for it.
 
     Compare-and-swap (mission-writer-followups plan A8): the whole restore runs inside the
-    Mission write lock, and a file is rewritten or deleted only while its bytes still equal
-    what this attempt left (``written``, the snapshot taken when the attempt failed; the
-    bytes at this call when omitted). A file another writer changed since is neither
-    rewritten nor deleted: it is kept and returned (sorted), so the caller can report it.
+    Mission write lock. With ``written`` (the ledger of the bytes this attempt wrote, keyed
+    by resolved path) a file is rewritten or deleted only while its bytes still equal
+    what the attempt wrote there; a file the attempt never wrote, or one another writer
+    changed since, is neither rewritten nor deleted: it is kept and returned (sorted), so
+    the caller can report it. A file that is already gone is put back whatever the ledger
+    says. Without ``written`` every changed file is undone (a status directory the status
+    guard restores by its own compare-and-swap).
 
     The lock is the Mission write lock of ``lock_dir`` (``mission_dir`` by default): a directory
     that is not a Mission directory (the owned checkout's derived view) takes its Mission's lock
@@ -1094,35 +1167,30 @@ def _restore_mission_write_scope(
     kept_changed: list[Path] = []
     with mission_write_lock(lock_dir or mission_dir, repo_root=repo_root):
         current = _mission_write_scope_files(mission_dir)
-        left_by_attempt = written if written is not None else {path: data for path in current if (data := _bytes_or_none(path)) is not None}
-        for path, original in before.items():
+        for path in sorted(set(before) | current):
             if _is_kept(path):
                 continue
+            original = before.get(path)
             now = _bytes_or_none(path)
             if now == original:
                 continue  # already as it was before the attempt (for example restored with the status branch)
-            if now != left_by_attempt.get(path):
-                kept_changed.append(path)
+            if written is not None and now is not None and now != written.get(path.resolve(), None):
+                kept_changed.append(path)  # not what finalize wrote: another writer's change, left alone
                 continue
-            try:
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_bytes(original)
-            except OSError as exc:
-                logger.warning("finalize atomicity: failed to restore %s: %s", path, exc)
-        for path in current - before.keys():
-            if _is_kept(path):
-                continue
-            now = _bytes_or_none(path)
-            if now is None:
-                continue  # already gone: nothing of this attempt's is left to remove
-            if now != left_by_attempt.get(path):
-                kept_changed.append(path)
-                continue
-            try:
-                path.unlink(missing_ok=True)
-            except OSError as exc:
-                logger.warning("finalize atomicity: failed to remove %s: %s", path, exc)
+            _undo_one_path(path, original)
     return sorted(kept_changed)
+
+
+def _undo_one_path(path: Path, original: bytes | None) -> None:
+    """Put *path* back to *original*, or remove it when the attempt created it; a failure is logged, never raised."""
+    try:
+        if original is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(original)
+    except OSError as exc:
+        logger.warning("finalize atomicity: failed to restore %s: %s", path, exc)
 
 
 def _restore_mission_write_scope_beside_status(
@@ -1149,19 +1217,20 @@ def _undo_finalize_write_scope(
     *,
     owned_derived_snapshot: dict[Path, bytes],
     owned_derived_dir: Path | None,
+    ledger: FinalizeWriteLedger | None = None,
 ) -> tuple[StatusSurfaceLeftover | None, list[Path]]:
     """Undo a refused run's writes: the status commits first, then the Mission directory (and the owned derived view).
 
-    What the attempt left is snapshotted FIRST, before any undo step, and the restore is a compare-and-swap
-    against it inside the Mission write lock (plan A8): a file another writer changed since the attempt
-    failed is kept. Returns what the status surface could not undo and the files kept.
+    The restore acts only on what the run's write ledger (the active one unless *ledger* is given) says
+    finalize wrote, as a compare-and-swap inside the Mission write lock (plan A8, FR-003): a file finalize
+    never wrote, or one another writer changed since, is kept. Returns what the status surface could not
+    undo and the files kept.
     """
-    written = _snapshot_mission_write_scope(mission_dir)
-    written_derived = _snapshot_mission_write_scope(owned_derived_dir) if owned_derived_dir is not None else None
+    ledger = ledger or active_write_ledger() or FinalizeWriteLedger()
     leftover = _restore_status_surface(guard)
-    kept = _restore_mission_write_scope_beside_status(guard, snapshot, mission_dir, written=written)
+    kept = _restore_mission_write_scope_beside_status(guard, snapshot, mission_dir, written=ledger.written)
     if owned_derived_dir is not None:
-        kept.extend(_restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir, written=written_derived, lock_dir=mission_dir))
+        kept.extend(_restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir, written=ledger.written, lock_dir=mission_dir))
     return leftover, kept
 
 

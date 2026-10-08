@@ -17,6 +17,7 @@ import subprocess
 import sys
 import threading
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
@@ -25,6 +26,8 @@ import pytest
 from typer.testing import CliRunner
 
 import specify_cli.frontmatter as frontmatter_module
+from kernel.atomic import atomic_write
+from specify_cli.cli.commands.agent.finalize_status_surface import StatusSurfaceGuard
 from specify_cli.cli.commands.agent import mission_finalize_bootstrap as bootstrap
 from specify_cli.cli.commands.agent import mission_finalize_commit as finalize_commit
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
@@ -339,14 +342,28 @@ def scope(mission: tuple[Path, Path, Path]) -> tuple[Path, Path]:
     return primary, tasks_md
 
 
+@contextmanager
+def _finalize_run() -> Iterator[finalize_commit.FinalizeWriteLedger]:
+    """A finalize run's write ledger: whatever the block writes through ``atomic_write`` is recorded as finalize's."""
+    ledger, ledger_token, observer_token = finalize_commit.begin_write_ledger()
+    try:
+        yield ledger
+    finally:
+        finalize_commit.end_write_ledger(ledger_token, observer_token)
+
+
+def _finalize_writes(path: Path, text: str) -> None:
+    atomic_write(path, text)
+
+
 def test_restore_rewrites_a_file_still_holding_what_finalize_wrote(monkeypatch: pytest.MonkeyPatch, scope: tuple[Path, Path]) -> None:
     mission_dir, tasks_md = scope
     recorder = _LockRecorder(monkeypatch)
     before = finalize_commit._snapshot_mission_write_scope(mission_dir)
-    tasks_md.write_text("finalize wrote this\n", encoding="utf-8")
-    written = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    with _finalize_run() as ledger:
+        _finalize_writes(tasks_md, "finalize wrote this\n")
 
-    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=written)
+    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=ledger.written)
 
     assert tasks_md.read_text(encoding="utf-8") == "original\n"
     assert kept == []
@@ -356,11 +373,11 @@ def test_restore_rewrites_a_file_still_holding_what_finalize_wrote(monkeypatch: 
 def test_restore_keeps_a_rewritten_file_another_writer_changed(scope: tuple[Path, Path]) -> None:
     mission_dir, tasks_md = scope
     before = finalize_commit._snapshot_mission_write_scope(mission_dir)
-    tasks_md.write_text("finalize wrote this\n", encoding="utf-8")
-    written = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    with _finalize_run() as ledger:
+        _finalize_writes(tasks_md, "finalize wrote this\n")
     tasks_md.write_text("another writer's edit\n", encoding="utf-8")
 
-    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=written)
+    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=ledger.written)
 
     assert tasks_md.read_text(encoding="utf-8") == "another writer's edit\n"
     assert kept == [tasks_md]
@@ -371,10 +388,10 @@ def test_restore_deletes_a_file_finalize_created_while_it_is_unchanged(monkeypat
     recorder = _LockRecorder(monkeypatch)
     before = finalize_commit._snapshot_mission_write_scope(mission_dir)
     created = mission_dir / "created.md"
-    created.write_text("finalize created this\n", encoding="utf-8")
-    written = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    with _finalize_run() as ledger:
+        _finalize_writes(created, "finalize created this\n")
 
-    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=written)
+    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=ledger.written)
 
     assert not created.exists()
     assert kept == []
@@ -385,11 +402,11 @@ def test_restore_keeps_a_created_file_another_writer_edited(scope: tuple[Path, P
     mission_dir, _tasks_md = scope
     before = finalize_commit._snapshot_mission_write_scope(mission_dir)
     created = mission_dir / "created.md"
-    created.write_text("finalize created this\n", encoding="utf-8")
-    written = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    with _finalize_run() as ledger:
+        _finalize_writes(created, "finalize created this\n")
     created.write_text("another writer appended\n", encoding="utf-8")
 
-    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=written)
+    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=ledger.written)
 
     assert created.read_text(encoding="utf-8") == "another writer appended\n"
     assert kept == [created]
@@ -399,23 +416,93 @@ def test_restore_keeps_a_removed_file_another_writer_put_back(scope: tuple[Path,
     mission_dir, tasks_md = scope
     before = finalize_commit._snapshot_mission_write_scope(mission_dir)
     tasks_md.unlink()  # finalize removed a tracked file; another writer put a different one back
-    written = finalize_commit._snapshot_mission_write_scope(mission_dir)
     tasks_md.write_text("another writer's file\n", encoding="utf-8")
 
-    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=written)
+    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written={})
 
     assert tasks_md.read_text(encoding="utf-8") == "another writer's file\n"
     assert kept == [tasks_md]
 
 
-def test_restore_defaults_to_the_snapshot_taken_at_the_call(scope: tuple[Path, Path]) -> None:
-    """Callers that pass no ``written`` keep the previous restore, now taken inside the lock."""
+def test_restore_puts_back_a_file_that_is_gone(scope: tuple[Path, Path]) -> None:
+    mission_dir, tasks_md = scope
+    before = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    tasks_md.unlink()
+
+    assert finalize_commit._restore_mission_write_scope(before, mission_dir, written={}) == []
+    assert tasks_md.read_text(encoding="utf-8") == "original\n"
+
+
+def test_restore_without_a_ledger_undoes_every_changed_file(scope: tuple[Path, Path]) -> None:
+    """A status directory restored by the status guard passes no ledger and keeps the previous restore."""
     mission_dir, tasks_md = scope
     before = finalize_commit._snapshot_mission_write_scope(mission_dir)
     tasks_md.write_text("finalize wrote this\n", encoding="utf-8")
 
     assert finalize_commit._restore_mission_write_scope(before, mission_dir) == []
     assert tasks_md.read_text(encoding="utf-8") == "original\n"
+
+
+def _wp02(primary: Path) -> Path:
+    wp02 = primary / "tasks" / "WP02-other.md"
+    wp02.write_text('---\nwork_package_id: "WP02"\ntitle: "Other"\ndependencies: []\n---\n\n# WP02\n', encoding="utf-8")
+    return wp02
+
+
+def test_a_failed_finalize_keeps_notes_written_during_the_run_and_reports_them(mission: tuple[Path, Path, Path]) -> None:
+    """FR-003 (A8): finalize flushes WP01, a foreign writer adds a note to WP02 (never touched) and to WP01, finalize fails.
+
+    Nothing of the foreign writer's is put back; WP01's own frontmatter write is undone only if untouched.
+    """
+    repo, primary, wp01 = mission
+    wp02 = _wp02(primary)
+    before = finalize_commit._snapshot_mission_write_scope(primary)
+    original_wp01 = wp01.read_bytes()
+    guard = StatusSurfaceGuard()
+
+    with _finalize_run() as ledger:
+        bootstrap._flush_frontmatter_writes(_bootstrap_state(repo, wp01), validate_only=False, repo_root=repo)
+        wp02.write_text(wp02.read_text(encoding="utf-8") + "\nreviewer note on WP02\n", encoding="utf-8")  # a file finalize never wrote
+        _, kept = finalize_commit._undo_finalize_write_scope(guard, before, primary, owned_derived_snapshot={}, owned_derived_dir=None, ledger=ledger)
+
+    assert "reviewer note on WP02" in wp02.read_text(encoding="utf-8")
+    assert kept == [wp02]
+    assert wp01.read_bytes() == original_wp01  # finalize's own, untouched write is undone
+
+
+def test_a_failed_finalize_keeps_a_note_added_to_a_file_it_wrote(mission: tuple[Path, Path, Path]) -> None:
+    repo, primary, wp01 = mission
+    before = finalize_commit._snapshot_mission_write_scope(primary)
+    guard = StatusSurfaceGuard()
+
+    with _finalize_run() as ledger:
+        bootstrap._flush_frontmatter_writes(_bootstrap_state(repo, wp01), validate_only=False, repo_root=repo)
+        wp01.write_text(wp01.read_text(encoding="utf-8") + "\nnote added after the flush\n", encoding="utf-8")
+        _, kept = finalize_commit._undo_finalize_write_scope(guard, before, primary, owned_derived_snapshot={}, owned_derived_dir=None, ledger=ledger)
+
+    assert "note added after the flush" in wp01.read_text(encoding="utf-8")
+    assert kept == [wp01]
+
+
+def test_the_ledger_records_the_meta_text_inside_the_writing_hold(mission: tuple[Path, Path, Path]) -> None:
+    from specify_cli.mission_metadata import locked_update_meta
+
+    repo, primary, _wp = mission
+    with _finalize_run() as ledger:
+        locked_update_meta(primary, lambda meta: meta.update(target_branch="develop"), repo_root=repo, validate=False)
+    text = ledger.text_for(primary / "meta.json")
+    assert text is not None
+    assert json.loads(text)["target_branch"] == "develop"
+    assert text == (primary / "meta.json").read_text(encoding="utf-8")
+
+
+def test_note_status_files_written_records_the_status_files_inside_a_run(mission: tuple[Path, Path, Path]) -> None:
+    repo, primary, _wp = mission
+    (primary / "status.events.jsonl").write_text('{"a": 1}\n', encoding="utf-8")
+    finalize_commit.note_status_files_written(primary, repo)  # outside a run: nothing recorded, nothing raised
+    with _finalize_run() as ledger:
+        finalize_commit.note_status_files_written(primary, repo)
+    assert ledger.written == {(primary / "status.events.jsonl").resolve(): b'{"a": 1}\n'}
 
 
 def test_meta_revert_is_a_compare_and_swap_on_what_finalize_wrote(mission: tuple[Path, Path, Path]) -> None:
