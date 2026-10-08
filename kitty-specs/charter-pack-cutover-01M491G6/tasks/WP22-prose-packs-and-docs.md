@@ -438,6 +438,112 @@ A resuming session reads the Activity Log, checks `git log --oneline` against th
 ### Updating Status
 
 Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task <WPID> --to <status>` to change WP status.
+- 2026-10-08T20:20:00Z – claude (lexical-larry) – Red-first: removed the WP22 strict-xfail (`_SLICE_PENDING` map in tests/acceptance/charter_pack_cutover/test_package_split.py; the only WP22 marker). `test_fr010_retired_identifiers_absent[prose]` RED: 1 failed, 3 passed; 50 findings over 895 scanned files (doctrine pack 27, doctrine catalog 9, charter selection 6, project doctrine 5, default charter pack 1, doctor doctrine 1, spec-kitty doctrine 1). Assertion unchanged. T101 forbidden-token grep over owned files at start: 99 hits in 41 files (charter-pack-usage-journey 13, org-doctrine-layer 15, governance-files 6, troubleshoot-charter 5, ...). Commit 04640291.
+- 2026-10-08T20:25:00Z – claude – T101 built-in pack prose: commit bce64b55 (+ deef1652 structural-lint docstrings, provenance ratchet baseline lowered repo_paths 4->0). Pack manifest + procedure graph regenerated with `spec-kitty charter pack regenerate-graph`; `--check` exit 0.
+- 2026-10-08T20:27:00Z – claude – T103 packs/internal prose: commit 9909bff5; AGENTS.md (+ identical CLAUDE.md; both are regular files with the same blob in this tree, not a symlink) commit 46323111.
+- 2026-10-08T20:45:00Z – claude – T102 living docs: commits 4cd00d6a (architecture; charter-pack-usage-journey rewritten to the activation preset model), 2c630cfa (context), 66121046 (development), 2ec246f9 (guides), 44de81c7 + f408d3fd (landscape, api/configuration/migrations), dfc7b104 (glob row fix). Skills prose df31b3fc; CLI help text 6791c91b.
+- Classification rule applied per file (renamed = removed lines carrying a tier-sense term; kept = remaining lines with "doctrine", content sense / C-004 / historical slug / identifier):
+  - AGENTS.md: renamed 2, kept 12
+  - CLAUDE.md: renamed 2, kept 12
+  - docs/api/agent_profiles/curator-carla.md: renamed 2, kept 4
+  - docs/api/agent_profiles/doctrine-daphne.md: renamed 1, kept 11
+  - docs/api/agent_profiles/human-in-charge.md: renamed 0, kept 1
+  - docs/api/agent_profiles/index.md: renamed 2, kept 2
+  - docs/api/charter-commands.md: renamed 3, kept 14
+  - docs/api/environment-variables.md: renamed 3, kept 4
+  - docs/api/skills/spk-charter-profile-load.md: renamed 1, kept 1
+  - docs/architecture/00_landscape/README.md: renamed 1, kept 24
+  - docs/architecture/04_implementation_mapping/README.md: renamed 9, kept 27
+  - docs/architecture/04_implementation_mapping/code-patterns.md: renamed 2, kept 7
+  - docs/architecture/calibration/README.md: renamed 1, kept 1
+  - docs/architecture/calibration/documentation.md: renamed 1, kept 0
+  - docs/architecture/calibration/erp-custom.md: renamed 1, kept 0
+  - docs/architecture/calibration/research.md: renamed 1, kept 0
+  - docs/architecture/calibration/software-dev.md: renamed 1, kept 0
+  - docs/architecture/charter-pack-usage-journey.md: renamed 15, kept 0
+  - docs/architecture/charter-synthesis-drg.md: renamed 3, kept 10
+  - docs/architecture/diagrams/02_containers/README.md: renamed 3, kept 5
+  - docs/architecture/diagrams/03_components/README.md: renamed 3, kept 10
+  - docs/architecture/diagrams/README.md: renamed 1, kept 3
+  - docs/architecture/doctrine-kinds.md: renamed 12, kept 29
+  - docs/architecture/explanation-index.md: renamed 0, kept 2
+  - docs/architecture/explanation-toc.yml: renamed 0, kept 5
+  - docs/architecture/index.md: renamed 0, kept 5
+  - docs/architecture/mission-system.md: renamed 1, kept 8
+  - docs/architecture/mission-type-resolution.md: renamed 4, kept 30
+  - docs/architecture/org-doctrine-layer.md: renamed 31, kept 13
+  - docs/architecture/profile-load-reliability.md: renamed 1, kept 13
+  - docs/architecture/spdd-reasons.md: renamed 5, kept 5
+  - docs/configuration/yaml-libraries.md: renamed 2, kept 2
+  - docs/context/charter-overview.md: renamed 4, kept 8
+  - docs/context/configuration-project-structure.md: renamed 2, kept 2
+  - docs/context/execution.md: renamed 1, kept 2
+  - docs/context/governance-files.md: renamed 12, kept 9
+  - docs/context/governance.md: renamed 7, kept 5
+  - docs/context/testing-taxonomy.md: renamed 2, kept 4
+  - docs/development/how-to/create-a-doctrine-artifact.md: renamed 18, kept 22
+  - docs/development/how-to/create-a-pack-skill.md: renamed 4, kept 8
+  - docs/development/how-to/enable-the-internal-pack.md: renamed 1, kept 3
+  - docs/development/how-to/review-gates.md: renamed 3, kept 15
+  - docs/development/reference/ci-gate-mechanics.md: renamed 1, kept 0
+  - docs/development/reference/known-friction-points.md: renamed 3, kept 2
+  - docs/development/reference/read-side-seam-classification.md: renamed 1, kept 3
+  - docs/development/reference/terminology-exemptions.md: renamed 0, kept 6
+  - docs/development/reporting/debrief-styleguide.md: renamed 1, kept 3
+  - docs/guides/how-to/governance/create-an-org-doctrine-pack.md: renamed 14, kept 19
+  - docs/guides/how-to/governance/extend-charter-for-unsupported-language.md: renamed 4, kept 8
+  - docs/guides/how-to/governance/index.md: renamed 0, kept 7
+  - docs/guides/how-to/governance/manage-glossary.md: renamed 3, kept 7
+  - docs/guides/how-to/governance/run-governed-mission.md: renamed 2, kept 3
+  - docs/guides/how-to/governance/setup-governance.md: renamed 10, kept 12
+  - docs/guides/how-to/governance/synthesize-doctrine.md: renamed 3, kept 7
+  - docs/guides/how-to/governance/troubleshoot-charter.md: renamed 4, kept 7
+  - docs/guides/toc.yml: renamed 1, kept 4
+  - docs/index.md: renamed 1, kept 4
+  - docs/migrations/cross-repo-e2e-gate.md: renamed 2, kept 0
+  - docs/migrations/from-charter-2x.md: renamed 4, kept 5
+  - packs/built-in/agent_profiles/README.md: renamed 1, kept 1
+  - packs/built-in/agent_profiles/curator-carla.agent.yaml: renamed 4, kept 8
+  - packs/built-in/assets/README.md: renamed 3, kept 1
+  - packs/built-in/assets/docs_structural_lint.py: renamed 4, kept 2
+  - packs/built-in/directives/038-structured-prompt-boundary.directive.yaml: renamed 3, kept 0
+  - packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml: renamed 3, kept 20
+  - packs/built-in/missions/documentation/governance-profile.yaml: renamed 2, kept 2
+  - packs/built-in/missions/mission-steps/software-dev/review/prompt.md: renamed 2, kept 0
+  - packs/built-in/missions/mission-steps/software-dev/specify/prompt.md: renamed 1, kept 1
+  - packs/built-in/missions/plan/actions/plan/index.yaml: renamed 1, kept 1
+  - packs/built-in/missions/plan/actions/research/index.yaml: renamed 1, kept 1
+  - packs/built-in/missions/plan/actions/review/index.yaml: renamed 1, kept 1
+  - packs/built-in/missions/plan/actions/specify/index.yaml: renamed 1, kept 1
+  - packs/built-in/missions/plan/governance-profile.yaml: renamed 2, kept 2
+  - packs/built-in/missions/research/governance-profile.yaml: renamed 2, kept 2
+  - packs/built-in/missions/software-dev/governance-profile.yaml: renamed 2, kept 1
+  - packs/built-in/pack.md: renamed 1, kept 0
+  - packs/built-in/procedures/domain-aware-decision-interview.procedure.yaml: renamed 1, kept 2
+  - packs/built-in/procedures/migrate-project-guidance-to-spec-kitty-charter.procedure.yaml: renamed 1, kept 9
+  - packs/built-in/procedures/onboard-external-agent-to-pack.procedure.yaml: renamed 4, kept 2
+  - packs/internal/README.md: renamed 3, kept 5
+  - packs/internal/assets/test-quality-scan.py: renamed 1, kept 0
+  - packs/internal/drg/fragment.yaml: renamed 2, kept 10
+  - packs/internal/procedures/test-suite-quality-assessment.procedure.yaml: renamed 1, kept 1
+  - packs/internal/toolguides/TEST_QUALITY_TRIAGE.md: renamed 1, kept 0
+  - src/charter/offering/skills/README.md: renamed 1, kept 12
+  - src/charter/offering/skills/spec-kitty-mission-system/SKILL.md: renamed 4, kept 16
+  - src/charter/offering/skills/spk-charter-governance/references/charter-artifact-structure.md: renamed 1, kept 6
+  - src/charter/offering/skills/spk-charter-governance/references/charter-governance-workflow.md: renamed 3, kept 39
+  - src/charter/offering/skills/spk-charter-profile-load/references/profile-load-mechanics.md: renamed 1, kept 0
+  - src/charter/offering/skills/spk-charter-spdd-reasons/references/reasons-canvas-workflow.md: renamed 1, kept 0
+  - src/specify_cli/cli/commands/charter/authoring.py: renamed 2, kept 8
+  - src/specify_cli/cli/commands/charter/list_cmd.py: renamed 1, kept 7
+  - src/specify_cli/cli/commands/charter/org.py: renamed 5, kept 2
+  - src/specify_cli/cli/commands/charter/pack_tooling.py: renamed 3, kept 3
+  - tests/architectural/_builtin_pack_provenance_baseline.yaml: renamed 0, kept 2
+  - tests/docs/test_asset_howto.py: renamed 1, kept 3
+- 2026-10-08T21:30:00Z – claude – T104: CLI reference regenerated (`python -m scripts.docs.build_cli_reference`, hybrid) and docs retrieval index (`python -m scripts.docs.docs_index --write`), commits f831a4e4, 57947aef; page-inventory had no drift. `charter pack regenerate-graph --check` exit 0.
+- 2026-10-08T21:30:00Z – claude – Prose-slice scope: the generated docs-retrieval-index.yaml indexes ADRs, plans, reports, migrations and charter.md, so it repeats retired wording the slice exempts at source; added it to the prose slice's exclude_patterns (c5a4154f) with the same rationale as the removed-command gate exemption. Assertion unchanged. Reviewer decision requested (fixture header says WPs do not edit it).
+- 2026-10-08T21:30:00Z – claude – GREEN: test_fr010_retired_identifiers_absent[prose] 0 findings over 894 files (floor 714). Acceptance suite 310 passed, 1 skipped, 43 xfailed, 0 failed, 0 xpassed.
+- Deviations / logged follow-ups outside ownership: doctrine-daphne.agent.yaml untouched beyond the command line WP15 already fixed (C-004, prose kept); glossary_packs/spec-kitty-core (WP24) 3 lines; mission-steps software-dev review/specify prompts (WP18) SPDD block; docs/api/agent_profiles/*, docs/api/skills/spk-charter-profile-load.md (WP18); src/charter/offering/skills/** prose (WP18); CLI help strings in charter authoring/org/pack_tooling/list_cmd (prose only); docs/api/charter-commands.md; 04_implementation_mapping/README.md (WP23) non-tests/doctrine lines only; CLAUDE.md mirrored from AGENTS.md (regular file, same blob); tests/architectural/_builtin_pack_provenance_baseline.yaml lowered; tests/docs/test_asset_howto.py docstring path.
+- Kept by decision: page file names (create-an-org-doctrine-pack.md, org-doctrine-layer.md, doctrine-kinds.md, charter-pack-usage-journey.md; no redirects); docs/convergence/** port ledgers (historical record of past code); docs/migrations/doctrine-local-overlay-to-org-layer.md (superseded runbook, WP24); "Doctrine Reference Graph"/DRG; content-sense doctrine; 04_implementation_mapping "Doctrine Stack" headings (WP23); packs/internal styleguide config value `doctrine_artifact: src/doctrine/` (config data, not prose); docs/api/batch-api-contract.md `doctrine_mode` wire example (consumer-visible key, not renamed: reported).
 
 ## Carry-over from WP13
 

@@ -86,3 +86,8 @@ Option A: when the cutover keeps an edited installed copy of a retired skill, it
 ## Owner ratification 2026-10-08 — WP20 public names
 
 Ratified (WP20 review): `OfferingCatalog`, `load_offering_catalog`, `resolve_offering_root`, `GovernanceCharterConfig`, `build_active_charter_service`, modules `active_charter_service_builder`, `action_governance_bundle`, `_project_root_candidates`, JSON key `missing_from_offering` (`charter consistency-check --json`), keyword `charter_service=` on `compile_charter` and related functions.
+
+## Orchestrator rulings 2026-10-08 (WP22)
+
+- WP01 fixture follow-up (logged): `docs/development/docs-retrieval-index.yaml` joins the prose slice's `exclude_patterns` in `tests/fixtures/charter_pack_cutover/retired_identifiers.yaml`. It is generated from every docs page, including the FR-018 historical roots the prose slice already exempts at source; the removed-command gate exempts it for the same reason. The assertion is unchanged.
+- `docs/api/batch-api-contract.md` `doctrine_mode` (SaaS wire-payload example): the payload contract is authored upstream (spec-kitty/saas; client-repo inversion ADR 2026-09-06-1) and the CLI-side producer was removed by WP14. WP25 decides: if the doc still describes a live upstream contract, keep the key with a narrow, reasoned FR-018 exemption naming the file; if the section only documents the removed CLI producer, delete or mark it historical. No rename of an upstream-owned wire key from this repo.
