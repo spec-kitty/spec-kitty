@@ -567,7 +567,7 @@ class AgentProfileRepository:
         higher_layer: str,
         higher_data: dict[str, Any],
     ) -> None:
-        """Emit a DoctrineLayerCollisionWarning iff ``profile_id`` is already loaded.
+        """Emit an ArtifactLayerCollisionWarning iff ``profile_id`` is already loaded.
 
         Called at write time so the lower-layer dump is still available for
         field-count accounting (FR-003 wording per ADR 2026-05-16-1).

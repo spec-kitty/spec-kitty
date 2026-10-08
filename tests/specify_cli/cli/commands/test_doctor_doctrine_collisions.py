@@ -1,6 +1,6 @@
 """CLI test: `spec-kitty doctor charter-packs` surfaces collision summary (MEDIUM-1).
 
-The mission-review remediation for MEDIUM-1 added `DoctrineLayerCollisionWarning`
+The mission-review remediation for MEDIUM-1 added `ArtifactLayerCollisionWarning`
 emission in the loaders plus a `Collisions` section in `doctor charter-packs` so
 operators can audit which artifacts in their resolved doctrine surface come
 from shadowed lower layers (ADR `docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`).

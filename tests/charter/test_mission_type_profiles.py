@@ -29,7 +29,7 @@ from charter.activation.mission_type_profiles import (
     resolve_mission_type_context,
 )
 from charter.activation.pack_context import PackContext
-from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.base import ArtifactLayerCollisionWarning
 from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
 
@@ -914,7 +914,7 @@ class TestOrgTierGovernanceProfileThreading:
             activated_mission_types=["software-dev"],
         )
 
-        with pytest.warns(DoctrineLayerCollisionWarning, match="software-dev"):
+        with pytest.warns(ArtifactLayerCollisionWarning, match="software-dev"):
             after = resolve_mission_type_context(tmp_path, mission_type="software-dev")
 
         assert after.provenance == "org"
@@ -962,7 +962,7 @@ class TestOrgTierGovernanceProfileThreading:
             activated_mission_types=["software-dev"],
         )
 
-        with pytest.warns(DoctrineLayerCollisionWarning, match="software-dev"):
+        with pytest.warns(ArtifactLayerCollisionWarning, match="software-dev"):
             bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
 
         assert bundle.provenance == "org"
@@ -1205,7 +1205,7 @@ class TestActionGrainBuiltinOnlyPathUnaffected:
 
         # Sanity: the WP04-fixed, repo_root-threaded path DOES see the org
         # override (same fixture as TestOrgTierGovernanceProfileThreading).
-        with pytest.warns(DoctrineLayerCollisionWarning, match="software-dev"):
+        with pytest.warns(ArtifactLayerCollisionWarning, match="software-dev"):
             threaded = _load_mission_type_profile("software-dev", repo_root=tmp_path)
         assert threaded is not None
         assert threaded.template_set == _ORG_OVERRIDE_TEMPLATE_SET

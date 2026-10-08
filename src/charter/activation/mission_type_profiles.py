@@ -1316,7 +1316,7 @@ def _load_mission_type_profile(
     project override from
     ``<repo_root>/.kittify/doctrine/mission_types/<mission_type>/governance-profile.yaml``
     via :class:`~charter.activation.mission_type_profile_repository.MissionTypeProfileRepository`
-    (project > org > builtin; :class:`~charter.offering.base.DoctrineLayerCollisionWarning`
+    (project > org > builtin; :class:`~charter.offering.base.ArtifactLayerCollisionWarning`
     on shadow).  Keying on the ``id == mission_type`` invariant means a profile
     whose declared type disagrees with its directory is simply not found under
     ``mission_type`` (returns ``None``) rather than silently mis-routed.

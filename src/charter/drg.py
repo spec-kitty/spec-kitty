@@ -73,7 +73,7 @@ from __future__ import annotations
 # WP03, FR-003 / NFR-002 / contract C1).
 from charter.offering.api import ArtifactKind, slug_for
 from charter.offering.artifact_kinds import CORE_KIND_PLURALS
-from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.base import ArtifactLayerCollisionWarning
 from charter.offering.drg import (
     DRGLoadError,
     DRGValidationError,
@@ -128,7 +128,7 @@ __all__ = [
     "DRGLoadError",
     "DRGNode",
     "DRGValidationError",
-    "DoctrineLayerCollisionWarning",
+    "ArtifactLayerCollisionWarning",
     "FIELDS_WITHHELD_FROM_GRAPH_OUTPUT",
     "NodeKind",
     "OrgDRGConflict",

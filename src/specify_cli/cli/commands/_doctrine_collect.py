@@ -614,7 +614,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     import re
     import warnings as _warnings
 
-    from charter.drg import DoctrineLayerCollisionWarning
+    from charter.drg import ArtifactLayerCollisionWarning
     from charter.offering.service import CharterOfferingService
     from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
@@ -634,7 +634,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
 
     collisions: list[dict[str, object]] = []
     pattern = re.compile(
-        r"Doctrine override: (?P<kind>\S+) (?P<item_id>\S+) "
+        r"Artifact override: (?P<kind>\S+) (?P<item_id>\S+) "
         r"from (?P<higher>\S+) shadowed (?P<lower>\S+) "
         r"\((?P<replaced>\d+) field\(s\) replaced; "
         r"(?P<inherited>\d+) field\(s\) inherited\)\."
@@ -648,7 +648,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
             except Exception:  # noqa: BLE001, S112 — doctor must not fail on a single repo's load error
                 continue
     for w in captured:
-        if not isinstance(w.message, DoctrineLayerCollisionWarning):
+        if not isinstance(w.message, ArtifactLayerCollisionWarning):
             continue
         m = pattern.match(str(w.message))
         if not m:

@@ -100,7 +100,7 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # ``charter.offering.base`` census-drift door (WP01 FACADE-ONLY): the
         # layer-collision warning belongs on the layer-merge facade beside
         # ``merge_layers`` / ``merge_three_layers``. Consumer is WP05-owned.
-        ("DoctrineLayerCollisionWarning", "charter.offering.base"),
+        ("ArtifactLayerCollisionWarning", "charter.offering.base"),
         # Tabled during the #3321 landing squad (inverse-containment hardening,
         # below). These 10 were advertised in ``charter.drg.__all__`` yet absent
         # from this table, so they were public but identity-unchecked — a

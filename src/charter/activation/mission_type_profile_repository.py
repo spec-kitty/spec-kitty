@@ -4,7 +4,7 @@ A project may override a mission type's governance **without editing the project
 charter or shipped doctrine** (FR-011) by dropping a
 ``.kittify/charter-packs/mission_types/<type>/governance-profile.yaml`` file.  That
 override is resolved through the *existing* ``doctrine/base.py`` builtin → org →
-project overlay (field-merge + :class:`~charter.offering.base.DoctrineLayerCollisionWarning`)
+project overlay (field-merge + :class:`~charter.offering.base.ArtifactLayerCollisionWarning`)
 — **not** a bespoke second merge.  :class:`MissionTypeProfileRepository` is the
 adapter that lets :class:`~charter.activation.mission_type_profiles.MissionTypeProfile` ride
 that stack.

@@ -103,7 +103,7 @@ _BUILTIN_OVERRIDE_STYLEGUIDE_YAML = textwrap.dedent(
       - python
 
     principles:
-      - "Org override: this declaration shadows the built-in python-conventions styleguide and MUST emit DoctrineLayerCollisionWarning."
+      - "Org override: this declaration shadows the built-in python-conventions styleguide and MUST emit ArtifactLayerCollisionWarning."
     """
 )
 
@@ -317,7 +317,7 @@ def test_case_2_required_styleguides_in_org_charter_pre_fills(tmp_path: Path) ->
 def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> None:
     """An org pack that ships a styleguide whose id collides with a built-in
     styleguide (e.g. ``python-conventions``) MUST emit
-    ``DoctrineLayerCollisionWarning`` with the styleguide id and the
+    ``ArtifactLayerCollisionWarning`` with the styleguide id and the
     artifact kind in the message.
 
     Mission A wired collision warnings for the directive kind. The contract
@@ -327,7 +327,7 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
     fired). Mission B WP04 must verify / extend the collision pipeline for
     every artifact kind that becomes per-artifact selectable.
     """
-    from charter.offering.base import DoctrineLayerCollisionWarning
+    from charter.offering.base import ArtifactLayerCollisionWarning
     from charter.offering.service import CharterOfferingService
 
     consumer = tmp_path / "consumer"
@@ -356,7 +356,7 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
     )
     # Force the styleguides repository to load — the warning fires at load time
     # (repositories load lazily, so construction above emits nothing).
-    with pytest.warns(DoctrineLayerCollisionWarning) as warning_records:
+    with pytest.warns(ArtifactLayerCollisionWarning) as warning_records:
         _ = list(service.styleguides.all())
 
     messages = [str(record.message) for record in warning_records]
@@ -366,7 +366,7 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
     ]
     assert matching, (
         "An org-layer styleguide that collides with a built-in id MUST emit "
-        "DoctrineLayerCollisionWarning naming both the id (`python-conventions`) "
+        "ArtifactLayerCollisionWarning naming both the id (`python-conventions`) "
         "and the artifact kind (`styleguide`). Observed warnings:\n"
         + "\n".join(f"  - {m}" for m in messages)
         + "\n\n"

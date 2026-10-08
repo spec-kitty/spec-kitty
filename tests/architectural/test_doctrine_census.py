@@ -138,7 +138,7 @@ DISPOSITION: dict[str, str] = {
     "charter.offering.drg.validator": "FACADE-ONLY",
     "charter.offering.drg.override_policy": "TICKETED-BASELINE",
     "charter.offering.drg.migration.hand_authored_overlay": "TICKETED-BASELINE",
-    # charter.offering.base — DoctrineLayerCollisionWarning (census-drift: absent from the
+    # charter.offering.base — ArtifactLayerCollisionWarning (census-drift: absent from the
     # snapshot table). Doorable → FACADE-ONLY (prefer a clean door over widening
     # the exempt surface). Consumer _doctrine_collect.py is WP05-owned.
     "charter.offering.base": "FACADE-ONLY",

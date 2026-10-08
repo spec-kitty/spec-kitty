@@ -46,7 +46,7 @@ from charter.offering.yaml_utils import parse_shipped_yaml
 T = TypeVar("T", bound=BaseModel)
 
 
-class DoctrineLayerCollisionWarning(UserWarning):
+class ArtifactLayerCollisionWarning(UserWarning):
     """Emitted when a higher doctrine layer shadows an artifact from a lower layer.
 
     Field-level merge semantics apply (see ADR
@@ -68,16 +68,16 @@ def _emit_collision_warning(
     higher_data: dict[str, Any],
     lower_dump: dict[str, Any],
 ) -> None:
-    """Emit a DoctrineLayerCollisionWarning for a single artifact ID collision."""
+    """Emit an ArtifactLayerCollisionWarning for a single artifact ID collision."""
     higher_keys = set(higher_data.keys())
     lower_keys = set(lower_dump.keys())
     replaced = len(higher_keys & lower_keys)
     inherited = len(lower_keys - higher_keys)
     warnings.warn(
-        f"Doctrine override: {kind} {item_id} from {higher_layer} shadowed "
+        f"Artifact override: {kind} {item_id} from {higher_layer} shadowed "
         f"{lower_layer} ({replaced} field(s) replaced; "
         f"{inherited} field(s) inherited).",
-        DoctrineLayerCollisionWarning,
+        ArtifactLayerCollisionWarning,
         stacklevel=3,
     )
 
@@ -239,7 +239,7 @@ class BaseArtifactRepository(ABC, Generic[T]):
         higher_layer: str,
         higher_data: dict[str, Any],
     ) -> None:
-        """Emit a DoctrineLayerCollisionWarning iff ``item_id`` is already loaded.
+        """Emit an ArtifactLayerCollisionWarning iff ``item_id`` is already loaded.
 
         Called at write time before ``self._items[item_id]`` is overwritten so
         the lower-layer dump is still available for field-count accounting.
@@ -272,7 +272,7 @@ class BaseArtifactRepository(ABC, Generic[T]):
         + merge-or-insert against ``built_in``. Tag every resulting item with the given
         layer_name as provenance.
 
-        Emits a ``DoctrineLayerCollisionWarning`` whenever an overlay artifact
+        Emits an ``ArtifactLayerCollisionWarning`` whenever an overlay artifact
         shadows an already-loaded artifact from a lower layer (FR-003 wording
         per ADR 2026-05-16-1).
 
