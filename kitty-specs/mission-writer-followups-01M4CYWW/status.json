@@ -1,7 +1,7 @@
 {
-  "event_count": 42,
-  "last_event_id": "01M4DK5ZXNRX9XAQP18ZZXXPXB",
-  "materialized_at": "2026-10-08T11:08:09.525624+00:00",
+  "event_count": 44,
+  "last_event_id": "01M4DK7FAZAWQG01DHNEGWSJZQ",
+  "materialized_at": "2026-10-08T11:08:57.941255+00:00",
   "mission_number": "",
   "mission_slug": "mission-writer-followups-01M4CYWW",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 14
+    "planned": 13
   },
   "work_packages": {
     "WP01": {
@@ -84,11 +84,20 @@
       }
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M4D37R0JKQRNNW721EYK7KJF",
-      "last_transition_at": "2026-10-08T06:29:29.746120+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M4DK7FAZAWQG01DHNEGWSJZQ",
+      "last_transition_at": "2026-10-08T11:08:57.941255+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 5181,
+      "shell_pid_created_at": "1791457719.73"
     },
     "WP04": {
       "actor": "finalize-tasks",
