@@ -5,8 +5,17 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+import sys
+import sysconfig
 
 from tests.upgrade.preview_support.process import run_process
+
+
+def active_executables() -> tuple[Path, Path]:
+    """Use the interpreter running pytest and its matching console scripts."""
+    scripts = Path(sysconfig.get_path("scripts"))
+    return Path(sys.executable), scripts / "spec-kitty"
+
 
 _PROBE = """
 import importlib.metadata, importlib.util, json, sys

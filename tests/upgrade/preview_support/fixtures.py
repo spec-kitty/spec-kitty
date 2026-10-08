@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from tests.upgrade.preview_support.process import ProcessResult, child_environment, run_process
-from tests.upgrade.preview_support.provenance import SourceIdentity, identify_source
+from tests.upgrade.preview_support.provenance import SourceIdentity, active_executables, identify_source
 from tests.upgrade.preview_support.snapshot import Snapshot, net_delta, snapshot
 
 
@@ -56,7 +56,8 @@ def prepare_case(sandbox: Path, checkout: Path, *, global_state: str = "G5") -> 
     project = sandbox / "project"
     project.mkdir(parents=True)
     setup_env = child_environment(sandbox / "setup")
-    identity = identify_source(checkout / ".venv/bin/spec-kitty", checkout, setup_env)
+    _, cli = active_executables()
+    identity = identify_source(cli, checkout, setup_env)
     assert not identity.source_diff, "Baseline source is dirty"
     setup = []
     for args in (

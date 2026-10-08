@@ -20,6 +20,11 @@ import psutil
 import pytest
 import yaml
 
+import specify_cli
+from tests._support.import_origin import assert_checkout_source
+
+assert_checkout_source(specify_cli.__file__, Path(__file__).resolve().parents[1])
+
 from kernel.clock import now_epoch
 from kernel.locks import LockAcquireTimeout, machine_file_lock
 from runtime.next._tmp_namespace import prompt_tmp_dir

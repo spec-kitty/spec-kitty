@@ -11,11 +11,12 @@ import pytest
 
 from tests.upgrade.preview_support.process import child_environment, run_process
 from tests.upgrade.preview_support.fixtures import copy_case, prepare_case
-from tests.upgrade.preview_support.provenance import identify_source
+from tests.upgrade.preview_support.provenance import active_executables, identify_source
 from tests.upgrade.preview_support.snapshot import Node, assert_unchanged, net_delta, snapshot
 
 pytestmark = pytest.mark.integration
 LANE = Path(__file__).resolve().parents[2]
+PYTHON, CLI = active_executables()
 
 
 @pytest.mark.parametrize("mutation", ["ignored", "mkdir", "rmdir", "unlink", "retarget", "chmod", "mtime"])
@@ -120,31 +121,31 @@ def test_child_environment_seals_fixture_overrides(tmp_path: Path, monkeypatch: 
     ]
     assert all(Path(env[key]).is_relative_to(tmp_path) for key in roots)
     assert not (tmp_path / "home").exists()
-    argv = [str(LANE / ".venv/bin/python"), "-c", "import json, os; print(json.dumps(dict(os.environ)))"]
+    argv = [str(PYTHON), "-c", "import json, os; print(json.dumps(dict(os.environ)))"]
     result = run_process(argv, tmp_path, env)
     assert result.json()["HOME"] == env["HOME"]
 
 
 def test_provenance_rejects_other_checkout(tmp_path: Path) -> None:
     env = child_environment(tmp_path)
-    identity = identify_source(LANE / ".venv/bin/spec-kitty", LANE, env)
+    identity = identify_source(CLI, LANE, env)
     assert Path(identity.module).is_relative_to(LANE.resolve() / "src")
     assert identity.version and identity.commit and identity.interpreter
     other = tmp_path / "other-checkout"
     other.mkdir()
     with pytest.raises(AssertionError, match="Source mismatch"):
-        identify_source(LANE / ".venv/bin/spec-kitty", other, env)
+        identify_source(CLI, other, env)
 
 
 @pytest.mark.parametrize("output", ["", "banner\n{}", "{}\n{}"])
 def test_machine_output_must_be_one_complete_value(tmp_path: Path, output: str) -> None:
-    result = run_process([str(LANE / ".venv/bin/python"), "-c", f"print({output!r})"], tmp_path, child_environment(tmp_path))
+    result = run_process([str(PYTHON), "-c", f"print({output!r})"], tmp_path, child_environment(tmp_path))
     with pytest.raises((AssertionError, json.JSONDecodeError)):
         result.json()
 
 
 def test_startup_failure_cannot_pass_purity(tmp_path: Path) -> None:
-    result = run_process([str(LANE / ".venv/bin/python"), "-c", "raise RuntimeError('startup control')"], tmp_path, child_environment(tmp_path))
+    result = run_process([str(PYTHON), "-c", "raise RuntimeError('startup control')"], tmp_path, child_environment(tmp_path))
     with pytest.raises(AssertionError, match="Command failed"):
         result.require_success()
 
@@ -157,7 +158,7 @@ def test_transient_write_observer(tmp_path: Path, policy: str) -> None:
     log = tmp_path / "observer.jsonl"
     wrapper = Path(__file__).parent / "preview_support/write_observer.py"
     env = child_environment(tmp_path / "environment")
-    result = run_process([str(LANE / ".venv/bin/python"), str(wrapper), str(log), policy, "probe", str(root / "transient")], root, env)
+    result = run_process([str(PYTHON), str(wrapper), str(log), policy, "probe", str(root / "transient")], root, env)
     rows = [json.loads(line) for line in log.read_text().splitlines()]
     assert rows[0] == {"installed_before_cli": True}
     assert rows[1]["event"] == "open"
@@ -181,7 +182,7 @@ def test_observer_allows_real_read_only_version(tmp_path: Path) -> None:
     wrapper = Path(__file__).parent / "preview_support/write_observer.py"
     env = child_environment(tmp_path / "environment")
     before = snapshot({"home": Path(env["HOME"])})
-    result = run_process([str(LANE / ".venv/bin/python"), str(wrapper), str(log), "deny", "cli", "--version"], tmp_path, env)
+    result = run_process([str(PYTHON), str(wrapper), str(log), "deny", "cli", "--version"], tmp_path, env)
     result.require_success()
     assert "version" in result.stdout
     assert [json.loads(line) for line in log.read_text().splitlines()] == [{"installed_before_cli": True}]
@@ -198,7 +199,7 @@ def test_observer_rejects_each_covered_operation(tmp_path: Path, event: str) -> 
     log = tmp_path / "observer.jsonl"
     wrapper = Path(__file__).parent / "preview_support/write_observer.py"
     env = child_environment(tmp_path / "environment")
-    argv = [str(LANE / ".venv/bin/python"), str(wrapper), str(log), "deny", "probe-event", event, str(root)]
+    argv = [str(PYTHON), str(wrapper), str(log), "deny", "probe-event", event, str(root)]
     result = run_process(argv, root, env)
     assert result.returncode != 0 and f"Observed write attempt: {event}" in result.stderr
     rows = [json.loads(line) for line in log.read_text().splitlines()]
@@ -274,7 +275,7 @@ def test_sentinel_parent_materialization_tolerated_but_narrow() -> None:
 
 def test_non_ci_real_tty_remains_available(tmp_path: Path) -> None:
     env = child_environment(tmp_path, {"CI": "", "TERM": "xterm"})
-    argv = [str(LANE / ".venv/bin/python"), "-c", "import os,sys; print(sys.stdout.isatty(), 'CI' in os.environ)"]
+    argv = [str(PYTHON), "-c", "import os,sys; print(sys.stdout.isatty(), 'CI' in os.environ)"]
     result = run_process(argv, tmp_path, env, tty_output=True)
     result.require_success()
     assert result.stdout.strip() == "True False"
