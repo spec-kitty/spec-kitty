@@ -128,6 +128,19 @@ def _bake(fn_name: str, *args: Any, with_repo: bool = False, with_slug: bool = F
     return call
 
 
+def _bake_primary_tree(repo: Path, feature_dir: Path) -> object:
+    """Main's primary-tree bake: the checkout precheck, the locked meta write, then the bookkeeping commit (git seam stubbed)."""
+    from unittest.mock import patch as _patch
+
+    import specify_cli.consolidation.mission_number.bake as bake
+
+    with (
+        _patch.object(bake, "_primary_checkout_refusal", return_value=None),
+        _patch("specify_cli.git.bookkeeping_commit.commit_merge_bookkeeping"),
+    ):
+        return bake._bake_mission_number_on_primary_tree(repo, SLUG, "kitty/mission-x", 7, target_branch="main")
+
+
 def _migration(module: str, fn_name: str, *args: Any, **kwargs: Any) -> Callable[[Path, Path], object]:
     def call(repo: Path, feature_dir: Path) -> object:
         import importlib
@@ -231,7 +244,7 @@ CASES: list[Case] = [
     Case(
         CONSOLIDATION_FAMILY,
         "bake_primary_tree",
-        _bake("_bake_mission_number_on_primary_tree", "kitty/mission-x", 7, with_repo=True, with_slug=True),
+        _bake_primary_tree,
         lambda m: m["mission_number"] == 7,
     ),
     Case(
@@ -487,7 +500,93 @@ def test_scratch_checkout_bake_locks_the_primary_key_and_releases_it_before_git(
     monkeypatch.setattr(mission_write, "feature_status_lock", recording_lock)
     monkeypatch.setattr(subprocess, "run", recording_run)
 
-    assert _write_mission_number_to_branch(repo, branch, SLUG, 7) is True
+    assert _write_mission_number_to_branch(repo, branch, SLUG, 7, target_branch="main") is True
 
     assert keys == [SLUG]  # the Mission's primary key, once
-    assert len(held_during_git) == 2  # git add and git commit both ran, outside the lock
+    assert held_during_git, "main's bake commits with `git commit --only`; it ran, outside the lock"
+    assert any("commit" in command for command in held_during_git)
+
+
+def _seed_primary_bake_mission(repo: Path) -> Path:
+    feature_dir = repo / "kitty-specs" / SLUG
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(json.dumps({"slug": SLUG, "mission_slug": SLUG, "mission_number": None}), encoding="utf-8")
+    return feature_dir
+
+
+def test_primary_tree_bake_prechecks_writes_under_the_lock_then_commits_after_releasing_it(monkeypatch: pytest.MonkeyPatch, repo: Path) -> None:
+    """Main's flow: the checkout precheck, then the locked meta write, then the bookkeeping commit with no lock held."""
+    from contextlib import contextmanager
+    from unittest.mock import patch as _patch
+
+    import specify_cli.consolidation.mission_number.bake as bake
+
+    feature_dir = _seed_primary_bake_mission(repo)
+    order: list[str] = []
+    depth = {"held": 0}
+    real_lock = mission_write.feature_status_lock
+
+    @contextmanager
+    def recording_lock(root: Path, key: str, *, timeout: float) -> Any:
+        with real_lock(root, key, timeout=timeout) as held:
+            depth["held"] += 1
+            order.append("lock")
+            try:
+                yield held
+            finally:
+                depth["held"] -= 1
+
+    def refusal(*args: Any, **kwargs: Any) -> None:
+        order.append("precheck")
+        return None
+
+    def commit(**kwargs: Any) -> None:
+        order.append("commit")
+        assert depth["held"] == 0, "the Mission lock was held while the bookkeeping commit ran"
+
+    monkeypatch.setattr(mission_write, "feature_status_lock", recording_lock)
+    with _patch.object(bake, "_primary_checkout_refusal", refusal), _patch("specify_cli.git.bookkeeping_commit.commit_merge_bookkeeping", commit):
+        assert bake._bake_mission_number_on_primary_tree(repo, SLUG, "kitty/mission-x", 7, target_branch="main") is True
+
+    assert order[0] == "precheck"
+    assert order[-1] == "commit"
+    assert "lock" in order[1:-1]
+    assert _read(feature_dir)["mission_number"] == 7
+
+
+def test_refused_primary_bake_restores_meta_only_while_it_still_holds_what_the_bake_wrote(repo: Path) -> None:
+    from unittest.mock import patch as _patch
+
+    from specify_cli.git.commit_helpers import SafeCommitError
+    import specify_cli.consolidation.mission_number.bake as bake
+
+    feature_dir = _seed_primary_bake_mission(repo)
+    original = (feature_dir / "meta.json").read_text(encoding="utf-8")
+
+    def refuse(**kwargs: Any) -> None:
+        raise SafeCommitError("hook rejected")
+
+    with _patch.object(bake, "_primary_checkout_refusal", return_value=None), _patch("specify_cli.git.bookkeeping_commit.commit_merge_bookkeeping", refuse):
+        assert bake._bake_mission_number_on_primary_tree(repo, SLUG, "kitty/mission-x", 7, target_branch="main") is False
+    assert (feature_dir / "meta.json").read_text(encoding="utf-8") == original  # untouched since the bake: restored
+
+
+def test_refused_primary_bake_keeps_a_field_another_writer_set_meanwhile(repo: Path) -> None:
+    from unittest.mock import patch as _patch
+
+    from specify_cli.git.commit_helpers import SafeCommitError
+    import specify_cli.consolidation.mission_number.bake as bake
+
+    feature_dir = _seed_primary_bake_mission(repo)
+
+    def refuse_after_another_writer(**kwargs: Any) -> None:
+        locked_update_meta(feature_dir, lambda meta: meta.update({B_MARKER: B_VALUE}), repo_root=repo, validate=False)
+        raise SafeCommitError("hook rejected")
+
+    with (
+        _patch.object(bake, "_primary_checkout_refusal", return_value=None),
+        _patch("specify_cli.git.bookkeeping_commit.commit_merge_bookkeeping", refuse_after_another_writer),
+    ):
+        assert bake._bake_mission_number_on_primary_tree(repo, SLUG, "kitty/mission-x", 7, target_branch="main") is False
+    final = _read(feature_dir)
+    assert final[B_MARKER] == B_VALUE  # not erased by the restore
