@@ -2,7 +2,7 @@
 title: Human in Charge — Agent Profile
 description: Workflow sentinel indicating this work package requires direct human execution
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-10-08'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
@@ -22,7 +22,7 @@ When a work package carries the `human-in-charge` profile-id, that WP requires d
 
 ## What it does NOT do
 
-- No doctrine layers are loaded (the profile declares no `directive-references` / `tactic-references`).
+- No directives or tactics are loaded (the profile declares no `directive-references` / `tactic-references`).
 - No directives are applied (`directive-references` is empty).
 - No persona voice or initialization declaration is used — the field is a literal empty string.
 

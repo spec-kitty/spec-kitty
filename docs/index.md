@@ -2,7 +2,7 @@
 title: Spec Kitty 3.2 Documentation
 description: Current Spec Kitty 3.2 documentation for new adopters, upgrade operators, harness users, and CLI integrators.
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-10-08'
 related:
 - docs/changelog/index.md
 - docs/changelog/release-goals.md
@@ -46,7 +46,7 @@ Already using Spec Kitty? Head to [Migrations](migrations/index.md) if you're up
   <a class="sk-doc-card" href="context/index.md">
     <span class="sk-card-kicker">Core Concepts</span>
     <strong>Core Concepts</strong>
-    <span>Context, terminology, and the doctrine layer that governs your agent.</span>
+    <span>Context, terminology, and the charter that governs your agent.</span>
   </a>
   <a class="sk-doc-card" href="architecture/doctrine-kinds.md">
     <span class="sk-card-kicker">Doctrine</span>

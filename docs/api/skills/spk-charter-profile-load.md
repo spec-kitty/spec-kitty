@@ -2,7 +2,7 @@
 title: "spk-charter-profile-load"
 description: "Load a Spec Kitty agent profile on demand for interactive sessions, outside the mission runtime loop."
 doc_status: active
-updated: '2026-10-07'
+updated: '2026-10-08'
 related: [docs/api/skills/index.md]
 ---
 
@@ -33,7 +33,7 @@ reference](../agent_profiles/index.md) for the full profile catalog).
 
 1. Identify the requested profile and any active mission context.
 2. Load only that profile's initialization declaration and relevant
-   boundaries — not the full doctrine catalog.
+   boundaries — not the full charter offering.
 3. Apply the role for the current session or routed task.
 4. Return to the runtime-next skill for mission advancement.
 
