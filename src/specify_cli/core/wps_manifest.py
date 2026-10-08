@@ -134,7 +134,7 @@ def _parse_wps_manifest(content: bytes | str, feature_dir: Path) -> WpsManifest:
     object.__setattr__(
         manifest,
         "_concern_tracking_required",
-        concern_tracking_fields_seen or _plan_contains_implementation_concerns(feature_dir),
+        _plan_contains_implementation_concerns(feature_dir),
     )
 
     return manifest
