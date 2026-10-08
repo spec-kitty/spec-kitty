@@ -383,9 +383,21 @@ def _commit_owned_next_mutations(owned: OwnedCheckout) -> None:
     the fact's own validated target branch (the primary-partition commit target).
     Every input is read straight off the fact -- no handle walk, no resolver.
     """
-    from specify_cli.decisions.service import _decisions_lock_path
+    from contextlib import nullcontext
 
-    _commit_owned_next_changeset(owned, _decisions_lock_path(owned.mission_dir))
+    from kernel.locks import machine_file_lock
+    from specify_cli.decisions.service import _LOCK_ACQUIRE_TIMEOUT_S, _decisions_lock_path
+
+    runtime_lock = _decisions_lock_path(owned.mission_dir)
+    # The owner lock serialises the ignore provision/rollback with a concurrent
+    # owned run or decision write; it only exists once the service created it.
+    guard = (
+        machine_file_lock(runtime_lock, blocking=True, timeout_s=_LOCK_ACQUIRE_TIMEOUT_S)
+        if runtime_lock.exists()
+        else nullcontext()
+    )
+    with guard:
+        _commit_owned_next_changeset(owned, runtime_lock)
 
 
 def _commit_owned_next_changeset(owned: OwnedCheckout, runtime_lock: Path) -> None:
