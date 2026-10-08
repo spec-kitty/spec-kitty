@@ -638,6 +638,9 @@ _Decision Moment ledger for interview questions._
 
  Stop tracking the exact decision lock in an explicitly owned mission.
 
+ Also adds the exact ignore rule to the Mission's decisions/.gitignore when
+ the lock is untracked but not ignored.
+
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --mission                 TEXT  Mission whose decision runtime lock needs │
 │                                    repair                                    │
