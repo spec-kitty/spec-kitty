@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from ._requirements import REPO_ROOT, is_living_path
-from ._support import covers, describe, load_yaml, pending_until, run_cli
+from ._support import covers, describe, load_yaml, run_cli
 from .legacy_fixtures import project_from_template
 
 RETIRED_IDENTIFIERS = REPO_ROOT / "tests" / "fixtures" / "charter_pack_cutover" / "retired_identifiers.yaml"
@@ -85,7 +85,6 @@ def test_fr010_no_src_module_named_for_retired_tier() -> None:
 
 
 @covers("FR-010")
-@pending_until("WP23", "tests/doctrine/ renamed")
 def test_fr010_tests_doctrine_directory_renamed() -> None:
     assert (REPO_ROOT / "tests" / "charter").is_dir()  # control
     assert not (REPO_ROOT / "tests" / "doctrine").exists()
