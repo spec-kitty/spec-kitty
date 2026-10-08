@@ -133,3 +133,50 @@ def test_the_real_mission_status_module_passes_with_a_floor() -> None:
     assert result.returncode == 0, result.stdout
     counts = dict(pair.split("=") for pair in result.stdout.splitlines()[-1].removeprefix("counts: ").split())
     assert int(counts["provisional_elements"]) >= 7
+
+
+_SHARED_TOKEN_OPENAPI = """\
+openapi: 3.1.0
+info:
+  title: Shared token fixture
+  version: 1.0.0
+paths: {}
+components:
+  schemas:
+    OpsRefusal:
+      title: OpsRefusal
+      type: object
+      properties:
+        code:
+          type: [string, "null"]
+          x-provisional:
+            open_decision: which refusal codes this schema carries is still an open decision
+    DriftRefusal:
+      title: DriftRefusal
+      type: object
+      properties:
+        code:
+          type: [string, "null"]
+          x-provisional:
+            open_decision: which drift codes this schema carries is still an open decision
+"""
+
+
+def _shared_token_module(tmp_path: Path, provisional_text: str) -> Path:
+    module = tmp_path / "shared"
+    module.mkdir()
+    (module / "openapi.yaml").write_text(_SHARED_TOKEN_OPENAPI, encoding="utf-8")
+    (module / "CHANGELOG.md").write_text(f"# Changelog\n\n## 1.0.0\n\n### Provisional\n\n{provisional_text}\n", encoding="utf-8")
+    return tmp_path
+
+
+def test_a_bare_property_name_shared_by_two_provisional_elements_needs_the_qualified_token(provisional: Any, tmp_path: Path) -> None:
+    bare = provisional.check(_shared_token_module(tmp_path, "- The `code` values are provisional."))
+    assert sorted(f.subject for f in bare.findings if f.code == "NOT_IN_CHANGELOG") == [
+        "shared:DriftRefusal.code",
+        "shared:OpsRefusal.code",
+    ]
+    qualified_root = tmp_path / "qualified"
+    qualified_root.mkdir()
+    qualified = provisional.check(_shared_token_module(qualified_root, "- `OpsRefusal.code` and `DriftRefusal.code` are provisional."))
+    assert [f for f in qualified.findings if f.code == "NOT_IN_CHANGELOG"] == []

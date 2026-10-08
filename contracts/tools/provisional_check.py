@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -173,6 +174,12 @@ def discover_modules(root: Path) -> list[Path]:
     return sorted(p for p in root.iterdir() if p.is_dir() and p.name not in NON_MODULE_DIRECTORIES and not p.name.startswith(".") and (p / ROOT_DOCUMENT).is_file())
 
 
+def _shared_property_tokens(elements: list[Element]) -> frozenset[str]:
+    """Bare property names carried by more than one provisional element (e.g. ``code`` on two schemas)."""
+    counts = Counter(element.token for element in elements if element.kind == "property")
+    return frozenset(token for token, count in counts.items() if count > 1)
+
+
 class _Check:
     def __init__(self, root: Path, modules: tuple[str, ...]) -> None:
         self.root = root
@@ -204,9 +211,10 @@ class _Check:
             if "x-provisional" not in node:
                 self.add("MISSING_MARKER", name, label, f"{label.rsplit('.', 1)[-1]} is provisional (FR-011) and carries no x-provisional")
         sections = self.changelog_sections(module)
+        shared = _shared_property_tokens(list(walk.elements.values()))
         for element in walk.elements.values():
             self.report.counts["provisional_elements"] += 1
-            self.check_element(name, element, sections)
+            self.check_element(name, element, sections, shared)
 
     def changelog_sections(self, module: Path) -> list[str] | str:
         path = module / CHANGELOG
@@ -215,7 +223,7 @@ class _Check:
         sections = provisional_sections(path.read_text(encoding="utf-8"))
         return sections if sections else f"{CHANGELOG} has no {PROVISIONAL_HEADING!r} section"
 
-    def check_element(self, module: str, element: Element, sections: list[str] | str) -> None:
+    def check_element(self, module: str, element: Element, sections: list[str] | str, shared: frozenset[str] = frozenset()) -> None:
         marker = element.node["x-provisional"]
         decision = marker.get("open_decision") if isinstance(marker, dict) else None
         if not isinstance(decision, str) or len(decision.split()) < MIN_DECISION_WORDS:
@@ -229,8 +237,11 @@ class _Check:
             self.add("NOT_NULLABLE", module, element.label, "a provisional property must be nullable (a null type or a null branch)")
         if isinstance(sections, str):
             self.add("NOT_IN_CHANGELOG", module, element.label, sections)
-        elif not any(names(text, element.token) for text in sections):
-            self.add("NOT_IN_CHANGELOG", module, element.label, f"{element.token!r} is not named in the {PROVISIONAL_HEADING} section of {CHANGELOG}")
+        else:
+            # A property name carried by several provisional elements is ambiguous bare: each must be named qualified.
+            needed = element.label if element.kind == "property" and element.token in shared else element.token
+            if not any(names(text, needed) for text in sections):
+                self.add("NOT_IN_CHANGELOG", module, element.label, f"{needed!r} is not named in the {PROVISIONAL_HEADING} section of {CHANGELOG}")
 
 
 def check(root: str | Path, modules: tuple[str, ...] = ()) -> Report:

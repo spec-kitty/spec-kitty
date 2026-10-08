@@ -224,6 +224,10 @@ pushed by a maintainer. Until then the breaking-change job has no baseline and r
   the status each takes are a proposal.
 - `OpsRefusalCode` (the schema) and the `code` of `OpsRefusal` (`OpsRefusal.code`): the one code and the
   status it takes are a proposal.
+- Properties whose bare name several schemas share are named here in full: `ArtifactEntry.kind`,
+  `ArtifactContent.kind`, `ArtifactReference.kind`, `ArtifactListing.truncated`, `ArtifactRefusal.code`,
+  `WorkPackageDetailRefusal.code`, `MissionHead.streamCursor`, `StatusTransitionEvent.streamCursor` and
+  `MissionLifecycleEvent.streamCursor` are each provisional, for the reasons given above.
 - `evidence` of `OpsInvocation`: the three classes of evidence, the removal of host paths and addresses, the
   withholding of a credential and the cut at 512 characters are a proposal. The credential kinds checked
   are the GitHub classic and fine-grained tokens, the AWS access key id and the private-key header; other
