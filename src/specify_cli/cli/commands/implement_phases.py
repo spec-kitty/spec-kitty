@@ -18,6 +18,7 @@ from specify_cli.cli.console import console
 
 from kernel.git import GitCommandError, blob_at, status_entries
 from kernel.git_topology import GitTopologyError, git_toplevel
+from kernel.vcs_lock import is_vcs_lock_only_change
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.cli.commands import implement_claim, implement_planning_commit
@@ -169,9 +170,6 @@ _DIRTY_PROBE_UNKNOWN_WARNING = (
     "[yellow]Warning:[/yellow] Could not tell whether {path} was modified before the claim ({reason}); it is left out of the claim commit."
 )
 
-#: The two ``meta.json`` keys a claim's VCS lock writes (``set_vcs_lock``).
-_VCS_LOCK_KEYS = ("vcs", "vcs_locked_at")
-
 
 def _owning_checkout(repo_root: Path, path: Path) -> Path:
     """The checkout whose ``git status`` answers for *path*: *repo_root*, else the working tree that owns *path* (owned checkout, symlinked mission)."""
@@ -220,7 +218,7 @@ def _meta_differs_only_by_vcs_lock(repo_root: Path, feature_dir: Path) -> bool:
         return False
     if not isinstance(before, dict) or not isinstance(after, dict) or "vcs" not in after or "vcs" in before:
         return False
-    return {k: v for k, v in after.items() if k not in _VCS_LOCK_KEYS} == before
+    return is_vcs_lock_only_change(before, after)
 
 
 # ---------------------------------------------------------------------------
