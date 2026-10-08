@@ -860,3 +860,33 @@ def test_ensure_feature_metadata_creates_a_first_meta(tmp_path: Path) -> None:
     _ensure_feature_metadata(feature_dir, "erp-q3-rollout")
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["mission_type"] == "erp-q3-rollout"
+
+
+def test_first_meta_write_does_not_lose_a_concurrent_creator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-020: the first ``meta.json`` write is read-modify-write under the Mission lock.
+
+    Writer A (the loader) has read an empty meta and is paused before it writes;
+    writer B (a locked creator) adds ``mission_id``. Neither field may be lost.
+    """
+    from specify_cli.mission_loader.command import _ensure_feature_metadata
+    from specify_cli.mission_metadata import load_meta_or_empty, write_meta
+    from specify_cli.status.mission_write import mission_write_lock
+    from tests._meta_overlap import run_overlap
+
+    feature_dir = tmp_path / "kitty-specs" / "racing-mission"
+    feature_dir.mkdir(parents=True)
+
+    def writer_b() -> None:
+        with mission_write_lock(feature_dir):
+            data = load_meta_or_empty(feature_dir)
+            data["mission_id"] = "01KQABCDEFGHJKMNPQRSTVWXYZ"
+            write_meta(feature_dir, data, validate=False)
+
+    errors = run_overlap(monkeypatch, lambda: _ensure_feature_metadata(feature_dir, "erp-q3-rollout"), writer_b)
+
+    assert errors == []
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert meta["mission_type"] == "erp-q3-rollout"
+    assert meta["mission_id"] == "01KQABCDEFGHJKMNPQRSTVWXYZ"

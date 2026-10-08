@@ -45,6 +45,7 @@ from specify_cli.mission_loader.errors import (
 )
 from specify_cli.mission_loader.registry import get_runtime_contract_registry
 from specify_cli.mission_loader.validator import validate_custom_mission
+from specify_cli.status.mission_write import mission_write_lock
 from specify_cli.mission_metadata import load_meta_or_empty, locked_update_meta, write_meta
 from runtime.next import runtime_bridge
 from runtime.next.runtime_bridge_io import resolve_builtin_missions_root
@@ -364,13 +365,14 @@ def _ensure_feature_metadata(feature_dir: Path, mission_key: str) -> None:
         data.setdefault("mission", mission_key)
 
     if (feature_dir / "meta.json").exists():
-        # An existing Mission is edited under its write lock (FR-020).
         locked_update_meta(feature_dir, _stamp, validate=False)
         return
-    # First write of a brand-new directory: there is no Mission to lock on yet.
-    data: dict[str, Any] = load_meta_or_empty(feature_dir)
-    _stamp(data)
-    write_meta(feature_dir, data, validate=False)
+    # No meta.json yet: the existence check, the read and the first write share
+    # one Mission write-lock region so a concurrent creator is never overwritten.
+    with mission_write_lock(feature_dir):
+        data: dict[str, Any] = load_meta_or_empty(feature_dir)
+        _stamp(data)
+        write_meta(feature_dir, data, validate=False)
 
 
 def _read_mission_id(feature_dir: Path) -> str | None:

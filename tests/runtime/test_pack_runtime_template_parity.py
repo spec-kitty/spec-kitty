@@ -59,7 +59,6 @@ def plan_for(mission_type: str, home: Path, repo_root: Path) -> dict[str, Any]:
     return {"steps": steps}
 
 
-
 def _baseline() -> dict[str, Any]:
     loaded: dict[str, Any] = json.loads(BASELINE.read_text(encoding="utf-8"))
     return loaded
