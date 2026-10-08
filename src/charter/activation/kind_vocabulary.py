@@ -61,10 +61,11 @@ from charter.offering.pack_paths import (
 #: Public re-export of :data:`charter.offering.artifact_kinds.PROJECT_KIND_DIRS`.
 #:
 #: Landing-fold addition (write-side-seam-matrix-tracer Wave B / #3070):
-#: ``specify_cli.cli.commands.charter.authoring``'s ``new`` scaffolder needs the
-#: project-tier directory-per-kind mapping but, as a runtime-layer module,
-#: may not import ``doctrine.*`` directly (the runtime -> charter ->
-#: doctrine boundary ratchet, ``test_runtime_charter_doctrine_boundary.py``).
+#: the ``spec-kitty charter new`` scaffolder
+#: (``specify_cli.cli.commands.charter.authoring``) needs the project-tier
+#: directory-per-kind mapping but, as a runtime-layer module, may not import
+#: ``charter.offering.*`` directly (the runtime -> charter facade ->
+#: charter.offering boundary ratchet, ``test_runtime_charter_doctrine_boundary.py``).
 #: This module already imports the mapping privately (as
 #: ``_PROJECT_KIND_DIRS``, kept for the existing internal partial-table
 #: distinction below); this public alias is the thin facade re-export the
