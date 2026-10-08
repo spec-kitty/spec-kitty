@@ -12,6 +12,18 @@
       "verdict": "not-applicable",
       "wp": null
     },
+    "#2661": {
+      "evidence_ref": "Context-only citation in plan.md Follow-ups (retiring the remaining src mission type dirs); this Mission owes it no work (C-008).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#5389": {
       "evidence_ref": "Context-only citation in spec.md (see-also / later #2652 slices); this Mission owes it no work (C-007, C-008).",
       "fr": null,
