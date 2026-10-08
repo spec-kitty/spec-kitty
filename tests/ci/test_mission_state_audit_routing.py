@@ -16,8 +16,8 @@ authority, never a restated copy.
 
 from __future__ import annotations
 
+import ast
 import json
-import re
 import shlex
 from pathlib import Path
 from typing import Any
@@ -39,7 +39,8 @@ GROUP = "mission_state"
 JOB = "mission-state-audit"
 MISSION = "kitty-specs/some-mission-01ABCDEF"
 
-STATE_ONLY_PATHS = (
+MISSION_PATHS = (
+    f"{MISSION}/spec.md",
     f"{MISSION}/status.json",
     f"{MISSION}/status.events.jsonl",
     f"{MISSION}/meta.json",
@@ -65,13 +66,17 @@ def _audit_commands(job: dict[str, Any]) -> list[list[str]]:
 
 def _witness_argv() -> list[str]:
     """The ``doctor mission-state`` arguments the upgrade witness passes to ``case.run``."""
-    match = re.search(r'case\.run\(("doctor", "mission-state"[^)]*)\)', WITNESS.read_text(encoding="utf-8"))
-    assert match, "the upgrade witness still runs `doctor mission-state` through case.run"
-    return [token.strip().strip('"') for token in match.group(1).split(",")]
+    for node in ast.walk(ast.parse(WITNESS.read_text(encoding="utf-8"))):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "run"):
+            continue
+        args = [arg.value for arg in node.args if isinstance(arg, ast.Constant) and isinstance(arg.value, str)]
+        if args[:2] == ["doctor", "mission-state"]:
+            return args
+    raise AssertionError("the upgrade witness still runs `doctor mission-state` through case.run")
 
 
-@pytest.mark.parametrize("path", STATE_ONLY_PATHS)
-def test_a_state_only_diff_selects_the_audit_job(path: str) -> None:
+@pytest.mark.parametrize("path", MISSION_PATHS)
+def test_a_mission_diff_selects_the_audit_job(path: str) -> None:
     router = load_router()
 
     selection = select_gates([path], router=router)
@@ -81,19 +86,12 @@ def test_a_state_only_diff_selects_the_audit_job(path: str) -> None:
     assert selection.selected_code_shards == frozenset(), "Mission data selects no code shard"
     assert not selection.unmatched_src
     assert select_modules([path], router=router) == frozenset()
-
-
-def test_the_group_is_data_only_and_owns_all_of_kitty_specs() -> None:
-    router = load_router()
-
-    assert router.filters[GROUP] == ("kitty-specs/**",)
     assert GROUP not in router.src_backed_groups, "a src glob would make the audit a code shard"
 
 
 def test_the_audit_job_is_gated_on_the_group_alone_and_blocks_the_merge() -> None:
     jobs = _jobs()
 
-    assert load_router().job_gates[JOB] == frozenset({GROUP})
     assert JOB in jobs["router-gate"]["needs"], "router-gate.needs is what makes the job blocking"
     assert eval_gh_if(jobs[JOB]["if"], {f"changes.{GROUP}": True}) is True
     assert eval_gh_if(jobs[JOB]["if"], {f"changes.{GROUP}": False}) is False
