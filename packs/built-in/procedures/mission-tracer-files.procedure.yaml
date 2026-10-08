@@ -25,14 +25,20 @@ steps:
       design-decisions.md). Fill in the initial context for each file: what tooling the
       mission touches, what approach is being tried (as stated in the spec or
       plan), and what design decisions have already been made in the spec or
-      plan. The initial entries should take under five minutes per file.
+      plan. Use the Append entry format for these entries too. The initial
+      entries should take under five minutes per file.
     actor: agent
   - title: Append — add dated entries during implementation
-    description: >
+    description: |
       At each significant decision point, when an unexpected blocker is
       encountered, or when tooling friction slows progress, append a brief
-      dated entry (1-3 sentences) to the relevant tracer file. Tooling
-      friction goes in tooling-friction.md; approach changes go in
+      dated entry to the relevant tracer file in this format:
+
+      - **[YYYY-MM-DD][phase] Short symptom.** 1-3 sentences of free prose;
+      cite issues as #NNNN and state the disposition in plain words (for example,
+      candidate gap, fixed, or workaround).
+
+      Tooling friction goes in tooling-friction.md; approach changes go in
       approach.md; design choices and their rationale go in
       design-decisions.md. Entries should be written at the moment they occur,
       not reconstructed at the end.

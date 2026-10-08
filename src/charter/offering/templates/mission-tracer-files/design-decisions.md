@@ -11,4 +11,4 @@
 
 ## Entries
 
-<!-- YYYY-MM-DD — Decision: [what]. Alternatives: [what else]. Rationale: [why this one]. -->
+Example: `- **[2026-07-29][plan] Chose the existing parser format.** Widening the parser was considered; the structured entry keeps phase and disposition visible. Decision resolved.`
