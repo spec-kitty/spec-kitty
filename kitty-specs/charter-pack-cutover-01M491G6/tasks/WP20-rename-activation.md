@@ -393,3 +393,4 @@ Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-ta
 - Rename the activation wrapper `charter.activation.resolver.DoctrineService` → **`ActiveCharterService`** (WP19 renamed the raw offering class to `CharterOfferingService`), including bare `DoctrineService` mentions in activation code and tests; `id_normalizer.py:~7`, `org_pack_config.py:~486`.
 - Sole-door gate: drop `"DoctrineService"` from `DOCTRINE_SERVICE_CANDIDATE_NAMES` and rename `WRAPPER_DOCTRINE_SERVICE_QUALNAME`.
 - Rename the `doctrine_root` keyword on `resolve_config_id` and related functions (WP19 used `pack_root` for the extractor/overlay/bundle sites; keep naming consistent).
+- From WP19 review: remove the `ActivationAwareDoctrineService` import aliases at call sites (use `ActiveCharterService` directly); `src/charter/bundle.py:~420` docstring of `_collect_artifact_files(pack_root)` still says "under the doctrine root".
