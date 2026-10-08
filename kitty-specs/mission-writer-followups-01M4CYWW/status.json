@@ -139,6 +139,9 @@
       "last_event_id": "01M4DDZQ76TKCS2CPXJT1HCW0Y",
       "last_transition_at": "2026-10-08T09:37:21.126264+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Every per-Mission lock caller keys on mission_lock_key; coord_seed + owned-checkout holds registered; A7 rewrites pinned under lock; red-first 14/19 failed pre-fix; 5/5 repeats + 3 mutations fail as required; blast radius 8392+5401 passed; make test-fast 2492 passed"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 24638,
