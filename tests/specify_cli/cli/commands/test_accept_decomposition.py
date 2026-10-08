@@ -99,6 +99,7 @@ class Harness:
     calls: list[str] = field(default_factory=list)
     perform_kwargs: dict[str, Any] = field(default_factory=dict)
     stamp_owned: list[object] = field(default_factory=list)
+    origin_gate_owned: list[object] = field(default_factory=list)
     choose_mode_requests: list[str] = field(default_factory=list)
     verify_kwargs: dict[str, Any] = field(default_factory=dict)
     summary: SimpleNamespace = field(default_factory=lambda: _fake_summary(ok=True))
@@ -168,6 +169,12 @@ class Harness:
         _raise_if(self.residual_error)
         return self.residual_result
 
+    def origin_gate(self, *_args: object, **kwargs: Any) -> list[str]:
+        # #5888: accept checks origin freshness before any acceptance read
+        # (#5780); a clean verdict here, so the characterised paths are unchanged.
+        self.origin_gate_owned.append(kwargs.get("owned"))
+        return []
+
     def validate_ownership(self, *_args: object, **_kwargs: object) -> object | None:
         _raise_if(self.entry_error)
         return self.owned
@@ -214,6 +221,7 @@ def harness(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Harness:
     # so it can thread the ``CommitRouterResult`` through to ``--json``/text
     # rendering; patch that name instead.
     monkeypatch.setattr(accept_module, "_run_residual_acceptance_commit", h.residual)
+    monkeypatch.setattr(accept_module, "run_origin_gate", h.origin_gate)
     _patch_owned_entry(monkeypatch, h)
     return h
 
@@ -681,6 +689,7 @@ class TestOwnedEntry:
         assert result.exit_code == 0, result.output
         assert len(harness.stamp_owned) == 1
         assert harness.stamp_owned[0] is harness.owned
+        assert harness.origin_gate_owned == [harness.owned]
 
     def test_flagless_run_hands_the_stamp_no_fact(self, harness: Harness) -> None:
         result = harness.invoke("--mission", _SLUG)

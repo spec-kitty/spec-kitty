@@ -100,20 +100,35 @@ class _GitRunRecorder:
     ) -> subprocess.CompletedProcess[str]:
         # ``cwd``/``**_extra`` accept the ``ref_advance`` call shape (it passes
         # ``cwd=`` and is delegated to by ``_update``'s dirty/ahead checks).
+        if _is_ssh_command_read(argv):
+            # ``kernel.git.remote.no_prompt_env`` reads ``core.sshCommand`` (a local
+            # config read, never a contact) before each clone/fetch (#5886). Answer
+            # "unset" without consuming the script, so the script and ``calls`` stay
+            # GitSource's own contacts and the transport defaults to plain ssh.
+            return _completed(1, "", "", text=text)
         self.calls.append(argv)
         self.envs.append(env)
         for keyword, effect in self.side_effects.items():
             if any(keyword == part for part in argv):
                 effect(argv)
         if not self.script:
-            return _FakeCompletedProcess(returncode=0)  # type: ignore[return-value]
+            return _completed(0, "", "", text=text)
         returncode, stdout, stderr = self.script.pop(0)
-        # ``kernel.git.run_git`` reads bytes (no ``text=``); every text caller passes ``text=True``.
-        return _FakeCompletedProcess(  # type: ignore[return-value]
-            returncode=returncode,
-            stdout=stdout if text else stdout.encode(),
-            stderr=stderr if text else stderr.encode(),
-        )
+        return _completed(returncode, stdout, stderr, text=text)
+
+
+def _is_ssh_command_read(argv: list[str]) -> bool:
+    """``True`` for a ``git config [--global|--system] --get core.sshCommand`` read."""
+    return "config" in argv and argv[-1] == "core.sshCommand"
+
+
+def _completed(returncode: int, stdout: str, stderr: str, *, text: bool) -> subprocess.CompletedProcess[str]:
+    # ``kernel.git.run_git`` reads bytes (no ``text=``); every text caller passes ``text=True``.
+    return _FakeCompletedProcess(  # type: ignore[return-value]
+        returncode=returncode,
+        stdout=stdout if text else stdout.encode(),
+        stderr=stderr if text else stderr.encode(),
+    )
 
 
 def _make_fake_clone(directives_count: int = 2):

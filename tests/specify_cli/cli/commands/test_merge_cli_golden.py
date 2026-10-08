@@ -89,6 +89,9 @@ EXPECTED_PARSER_LONG_FLAGS = frozenset(
         # #5687 (FR-008): operator release of a NOT-restored branch on --abort.
         "--release-branch",
         "--release-reason",
+        # #5780 (PR #5845, ADR 2026-10-06-3): per-run origin-freshness mode
+        # (enforce|warn|off) for the evidence gate.
+        "--origin-check",
     }
 )
 
