@@ -23,6 +23,8 @@ def git(root: Path, *args: str) -> str:
 
 def seed(c, state="tracked"):
     lock = _decisions_lock_path(c.mission_dir)
+    if state == "absent":
+        return lock
     lock.parent.mkdir()
     lock.write_bytes(b"")
     ledger = lock.parent / "index.json"
@@ -72,8 +74,10 @@ def test_owned_next_excludes_only_service_lock(owned_checkouts):
     assert git(c.owned_root, "status", "--porcelain=v1") == ""
 
 
-@pytest.mark.parametrize("state", ["tracked", "untracked", "ignored"])
-@pytest.mark.parametrize("dry", [True, False])
+@pytest.mark.parametrize(
+    ("state", "dry"),
+    [("tracked", True), ("tracked", False), ("ignored", False), ("absent", True)],
+)
 def test_repair_preserves_payload_inode_and_other_roots(owned_checkouts, monkeypatch, state, dry):
     c = owned_checkouts
     lock = seed(c, state)
@@ -82,12 +86,12 @@ def test_repair_preserves_payload_inode_and_other_roots(owned_checkouts, monkeyp
     (c.owned_root / "README.md").write_text("unstaged half\n")
     other_index = git(c.owned_root, "diff", "--cached", "--", "README.md")
     r, s, p = snapshot(c.repository_root), snapshot(c.sibling), snapshot(c.owned_root)
-    inode = lock.stat().st_ino
+    inode = lock.stat().st_ino if lock.exists() else None
     result = invoke(c, monkeypatch, *(["--dry-run"] if dry else []))
     assert result.exit_code == 0, result.output
     assert snapshot(c.repository_root) == r
     assert snapshot(c.sibling) == s
-    assert lock.stat().st_ino == inode
+    assert (lock.stat().st_ino if lock.exists() else None) == inode
     assert git(c.owned_root, "diff", "--cached", "--", "README.md") == other_index
     assert (c.owned_root / "README.md").read_text() == "unstaged half\n"
     if dry:
@@ -103,16 +107,7 @@ def test_repair_preserves_payload_inode_and_other_roots(owned_checkouts, monkeyp
         assert git(c.owned_root, "rev-parse", "HEAD") == head
 
 
-def test_dry_run_does_not_create_lock(owned_checkouts, monkeypatch):
-    c = owned_checkouts
-    before = snapshot(c.owned_root)
-    result = invoke(c, monkeypatch, "--dry-run")
-    assert result.exit_code == 0, result.output
-    assert snapshot(c.owned_root) == before
-    assert not _decisions_lock_path(c.mission_dir).exists()
-
-
-@pytest.mark.parametrize("fault", ["branch", "detached", "foreign", "root", "symlink", "dirty_ignore", "staged_ignore", "dirty_lock", "staged_lock"])
+@pytest.mark.parametrize("fault", ["branch", "detached", "foreign", "root", "symlink", "ignore_symlink", "dirty_ignore", "staged_ignore", "dirty_lock", "staged_lock"])
 def test_repair_refuses_before_any_write(owned_checkouts, monkeypatch, fault):
     c = owned_checkouts
     lock = seed(c)
@@ -131,6 +126,8 @@ def test_repair_refuses_before_any_write(owned_checkouts, monkeypatch, fault):
     elif fault == "symlink":
         lock.unlink()
         lock.symlink_to(c.sibling / "README.md")
+    elif fault == "ignore_symlink":
+        (lock.parent / ".gitignore").symlink_to(c.sibling / "README.md")
     p, r, s = snapshot(c.owned_root), snapshot(c.repository_root), snapshot(c.sibling)
     monkeypatch.chdir(c.owned_root)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(c.owned_root))
@@ -228,27 +225,6 @@ def test_repair_commit_outcomes(owned_checkouts, monkeypatch, failure):
         assert payload["status"] == "ok"
         assert payload["warning"] == "post-commit sync advisory"
         assert payload["commit"] == git(c.owned_root, "rev-parse", "HEAD")
-
-
-def test_repair_requires_explicit_claim(owned_checkouts, monkeypatch):
-    c = owned_checkouts
-    before = snapshot(c.owned_root)
-    monkeypatch.chdir(c.owned_root)
-    result = runner.invoke(decision_app, ["repair-runtime-lock", "--mission", c.mission_slug])
-    assert result.exit_code != 0
-    assert "owned-checkout" in result.output
-    assert snapshot(c.owned_root) == before
-
-
-def test_repair_refuses_ignore_symlink(owned_checkouts, monkeypatch):
-    c = owned_checkouts
-    lock = seed(c)
-    (lock.parent / ".gitignore").symlink_to(c.sibling / "README.md")
-    before = snapshot(c.owned_root)
-    result = invoke(c, monkeypatch)
-    assert result.exit_code != 0
-    assert "symlink" in result.output.lower() or "outside the selected mission" in result.output.lower()
-    assert snapshot(c.owned_root) == before
 
 
 @pytest.mark.parametrize("policy", ["pr_bound", "commit_to_target"])

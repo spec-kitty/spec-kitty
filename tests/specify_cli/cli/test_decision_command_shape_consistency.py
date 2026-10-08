@@ -149,6 +149,12 @@ def test_help_output_lists_canonical_subcommands() -> None:
         )
 
 
+def test_repair_runtime_lock_requires_explicit_owned_checkout_claim() -> None:
+    result = CliRunner().invoke(cli, ["agent", "decision", "repair-runtime-lock", "--mission", "any-mission"])
+    assert result.exit_code != 0
+    assert "owned-checkout" in result.output
+
+
 def test_no_non_canonical_decision_command_shape_in_repo_text() -> None:
     offenders: list[tuple[str, str]] = []
     for rel in SCAN_ROOTS:
