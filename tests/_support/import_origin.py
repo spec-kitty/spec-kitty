@@ -1,4 +1,8 @@
-"""Fail before collection when pytest imports another checkout's CLI source."""
+"""Fail before collection when pytest imports another checkout's CLI source.
+
+The guard deliberately has no opt-out: a lane that tests an installed wheel
+must still run under pytest.ini's ``pythonpath = src``.
+"""
 
 from pathlib import Path
 
