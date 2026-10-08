@@ -37,6 +37,7 @@ from specify_cli.coordination.surface_resolver import (
     CoordinationBranchDeleted,
     resolve_status_surface_with_anchor,
 )
+from specify_cli.coordination.workspace import CoordinationWorkspaceBranchMismatch
 from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
 
 pytestmark = pytest.mark.git_repo
@@ -159,6 +160,47 @@ def test_unmaterialized_resolves_primary_never_deleted(tmp_path: Path) -> None:
     # rather than existence-gating, but it must not hard-fail DELETED either.
     surface = resolve_status_surface_with_anchor(tmp_path, SLUG_WITH_MID8)
     assert surface.primary_anchor == feature_dir
+
+
+# ---------------------------------------------------------------------------
+# MATERIALIZED: the worktree exists but HEAD names another branch. Refuse
+# before reading or writing against that tree.
+# ---------------------------------------------------------------------------
+
+
+def test_materialized_coord_on_wrong_branch_refuses_reads_and_surface(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+    _write_meta(
+        tmp_path,
+        SLUG_WITH_MID8,
+        {
+            "mission_id": MISSION_ID,
+            "mission_slug": SLUG_WITH_MID8,
+            "coordination_branch": COORD_BRANCH,
+            "topology": "coord",
+        },
+    )
+    coord_root = tmp_path / ".worktrees" / f"{SLUG_WITH_MID8}-coord"
+    _git(tmp_path, "worktree", "add", "-q", "-b", COORD_BRANCH, str(coord_root))
+    (coord_root / "kitty-specs" / SLUG_WITH_MID8).mkdir(parents=True)
+    assert resolve_handle_to_read_path(
+        tmp_path, SLUG_WITH_MID8, require_exists=True
+    ) == coord_root / "kitty-specs" / SLUG_WITH_MID8
+    assert (
+        resolve_status_surface_with_anchor(tmp_path, SLUG_WITH_MID8).surface_path.parent
+        == coord_root / "kitty-specs" / SLUG_WITH_MID8
+    )
+    _git(coord_root, "switch", "-q", "-c", "other-branch")
+
+    with pytest.raises(CoordinationWorkspaceBranchMismatch) as read_exc:
+        resolve_handle_to_read_path(tmp_path, SLUG_WITH_MID8, require_exists=True)
+    assert read_exc.value.expected_ref == COORD_BRANCH
+    assert "other-branch" in read_exc.value.actual_ref
+
+    with pytest.raises(CoordinationWorkspaceBranchMismatch):
+        resolve_status_surface_with_anchor(tmp_path, SLUG_WITH_MID8)
+    with pytest.raises(CoordinationWorkspaceBranchMismatch):
+        resolve_status_surface_with_anchor(tmp_path, SLUG_WITH_MID8, for_write=True)
 
 
 # ---------------------------------------------------------------------------

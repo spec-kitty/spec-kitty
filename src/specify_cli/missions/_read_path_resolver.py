@@ -305,15 +305,22 @@ def probe_coord_state(
     supplied (the read path supplies it from the primary ``meta.json``); without
     it the absent-coord case stays ``UNMATERIALIZED`` (no branch to interrogate).
 
-    Pure-path except the single ``git rev-parse`` on the absent-coord +
-    branch-supplied path; ``MATERIALIZED`` / ``EMPTY`` / ``UNMATERIALIZED`` touch
-    only ``Path.exists()``.
+    An existing real worktree with a supplied branch must have that branch
+    checked out; otherwise it raises ``CoordinationWorkspaceBranchMismatch``.
+    The absent-root, branch-supplied path uses ``git rev-parse``.
     """
     if not mid8:
         return CoordState.NONE
     feature_dir = coord_feature_dir(repo_root, mission_slug, mid8)
     coord_root = feature_dir.parent.parent
     if coord_root.exists():
+        if coordination_branch is not None and (coord_root / ".git").exists():
+            # A real, materialized worktree must still be on its declared ref.
+            # Keep the path-only probe available for legacy synthetic directories
+            # and callers that have no branch identity to compare.
+            from specify_cli.coordination.workspace import require_coord_worktree_branch
+
+            require_coord_worktree_branch(coord_root, coordination_branch)
         return CoordState.MATERIALIZED if feature_dir.exists() else CoordState.EMPTY
     # Coord root absent. A supplied branch lets us split UNMATERIALIZED (branch
     # still in git) from DELETED (branch gone) — the single git rev-parse arm.
