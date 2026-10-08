@@ -123,7 +123,6 @@ missions/mission-steps/software-dev/implement/guidelines.md:
   repo_paths: 1
 missions/mission-steps/software-dev/implement/prompt.md:
   repo_paths: 3
-  provenance: 1
 missions/mission-steps/software-dev/plan/prompt.md:
   repo_paths: 6
   provenance: 2
