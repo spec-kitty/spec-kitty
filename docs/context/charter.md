@@ -65,7 +65,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | A named set of activations that a [Charter Pack](#charter-pack) ships (`presets/<name>.yaml`: per-kind `activated_<kind>` keys, `activated_kinds`, `mission_type_activations`), applied with `spec-kitty charter activate [--pack <pack>] --preset <name>`. Applying a preset replaces every activation key it governs; changing a customised key needs `--force`. The applied preset name is not stored. The built-in pack ships `default` (no per-kind restriction, so every built-in artifact is in force, plus the built-in mission types) and `minimal` (a small curated baseline). |
+| **Definition** | A named set of activations that a [Charter Pack](#charter-pack) ships (`presets/<name>.yaml`: per-kind `activated_<kind>` keys, `activated_kinds`, `mission_type_activations`), applied with `spec-kitty charter activate [--pack <pack>] --preset <name>`. Applying a preset replaces every activation key it governs; changing a customized key needs `--force`. The applied preset name is not stored. The built-in pack ships `default` (no per-kind restriction, so every built-in artifact is in force, plus the built-in mission types) and `minimal` (a small curated baseline). |
 | **Context** | Charter |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |
@@ -85,7 +85,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Applicable to** | `4.x` |
 | **Location** | `.kittify/config.yaml`, `.kittify/charter/charter.yaml`, `src/charter/activation/` |
 | **Related terms** | [activated_&lt;kind&gt;](#activated_kind), [Activation preset](#activation-preset), [Charter offering](#charter-offering), [Charter-Mediated Selection](#charter-mediated-selection) |
-| **Do NOT use when** | The concept is what is offered rather than activated — use [Charter offering](#charter-offering). The concept is the materialised `.kittify/charter/` tree — use [Charter Bundle](#charter-bundle). The concept is a ready-made set of activations — use [Activation preset](#activation-preset). |
+| **Do NOT use when** | The concept is what is offered rather than activated — use [Charter offering](#charter-offering). The concept is the materialized `.kittify/charter/` tree — use [Charter Bundle](#charter-bundle). The concept is a ready-made set of activations — use [Activation preset](#activation-preset). |
 
 ---
 
@@ -99,7 +99,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 | **Applicable to** | `4.x` |
 | **Location** | `.kittify/charter-packs/` |
 | **Related terms** | [Charter offering](#charter-offering), [Charter Pack](#charter-pack), [Three-layer DRG](#three-layer-drg) |
-| **Do NOT use when** | The concept is the materialised charter output — use [Charter Bundle](#charter-bundle). The concept is an org pack checked into the repository — use [Charter Pack](#charter-pack). |
+| **Do NOT use when** | The concept is the materialized charter output — use [Charter Bundle](#charter-bundle). The concept is an org pack checked into the repository — use [Charter Pack](#charter-pack). |
 
 ---
 
@@ -107,7 +107,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | The materialised `.kittify/charter/` tree as a unit: `charter.md`, the synthesis manifest, the DRG cache and provenance. Produced by `spec-kitty charter generate` and `spec-kitty charter synthesize`; validated by `spec-kitty charter bundle validate`. |
+| **Definition** | The materialized `.kittify/charter/` tree as a unit: `charter.md`, the synthesis manifest, the DRG cache and provenance. Produced by `spec-kitty charter generate` and `spec-kitty charter synthesize`; validated by `spec-kitty charter bundle validate`. |
 | **Context** | Charter |
 | **Status** | canonical |
 | **Applicable to** | `4.x` |
