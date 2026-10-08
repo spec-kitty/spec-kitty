@@ -1122,7 +1122,11 @@ def cmd_repair_runtime_lock(
     owned_checkout: OwnedCheckoutOption = None,
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate and inspect without acquiring the lock or writing"),
 ) -> None:
-    """Stop tracking the exact decision lock in an explicitly owned mission."""
+    """Stop tracking the exact decision lock in an explicitly owned mission.
+
+    Also adds the exact ignore rule to the Mission's decisions/.gitignore when
+    the lock is untracked but not ignored.
+    """
     from typing import cast
     from specify_cli.cli.commands._owned_checkout import resolve_owned_or_refuse
     from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
