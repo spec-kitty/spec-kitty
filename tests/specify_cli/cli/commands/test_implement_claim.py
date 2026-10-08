@@ -44,49 +44,27 @@ def _bundle_inputs(tmp_path: Path, *, coord: bool) -> tuple[Path, Path, Path, li
     return repo, primary_dir, wp_file, artifacts
 
 
+_PAIR = ["status.events.jsonl", "status.json"]
+
+
 @_FAST
+@pytest.mark.parametrize("wp_stamped", [False, True], ids=["wp-unstamped", "wp-stamped"])
+@pytest.mark.parametrize("meta_written", [False, True], ids=["meta-unwritten", "meta-written"])
 @pytest.mark.parametrize("coord", [False, True], ids=["flat", "coord"])
-def test_claim_commit_paths_never_carries_tasks_md_wp_file_or_config(tmp_path: Path, coord: bool) -> None:
-    """#5673: ``tasks.md`` is collected beside the status pair but the claim never writes it, on any topology.
-
-    Kills a filter that keeps every collected artifact (the old flat ``tasks.md`` leak).
-    """
-    _repo, feature_dir, _wp_file, artifacts = _bundle_inputs(tmp_path, coord=coord)
-
-    paths = implement_claim.claim_commit_paths(feature_dir=feature_dir, status_artifacts=artifacts, routes_through_coord=coord, meta_written=False)
-
-    assert not any(path.name in {"tasks.md", "config.yaml"} or path.parent.name == "tasks" for path in paths)
-    assert paths == ([] if coord else [artifacts[0].resolve(), artifacts[1].resolve()])
-
-
-@_FAST
-def test_claim_commit_paths_flat_is_the_status_pair_in_stable_order(tmp_path: Path) -> None:
-    _repo, feature_dir, _wp_file, artifacts = _bundle_inputs(tmp_path, coord=False)
-
-    paths = implement_claim.claim_commit_paths(feature_dir=feature_dir, status_artifacts=artifacts, routes_through_coord=False, meta_written=False)
-
-    assert [path.name for path in paths] == ["status.events.jsonl", "status.json"]
-
-
-@_FAST
-@pytest.mark.parametrize(("coord", "expected_names"), [(False, ["status.events.jsonl", "status.json", "meta.json"]), (True, ["meta.json"])], ids=["flat", "coord"])
-def test_claim_commit_paths_appends_meta_last_only_when_the_claim_wrote_it(tmp_path: Path, coord: bool, expected_names: list[str]) -> None:
-    """``meta.json`` is driven by ``meta_written``, not by the file existing (it exists in both calls)."""
-    _repo, feature_dir, _wp_file, artifacts = _bundle_inputs(tmp_path, coord=coord)
+def test_claim_commit_paths_is_exactly_what_the_claim_wrote(tmp_path: Path, coord: bool, meta_written: bool, wp_stamped: bool) -> None:
+    """#5673 truth table: the status pair (flat only; coord already committed it), then ``meta.json`` iff the claim wrote
+    it, then the claimed WP prompt iff allocation stamped it. Never ``tasks.md``, another file of ``tasks/`` or config,
+    and the two flags are decided by the caller, never by the files existing (all of them exist here)."""
+    _repo, feature_dir, wp_file, artifacts = _bundle_inputs(tmp_path, coord=coord)
     (feature_dir / "meta.json").write_text("{}", encoding="utf-8")
 
-    written = implement_claim.claim_commit_paths(feature_dir=feature_dir, status_artifacts=artifacts, routes_through_coord=coord, meta_written=True)
-    not_written = implement_claim.claim_commit_paths(feature_dir=feature_dir, status_artifacts=artifacts, routes_through_coord=coord, meta_written=False)
+    paths = implement_claim.claim_commit_paths(
+        feature_dir=feature_dir, status_artifacts=artifacts, routes_through_coord=coord, meta_written=meta_written, wp_file=wp_file, wp_stamped=wp_stamped
+    )
 
-    assert [path.name for path in written] == expected_names
-    assert "meta.json" not in [path.name for path in not_written]
-
-
-@_FAST
-def test_claim_commit_paths_without_artifacts_or_meta_is_empty(tmp_path: Path) -> None:
-    _repo, feature_dir, _wp_file, _ = _bundle_inputs(tmp_path, coord=False)
-
-    assert implement_claim.claim_commit_paths(feature_dir=feature_dir, status_artifacts=[], routes_through_coord=False, meta_written=False) == []
+    expected = ([] if coord else list(_PAIR)) + (["meta.json"] if meta_written else []) + ([wp_file.name] if wp_stamped else [])
+    assert [path.name for path in paths] == expected
+    assert implement_claim.claim_commit_paths(feature_dir=feature_dir, status_artifacts=[], routes_through_coord=coord, meta_written=False) == []
 
 
 class _Policy:

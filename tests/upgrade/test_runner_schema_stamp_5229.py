@@ -1,4 +1,9 @@
-"""#5229 -- the schema-3 migration stamps the same shape ``init`` stamps, atomically and without losing keys."""
+"""#5229 -- the schema-3 migration stamps the same shape ``init`` stamps, atomically and without losing keys.
+
+This file pins the runner's wiring only (it stamps the canonical map through the shared rule, writes atomically,
+keeps other keys, refuses corrupt input). The capability-map rule itself (legacy list, operator-owned map,
+malformed value) is pinned once, in ``test_metadata_writers_5229.py``.
+"""
 
 from __future__ import annotations
 
@@ -36,26 +41,6 @@ def test_stamps_the_current_schema_version_and_the_canonical_map(tmp_path: Path)
     assert block["schema_version"] == CURRENT_SCHEMA_VERSION
     assert block["schema_capabilities"] == CURRENT_SCHEMA_CAPABILITIES
     assert block["last_upgraded_at"]
-
-
-def test_legacy_list_becomes_a_map_with_every_canonical_key(tmp_path: Path) -> None:
-    only = next(iter(CURRENT_SCHEMA_CAPABILITIES))
-    root = _project(tmp_path, yaml.dump({"spec_kitty": {"schema_capabilities": [only, "extra"]}}))
-
-    _update_schema_version(root)
-
-    assert _spec_kitty(root)["schema_capabilities"] == {**CURRENT_SCHEMA_CAPABILITIES, "extra": True}
-
-
-def test_operator_map_is_not_replaced(tmp_path: Path) -> None:
-    """Kills: a stamp that overwrites the operator's capability map."""
-    first = next(iter(CURRENT_SCHEMA_CAPABILITIES))
-    owned = {first: True, "my_flag": False}
-    root = _project(tmp_path, yaml.dump({"spec_kitty": {"schema_capabilities": owned}}))
-
-    _update_schema_version(root)
-
-    assert _spec_kitty(root)["schema_capabilities"] == owned
 
 
 def test_every_other_key_survives(tmp_path: Path) -> None:
