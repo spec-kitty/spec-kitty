@@ -243,7 +243,10 @@ def _phase_capture_and_baseline(run: _MergeRunState) -> None:
     # A previous attempt may have landed the mission before failing here. The
     # target tip captured earlier in this resumed attempt can then be the
     # mission's own commit; use the transaction-start anchor persisted before
-    # the first attempt changed the target.
+    # the first attempt changed the target. That anchor predates a coord-topology
+    # primary-tree mission-number bake, which a fresh run re-anchors past
+    # (phase_advance._reanchor_baseline_past_primary_tree_bake), so on such a
+    # resume the review diff also shows that one bookkeeping commit.
     if run.is_resume and run.state.pre_mutation_target_sha:
         run.target_baseline_sha = run.state.pre_mutation_target_sha
 
