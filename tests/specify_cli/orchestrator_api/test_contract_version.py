@@ -1,7 +1,8 @@
 """WP07 (design-phase-orchestrator-api-01M1HE6M) -- CONTRACT_VERSION bump to
 1.4.0.
 
-(Superseded: the pin below now reads ``1.13.0`` after ``start-implementation`` gained the ``STATUS_LOCK_HELD`` envelope (#5819); it read ``1.12.0`` after
+(Superseded: the pin below now reads ``1.14.0`` after the safe-commit verbs gained three ``SAFE_COMMIT_*`` error codes (#5443);
+it read ``1.13.0`` after ``start-implementation`` gained the ``STATUS_LOCK_HELD`` envelope (#5819); it read ``1.12.0`` after
 governed planning (#5846) added six verbs; it read ``1.11.0`` after ``accept-mission`` and
 ``consolidate-mission`` gained ``--origin-check`` and the stale/unreachable-origin refusal with
 ``data.preflight_error_code(s)`` / ``data.origin_freshness``; it read ``1.10.0`` after
@@ -76,13 +77,13 @@ _NEW_VERBS = (
 )
 
 
-def test_contract_version_response_reports_1_13_0() -> None:
+def test_contract_version_response_reports_1_14_0() -> None:
     result = runner.invoke(app, ["contract-version"])
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.output.strip().split("\n")[0])
     assert envelope["success"] is True
-    assert envelope["data"]["api_version"] == "1.13.0"
-    assert envelope["contract_version"] == "1.13.0"
+    assert envelope["data"]["api_version"] == "1.14.0"
+    assert envelope["contract_version"] == "1.14.0"
 
 
 def test_min_provider_version_unchanged() -> None:

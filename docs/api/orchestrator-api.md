@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.13.0`
+- `CONTRACT_VERSION`: `1.14.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -135,6 +135,14 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   past its bound (it used to escape as a traceback). The failure `data` carries the
   Mission identity, `wp_id`, `message` and `lock_timeout_seconds`. A new `error_code`
   on an existing verb, so a minor bump; no field is removed or renamed.
+- `1.14.0` — the safe-commit verbs (`append-history`) can newly fail with
+  `SAFE_COMMIT_PATH_LOOP` (a requested path is a symlink loop),
+  `SAFE_COMMIT_INDEX_DELETION_CONFLICT` (an index deletion conflicts with the commit)
+  and `SAFE_COMMIT_INDEX_RESIDUE` (#5443). `SAFE_COMMIT_INDEX_RESIDUE` means the commit
+  DID land (`commit_sha` names it) but the real index still stages a committed path; it
+  refines `SAFE_COMMIT_RECOVERY_FAILED`, which keeps meaning the commit may not have
+  landed. New `error_code` values on an existing verb, so a minor bump; no field is
+  removed or renamed.
 
 ## Response Envelope
 
@@ -142,7 +150,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.13.0",
+  "contract_version": "1.14.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
