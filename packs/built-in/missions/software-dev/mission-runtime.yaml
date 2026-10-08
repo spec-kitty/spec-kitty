@@ -15,7 +15,7 @@
 #
 # v2.2.0: Collapse the public tasks action back to a single "tasks" planning
 # step. The outline/packages/finalize substructure now lives inside
-# src/charter/offering/missions/built_in_step_contracts/tasks.step-contract.yaml.
+# packs/built-in/missions/built_in_step_contracts/tasks.step-contract.yaml.
 
 mission:
   key: software-dev
@@ -62,4 +62,4 @@ steps:
     title: Acceptance
     depends_on: [review]
     prompt_template: accept.md
-    description: Validate feature completeness
+    description: Validate mission completeness
