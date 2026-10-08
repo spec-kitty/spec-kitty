@@ -16,6 +16,10 @@ the single authority for that rule; ``test_commit_scope_owner.py`` runs it over
 * ``commit-all`` -- ``commit -a``/``--all``;
 * ``hook-bypass`` -- ``--no-verify`` on any subcommand, ``commit -n``, or a
   ``-c core.hooksPath=...`` global override;
+* ``library-git-call`` -- an attribute call ``.index.add``/``.index.commit``/``.git.add``/``.git.commit``
+  (GitPython and look-alikes), which stage or commit outside ``safe_commit``;
+* ``unknown-runner`` -- a call whose callee is not a known git runner but is handed an argv whose
+  git subcommand is ``add``/``commit`` and which classifies as one of the forms above;
 * ``committing-merge`` -- ``merge`` without ``--no-commit``/``--squash``/
   ``--ff-only``/``--abort``/``--quit`` (``--continue`` commits);
 * ``committing-revert`` / ``committing-cherry-pick`` -- without ``--no-commit``/
@@ -28,6 +32,16 @@ its first list/tuple argument, or, for a varargs runner such as
 string constants resolve (``_ADD = "add"``); a ``*starred`` element and any other
 expression is an unresolved token, which never satisfies a flag test and never
 counts as ``"--"`` (an unresolved token *after* ``"--"`` does count as a path).
+
+Three further shapes are candidates too. A string constant (an f-string's literal parts
+included; docstrings excepted) that contains a sweeping command (:data:`_SHELL_SWEEP`:
+``git add -A|--all|.|-u``, ``git commit -a|--all``, any ``git ... --no-verify``) is a hit of
+that form, so ``subprocess.run("git add -A", shell=True)`` and ``os.system(...)`` are caught.
+An attribute call ``.index.add``/``.git.add``/``.git.commit`` is a ``library-git-call``. A call to any
+callee **not** in :data:`GIT_RUNNER_NAMES` whose list/tuple argument, or whose positional string
+arguments, start (after at most one leading ``cwd``-like argument for the positional form) with
+``add``/``commit`` and classify as a form is an ``unknown-runner`` hit: renaming a runner does not
+hide a sweep.
 
 **Exemption: exactly two canonical owners, by symbol** (Decision
 ``01M4B6FZNNSTP6DPN2AAEDEQHZ``; ADR ``2026-09-30-1``: no allowlist). A hit is
@@ -47,11 +61,13 @@ function of the owner file, or an attribute access or ``from ... import`` of it
 in any other scanned file -- is a leak the gate reports.
 
 **Out of scope / AST blind spots** (none of these shapes exists in ``src/``
-today other than the plumbing commits; ``git grep -n "shell=True" -- src`` finds
-only comments and docstrings): argv grown across statements (``+=``,
-``.append``, ``.extend``); ``shlex.split(var)``; ``shell=True`` / ``os.system``
-command strings; an argv held in a variable assigned in another function, or
-passed to a runner whose name is not in :data:`GIT_RUNNER_NAMES`; function-local
+today other than the plumbing commits): argv grown across statements (``+=``,
+``.append``, ``.extend``); ``shlex.split(var)``; a shell command assembled from
+several strings or a variable (only a single string constant is matched, and only the
+sweeping forms of :data:`_SHELL_SWEEP`, not ``git commit -m x`` in a string); an argv held
+in a variable assigned in another function and passed to an unknown callee (a list
+*literal* argument is caught, a name is not); a git call made through a third-party
+library other than the named attribute shapes (``dulwich``, ``pygit2``); function-local
 string constants; an argv built by concatenation (``["git"] + [...]``, a
 ``BinOp``, is not a list literal, so it is never a candidate); a subcommand or
 flag held in an f-string (``f"{verb}"`` is an unresolved token, so it never
@@ -71,6 +87,7 @@ plumbing commits run no hooks. The callers that reach them by passing
 from __future__ import annotations
 
 import ast
+import re
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import NamedTuple
@@ -152,6 +169,8 @@ KINDS = frozenset(
         "committing-merge",
         "committing-revert",
         "committing-cherry-pick",
+        "library-git-call",
+        "unknown-runner",
     }
 )
 
@@ -177,6 +196,14 @@ _VALUED_OPTIONS: Mapping[str, frozenset[str]] = {
     "revert": frozenset({"-m", "-X", "--mainline", "--strategy", "--strategy-option"}),
     "cherry-pick": frozenset({"-m", "-X", "--mainline", "--strategy", "--strategy-option"}),
 }
+
+#: A sweeping git command inside a string constant (``add -A|--all|.|-u``, ``commit -a|--all``, any ``--no-verify``).
+_SHELL_SWEEP = re.compile(r"\bgit\s+(?:(?P<add>add\s+(?:-A|--all|\.|-u)(?![\w./-]))|(?P<all>commit\s+(?:-a|--all)(?![\w-]))|(?P<bypass>[^\n]*--no-verify))")
+_SHELL_SWEEP_KINDS = {"add": "add-sweep", "all": "commit-all", "bypass": "hook-bypass"}
+#: ``<receiver>.add``/``.commit`` receivers that stage or commit through a git library.
+_LIBRARY_RECEIVERS = frozenset({"index", "git"})
+_LIBRARY_METHODS = frozenset({"add", "commit"})
+_COMMITTING_SUBCOMMANDS = frozenset({"add", "commit"})
 
 Tokens = Sequence[str | None]
 
@@ -285,6 +312,66 @@ def _runner_argv(call: ast.Call, consts: Mapping[str, str]) -> tuple[int, list[s
     return call.lineno, [_token(arg, consts) for arg in call.args[1:]]
 
 
+def _is_library_call(call: ast.Call) -> bool:
+    """``<x>.index.add(...)``, ``<x>.git.commit(...)`` and the like (GitPython shapes)."""
+    func = call.func
+    if not isinstance(func, ast.Attribute) or func.attr not in _LIBRARY_METHODS:
+        return False
+    receiver = func.value
+    name = receiver.attr if isinstance(receiver, ast.Attribute) else receiver.id if isinstance(receiver, ast.Name) else None
+    return name in _LIBRARY_RECEIVERS
+
+
+def _unknown_runner_argv(call: ast.Call, consts: Mapping[str, str]) -> tuple[int, list[str | None]] | None:
+    """The argv a non-runner callee is handed when it starts with ``add``/``commit`` (list literal, or positional strings)."""
+    if _callee_name(call) in GIT_RUNNER_NAMES:
+        return None
+    for arg in call.args:
+        if isinstance(arg, (ast.List, ast.Tuple)):
+            tokens = [_token(elt, consts) for elt in arg.elts]
+            if tokens and tokens[0] in _COMMITTING_SUBCOMMANDS:
+                return arg.lineno, tokens
+    positional = [_token(arg, consts) for arg in call.args]
+    for start in (0, 1):
+        if len(positional) > start and positional[start] in _COMMITTING_SUBCOMMANDS:
+            return call.lineno, positional[start:]
+    return None
+
+
+def _looks_like_a_git_argv(tokens: Tokens, from_literal: bool) -> bool:
+    """Whether a positional ``"add"``/``"commit"`` is a git argv rather than, say, ``tracker.complete("commit", "done")``.
+
+    A list/tuple literal always is. Positional strings must carry an option (``-m``, ``--no-edit``) or
+    classify as a sweep, so a UI step named ``"commit"`` is never reported.
+    """
+    if from_literal:
+        return True
+    strong = {"add-sweep", "commit-all", "hook-bypass"}
+    return bool(strong & set(classify_argv(tokens))) or any(tok is not None and tok.startswith("-") for tok in tokens[1:])
+
+
+def _docstring_nodes(tree: ast.Module) -> set[int]:
+    """``id`` of every docstring constant (prose, never executed)."""
+    found: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node.body:
+            first = node.body[0]
+            if isinstance(first, ast.Expr) and isinstance(first.value, ast.Constant) and isinstance(first.value.value, str):
+                found.add(id(first.value))
+    return found
+
+
+def _shell_string_hits(tree: ast.Module) -> Iterator[tuple[int, str, str]]:
+    """``(lineno, kind, text)`` of every sweeping git command inside a non-docstring string constant."""
+    docstrings = _docstring_nodes(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and id(node) not in docstrings:
+            for match in _SHELL_SWEEP.finditer(node.value):
+                group = match.lastgroup
+                if group is not None:
+                    yield node.lineno, _SHELL_SWEEP_KINDS[group], match.group(0)
+
+
 def _candidates(tree: ast.Module, consts: Mapping[str, str]) -> Iterator[tuple[int, list[str | None]]]:
     for node in ast.walk(tree):
         if isinstance(node, (ast.List, ast.Tuple)):
@@ -307,6 +394,16 @@ def _tree_hits(rel: str, tree: ast.Module) -> list[Hit]:
     for lineno, tokens in _candidates(tree, consts):
         for kind in classify_argv(tokens):
             found.setdefault((lineno, kind), _render(tokens))
+    for lineno, kind, text in _shell_string_hits(tree):
+        found.setdefault((lineno, kind), repr(text))
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if _is_library_call(node):
+            found.setdefault((node.lineno, "library-git-call"), ast.unparse(node.func))
+        unknown = _unknown_runner_argv(node, consts)
+        if unknown is not None and classify_argv(unknown[1]) and _looks_like_a_git_argv(unknown[1], any(isinstance(a, (ast.List, ast.Tuple)) for a in node.args)):
+            found.setdefault((unknown[0], "unknown-runner"), _render(unknown[1]))
     return [Hit(rel, lineno, kind, argv) for (lineno, kind), argv in sorted(found.items())]
 
 

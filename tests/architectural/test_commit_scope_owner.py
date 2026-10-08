@@ -123,6 +123,12 @@ _PLANTED: list[tuple[str, str, list[str]]] = [
     ("separator-without-path", 'run(["git", "commit", "-m", "x", "--"])', ["commit-no-pathspec"]),
     ("amend-separator-without-path", 'run(["git", "commit", "--amend", "--no-edit", "--"])', ["amend-no-pathspec"]),
     ("merge-no-verify", 'run(["git", "merge", "--no-verify", b])', ["committing-merge", "hook-bypass"]),
+    ("shell-string-add", 'subprocess.run("git add -A && git status", shell=True)', ["add-sweep"]),
+    ("shell-string-no-verify", 'os.system("git commit -m x --no-verify")', ["hook-bypass"]),
+    ("gitpython-index-add", 'repo.index.add(["p"])', ["library-git-call"]),
+    ("gitpython-git-commit", 'repo.git.commit("-m", "x")', ["library-git-call"]),
+    ("renamed-runner-list", 'my_runner(wt, ["commit", "--no-edit"])', ["unknown-runner"]),
+    ("renamed-runner-varargs", 'my_runner(cwd, "add", "-A")', ["unknown-runner"]),
 ]
 
 
@@ -154,6 +160,9 @@ _NEGATIVE: list[tuple[str, str]] = [
     ("plumbing-commit-tree", 'run(["git", "commit-tree", tree, "-p", parent, "-m", m])'),
     ("not-git", 'run(["gh", "pr", "merge", "--squash"])'),
     ("no-git-prefix-outside-runner", 'args = ["commit", "--no-edit"]'),
+    ("ui-step-named-commit", 'tracker.complete("commit", "commit created")'),
+    ("docstring-mentions-a-sweep", 'def f():\n    """Never run git add -A here."""'),
+    ("shell-string-with-pathspec", 'subprocess.run("git add -- p", shell=True)'),
 ]
 
 
