@@ -51,10 +51,10 @@ zero-dependency leaf importing only ``enum``), :mod:`kernel.sibling_paths`,
 and :mod:`kernel.paths` (the root layer *below* doctrine -- a downward,
 allowed import per ``kernel (root) <- doctrine <- charter <- specify_cli``)
 -- so this stays import-cycle-safe. The ``files("charter.offering")`` call inside
-:func:`doctrine_package_dir` is an in-layer self-reference and is made lazily
+:func:`offering_package_dir` is an in-layer self-reference and is made lazily
 *inside* the function to avoid an import cycle with ``doctrine/__init__.py``;
 :func:`_resolve_built_in` no longer calls it directly (FR-004) -- see
-:func:`doctrine_package_dir`'s own docstring for its remaining callers.
+:func:`offering_package_dir`'s own docstring for its remaining callers.
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ __all__ = [
     "built_in_dir",
     "built_in_missions_root",
     "built_in_root",
-    "doctrine_package_dir",
+    "offering_package_dir",
 ]
 
 PackTier = Literal["built-in", "org", "project"]
@@ -241,7 +241,7 @@ def _resolve_built_in() -> Path:
         raise PackRootNotFound(_BUILT_IN) from exc
 
 
-def doctrine_package_dir() -> Path | None:
+def offering_package_dir() -> Path | None:
     """Return the installed ``charter.offering`` package directory, or ``None``.
 
     ``files("charter.offering")`` is called lazily here (not at import time)

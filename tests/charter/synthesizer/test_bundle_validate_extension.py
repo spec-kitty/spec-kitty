@@ -536,10 +536,10 @@ def test_check_artifacts_have_provenance_ignores_unrecognized_files(tmp_path: Pa
 
 def test_find_artifact_returns_none_for_unknown_kind(tmp_path: Path) -> None:
     """Unknown artifact kinds should short-circuit without scanning the tree."""
-    doctrine_root = tmp_path / ".kittify" / "charter-packs"
-    doctrine_root.mkdir(parents=True)
+    pack_root = tmp_path / ".kittify" / "charter-packs"
+    pack_root.mkdir(parents=True)
 
-    assert _find_artifact(doctrine_root, "unknown", "slug") is None
+    assert _find_artifact(pack_root, "unknown", "slug") is None
 
 
 # ---------------------------------------------------------------------------

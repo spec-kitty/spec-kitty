@@ -168,8 +168,8 @@ def reference_graph() -> DRGGraph:
     or every equality proof below would spuriously report the hand-authored
     content as "missing" from a bare extractor regeneration.
     """
-    doctrine_root = built_in_graph_source()
-    return generate_reference_graph_with_overlay(doctrine_root)
+    pack_root = built_in_graph_source()
+    return generate_reference_graph_with_overlay(pack_root)
 
 
 @pytest.fixture(scope="module")
