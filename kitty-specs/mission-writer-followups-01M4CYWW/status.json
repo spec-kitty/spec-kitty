@@ -180,11 +180,11 @@
       "shell_pid": 27038,
       "shell_pid_created_at": "1791481836.95",
       "subtasks": {
-        "T020": "planned",
-        "T021": "planned",
-        "T022": "planned",
-        "T023": "planned",
-        "T024": "planned"
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
       }
     },
     "WP06": {
