@@ -56,6 +56,47 @@ from specify_cli.core.paths import (
 )
 from runtime.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
 from runtime.next.decision import VALID_RESULT_VALUES as _VALID_RESULTS
+from runtime.next.decision import AnalysisCurrency, AnalysisVerdict
+
+
+def _analysis_verdict(freshness) -> AnalysisVerdict:
+    """Reduce an ``AnalysisFreshness`` to the runtime's two-field verdict (WP07, FR-016).
+
+    A stale report names one entry per stale input; when no input is to blame
+    (carrier format, unreadable frontmatter, unqualified transaction) the
+    freshness reason stands in, so a stale verdict is never nameless.
+    """
+    if freshness.ok:
+        return AnalysisVerdict("current")
+    if freshness.missing:
+        return AnalysisVerdict("missing")
+    stale_inputs = tuple(sorted(freshness.mismatches)) or ((freshness.reason,) if freshness.reason else ())
+    return AnalysisVerdict("stale", stale_inputs)
+
+
+def analysis_currency_for(
+    mission_slug: str,
+    repo_root,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> AnalysisCurrency:
+    """The injected analysis-currency check for ``mission_slug`` (C-001, B4).
+
+    The runtime imports nothing from ``specify_cli``; this closes over the
+    mission and wraps ``analysis_report.check_analysis_report_current`` -- the
+    same check the implement gate (``agent action implement``) runs, over the
+    same PRIMARY-partition directory ``record-analysis`` writes to. The
+    directory is resolved when the runtime calls the check, so a step that
+    never needs it resolves nothing.
+    """
+
+    def _check() -> AnalysisVerdict:
+        from specify_cli.analysis_report import check_analysis_report_current
+
+        feature_dir = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.ANALYSIS_REPORT)
+        return _analysis_verdict(check_analysis_report_current(feature_dir, repo_root))
+
+    return _check
 
 
 def decide_next(
@@ -66,12 +107,18 @@ def decide_next(
     *,
     owned: OwnedCheckout | None = None,
 ):
-    """Patchable lazy wrapper for the next mutation engine."""
+    """Patchable lazy wrapper for the next mutation engine.
+
+    The one place the analysis-currency check is injected (B4): every caller
+    that advances a software-dev run -- this command and the orchestrator-api
+    ``answer-decision`` verb -- goes through here, so none can skip it.
+    """
     from runtime.next.decision import decide_next as _decide_next
 
+    analysis_currency = analysis_currency_for(mission_slug, repo_root, owned=owned)
     if owned is None:
-        return _decide_next(agent, mission_slug, result, repo_root)
-    return _decide_next(agent, mission_slug, result, repo_root, owned=owned)
+        return _decide_next(agent, mission_slug, result, repo_root, analysis_currency=analysis_currency)
+    return _decide_next(agent, mission_slug, result, repo_root, owned=owned, analysis_currency=analysis_currency)
 
 
 def _runtime_bridge_module():
@@ -988,10 +1035,11 @@ def _run_query_mode(
     from runtime.next.runtime_bridge import MissionNotFoundError
 
     try:
+        analysis_currency = analysis_currency_for(mission_slug, repo_root, owned=owned)
         if owned is None:
-            decision = runtime_bridge.query_current_state(agent, mission_slug, repo_root)
+            decision = runtime_bridge.query_current_state(agent, mission_slug, repo_root, analysis_currency=analysis_currency)
         else:
-            decision = runtime_bridge.query_current_state(agent, mission_slug, repo_root, owned=owned)
+            decision = runtime_bridge.query_current_state(agent, mission_slug, repo_root, owned=owned, analysis_currency=analysis_currency)
     except ActionContextError as exc:
         # FR-001 / C-IC02: the resolver produced a precise typed read-path error
         # (e.g. COORDINATION_BRANCH_DELETED). Surface its code + checked paths +

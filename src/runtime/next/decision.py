@@ -20,10 +20,11 @@ import logging
 import os
 import re
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from charter.activation.pack_context import CharterPackConfigError
 from mission_runtime import ActionContextError, OwnedCheckout
@@ -77,6 +78,41 @@ class DecisionKind(StrEnum):
 # for its member values) -- this tuple is the single source both CLI-facing
 # validators import instead of each keeping an independent literal copy.
 VALID_RESULT_VALUES: tuple[str, ...] = ("success", "failed", "blocked")
+
+
+# ---------------------------------------------------------------------------
+# Analysis currency (WP07, FR-016, C-001)
+# ---------------------------------------------------------------------------
+#
+# The runtime may not import ``specify_cli.analysis_report``; the CLI wraps
+# ``check_analysis_report_current`` in a callable and injects it through
+# ``decide_next`` / ``query_current_state``. The bridge evaluates it only on the
+# ``analyze`` step and in the finalized-board override that would hand out
+# ``implement`` (it never reaches the pure cores module, B5).
+
+#: ``Decision.error_code`` values of a software-dev ``analyze`` step re-issued
+#: because the analysis report is not current.
+ANALYSIS_REPORT_MISSING = "ANALYSIS_REPORT_MISSING"
+ANALYSIS_REPORT_STALE = "ANALYSIS_REPORT_STALE"
+#: No currency check reached the runtime, so the report cannot be judged: the
+#: step fails closed instead of being treated as not evaluated.
+ANALYSIS_CURRENCY_UNAVAILABLE = "ANALYSIS_CURRENCY_UNAVAILABLE"
+
+
+@dataclass(frozen=True)
+class AnalysisVerdict:
+    """Whether the mission's analysis report is current.
+
+    ``stale_inputs`` names one entry per stale input of a ``stale`` verdict (an
+    input artifact whose hash moved, or the reason when no input is to blame).
+    """
+
+    status: Literal["current", "missing", "stale"]
+    stale_inputs: tuple[str, ...] = ()
+
+
+#: The injected currency check; it closes over the mission and repository.
+AnalysisCurrency = Callable[[], AnalysisVerdict]
 
 
 class InvalidStepDecision(ValueError):
@@ -329,6 +365,7 @@ def decide_next(
     repo_root: Path,
     *,
     owned: OwnedCheckout | None = None,
+    analysis_currency: AnalysisCurrency | None = None,
 ) -> Decision:
     """Decide the next action for an agent in the mission loop.
 
@@ -352,6 +389,7 @@ def decide_next(
         result,
         repo_root,
         owned=owned,
+        analysis_currency=analysis_currency,
     )
     return _with_guard_failure_paths(decision, repo_root, owned=owned)
 
