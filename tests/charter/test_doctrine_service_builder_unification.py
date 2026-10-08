@@ -2,7 +2,7 @@
 
 charter-sole-door-bypass-closure-01KZ3WAA WP01. Proves the C-001 unification
 closed a real divergence: prior to this mission,
-``specify_cli.doctrine_service_factory.build_active_charter_service``
+``specify_cli.doctrine_service_factory.build_active_charter_service`` (deleted in #3732)
 and ``charter.activation.active_charter_service_builder._build_active_charter_service``
 were two independent implementations that silently disagreed on two axes
 (``active_languages`` computation and ``org_roots`` self-resolution). Both are
@@ -42,9 +42,6 @@ from ruamel.yaml import YAML
 from tests._support.org_pack_config import write_org_packs
 from charter.activation.active_charter_service_builder import (
     build_active_charter_service as charter_builder,
-)
-from specify_cli.doctrine_service_factory import (
-    build_active_charter_service as specify_cli_builder,
 )
 
 pytestmark = pytest.mark.fast
@@ -133,33 +130,32 @@ def repo_root(tmp_path: Path) -> Path:
     return root
 
 
-def test_specify_cli_entry_point_delegates_to_charter_builder(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """C-001: a real behavioural proof that specify_cli holds a call-through.
+def test_specify_cli_entry_point_delegates_to_charter_builder() -> None:
+    """C-001: ``specify_cli`` holds no second builder (#3732 retired its re-export).
 
-    Patching the charter-layer canonical builder must be observed by the
-    ``specify_cli`` entry point -- proving it is a thin re-export, not an
-    independent second implementation that merely happens to agree today.
+    The former ``specify_cli`` factory module was a thin call-through to the
+    charter-layer canonical builder; charter-pack-cutover-01M491G6 WP21 deleted it
+    and repointed every caller at
+    :func:`charter.activation.active_charter_service_builder.build_active_charter_service`.
+    This pins the end state: no module under ``src/specify_cli`` defines a
+    function of that name, so no independent second implementation can return.
     """
+    import ast
+
     import charter.activation.active_charter_service_builder as builder_module
-    from specify_cli.doctrine_service_factory import (
-        build_active_charter_service as specify_cli_entry_point,
-    )
 
-    sentinel = object()
-    calls: list[Path] = []
-
-    def _fake_builder(repo_root: Path) -> object:
-        calls.append(repo_root)
-        return sentinel
-
-    monkeypatch.setattr(builder_module, "build_active_charter_service", _fake_builder)
-
-    result = specify_cli_entry_point(tmp_path)
-
-    assert result is sentinel
-    assert calls == [tmp_path]
+    assert callable(builder_module.build_active_charter_service)  # control: the one builder exists
+    src_root = Path(__file__).resolve().parents[2] / "src" / "specify_cli"
+    assert src_root.is_dir(), "control: the scan root exists"
+    definers = [
+        path.relative_to(src_root).as_posix()
+        for path in sorted(src_root.rglob("*.py"))
+        if any(
+            isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef) and node.name == "build_active_charter_service"
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8")))
+        )
+    ]
+    assert definers == []
 
 
 #: A gated kind whose repository actually consumes ``active_languages``
@@ -192,11 +188,8 @@ def test_active_languages_resolution_identical_across_entry_points(repo_root: Pa
     assert expected, "fixture must exercise a non-empty active_languages resolution"
 
     result_a = charter_builder(repo_root)
-    result_b = specify_cli_builder(repo_root)
 
     repo_a = result_a.raw_repository(_LANGUAGE_SCOPED_KIND)
-    repo_b = result_b.raw_repository(_LANGUAGE_SCOPED_KIND)
-    assert repo_a._active_languages == repo_b._active_languages  # noqa: SLF001
     assert list(repo_a._active_languages) == expected  # noqa: SLF001
 
 
@@ -209,11 +202,8 @@ def test_org_roots_resolution_identical_across_entry_points(repo_root: Path) -> 
     rather than reaching into the wrapper's ``._inner._org_roots`` directly.
     """
     result_a = charter_builder(repo_root)
-    result_b = specify_cli_builder(repo_root)
 
     repo_a = result_a.raw_repository(_LANGUAGE_SCOPED_KIND)
-    repo_b = result_b.raw_repository(_LANGUAGE_SCOPED_KIND)
-    assert repo_a._org_dirs == repo_b._org_dirs  # noqa: SLF001
     assert repo_a._org_dirs, "fixture must exercise a non-empty org_roots resolution"
 
 
@@ -250,15 +240,10 @@ def test_gated_property_matches_raw_repository_for_bare_project(repo_root: Path,
     repository it wraps.
     """
     result_a = charter_builder(repo_root)
-    result_b = specify_cli_builder(repo_root)
 
     expected_a = _expected_dict_from_raw_repository(result_a, prop)
-    expected_b = _expected_dict_from_raw_repository(result_b, prop)
 
     assert getattr(result_a, prop) == expected_a
-    assert getattr(result_b, prop) == expected_b
-    # Transitively also proves both entry points agree with each other.
-    assert getattr(result_a, prop) == getattr(result_b, prop)
 
 
 #: Built-in profiles scoped to a specific language via ``applies_to_languages``

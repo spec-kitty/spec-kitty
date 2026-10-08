@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from specify_cli.doctrine_service_factory import build_active_charter_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 from specify_cli.invocation.org_profiles import (
     ResolvedOrgProfile,
     resolve_activated_org_profiles,

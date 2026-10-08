@@ -12,7 +12,8 @@ FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA WP01): this
 module now also exposes the single canonical
 :func:`build_active_charter_service` — the ONE public entry point
 that replaces ``specify_cli.doctrine_service_factory.build_active_charter_service``
-(the latter becomes a thin re-export of this one, C-001). It is itself a
+(the latter became a thin re-export of this one, C-001, and was deleted in
+#3732 with every caller repointed here). It is itself a
 thin delegate to :func:`_build_active_charter_service` — the
 SINGLE body in this module that constructs
 :class:`~charter.activation.resolver.ActiveCharterService` (cycle-2 review fix, Blocker 2:
@@ -272,7 +273,7 @@ def build_active_charter_service(
 
     This is the single unified builder — replacing
     ``specify_cli.doctrine_service_factory.build_active_charter_service``
-    (now a thin re-export of this function) and the inline "build raw,
+    (a thin re-export of this function until #3732 deleted it) and the inline "build raw,
     conditionally wrap" pattern previously duplicated in
     ``specify_cli/charter_runtime/lint/checks/org_layer.py`` and
     ``specify_cli/cli/commands/charter/generate.py`` (FR-002). See this

@@ -14,7 +14,7 @@ The activation gate lives two layers above ``resolve_org_roots`` — on
 merged profile set by ``PackContext.activated_agent_profiles`` (three-state:
 ``None`` → all admitted; ``frozenset()`` → none; explicit set → only those).
 This resolver builds that activation-aware service via
-:func:`specify_cli.doctrine_service_factory.build_active_charter_service`
+:func:`charter.activation.active_charter_service_builder.build_active_charter_service`
 and reads its already-gated ``agent_profiles`` mapping.  It then narrows the
 result to org-provenance members by consulting the inner repository's
 ``get_provenance`` / ``get_source_path`` (provenance lives on the repository,
@@ -30,8 +30,8 @@ first, and provenance is read per-id from the inner repository.
 Layer rule
 ----------
 This helper lives in ``specify_cli.*`` precisely because it imports the
-``specify_cli`` factory (allowed direction ``specify_cli → charter →
-doctrine``).  It must never be placed inside ``charter.*`` or ``doctrine.*``.
+charter-layer builder (allowed direction ``specify_cli → charter``).  It must
+never be placed inside ``charter.*``.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from specify_cli.doctrine_service_factory import build_active_charter_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 
 if TYPE_CHECKING:
     from charter.profiles import AgentProfile, SkippedProfile

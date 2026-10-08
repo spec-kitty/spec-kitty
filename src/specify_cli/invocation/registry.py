@@ -5,9 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from charter.activation.active_charter_service_builder import build_active_charter_service
 from charter.profiles import AgentProfile, AgentProfileRepository
 
-from specify_cli.doctrine_service_factory import build_active_charter_service
 from specify_cli.invocation.errors import ProfileNotFoundError
 
 if TYPE_CHECKING:

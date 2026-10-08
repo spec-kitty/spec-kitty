@@ -108,7 +108,7 @@ def _profile_catalog(
 
     org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
     if project_doctrine_profiles.exists() or org_roots:
-        from specify_cli.doctrine_service_factory import (
+        from charter.activation.active_charter_service_builder import (
             build_active_charter_service,
         )
 

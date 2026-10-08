@@ -105,7 +105,7 @@ _EXEMPT_FILES = frozenset({"tests/architectural/test_charter_sole_door_inner_rea
 # The one sanctioned construction path for a charter.activation.resolver.ActiveCharterService
 # outside src/charter/** (FR-008's unified builder).
 _FACTORY_FUNC_NAME = "build_active_charter_service"
-_FACTORY_MODULES = frozenset({"specify_cli.doctrine_service_factory", "charter.activation.active_charter_service_builder"})
+_FACTORY_MODULES = frozenset({"charter.activation.active_charter_service_builder"})
 
 # The wrapper's own constructor -- tracked too so the taint heuristic stays
 # correct even though NFR-001's sibling gate independently forbids
@@ -407,7 +407,7 @@ def test_planted_reacharound_at_function_local_scope_is_detected(tmp_path: Path)
     """
     planted = tmp_path / "planted_reacharound.py"
     planted.write_text(
-        "from specify_cli.doctrine_service_factory import (\n"
+        "from charter.activation.active_charter_service_builder import (\n"
         "    build_active_charter_service,\n"
         ")\n"
         "\n"
@@ -456,7 +456,7 @@ def test_getattr_string_reach_around_is_flagged(tmp_path: Path) -> None:
     """
     planted = tmp_path / "getattr_reacharound.py"
     planted.write_text(
-        "from specify_cli.doctrine_service_factory import (\n"
+        "from charter.activation.active_charter_service_builder import (\n"
         "    build_active_charter_service,\n"
         ")\n"
         "\n"

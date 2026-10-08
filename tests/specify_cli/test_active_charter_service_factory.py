@@ -1,4 +1,4 @@
-"""Consumed factory boundary for activation-aware doctrine services."""
+"""Consumed builder boundary for activation-aware charter services."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation.resolver import ActiveCharterService
-from specify_cli.doctrine_service_factory import (
+from charter.activation.active_charter_service_builder import (
     build_active_charter_service,
 )
 
