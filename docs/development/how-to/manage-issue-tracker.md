@@ -2,7 +2,7 @@
 title: Managing the Issue Tracker
 description: 'Conventions for the Spec Kitty issue tracker: epics vs meta-trackers, sub-issue parenting, dependencies, triage, the label taxonomy, and the label-driven fleet workflow.'
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -475,6 +475,11 @@ move work by changing labels, never by out-of-band assignment. This section docu
 queue that consumes the labels catalogued above. Source of truth: the planning repo's
 `agents/dispatcher.md`, `agents/groom.md`, `agents/merge.md`, `agents/review.md`, and
 `PROGRAM.md`.
+
+The fleet scripts named below (`bin/unblock.py`, `bin/take-next-ticket.sh`, and
+`bin/dispatch.sh`) live in the private `EXPERIMENTAL-spec-kitty-planning` repository,
+not in this Spec Kitty checkout. They describe fleet behavior; contributors do not
+need to run them to manage an issue.
 
 ### The `status:*` lifecycle (issues)
 

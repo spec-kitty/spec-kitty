@@ -2,7 +2,7 @@
 title: 'Context: Team Kitty and Zeitgeist'
 description: "Glossary context for the hosted product: how the CLI, its Zeitgeist client, the per-team relay, and the Team Kitty SaaS fit together, and why 'sync' is a dead word."
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/ai-collaboration-agent.md
 type: explanation
 related:
@@ -199,7 +199,8 @@ transition is one moment however often it is re-emitted.
   `moment_presentation.py`).
 - Relay wire contract: `EXPERIMENTAL-zeitgeist/zeitgeist/managed.py`,
   `managed_auth.py`, `zeitgeist/schemas/managed_*.schema.json`; executable
-  end-to-end reference `bin/probe-managed-event-publish-hosted.sh`.
+  end-to-end reference `EXPERIMENTAL-zeitgeist/bin/probe-managed-event-publish-hosted.sh`
+  (in the Zeitgeist repository, not this checkout).
 - Authoritative CLI contract: spec-kitty-saas `contracts/cli-saas-current-api.yaml`.
 
 ## What `SPEC_KITTY_ENABLE_SAAS_SYNC` still gates (and what it does not)

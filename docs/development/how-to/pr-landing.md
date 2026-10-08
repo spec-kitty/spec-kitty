@@ -2,7 +2,7 @@
 title: 'Landing Contributor PRs: The Maintainer Runbook'
 description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -787,6 +787,12 @@ template's placeholders. Run it before opening, from a file or stdin:
 python packs/internal/assets/validate-pr-body.py body.md
 gh pr view <n> --json body -q .body | python packs/internal/assets/validate-pr-body.py -
 ```
+
+If you do not have a Spec Kitty source checkout with this internal asset, check the body
+against the template manually: keep exactly the five headings above in order; put an
+own-line `Closes #<n>` in Issue; list runnable commands and their results plus a
+`Self-review:` block in Tests run; record the actual `git grep` discovery command and
+its matching paths under `Files:` in Blast radius; and remove all template placeholders.
 
 After the last rebase, prove the `Files:` list against a fresh run of the `Discovery:`
 `git grep` at the head you are landing (only a `git grep` command is ever executed):
