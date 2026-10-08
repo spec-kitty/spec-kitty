@@ -120,7 +120,7 @@ def _append_raw_event(events_path: Path, event_dict: dict[str, Any]) -> int:
     WP07, ``design-notes/WP01-lock-rules.md`` addendum): the row lands through
     ``append_raw_rows_atomic`` (write-ahead temp file + ``os.replace``, PII
     stripped via ``sanitize_event_for_log`` inside the primitive) while the
-    mission status lock (L1) keyed on the mission directory name is held, so a
+    mission status lock (L1) keyed on ``mission_lock_key`` is held, so a
     concurrent ``BookkeepingTransaction`` rollback truncate can never erase it
     (FR-002). The Lamport-proxy readback runs under the same acquisition so
     the count is this row's line number, not a later writer's.
@@ -142,13 +142,14 @@ def _append_raw_event(events_path: Path, event_dict: dict[str, Any]) -> int:
     # Function-local on purpose: ``decisions.emit`` sits on the ``charter`` command's
     # cold-import path and must not pull status orchestration in at import time
     # (tests/architectural/test_cold_import_status_boundary.py, #1461).
-    from specify_cli.status import feature_status_lock  # noqa: PLC0415
+    from specify_cli.status import feature_status_lock, mission_lock_key  # noqa: PLC0415
     from specify_cli.status._unsafe import append_raw_rows_atomic  # noqa: PLC0415
     from specify_cli.workspace.root_resolver import resolve_status_lock_root  # noqa: PLC0415
 
     feature_dir = events_path.parent
     feature_dir.mkdir(parents=True, exist_ok=True)
-    with feature_status_lock(resolve_status_lock_root(feature_dir), feature_dir.name):
+    lock_root = resolve_status_lock_root(feature_dir)
+    with feature_status_lock(lock_root, mission_lock_key(feature_dir, repo_root=lock_root)):
         append_raw_rows_atomic(events_path, [event_dict])
         return _count_rows(events_path)
 

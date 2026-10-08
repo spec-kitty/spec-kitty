@@ -57,6 +57,7 @@ from specify_cli.status import (
     TransitionRequest,
     WPInnerStateDelta,
     _actor_key,
+    mission_lock_key,
     resolve_lane_alias,
 )
 
@@ -588,7 +589,7 @@ def _mt_execute(st: _MoveTaskState, ports: TasksPorts) -> None:
     from specify_cli.cli.commands.agent import tasks as _tasks
 
     status_lock_root = st.owned.owned_root if st.owned is not None else st.main_repo_root
-    with _tasks.feature_status_lock(status_lock_root, st.feature_dir.name):
+    with _tasks.feature_status_lock(status_lock_root, mission_lock_key(st.feature_dir, repo_root=status_lock_root)):
         _mt_emit_transitions(st, ports)
         if st.self_review_fallback:
             from specify_cli.status import emit_reviewer_self_approval

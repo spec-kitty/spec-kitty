@@ -88,7 +88,7 @@ def _resolve_lock_timeout(lock_timeout: float | None) -> float:
 def retro_status_lock(feature_dir: Path, *, lock_timeout: float | None = None) -> Iterator[Path]:
     """Hold the mission status lock (L1) that guards *feature_dir*'s event log.
 
-    Keyed on ``feature_dir.name`` (FR-004 / C-003: never the slug), rooted via
+    Keyed on ``mission_lock_key`` (FR-004 / C-003: never the slug), rooted via
     :func:`resolve_status_lock_root` so every process converges on the same
     lock file regardless of CWD or worktree. This is the same lock the
     transition shells and ``BookkeepingTransaction`` hold, which is what keeps
@@ -102,11 +102,12 @@ def retro_status_lock(feature_dir: Path, *, lock_timeout: float | None = None) -
     would be the safer option. A :class:`FeatureStatusLockTimeoutError` is a
     structured outage signal and propagates.
     """
-    from specify_cli.status import feature_status_lock
+    from specify_cli.status import feature_status_lock, mission_lock_key
     from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
     lock_root = resolve_status_lock_root(feature_dir)
-    with feature_status_lock(lock_root, feature_dir.name, timeout=_resolve_lock_timeout(lock_timeout)) as lock_path:
+    key = mission_lock_key(feature_dir, repo_root=lock_root)
+    with feature_status_lock(lock_root, key, timeout=_resolve_lock_timeout(lock_timeout)) as lock_path:
         yield lock_path
 
 

@@ -775,6 +775,13 @@ def _coord_status_dirs(worktree_root: Path, commit_paths: tuple[Path, ...]) -> l
     return sorted(dirs)
 
 
+def _hold_coord_status_dir(stack: ExitStack, repo_root: Path, coord_feature_dir: Path) -> None:
+    """Hold the Mission lock of *coord_feature_dir* on *stack*; the key is ``mission_lock_key`` of that directory."""
+    from specify_cli.coordination.status_transition import coord_status_lock
+
+    stack.enter_context(coord_status_lock(repo_root, coord_feature_dir))
+
+
 @contextmanager
 def _coord_status_locks(repo_root: Path, worktree_root: Path, commit_paths: tuple[Path, ...], *, use_coord: bool) -> Iterator[None]:
     """Hold the status lock (L1) of every coord-resident status log this commit carries.
@@ -792,11 +799,10 @@ def _coord_status_locks(repo_root: Path, worktree_root: Path, commit_paths: tupl
     if not use_coord:
         yield
         return
-    from specify_cli.coordination.status_transition import coord_status_lock
 
     with ExitStack() as stack:
         for status_dir in _coord_status_dirs(worktree_root, commit_paths):
-            stack.enter_context(coord_status_lock(repo_root, status_dir))
+            _hold_coord_status_dir(stack, repo_root, status_dir)
         yield
 
 

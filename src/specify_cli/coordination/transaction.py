@@ -431,9 +431,17 @@ def _preflight_policy_verdict(
 
 
 @contextmanager
-def _transaction_hold(lock_root: Path, key: str, mission_slug: str, timeout: float) -> Iterator[Path]:
-    """The transaction's Mission lock hold, registered like ``mission_write_lock`` so a nested entry keeps the key."""
-    with feature_status_lock(lock_root, key, timeout=timeout) as held, registered_hold(lock_root, mission_slug, key):
+def _transaction_hold(lock_root: Path, key: str, mission_slug: str, timeout: float, *, main_root: Path | None = None) -> Iterator[Path]:
+    """The transaction's Mission lock hold, registered like ``mission_write_lock`` so a nested entry keeps the key.
+
+    An owned-checkout transaction locks under ``owned_root`` while a nested ``mission_lock_key`` lookup resolves
+    the main repo root, so the hold is registered under *main_root* as well (plan A4).
+    """
+    with (
+        feature_status_lock(lock_root, key, timeout=timeout) as held,
+        registered_hold(lock_root, mission_slug, key),
+        registered_hold(main_root if main_root is not None else lock_root, mission_slug, key),
+    ):
         yield held
 
 
@@ -579,7 +587,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # transaction object; on any setup failure below, release it before
         # propagating the domain error.
         lock_root = owned.owned_root if owned is not None else repo_root
-        lock_cm = _transaction_hold(lock_root, _transaction_lock_key(lock_root, mission_slug, mid8), mission_slug, timeout)
+        lock_cm = _transaction_hold(lock_root, _transaction_lock_key(lock_root, mission_slug, mid8), mission_slug, timeout, main_root=repo_root)
         try:
             lock_cm.__enter__()
         except FeatureStatusLockTimeoutError as exc:

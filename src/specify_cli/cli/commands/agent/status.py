@@ -23,7 +23,7 @@ from specify_cli.missions._read_path_resolver import (
     MissionSelectorAmbiguous,
     resolve_bare_modern_mission_dir_name,
 )
-from specify_cli.status import feature_status_lock
+from specify_cli.status import feature_status_lock, mission_lock_key
 from specify_cli.status import EVENTS_FILENAME, EventPersistenceError, StoreError
 from specify_cli.status import parse_review_result_json
 
@@ -543,7 +543,7 @@ def materialize(
             )
             raise typer.Exit(1)
 
-        with feature_status_lock(main_repo_root, feature_dir.name):
+        with feature_status_lock(main_repo_root, mission_lock_key(feature_dir, repo_root=main_repo_root)):
             # Materialize snapshot from event log
             snapshot = do_materialize(feature_dir)
 

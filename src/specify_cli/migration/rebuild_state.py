@@ -50,7 +50,7 @@ from specify_cli.migration.canonicalization import (
     apply_rules,
 )
 from specify_cli.mission_metadata import load_meta_or_empty
-from specify_cli.status import feature_status_lock
+from specify_cli.status import feature_status_lock, mission_lock_key
 from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
 logger = logging.getLogger(__name__)
@@ -553,7 +553,8 @@ def rebuild_event_log(
     Returns:
         :class:`RebuildResult` with counts and warnings for the feature.
     """
-    with feature_status_lock(resolve_status_lock_root(feature_dir), feature_dir.name):
+    lock_root = resolve_status_lock_root(feature_dir)
+    with feature_status_lock(lock_root, mission_lock_key(feature_dir, repo_root=lock_root)):
         return _rebuild_event_log_locked(feature_dir, feature_slug, wp_id_map)
 
 

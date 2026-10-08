@@ -63,6 +63,7 @@ from specify_cli.status import (
     EVENTS_FILENAME,
     SNAPSHOT_FILENAME,
     feature_status_lock,
+    mission_lock_key,
 )
 
 __all__ = ["StatusSurfaceGuard", "StatusSurfaceLeftover"]
@@ -188,10 +189,10 @@ class StatusSurfaceGuard:
         it moves the branch back.
         """
         root, status_dir = self.surface_root, self.status_dir
-        # Keyed on the status directory's name: the key every writer of this surface locks on,
+        # Keyed on ``mission_lock_key``: the key every writer of this surface locks on,
         # under the git common dir all of the Mission's checkouts share.
         lock = (
-            feature_status_lock(root, status_dir.name, timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS)
+            feature_status_lock(root, mission_lock_key(status_dir, repo_root=root), timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS)
             if root is not None and status_dir is not None
             else nullcontext()
         )

@@ -23,6 +23,7 @@ from specify_cli.core import dependency_graph
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.core.vcs import VCSBackend
+from specify_cli.missions._read_path_resolver import mission_write_lock_dir
 from specify_cli.git.commit_helpers import (
     SafeCommitHeadMismatch,
     SafeCommitPathPolicyError,
@@ -406,13 +407,12 @@ def enter_checkout_claim_lock(stack: ExitStack, ctx: ImplementContext, selection
 def hold_mission_write_lock(stack: ExitStack, ctx: ImplementContext) -> None:
     """Hold the Mission write lock on *stack* from the claim emit through the claim commit (#5468).
 
-    The key is the Mission directory the claim emit itself re-enters
-    (``start_implementation_status`` locks ``resolve_status_lock_root`` + ``feature_dir.name``),
-    so the emit nests inside this hold and the claim commit stages a consistent snapshot of
+    The key is the one the claim emit itself re-enters (``start_implementation_status``
+    locks ``mission_lock_key(feature_dir)``), so the emit nests inside this hold and the claim commit stages a consistent snapshot of
     the status files. Unbounded wait (``UNBOUNDED_LOCK_WAIT``): the initiating command queues rather
     than failing.
     """
-    stack.enter_context(mission_write_lock(ctx.mission_dir, repo_root=ctx.repo_root, timeout=UNBOUNDED_LOCK_WAIT))
+    stack.enter_context(mission_write_lock(mission_write_lock_dir(ctx.repo_root, ctx.mission_slug), repo_root=ctx.repo_root, timeout=UNBOUNDED_LOCK_WAIT))
 
 
 def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, base: str | None) -> AllocationResult:

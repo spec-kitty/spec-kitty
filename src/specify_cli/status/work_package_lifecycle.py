@@ -14,6 +14,7 @@ from typing import Any, cast
 from specify_cli.status.emit import TransitionError
 from specify_cli.status.models import parse_agent_boundary_string
 from specify_cli.status.locking import feature_status_lock
+from specify_cli.status.mission_write import mission_lock_key
 from specify_cli.status.review_claim_predicate import review_claim_decision
 from specify_cli.status.models import (
     FORCE_NOTE_HINT,
@@ -309,7 +310,7 @@ def start_implementation_status(
     feature_dir = canonicalize_feature_dir(feature_dir)
     lock_root = _repo_root_for_lock(feature_dir, repo_root)
 
-    with feature_status_lock(lock_root, feature_dir.name):
+    with feature_status_lock(lock_root, mission_lock_key(feature_dir, repo_root=lock_root)):
         current = read_current_wp_state_transactional(
             feature_dir=feature_dir,
             mission_slug=mission_slug,
@@ -465,7 +466,7 @@ def start_review_status(
     feature_dir = canonicalize_feature_dir(feature_dir)
     lock_root = _repo_root_for_lock(feature_dir, repo_root)
 
-    with feature_status_lock(lock_root, feature_dir.name):
+    with feature_status_lock(lock_root, mission_lock_key(feature_dir, repo_root=lock_root)):
         current = read_current_wp_state_transactional(
             feature_dir=feature_dir,
             mission_slug=mission_slug,

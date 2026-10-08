@@ -130,6 +130,19 @@ def _lock_name_for_ad_hoc_dir(feature_dir: Path) -> str:
     return _lock_name_from_meta(load_meta_or_empty(feature_dir), feature_dir.name) or feature_dir.name
 
 
+def _primary_meta(root: Path, name: str) -> Mapping[str, object]:
+    """The canonical primary ``meta.json`` of *name* under *root*.
+
+    A *root* that is itself a primary checkout (its ``.git`` is a directory) is read directly: it cannot be a
+    lane worktree, and an owned-checkout caller must not resolve the main repo root (owned-checkout authority).
+    Any other root goes through the read-path resolver's primary-directory leaf, which follows a worktree's
+    ``.git`` pointer to the main checkout (plan A4).
+    """
+    if (root / ".git").is_dir():
+        return load_meta_or_empty(root / KITTY_SPECS_DIR / name)
+    return literal_primary_meta(root, name)
+
+
 def _lock_name_for_dir(feature_dir: Path, root: Path) -> str:
     """The lock key of the Mission whose primary or coordination directory is *feature_dir*.
 
@@ -141,7 +154,7 @@ def _lock_name_for_dir(feature_dir: Path, root: Path) -> str:
     name = feature_dir.name
     if feature_dir.parent.name != KITTY_SPECS_DIR:
         return _lock_name_for_ad_hoc_dir(feature_dir)
-    return _lock_name_from_meta(literal_primary_meta(root, name), name) or name
+    return _lock_name_from_meta(_primary_meta(root, name), name) or name
 
 
 def transaction_lock_key(repo_root: Path, mission_slug: str, mid8: str) -> str:

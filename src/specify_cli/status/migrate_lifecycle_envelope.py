@@ -76,6 +76,7 @@ from .lifecycle_events import (
     _repo_root_for_lifecycle_log,  # noqa: PLC2701 -- same-package reuse, not a public API
 )
 from .locking import feature_status_lock, project_event_log_lock
+from .mission_write import mission_lock_key
 from .store import (  # noqa: PLC2701 -- same-package reuse, not a public API
     StoreError,
     _fsync_directory,
@@ -228,14 +229,9 @@ def _lock_for_log_path(log_path: Path) -> AbstractContextManager[Path | None]:
 
     Project-level log (``.kittify/canonical-events.jsonl``) -> the sibling
     ``project_event_log_lock``. Mission-level log (``status.events.jsonl``)
-    -> ``feature_status_lock`` keyed by ``log_path.parent.name`` (the
-    ``kitty-specs/<mission_slug>`` directory name) -- this migration tool has
-    no independent mission-identity input, so it uses the same
-    ``feature_dir.name`` fallback the rest of ``status/*`` already treats as
-    the mission slug when no recorded identity is available (documented
-    scoping decision, not a defect: a one-shot repair tool locking on the
-    directory name rather than a possibly-divergent recorded slug is a
-    reversible, low-risk choice for an offline maintenance operation).
+    -> ``feature_status_lock`` keyed by ``mission_lock_key(log_path.parent)``, the
+    one key every writer of the Mission takes (the coordination directory name
+    for a coordination-routed Mission, the directory name otherwise).
     When no repo root can be resolved, locking is skipped (matches this
     package's existing best-effort posture for unresolvable log paths).
     """
@@ -244,7 +240,7 @@ def _lock_for_log_path(log_path: Path) -> AbstractContextManager[Path | None]:
         return contextlib.nullcontext()
     if log_path.name == PROJECT_EVENTS_FILENAME:
         return project_event_log_lock(repo_root)
-    return feature_status_lock(repo_root, log_path.parent.name)
+    return feature_status_lock(repo_root, mission_lock_key(log_path.parent, repo_root=repo_root))
 
 
 def _atomic_replace_file(path: Path, content: str) -> None:
