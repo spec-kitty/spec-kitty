@@ -190,7 +190,7 @@
     },
     "WP06": {
       "actor": "claude-reviewer-runtime",
-      "agent": "claude-reviewer-runtime",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
@@ -204,6 +204,7 @@
         "Forced only because the stream claim has no claim base; commits 5b4a8c857..9651145e2 merged from stream/runtime. next reads built-in runtime templates from the pack via builtin_missions_root(); src runtime copies deleted; ledger 23->22; query mode reads the frozen template; per-type parity fixture recorded first."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/mission-writer-followups-01M4CYWW/tasks/WP06-canonical-runtime-templates/review-cycle-1.md",
         "reference": "review-cycle://mission-writer-followups-01M4CYWW/WP06-canonical-runtime-templates/review-cycle-1.md",
@@ -211,14 +212,14 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 13211,
-      "shell_pid_created_at": "1791484294.68",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T025": "done",
-        "T026": "done",
-        "T027": "done",
-        "T029": "done",
-        "T059": "done"
+        "T025": "planned",
+        "T026": "planned",
+        "T027": "planned",
+        "T029": "planned",
+        "T059": "planned"
       }
     },
     "WP07": {
