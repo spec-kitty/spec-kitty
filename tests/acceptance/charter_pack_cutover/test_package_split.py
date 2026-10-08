@@ -217,7 +217,6 @@ def _plant(slice_: Slice, root: Path) -> None:
 
 
 _SLICE_PENDING = {
-    "WP20": pending_until("WP20", "FR-010 r2 identifiers renamed (activation)"),
     "WP21": pending_until("WP21", "FR-010 r3/r4 identifiers renamed (specify_cli)"),
     "WP22": pending_until("WP22", "FR-010 prose renamed (packs, living docs)"),
 }
