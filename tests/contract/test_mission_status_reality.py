@@ -2509,6 +2509,9 @@ def _per_mission_reads(memo: memo_module.ResolverMemo, names: Sequence[str]) -> 
 def corpus_run(remote_state: oracles.RemoteState, tools: helper.ContractTools) -> CorpusRun:
     """The one shared resolver run. A function-scoped fixture on purpose: the case ledger (an autouse fixture of the same scope) decides the named
     offline skip first, which a module-scoped fixture would pre-empt; the run itself is executed once and cached."""
+    failure = actions_origin_failure(remote_state, os.environ)
+    if failure is not None:
+        pytest.fail(failure)
     if not remote_state.online:
         pytest.skip(OFFLINE_SKIP)
     return execute_corpus_run(tools)
@@ -3843,6 +3846,17 @@ def ledger_problems(ledger: CaseLedger, plan: CasePlan) -> list[str]:
     return problems
 
 
+def actions_origin_failure(state: oracles.RemoteState, environ: Mapping[str, str]) -> str | None:
+    """The failure message when, on GitHub Actions, the checkout's own ``origin`` cannot be reached (the checkout just fetched from it, so an
+    unreachable origin there is a broken probe, not an offline machine); None otherwise. Locally, and for any other remote, the named skip stays."""
+    if environ.get("GITHUB_ACTIONS") != "true" or "origin" not in state.unreachable:
+        return None
+    return (
+        "GITHUB_ACTIONS=true and the checkout's own `origin` remote did not answer `git ls-remote --heads`: "
+        "the resolver-dependent corpus cases must run here, not skip"
+    )
+
+
 def offline_annotation(state: oracles.RemoteState, skipped: Mapping[str, str], environ: Mapping[str, str]) -> str | None:
     """A GitHub Actions warning for a run that took the named offline skips, so a green offline run is visible on the pull request; None otherwise."""
     if environ.get("GITHUB_ACTIONS") != "true" or state.online or not skipped:
@@ -3866,6 +3880,12 @@ def test_the_offline_annotation_is_emitted_only_on_actions_when_offline_with_ski
     assert offline_annotation(offline, skipped, {}) is None, "outside GitHub Actions nothing is annotated"
     assert offline_annotation(online, skipped, on_actions) is None, "an online run is not annotated"
     assert offline_annotation(offline, {}, on_actions) is None, "a run with no named skip is not annotated"
+    # on Actions an unreachable `origin` fails instead of skipping; locally and for another remote the skip stays
+    assert actions_origin_failure(offline, on_actions) is not None, "on Actions an unreachable origin must fail, not skip"
+    assert actions_origin_failure(offline, {}) is None, "locally an unreachable origin keeps the named skip"
+    assert actions_origin_failure(online, on_actions) is None, "a reachable origin does not fail"
+    other = oracles.RemoteState(remotes=("origin", "mirror"), unreachable=("mirror",))
+    assert actions_origin_failure(other, on_actions) is None, "another unreachable remote keeps the skip and the warning"
 
 
 def test_the_case_ledger_fails_on_a_vanished_case_and_on_a_case_that_slipped_into_the_skip() -> None:
@@ -3884,6 +3904,8 @@ def test_the_case_ledger_fails_on_a_vanished_case_and_on_a_case_that_slipped_int
 # Keep this test LAST in the file: under ``--dist loadfile`` the file runs on one worker in
 # definition order, so the case counter is complete when it runs.
 def test_every_generated_case_executed_and_the_count_is_not_vacuous(remote_state: oracles.RemoteState, capsys: pytest.CaptureFixture[str]) -> None:
+    failure = actions_origin_failure(remote_state, os.environ)
+    assert failure is None, failure
     annotation = offline_annotation(remote_state, CASE_LEDGER.skipped, os.environ)
     if annotation is not None:
         with capsys.disabled():  # past the capture, so the runner log carries it
