@@ -16,7 +16,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -27,6 +27,9 @@ from specify_cli.mission_metadata import flatten_coordination_metadata
 from specify_cli.status import FeatureStatusLockTimeoutError, mission_lock_key
 from specify_cli.status.locking import feature_status_lock_path
 from specify_cli.status.mission_write import mission_write_lock
+
+if TYPE_CHECKING:
+    from specify_cli.coordination.coord_seed import _SeedRequest
 
 pytestmark = [pytest.mark.unit]
 
@@ -173,7 +176,7 @@ def _drive_coord_seed(repo: Path, primary: Path, coord: Path, mp: pytest.MonkeyP
 
     mp.setattr(module, "_seed_coord_surface_locked", lambda *_a, **_k: None)
     request = SimpleNamespace(owned=None, repo_root=repo, mission_dir_name=COORD_NAME, root_mission_dir=primary, mission_slug=SLUG)
-    module._seed_coord_surface(request)  # type: ignore[arg-type]
+    module._seed_coord_surface(cast("_SeedRequest", request))
 
 
 _DRIVERS: dict[str, Driver] = {
@@ -398,7 +401,7 @@ def test_a_coord_seed_hold_is_registered_for_held_key_reuse(mission: Mission, mo
 
     monkeypatch.setattr(module, "_seed_coord_surface_locked", _locked)
     request = SimpleNamespace(owned=None, repo_root=repo, mission_dir_name=COORD_NAME, root_mission_dir=primary, mission_slug=SLUG)
-    module._seed_coord_surface(request)  # type: ignore[arg-type]
+    module._seed_coord_surface(cast("_SeedRequest", request))
     assert seen == [COORD_NAME]
 
 
@@ -421,7 +424,8 @@ def test_an_owned_checkout_transaction_hold_is_found_from_the_main_repo_root(mis
 def _holds_transaction_lock(repo: Path) -> bool:
     from specify_cli.status.locking import holds_status_lock
 
-    return holds_status_lock(feature_status_lock_path(repo, _mission_specs_dir_name(SLUG, MID8)))
+    held: bool = holds_status_lock(feature_status_lock_path(repo, _mission_specs_dir_name(SLUG, MID8)))
+    return held
 
 
 def test_rebuild_state_replaces_the_event_log_under_the_transaction_lock(mission: Mission, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -440,7 +444,7 @@ def test_rebuild_state_replaces_the_event_log_under_the_transaction_lock(mission
         held_at_replace.append(_holds_transaction_lock(repo))
         real_replace(src, dst)
 
-    monkeypatch.setattr(module.os, "replace", _replace)
+    monkeypatch.setattr(os, "replace", _replace)
     result = module.rebuild_event_log(primary, SLUG, {})
     assert not result.errors
     assert held_at_replace == [True]

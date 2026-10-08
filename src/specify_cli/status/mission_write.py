@@ -138,9 +138,9 @@ def _primary_meta(root: Path, name: str) -> Mapping[str, object]:
     Any other root goes through the read-path resolver's primary-directory leaf, which follows a worktree's
     ``.git`` pointer to the main checkout (plan A4).
     """
-    if (root / ".git").is_dir():
-        return load_meta_or_empty(root / KITTY_SPECS_DIR / name)
-    return literal_primary_meta(root, name)
+    # ``load_meta_or_empty`` / ``literal_primary_meta`` widen to ``Any`` (``follow_imports=skip``); bind them.
+    meta: Mapping[str, object] = load_meta_or_empty(root / KITTY_SPECS_DIR / name) if (root / ".git").is_dir() else literal_primary_meta(root, name)
+    return meta
 
 
 def _lock_name_for_dir(feature_dir: Path, root: Path) -> str:
