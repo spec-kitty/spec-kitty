@@ -125,6 +125,7 @@ def record_baseline_merge_commit(
     *,
     mission_id: str | None = None,
     merged_commit: str | None = None,
+    repo_root: Path | None = None,
 ) -> Path | None:
     """Persist the post-consolidation review baseline AND merge completion marker in meta.json.
 
@@ -210,7 +211,7 @@ def record_baseline_merge_commit(
         wrote = _stamp_baseline_fields(fresh, feature_dir, baseline, merged_commit)
         return wrote
 
-    locked_update_meta(feature_dir, stamp, validate=False)
+    locked_update_meta(feature_dir, stamp, validate=False, repo_root=repo_root)
     return meta_path if wrote else None
 
 
@@ -777,6 +778,8 @@ def _stamp_pr_merge_provenance(
     feature_dir: Path,
     pr_merge_commit: str,
     pr_merge_evidence: str,
+    *,
+    repo_root: Path | None = None,
 ) -> None:
     """Stamp the ``pr_merge_commit`` / ``pr_merge_evidence`` provenance fields.
 
@@ -801,7 +804,7 @@ def _stamp_pr_merge_provenance(
 
     # Read, set-once check and write share one hold of the Mission write lock.
     try:
-        locked_update_meta(feature_dir, stamp, validate=False)
+        locked_update_meta(feature_dir, stamp, validate=False, repo_root=repo_root)
     except MissionMetaReadError as exc:
         raise PrMergeEvidenceError(f"cannot stamp {_PR_MERGE_COMMIT_FIELD} for {feature_dir.name}: meta.json is invalid ({exc}).") from exc
     except FileNotFoundError as exc:
@@ -852,6 +855,8 @@ def _record_pr_merge_baseline(
     owned-mission worktree checkout, silently falling back to the primary
     repo's copy of the mission.
     """
+    # An owned checkout's writes lock against the checkout's own repository root, never a resolver read of it.
+    owned_root = owned.repository_root if owned is not None else None
     evidence = verify_pr_merge_evidence(
         repo_root,
         mission_slug,
@@ -876,8 +881,9 @@ def _record_pr_merge_baseline(
         evidence.baseline_merge_commit,
         mission_id=mission_id,
         merged_commit=evidence.pr_merge_commit,
+        repo_root=owned_root,
     )
-    _stamp_pr_merge_provenance(feature_dir, evidence.pr_merge_commit, evidence.anchor_evidence)
+    _stamp_pr_merge_provenance(feature_dir, evidence.pr_merge_commit, evidence.anchor_evidence, repo_root=owned_root)
     return evidence
 
 

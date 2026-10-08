@@ -1066,6 +1066,17 @@ def _in_queue_status_lock_timeout(main_repo_root: Path) -> float:
     return DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS if queue_held else -1.0
 
 
+def _review_cycle_lock_target(main_repo_root: Path, mission_slug: str, owned: OwnedCheckout | None) -> tuple[Path, Path]:
+    """``(Mission directory, lock root)`` for the review-cycle write lock.
+
+    An owned checkout locks on the fact's own Mission directory and repository root: both are known, so
+    the Mission directory is never resolved from the repository root through the read-path resolver.
+    """
+    if owned is not None:
+        return owned.mission_dir, owned.repository_root
+    return mission_write_lock_dir(main_repo_root, mission_slug), main_repo_root
+
+
 def _allocate_and_write_review_cycle_locked(
     *,
     main_repo_root: Path,
@@ -1077,6 +1088,7 @@ def _allocate_and_write_review_cycle_locked(
     body: str,
     reproduction_command: str | None = None,
     sibling_dirs: tuple[Path, ...] = (),
+    owned: OwnedCheckout | None = None,
 ) -> tuple[ReviewCycleArtifact, Path, str]:
     """Allocate the next cycle number, build, write, and validate the artifact.
 
@@ -1113,10 +1125,10 @@ def _allocate_and_write_review_cycle_locked(
     observe the orphan mid-cleanup and mistake it for a legitimate prior
     cycle.
     """
-    lock_dir = mission_write_lock_dir(main_repo_root, mission_slug)
+    lock_dir, lock_root = _review_cycle_lock_target(main_repo_root, mission_slug, owned)
     with mission_write_lock(
         lock_dir,
-        repo_root=main_repo_root,
+        repo_root=lock_root,
         timeout=_in_queue_status_lock_timeout(main_repo_root),
     ):
         return _allocate_and_write_review_cycle_while_locked(
@@ -1159,10 +1171,10 @@ def _adopt_or_allocate_review_cycle_locked(
     operation_root = _operation_root(main_repo_root, owned)
     evidence_root = surface_root if surface_root is not None else operation_root
     destination_ref = placement_seam(main_repo_root, mission_slug, owned=owned).write_target(MissionArtifactKind.REVIEW_CYCLE).ref
-    lock_dir = mission_write_lock_dir(main_repo_root, mission_slug)
+    lock_dir, lock_root = _review_cycle_lock_target(main_repo_root, mission_slug, owned)
     with mission_write_lock(
         lock_dir,
-        repo_root=main_repo_root,
+        repo_root=lock_root,
         timeout=_in_queue_status_lock_timeout(main_repo_root),
     ):
         candidates = _local_matching_retained_review_cycles(
@@ -1203,7 +1215,7 @@ def _adopt_or_allocate_review_cycle_locked(
 
     with mission_write_lock(
         lock_dir,
-        repo_root=main_repo_root,
+        repo_root=lock_root,
         timeout=_in_queue_status_lock_timeout(main_repo_root),
     ):
         refreshed = _local_matching_retained_review_cycles(
@@ -1406,6 +1418,7 @@ def create_rejected_review_cycle(
             body=resolved_body,
             reproduction_command=reproduction_command,
             sibling_dirs=sibling_dirs,
+            owned=owned,
         )
         already_committed = False
     else:

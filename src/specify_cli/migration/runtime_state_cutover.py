@@ -327,7 +327,7 @@ def _flip_phase(feature_dir: Path, *, owned: OwnedCheckout | None = None) -> Non
 
     # Read, short-circuit and write share one hold of the Mission write lock; the
     # whole-file replace is kept (a missing meta.json still gets the one-key stub).
-    with mission_write_lock(target, fallback_to_dir_name=True):
+    with mission_write_lock(target, repo_root=owned.repository_root if owned is not None else None, fallback_to_dir_name=True):
         meta = load_meta_fail_closed(target) or {}
         if _is_snapshot_authority(meta):
             return
