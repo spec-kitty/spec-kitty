@@ -128,7 +128,11 @@ def test_non_interactive_via_helper_level(
     """The ``_is_interactive_environment`` helper itself respects CI env vars.
 
     Direct unit-level check — independent of CliRunner — verifying that
-    setting ``CI=true`` flips the helper to False even when stdin is a TTY.
+    setting ``CI=true`` flips the helper to False even when stdin is a TTY,
+    and that the ``SPEC_KITTY_NON_INTERACTIVE`` / ``SPEC_KITTY_FORCE_INTERACTIVE``
+    escape hatches (#2912) are honored. Both hatches are cleared up front so the
+    baseline does not depend on the ambient shell — agent harnesses and cloud
+    sessions export ``SPEC_KITTY_NON_INTERACTIVE=1`` (#5872).
     """
     from specify_cli.cli.commands import doctor as doctor_mod
 
@@ -138,6 +142,10 @@ def test_non_interactive_via_helper_level(
             return True
 
     monkeypatch.setattr(doctor_mod.sys, "stdin", _FakeStdin())
+    # The helper routes through ``core.env.is_interactive`` (#2912), so the
+    # escape hatches must be cleared alongside the CI vars (#5872).
+    monkeypatch.delenv("SPEC_KITTY_FORCE_INTERACTIVE", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_NON_INTERACTIVE", raising=False)
     for var in (
         "CI",
         "GITHUB_ACTIONS",
@@ -171,6 +179,16 @@ def test_non_interactive_via_helper_level(
             return False
 
     monkeypatch.setattr(doctor_mod.sys, "stdin", _FakeStdinNoTty())
+    assert doctor_mod._is_interactive_environment() is False
+
+    # SPEC_KITTY_FORCE_INTERACTIVE=1 overrides a non-TTY stdin.
+    monkeypatch.setenv("SPEC_KITTY_FORCE_INTERACTIVE", "1")
+    assert doctor_mod._is_interactive_environment() is True
+
+    # SPEC_KITTY_NON_INTERACTIVE=1 vetoes even a real TTY.
+    monkeypatch.delenv("SPEC_KITTY_FORCE_INTERACTIVE")
+    monkeypatch.setenv("SPEC_KITTY_NON_INTERACTIVE", "1")
+    monkeypatch.setattr(doctor_mod.sys, "stdin", _FakeStdin())
     assert doctor_mod._is_interactive_environment() is False
 
 
