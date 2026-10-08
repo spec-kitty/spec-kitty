@@ -217,7 +217,6 @@ def _plant(slice_: Slice, root: Path) -> None:
 
 
 _SLICE_PENDING = {
-    "WP19": pending_until("WP19", "FR-010 r1 identifiers renamed (offering, facades, kernel)"),
     "WP20": pending_until("WP20", "FR-010 r2 identifiers renamed (activation)"),
     "WP21": pending_until("WP21", "FR-010 r3/r4 identifiers renamed (specify_cli)"),
     "WP22": pending_until("WP22", "FR-010 prose renamed (packs, living docs)"),
@@ -225,7 +224,7 @@ _SLICE_PENDING = {
 
 
 def _slice_param(key: str, slice_: Slice) -> Any:
-    return pytest.param(key, id=key, marks=_SLICE_PENDING[slice_.pending])
+    return pytest.param(key, id=key, marks=_SLICE_PENDING.get(slice_.pending, ()))
 
 
 SLICES = load_slices()
