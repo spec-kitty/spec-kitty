@@ -312,7 +312,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Stream B (runtime/templates) in the stream/runtime worktree",
-        "Stream B (runtime/templates) in the stream/runtime worktree"
+        "Stream B (runtime/templates) in the stream/runtime worktree",
+        "69cdbeeb1 red parity test (4 failed pre-fix), 23372a49f pack mission.yaml byte-equal to src for all four types, wording fixes in both copies, mission_loader comment. Forced only because the stream claim has no claim base."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
