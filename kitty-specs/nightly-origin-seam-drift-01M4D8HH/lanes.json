@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "mission_slug": "nightly-origin-seam-drift-01M4D8HH",
+  "mission_id": "01M4D8HHFQMTP1J8NZ2D3CEJ32",
+  "mission_branch": "issue-5888-nightly-test-seam-drift",
+  "target_branch": "issue-5888-nightly-test-seam-drift",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/integration/test_explicit_checkout_commands.py",
+        "tests/specify_cli/cli/commands/test_accept_decomposition.py",
+        "tests/specify_cli/cli/commands/test_merge_cli_golden.py",
+        "tests/specify_cli/doctrine/test_sources.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-08T08:06:08.692023+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "301c01f0e19f0861ea48f958e6f45f30e1c39854"
+}

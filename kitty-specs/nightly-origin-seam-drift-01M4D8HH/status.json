@@ -1,0 +1,53 @@
+{
+  "event_count": 6,
+  "last_event_id": "01M4DABABSKCEWS1P9RRP4040P",
+  "materialized_at": "2026-10-08T08:33:46.873562+00:00",
+  "mission_number": "",
+  "mission_slug": "nightly-origin-seam-drift-01M4D8HH",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4DABABSKCEWS1P9RRP4040P",
+      "last_transition_at": "2026-10-08T08:33:46.873562+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: 16 node ids red on add98cdb, green here; 265 touched-file tests + 2446 test-fast passed",
+        "Review passed: 4 root causes verified against source (dc4524a5 no_prompt_env core.sshCommand read; 73682930 --origin-check; 9ed59d9c run_origin_gate in accept; 460ba7c8 stderr note). Red-first: 17 failed on origin/main 1af6a711 (16 target + 1 unrelated symlink red introduced after add98cdb), 49/49 pass on branch. No src change; ruff/format clean; no new mypy errors. Recorder filter narrow (config + argv[-1]==core.sshCommand). Non-blocking: integration/test_symlink_escape_is_refused_before_effects is red on current origin/main (#5671 landing, unrelated)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 23738,
+      "shell_pid_created_at": "1791448013.75",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    }
+  }
+}
