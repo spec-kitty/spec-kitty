@@ -1,5 +1,6 @@
 """Scope: git ops integration tests — creates real git repositories."""
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -8,7 +9,6 @@ from specify_cli.core.git_ops import (
     exclude_from_git_index,
     get_current_branch,
     has_remote,
-    init_git_repo,
     is_git_repo,
     resolve_primary_branch,
     resolve_target_branch,
@@ -71,7 +71,14 @@ def test_git_repo_lifecycle(tmp_path, monkeypatch):
     (project / "README.md").write_text("hello", encoding="utf-8")
 
     assert is_git_repo(project) is False
-    assert init_git_repo(project, quiet=True) is True
+    subprocess.run(["git", "init"], cwd=project, check=True, capture_output=True)
+    subprocess.run(["git", "add", "--", "README.md"], cwd=project, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", "commit", "-m", "Initial commit", "--", "README.md"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+    )
     assert is_git_repo(project) is True
 
     branch = get_current_branch(project)

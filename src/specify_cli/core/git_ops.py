@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -136,40 +135,6 @@ def has_unborn_head(path: Path | None = None) -> bool:
     except FileNotFoundError:
         return False
     return result.returncode != 0
-
-
-def init_git_repo(project_path: Path, quiet: bool = False, console: ConsoleType = None) -> bool:
-    """Initialize a git repository with an initial commit.
-
-    NOTE: This function MUST NOT be called from ``init.py``.  As of the
-    post-#555 init-coherence change (FR-001), ``spec-kitty init`` is
-    file-creation-only and never runs git operations.  This function is
-    retained for other callers (e.g. test helpers, one-off utilities) that
-    explicitly need to bootstrap a git repo from Python.
-    """
-    resolved_console = _resolve_console(console)
-    original_cwd = Path.cwd()
-    try:
-        os.chdir(project_path)
-        if not quiet:
-            resolved_console.print("[cyan]Initializing git repository...[/cyan]")
-        subprocess.run(["git", "init"], check=True, capture_output=True)
-        subprocess.run(["git", "add", "."], check=True, capture_output=True)
-        subprocess.run(
-            ["git", "-c", "commit.gpgsign=false", "commit", "-m", "Initial commit"],
-            check=True,
-            capture_output=True,
-        )
-        if not quiet:
-            resolved_console.print("[green]✓[/green] Git repository initialized")
-        return True
-    except subprocess.CalledProcessError as exc:
-        if not quiet:
-            error = escape(sanitize_terminal_text(str(exc)))
-            resolved_console.print(f"[red]Error initializing git repository:[/red] {error}")
-        return False
-    finally:
-        os.chdir(original_cwd)
 
 
 def get_current_branch(path: Path | None = None) -> str | None:
@@ -521,7 +486,6 @@ __all__ = [
     "get_current_branch",
     "has_remote",
     "has_unborn_head",
-    "init_git_repo",
     "is_git_repo",
     "resolve_primary_branch",
     "resolve_target_branch",
