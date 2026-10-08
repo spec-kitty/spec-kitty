@@ -19,6 +19,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -291,6 +292,35 @@ def test_lanes_claim_commits_the_stamped_wp_prompt_and_leaves_a_clean_tree(repo:
     assert f"{rel}/tasks.md" not in files
     assert "created_at:" in (mission.feature_dir / "tasks" / "WP01-test.md").read_text(encoding="utf-8")
     assert git_out(repo, "status", "--porcelain", "--untracked-files=no") == ""
+
+
+def test_a_concurrent_edit_to_the_wp_prompt_during_allocation_is_not_taken_for_the_stamp(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The stamp flag comes from the writer, never from comparing the prompt's bytes around allocation.
+
+    WP02 joins WP01's existing lane (a reuse: nothing is stamped). An allocator that also sees a concurrent
+    edit to the prompt (the allocation runs outside the Mission write lock) must not get that edit committed.
+    """
+    from specify_cli.cli.commands import implement_phases
+    from tests.specify_cli.cli.commands._implement_fixtures import MISSION_ID, SLUG, build_mission, implement_cli
+
+    mission = build_mission(
+        repo, SLUG, MISSION_ID, wps={"WP01": ("code_change", []), "WP02": ("code_change", [])}, layout=(("lane-a", ("WP01", "WP02"), ()),), spec_text="# Spec\n"
+    )
+    assert implement_cli("WP01", "--mission", SLUG, "--actor", "tester", "--auto-commit").exit_code == 0
+    prompt = mission.feature_dir / "tasks" / "WP02-test.md"
+    real = implement_phases.create_lane_workspace
+
+    def allocate_and_race(**kwargs: Any) -> Any:
+        result = real(**kwargs)
+        prompt.write_text(prompt.read_text(encoding="utf-8") + "\nconcurrent operator edit\n", encoding="utf-8")
+        return result
+
+    monkeypatch.setattr(implement_phases, "create_lane_workspace", allocate_and_race)
+
+    done = implement_cli("WP02", "--mission", SLUG, "--actor", "tester", "--auto-commit")
+
+    assert done.exit_code == 0, done.output
+    assert f"kitty-specs/{SLUG}/tasks/WP02-test.md" not in _committed_files(repo, "chore: WP02 claimed for implementation")
 
 
 def test_lanes_no_auto_commit_stages_the_stamped_wp_prompt(repo: Path) -> None:

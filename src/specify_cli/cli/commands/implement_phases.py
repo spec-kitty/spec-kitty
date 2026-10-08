@@ -472,9 +472,9 @@ def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, b
     # refused here too, before the VCS lock, the lane worktree and the status write.
     implement_claim._raise_if_claim_commit_head_mismatch(repo_root, mission_slug, wp_id, ctx.auto_commit)
     meta_dirty_before = _meta_dirty_before_claim(repo_root, feature_dir)
-    # The allocator stamps the claimed WP prompt on lanes/coord topologies; observe it (bytes before vs after), never infer it.
+    # The allocator stamps the claimed WP prompt on lanes/coord topologies and reports it (``result.wp_stamped``);
+    # never inferred from the file's bytes, which a concurrent edit outside the Mission write lock would also change.
     wp_dirty_before = _path_dirty_before_claim(repo_root, wp_file)
-    wp_bytes_before = _read_bytes_or_none(wp_file)
     vcs_backend, meta_written = _ensure_vcs_in_meta(feature_dir, repo_root)
 
     # #3571: when --base is provided, validate the ref (planning-lane
@@ -498,8 +498,7 @@ def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, b
         occupancy_verified=occupancy_verified,
     )
     _report_hook_backup(result)
-    wp_stamped = _read_bytes_or_none(wp_file) != wp_bytes_before
-    return AllocationResult(result, effective_base, meta_written, meta_dirty_before, wp_stamped, wp_dirty_before)
+    return AllocationResult(result, effective_base, meta_written, meta_dirty_before, result.wp_stamped, wp_dirty_before)
 
 
 def _report_hook_backup(result: LaneWorkspaceResult) -> None:
