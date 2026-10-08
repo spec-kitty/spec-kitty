@@ -1327,7 +1327,7 @@ _Resolve shipped and overlay doctrine assets (no install — C-002)._
  DRG + doctrine, and writes all artifacts to ``.kittify/charter-packs/``.
 
  Doctrine generation is performed by the LLM harness (Claude Code, Codex,
- Cursor, etc.) via the spec-kitty-charter-doctrine skill. This command
+ Cursor, etc.) via the spk-charter-governance skill. This command
  validates and promotes the artifacts the agent has written.
 
  Fresh-project behavior (issue #839 / WP06 T031-T033)
