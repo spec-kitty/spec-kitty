@@ -241,7 +241,7 @@ for the reason given:
 | `docs/changelog/` (both gates) | both | A changelog entry's **Before** quotes the old key or command. The live-doc guard's Unreleased-only scan does not fit here, because the Unreleased section is exactly where those Before quotes live. |
 | `docs/plans/` | removed-command gate | Plans and design reviews record how past work was planned and delivered (for example a work-package row recording that it added a subcommand to the `doctrine` group). Rewriting a delivered work package's command would falsify the record. |
 | `docs/development/docs-retrieval-index.yaml` | removed-command gate | Generated output: it indexes every docs page, including the exempt historical roots. `docs/api/cli-commands.md` is scanned: it regenerates from the CLI's help text, which no longer has the group. |
-| `src/specify_cli/upgrade/migrations/m_*charter_pack_cutover*.py` | removed-command gate | The cutover migration must spell the retired literals it rewrites. |
+| `src/specify_cli/upgrade/migrations/m_4_0_0rc6_charter_pack_cutover.py` | removed-command gate | The cutover migration must spell the retired literals it rewrites. |
 
 ## Invariant: Exemptions Must Stay Narrow
 

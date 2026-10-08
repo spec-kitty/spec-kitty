@@ -129,7 +129,7 @@ and back to normal profile routing (verified directly: `empty_charter_fallback` 
 to `false`, and an unambiguous request routes to a real specialist profile).
 
 Note: `minimal` activates a curated set of directives and tactics only — it declares no
-`agent_profiles` key (see `src/charter/activation/packs/minimal.yaml`'s own header), so this fix does not by
+`agent_profiles` key (see `packs/built-in/presets/minimal.yaml`'s own header), so this fix does not by
 itself narrow which specialist gets picked. With no explicit `agent_profiles` activation, the
 router still considers every built-in profile (three-state "admit all" semantics) and may report
 `ROUTER_AMBIGUOUS` for underspecified requests — pass `--profile <profile-id>` to disambiguate
