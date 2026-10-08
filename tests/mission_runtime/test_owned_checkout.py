@@ -204,7 +204,8 @@ def test_files_refuses_absolute_path_outside(tmp_path: Path) -> None:
         fact.files([outside])
 
 
-def test_files_refuses_symlink_escape(tmp_path: Path) -> None:
+def test_files_accepts_link_inside_mission_pointing_outside(tmp_path: Path) -> None:
+    """#5671: a link located inside the mission is committed as a link, even when it points elsewhere."""
     repo, owned, mission = _layout(tmp_path)
     fact = _mint(repo, owned, mission)
     outside_target = tmp_path / "outside_target.md"
@@ -215,8 +216,29 @@ def test_files_refuses_symlink_escape(tmp_path: Path) -> None:
     except OSError as exc:
         pytest.skip(f"platform cannot create symlinks: {exc}")
 
-    with pytest.raises(OwnedCheckoutPathRefused):
-        fact.files([Path("kitty-specs") / mission.name / "escape.md"])
+    result = fact.files([Path("kitty-specs") / mission.name / "escape.md"])
+
+    assert result == [link]
+    assert result[0].is_symlink()
+    assert not outside_target.is_relative_to(mission)
+
+
+def test_files_refuses_link_located_outside_via_symlinked_parent(tmp_path: Path) -> None:
+    """The link's own location decides: a parent directory that links out of the mission puts the path outside it."""
+    repo, owned, mission = _layout(tmp_path)
+    fact = _mint(repo, owned, mission)
+    outdir = tmp_path / "outdir"
+    outdir.mkdir()
+    (outdir / "x.md").write_text("x", encoding="utf-8")
+    try:
+        (mission / "sub").symlink_to(outdir, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"platform cannot create symlinks: {exc}")
+
+    with pytest.raises(OwnedCheckoutPathRefused) as excinfo:
+        fact.files([Path("kitty-specs") / mission.name / "sub" / "x.md"])
+
+    assert excinfo.value.code == OwnedRefusalCode.OWNED_MISSION_PATH_REFUSED
 
 
 def test_files_refuses_symlink_loop(tmp_path: Path) -> None:
