@@ -2,7 +2,7 @@
 title: 'Executive Debrief House Style'
 description: 'House style for Spec Kitty executive debriefs (what-happened reports): the long-form and one-pager layouts, readers and voice, brand palette, and print treatment.'
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -297,7 +297,7 @@ and is not repeated here.
 ## Promotion (done)
 
 This house style is now shipped as an activatable styleguide artifact in the
-internal doctrine pack: `packs/internal/styleguides/executive-debrief.styleguide.yaml`
+internal Charter Pack: `packs/internal/styleguides/executive-debrief.styleguide.yaml`
 (it *refines* `report-writing` and is *suggested* by the
 `executive-debrief-generation` procedure, which is in `org-charter.yaml`'s
 `required_procedures`). Internal doctrine never ships to consumers, it governs how
