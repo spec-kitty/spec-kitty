@@ -130,7 +130,7 @@
     },
     "WP13": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -140,9 +140,11 @@
       "last_transition_at": "2026-10-08T09:59:59.406976+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Every per-Mission lock caller keys on mission_lock_key; coord_seed + owned-checkout holds registered; A7 rewrites pinned under lock; red-first 14/19 failed pre-fix; 5/5 repeats + 3 mutations fail as required; blast radius 8392+5401 passed; make test-fast 2492 passed"
+        "Every per-Mission lock caller keys on mission_lock_key; coord_seed + owned-checkout holds registered; A7 rewrites pinned under lock; red-first 14/19 failed pre-fix; 5/5 repeats + 3 mutations fail as required; blast radius 8392+5401 passed; make test-fast 2492 passed",
+        "Changes requested: new mypy issues (mission_write.py:142/143, test :424/:443) and 2 new type: ignore in the test (NFR-005); behaviour, lock order and mutation verified"
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/mission-writer-followups-01M4CYWW/tasks/WP13-lock-key-caller-sweep/review-cycle-1.md",
         "reference": "review-cycle://mission-writer-followups-01M4CYWW/WP13-lock-key-caller-sweep/review-cycle-1.md",
@@ -150,12 +152,12 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 10349,
-      "shell_pid_created_at": "1791452305.62",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T005": "done",
-        "T053": "done",
-        "T054": "done"
+        "T005": "planned",
+        "T053": "planned",
+        "T054": "planned"
       }
     },
     "WP14": {
