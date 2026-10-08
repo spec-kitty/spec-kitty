@@ -2,8 +2,8 @@ title: DriftReport
 description: >-
   The result of one scan of the Missions of the project for drift: where a derived file disagrees
   with the record that decides it. At most 1000 findings are returned, sorted by Mission
-  identity, kind and artifact path in the byte order of the UTF-8 encoding, and truncated says
-  whether more existed. findings is empty when the scan ran and found none. The scan reads and
+  identity, kind and artifact path in the byte order of the UTF-8 encoding, and truncated is true only
+  when more than 1000 existed (exactly 1000 is not truncated). findings is empty when the scan ran and found none. The scan reads and
   never repairs, and the 200 answer is sent with Cache-Control no-store, so a rescan is a second
   call. A Mission whose declared coordination branch no longer exists is scanned from its own
   directory, which can lag the coordination surface. The stock coordination resolver may query

@@ -7,7 +7,7 @@ get:
     snapshot disagrees with the status event log, one of the two status files is missing, and an
     expected lane branch or Mission branch has no local branch. A scan reads and never repairs;
     Rescan is a second call, and scannedAt is the time of this scan. Findings are sorted and at
-    most 1000, with truncated set when more existed, and findings: [] means the scan ran and found
+    most 1000, with truncated true only when MORE than 1000 existed (exactly 1000 is false), and findings: [] means the scan ran and found
     none. A Mission whose declared coordination branch no longer exists is scanned from its own
     directory, which can lag the coordination surface. The stock coordination resolver may query
     remotes, so the outcome depends on the network. An unreachable remote leaves the Mission read from its own directory, and the answer is still a 200; a reachable remote that lacks the declared branch is likewise read from its own directory; any other resolver error is a 500 drift_scan_unreadable.
