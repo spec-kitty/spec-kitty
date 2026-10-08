@@ -512,15 +512,15 @@ def _is_claim_append_only_event_log(committed: str, working: str) -> bool:
     """Pure decision (#3471): is *working* the *committed* event log plus
     nothing but claim transitions (:data:`_CLAIM_TRANSITIONS`)?
 
-    Fails closed: a rewritten prefix, a non-JSON line, or any other appended
-    event (a ``move-task``, a review verdict, a hand edit) is not a claim
-    self-write and keeps the log in the "not committed" set.
+    Fails closed: a rewritten prefix, a blank or non-JSON line, or any other
+    appended event (a ``move-task``, a review verdict, a hand edit) is not a
+    claim self-write and keeps the log in the "not committed" set.
     """
     if working == committed or not working.startswith(committed) or (committed and not committed.endswith("\n")):
         return False
     for line in working[len(committed) :].splitlines():
         if not line.strip():
-            continue
+            return False
         try:
             event = json.loads(line)
         except json.JSONDecodeError:
