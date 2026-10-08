@@ -231,7 +231,7 @@ def _resolve_built_in() -> Path:
     Kernel cannot import :class:`PackRootNotFound` (layer direction), so the
     primitive's own :class:`~kernel.sibling_paths.SiblingPathNotFound` is
     caught and translated here -- at least one consumer
-    (``specify_cli/doctrine/pack_validator.py``'s
+    (``charter/offering/packs/pack_validator.py``'s
     ``except (PackRootNotFound, BuiltInContentDirNotAvailable)``) depends on
     the specific :class:`PackRootNotFound` type surviving at this boundary.
     """

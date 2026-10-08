@@ -100,10 +100,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "load_directives_config": ("charter.activation.sync", "load_directives_config"),
     "load_governance_config": ("charter.activation.sync", "load_governance_config"),
     "sync": ("charter.activation.sync", "sync"),
-    # .org_extends -> charter.activation.org_extends
-    "ExtendsBaseNotFoundError": ("charter.activation.org_extends", "ExtendsBaseNotFoundError"),
-    "ExtendsCycleError": ("charter.activation.org_extends", "ExtendsCycleError"),
-    "resolve_extends_order": ("charter.activation.org_extends", "resolve_extends_order"),
+    # .extends -> charter.offering.packs.extends
+    "ExtendsBaseNotFoundError": ("charter.offering.packs.extends", "ExtendsBaseNotFoundError"),
+    "ExtendsCycleError": ("charter.offering.packs.extends", "ExtendsCycleError"),
+    "resolve_extends_order": ("charter.offering.packs.extends", "resolve_extends_order"),
     # .mission_type_profiles -> charter.activation.mission_type_profiles
     "CrossGrainDoubleDeclarationError": (
         "charter.activation.mission_type_profiles",

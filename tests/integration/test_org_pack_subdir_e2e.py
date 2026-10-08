@@ -79,7 +79,7 @@ def test_sc001_subdir_pack_loads_healthy(tmp_path: Path) -> None:
     (both T007 load_org_drg path and T009 _build_pack_entries path).
     """
     from specify_cli.cli.commands.doctor import _build_pack_entries, _collect_org_layer_data  # noqa: PLC0415
-    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
 
     repo_root = tmp_path / "consumer"
     repo_root.mkdir()
@@ -113,7 +113,7 @@ def test_sc001_subdir_pack_loads_healthy(tmp_path: Path) -> None:
 def test_sc002_no_subdir_pack_unchanged(tmp_path: Path) -> None:
     """SC-002: a pack without ``subdir`` behaves identically to before WP02."""
     from specify_cli.cli.commands.doctor import _build_pack_entries, _collect_org_layer_data  # noqa: PLC0415
-    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
 
     repo_root = tmp_path / "consumer"
     repo_root.mkdir()
@@ -147,7 +147,7 @@ def test_sc003_wrong_subdir_reports_errors(tmp_path: Path) -> None:
     snapshot_present=False.
     """
     from specify_cli.cli.commands.doctor import _build_pack_entries, _collect_org_layer_data  # noqa: PLC0415
-    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
 
     repo_root = tmp_path / "consumer"
     repo_root.mkdir()
@@ -182,7 +182,7 @@ def _make_fake_source(local_path: Path) -> MagicMock:
     ``_count_artifacts`` returns a non-empty dict for no-subdir packs.
     Used to drive ``fetch_pack`` without a real git/https/api remote.
     """
-    from specify_cli.doctrine.sources.protocol import FetchResult  # noqa: PLC0415
+    from specify_cli.charter_packs.sources.protocol import FetchResult  # noqa: PLC0415
 
     def _fake_fetch(target_dir: Path) -> FetchResult:
         (target_dir / "directives").mkdir(parents=True, exist_ok=True)
@@ -198,8 +198,8 @@ def _make_fake_source(local_path: Path) -> MagicMock:
 
 def test_fetch_pack_int_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-007: fetch_pack must return artifacts_written as a scalar int, not a dict."""
-    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
-    from specify_cli.doctrine.snapshot import fetch_pack  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
+    from specify_cli.charter_packs.snapshot import fetch_pack  # noqa: PLC0415
 
     local_path = tmp_path / "pack-store"
     repo_root = tmp_path / "consumer"
@@ -212,7 +212,7 @@ def test_fetch_pack_int_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     pack = registry.packs[0]
 
     monkeypatch.setattr(
-        "specify_cli.doctrine.snapshot._build_source",
+        "specify_cli.charter_packs.snapshot._build_source",
         lambda p: _make_fake_source(local_path),
     )
 
@@ -233,8 +233,8 @@ def test_fetch_pack_wrong_subdir_fails_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A configured effective root with no artifacts must not replace last-good."""
-    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
-    from specify_cli.doctrine.snapshot import fetch_pack  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
+    from specify_cli.charter_packs.snapshot import fetch_pack  # noqa: PLC0415
 
     local_path = tmp_path / "pack-store"
     repo_root = tmp_path / "consumer"
@@ -247,7 +247,7 @@ def test_fetch_pack_wrong_subdir_fails_closed(
     pack = registry.packs[0]
 
     monkeypatch.setattr(
-        "specify_cli.doctrine.snapshot._build_source",
+        "specify_cli.charter_packs.snapshot._build_source",
         lambda p: _make_fake_source(local_path),
     )
 

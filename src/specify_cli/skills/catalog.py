@@ -38,6 +38,7 @@ from charter.activation.skill_preparation import (
     prepare_project_skill_activations,
 )
 from charter.drg import resolve_existing_org_roots
+from kernel.charter_pack_paths import resolve_project_pack_read_root
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import UnsafePathSegmentError, assert_safe_path_segment
 from specify_cli.skills.manifest import ORIGIN_PACK, load_manifest
@@ -56,8 +57,9 @@ __all__ = [
 #: Staged root of rendered pack skills, relative to the project root.
 _PACK_SKILL_STAGING = Path(".kittify") / "runtime" / "pack-skills"
 
-#: Project-tier pack skills live here (``PROJECT_KIND_DIRS[ArtifactKind.SKILL]``).
-_PROJECT_SKILLS_DIR = Path(".kittify") / "doctrine" / "skills"
+#: Project-tier pack skills live in this directory of the project pack root
+#: (``PROJECT_KIND_DIRS[ArtifactKind.SKILL]``).
+_PROJECT_SKILLS_DIRNAME = "skills"
 
 _SKILL_FILENAME = "SKILL.md"
 
@@ -148,7 +150,7 @@ def _project_may_have_pack_skills(project_root: Path, *, installed_pack_skills: 
     """
     return (
         pack_skills_matter(project_root, installed_pack_skills=installed_pack_skills)
-        or (project_root / _PROJECT_SKILLS_DIR).is_dir()
+        or (resolve_project_pack_read_root(project_root, quiet=True) / _PROJECT_SKILLS_DIRNAME).is_dir()
         or bool(resolve_existing_org_roots(project_root))
     )
 

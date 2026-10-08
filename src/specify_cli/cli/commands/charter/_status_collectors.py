@@ -6,6 +6,7 @@ serialises to JSON or renders to the console. Kept in their own module so
 """
 from __future__ import annotations
 
+from kernel.charter_pack_paths import resolve_project_pack_read_root
 from kernel.clock import date
 from pathlib import Path
 from typing import Any
@@ -208,7 +209,7 @@ def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | Non
     from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify
 
     manifest_path = repo_root / MANIFEST_PATH
-    doctrine_root = repo_root / ".kittify" / "doctrine"
+    doctrine_root = resolve_project_pack_read_root(repo_root, quiet=True)
     provenance_root = repo_root / ".kittify" / "charter" / "provenance"
     from charter.activation.kind_vocabulary import ArtifactKind, PROJECT_KIND_DIRS
 
@@ -462,7 +463,7 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     Per the charter layer architectural boundary (kernel <- doctrine <-
     charter <- specify_cli), we use ``charter.activation.drg_activation.load_org_drg`` directly
     rather than the ``specify_cli`` config path.  The caller may also pass
-    the repo root to ``specify_cli.doctrine.config`` for richer pack metadata;
+    the repo root to ``charter.offering.drg.org_pack_config`` for richer pack metadata;
     this implementation stays purely charter-layer.
     """
     from charter.drg import (

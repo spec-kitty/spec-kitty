@@ -72,7 +72,7 @@ def _write_fragment(pack_root: Path, *, edges: str = "edges: []\n") -> Path:
 
 def test_loader_and_validator_share_one_augmentation_source() -> None:
     """FR-030: the validator set is *derived* from the loader's single source."""
-    from specify_cli.doctrine.pack_validator import _AUGMENTATION_PLURAL_KINDS
+    from charter.offering.packs.pack_validator import _AUGMENTATION_PLURAL_KINDS
 
     assert augmentation_plural_kinds() == _AUGMENTATION_PLURAL_KINDS
 
@@ -210,14 +210,14 @@ def test_directive_field_projection_emits_edge(tmp_path: Path) -> None:
 
 
 def _fragment_intent(drg_dir: Path):
-    from specify_cli.doctrine.pack_validator import _collect_fragment_edge_intent
+    from charter.offering.packs.pack_validator import _collect_fragment_edge_intent
 
     return _collect_fragment_edge_intent(drg_dir)
 
 
 def test_fragment_edge_intent_unknown_target_hard_errors(tmp_path: Path) -> None:
     """T016/FR-031: a fragment ``overrides`` of an unknown built-in hard-errors."""
-    from specify_cli.doctrine.pack_validator import (
+    from charter.offering.packs.pack_validator import (
         _intent_aware_collision_messages_from_edges,
     )
 
@@ -242,7 +242,7 @@ def test_fragment_edge_intent_unknown_target_hard_errors(tmp_path: Path) -> None
 
 def test_fragment_edge_intent_conflict_when_both_declared(tmp_path: Path) -> None:
     """T016/FR-031: enhances + overrides on one source -> intent_conflict."""
-    from specify_cli.doctrine.pack_validator import (
+    from charter.offering.packs.pack_validator import (
         _intent_aware_collision_messages_from_edges,
     )
 
@@ -269,7 +269,7 @@ def test_fragment_edge_intent_conflict_when_both_declared(tmp_path: Path) -> Non
 
 def test_fragment_edge_valid_intent_suppresses_advisory(tmp_path: Path) -> None:
     """T016/FR-031: a valid declared intent emits no error and no advisory."""
-    from specify_cli.doctrine.pack_validator import (
+    from charter.offering.packs.pack_validator import (
         _intent_aware_collision_messages_from_edges,
     )
 

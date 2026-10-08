@@ -183,7 +183,7 @@ class TestCharterStatus:
         doctrine_path = (
             tmp_path
             / ".kittify"
-            / "doctrine"
+            / "charter-packs"
             / "directive"
             / "001-mission-type-scope-directive.directive.yaml"
         )

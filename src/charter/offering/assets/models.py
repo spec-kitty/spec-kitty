@@ -11,7 +11,7 @@ contract (required ``id``/``mime``/``path``, optional ``title``). The two
 safety checks that give the loose contract its teeth — path containment
 under the pack's ``assets/`` root and ``mime``/extension consistency — are
 NOT expressed as Pydantic field constraints; they live in
-``specify_cli.doctrine.pack_validator._validate_asset_manifests`` (and its
+``charter.offering.packs.pack_validator._validate_asset_manifests`` (and its
 ``_check_asset_path_containment`` / ``_check_asset_mime`` helpers) because
 they need cross-field/cross-pack context (the owning pack's root directory)
 that a single-model validator does not have.

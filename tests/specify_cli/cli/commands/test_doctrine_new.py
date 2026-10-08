@@ -41,7 +41,7 @@ def test_new_styleguide_writes_stub_under_project_doctrine_root(tmp_path: Path) 
         result = runner.invoke(doctrine_app, ["new", "styleguide", "foo"], catch_exceptions=False)
 
     assert result.exit_code == 0, result.stdout
-    target = project / ".kittify" / "doctrine" / "styleguide" / "foo.styleguide.yaml"
+    target = project / ".kittify" / "charter-packs" / "styleguide" / "foo.styleguide.yaml"
     assert target.exists()
     text = target.read_text(encoding="utf-8")
     # The stub MUST carry the schema-version + id fields the operator
@@ -59,7 +59,7 @@ def test_new_validates_stub_against_schema_so_validate_passes(tmp_path: Path) ->
         result_new = runner.invoke(doctrine_app, ["new", "tactic", "my-tactic"], catch_exceptions=False)
         assert result_new.exit_code == 0, result_new.stdout
 
-        target = project / ".kittify" / "doctrine" / "tactic" / "my-tactic.tactic.yaml"
+        target = project / ".kittify" / "charter-packs" / "tactic" / "my-tactic.tactic.yaml"
         assert target.exists()
 
         result_validate = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
@@ -94,7 +94,7 @@ def test_new_special_kind_suffixes_validate_on_first_emit(
         result_new = runner.invoke(doctrine_app, ["new", kind, artifact_id], catch_exceptions=False)
         assert result_new.exit_code == 0, result_new.stdout
 
-        target = project / ".kittify" / "doctrine" / plural / filename
+        target = project / ".kittify" / "charter-packs" / plural / filename
         assert target.exists()
 
         result_validate = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
@@ -123,7 +123,7 @@ def test_new_asset_scaffolds_where_project_resolver_reads(tmp_path: Path) -> Non
 
     assert result.exit_code == 0, result.stdout
     resolver_dir = PROJECT_KIND_DIRS[ArtifactKind.ASSET]
-    target = project / ".kittify" / "doctrine" / resolver_dir / "my-logo.asset.yaml"
+    target = project / ".kittify" / "charter-packs" / resolver_dir / "my-logo.asset.yaml"
     assert target.exists()
     text = target.read_text(encoding="utf-8")
     assert "id: my-logo" in text
@@ -139,7 +139,7 @@ def test_new_asset_stub_validates_on_first_emit(tmp_path: Path) -> None:
     with contextlib.chdir(project):
         result_new = runner.invoke(doctrine_app, ["new", "asset", "sample-blob"], catch_exceptions=False)
         assert result_new.exit_code == 0, result_new.stdout
-        target = project / ".kittify" / "doctrine" / "assets" / "sample-blob.asset.yaml"
+        target = project / ".kittify" / "charter-packs" / "assets" / "sample-blob.asset.yaml"
         assert target.exists()
         result_validate = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
 
@@ -160,7 +160,7 @@ def test_new_directive_scaffolds_kebab_filename_with_screaming_id_preserved(
         result = runner.invoke(doctrine_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False)
 
     assert result.exit_code == 0, result.stdout
-    target = project / ".kittify" / "doctrine" / "directive" / "my-directive.directive.yaml"
+    target = project / ".kittify" / "charter-packs" / "directive" / "my-directive.directive.yaml"
     assert target.exists()
     text = target.read_text(encoding="utf-8")
     assert "id: MY_DIRECTIVE" in text
@@ -209,7 +209,7 @@ def test_scaffolder_engine_and_manifest_slugs_converge_for_screaming_directive(
         kind = ArtifactKind(kind_token)
         engine_slug = slug_for(kind_token, artifact_id)
         suffix = kind.glob_pattern.removeprefix("*")
-        candidates = (project / ".kittify" / "doctrine" / PROJECT_KIND_DIRS[kind]).glob(f"*{suffix}")
+        candidates = (project / ".kittify" / "charter-packs" / PROJECT_KIND_DIRS[kind]).glob(f"*{suffix}")
         stems = {path.name.removesuffix(suffix) for path in candidates}
         assert engine_slug in stems
 

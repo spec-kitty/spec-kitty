@@ -1,7 +1,7 @@
 """WP06 / FR-013: charter activation resolves org packs from the canonical flat layout.
 
 The charter activation subsystem historically registered org doctrine roots only
-when a ``<pack>/doctrine/`` subdirectory existed (``_layer_roots.resolve_layer_roots``)
+when a ``<pack>/doctrine/`` subdirectory existed (``charter.activation.layer_roots.resolve_layer_roots``)
 and scanned the nested ``<pack>/doctrine/<plural>/org/`` location
 (``pack_manager._scan_layer_dirs``). Runtime, by contrast, resolves org packs from
 the *flat* ``<pack>/<plural>/`` layout via
@@ -134,7 +134,7 @@ class TestFlatLayoutActivation:
     def test_activate_agent_profile_from_flat_org_pack(self, project_root: Path) -> None:
         """``charter activate agent-profile <id>`` succeeds against a flat org pack.
 
-        RED before the fix: ``_layer_roots`` won't register the flat org root
+        RED before the fix: ``layer_roots`` won't register the flat org root
         (no ``<pack>/doctrine/`` subdir), so the engine raises
         "Unknown agent-profile ID".
         """

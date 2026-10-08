@@ -13,7 +13,7 @@ pytestmark = pytest.mark.unit
 @pytest.mark.parametrize("active", [True, False])
 def test_first_default_context_delivers_registered_project_directive(tmp_path: Path, active: bool) -> None:
     kittify = tmp_path / ".kittify"
-    doctrine = kittify / "doctrine/directive"
+    doctrine = kittify / "charter-packs/directive"
     doctrine.mkdir(parents=True)
     (doctrine / "LOCAL_RULE.directive.yaml").write_text(
         'schema_version: "1.0"\nid: LOCAL_RULE\ntitle: Local rule\nintent: Project operational discipline\nenforcement: advisory\n'

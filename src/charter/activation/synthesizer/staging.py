@@ -5,7 +5,7 @@ staging directory under ``.kittify/charter/.staging/<run_id>/``.
 
 Layout inside a staging directory:
     .kittify/charter/.staging/<run_id>/
-        doctrine/
+        charter-packs/
             directive/
             tactic/
             styleguide/
@@ -14,7 +14,9 @@ Layout inside a staging directory:
 
 All filesystem writes go through ``PathGuard`` (FR-016).  The staging root
 is deliberately placed under the bookkeeping tree (``.kittify/charter/``) so
-doctrine consumers (which scan ``.kittify/doctrine/``) never traverse it.
+project charter pack consumers (which scan ``.kittify/charter-packs/``)
+never traverse it. The content subtree carries the same directory name as
+the live project pack root, so promotion is a 1:1 mapping.
 
 Context manager protocol:
     ``with StagingDir.create(repo_root, run_id) as stage:``
@@ -42,6 +44,7 @@ from types import TracebackType
 from ruamel.yaml import YAML
 
 from kernel.clock import now_utc_iso
+from kernel.charter_pack_paths import PROJECT_PACK_DIRNAME
 
 from .path_guard import PathGuard
 
@@ -109,7 +112,7 @@ class StagingDir:
         # Doctrine content subtree
         for kind_subdir in _KIND_SUBDIR.values():
             guard.mkdir(
-                staging_root / "doctrine" / kind_subdir,
+                staging_root / PROJECT_PACK_DIRNAME / kind_subdir,
                 caller="StagingDir.create",
             )
 
@@ -139,10 +142,10 @@ class StagingDir:
         Returns
         -------
         Path
-            Absolute path under ``staging/doctrine/<kind-subdir>/<filename>``.
+            Absolute path under ``staging/charter-packs/<kind-subdir>/<filename>``.
         """
         subdir = _KIND_SUBDIR[kind]
-        return self.root / "doctrine" / subdir / filename
+        return self.root / PROJECT_PACK_DIRNAME / subdir / filename
 
     def path_for_provenance(self, kind: str, slug: str) -> Path:
         """Return the staged location for a provenance sidecar.

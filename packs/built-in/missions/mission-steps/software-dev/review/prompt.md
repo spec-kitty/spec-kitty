@@ -115,7 +115,7 @@ Parse frontmatter for:
 ### 2a. Load Agent Profile
 
 Before proceeding with the review, load the agent profile from the WP frontmatter
-using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to browse
+using the `/spk-charter-profile-load` skill (or `spec-kitty agent profile list` to browse
 available profiles). Apply the profile's reviewer guidance and self-review gates for
 the rest of this review session.
 
@@ -132,7 +132,7 @@ This project's charter selected the SPDD/REASONS doctrine pack. Use the
 mission's REASONS canvas as a comparison surface for this work package.
 
 **1. Load the canvas.** Read `kitty-specs/<mission>/reasons-canvas.md`. If it
-is missing, invoke the `spec-kitty-spdd-reasons` skill to author it before
+is missing, invoke the `spk-charter-spdd-reasons` skill to author it before
 completing review. Do not auto-approve in the absence of a canvas.
 
 **2. Trace the diff.**
@@ -312,7 +312,7 @@ implementer profile so the next implementation cycle starts with the right conte
    A rejection must carry its rationale (`--review-feedback-file`); a rejection without
    one is accepted locally but never propagates to the team (see `move-task --help`).
 
-The implementing agent will then load the correct profile via `/ad-hoc-profile-load`
+The implementing agent will then load the correct profile via `/spk-charter-profile-load`
 and resume work with the proper agent profile and self-review gates.
 
 **Next step**: `spec-kitty next --agent <name>` will advance to the next phase.

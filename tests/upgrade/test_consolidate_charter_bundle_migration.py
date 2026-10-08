@@ -48,7 +48,7 @@ branch_strategy:
   main_branch: main
   dev_branch: null
   rules: []
-doctrine:
+charter:
   selected_paradigms:
   - atomic-design
   selected_directives:
@@ -120,6 +120,28 @@ mission_type_activations:
 - software-dev
 """
 
+
+#: The config.yaml shape the 3.2.0rc35 seed migrations left behind: every
+#: activation key written, alongside the project's own keys.
+_SEEDED_CONFIG_YAML = """\
+agents:
+  claude: {}
+activated_directives:
+- DIRECTIVE_001
+activated_tactics:
+- adr-drafting-workflow
+activated_styleguides: []
+activated_toolguides: []
+activated_paradigms: []
+activated_procedures: []
+activated_agent_profiles: []
+activated_mission_step_contracts: []
+activated_kinds:
+- directives
+- tactics
+mission_type_activations:
+- software-dev
+"""
 
 def _yaml() -> YAML:
     yaml = YAML(typ="safe")
@@ -473,33 +495,17 @@ def test_fold_relocates_seed_migration_output(
     tmp_path: Path,
     migration: ConsolidateCharterBundleMigration,
 ) -> None:
-    """End-to-end MG6: run the two seed migrations, THEN the fold, on a bare project.
+    """End-to-end MG6: the fold relocates the seed migrations' post-state on a bare project.
 
-    Their post-state (config carries activated_*) is the fold's pre-state;
-    the fold relocates then removes those keys (INV-2) and never re-fires
+    The seed migrations' post-state (config carries activated_*) is the
+    fold's pre-state; it is written directly here because the rc35
+    default-pack seed is a recorded no-op since the charter-pack cutover.
+    The fold relocates then removes those keys (INV-2) and never re-fires
     against a re-seeded config (MG6 "must not perpetually re-fire").
     """
-    from specify_cli.upgrade.migrations.m_3_2_0rc35_activate_builtin_mission_types import (
-        ActivateBuiltinMissionTypesMigration,
-    )
-    from specify_cli.upgrade.migrations.m_3_2_0rc35_default_charter_pack import (
-        DefaultCharterPackMigration,
-    )
-
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True)
-    (kittify / "config.yaml").write_text("agents:\n  claude: {}\n", encoding="utf-8")
-
-    default_pack = DefaultCharterPackMigration()
-    mission_types = ActivateBuiltinMissionTypesMigration()
-    assert default_pack.detect(tmp_path) is True
-    default_pack.apply(tmp_path)
-    # DefaultCharterPackMigration already writes mission_type_activations
-    # alongside the eight per-kind keys, so the sibling seed migration is
-    # already a no-op here -- exercised for its OWN idempotency, not as a
-    # second required write.
-    assert mission_types.detect(tmp_path) is False
-    mission_types.apply(tmp_path)
+    (kittify / "config.yaml").write_text(_SEEDED_CONFIG_YAML, encoding="utf-8")
 
     config_after_seed = _load(kittify / "config.yaml")
     assert "activated_directives" in config_after_seed  # seed post-state
@@ -525,12 +531,35 @@ def test_fold_relocates_seed_migration_output(
     # once per upgrade. That ledger — not joint idempotency of the migration
     # objects — is the load-bearing guard against a seed-reseed/fold-overwrite
     # clobber; a future non-ledgered re-apply/repair path would need its own.
-    assert default_pack.detect(tmp_path) is True  # keys absent again post-fold
-    default_pack.apply(tmp_path)
-    mission_types.apply(tmp_path)
+    (kittify / "config.yaml").write_text(_SEEDED_CONFIG_YAML, encoding="utf-8")  # re-seed post-fold
     assert migration.detect(tmp_path) is True
     second_fold = migration.apply(tmp_path)
     assert second_fold.success
     config_final = _load(kittify / "config.yaml")
     for key in ACTIVATION_KEYS:
         assert key not in config_final
+
+
+def test_fold_refuses_legacy_governance_selection_key(
+    tmp_path: Path, migration: ConsolidateCharterBundleMigration
+) -> None:
+    """A standalone governance.yaml with the pre-rename ``doctrine:`` key fails closed.
+
+    The charter-pack cutover rewrites ``governance.doctrine`` first; the fold
+    never drops the selection silently and leaves every legacy file in place.
+    """
+    _write_legacy_fixture(tmp_path)
+    governance = tmp_path / ".kittify" / "charter" / "governance.yaml"
+    governance.write_text(_GOVERNANCE_YAML.replace("\ncharter:\n", "\ndoctrine:\n", 1), encoding="utf-8")
+    config_before = (tmp_path / ".kittify" / "config.yaml").read_bytes()
+
+    result = migration.apply(tmp_path)
+
+    assert result.success is False
+    (error,) = result.errors
+    assert "governance.doctrine" in error and str(governance) in error
+    assert "charter-pack cutover" in error
+    assert not (tmp_path / ".kittify" / "charter" / "charter.yaml").exists()
+    for name in LEGACY_BUNDLE_FILENAMES:
+        assert (tmp_path / ".kittify" / "charter" / name).exists()
+    assert (tmp_path / ".kittify" / "config.yaml").read_bytes() == config_before

@@ -27,7 +27,16 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from ruamel.yaml import YAML
 
 from .errors import ManifestIntegrityError
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.packs.hashing import hash_manifest_payload
+from charter.offering.packs.pack_manifest import (
+    CharterProfile,
+    Constituent,
+    PackManifest,
+    finalize_pack_manifest,
+)
 from .synthesize_pipeline import canonical_yaml
+from kernel.charter_pack_paths import KITTIFY_DIRNAME, LEGACY_PROJECT_PACK_DIRNAME, PROJECT_PACK_ROOT
 from kernel.paths import to_posix
 
 if TYPE_CHECKING:
@@ -35,7 +44,13 @@ if TYPE_CHECKING:
 
 # Canonical location of the synthesis manifest.
 MANIFEST_PATH = Path(".kittify/charter/synthesis-manifest.yaml")
-_ARTIFACT_PATH_PREFIX = Path(".kittify/doctrine")
+#: New entries are always written under the project charter pack root (FR-016).
+_ARTIFACT_PATH_PREFIX = PROJECT_PACK_ROOT
+#: TEMPORARY (FR-011, removed by WP14): the retired project layer prefix that
+#: manifests written before the cutover migration still carry. Read-only: it is
+#: accepted by :func:`verify` through :func:`_is_legacy_artifact_prefix`, never
+#: written.
+_LEGACY_ARTIFACT_PATH_PREFIX = Path(KITTIFY_DIRNAME, LEGACY_PROJECT_PACK_DIRNAME)
 _PROVENANCE_PATH_PREFIX = Path(".kittify/charter/provenance")
 
 
@@ -55,7 +70,11 @@ class ManifestArtifactEntry(BaseModel):
     kind: Literal["directive", "tactic", "styleguide", "procedure", "agent_profile"]
     slug: str
     path: str
-    """Repo-relative path to the artifact YAML under ``.kittify/doctrine/``."""
+    """Repo-relative path to the artifact YAML under ``.kittify/charter-packs/``.
+
+    Manifests written before the cutover migration carry the retired
+    ``.kittify/doctrine/`` prefix; :func:`verify` still accepts it on read.
+    """
 
     provenance_path: str
     """Repo-relative path to the provenance sidecar under ``.kittify/charter/``."""
@@ -117,7 +136,7 @@ class SynthesisManifest(BaseModel):
     built_in_only: bool = False
     """When True the synthesizer legitimately produced no project DRG
     (FR-009 / data-model §6).  Downstream readers MUST treat this as the
-    authoritative state and ignore any stale ``.kittify/doctrine/graph.yaml``.
+    authoritative state and ignore any stale ``.kittify/charter-packs/graph.yaml``.
 
     Default ``False`` preserves backward compatibility — manifests written by
     pre-WP02 synthesizers parse unchanged.
@@ -203,35 +222,6 @@ def load_yaml(path: Path) -> SynthesisManifest:
     if isinstance(raw, Mapping):
         manifest._raw_field_names = frozenset(str(key) for key in raw)
     return manifest
-
-
-def hash_manifest_payload(
-    data: Mapping[str, Any], *, exclude_keys: frozenset[str]
-) -> str:
-    """Single canonical manifest hasher — SHA-256 of ``canonical_yaml(payload)``.
-
-    The **one** manifest-hashing primitive, shared by both the charter
-    ``SynthesisManifest`` (via :func:`compute_manifest_hash`) and the unified
-    ``PackManifest`` (``specify_cli.doctrine.pack_manifest``). Keeping the SHA
-    here — the module's existing designated raw-SHA owner — means no second
-    hasher is ever introduced (RR-SF2 / T005).
-
-    Every key in ``exclude_keys`` is dropped before serialization so callers
-    can omit self / provenance fields (``manifest_hash``, and the volatile
-    ``generated_at`` / ``generated_by`` for the pack manifest) from the digest.
-    """
-    filtered = {k: v for k, v in data.items() if k not in exclude_keys}
-    return hashlib.sha256(canonical_yaml(filtered)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
-
-
-def hash_content_bytes(raw: bytes) -> str:
-    """SHA-256 hex digest of raw artifact bytes (single sanctioned hasher).
-
-    Callers are responsible for any normalization (e.g. LF line-ending
-    normalization for cross-platform-stable ``content_hash`` values) before
-    passing bytes here, so this stays a thin, auditable owner of the raw SHA.
-    """
-    return hashlib.sha256(raw).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
 
 def compute_manifest_hash(manifest_or_data: SynthesisManifest | Mapping[str, Any]) -> str:
@@ -331,6 +321,21 @@ def _validate_manifest_path(raw_path: str, *, field_name: str, required_prefix: 
     return path
 
 
+def _is_legacy_artifact_prefix(raw_path: str) -> bool:
+    """TEMPORARY (FR-011, removed by WP14): True when *raw_path* uses the retired prefix.
+
+    A manifest written before the cutover migration lists its artifacts under
+    ``.kittify/doctrine/``. Until the migration rewrites those entries
+    (WP11) and WP14 removes this predicate, :func:`verify` accepts that prefix
+    on read. New entries are always written under :data:`_ARTIFACT_PATH_PREFIX`.
+    """
+    try:
+        Path(to_posix(raw_path)).relative_to(_LEGACY_ARTIFACT_PATH_PREFIX)
+    except ValueError:
+        return False
+    return True
+
+
 def _resolve_under_repo(repo_root: Path, rel_path: Path, *, field_name: str) -> Path:
     """Resolve ``rel_path`` and fail if symlinks escape ``repo_root``."""
     repo_resolved = repo_root.resolve(strict=False)
@@ -368,7 +373,9 @@ def verify(manifest: SynthesisManifest, repo_root: Path) -> None:
         artifact_rel = _validate_manifest_path(
             entry.path,
             field_name="manifest artifact path",
-            required_prefix=_ARTIFACT_PATH_PREFIX,
+            required_prefix=(
+                _LEGACY_ARTIFACT_PATH_PREFIX if _is_legacy_artifact_prefix(entry.path) else _ARTIFACT_PATH_PREFIX
+            ),
         )
         _validate_manifest_path(
             entry.provenance_path,
@@ -394,6 +401,52 @@ def verify(manifest: SynthesisManifest, repo_root: Path) -> None:
             )
 
 
+# ---------------------------------------------------------------------------
+# Charter absorption into the unified pack manifest (IC-01 / T002)
+# ---------------------------------------------------------------------------
+
+
+def absorb_synthesis_manifest(manifest: SynthesisManifest) -> PackManifest:
+    """Absorb a charter ``SynthesisManifest`` into the unified schema (PP-M2).
+
+    The charter bundle's ``artifacts[]`` become canonical ``constituents[]``
+    (each preserving its ``provenance_path``), and the **entire** charter-only
+    field-set is carried onto a :class:`CharterProfile` so nothing is dropped:
+    ``mission_id``, ``bundle_content_hash``, ``synthesizer_version``,
+    ``run_id``, ``adapter_id``, ``adapter_version``, ``created_at``,
+    ``schema_version`` and the load-bearing ``built_in_only``.
+
+    This is a lossless in-memory bridge. It does **not** change the on-disk
+    ``synthesis-manifest.yaml`` format, so every existing charter-manifest
+    reader (freshness / preflight / lint / bundle / versioning / the rc35
+    migrations) keeps reading the unchanged bytes (T003).
+    """
+    constituents = [
+        Constituent(
+            kind=ArtifactKind(entry.kind),
+            id=entry.slug,
+            path=entry.path,
+            content_hash=entry.content_hash,
+            provenance_path=entry.provenance_path,
+        )
+        for entry in manifest.artifacts
+    ]
+    profile = CharterProfile(
+        mission_id=manifest.mission_id,
+        bundle_content_hash=manifest.bundle_content_hash,
+        synthesizer_version=manifest.synthesizer_version,
+        run_id=manifest.run_id,
+        adapter_id=manifest.adapter_id,
+        adapter_version=manifest.adapter_version,
+        created_at=manifest.created_at,
+        schema_version=manifest.schema_version,
+        built_in_only=manifest.built_in_only,
+    )
+    return finalize_pack_manifest(
+        PackManifest(constituents=constituents, charter=profile)
+    )
+
+
 __all__ = [
     "ManifestArtifactEntry",
     "SynthesisManifest",
@@ -402,8 +455,7 @@ __all__ = [
     "load_yaml",
     "finalize_manifest",
     "compute_manifest_hash",
-    "hash_manifest_payload",
-    "hash_content_bytes",
     "verify",
     "verify_manifest_hash",
+    "absorb_synthesis_manifest",
 ]

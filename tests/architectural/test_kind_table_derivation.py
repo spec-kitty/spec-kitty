@@ -20,7 +20,7 @@ from charter.activation import drg_activation, org_pack_discovery
 from charter.activation.pack_context import PackContext
 from charter.activation.schemas import DoctrineSelectionConfig
 from charter.offering.artifact_kinds import ArtifactKind
-from specify_cli.doctrine.org_charter import REQUIRED_KIND_FIELDS, OrgCharterPolicy
+from charter.activation.org_charter import REQUIRED_KIND_FIELDS, OrgCharterPolicy
 
 pytestmark = pytest.mark.architectural
 

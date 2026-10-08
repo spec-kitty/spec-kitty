@@ -1,0 +1,161 @@
+# FR-016 charter pack path allowlist (mission charter-pack-cutover-01M491G6, WP03).
+#
+# Governed by tests/architectural/test_charter_pack_path_authority.py; read its
+# module docstring first. Key: (file, qualname, literal, clause); `line` is a
+# non-authoritative locator. Every entry
+# names the work package that drains it (WP04, WP05, WP14 or WP25) and why.
+# SHRINK-ONLY: charter_pack_path_baseline equals the entry count; drain an
+# entry by routing the site through kernel.charter_pack_paths, deleting the
+# entry and lowering the baseline. NFR-002: this list closes empty (WP25).
+#
+# Landed by WP03 (2026-10-07) with 25 entries: WP04 6, WP05 1, WP14 11, WP25 7.
+# WP03 review cycle 2 (2026-10-07): the gate learned the loop-then-join shape;
+# +2 WP14 entries (_doctrine_paths.py, agent_profiles.py) -> 27 entries:
+# WP04 6, WP05 1, WP14 13, WP25 7.
+# WP04 (2026-10-07) drained its 6 entries (pack_validator x4, pack_assembler,
+# org_charter) through kernel.charter_pack_paths -> 21 entries.
+# WP05 (2026-10-07) drained its 1 entry (org_charter_loader, moved to
+# charter.activation) through kernel.charter_pack_paths -> 20 entries.
+
+charter_pack_path_baseline: 20
+charter_pack_path_literals:
+  - file: src/charter/activation/_doctrine_paths.py
+    qualname: _project_root_candidates
+    literal: "doctrine"
+    clause: a
+    owner: WP14
+    line: 48
+    rationale: "flat built-in-layer fallback candidate in _BUILT_IN_FALLBACK_CANDIDATES, loop-joined onto repo_root (not the .kittify project root); drained by WP14 T070 (path-allowlist sites handed over by WP03)"
+  - file: src/charter/activation/_drg_helpers.py
+    qualname: load_validated_graph
+    literal: "fragment.yaml"
+    clause: b
+    owner: WP14
+    line: 178
+    rationale: "pack-relative fragment.yaml literal (research B.2); drained by WP14 T070 (path-allowlist sites handed over by WP03), which repoints it through kernel.charter_pack_paths"
+  - file: src/charter/activation/drg_activation.py
+    qualname: load_org_drg
+    literal: "fragment.yaml"
+    clause: b
+    owner: WP14
+    line: 164
+    rationale: "pack-relative fragment.yaml literal (research B.2); drained by WP14 T070 (path-allowlist sites handed over by WP03), which repoints it through kernel.charter_pack_paths"
+  - file: src/charter/activation/kind_vocabulary.py
+    qualname: _layer_candidate_dir
+    literal: "doctrine"
+    clause: a
+    owner: WP14
+    line: 301
+    rationale: "nested <pack>/doctrine/<plural>/<layer> org/built-in layout (not the .kittify project root); FR-011 decides whether the legacy layout survives (WP14)"
+  - file: src/charter/activation/org_pack_discovery.py
+    qualname: _iter_org_charter_docs
+    literal: "org-charter.yaml"
+    clause: b
+    owner: WP14
+    line: 158
+    rationale: "pack-relative org-charter.yaml literal (research B.2); drained by WP14 T070 (path-allowlist sites handed over by WP03), which repoints it through kernel.charter_pack_paths"
+  - file: src/charter/activation/org_pack_discovery.py
+    qualname: require_org_skill_policy_readable
+    literal: "org-charter.yaml"
+    clause: b
+    owner: WP14
+    line: 269
+    rationale: "pack-relative org-charter.yaml literal (research B.2); drained by WP14 T070 (path-allowlist sites handed over by WP03), which repoints it through kernel.charter_pack_paths"
+  - file: src/charter/activation/pack_manager.py
+    qualname: _scan_layout_for
+    literal: "doctrine/{}"
+    clause: a
+    owner: WP14
+    line: 250
+    rationale: "nested <pack>/doctrine/<plural>/<layer> org/built-in layout (not the .kittify project root); drained by WP14 T070 (path-allowlist sites handed over by WP03), same treatment as kind_vocabulary.py"
+  - file: src/charter/activation/synthesizer/manifest.py
+    qualname: <module>
+    literal: "doctrine"
+    clause: a
+    owner: WP14
+    line: 45
+    rationale: "TEMPORARY read-only legacy artifact prefix behind _is_legacy_artifact_prefix (FR-011); WP14 deletes the predicate with the read shim"
+  - file: src/charter/offering/drg/org_pack_loader.py
+    qualname: load_org_pack
+    literal: "fragment.yaml"
+    clause: b
+    owner: WP14
+    line: 536
+    rationale: "pack-relative fragment.yaml literal (research B.2); drained by WP14 T070 (path-allowlist sites handed over by WP03), which repoints it through kernel.charter_pack_paths"
+  - file: src/charter/offering/missions/repository.py
+    qualname: MissionTemplateRepository.get_content_template
+    literal: "doctrine/{}/templates/{}"
+    clause: a
+    owner: WP25
+    line: 266
+    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
+  - file: src/charter/offering/missions/repository.py
+    qualname: MissionTemplateRepository.get_action_index
+    literal: "doctrine/{}/actions/{}/index.yaml"
+    clause: a
+    owner: WP25
+    line: 341
+    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
+  - file: src/charter/offering/missions/repository.py
+    qualname: MissionTemplateRepository.get_action_guidelines
+    literal: "doctrine/mission-steps/{}/{}/guidelines.md"
+    clause: a
+    owner: WP25
+    line: 365
+    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
+  - file: src/charter/offering/missions/repository.py
+    qualname: MissionTemplateRepository.get_mission_config
+    literal: "doctrine/{}/mission.yaml"
+    clause: a
+    owner: WP25
+    line: 388
+    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
+  - file: src/charter/offering/missions/repository.py
+    qualname: MissionTemplateRepository.get_expected_artifacts
+    literal: "doctrine/{}/expected-artifacts.yaml"
+    clause: a
+    owner: WP25
+    line: 435
+    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
+  - file: src/charter/offering/missions/repository.py
+    qualname: MissionTemplateRepository._command_template_origin
+    literal: "doctrine/{}/command-templates/{}.md"
+    clause: a
+    owner: WP25
+    line: 469
+    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
+  - file: src/charter/offering/missions/repository.py
+    qualname: MissionTemplateRepository._command_template_origin
+    literal: "doctrine/mission-steps/{}/{}/prompt.md"
+    clause: a
+    owner: WP25
+    line: 470
+    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
+  - file: src/specify_cli/charter_runtime/preflight/runner.py
+    qualname: <module>
+    literal: "{}/doctrine/"
+    clause: a
+    owner: WP14
+    line: 133
+    rationale: "dirty-scope prefix for the retired root kept beside the pack root while the FR-011 read fallback exists; WP14 removes it with the shim"
+  - file: src/specify_cli/tool_surface/providers/agent_profiles.py
+    qualname: _profile_input_roots
+    literal: "doctrine"
+    clause: a
+    owner: WP14
+    line: 582
+    rationale: "fingerprint input mirroring the flat built-in fallback candidate of charter.activation._doctrine_paths (loop-joined onto root); goes with that candidate: drained by WP14 T070 (path-allowlist sites handed over by WP03)"
+  - file: src/specify_cli/cli/commands/_doctrine_collect.py
+    qualname: _summarize_org_charter
+    literal: "org-charter.yaml"
+    clause: b
+    owner: WP14
+    line: 180
+    rationale: "pack-relative org-charter.yaml literal (research B.2); drained by WP14 T070 (path-allowlist sites handed over by WP03), which repoints it through kernel.charter_pack_paths"
+  - file: src/specify_cli/mission_step_contracts/executor.py
+    qualname: StepContractExecutor._org_root_folds_fragment
+    literal: "fragment.yaml"
+    clause: b
+    owner: WP14
+    line: 584
+    rationale: "pack-relative fragment.yaml literal (research B.2); drained by WP14 T070 (path-allowlist sites handed over by WP03), which repoints it through kernel.charter_pack_paths"

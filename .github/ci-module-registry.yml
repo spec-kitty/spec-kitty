@@ -629,12 +629,12 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/acceptance
   - tests/specify_cli/audit
   - tests/specify_cli/bulk_edit
+  - tests/specify_cli/charter_packs
   - tests/specify_cli/compat
   - tests/specify_cli/context
   - tests/specify_cli/contracts
   - tests/specify_cli/decisions
   - tests/specify_cli/distribution
-  - tests/specify_cli/doctrine
   - tests/specify_cli/dossier
   - tests/specify_cli/events
   - tests/specify_cli/git
@@ -831,6 +831,7 @@ out_of_matrix_test_dirs:
   - tests/_support/coverage_safety
   - tests/_support/git_template
   - tests/acceptance
+  - tests/acceptance/charter_pack_cutover
   - tests/adversarial
   - tests/ast_analysis
   - tests/characterization

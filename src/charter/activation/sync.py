@@ -24,10 +24,13 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from charter.activation._io import load_charter_file
 from charter.bundle import CANONICAL_MANIFEST, CHARTER_YAML
 from charter.activation.charter_yaml_io import load_charter_yaml
 from charter.hasher import is_stale
+from charter.offering.packs.retired_fields import raise_retired_field_at
 from charter.resolution import resolve_canonical_repo_root
 from charter.activation.schemas import (
     DirectivesConfig,
@@ -209,6 +212,11 @@ def sync(
         )
 
 
+def _charter_yaml_path(repo_root: Path) -> Path:
+    """Return the canonical (main-checkout) ``charter.yaml`` path for *repo_root*."""
+    return Path(resolve_canonical_repo_root(repo_root), CHARTER_YAML)
+
+
 def _load_charter_yaml_section(repo_root: Path, section: str) -> object | None:
     """Return the named top-level ``charter.yaml`` section, or ``None``.
 
@@ -224,8 +232,7 @@ def _load_charter_yaml_section(repo_root: Path, section: str) -> object | None:
     caller's "use an empty config" signal, logged at different verbosity by
     the two public loaders below.
     """
-    canonical_root = resolve_canonical_repo_root(repo_root)
-    charter_yaml_path = canonical_root / CHARTER_YAML
+    charter_yaml_path = _charter_yaml_path(repo_root)
     if not charter_yaml_path.exists():
         return None
     document = load_charter_yaml(charter_yaml_path)
@@ -342,6 +349,12 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
 
     Returns:
         GovernanceConfig instance (empty if charter.yaml/section missing)
+
+    Raises:
+        RetiredPackFieldError: an activation entry still carries a retired
+            field (#3732); the error names the ``charter.yaml`` path, the
+            field and its replacement (code ``RETIRED_PACK_FIELD``).
+        pydantic.ValidationError: any other schema failure.
     """
     governance_data = _load_charter_yaml_section(repo_root, "governance")
     if governance_data is None:
@@ -349,7 +362,11 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
         return GovernanceConfig()
     if isinstance(governance_data, dict):
         governance_data = apply_legacy_governance_selection_key_compat(governance_data)
-    return GovernanceConfig.model_validate(governance_data)
+    try:
+        return GovernanceConfig.model_validate(governance_data)
+    except ValidationError as exc:
+        raise_retired_field_at(exc, _charter_yaml_path(repo_root))
+        raise
 
 
 def load_directives_config(repo_root: Path) -> DirectivesConfig:

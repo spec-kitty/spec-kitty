@@ -31,11 +31,11 @@ Surface area:
   activation state (FR-013 / WP13).
 
 Both ``pack validate`` and ``pack assemble`` are implemented by WP06; their
-heavy lifting lives in :mod:`specify_cli.doctrine.pack_validator` and
-:mod:`specify_cli.doctrine.pack_assembler` so this module only handles
+heavy lifting lives in :mod:`charter.offering.packs.pack_validator` and
+:mod:`charter.offering.packs.pack_assembler` so this module only handles
 argument parsing and exit-code mapping. ``new`` and ``validate`` are owned
 by WP09 (Mission B) and reuse the same schema registry from
-:mod:`specify_cli.doctrine.pack_validator`.
+:mod:`charter.offering.packs.pack_validator`.
 """
 
 from __future__ import annotations
@@ -45,6 +45,14 @@ from pathlib import Path
 
 import typer
 from charter.activation.kind_vocabulary import PROJECT_KIND_DIRS
+from kernel.charter_pack_paths import (
+    DRG_FRAGMENT,
+    ORG_CHARTER_FILENAME,
+    PROJECT_PACK_ROOT_POSIX,
+    pack_drg_fragment,
+    pack_org_charter,
+    project_pack_root,
+)
 from charter.drg import ArtifactKind, slug_for
 from charter.activation.language_scope import (
     RESERVED_LANGUAGE_TOKENS,
@@ -145,7 +153,7 @@ def fetch(
     """Fetch org doctrine pack(s) from their configured remote sources."""
     from charter.drg import load_pack_registry
     from specify_cli.core.paths import locate_project_root
-    from specify_cli.doctrine.snapshot import fetch_pack
+    from specify_cli.charter_packs.snapshot import fetch_pack
 
     repo_root = locate_project_root()
     if repo_root is None:
@@ -291,10 +299,7 @@ def regenerate_graph(
         write_reference_graph_with_overlay,
     )
     from charter.drg import DRGValidationError
-    from specify_cli.doctrine.builtin_manifest import (
-        builtin_manifest_is_fresh,
-        generate_builtin_manifest,
-    )
+    from charter.packs import builtin_manifest_is_fresh, generate_builtin_manifest
 
     doctrine_root = _doctrine_root()
 
@@ -412,12 +417,9 @@ def pack_validate(
     Exits 0 when the pack passes validation (advisories do not affect the
     exit code) and 1 when at least one error is reported.
     """
-    from specify_cli.doctrine.pack_validator import (
-        render_validation_result,
-        validate_pack,
-    )
+    from charter.packs import render_validation_result, validate_pack_with_org_charter
 
-    result = validate_pack(pack_path)
+    result = validate_pack_with_org_charter(pack_path)
     render_validation_result(result, json_output=json_output)
     raise typer.Exit(0 if result.ok else 1)
 
@@ -459,12 +461,9 @@ def pack_assemble(
     Exits 0 on success and 1 when conflicts block the merge or when the
     assembled output fails validation.
     """
-    from specify_cli.doctrine.pack_assembler import (
-        assemble_pack,
-        render_assembly_result,
-    )
+    from charter.packs import assemble_pack_with_org_charter, render_assembly_result
 
-    result = assemble_pack(
+    result = assemble_pack_with_org_charter(
         input_packs=list(input_packs),
         output_dir=output_path,
         force=force,
@@ -637,7 +636,8 @@ def _resolve_scaffold_root(
     """Return the doctrine root that scaffolded files should land under.
 
     Project-layer scaffolding (no ``--pack``) writes under
-    ``<repo_root>/.kittify/doctrine/``. Pack-mode scaffolding writes to the
+    ``<repo_root>/.kittify/charter-packs/`` (the project charter pack root).
+    Pack-mode scaffolding writes to the
     user-supplied pack root verbatim.
     """
     if pack is not None:
@@ -647,7 +647,7 @@ def _resolve_scaffold_root(
             "Could not locate spec-kitty project root. Run from inside a project "
             "containing .kittify/ or pass --pack to target an explicit pack directory."
         )
-    return repo_root / ".kittify" / "doctrine"
+    return project_pack_root(repo_root)
 
 
 @app.command(name="new")
@@ -670,7 +670,7 @@ def new(
         "--pack",
         help=(
             "Scaffold inside a doctrine pack directory instead of the project layer. "
-            "When omitted, the stub lands under .kittify/doctrine/."
+            f"When omitted, the stub lands under {PROJECT_PACK_ROOT_POSIX}/."
         ),
     ),
 ) -> None:
@@ -718,9 +718,9 @@ def new(
     # registry in pack_validator is the canonical source of truth.
     from ruamel.yaml import YAML
 
-    from specify_cli.doctrine.pack_validator import _artifact_schema_registry
+    from charter.packs import artifact_schema_registry
 
-    schema_cls = _artifact_schema_registry()[plural][1]
+    schema_cls = artifact_schema_registry()[plural][1]
     parsed = YAML(typ="safe").load(stub_text)
     try:
         schema_cls.model_validate(parsed)
@@ -745,7 +745,7 @@ def new(
 #: Map filename suffix → ``(plural_dir_name, kind_singular)`` for the
 #: ``validate`` command to detect a single file's artifact kind without
 #: requiring the operator to pass it explicitly.  Mirrors the suffixes
-#: declared in :func:`_artifact_schema_registry`.
+#: declared in :func:`artifact_schema_registry`.
 _SUFFIX_TO_KIND: dict[str, tuple[str, str]] = {
     ".directive.yaml": ("directives", "directive"),
     ".tactic.yaml": ("tactics", "tactic"),
@@ -810,7 +810,7 @@ def _validate_single_artifact(
     from ruamel.yaml import YAML
     from ruamel.yaml.error import YAMLError
 
-    from specify_cli.doctrine.pack_validator import _artifact_schema_registry
+    from charter.packs import artifact_schema_registry
 
     detected = _detect_artifact_kind(path)
     if detected is None:
@@ -830,7 +830,7 @@ def _validate_single_artifact(
     lang_err = _check_applies_to_languages(data)
     if lang_err is not None:
         return False, lang_err
-    schema_cls = _artifact_schema_registry()[plural][1]
+    schema_cls = artifact_schema_registry()[plural][1]
     try:
         schema_cls.model_validate(data)
     except Exception as exc:  # noqa: BLE001 — schema errors → operator text
@@ -898,11 +898,11 @@ def validate(
 # ----------------------------------------------------------------------
 
 #: Minimal ``org-charter.yaml`` body.  All fields are optional in
-#: :class:`specify_cli.doctrine.org_charter.OrgCharterPolicy`; the stub
+#: :class:`charter.activation.org_charter.OrgCharterPolicy`; the stub
 #: carries the schema_version sentinel and a TODO org_name as a
 #: quickstart hint.
 _ORG_CHARTER_STUB = """\
-schema_version: "1"
+schema_version: "2"
 org_name: TODO replace with your organisation name
 required_directives: []
 required_tactics: []
@@ -942,6 +942,7 @@ _ORG_PACK_README_STUB = """\
 
 - `org-charter.yaml` — organisation-level governance policy
 - `drg/fragment.yaml` — DRG extension fragment declaring org-tier nodes
+- `presets/` — activation presets (`spec-kitty charter activate --preset <name>`)
 - Additional artifact subdirectories (e.g. `directives/`, `tactics/`) may
   be added alongside the `org-charter.yaml`.
 
@@ -969,7 +970,7 @@ def org_init(
         "--template",
         help=(
             "Local template directory or git URL (HTTPS/SSH; optional #branch). "
-            "When omitted, scaffolds the minimal three-file pack."
+            "When omitted, scaffolds the minimal four-file pack."
         ),
     ),
     org_name: str | None = typer.Option(
@@ -990,11 +991,12 @@ def org_init(
 ) -> None:
     """Scaffold a minimal org pack or render from a template.
 
-    Without ``--template``, creates three files under *pack-path*::
+    Without ``--template``, creates four files under *pack-path*::
 
-        org-charter.yaml   — governance policy stub
-        drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
-        README.md          — authoring quickstart
+        org-charter.yaml     — governance policy stub
+        drg/fragment.yaml    — DRG extension stub (with pydantic_model: frontmatter)
+        presets/starter.yaml — example activation preset
+        README.md            — authoring quickstart
 
     With ``--template``, copies the full template tree (minus ``.templateignore``),
     substitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.
@@ -1015,7 +1017,9 @@ def org_init(
 
 
 def _run_minimal_scaffold(pack_path: Path, *, force: bool) -> None:
-    """Write the legacy three-file org pack skeleton."""
+    """Write the minimal org pack skeleton (charter, fragment, example preset, README)."""
+    from charter.packs import write_example_preset
+
     if pack_path.exists() and not force:
         console.print(
             f"[red]Target directory already exists:[/red] {pack_path}\n"
@@ -1024,15 +1028,18 @@ def _run_minimal_scaffold(pack_path: Path, *, force: bool) -> None:
         raise typer.Exit(1)
 
     pack_path.mkdir(parents=True, exist_ok=True)
-    (pack_path / "drg").mkdir(parents=True, exist_ok=True)
+    fragment_path = pack_drg_fragment(pack_path)
+    fragment_path.parent.mkdir(parents=True, exist_ok=True)
 
-    (pack_path / "org-charter.yaml").write_text(_ORG_CHARTER_STUB, encoding="utf-8")
-    (pack_path / "drg" / "fragment.yaml").write_text(_DRG_FRAGMENT_STUB, encoding="utf-8")
+    pack_org_charter(pack_path).write_text(_ORG_CHARTER_STUB, encoding="utf-8")
+    fragment_path.write_text(_DRG_FRAGMENT_STUB, encoding="utf-8")
+    preset_path = write_example_preset(pack_path)
     (pack_path / "README.md").write_text(_ORG_PACK_README_STUB, encoding="utf-8")
 
     console.print(f"[green]Org pack scaffolded at:[/green] {pack_path}")
-    console.print("  org-charter.yaml")
-    console.print("  drg/fragment.yaml")
+    console.print(f"  {ORG_CHARTER_FILENAME}")
+    console.print(f"  {DRG_FRAGMENT.as_posix()}")
+    console.print(f"  {preset_path.relative_to(pack_path).as_posix()}")
     console.print("  README.md")
     console.print(
         f"\nRun [bold]spec-kitty charter org validate {pack_path}[/bold] to confirm."
@@ -1049,8 +1056,8 @@ def _run_template_render(
     force: bool,
 ) -> None:
     """Dispatch template render via ``template_render.pipeline``."""
-    from specify_cli.doctrine.template_render import RenderRequest
-    from specify_cli.doctrine.template_render.pipeline import render_org_pack
+    from specify_cli.charter_packs.template_render import RenderRequest
+    from specify_cli.charter_packs.template_render.pipeline import render_org_pack
 
     if not org_name:
         console.print(
@@ -1098,17 +1105,14 @@ def org_validate(
 ) -> None:
     """Validate an org doctrine pack using schema and DRG checks (FR-006).
 
-    Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
+    Calls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`
     loader.  Prints per-file findings with file paths.  Exits non-zero when
     at least one error is found.
 
     Org fragments use id and plural kind (for example, directives) for nodes.
     Validation uses the runtime loader, which supplies pack provenance fields.
     """
-    from specify_cli.doctrine.pack_validator import (
-        render_validation_result,
-        validate_pack,
-    )
+    from charter.packs import render_validation_result, validate_pack_with_org_charter
 
     # Written explicitly (not relying on validate_pack's own default) so a
     # future default change cannot silently alter org_validate's behaviour
@@ -1116,7 +1120,7 @@ def org_validate(
     # produces the drg-root-graph-missing shape, so this call was never
     # protected by a carve-out in the first place (operator ruling #2,
     # reviews/plan.ruling.md).
-    result = validate_pack(pack_path, check_drg_root=True)
+    result = validate_pack_with_org_charter(pack_path, check_drg_root=True)
 
     render_validation_result(result, json_output=False)
     raise typer.Exit(0 if result.ok else 1)

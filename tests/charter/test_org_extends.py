@@ -1,10 +1,10 @@
 """Tests for the canonical ``extends:`` chain resolver (FR-008, WP08).
 
-Covers the topology contract of :func:`charter.activation.org_extends.resolve_extends_order`:
+Covers the topology contract of :func:`charter.offering.packs.extends.resolve_extends_order`:
 base-first ordering, fail-closed cycle rejection, missing-base rejection, and
 the non-destructive single-layer (no-``extends:``) path. The additive merge and
 precedence-on-conflict are exercised at the consumer layer
-(``tests/specify_cli/doctrine/test_org_charter.py``), which now delegates its
+(``tests/charter/activation/test_org_charter.py``), which now delegates its
 chain walk to this resolver.
 """
 
@@ -14,7 +14,7 @@ import pytest
 
 pytestmark = [pytest.mark.fast]
 
-from charter.activation.org_extends import (
+from charter.offering.packs.extends import (
     ExtendsBaseNotFoundError,
     ExtendsCycleError,
     resolve_extends_order,

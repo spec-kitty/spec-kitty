@@ -49,8 +49,8 @@ def _make_shipped_graph(
 
 
 def _write_overlay(staging_dir: Path, graph: DRGGraph) -> None:
-    """Write a DRGGraph YAML to staging_dir/doctrine/graph.yaml."""
-    doctrine_dir = staging_dir / "doctrine"
+    """Write a DRGGraph YAML to staging_dir/charter-packs/graph.yaml."""
+    doctrine_dir = staging_dir / "charter-packs"
     doctrine_dir.mkdir(parents=True, exist_ok=True)
     graph_path = doctrine_dir / "graph.yaml"
 
@@ -308,10 +308,10 @@ class TestMissingOrMalformedOverlay:
             validate(tmp_path, shipped)
         err = exc_info.value
         assert len(err.errors) >= 1
-        assert "graph.yaml" in err.errors[0] or "doctrine" in err.errors[0] or "not found" in err.errors[0].lower()
+        assert "graph.yaml" in err.errors[0] or "charter-packs" in err.errors[0] or "not found" in err.errors[0].lower()
 
     def test_malformed_yaml_raises_error(self, tmp_path: Path) -> None:
-        doctrine_dir = tmp_path / "doctrine"
+        doctrine_dir = tmp_path / "charter-packs"
         doctrine_dir.mkdir()
         (doctrine_dir / "graph.yaml").write_text(": this: is: not: valid: yaml: [[[")
         shipped = _make_shipped_graph()

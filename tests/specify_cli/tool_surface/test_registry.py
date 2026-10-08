@@ -65,7 +65,7 @@ def test_get_definitions_returns_copy() -> None:
 def test_multiple_definitions_for_same_tool() -> None:
     registry = ToolSurfaceRegistry()
     first = _definition("command-skill")
-    second = _definition("doctrine-skill")
+    second = _definition("charter-skill")
     registry.register_definition("claude", first)
     registry.register_definition("claude", second)
     assert registry.get_definitions("claude") == [first, second]
@@ -107,7 +107,7 @@ def _assert_required_registry_floor() -> None:
 
     expected = {
         ToolSurfaceKind.COMMAND_SKILL: "command_skills",
-        ToolSurfaceKind.DOCTRINE_SKILL: "managed_skills",
+        ToolSurfaceKind.CHARTER_SKILL: "managed_skills",
         ToolSurfaceKind.AGENT_PROFILE: "agent_profiles",
         ToolSurfaceKind.COMMAND_FILE: "slash_commands",
         ToolSurfaceKind.CONTEXT_FILE: "session_presence",

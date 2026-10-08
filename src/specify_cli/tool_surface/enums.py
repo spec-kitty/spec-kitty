@@ -19,7 +19,7 @@ class ToolSurfaceKind(StrEnum):
     """
 
     COMMAND_SKILL = "command_skill"
-    DOCTRINE_SKILL = "doctrine_skill"
+    CHARTER_SKILL = "charter_skill"
     CONTEXT_FILE = "context_file"
     RULE = "rule"
     HOOK = "hook"

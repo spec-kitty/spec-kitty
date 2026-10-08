@@ -4,7 +4,7 @@
   "materialized_at": "2026-10-08T22:22:18.811380+00:00",
   "mission_number": "",
   "mission_slug": "charter-pack-cutover-01M491G6",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
     "approved": 22,

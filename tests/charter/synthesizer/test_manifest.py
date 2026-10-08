@@ -72,7 +72,7 @@ def _make_manifest(run_id: str = "01KPE222TESTRUNID0000000001") -> SynthesisMani
         ManifestArtifactEntry(
             kind="tactic",
             slug="my-tactic",
-            path=".kittify/doctrine/tactic/my-tactic.tactic.yaml",
+            path=".kittify/charter-packs/tactic/my-tactic.tactic.yaml",
             provenance_path=".kittify/charter/provenance/tactic-my-tactic.yaml",
             content_hash="a" * 64,
         ),
@@ -257,7 +257,7 @@ def test_verify_passes_when_hashes_match(tmp_path: Path, guard: PathGuard) -> No
     artifact_bytes = b"id: PROJECT_001\ntitle: Test\n"
     content_hash = hashlib.sha256(artifact_bytes).hexdigest()  # noqa: TID251 — file-integrity checksum of an artifact's raw on-disk bytes, not the charter.hasher.hash_content() freshness algorithm
 
-    artifact_rel = ".kittify/doctrine/tactic/my-tactic.tactic.yaml"
+    artifact_rel = ".kittify/charter-packs/tactic/my-tactic.tactic.yaml"
     artifact_path = tmp_path / artifact_rel
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
     artifact_path.write_bytes(artifact_bytes)
@@ -298,7 +298,7 @@ def test_verify_passes_when_hashes_match(tmp_path: Path, guard: PathGuard) -> No
 
 def test_verify_raises_on_hash_mismatch(tmp_path: Path) -> None:
     """verify() raises ManifestIntegrityError when content_hash does not match."""
-    artifact_rel = ".kittify/doctrine/tactic/my-tactic.tactic.yaml"
+    artifact_rel = ".kittify/charter-packs/tactic/my-tactic.tactic.yaml"
     artifact_path = tmp_path / artifact_rel
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
     artifact_path.write_bytes(b"actual content")
@@ -342,7 +342,7 @@ def test_verify_raises_on_hash_mismatch(tmp_path: Path) -> None:
 
 def test_verify_raises_on_missing_artifact(tmp_path: Path) -> None:
     """verify() raises ManifestIntegrityError when artifact file is missing."""
-    artifact_rel = ".kittify/doctrine/tactic/missing-tactic.tactic.yaml"
+    artifact_rel = ".kittify/charter-packs/tactic/missing-tactic.tactic.yaml"
     # Don't create the artifact file
 
     artifacts = [
@@ -400,13 +400,13 @@ def test_verify_rejects_absolute_artifact_path(tmp_path: Path) -> None:
 
 
 def test_verify_rejects_traversal_artifact_path(tmp_path: Path) -> None:
-    """Manifest artifact paths must stay within .kittify/doctrine."""
+    """Manifest artifact paths must stay within .kittify/charter-packs."""
     manifest = _make_manifest_for_artifacts(
         [
             ManifestArtifactEntry(
                 kind="tactic",
                 slug="escape",
-                path=".kittify/doctrine/../charter/provenance/tactic-escape.yaml",
+                path=".kittify/charter-packs/../charter/provenance/tactic-escape.yaml",
                 provenance_path=".kittify/charter/provenance/tactic-escape.yaml",
                 content_hash="a" * 64,
             )
@@ -419,7 +419,7 @@ def test_verify_rejects_traversal_artifact_path(tmp_path: Path) -> None:
 
 def test_verify_rejects_provenance_path_outside_provenance_tree(tmp_path: Path) -> None:
     """Manifest provenance paths must stay within .kittify/charter/provenance."""
-    artifact_rel = ".kittify/doctrine/tactic/my-tactic.tactic.yaml"
+    artifact_rel = ".kittify/charter-packs/tactic/my-tactic.tactic.yaml"
     artifact_path = tmp_path / artifact_rel
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
     artifact_path.write_bytes(b"id: my-tactic\n")
@@ -441,7 +441,7 @@ def test_verify_rejects_provenance_path_outside_provenance_tree(tmp_path: Path) 
 
 def test_verify_accepts_manifest_paths_with_windows_separators(tmp_path: Path) -> None:
     """Windows-written manifest paths are normalized before validation."""
-    artifact_rel = ".kittify/doctrine/tactic/windows-path.tactic.yaml"
+    artifact_rel = ".kittify/charter-packs/tactic/windows-path.tactic.yaml"
     artifact_path = tmp_path / artifact_rel
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
     artifact_path.write_bytes(b"id: windows-path\n")
@@ -462,6 +462,57 @@ def test_verify_accepts_manifest_paths_with_windows_separators(tmp_path: Path) -
     verify(manifest, tmp_path)
 
 
+def _verify_single_artifact(tmp_path: Path, artifact_rel: str) -> None:
+    artifact_path = tmp_path / artifact_rel
+    artifact_path.parent.mkdir(parents=True, exist_ok=True)
+    artifact_path.write_bytes(b"id: legacy-tactic\n")
+    manifest = _make_manifest_for_artifacts(
+        [
+            ManifestArtifactEntry(
+                kind="tactic",
+                slug="legacy-tactic",
+                path=artifact_rel,
+                provenance_path=".kittify/charter/provenance/tactic-legacy-tactic.yaml",
+                content_hash=hashlib.sha256(artifact_path.read_bytes()).hexdigest(),  # noqa: TID251 — file-integrity checksum of an artifact file's on-disk bytes, not the charter.hasher.hash_content() freshness algorithm
+            )
+        ]
+    )
+    verify(manifest, tmp_path)
+
+
+def test_verify_legacy_root_read_fallback(tmp_path: Path) -> None:
+    """TEMPORARY (FR-011, deleted by WP14): a pre-cutover manifest still verifies.
+
+    Manifests written before the cutover migration list artifacts under the
+    retired ``.kittify/doctrine/`` prefix; until WP11 rewrites them, ``verify``
+    accepts that prefix on read through ``_is_legacy_artifact_prefix``.
+    """
+    _verify_single_artifact(tmp_path, ".kittify/doctrine/tactic/legacy-tactic.tactic.yaml")
+
+
+def test_verify_legacy_root_read_fallback_still_rejects_traversal(tmp_path: Path) -> None:
+    """TEMPORARY (deleted by WP14): the legacy prefix does not open a traversal hole."""
+    with pytest.raises(ValueError, match="repo-relative"):
+        _verify_single_artifact(tmp_path, ".kittify/doctrine/../charter/provenance/tactic-escape.yaml")
+
+
+def test_verify_rejects_artifact_path_outside_both_prefixes(tmp_path: Path) -> None:
+    """Only the project charter pack root (and, until WP14, the retired root) is accepted."""
+    with pytest.raises(ValueError, match=r"must be under \.kittify/charter-packs"):
+        _verify_single_artifact(tmp_path, ".kittify/elsewhere/tactic/legacy-tactic.tactic.yaml")
+
+
+def test_artifact_prefix_is_project_pack_root_and_legacy_predicate_is_narrow(tmp_path: Path) -> None:
+    """New manifest entries always carry the project charter pack root (FR-016)."""
+    from charter.activation.synthesizer.manifest import _ARTIFACT_PATH_PREFIX, _is_legacy_artifact_prefix
+
+    assert _ARTIFACT_PATH_PREFIX.as_posix() == ".kittify/charter-packs"
+    assert _is_legacy_artifact_prefix(".kittify/doctrine/tactic/x.tactic.yaml")
+    assert _is_legacy_artifact_prefix(".kittify\\doctrine\\tactic\\x.tactic.yaml")
+    assert not _is_legacy_artifact_prefix(".kittify/charter-packs/tactic/x.tactic.yaml")
+    assert not _is_legacy_artifact_prefix(".kittify/doctrinex/tactic/x.tactic.yaml")
+
+
 # ---------------------------------------------------------------------------
 # Ordering (deterministic)
 # ---------------------------------------------------------------------------
@@ -473,21 +524,21 @@ def test_manifest_artifact_ordering(tmp_path: Path, guard: PathGuard) -> None:
         ManifestArtifactEntry(
             kind="tactic",
             slug="z-tactic",
-            path=".kittify/doctrine/tactic/z-tactic.tactic.yaml",
+            path=".kittify/charter-packs/tactic/z-tactic.tactic.yaml",
             provenance_path=".kittify/charter/provenance/tactic-z-tactic.yaml",
             content_hash="a" * 64,
         ),
         ManifestArtifactEntry(
             kind="directive",
             slug="a-directive",
-            path=".kittify/doctrine/directive/001-a-directive.directive.yaml",
+            path=".kittify/charter-packs/directive/001-a-directive.directive.yaml",
             provenance_path=".kittify/charter/provenance/directive-a-directive.yaml",
             content_hash="b" * 64,
         ),
         ManifestArtifactEntry(
             kind="tactic",
             slug="a-tactic",
-            path=".kittify/doctrine/tactic/a-tactic.tactic.yaml",
+            path=".kittify/charter-packs/tactic/a-tactic.tactic.yaml",
             provenance_path=".kittify/charter/provenance/tactic-a-tactic.yaml",
             content_hash="c" * 64,
         ),

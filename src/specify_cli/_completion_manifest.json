@@ -422,7 +422,7 @@
    "deprecated": false,
    "commands": {
     "activate": {
-     "help": "Activate a doctrine artifact by kind and ID (FR-004), with optional cascade.",
+     "help": "Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's preset.\n\nTwo forms:\n\n  spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE]\n\n  spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]\n\nA preset replaces every activation key it governs: keys it lists are\nwritten (plus the org's required ids), keys it leaves out are removed.\nA change to a customised key is refused without --force.",
      "hidden": false,
      "deprecated": false
     },
@@ -472,7 +472,7 @@
      "deprecated": false
     },
     "synthesize": {
-     "help": "Validate and promote agent-generated project-local doctrine artifacts.\n\nReads the charter interview answers, resolves synthesis targets from the\nDRG + doctrine, and writes all artifacts to ``.kittify/doctrine/``.\n\nDoctrine generation is performed by the LLM harness (Claude Code, Codex,\nCursor, etc.) via the spec-kitty-charter-doctrine skill. This command\nvalidates and promotes the artifacts the agent has written.\n\nFresh-project behavior (issue #839 / WP06 T031-T033)\n----------------------------------------------------\nOn a fresh project where ``.kittify/charter/generated/`` is missing or\nempty (i.e. the LLM harness has not yet written agent artifacts), this\ncommand short-circuits the adapter pipeline and materializes the\n**minimal artifact set** the runtime requires:\n\n1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s\n   project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a\n   presence-only check; an empty directory is a valid project layer.\n2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the\n   fresh-project seed path, citing #839.\n\nThe runtime falls back to the built-in doctrine (``packs/built-in/``) for\nall artifact lookups until the harness writes per-target YAML and the\noperator re-runs ``synthesize`` (which then takes the normal adapter\npath). The fresh-project path is **idempotent**: re-running produces\nbytewise-identical output (T033). Charter prerequisites are still\nenforced — ``charter.md`` must exist (else ``TaskCliError`` is raised\nvia ``_build_synthesis_request``).\n\nExamples\n--------\nValidate + promote generated artifacts written by the harness::\n\n    spec-kitty charter synthesize\n\nValidate + promote with fixture adapter (offline/testing)::\n\n    spec-kitty charter synthesize --adapter fixture\n\nDry-run (stage + validate, no promote)::\n\n    spec-kitty charter synthesize --dry-run\n\nPreserve-and-warn default (WP03): a plain run never drops backed\ncontent -- it exits 0 and reports what it retained. Remove divergent\ncontent explicitly::\n\n    spec-kitty charter synthesize --prune\n\nOnly orphaned content (backing artifact deleted) or an unparseable\non-disk overlay make a plain run refuse (exit 1); backed divergence is\nalways preserved and reported, never a refusal.",
+     "help": "Validate and promote agent-generated project-local doctrine artifacts.\n\nReads the charter interview answers, resolves synthesis targets from the\nDRG + doctrine, and writes all artifacts to ``.kittify/charter-packs/``.\n\nDoctrine generation is performed by the LLM harness (Claude Code, Codex,\nCursor, etc.) via the spk-charter-governance skill. This command\nvalidates and promotes the artifacts the agent has written.\n\nFresh-project behavior (issue #839 / WP06 T031-T033)\n----------------------------------------------------\nOn a fresh project where ``.kittify/charter/generated/`` is missing or\nempty (i.e. the LLM harness has not yet written agent artifacts), this\ncommand short-circuits the adapter pipeline and materializes the\n**minimal artifact set** the runtime requires:\n\n1. ``.kittify/charter-packs/`` — directory marker. ``DoctrineService``'s\n   project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a\n   presence-only check; an empty directory is a valid project layer.\n2. ``.kittify/charter-packs/PROVENANCE.md`` — human-readable record of the\n   fresh-project seed path, citing #839.\n\nThe runtime falls back to the built-in doctrine (``packs/built-in/``) for\nall artifact lookups until the harness writes per-target YAML and the\noperator re-runs ``synthesize`` (which then takes the normal adapter\npath). The fresh-project path is **idempotent**: re-running produces\nbytewise-identical output (T033). Charter prerequisites are still\nenforced — ``charter.md`` must exist (else ``TaskCliError`` is raised\nvia ``_build_synthesis_request``).\n\nExamples\n--------\nValidate + promote generated artifacts written by the harness::\n\n    spec-kitty charter synthesize\n\nValidate + promote with fixture adapter (offline/testing)::\n\n    spec-kitty charter synthesize --adapter fixture\n\nDry-run (stage + validate, no promote)::\n\n    spec-kitty charter synthesize --dry-run\n\nPreserve-and-warn default (WP03): a plain run never drops backed\ncontent -- it exits 0 and reports what it retained. Remove divergent\ncontent explicitly::\n\n    spec-kitty charter synthesize --prune\n\nOnly orphaned content (backing artifact deleted) or an unparseable\non-disk overlay make a plain run refuse (exit 1); backed divergence is\nalways preserved and reported, never a refusal.",
      "hidden": false,
      "deprecated": false
     },
@@ -531,12 +531,12 @@
        "deprecated": false
       },
       "list": {
-       "help": "List the built-in charter packs shipped with spec-kitty (#3064).",
+       "help": "List the packs of the project's offering and the presets each ships (FR-004).",
        "hidden": false,
        "deprecated": false
       },
       "path": {
-       "help": "Resolve a built-in charter pack name to its shipped filesystem path (#3064).\n\nFails closed (exit 1) on an unknown pack name, naming it and the valid set.",
+       "help": "Print a pack's root, or with --preset the preset file (FR-006).\n\nFails closed (exit 1) with PACK_NOT_FOUND or PRESET_NOT_FOUND, listing the\nvalid names.",
        "hidden": false,
        "deprecated": false
       },
@@ -553,12 +553,12 @@
      "deprecated": false,
      "commands": {
       "init": {
-       "help": "Scaffold a minimal org pack or render from a template.\n\nWithout ``--template``, creates three files under *pack-path*::\n\n    org-charter.yaml   — governance policy stub\n    drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)\n    README.md          — authoring quickstart\n\nWith ``--template``, copies the full template tree (minus ``.templateignore``),\nsubstitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
+       "help": "Scaffold a minimal org pack or render from a template.\n\nWithout ``--template``, creates four files under *pack-path*::\n\n    org-charter.yaml     — governance policy stub\n    drg/fragment.yaml    — DRG extension stub (with pydantic_model: frontmatter)\n    presets/starter.yaml — example activation preset\n    README.md            — authoring quickstart\n\nWith ``--template``, copies the full template tree (minus ``.templateignore``),\nsubstitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
        "hidden": false,
        "deprecated": false
       },
       "validate": {
-       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.\n\nOrg fragments use id and plural kind (for example, directives) for nodes.\nValidation uses the runtime loader, which supplies pack provenance fields.",
+       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.\n\nOrg fragments use id and plural kind (for example, directives) for nodes.\nValidation uses the runtime loader, which supplies pack provenance fields.",
        "hidden": false,
        "deprecated": false
       }
@@ -810,12 +810,12 @@
      "deprecated": false,
      "commands": {
       "init": {
-       "help": "Scaffold a minimal org pack or render from a template.\n\nWithout ``--template``, creates three files under *pack-path*::\n\n    org-charter.yaml   — governance policy stub\n    drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)\n    README.md          — authoring quickstart\n\nWith ``--template``, copies the full template tree (minus ``.templateignore``),\nsubstitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
+       "help": "Scaffold a minimal org pack or render from a template.\n\nWithout ``--template``, creates four files under *pack-path*::\n\n    org-charter.yaml     — governance policy stub\n    drg/fragment.yaml    — DRG extension stub (with pydantic_model: frontmatter)\n    presets/starter.yaml — example activation preset\n    README.md            — authoring quickstart\n\nWith ``--template``, copies the full template tree (minus ``.templateignore``),\nsubstitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
        "hidden": false,
        "deprecated": false
       },
       "validate": {
-       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.\n\nOrg fragments use id and plural kind (for example, directives) for nodes.\nValidation uses the runtime loader, which supplies pack provenance fields.",
+       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.\n\nOrg fragments use id and plural kind (for example, directives) for nodes.\nValidation uses the runtime loader, which supplies pack provenance fields.",
        "hidden": false,
        "deprecated": false
       }

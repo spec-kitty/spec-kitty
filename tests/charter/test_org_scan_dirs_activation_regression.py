@@ -105,8 +105,8 @@ def _activate_stem(
     This is the "equivalent programmatic ``plan_activation``/``commit_activation``
     call" T001 step 5 names as an alternative to driving the ``charter activate``
     CLI end-to-end: it exercises the same single-write activation seam
-    ``CharterPackManager.activate`` (``pack_manager.py``) delegates to, without
-    needing a full ``ProjectContext``. ``CharterPackManager.activate``'s own
+    ``ActiveCharterManager.activate`` (``pack_manager.py``) delegates to, without
+    needing a full ``ProjectContext``. ``ActiveCharterManager.activate``'s own
     artifact-availability check (``_resolve_org_layer_dir``) is an independent
     resolution path already unaffected by this mission's ``_org_scan_dirs`` fix
     (it already tolerates the flat layout) -- a successful ``charter activate``

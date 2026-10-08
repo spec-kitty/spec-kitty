@@ -2,7 +2,7 @@
 
 The reader is a pure file reader, so these tests use real files under ``tmp_path``
 instead of mocking it. A non-UTF-8 or malformed ``.kittify/config.yaml`` must fail
-loud with ``CharterPackConfigError`` naming the file, never degrade silently.
+loud with ``ActiveCharterConfigError`` naming the file, never degrade silently.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 from charter.activation.scope import CharterScopeConfig, _load_charter_scope_config
 
 pytestmark = [pytest.mark.fast, pytest.mark.unit]
@@ -34,7 +34,7 @@ def _write_config(repo_root: Path, payload: bytes) -> Path:
 def test_unreadable_config_raises_error_naming_the_file(tmp_path: Path, payload: bytes) -> None:
     config_path = _write_config(tmp_path, payload)
 
-    with pytest.raises(CharterPackConfigError) as excinfo:
+    with pytest.raises(ActiveCharterConfigError) as excinfo:
         _load_charter_scope_config(tmp_path)
 
     assert str(config_path) in excinfo.value.body

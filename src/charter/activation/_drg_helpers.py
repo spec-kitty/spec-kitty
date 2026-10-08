@@ -37,6 +37,7 @@ from charter.offering.drg.merge import merge_three_layers
 from charter.offering.drg.models import DRGEdge, DRGGraph
 from charter.offering.drg.org_pack_loader import OrgDRGFragment
 from charter.offering.drg.validator import DRGValidationError, assert_valid, validate_graph
+from kernel.charter_pack_paths import resolve_project_pack_read_root
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -51,7 +52,7 @@ def _resolve_org_root(_repo_root: Path) -> Path | None:
     The charter-layer implementation is intentionally inert — it always returns
     ``None``.  The ``repo_root`` parameter is accepted for API compatibility;
     callers in ``specify_cli`` are expected to resolve the org root themselves
-    (e.g. via ``specify_cli.doctrine.config``) and supply it explicitly to
+    (e.g. via ``charter.offering.drg.org_pack_config``) and supply it explicitly to
     :func:`load_validated_graph`.
 
     This design keeps the ``charter`` package free of ``specify_cli`` imports,
@@ -87,12 +88,12 @@ def load_validated_graph(
        WARNING per dropped root should pre-filter via
        :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots` —
        every production caller now does.
-    3. **project** — optional per-project overlay at
-       ``<repo_root>/.kittify/doctrine``.
+    3. **project** — optional per-project overlay at the project pack root
+       ``<repo_root>/.kittify/charter-packs``.
 
     Args:
         repo_root: Project root; used to locate the project overlay at
-            ``<repo_root>/.kittify/doctrine``.
+            ``<repo_root>/.kittify/charter-packs``.
         org_root: Back-compat single-root override. When *org_roots* is not
             supplied, this is normalised to a one-element list (or the
             no-config fallback via :func:`_resolve_org_root`, which the
@@ -119,7 +120,7 @@ def load_validated_graph(
             the project overlay raise ``DRGProjectValidationError`` so degrading
             callers can distinguish them from built-in/org errors.
         include_project: When ``False``, the project overlay at
-            ``<repo_root>/.kittify/doctrine`` is NOT loaded and the returned
+            ``<repo_root>/.kittify/charter-packs`` is NOT loaded and the returned
             graph is the validated built-in + org chain only (#4121). This is
             the reference-resolution base the registration/re-emission lanes
             share — callers that need "everything below the project overlay"
@@ -193,7 +194,7 @@ def load_validated_graph(
 
     project = None
     if include_project:
-        project_dir = repo_root / ".kittify" / "doctrine"
+        project_dir = resolve_project_pack_read_root(repo_root, quiet=True)
         project = (
             load_graph_or_dir(project_dir)
             if has_graph_files(project_dir)

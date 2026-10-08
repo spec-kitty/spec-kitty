@@ -21,7 +21,7 @@ def test_charter_scaffold_and_validate(kind: str, tmp_path: Path, monkeypatch: p
     result = runner.invoke(app, ["new", kind, artifact_id])
     assert result.exit_code == 0, result.output
     assert "deprecated" not in result.output.lower()
-    result = runner.invoke(app, ["validate", ".kittify/doctrine"])
+    result = runner.invoke(app, ["validate", ".kittify/charter-packs"])
     assert result.exit_code == 0, result.output
     assert "1 artifact(s) passed validation" in result.output
     assert runner.invoke(app, ["new", kind, artifact_id]).exit_code == 1

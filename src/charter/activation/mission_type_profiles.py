@@ -1007,7 +1007,7 @@ def validate_activatable_mission_type(mission_type_id: str, *, repo_root: Path) 
     fallback) were it activated. No-ops when *mission_type_id* has no resolvable
     YAML in any layer at all -- that configuration inconsistency is already governed
     by ``plan_activation``'s ``UnknownActivationIdError`` (raised moments later,
-    inside ``CharterPackManager.activate()`` via the ``available_ids`` membership
+    inside ``ActiveCharterManager.activate()`` via the ``available_ids`` membership
     check), which this function does not weaken, duplicate, or race (FR-004 note:
     this is a *different* pre-existing check than the read path's
     ``UnknownMissionTypeError``, and this function defers to the activation-time one).

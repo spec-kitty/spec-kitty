@@ -1,0 +1,121 @@
+{
+  "base_sha": "b9c2365a2e53851b081f7d8700ac1d821ca05edc",
+  "charter_list": [
+    {
+      "activated": null,
+      "kind": "agent-profile"
+    },
+    {
+      "activated": [
+        "001-architectural-integrity-standard",
+        "010-specification-fidelity-requirement",
+        "024-locality-of-change",
+        "028-search-tool-discipline",
+        "030-test-and-typecheck-quality-gate"
+      ],
+      "kind": "directive"
+    },
+    {
+      "activated": null,
+      "kind": "glossary-pack"
+    },
+    {
+      "activated": null,
+      "kind": "mission-step-contract"
+    },
+    {
+      "activated": [
+        "software-dev"
+      ],
+      "kind": "mission-type"
+    },
+    {
+      "activated": null,
+      "kind": "paradigm"
+    },
+    {
+      "activated": null,
+      "kind": "procedure"
+    },
+    {
+      "activated": null,
+      "kind": "skill"
+    },
+    {
+      "activated": null,
+      "kind": "styleguide"
+    },
+    {
+      "activated": [
+        "acceptance-test-first"
+      ],
+      "kind": "tactic"
+    },
+    {
+      "activated": null,
+      "kind": "toolguide"
+    }
+  ],
+  "effective": {
+    "kinds": {
+      "agent_profiles": {
+        "extra": [],
+        "form": "explicit",
+        "ids": []
+      },
+      "directives": {
+        "extra": [],
+        "form": "explicit",
+        "ids": [
+          "DIRECTIVE_001",
+          "DIRECTIVE_010",
+          "DIRECTIVE_024",
+          "DIRECTIVE_028",
+          "DIRECTIVE_030"
+        ]
+      },
+      "glossary_packs": {
+        "extra": [],
+        "form": "explicit",
+        "ids": []
+      },
+      "mission_step_contracts": {
+        "extra": [],
+        "form": "explicit",
+        "ids": []
+      },
+      "paradigms": {
+        "extra": [],
+        "form": "explicit",
+        "ids": []
+      },
+      "procedures": {
+        "extra": [],
+        "form": "explicit",
+        "ids": []
+      },
+      "styleguides": {
+        "extra": [],
+        "form": "explicit",
+        "ids": []
+      },
+      "tactics": {
+        "extra": [],
+        "form": "explicit",
+        "ids": [
+          "acceptance-test-first"
+        ]
+      },
+      "toolguides": {
+        "extra": [],
+        "form": "explicit",
+        "ids": []
+      }
+    },
+    "mission_types": [
+      "software-dev"
+    ],
+    "skills": []
+  },
+  "fixture": "minimal_equal"
+}

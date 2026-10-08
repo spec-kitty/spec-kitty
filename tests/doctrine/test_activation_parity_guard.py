@@ -385,7 +385,7 @@ def test_org_overlay_activated_artefact_resolves_for_parity(tmp_path: Path) -> N
     # resolves and the missing compiled entry is correctly reported.
     #
     # (`unknown_references` also fires here via a separate, pre-existing
-    # gap: `_collect_all_doctrine_ids`/`CharterPackManager.list_available`
+    # gap: `_collect_all_doctrine_ids`/`ActiveCharterManager.list_available`
     # is called with no `layer_roots` either, so it never sees org
     # artefacts. That is a different call site than the one #2529 reports
     # and is out of scope for this fix -- it does not change what this

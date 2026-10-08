@@ -23,8 +23,8 @@ from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from charter.activation.pack_context import CharterPackConfigError, PackContext, resolve_charter_yaml_pointer
-from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.pack_context import ActiveCharterConfigError, PackContext, resolve_charter_yaml_pointer
+from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 
 if TYPE_CHECKING:  # pragma: no cover -- static-typing only, see lazy-import note below.
     from charter.drg import DRGEdge, DRGGraph
@@ -80,7 +80,7 @@ class CharterYamlCorruptError(RuntimeError):
     when a resolved ``charter.yaml`` is present but unparseable, not a
     mapping, or missing a valid ``catalog.references`` list. (The SIBLING
     activation-list read, :func:`_load_raw_activation_lists`, fails closed
-    with :class:`charter.activation.pack_context.CharterPackConfigError` instead --
+    with :class:`charter.activation.pack_context.ActiveCharterConfigError` instead --
     reused directly rather than re-invented, since a dangling ``charter:``
     pointer is exactly the condition ``PackContext.from_config`` (WP02)
     already raises that same exception for.) Deliberately distinct from the
@@ -306,7 +306,7 @@ def _load_config_yaml_mapping(config_path: Path) -> dict[str, Any]:
     try:
         data = yaml.load(config_path.read_text(encoding="utf-8")) or {}
     except (OSError, UnicodeDecodeError, YAMLError) as exc:
-        raise CharterPackConfigError(f"Cannot read configuration {config_path}: {exc}") from exc
+        raise ActiveCharterConfigError(f"Cannot read configuration {config_path}: {exc}") from exc
     return data if isinstance(data, dict) else {}
 
 
@@ -323,7 +323,7 @@ def _load_raw_activation_source(repo_root: Path) -> dict[str, Any]:
       pre-relocation behavior, unchanged).
     * Pointer present -> ``charter.yaml`` MUST resolve to a readable
       mapping; a dangling pointer or unparseable/non-mapping ``charter.yaml``
-      is a fail-loud :class:`CharterPackConfigError` (#2530 re-homed onto
+      is a fail-loud :class:`ActiveCharterConfigError` (#2530 re-homed onto
       charter.yaml), never a silent fallback to the legacy config-embedded
       keys.
     """
@@ -334,13 +334,13 @@ def _load_raw_activation_source(repo_root: Path) -> dict[str, Any]:
     if charter_path is None:
         return config_data
     if not charter_path.exists():
-        raise CharterPackConfigError(f".kittify/config.yaml 'charter:' pointer names {charter_path}, which does not exist.")
+        raise ActiveCharterConfigError(f".kittify/config.yaml 'charter:' pointer names {charter_path}, which does not exist.")
     try:
         loaded = load_charter_yaml(charter_path)
     except Exception as exc:  # noqa: BLE001  # re-raised as a typed, fail-closed signal.
-        raise CharterPackConfigError(f"Invalid YAML in {charter_path}: {exc}") from exc
+        raise ActiveCharterConfigError(f"Invalid YAML in {charter_path}: {exc}") from exc
     if not isinstance(loaded, dict):
-        raise CharterPackConfigError(f"{charter_path} root must be a mapping.")
+        raise ActiveCharterConfigError(f"{charter_path} root must be a mapping.")
     return dict(loaded)
 
 
@@ -368,7 +368,7 @@ def _load_raw_activation_lists(ctx: ProjectContext) -> dict[str, list[str] | Non
 
 def _collect_all_doctrine_ids(
     ctx: ProjectContext,
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
 ) -> dict[str, frozenset[str]]:
     """Return a mapping of CLI kind → frozenset of doctrine IDs (loaded once).
 
@@ -1576,10 +1576,10 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     decision_documentation_on_implement_violations: list[str] = []
     suggestions: list[str] = []
 
-    manager = CharterPackManager()
+    manager = ActiveCharterManager()
     try:
         raw_activated_by_kind = _load_raw_activation_lists(ctx)
-    except CharterPackConfigError as exc:
+    except ActiveCharterConfigError as exc:
         # #2530 re-homed onto charter.yaml (IC-04): a dangling/unreadable
         # `charter:` pointer target must fail closed with a
         # verification_errors finding, never raise past this entry point

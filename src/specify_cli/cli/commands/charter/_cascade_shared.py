@@ -72,7 +72,7 @@ def drg_urn_to_config_id(
     ``plan.deactivate`` / kind-filtered loops).
 
     ``org_roots`` (T008/T009): the full declaration-ordered org-pack chain —
-    see :func:`specify_cli.cli.commands.charter._layer_roots.resolve_org_root_chain`
+    see :func:`charter.activation.layer_roots.resolve_org_root_chain`
     for why this is threaded as a separate parameter rather than widened into
     ``layer_roots``. Without it, a cascade-reported ID that only resolves
     through org pack 2..N fell back to the raw DRG ID here (pack 1 was the

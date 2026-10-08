@@ -9,6 +9,8 @@ from typing import Any
 
 import typer
 
+from charter.offering.packs.retired_fields import RetiredPackFieldError
+
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
@@ -389,6 +391,33 @@ def _structured_error_fields(error: Exception) -> dict[str, Any] | None:
     return None
 
 
+def _error_code(error: Exception) -> str | None:
+    """The ``contracts/errors.md`` code *error* carries, if it is a coded error.
+
+    A retired pack field (#3732) names ``RETIRED_PACK_FIELD`` so the text line
+    reads ``Error (RETIRED_PACK_FIELD): <file>: field ...``.
+    """
+    if isinstance(error, RetiredPackFieldError):
+        return error.code
+    return None
+
+
+def _provision_mission_types_or_exit(repo_root: Path, *, json_output: bool) -> None:
+    """Seed ``mission_type_activations`` (additive); a missing ``default`` preset exits 1.
+
+    ``DEFAULT_PRESET_MISSING`` is a broken install: it is rendered with its code
+    (``Error (DEFAULT_PRESET_MISSING): ...`` or the ``--json`` envelope) rather
+    than as an unexpected error.
+    """
+    from charter.activation.compiler import DefaultPresetMissingError, provision_mission_type_activations
+
+    try:
+        provision_mission_type_activations(repo_root)
+    except DefaultPresetMissingError as e:
+        _emit_error(console, json_output=json_output, message=e.body, code=e.code)
+        raise typer.Exit(code=1) from e
+
+
 @charter_app.command()
 def generate(
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults"),
@@ -422,7 +451,6 @@ def generate(
     """
     from charter.activation.compiler import (
         compile_charter,
-        provision_mission_type_activations,
         write_compiled_charter,
     )
     from charter.activation.pack_context import PackContext
@@ -487,7 +515,7 @@ def generate(
             profile=profile,
         )
 
-        from specify_cli.doctrine.org_charter import validate_org_required_directive_stems
+        from charter.activation.org_charter import validate_org_required_directive_stems
 
         validate_org_required_directive_stems(repo_root)
 
@@ -495,11 +523,11 @@ def generate(
         # SOLE mission-type activation authority. Construction returns an empty
         # set on an absent key; a project with no activated types offers none
         # (mission-CREATE then fails closed). Emit it
-        # into the activation authority FIRST (additive/idempotent, built-in
-        # set from default.yaml) so `generate` self-heals a pre-provisioning
+        # into the activation authority FIRST (additive/idempotent, seeded from
+        # the built-in pack's `default` preset) so `generate` self-heals a pre-provisioning
         # pointer charter instead of crashing on the very key it is about to
         # (re)generate.
-        provision_mission_type_activations(repo_root)
+        _provision_mission_types_or_exit(repo_root, json_output=json_output)
 
         # FR-001/FR-002 (WP02): `.kittify/config.yaml` `activated_*` is the
         # activation authority the compiled reference set derives from --
@@ -624,7 +652,7 @@ def generate(
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except (FileExistsError, TaskCliError, ValueError, RuntimeError) as e:
-        _emit_error(console, json_output=json_output, message=str(e), extra=_structured_error_fields(e))
+        _emit_error(console, json_output=json_output, message=str(e), extra=_structured_error_fields(e), code=_error_code(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
         _emit_error(console, json_output=json_output, message=str(e), unexpected=True)

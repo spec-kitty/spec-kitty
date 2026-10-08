@@ -38,6 +38,7 @@ from typing import Any
 
 from charter.offering.drg.loader import load_graph_or_dir
 from charter.offering.drg.models import DRGGraph
+from kernel.charter_pack_paths import resolve_project_pack_read_root
 
 from .manifest import (
     MANIFEST_PATH,
@@ -231,7 +232,8 @@ def run(
         ``.kittify/charter/provenance/``.
     merged_drg:
         The merged built-in+project DRG graph dict.  If None, loaded from
-        ``.kittify/doctrine`` and the built-in DRG.
+        the project charter pack root (``.kittify/charter-packs``) and the
+        built-in DRG.
     interview_sections:
         Known interview section labels.  If None, inferred from
         ``request.interview_snapshot`` keys.
@@ -367,7 +369,7 @@ def run(
             org_drg=org_drg,
             warnings_out=reference_warnings,
         )
-        existing_graph_dir = _repo_root / _KITTIFY_DIRNAME / "doctrine"
+        existing_graph_dir = resolve_project_pack_read_root(_repo_root, quiet=True)
         project_graph = updated_overlay
         if existing_graph_dir.exists():
             project_graph = _merge_project_overlay(
@@ -450,7 +452,7 @@ def _load_project_artifacts_from_provenance(
 
 def _load_project_graph_labels(repo_root: Path) -> dict[str, str]:
     """Return existing project graph labels keyed by URN, best-effort."""
-    project_graph_dir = repo_root / _KITTIFY_DIRNAME / "doctrine"
+    project_graph_dir = resolve_project_pack_read_root(repo_root, quiet=True)
     if not project_graph_dir.exists():
         return {}
     try:
@@ -479,7 +481,7 @@ def _load_merged_drg(
     # annotation keeps the two fallbacks strictly typed under both whole-package
     # and per-file checking, and de-duplicates the three snapshot reads below.
     snapshot: Mapping[str, Any] = request.drg_snapshot
-    project_graph_dir = repo_root / _KITTIFY_DIRNAME / "doctrine"
+    project_graph_dir = resolve_project_pack_read_root(repo_root, quiet=True)
     if not project_graph_dir.exists():
         return snapshot
 

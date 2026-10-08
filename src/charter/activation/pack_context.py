@@ -37,7 +37,7 @@ from charter.offering.artifact_kinds import ArtifactKind
 
 __all__ = [
     "ActivationReachabilityPartition",
-    "CharterPackConfigError",
+    "ActiveCharterConfigError",
     "PackContext",
     "charter_activated_urns",
     "explicit_activated_skills",
@@ -60,11 +60,15 @@ _ACTIVATION_KEY_PREFIX = "activated_"
 _CHARTER_POINTER_KEY = "charter"
 
 
-class CharterPackConfigError(KittyInternalConsistencyError):
-    """Raised when ``.kittify/config.yaml`` has invalid charter pack shape."""
+class ActiveCharterConfigError(KittyInternalConsistencyError):
+    """Raised when the active charter configuration has an invalid shape.
+
+    The active charter configuration is ``.kittify/config.yaml`` or the
+    ``charter.yaml`` it points to (#3732, ADR 2026-10-06-1 section 1).
+    """
 
     def __init__(self, body: str) -> None:
-        super().__init__("CHARTER_PACK_CONFIG_INVALID", body)
+        super().__init__("ACTIVE_CHARTER_CONFIG_INVALID", body)
 
 
 # ---------------------------------------------------------------------------
@@ -225,7 +229,7 @@ class PackContext:
 
         Raises
         ------
-        CharterPackConfigError
+        ActiveCharterConfigError
             When an activation key has an invalid shape (e.g. a non-list
             value), or a ``charter:`` pointer is dangling / unreadable.
             An absent ``mission_type_activations`` key is NOT an error
@@ -291,11 +295,11 @@ def _yaml_loader() -> YAML:
     return yaml
 
 
-def _config_error(message: str) -> CharterPackConfigError:
-    return CharterPackConfigError(
+def _config_error(message: str) -> ActiveCharterConfigError:
+    return ActiveCharterConfigError(
         f"{message}\nRemediation: fix .kittify/config.yaml (or the charter.yaml "
         f"it points to) or run `spec-kitty upgrade` to restore the default "
-        f"charter pack shape."
+        f"active charter shape."
     )
 
 
@@ -722,7 +726,7 @@ def explicit_activated_skills(repo_root: Path) -> frozenset[str] | None:
 
     Unlike :attr:`PackContext.activated_skills` this never applies the absent-key
     default (the org-required set), so a caller can tell "the project lists these
-    skills" from "the org packs decide". Raises :class:`CharterPackConfigError` on a
+    skills" from "the org packs decide". Raises :class:`ActiveCharterConfigError` on a
     non-list value, exactly as :meth:`PackContext.from_config` does.
     """
     return _read_list_key(_load_charter_activation_source(repo_root, _load_config(repo_root)), "activated_skills")

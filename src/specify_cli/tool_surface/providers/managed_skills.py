@@ -1,6 +1,6 @@
-"""Managed doctrine-skill surface provider.
+"""Managed charter-skill surface provider.
 
-Wraps the existing managed doctrine-skill infrastructure
+Wraps the existing managed charter-skill infrastructure
 (:mod:`specify_cli.skills.registry` and :mod:`specify_cli.skills.verifier`) as a
 reporting-layer
 :class:`~specify_cli.tool_surface.providers.protocol.ReportingSurfaceProvider`.
@@ -9,12 +9,12 @@ Default repair consumes the installer's coordinated global/project preparation.
 The verifier's legacy count-based repair collaborator remains injectable, but
 ambiguous partial counts never become invented successful surface identities.
 
-Doctrine skills are distinct from command skills:
+Charter skills are distinct from command skills:
 
 * Command skills are slash-command invocations rendered to
   ``.agents/skills/spec-kitty.<command>/SKILL.md`` and tracked in
   ``.kittify/command-skills-manifest.json``.
-* Doctrine skills are managed knowledge/mission-step surfaces installed by the
+* Charter skills are managed knowledge/mission-step surfaces installed by the
   skill installer and tracked in ``.kittify/skills-manifest.json``.
 
 The provider never reimplements the installer's hash/symlink/path-traversal
@@ -81,7 +81,7 @@ logger = logging.getLogger(__name__)
 
 PROVIDER_KEY = "managed_skills"
 _PATH_PATTERN = ".kittify/skills-manifest.json:{installed_path}"
-_REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind doctrine-skill --fix"
+_REPAIR_HINT = "spec-kitty doctor tool-surfaces --kind charter-skill --fix"
 _PAIRED_GLOBAL: ContextVar[OwnerAssessment | None] = ContextVar("paired_skill_global", default=None)
 _PROVISIONING_PAIR: ContextVar[skill_installer.SkillInstallationAssessment | None] = ContextVar(
     "provisioning_skill_pair", default=None,
@@ -216,9 +216,9 @@ class _RepairProto(Protocol):
 
 
 def managed_skill_definition() -> SurfaceDefinition:
-    """Return the built-in doctrine-skill :class:`SurfaceDefinition`."""
+    """Return the built-in charter-skill :class:`SurfaceDefinition`."""
     return SurfaceDefinition(
-        kind=ToolSurfaceKind.DOCTRINE_SKILL,
+        kind=ToolSurfaceKind.CHARTER_SKILL,
         source_kind=SourceKind.GENERATED,
         install_scope=InstallScope.PROJECT,
         path_pattern=_PATH_PATTERN,
@@ -230,7 +230,7 @@ def managed_skill_definition() -> SurfaceDefinition:
 
 
 class ManagedSkillsProvider:
-    """Provider for managed doctrine-skill surfaces."""
+    """Provider for managed charter-skill surfaces."""
 
     provider_key = PROVIDER_KEY
 
@@ -258,7 +258,7 @@ class ManagedSkillsProvider:
         self._legacy_collaborators = verifier is not None or installer is not None
 
     def can_handle(self, definition: SurfaceDefinition) -> bool:
-        return definition.kind is ToolSurfaceKind.DOCTRINE_SKILL
+        return definition.kind is ToolSurfaceKind.CHARTER_SKILL
 
     def compose_installation(
         self,
@@ -441,12 +441,12 @@ class ManagedSkillsProvider:
         tool_key: str,
         project_root: Path,
     ) -> list[SurfaceInstance]:
-        """Expand into one instance per managed doctrine skill for ``tool_key``.
+        """Expand into one instance per managed charter skill for ``tool_key``.
 
         The registry is policy and the manifest is state. Manifest entries for
         ``tool_key`` carry installed hashes when present; otherwise the canonical
         registry still supplies the expected project paths so fresh clones report
-        repairable missing doctrine skills instead of silently returning no
+        repairable missing charter skills instead of silently returning no
         surfaces.
         """
         manifest = load_manifest(project_root)
@@ -511,7 +511,7 @@ class ManagedSkillsProvider:
                 make_finding(
                     GENERATED_SURFACE_MISSING,
                     SEVERITY_ERROR,
-                    f"Managed doctrine skill for {instance.owner} is missing: "
+                    f"Managed charter skill for {instance.owner} is missing: "
                     f"{instance.path}",
                     tool_key=instance.owner,
                     surface_id=_surface_id(instance),
@@ -530,7 +530,7 @@ class ManagedSkillsProvider:
                 make_finding(
                     MANAGED_FILE_DRIFT,
                     SEVERITY_WARNING,
-                    f"Managed doctrine skill drifted from manifest hash: "
+                    f"Managed charter skill drifted from manifest hash: "
                     f"{instance.path}",
                     tool_key=instance.owner,
                     surface_id=_surface_id(instance),
@@ -541,9 +541,9 @@ class ManagedSkillsProvider:
         )
 
     def remove(self, instance: SurfaceInstance) -> bool:
-        """Doctrine-skill removal is not in scope for the surface contract.
+        """Charter-skill removal is not in scope for the surface contract.
 
-        Managed doctrine skills are removed per-agent by the dedicated skill
+        Managed charter skills are removed per-agent by the dedicated skill
         installer flow (``agent config remove``/skill uninstall), which owns the
         symlink and shared-root ref-count safety logic. This provider therefore
         never deletes them as part of surface repair and returns ``False`` to
@@ -748,7 +748,7 @@ class GlobalSkillAssetsProvider(ManagedSkillsProvider):
         return apply_assets(assessment, explicit_consent)
 
 
-def doctrine_skill_entries(
+def charter_skill_entries(
     project_root: Path, tool_key: str
 ) -> list[ManagedFileEntry]:
     """Return the manifest entries owned by ``tool_key`` (helper for tests)."""
@@ -760,7 +760,7 @@ def doctrine_skill_entries(
 
 def _managed_surface_id(tool_key: str, entry: ManagedFileEntry) -> str:
     safe_path = entry.source_file.replace("/", ".").replace("\\", ".")
-    return f"{tool_key}.{ToolSurfaceKind.DOCTRINE_SKILL}.{entry.skill_name}.{safe_path}"
+    return f"{tool_key}.{ToolSurfaceKind.CHARTER_SKILL}.{entry.skill_name}.{safe_path}"
 
 
 def _manifest_owns(project_root: Path, instance: SurfaceInstance) -> bool:
@@ -787,7 +787,7 @@ SurfaceProviderRegistry.register(
     SurfaceRegistration(
         provider_class=ManagedSkillsProvider,
         definitions=(managed_skill_definition(),),
-        kind_tokens={"doctrine-skill": ToolSurfaceKind.DOCTRINE_SKILL},
+        kind_tokens={"charter-skill": ToolSurfaceKind.CHARTER_SKILL},
         order=40,
     )
 )

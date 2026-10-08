@@ -1,8 +1,9 @@
 """Shared ``charter.yaml`` write helper — INV-9 (WP01 / T003).
 
 Three independent writers mutate ``charter.yaml``: ``activation_engine.
-commit_plan`` (activation), ``pack_manager.merge_defaults`` (absent-key
-seed), and ``compiler.write_compiled_charter`` (catalog/metadata). None of
+commit_plan`` (activation), ``pack_manager.prepare_activation_write``
+(activation keys set or removed, e.g. by ``charter activate --preset``), and
+``compiler.write_compiled_charter`` (catalog/metadata). None of
 them may clobber the sections they don't own — that is the #2772 clobber
 reborn one level down, on a *tracked* file (data-model.md Landmine 3 /
 alphonso MAJOR-3). Routing all three through this ONE
@@ -19,7 +20,7 @@ from __future__ import annotations
 
 import functools
 import copy
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 import hashlib
 from io import StringIO
@@ -385,6 +386,22 @@ def _bound_entry_comment(token: Any, start: int, end: int) -> bool:
     return True
 
 
+def _deleted_entry_end(text: str, start: int, end: int) -> int:
+    """Extend a deleted entry's span over its own line break.
+
+    A block entry's span already ends at the next line; a flow-style value
+    (``key: [a, b]``) or a scalar ends before its line break, which would leave
+    a blank line behind. Only a break that closes the entry's own line(s) is
+    taken: the entry must start a line and nothing but blanks may follow it.
+    """
+    if end == 0 or text[end - 1] in "\r\n" or (start and text[start - 1] != "\n"):
+        return end
+    newline = text.find("\n", end)
+    if newline < 0 or text[end:newline].strip():
+        return end
+    return newline + 1
+
+
 def _render_mapping_document(text: str, original: Any, document: Any, yaml: YAML) -> str:
     node = _yaml_loader().compose(text)
     if not isinstance(original, dict) or not isinstance(node, MappingNode):
@@ -404,6 +421,8 @@ def _render_mapping_document(text: str, original: Any, document: Any, yaml: YAML
             continue
         if key not in desired_keys and node.flow_style:
             raise ValueError("Cannot preserve deletion from flow-style YAML root")
+        if key not in desired_keys:
+            end = _deleted_entry_end(text, start, end)
         replacement = rendered[slice(*replacements[key])] if key in desired_keys else ""
         if replacement and end and text[end - 1] in "\r\n":
             replacement = replacement.rstrip("\r\n") + ("\r\n" if text[:end].endswith("\r\n") else "\n")
@@ -609,13 +628,38 @@ def _validate_section(section: str, values: dict[str, Any]) -> None:
             raise ValueError(f"Unknown activation key(s): {unknown_keys}")
 
 
+def _validate_removals(section: str, remove: tuple[str, ...]) -> None:
+    """Removal is an ``activation``-section operation over known activation keys only."""
+    if not remove:
+        return
+    if section != "activation":
+        raise ValueError(f"remove= is only supported for the 'activation' section, not {section!r}")
+    unknown_keys = sorted(set(remove) - set(_activation_keys()))
+    if unknown_keys:
+        raise ValueError(f"Unknown activation key(s): {unknown_keys}")
+
+
 def prepare_charter_yaml_section(
     path: Path,
     section: str,
     values: dict[str, Any],
+    *,
+    remove: Iterable[str] = (),
 ) -> PreparedYamlWrite:
-    """Validate and prepare one owned section without any filesystem mutation."""
+    """Validate and prepare one owned section without any filesystem mutation.
+
+    *remove* names activation keys to delete from the document (``activation``
+    section only; any other section with a non-empty *remove* is a
+    ``ValueError``). A key both set in *values* and named in *remove* is a
+    ``ValueError``. Removing an absent key is a no-op, so an unchanged document
+    renders to the same bytes.
+    """
+    removals = tuple(dict.fromkeys(remove))
     _validate_section(section, values)
+    _validate_removals(section, removals)
+    overlap = sorted(set(removals) & set(values))
+    if overlap:
+        raise ValueError(f"Activation key(s) both written and removed: {overlap}")
     before = observe_yaml_input(path)
     if before.content is None:
         raise FileNotFoundError(path)
@@ -628,6 +672,8 @@ def prepare_charter_yaml_section(
     for key, value in changes.items():
         if key not in document or document[key] != value:
             document[key] = copy.deepcopy(value)
+    for key in removals:
+        document.pop(key, None)
     desired = render_yaml_document(before.content, document, _yaml_loader())
     return prepare_yaml_write(path, desired, section=section, inputs=(before,))
 
@@ -636,8 +682,9 @@ def update_charter_yaml_section(path: Path, section: str, values: dict[str, Any]
     """Load ``charter.yaml`` -> mutate ONE owned section -> round-trip save.
 
     This is the ONLY writer path ``activation_engine.commit_plan``,
-    ``pack_manager.merge_defaults``, and ``compiler.write_compiled_charter``
-    use (INV-9). Every top-level key outside the named section is preserved
+    ``pack_manager.prepare_activation_write`` (through
+    :func:`prepare_charter_yaml_section`), and
+    ``compiler.write_compiled_charter`` use (INV-9). Every top-level key outside the named section is preserved
     byte-for-byte (formatting, comments, key order) because the document is
     loaded and re-dumped in ruamel round-trip mode without touching those
     keys.
@@ -655,9 +702,9 @@ def update_charter_yaml_section(path: Path, section: str, values: dict[str, Any]
         top-level key (the section is replaced wholesale). For the
         ``"activation"`` pseudo-section, a mapping of ``{activated_<kind>
         key: new_value}`` — only the keys present in ``values`` are
-        written, so a caller may update a single activation kind (e.g.
-        ``pack_manager.merge_defaults`` filling one absent key) without
-        touching the other nine.
+        written, so a caller may update a single activation kind without
+        touching the others. Removing keys is done through
+        :func:`prepare_charter_yaml_section`'s ``remove=`` keyword.
 
     Raises
     ------

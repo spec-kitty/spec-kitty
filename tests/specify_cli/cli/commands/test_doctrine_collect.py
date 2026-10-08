@@ -82,7 +82,7 @@ def test_summarize_org_charter_module_unavailable(monkeypatch: pytest.MonkeyPatc
     real_import = builtins.__import__
 
     def _fake_import(name: str, *a: Any, **k: Any) -> Any:
-        if name == "specify_cli.doctrine.org_charter":
+        if name == "charter.activation.org_charter":
             raise ImportError("not shipped")
         return real_import(name, *a, **k)
 

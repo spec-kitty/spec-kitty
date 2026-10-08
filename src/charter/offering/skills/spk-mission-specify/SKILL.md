@@ -14,10 +14,10 @@ Use this skill when creating or revising a mission specification.
    criteria.
 3. Keep unresolved product decisions explicit instead of hiding them in plan
    details.
-4. If terminology matters, route to `spk-doctrine-glossary`.
-5. If governance affects scope, route to `spk-doctrine-charter`.
+4. If terminology matters, route to `spk-charter-glossary`.
+5. If governance affects scope, route to `spk-charter-governance`.
 6. When a non-trivial user flow, domain lifecycle, rule, or concept boundary is
-   clearer visually, load `spk-doctrine-show-me` and add the smallest useful
+   clearer visually, load `spk-practice-show-me` and add the smallest useful
    diagram. Keep implementation choices out of the specification.
 
 ## Output Standard
