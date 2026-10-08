@@ -40,7 +40,7 @@ pytestmark = [pytest.mark.unit]
 @dataclass
 class _ScopeFilteredRepository:
     """Minimal raw-repository double: one id, scope-filtered, with a real
-    active-language set -- mirrors ``BaseDoctrineRepository``'s
+    active-language set -- mirrors ``BaseArtifactRepository``'s
     ``scope_filtered_ids``/``_active_languages`` shape closely enough for
     ``_diagnose_catalog_miss`` to route to ``classify_scope_filtered_miss``.
     """

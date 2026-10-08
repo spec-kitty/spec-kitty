@@ -91,7 +91,7 @@ class _StubRepository:
     """Minimal raw-repository double.
 
     ``.get(id)`` resolves only ids in *known*; everything else misses.
-    *scope_filtered_ids* mirrors ``BaseDoctrineRepository.scope_filtered_ids``
+    *scope_filtered_ids* mirrors ``BaseArtifactRepository.scope_filtered_ids``
     -- when a missing id is a member, the future classify-and-placeholder
     helper (``_diagnose_catalog_miss``) will route it to ``SCOPE_FILTERED``
     instead of ``MISSING_ARTIFACT``/``TYPO_SUSPECTED``.

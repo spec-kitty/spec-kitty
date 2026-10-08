@@ -1,4 +1,4 @@
-"""Unit tests for BaseDoctrineRepository three-layer loading (T010).
+"""Unit tests for BaseArtifactRepository three-layer loading (T010).
 
 Tests verify:
 - shipped-only loads with provenance 'builtin'

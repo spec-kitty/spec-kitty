@@ -48,7 +48,7 @@ pytestmark = pytest.mark.fast
 
 
 class _StubRepo:
-    """Minimal repository stub mirroring ``BaseDoctrineRepository.get``."""
+    """Minimal repository stub mirroring ``BaseArtifactRepository.get``."""
 
     def __init__(self, items: dict[str, Any] | None = None) -> None:
         self._items = items or {}

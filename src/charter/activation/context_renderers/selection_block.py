@@ -397,7 +397,7 @@ def _collect_org_source_map(
     (R-3 mitigation: ``Provenance source map computed N times per build``).
 
     The repository tracks provenance as one of ``"builtin"`` / ``"org"`` /
-    ``"project"`` (see :meth:`charter.offering.base.BaseDoctrineRepository.get_provenance`);
+    ``"project"`` (see :meth:`charter.offering.base.BaseArtifactRepository.get_provenance`);
     today there is no per-pack attribution at the repository layer.  When
     that lands, the value here will gain pack-name semantics — for now
     we use an empty-string sentinel so the suffix collapses to

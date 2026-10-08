@@ -562,7 +562,7 @@ class TestPackContextProjection:
         ``project`` layer -- not a field-merged inherit of the org-layer's
         populated value (spec.md Edge Cases, full per-compound-key
         replacement -- MissionTypeRepository does not inherit
-        BaseDoctrineRepository, so the field-merge ADR
+        BaseArtifactRepository, so the field-merge ADR
         ``docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`` does
         not govern it) and not a silent resolve to ``[]`` (CL-003/FR-004,
         closed by WP06).
@@ -930,7 +930,7 @@ class TestOrgTierGovernanceProfileThreading:
         ``resolve_org_dirs``) into ``MissionTypeProfileRepository.for_project``,
         so an ordering regression here would be this WP's own fault, not a
         pre-existing one — hence the explicit two-pack fixture rather than
-        relying solely on the generic ``resolve_org_dirs``/``BaseDoctrineRepository``
+        relying solely on the generic ``resolve_org_dirs``/``BaseArtifactRepository``
         coverage elsewhere.
         """
         _git_init_minimal(tmp_path)

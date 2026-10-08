@@ -10,7 +10,7 @@ suppression.
 
 Every concrete doctrine repository already satisfies this Protocol
 structurally, with no repository-side changes required:
-:class:`charter.offering.base.BaseDoctrineRepository` (the shared base class for
+:class:`charter.offering.base.BaseArtifactRepository` (the shared base class for
 ``DirectiveRepository``, ``TacticRepository``, ``StyleguideRepository``, and
 friends) already implements ``get(item_id: str) -> T | None`` and
 ``get_provenance(item_id: str) -> str | None`` (``src/charter/offering/base.py``).

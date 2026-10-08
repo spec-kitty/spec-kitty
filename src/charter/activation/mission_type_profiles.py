@@ -127,7 +127,7 @@ class MissionTypeProfile(BaseModel):
 
     Overlay identity (``id``)
     -------------------------
-    ``BaseDoctrineRepository`` (``doctrine/base.py``) keys every overlay on the
+    ``BaseArtifactRepository`` (``doctrine/base.py``) keys every overlay on the
     raw YAML ``id`` field and **skips id-less overlay files** (``base.py:249``),
     so a project override at
     ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` only

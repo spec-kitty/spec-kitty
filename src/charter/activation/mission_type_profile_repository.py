@@ -38,7 +38,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from charter.activation.mission_type_profiles import MissionTypeProfile
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 from charter.offering.pack_paths import built_in_missions_root as _pack_paths_built_in_missions_root
 from kernel.charter_pack_paths import project_pack_root
 
@@ -70,7 +70,7 @@ def builtin_missions_root() -> Path:
     return _pack_paths_built_in_missions_root()
 
 
-class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
+class MissionTypeProfileRepository(BaseArtifactRepository[MissionTypeProfile]):
     """Load mission-type governance profiles through the builtin → org → project overlay.
 
     Both the shipped and project layers nest each profile under a per-type
@@ -103,7 +103,7 @@ class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
         The project overlay is
         ``<repo_root>/.kittify/charter-packs/mission_types/<type>/governance-profile.yaml``.
         The directory need not exist — an absent overlay simply yields the
-        shipped baseline (see :meth:`~charter.offering.base.BaseDoctrineRepository._load`).
+        shipped baseline (see :meth:`~charter.offering.base.BaseArtifactRepository._load`).
         """
         return cls(
             org_dirs=org_dirs,

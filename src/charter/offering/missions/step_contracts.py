@@ -26,7 +26,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ruamel.yaml import YAML
 
 from charter.offering.artifact_kinds import ArtifactKind
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 
 __all__ = [
     "DelegatesTo",
@@ -160,7 +160,7 @@ class MissionStepContract(BaseModel):
         return self
 
 
-class MissionStepContractRepository(BaseDoctrineRepository[MissionStepContract]):
+class MissionStepContractRepository(BaseArtifactRepository[MissionStepContract]):
     """Repository for loading and managing mission step contract YAML files.
 
     Two-source loading (built-in + project) with field-level merge

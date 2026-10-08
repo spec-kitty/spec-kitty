@@ -11,7 +11,7 @@ inherently unexecutable (coverage cannot run a body that is never invoked).
 
 These tests pin the module's importable public surface -- the ``__all__``
 export and the two method names every concrete doctrine repository (e.g.
-``BaseDoctrineRepository`` in ``src/charter/offering/base.py``) must keep exposing --
+``BaseArtifactRepository`` in ``src/charter/offering/base.py``) must keep exposing --
 without instantiating the Protocol or faking a repository that "implements"
 it (structural typing needs no such thing).
 """

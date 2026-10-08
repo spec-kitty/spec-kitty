@@ -5,7 +5,7 @@ walk a built-in YAML directory (rglob), optionally walk an org override
 directory (glob), optionally walk a project override directory (glob),
 parse each file with Pydantic ``model_validate``, merge overrides into
 built-in instances at field level, and warn on bad files.
-``BaseDoctrineRepository[T]`` captures that pattern once.
+``BaseArtifactRepository[T]`` captures that pattern once.
 
 The loading order is: built-in → org → project, where each subsequent layer
 can override or add artifacts from the previous layers.
@@ -82,7 +82,7 @@ def _emit_collision_warning(
     )
 
 
-class BaseDoctrineRepository(ABC, Generic[T]):
+class BaseArtifactRepository(ABC, Generic[T]):
     """Abstract base for all doctrine asset repositories.
 
     Provides the three-source loading pattern (built-in rglob + org glob + project glob)
@@ -453,4 +453,4 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         return frozenset(self._scope_filtered_ids)
 
 
-__all__ = ["BaseDoctrineRepository"]
+__all__ = ["BaseArtifactRepository"]

@@ -97,7 +97,7 @@ def _write_partial_pack_tactic(
 class TestMergeDirectInvariants:
     """Lock the field-merge behaviour at the Python-API level.
 
-    Operates on an in-memory ``BaseDoctrineRepository`` subclass behaviour by
+    Operates on an in-memory ``BaseArtifactRepository`` subclass behaviour by
     calling ``TacticRepository._merge`` directly. This keeps the test focused
     on the merge contract, not on YAML I/O.
     """

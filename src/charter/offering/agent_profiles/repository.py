@@ -332,7 +332,7 @@ class AgentProfileRepository:
         schema validation, but its ``applies_to_languages`` field did
         not overlap with the active language set configured at
         construction time. Parity with
-        :class:`charter.offering.base.BaseDoctrineRepository`'s property
+        :class:`charter.offering.base.BaseArtifactRepository`'s property
         of the same name (FR-013): the catalog-miss diagnosis
         (:func:`charter.activation.context_renderers.catalog_diagnosis._diagnose_catalog_miss`)
         reads this set so a present-but-scoped profile surfaces
@@ -547,7 +547,7 @@ class AgentProfileRepository:
             # one that never existed, so a charter-selected profile
             # that ``agent profile list`` reports available was
             # diagnosed ``MISSING_ARTIFACT``. Parity with
-            # ``BaseDoctrineRepository.scope_filtered_ids`` (FR-013).
+            # ``BaseArtifactRepository.scope_filtered_ids`` (FR-013).
             self._scope_filtered_ids.add(profile_id)
             return None
 

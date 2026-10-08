@@ -3,7 +3,7 @@
 An :class:`~charter.offering.assets.models.AssetManifest` (``*.asset.yaml`` sidecar)
 names a blob by ``path`` relative to its pack's ``assets/`` root. This
 repository loads those manifests across the built-in, organisation and project
-tiers (via :class:`~charter.offering.base.BaseDoctrineRepository`) and resolves an
+tiers (via :class:`~charter.offering.base.BaseArtifactRepository`) and resolves an
 asset identifier to the on-disk blob path, fail-closed.
 
 Two traps the base class does not handle for this kind, addressed here:
@@ -29,7 +29,7 @@ from pathlib import Path
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.assets.models import AssetManifest
 from charter.offering.pack_paths import built_in_dir
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 from charter.offering.drg.org_pack_config import (
     OrgPackSubdirEscapeError,
     resolve_relative_path_within_root,
@@ -75,7 +75,7 @@ class AssetPathEscapeError(AssetResolutionError):
         )
 
 
-class AssetRepository(BaseDoctrineRepository[AssetManifest]):
+class AssetRepository(BaseArtifactRepository[AssetManifest]):
     """Three-tier repository resolving asset ids to on-disk blob paths."""
 
     def __init__(

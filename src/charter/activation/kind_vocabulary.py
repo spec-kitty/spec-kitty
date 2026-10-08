@@ -180,7 +180,7 @@ def _scan_roots(
     The flat entry's ``recursive`` flag is sourced from the single shared
     recursion authority :func:`charter.offering.discovery_recursion.overlay_scan_is_recursive`
     -- the same authority the live loader consults
-    (:meth:`charter.offering.base.BaseDoctrineRepository._project_scan`, which now
+    (:meth:`charter.offering.base.BaseArtifactRepository._project_scan`, which now
     recurses unconditionally for every kind's org/project overlay, and
     :meth:`charter.offering.agent_profiles.repository.AgentProfileRepository._load`).
     So the resolver and the loader recurse identically for **every** kind
@@ -243,7 +243,7 @@ def _org_scan_dirs(kind: ArtifactKind, org_roots: list[Path] | None) -> list[tup
     **Recursion is sourced from the shared authority (#3426 closed).** The
     flat entry's ``recursive`` flag comes from
     :func:`doctrine.discovery_recursion.overlay_scan_is_recursive` -- the same
-    single authority the live loader (``BaseDoctrineRepository._project_scan``
+    single authority the live loader (``BaseArtifactRepository._project_scan``
     and ``AgentProfileRepository._load``) consults -- so the resolver and the
     loader recurse identically for every kind (unconditional per C-001). This
     closes the prior list-vs-activate divergence: a ``styleguide`` (or any

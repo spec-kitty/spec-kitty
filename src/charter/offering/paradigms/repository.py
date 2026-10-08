@@ -9,12 +9,12 @@ from ruamel.yaml import YAML
 
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.pack_paths import built_in_dir
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 from .models import Paradigm
 from .validation import reject_paradigm_inline_refs
 
 
-class ParadigmRepository(BaseDoctrineRepository[Paradigm]):
+class ParadigmRepository(BaseArtifactRepository[Paradigm]):
     """Repository for loading and managing paradigm YAML files."""
 
     def __init__(

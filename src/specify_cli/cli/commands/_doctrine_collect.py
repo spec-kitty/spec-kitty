@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     )
 
 #: Parses the fixed ``"Skipping invalid <layer> <kind> <file>: <reason>"``
-#: shape ``charter.offering.base.BaseDoctrineRepository`` emits on an unloadable
+#: shape ``charter.offering.base.BaseArtifactRepository`` emits on an unloadable
 #: glossary-pack file (``_load_built_in_items`` / ``_apply_overlay_layer``).
 #: ``re.DOTALL`` so a multi-line pydantic ``ValidationError`` reason is
 #: captured in full, not truncated at the first newline.
@@ -293,7 +293,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
 def _parse_skipped_glossary_pack_warning(message: object) -> SkippedGlossaryPack:
     """Turn one captured ``UserWarning`` into a structured skip record.
 
-    ``BaseDoctrineRepository`` emits ``"Skipping invalid <layer> <kind> <file>:
+    ``BaseArtifactRepository`` emits ``"Skipping invalid <layer> <kind> <file>:
     <reason>"`` (see ``charter.offering.base._load_built_in_items`` /
     ``_apply_overlay_layer``); this parses that fixed shape rather than
     inventing a second diagnostic format. A message that doesn't match (the
@@ -320,7 +320,7 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     Sourced from ``DoctrineService``'s glossary-pack repository — the real
     production repository (WP02), not a re-implemented loader. Unlike
     ``AgentProfileRepository``, ``GlossaryPackRepository`` (a plain
-    ``BaseDoctrineRepository``) has no structured skip-diagnostics list: an
+    ``BaseArtifactRepository``) has no structured skip-diagnostics list: an
     unloadable pack file only ever surfaces as a ``UserWarning`` emitted
     during the repository's (lazy) ``_load()``. This collector captures those
     warnings during the first access to the repository and turns each into a
@@ -606,7 +606,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     (data-model.md "unfiltered-diagnostic contract") -- rather than
     constructing ``charter.offering.service.CharterOfferingService`` directly. Each gated
     property below still triggers the same eager, warning-emitting
-    repository ``_load()`` as the raw accessor did (``BaseDoctrineRepository.
+    repository ``_load()`` as the raw accessor did (``BaseArtifactRepository.
     __init__`` loads eagerly); only the return *value* is now a filtered
     ``dict`` (irrelevant here -- this loop only cares about the load
     side-effect, not the returned mapping).

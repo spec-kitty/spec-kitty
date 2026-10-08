@@ -49,7 +49,7 @@ def overlay_scan_is_recursive(kind: ArtifactKind | None) -> bool:
     kind by construction (FR-002).
 
     *kind* is ``None`` when a caller cannot map its scan to a canonical
-    :class:`ArtifactKind` — e.g. a :class:`~charter.offering.base.BaseDoctrineRepository`
+    :class:`ArtifactKind` — e.g. a :class:`~charter.offering.base.BaseArtifactRepository`
     subclass (or test stub) whose glob is not one of the canonical
     ``ArtifactKind.glob_pattern`` values. Such a scan still recurses: the policy
     is uniform (C-001), so an unmapped scan gets the same unconditional

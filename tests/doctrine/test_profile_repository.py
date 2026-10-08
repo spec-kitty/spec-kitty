@@ -356,7 +356,7 @@ specialization:
     ) -> None:
         """#4572: a language-scope drop is recorded, not silent.
 
-        Parity with ``BaseDoctrineRepository.scope_filtered_ids`` (FR-013):
+        Parity with ``BaseArtifactRepository.scope_filtered_ids`` (FR-013):
         the catalog-miss diagnosis reads this set so a present-but-scoped
         profile surfaces ``SCOPE_FILTERED`` instead of ``MISSING_ARTIFACT``.
         """
