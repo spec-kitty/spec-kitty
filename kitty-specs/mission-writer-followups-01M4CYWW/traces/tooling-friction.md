@@ -17,3 +17,5 @@ One entry per finding: `YYYY-MM-DD · actor · <text>`.
 2026-10-08 · claude-runtime · A -n 4 --dist loadfile sweep gave 'Unknown mission type None' failures in tests/integration/test_owned_next_runtime.py (3 tests) that pass serially on the same tree (26/26). Re-run serially before attributing a parallel-run failure to a change.
 
 2026-10-08 · claude-runtime · pytest collection takes about 2 minutes per invocation after test edits; the WP06 prompt named tests/doctrine/test_doctrine_regenerate_graph_roundtrip.py but the gate lives in tests/architectural/.
+
+2026-10-08 · claude-runtime · ruff --select I --fix rewrote unrelated imports during WP07 and had to be reverted; pytest fixture setup costs about 2 minutes per invocation.
