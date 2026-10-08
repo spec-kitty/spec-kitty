@@ -164,6 +164,7 @@
         "Stream B (runtime/templates) claimed for a parallel worktree at /home/user/sk-stream-runtime; operator chose parallel streams 2026-10-08",
         "Implementing in the stream-B worktree",
         "Forced only because the parallel-stream claim was recorded with move-task, so no claim base exists; implementation commits 717ef0738..24cba0fe8 are on the branch (ff-merged from stream/runtime). Terminal retrospective gate as the engine's before_run_completed hook on all three legacy paths; speculative rollback deleted; RetrospectiveGateRefused adapter; transition-only capture.",
+        "Stream B rework cycle 1 in the stream/runtime worktree",
         "Stream B rework cycle 1 in the stream/runtime worktree"
       ],
       "provider": "__resolved_provider_absent__",
