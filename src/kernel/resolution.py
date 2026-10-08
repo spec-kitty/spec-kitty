@@ -29,7 +29,7 @@ import os
 from pathlib import Path
 
 
-__all__ = ["resolve_rejecting_loops", "is_symlink_loop_error"]
+__all__ = ["resolve_rejecting_loops", "resolve_commit_path", "is_symlink_loop_error"]
 
 # Windows' `FSCTL_GET_REPARSE_POINT`-based resolution reports a symlink loop
 # as `winerror` 1921 ("The name of the file cannot be resolved by the
@@ -82,3 +82,42 @@ def resolve_rejecting_loops(path: Path) -> Path:
         # what non-strict resolve() semantics already tolerate.
 
     return resolved
+
+
+def _refuse_loop_leaf(leaf: Path) -> None:
+    """Raise ``OSError(ELOOP)`` if ``leaf`` is a link that loops; anything else is tolerated."""
+    try:
+        os.lstat(leaf)
+    except OSError:
+        return  # missing leaf: nothing to follow
+    try:
+        os.stat(leaf)
+    except OSError as probe_exc:
+        if is_symlink_loop_error(probe_exc):
+            raise _loop_error(leaf) from probe_exc
+        # Dangling or unreadable: a link git can still store as a blob.
+
+
+def resolve_commit_path(root: Path, path: Path) -> Path:
+    """Normalise a commit path: resolve its parents, keep the final component.
+
+    ``git`` stores a symlink as a blob (mode 120000) at the link's own path, so a
+    path handed to a commit must name the link, not its target (#5671). The
+    parent directories are resolved (``resolve_rejecting_loops``), the final
+    component is kept as given. Outcomes:
+
+    * a link leaf is kept (never followed), also when dangling;
+    * a looping leaf, or a loop in any parent, raises ``OSError(ELOOP)``;
+    * a symlinked directory is one path: the link itself;
+    * containment is NOT decided here. A path outside ``root`` is returned
+      normalised so the caller can ``relative_to`` it and fail.
+
+    A relative ``path`` is joined to ``root``. A path with no usable final
+    component (``docs/``, ``.``, ``..``) names a directory and is resolved whole.
+    """
+    candidate = path if path.is_absolute() else root / path
+    if candidate.name in ("", ".", ".."):
+        return resolve_rejecting_loops(candidate)
+    leaf = resolve_rejecting_loops(candidate.parent) / candidate.name
+    _refuse_loop_leaf(leaf)
+    return leaf

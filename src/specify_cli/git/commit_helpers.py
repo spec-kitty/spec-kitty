@@ -108,6 +108,7 @@ from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, Protect
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
 from kernel.git import GitCommandError, changed_paths
+from kernel.resolution import is_symlink_loop_error, resolve_commit_path
 from kernel.git_topology import (
     GitTopologyError,
     git_common_dir,
@@ -377,6 +378,28 @@ class SafeCommitPathPolicyError(SafeCommitError):
     def to_dict(self) -> dict[str, Any]:
         payload = super().to_dict()
         payload["offending_path"] = self.offending_path
+        return payload
+
+
+class SafeCommitPathLoopRefused(SafeCommitError):
+    """A requested path is (or sits under) a symlink loop (#5671 / #5251).
+
+    Raised before any index mutation. Still a ``RuntimeError`` through
+    :class:`SafeCommitError`, so callers that flatten ``RuntimeError`` keep working.
+    """
+
+    error_code = "SAFE_COMMIT_PATH_LOOP"
+
+    def __init__(self, *, offending_path: Path, worktree_root: Path) -> None:
+        super().__init__(
+            f"safe_commit: refusing symlink loop at {offending_path}",
+            worktree_root=worktree_root,
+        )
+        self.offending_path = offending_path
+
+    def to_dict(self) -> dict[str, Any]:
+        payload = super().to_dict()
+        payload["offending_path"] = str(self.offending_path)
         return payload
 
 
@@ -650,8 +673,12 @@ def _destination_ref_exists(worktree_root: Path, destination_ref: str) -> bool:
     return result.returncode == 0
 
 
-def _stage_requested_files(repo_path: Path, normalized_files: list[str]) -> bool:
-    """Stage each requested file via ``git add --force``. Returns False on failure."""
+def _stage_requested_files(repo_path: Path, normalized_files: list[str]) -> tuple[str, str] | None:
+    """Stage each requested file via ``git add --force``.
+
+    Returns ``None`` on success, else ``(path, git's stderr)`` for the first
+    path git refused (#4722).
+    """
     for file_path in normalized_files:
         add_result = subprocess.run(
             ["git", "add", "--force", "--", file_path],
@@ -663,8 +690,8 @@ def _stage_requested_files(repo_path: Path, normalized_files: list[str]) -> bool
             check=False,
         )
         if add_result.returncode != 0:
-            return False
-    return True
+            return file_path, add_result.stderr.strip()
+    return None
 
 
 def _staged_patch_for_paths(repo_path: Path, normalized_files: list[str]) -> str | None:
@@ -1043,6 +1070,16 @@ def _verify_expected_parent_tree_bytes(
             raise RuntimeError(f"safe_commit: staged blob for {path!r} differs from expected raw bytes; refusing expected-parent commit")
 
 
+def _resolve_commit_path_or_refuse(root: Path, candidate: Path, worktree_root: Path) -> Path:
+    """``resolve_commit_path`` with a looping path raised as the typed refusal."""
+    try:
+        return resolve_commit_path(root, candidate)
+    except OSError as exc:
+        if is_symlink_loop_error(exc):
+            raise SafeCommitPathLoopRefused(offending_path=candidate, worktree_root=worktree_root) from exc
+        raise
+
+
 def _normalize_expected_parent_path_bytes(
     worktree_root: Path,
     normalized_files: list[str],
@@ -1057,7 +1094,7 @@ def _normalize_expected_parent_path_bytes(
         candidate = Path(requested_path)
         if candidate.is_absolute():
             try:
-                candidate = candidate.resolve().relative_to(root)
+                candidate = _resolve_commit_path_or_refuse(root, candidate, worktree_root).relative_to(root)
             except ValueError as exc:
                 raise RuntimeError(f"safe_commit: expected raw-bytes path must be inside the worktree: {requested_path}") from exc
         if candidate.is_absolute() or ".." in candidate.parts:
@@ -1302,9 +1339,11 @@ def preflight_commit(
     for path in paths:
         candidate: Path = path
         if candidate.is_absolute():
-            # If the path is not under worktree_root, pass as-is.
+            # Parents resolved, final component kept: a symlink is committed as
+            # the link, never its target (#5671). If the path is not under
+            # worktree_root, pass as-is.
             with contextlib.suppress(ValueError):
-                candidate = candidate.resolve().relative_to(resolved_worktree_root)
+                candidate = _resolve_commit_path_or_refuse(resolved_worktree_root, candidate, worktree_root).relative_to(resolved_worktree_root)
         normalized_files.append(str(candidate))
 
     # 6a. Path policy: reject any path under .worktrees/ before staging.
@@ -1538,9 +1577,11 @@ def safe_commit(
     # independently re-stageable, matching the pre-fix behavior for this case.
     _unstage_requested_files(worktree_root, normalized_files)
 
-    if not _stage_requested_files(worktree_root, normalized_files):
+    stage_failure = _stage_requested_files(worktree_root, normalized_files)
+    if stage_failure is not None:
         _restore_staged_patch(worktree_root, normalized_files, requested_staged_patch, destination_ref=destination_ref)
-        raise RuntimeError(f"safe_commit: failed to stage requested files in {worktree_root}: {normalized_files!r}")
+        bad_path, git_reason = stage_failure
+        raise RuntimeError(f"safe_commit: failed to stage requested files in {worktree_root}: {bad_path!r}: {git_reason}")
 
     # 8-9. Commit ONLY the requested paths via `git commit --only`
     # (FR-011/FR-012/#4888): this is the structural fix. `--only` commits
