@@ -1,7 +1,7 @@
 {
-  "event_count": 175,
-  "last_event_id": "01M4DBG0QYQVD4WA5AK0M5BMM2",
-  "materialized_at": "2026-10-08T08:53:49.438511+00:00",
+  "event_count": 177,
+  "last_event_id": "01M4DCW07TQCAGMTZK6YS0ZFYJ",
+  "materialized_at": "2026-10-08T09:17:50.516262+00:00",
   "mission_number": "",
   "mission_slug": "charter-pack-cutover-01M491G6",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 7
+    "planned": 6
   },
   "work_packages": {
     "WP01": {
@@ -623,11 +623,20 @@
       }
     },
     "WP19": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "lexical-larry",
+      "agent_profile_version": "1.0",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M49BS0VSW2YVTQMP6TXG5E2H",
-      "last_transition_at": "2026-10-06T19:41:46.745346+00:00"
+      "implementer_of_record": "claude",
+      "lane": "in_progress",
+      "last_event_id": "01M4DCW07TQCAGMTZK6YS0ZFYJ",
+      "last_transition_at": "2026-10-08T09:17:50.516262+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 29324,
+      "shell_pid_created_at": "1791451031.32"
     },
     "WP20": {
       "actor": "finalize-tasks",
