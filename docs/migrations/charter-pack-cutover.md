@@ -2,6 +2,8 @@
 title: 'Migration: Charter Pack Cutover'
 description: 'Runbook for the charter pack cutover (#3732): run spec-kitty upgrade once, handle LEGACY_CHARTER_STATE and lanes in flight, update packs, and rewrite saved scripts.'
 doc_status: active
+type: how-to
+audience: docs/context/audience/external/project-owner.md
 updated: '2026-10-08'
 related:
 - docs/adr/4.x/2026-10-06-1-charter-offering-active-charter-and-activation-presets.md
