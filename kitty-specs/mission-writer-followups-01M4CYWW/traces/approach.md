@@ -19,3 +19,5 @@ One entry per finding: `YYYY-MM-DD · actor · <text>`.
 2026-10-08 · claude-runtime · WP05 red-first: a real-engine test injects a foreign append inside the gate on all three legacy paths (commit_advance, stale-plan next_step, no-plan next_step); 16 failed on 68857d82d, 22 passed after the fix, 5/5 repeats; dropping the hook argument from the next_step fallback fails 7 tests.
 
 2026-10-08 · claude-runtime · WP05 cycle 1: the B6 wrapper changed what the composition helper raises (raw error -> RetrospectiveGateRefused); two tests asserted the raw type and the first pass fixed only one. Grep for the exception type across all of tests, not only tests/runtime and tests/next.
+
+2026-10-08 · claude-runtime · WP07 red-first against a shimmed base: 26 of 33 analyze-step tests red (board override and query returned implement, the orchestrator-api wrapper did not inject the currency check, the CLI walk skipped analyze); a spy test shows the composed tasks advance is planned from the template DAG and cannot skip analyze.
