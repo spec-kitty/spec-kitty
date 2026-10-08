@@ -618,6 +618,37 @@ class TestNextCommandCLI:
         data = json.loads(result.stdout)
         assert data["mission_slug"] == "042-test-feature"
 
+    def test_next_honours_an_edited_pack_runtime_template(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """FR-018: ``spec-kitty next`` plans from the pack runtime template.
+
+        A copied pack root (``SPEC_KITTY_PACKS_ROOT``) whose software-dev runtime
+        template gains a new first step is honoured by the CLI entry; the old
+        built-in tier read ``specify_cli/missions`` and ignored it.
+        """
+        import shutil
+
+        import yaml
+
+        pack_copy = tmp_path / "packs-copy"
+        shutil.copytree(Path(__file__).resolve().parents[2] / "packs", pack_copy)
+        template_path = pack_copy / "built-in" / "missions" / "software-dev" / "mission-runtime.yaml"
+        raw = yaml.safe_load(template_path.read_text(encoding="utf-8"))
+        marker_step = {"id": "zz_pack_marker", "title": "Marker", "description": "Edited in the pack copy"}
+        raw["steps"][0]["depends_on"] = ["zz_pack_marker"]
+        raw["steps"].insert(0, marker_step)
+        template_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(pack_copy))
+
+        repo_root = _scaffold_project(tmp_path)
+        _write_command_templates(repo_root, ["zz_pack_marker"])
+        monkeypatch.chdir(repo_root)
+
+        result = runner.invoke(cli_app, ["next", "--mission", "042-test-feature", "--json"])
+
+        assert result.exit_code == 0, result.output
+        preview = json.loads(result.stdout)["preview_step"]
+        assert "zz_pack_marker" in json.dumps(preview)
+
     def test_invalid_result_flag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Invalid --result value causes exit code 1."""
         repo_root = _scaffold_project(tmp_path)
