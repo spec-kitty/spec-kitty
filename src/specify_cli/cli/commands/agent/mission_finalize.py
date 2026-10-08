@@ -165,6 +165,7 @@ from specify_cli.cli.commands.agent.mission_finalize_validation import (
 from specify_cli.cli.commands.agent.mission_finalize_bootstrap import (
     _BootstrapState as _BootstrapState,
     _apply_bootstrap_fields as _apply_bootstrap_fields,
+    _apply_finalize_delta as _apply_finalize_delta,
     _apply_ownership_inference as _apply_ownership_inference,
     _assert_no_write_in_validate_only as _assert_no_write_in_validate_only,
     _bootstrap_one_wp as _bootstrap_one_wp,
@@ -173,6 +174,7 @@ from specify_cli.cli.commands.agent.mission_finalize_bootstrap import (
     _emit_validate_only_report as _emit_validate_only_report,
     _enforce_charter_activation_gate as _enforce_charter_activation_gate,
     _flush_frontmatter_writes as _flush_frontmatter_writes,
+    _flush_one_frontmatter_write as _flush_one_frontmatter_write,
     _gather_validation_frontmatter as _gather_validation_frontmatter,
     _lane_computation_empty_input_error as _lane_computation_empty_input_error,
     _project_lane_inputs as _project_lane_inputs,
@@ -238,6 +240,9 @@ from specify_cli.cli.commands.agent.mission_finalize_lanes import (
 )
 from specify_cli.cli.commands.agent.mission_finalize_commit import (
     OwnedCheckoutCandidateOutsidePlanningError as OwnedCheckoutCandidateOutsidePlanningError,
+    WRITE_SCOPE_KEPT_WARNING as WRITE_SCOPE_KEPT_WARNING,
+    _META_CHANGED_BY_ANOTHER_WRITER as _META_CHANGED_BY_ANOTHER_WRITER,
+    _bytes_or_none as _bytes_or_none,
     _COORD_CANDIDATE_KINDS as _COORD_CANDIDATE_KINDS,
     _CommitOutcome as _CommitOutcome,
     _CoordCandidateDirt as _CoordCandidateDirt,
@@ -264,7 +269,9 @@ from specify_cli.cli.commands.agent.mission_finalize_commit import (
     _restore_status_surface as _restore_status_surface,
     _revert_unpersisted_target_branch_override as _revert_unpersisted_target_branch_override,
     _run_commit_pipeline as _run_commit_pipeline,
+    _report_write_scope_kept as _report_write_scope_kept,
     _snapshot_mission_write_scope as _snapshot_mission_write_scope,
+    _undo_finalize_write_scope as _undo_finalize_write_scope,
     _warn_missing_meta as _warn_missing_meta,
 )
 
@@ -735,6 +742,8 @@ class _FinalizeBranchSetup:
     meta_json_persisted: bool
     owned_derived_dir: Path | None
     owned_derived_snapshot: dict[Path, bytes]
+    #: The ``meta.json`` text this run wrote when it persisted the branch contract: what its revert compares against.
+    meta_written_text: str | None = None
 
 
 def _run_finalize_branch_setup(
@@ -791,6 +800,7 @@ def _run_finalize_branch_setup(
     mission_write_scope_dir: Path | None = None
     meta_path_for_revert: Path | None = None
     meta_original_text: str | None = None
+    meta_written_text: str | None = None
     target_branch_persist = TargetBranchPersistOutcome(persisted=False)
     owned_derived_dir: Path | None = None
     owned_derived_snapshot: dict[Path, bytes] = {}
@@ -822,6 +832,8 @@ def _run_finalize_branch_setup(
             invocation_identity=ctx.invocation_identity,
             json_output=json_output,
         )
+        if target_branch_persist.persisted and meta_path_for_revert.exists():
+            meta_written_text = meta_path_for_revert.read_text(encoding="utf-8")
     return _FinalizeBranchSetup(
         target_branch=target_branch,
         merge_target_branch=merge_target_branch,
@@ -833,6 +845,7 @@ def _run_finalize_branch_setup(
         meta_original_text=meta_original_text,
         target_branch_persist=target_branch_persist,
         meta_json_persisted=target_branch_persist.persisted,
+        meta_written_text=meta_written_text,
     )
 
 
@@ -1146,6 +1159,7 @@ def finalize_tasks(
     commit_landed = _FinalizeCommitLanded()
     meta_path_for_revert: Path | None = None
     meta_original_text: str | None = None
+    meta_written_text: str | None = None
     # FR-015/NFR-001: the write-then-restore atomicity guard (T070/T073;
     # operator decision on T072/T073, follow-up: #5343 -- a true plan/apply
     # split is NOT implemented). What a refused run is guaranteed to leave
@@ -1191,6 +1205,7 @@ def finalize_tasks(
     # the run's first status write; restored from the except handlers below.
     status_surface = StatusSurfaceGuard()
     status_leftover: StatusSurfaceLeftover | None = None
+    kept_files: list[Path] = []
     owned_derived_dir: Path | None = None
     owned_derived_snapshot: dict[Path, bytes] = {}
     # FR-007 (WP13 T074): bound before ``try`` so the except handlers below
@@ -1230,6 +1245,7 @@ def finalize_tasks(
         owned_derived_snapshot = branch_setup.owned_derived_snapshot
         meta_path_for_revert = branch_setup.meta_path_for_revert
         meta_original_text = branch_setup.meta_original_text
+        meta_written_text = branch_setup.meta_written_text
         target_branch_persist = branch_setup.target_branch_persist
         meta_json_persisted = branch_setup.meta_json_persisted
 
@@ -1417,6 +1433,7 @@ def finalize_tasks(
             meta_original_text,
             meta_json_persisted=meta_json_persisted,
             meta_commit_progress=meta_commit_progress,
+            written_text=meta_written_text,
         )
         # FR-015/NFR-001: only undo the mission-directory writes when the
         # finalize commit never landed. ``commit_landed`` (set inside
@@ -1426,15 +1443,19 @@ def finalize_tasks(
         # field excludes it. A LATER, unrelated failure after a real commit
         # must never unwind an already-durable finalize.
         if mission_write_scope_dir is not None and not commit_landed.landed:
-            status_leftover = _restore_status_surface(status_surface)
-            _restore_mission_write_scope_beside_status(status_surface, mission_write_scope_snapshot, mission_write_scope_dir)
-            if owned_derived_dir is not None:
-                _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
+            status_leftover, kept_files = _undo_finalize_write_scope(
+                status_surface,
+                mission_write_scope_snapshot,
+                mission_write_scope_dir,
+                owned_derived_snapshot=owned_derived_snapshot,
+                owned_derived_dir=owned_derived_dir,
+            )
         # SK3466-RR-003: the ORIGINAL error already emitted its own
         # diagnostic before raising typer.Exit above; this is a best-effort,
         # ADDITIONAL note if the meta.json revert itself also failed.
         _report_target_branch_revert_failure(revert_error, json_output=json_output)
         _report_status_surface_leftover(status_leftover, json_output=json_output)
+        _report_write_scope_kept(kept_files, json_output=json_output)
         raise
     except Exception as e:
         revert_error = _revert_unpersisted_target_branch_override(
@@ -1442,13 +1463,17 @@ def finalize_tasks(
             meta_original_text,
             meta_json_persisted=meta_json_persisted,
             meta_commit_progress=meta_commit_progress,
+            written_text=meta_written_text,
         )
         if mission_write_scope_dir is not None and not commit_landed.landed:
-            status_leftover = _restore_status_surface(status_surface)
-            _restore_mission_write_scope_beside_status(status_surface, mission_write_scope_snapshot, mission_write_scope_dir)
-            if owned_derived_dir is not None:
-                _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
-        _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output, status_leftover=status_leftover)
+            status_leftover, kept_files = _undo_finalize_write_scope(
+                status_surface,
+                mission_write_scope_snapshot,
+                mission_write_scope_dir,
+                owned_derived_snapshot=owned_derived_snapshot,
+                owned_derived_dir=owned_derived_dir,
+            )
+        _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output, status_leftover=status_leftover, kept_files=kept_files)
         raise typer.Exit(1) from None
     finally:
         _OWNED_ENVELOPE_EXTRAS.reset(envelope_token)

@@ -32,6 +32,7 @@ from mission_runtime import OwnedCheckout
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.ownership.models import OwnershipManifest
 from specify_cli.status import BootstrapResult, WPMetadata
+from specify_cli.status.mission_write import mission_write_lock
 
 if TYPE_CHECKING:
     from specify_cli.cli.commands.agent.mission_finalize_bootstrap import _BootstrapState
@@ -820,6 +821,13 @@ class _FinalizeCommitLanded:
     landed: bool = False
 
 
+#: The ``warning`` key of the note naming files the restore kept.
+WRITE_SCOPE_KEPT_WARNING = "write_scope_files_kept_changed_by_another_writer"
+
+#: The note for a ``meta.json`` the revert left alone because another writer changed it after this run wrote it.
+_META_CHANGED_BY_ANOTHER_WRITER = "{path} was changed by another writer after finalize-tasks wrote it; kept as is, not reverted"
+
+
 @dataclass
 class _MetaBranchOverrideProgress:
     """Mutable revert-safety marker for a persisted ``--target-branch`` write (SK3466-R-001).
@@ -847,6 +855,7 @@ def _revert_unpersisted_target_branch_override(
     *,
     meta_json_persisted: bool,
     meta_commit_progress: _MetaBranchOverrideProgress,
+    written_text: str | None = None,
 ) -> str | None:
     """Undo an applied-but-uncommitted ``--target-branch`` meta.json write (SK3466-R-001).
 
@@ -864,6 +873,11 @@ def _revert_unpersisted_target_branch_override(
     persisted``) AND it was never folded into the finalize commit
     (``not meta_commit_progress.committed``) AND the pre-write content was
     captured.
+
+    With *written_text* (the text this run wrote, mission-writer-followups plan A8) the
+    revert is a compare-and-swap inside the Mission write lock: it acts only while
+    ``meta.json`` still holds exactly that text, so another writer's later change is never
+    clobbered. When it changed, nothing is written and the returned string says so.
 
     Returns:
         ``None`` on success or on a no-op. A non-``None`` string
@@ -893,7 +907,7 @@ def _revert_unpersisted_target_branch_override(
         # byte-exact restore this call site always relied on; see its
         # docstring for why ``write_meta`` (re-serialize from a parsed dict)
         # cannot make that guarantee.
-        restore_meta_text(meta_path.parent, original_text)
+        restored = restore_meta_text(meta_path.parent, original_text, expected_current=written_text)
     except OSError as revert_exc:
         logger.warning(
             "SK3466-RR-003: failed to revert unpersisted target_branch override in %s: %s",
@@ -901,6 +915,8 @@ def _revert_unpersisted_target_branch_override(
             revert_exc,
         )
         return str(revert_exc)
+    if not restored:
+        return _META_CHANGED_BY_ANOTHER_WRITER.format(path=meta_path)
     return None
 
 
@@ -929,6 +945,7 @@ def _emit_finalize_error_with_revert_note(
     *,
     json_output: bool,
     status_leftover: StatusSurfaceLeftover | None = None,
+    kept_files: list[Path] | None = None,
 ) -> None:
     """Phase: emit finalize_tasks's terminal error, folding in a revert-failure note (SK3466-RR-003).
 
@@ -973,6 +990,9 @@ def _emit_finalize_error_with_revert_note(
         if status_leftover is not None:
             # #5641: one envelope on this path, like the meta.json revert note.
             error_payload["status_commits_not_undone"] = status_leftover.as_payload()
+        if kept_files:
+            # Plan A8: files another writer changed after the run wrote them were kept, not reverted.
+            error_payload["write_scope_kept_changed_by_another_writer"] = [str(path) for path in kept_files]
         _mf._emit_json(error_payload)
         return
     _mf.console.print(f"[red]Error:[/red] {error}")
@@ -985,6 +1005,7 @@ def _emit_finalize_error_with_revert_note(
     if revert_error:
         _mf.console.print(f"[yellow]Warning:[/yellow] failed to revert unpersisted --target-branch override in meta.json: {revert_error}")
     _report_status_surface_leftover(status_leftover, json_output=False)
+    _report_write_scope_kept(kept_files or [], json_output=False)
 
 
 def _print_membership_conflicts(error: LaneMembershipFrozenError) -> None:
@@ -1024,13 +1045,24 @@ def _snapshot_mission_write_scope(mission_dir: Path) -> dict[Path, bytes]:
     return {path: path.read_bytes() for path in _mission_write_scope_files(mission_dir)}
 
 
+def _bytes_or_none(path: Path) -> bytes | None:
+    """The bytes at *path*, or ``None`` when it is not a readable file."""
+    try:
+        return path.read_bytes()
+    except OSError:
+        return None
+
+
 def _restore_mission_write_scope(
     before: dict[Path, bytes],
     mission_dir: Path,
     *,
+    written: dict[Path, bytes] | None = None,
     keep: frozenset[Path] = frozenset(),
     keep_under: Path | None = None,
-) -> None:
+    lock_dir: Path | None = None,
+    repo_root: Path | None = None,
+) -> list[Path]:
     """Undo every tracked write under ``mission_dir`` since the matching snapshot (FR-015/NFR-001).
 
     A file present in ``before`` is rewritten to its original bytes; a file
@@ -1042,6 +1074,16 @@ def _restore_mission_write_scope(
     Each path is restored independently and a failure is logged, never raised --
     this is best-effort cleanup alongside the ORIGINAL exception that triggered
     it, never a replacement diagnostic for it.
+
+    Compare-and-swap (mission-writer-followups plan A8): the whole restore runs inside the
+    Mission write lock, and a file is rewritten or deleted only while its bytes still equal
+    what this attempt left (``written``, the snapshot taken when the attempt failed; the
+    bytes at this call when omitted). A file another writer changed since is neither
+    rewritten nor deleted: it is kept and returned (sorted), so the caller can report it.
+
+    The lock is the Mission write lock of ``lock_dir`` (``mission_dir`` by default): a directory
+    that is not a Mission directory (the owned checkout's derived view) takes its Mission's lock
+    rather than minting a lock beside itself.
     """
     keep_root = keep_under.resolve() if keep_under is not None else None
 
@@ -1049,32 +1091,92 @@ def _restore_mission_write_scope(
         resolved = path.resolve()
         return resolved in keep or (keep_root is not None and resolved.is_relative_to(keep_root))
 
-    current = _mission_write_scope_files(mission_dir)
-    for path, original in before.items():
-        if _is_kept(path):
-            continue
-        try:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(original)
-        except OSError as exc:
-            logger.warning("finalize atomicity: failed to restore %s: %s", path, exc)
-    for path in current - before.keys():
-        if _is_kept(path):
-            continue
-        try:
-            path.unlink(missing_ok=True)
-        except OSError as exc:
-            logger.warning("finalize atomicity: failed to remove %s: %s", path, exc)
+    kept_changed: list[Path] = []
+    with mission_write_lock(lock_dir or mission_dir, repo_root=repo_root):
+        current = _mission_write_scope_files(mission_dir)
+        left_by_attempt = written if written is not None else {path: data for path in current if (data := _bytes_or_none(path)) is not None}
+        for path, original in before.items():
+            if _is_kept(path):
+                continue
+            now = _bytes_or_none(path)
+            if now == original:
+                continue  # already as it was before the attempt (for example restored with the status branch)
+            if now != left_by_attempt.get(path):
+                kept_changed.append(path)
+                continue
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(original)
+            except OSError as exc:
+                logger.warning("finalize atomicity: failed to restore %s: %s", path, exc)
+        for path in current - before.keys():
+            if _is_kept(path):
+                continue
+            now = _bytes_or_none(path)
+            if now is None:
+                continue  # already gone: nothing of this attempt's is left to remove
+            if now != left_by_attempt.get(path):
+                kept_changed.append(path)
+                continue
+            try:
+                path.unlink(missing_ok=True)
+            except OSError as exc:
+                logger.warning("finalize atomicity: failed to remove %s: %s", path, exc)
+    return sorted(kept_changed)
 
 
-def _restore_mission_write_scope_beside_status(guard: StatusSurfaceGuard, before: dict[Path, bytes], mission_dir: Path) -> None:
+def _restore_mission_write_scope_beside_status(
+    guard: StatusSurfaceGuard,
+    before: dict[Path, bytes],
+    mission_dir: Path,
+    *,
+    written: dict[Path, bytes] | None = None,
+) -> list[Path]:
     """:func:`_restore_mission_write_scope`, leaving what the status branch kept as it is (#5641).
 
     The files a kept commit changed stay; when git cannot list them, so does
     everything under the status directory -- fail closed, never the rewrite.
+    Returns the files another writer changed since the attempt (kept, plan A8).
     """
     kept = guard.kept_paths()
-    _restore_mission_write_scope(before, mission_dir, keep=kept or frozenset(), keep_under=guard.status_dir if kept is None else None)
+    return _restore_mission_write_scope(before, mission_dir, written=written, keep=kept or frozenset(), keep_under=guard.status_dir if kept is None else None)
+
+
+def _undo_finalize_write_scope(
+    guard: StatusSurfaceGuard,
+    snapshot: dict[Path, bytes],
+    mission_dir: Path,
+    *,
+    owned_derived_snapshot: dict[Path, bytes],
+    owned_derived_dir: Path | None,
+) -> tuple[StatusSurfaceLeftover | None, list[Path]]:
+    """Undo a refused run's writes: the status commits first, then the Mission directory (and the owned derived view).
+
+    What the attempt left is snapshotted FIRST, before any undo step, and the restore is a compare-and-swap
+    against it inside the Mission write lock (plan A8): a file another writer changed since the attempt
+    failed is kept. Returns what the status surface could not undo and the files kept.
+    """
+    written = _snapshot_mission_write_scope(mission_dir)
+    written_derived = _snapshot_mission_write_scope(owned_derived_dir) if owned_derived_dir is not None else None
+    leftover = _restore_status_surface(guard)
+    kept = _restore_mission_write_scope_beside_status(guard, snapshot, mission_dir, written=written)
+    if owned_derived_dir is not None:
+        kept.extend(_restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir, written=written_derived, lock_dir=mission_dir))
+    return leftover, kept
+
+
+def _report_write_scope_kept(kept: list[Path], *, json_output: bool) -> None:
+    """Name the files the write-scope restore left alone because another writer changed them (plan A8)."""
+    if not kept:
+        return
+    from specify_cli.cli.commands.agent import mission_finalize as _mf
+
+    if json_output:
+        _mf._emit_json({"warning": WRITE_SCOPE_KEPT_WARNING, "files": [str(path) for path in kept]})
+        return
+    _mf.console.print(f"[yellow]Warning:[/yellow] {len(kept)} file(s) were changed by another writer after finalize-tasks wrote them and were kept, not reverted:")
+    for path in kept:
+        _mf.console.print(f"  {path}")
 
 
 def _capture_status_surface(guard: StatusSurfaceGuard, status_dir: Path, planning_dir: Path) -> None:
