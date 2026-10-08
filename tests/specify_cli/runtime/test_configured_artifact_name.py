@@ -204,7 +204,8 @@ class TestRequiredArtifactsFor:
     def test_returns_blocking_filenames_for_a_step(self) -> None:
         assert required_artifacts_for("specify", "software-dev") == ["spec.md"]
         assert required_artifacts_for("plan", "software-dev") == ["plan.md"]
-        assert required_artifacts_for("tasks_outline", "software-dev") == ["tasks.md"]
+        assert required_artifacts_for("tasks_outline", "software-dev") == ["wps.yaml"]
+        assert required_artifacts_for("tasks_finalize", "software-dev") == ["tasks/WP*.md", "tasks.md"]
 
     def test_step_with_no_requirements_returns_empty(self) -> None:
         assert required_artifacts_for("discovery", "software-dev") == []

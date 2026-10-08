@@ -453,9 +453,12 @@ def test_plan_guard_missing_and_present() -> None:
     assert cores.evaluate_guards(_snapshot(present_artifacts=frozenset({"plan.md"}), step_id="plan")) == []
 
 
-def test_cli_native_tasks_outline_only_checks_tasks_md() -> None:
-    assert cores.evaluate_guards(_snapshot(step_id="tasks_outline")) == ["Required artifact missing: tasks.md"]
-    assert cores.evaluate_guards(_snapshot(present_artifacts=frozenset({"tasks.md"}), step_id="tasks_outline")) == []
+def test_cli_native_tasks_outline_requires_wps_yaml() -> None:
+    assert cores.evaluate_guards(_snapshot(step_id="tasks_outline")) == ["Required artifact missing: wps.yaml"]
+    assert cores.evaluate_guards(_snapshot(present_artifacts=frozenset({"tasks.md"}), step_id="tasks_outline")) == [
+        "Required artifact missing: wps.yaml"
+    ]
+    assert cores.evaluate_guards(_snapshot(present_artifacts=frozenset({"wps.yaml"}), step_id="tasks_outline")) == []
 
 
 def test_cli_native_tasks_packages_missing_files_message() -> None:
@@ -530,9 +533,9 @@ def test_unmatched_step_id_returns_empty() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_composed_tasks_legacy_outline_only_checks_tasks_md() -> None:
+def test_composed_tasks_legacy_outline_requires_wps_yaml() -> None:
     snapshot = _snapshot(step_id="tasks", legacy_step_id="tasks_outline")
-    assert cores.evaluate_guards(snapshot) == ["Required artifact missing: tasks.md"]
+    assert cores.evaluate_guards(snapshot) == ["Required artifact missing: wps.yaml"]
 
 
 def test_composed_tasks_legacy_packages_checks_tasks_md_and_requirement_mapping() -> None:
