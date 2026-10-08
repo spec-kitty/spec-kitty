@@ -240,7 +240,8 @@
       "model": "__resolved_model_absent__",
       "notes": [
         "Stream B (runtime/templates) in the stream/runtime worktree",
-        "Stream B (runtime/templates) in the stream/runtime worktree"
+        "Stream B (runtime/templates) in the stream/runtime worktree",
+        "Commits 3791553e4..bcd26113f merged from stream/runtime (106b79b30): analyze step between tasks and implement, currency check injected via next_cmd.decide_next, board override and query mode check currency, error codes ANALYSIS_REPORT_MISSING/STALE/CURRENCY_UNAVAILABLE, CLI-entry tests. Forced only because the stream claim has no claim base."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
