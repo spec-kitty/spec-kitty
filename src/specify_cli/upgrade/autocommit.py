@@ -35,7 +35,7 @@ import threading
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
 
 from kernel.git import GitCommandError, status_entries
 from mission_runtime import CommitTarget
@@ -447,6 +447,39 @@ def prepare_upgrade_commit_files(
     return files_to_commit
 
 
+def migration_index_untracks(checkout: Path, baseline_paths: set[str] | None) -> list[Path]:
+    """Paths a migration untracked on purpose: staged deletions of files that stay on disk, ignored.
+
+    The migration's own ``git rm --cached`` (3.2.5 skills / manifest, #3393) is only a
+    staged deletion until it is committed. A path qualifies when it was NOT already a
+    staged deletion at baseline (an operator's own is never ours), its file still
+    exists, git now ignores it, and it was not ignored before the run. An unreadable
+    status yields no paths (FR-022: the probe must never turn a commit into a failure).
+    """
+    if baseline_paths is None:
+        return []
+    current = git_status_paths(checkout)
+    if not isinstance(current, _GitStatusPaths):
+        return []
+    baseline_ignored = baseline_paths.ignored if isinstance(baseline_paths, _GitStatusPaths) else frozenset()
+    candidates = sorted(
+        path
+        for path in current.index_deletions
+        if path not in baseline_paths
+        and not _under_ignored(path, baseline_ignored)
+        and is_upgrade_commit_eligible(path, checkout)
+        and os.path.lexists(checkout / path)
+    )
+    if not candidates:
+        return []
+    try:
+        entries = status_entries(checkout, untracked="all", ignored=True, pathspecs=candidates)
+    except GitCommandError:
+        return []
+    ignored_now = {_normalize_status_path(str(entry.path)) for entry in entries if entry.is_ignored}
+    return [Path(path) for path in candidates if path in ignored_now]
+
+
 def commit_touched_checkout(
     checkout: Path,
     baseline_paths: set[str] | None,
@@ -468,11 +501,12 @@ def commit_touched_checkout(
         return False, [], UPGRADE_COMMIT_SKIP_WARNING
 
     files_to_commit = prepare_upgrade_commit_files(checkout, baseline_paths)
-    if not files_to_commit:
+    index_deletions = migration_index_untracks(checkout, baseline_paths)
+    if not files_to_commit and not index_deletions:
         return False, [], None
 
     commit_message = f"chore: apply spec-kitty upgrade changes ({from_version} -> {to_version})"
-    committed_paths = [to_posix(path) for path in files_to_commit]
+    committed_paths = [to_posix(path) for path in (*files_to_commit, *index_deletions)]
     try:
         destination_ref = subprocess.check_output(
             ["git", "-C", str(checkout), "branch", "--show-current"],
@@ -500,6 +534,9 @@ def commit_touched_checkout(
     # now irrelevant — the message is just a message; the capability carries the
     # authorization to land on a protected branch (e.g. the operator's main).
     upgrade_target = CommitTarget(ref=destination_ref)
+    # FR-022: the migration's own `git rm --cached` rides in the same commit, through
+    # safe_commit's temp index, so the file never leaves the disk.
+    index_deletion_kwargs: dict[str, Any] = {"index_deletions": tuple(index_deletions)} if index_deletions else {}
 
     try:
         safe_commit(
@@ -509,6 +546,7 @@ def commit_touched_checkout(
             message=commit_message,
             paths=tuple(files_to_commit),
             capability=GuardCapability.UPGRADE_BOOKKEEPING,
+            **index_deletion_kwargs,
         )
     except SafeCommitRecoveryFailed:
         # #4888/FR-012 (defense-in-depth): unlike every other exception below,
