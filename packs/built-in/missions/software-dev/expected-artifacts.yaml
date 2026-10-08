@@ -40,9 +40,9 @@ required_by_step:
       blocking: true
 
   tasks_outline:
-    - artifact_key: "output.tasks.list"
+    - artifact_key: "output.tasks.index"
       artifact_class: "output"
-      path_pattern: "tasks.md"
+      path_pattern: "wps.yaml"
       blocking: true
 
   tasks_packages:
@@ -60,6 +60,10 @@ required_by_step:
     - artifact_key: "output.tasks.per_wp"
       artifact_class: "output"
       path_pattern: "tasks/WP*.md"
+      blocking: true
+    - artifact_key: "output.tasks.list"
+      artifact_class: "output"
+      path_pattern: "tasks.md"
       blocking: true
 
   implement:

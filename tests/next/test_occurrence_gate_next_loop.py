@@ -242,6 +242,7 @@ class TestCheckCliGuardsOccurrenceGate:
         feature_dir = _scaffold_finalize_ready_feature(
             tmp_path, change_mode="bulk_edit", occurrence_map_content=None
         )
+        (feature_dir / "wps.yaml").write_text("work_packages: []\n", encoding="utf-8")
 
         from runtime.next.runtime_bridge import _check_cli_guards
 

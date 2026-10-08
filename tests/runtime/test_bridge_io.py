@@ -980,11 +980,13 @@ def test_gather_artifact_presence_reads_file_presence(tmp_path: Path, monkeypatc
     _stub_guard_helpers(monkeypatch)
     (tmp_path / "spec.md").write_text("# Spec\n", encoding="utf-8")
     (tmp_path / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (tmp_path / "wps.yaml").write_text("work_packages: []\n", encoding="utf-8")
 
     snapshot = io_seam.gather_artifact_presence(
         tmp_path, mission_family="software-dev", step_id="tasks_outline"
     )
-    assert snapshot.present_artifacts == {"spec.md", "plan.md"}
+    assert snapshot.present_artifacts == {"spec.md", "plan.md", "wps.yaml"}
+    assert snapshot.blocking_artifact_names == {"wps.yaml"}
     assert snapshot.mission_family == "software-dev"
     assert snapshot.step_id == "tasks_outline"
     assert snapshot.legacy_step_id is None
