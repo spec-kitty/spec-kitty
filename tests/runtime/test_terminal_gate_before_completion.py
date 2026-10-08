@@ -327,6 +327,34 @@ def test_composition_refusal_is_the_same_typed_decision(tmp_path: Path, monkeypa
     assert decision.reason == legacy.reason
 
 
+def test_composition_foreign_append_during_the_gate_survives_a_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The composition path leaves the run files as another writer left them,
+    including a record appended while the gate runs."""
+    run = _Run(tmp_path, monkeypatch, path="commit_advance", policy=_strict_policy())
+    run.append_foreign_in_gate = True
+    plan = plan_advance(run.run_ref, "tester", "success")
+    before_events, before_state = _read(run.events), _read(run.state)
+
+    with pytest.raises(retro.RetrospectiveGateRefused):
+        engine_adapter.advance_run_state_after_composition(
+            run_ref=run.run_ref,
+            agent="tester",
+            mission_slug=SLUG,
+            mission_type="terminal-gate",
+            repo_root=tmp_path,
+            feature_dir=run.ctx.feature_dir,
+            timestamp=NOW,
+            progress=None,
+            origin={},
+            sync_emitter=run.emitter,
+            plan=plan,
+        )
+
+    assert _read(run.events) == before_events + FOREIGN_LINE
+    assert _read(run.state) == before_state
+    assert run.emitter.calls == []
+
+
 def test_composition_dispatch_does_not_wrap_the_refusal_as_advance_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     run = _Run(tmp_path, monkeypatch, path="commit_advance", policy=_strict_policy())
     refusal = retro.RetrospectiveGateRefused(RuntimeError("capture exploded"))

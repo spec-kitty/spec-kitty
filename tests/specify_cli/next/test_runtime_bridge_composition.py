@@ -38,6 +38,7 @@ from specify_cli.mission_step_contracts.executor import (
 )
 from runtime.next import runtime_bridge as rb
 from runtime.next._internal_runtime import MissionRunRef
+from runtime.next.runtime_bridge_retrospective import RetrospectiveGateRefused
 from runtime.next.runtime_bridge_composition import (
     _check_composed_action_guard,
     _dispatch_via_composition,
@@ -1391,7 +1392,7 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
             "runtime.next.runtime_bridge_retrospective._resolve_retrospective_policy_for_runtime",
             return_value=(strict_policy, {"enabled": "test"}, policy_error),
         ),
-        pytest.raises(RuntimeError, match="bad retrospective policy"),
+        pytest.raises(RetrospectiveGateRefused, match="bad retrospective policy") as refusal,
     ):
         advance_run_state_after_composition(
             run_ref=run_ref,
@@ -1407,6 +1408,7 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
             plan=plan_advance(run_ref, "test-agent", "success"),
         )
     assert fake_plan_next.called, "the terminal plan_next stub never ran"
+    assert refusal.value.__cause__ is policy_error, "the policy error is wrapped in the one typed refusal (B6)"
 
 
 def test_decision_shape_unchanged_for_composed_action(
