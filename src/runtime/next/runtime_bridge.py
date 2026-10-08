@@ -73,6 +73,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -184,22 +185,28 @@ def _is_git_lock_contention(output: str) -> bool:
     return lock_exists or ("could not lock config file" in output and "file exists" in output) or ("another git process" in output and "lock" in output)
 
 
+# A shared-registry entry path: ``.../worktrees/<id>``. The lookbehind keeps
+# this repository's own ``.worktrees/<slug>`` checkouts from matching.
+_REGISTRY_ENTRY = r"(?<!\.)/worktrees/[^/'\s]+"
+_EMPTY_COMMONDIR = re.compile(_REGISTRY_ENTRY + r"/commondir: success\b")
+_VANISHED_ENTRY = re.compile(r"invalid path '[^']*" + _REGISTRY_ENTRY + r"/?'")
+
+
 def _is_sibling_registry_entry_in_flight(output: str) -> bool:
     """A sibling ``.git/worktrees/<id>`` entry another process is mutating.
 
     ``git worktree list`` reads every registered entry. ``git worktree add``
     writes the entry's ``commondir`` last (truncate, then write), so a reader
-    can find it zero bytes long (``failed to read .../commondir: Success``);
-    ``git worktree remove`` deletes the entry directory under a reader
-    (``Invalid path '.../worktrees/<id>'``). Both are the normal in-flight
-    state of another process's entry. Only wordings naming the shared
-    ``worktrees/`` registry qualify; an entry that stays broken still
-    refuses once the bounded retry is spent.
+    can find it zero bytes long (``failed to read .../worktrees/<id>/commondir:
+    Success``); ``git worktree remove`` deletes the entry directory under a
+    reader (``Invalid path '.../worktrees/<id>'``). Both are the normal
+    in-flight state of another process's entry. Each wording must name a
+    registry entry on the same match: a real read failure (``Permission
+    denied``, ``Is a directory``) or a path outside the registry is durable.
+    An entry that stays broken still refuses once the bounded retry is spent.
     """
     normalized = output.replace("\\", "/")
-    if "/worktrees/" not in normalized:
-        return False
-    return ("failed to read" in normalized and "commondir" in normalized) or "invalid path" in normalized
+    return bool(_EMPTY_COMMONDIR.search(normalized) or _VANISHED_ENTRY.search(normalized))
 
 
 # ---------------------------------------------------------------------------

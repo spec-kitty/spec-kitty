@@ -2027,8 +2027,17 @@ class TestIsTransientGitWorktreeContention:
         [
             "fatal: failed to read /repo/.git/config: Permission denied",
             "fatal: Invalid path '/repo/src/module.py': No such file or directory",
+            "fatal: Invalid path '/repo/.worktrees/x-lane-a'",
+            "fatal: failed to read /repo/.git/worktrees/s/commondir: Permission denied",
+            "fatal: Invalid path '/repo/src/a.py'\nnote: see /repo/.git/worktrees/s",
         ],
-        ids=["read-failure-outside-registry", "invalid-path-outside-registry"],
+        ids=[
+            "read-failure-outside-registry",
+            "invalid-path-outside-registry",
+            "dot-worktrees-checkout-is-not-the-registry",
+            "commondir-read-failure-is-not-in-flight",
+            "invalid-path-and-registry-mention-on-different-lines",
+        ],
     )
     def test_registry_wording_outside_the_worktree_registry_is_not_transient(self, stderr: str) -> None:
         """The in-flight wordings are retried only when they name an entry of
