@@ -146,8 +146,8 @@ artifact to project languages. Three tokens are reserved and never name a real l
 > **one** built-in artifact today: `common-docs-structural-lint`, the structural docs lint
 > (`packs/built-in/assets/docs_structural_lint.py`, declared by
 > `docs_structural_lint.py.asset.yaml`). Resolve it — from any installation, no charter step
-> required — with `spec-kitty doctrine asset path common-docs-structural-lint` (or list every
-> resolvable asset and its source tier with `spec-kitty doctrine asset list`). Both are worth
+> required — with `spec-kitty charter pack asset path common-docs-structural-lint` (or list every
+> resolvable asset and its source tier with `spec-kitty charter pack asset list`). Both are worth
 > knowing exist; neither is part of the ten-kind activation vocabulary this page and its
 > companion how-to cover — see [The asset kind](#the-asset-kind) below for how to author and
 > resolve one, and [Delivery verdicts: which kinds reach a mission](#delivery-verdicts-which-kinds-reach-a-mission)
@@ -172,7 +172,7 @@ the blob — that carries the validated contract (`id`, `mime`, `path`, optional
 shipped doctrine from naming a repo-local script or CI path a consumer does not have. The
 canonical way to hand executable logic (or any blob) to a downstream repo is precisely the `asset`
 kind: the blob travels *inside* the pack under its `assets/` tree, and downstream code resolves it
-by identifier through `spec-kitty doctrine asset path <id>` rather than reaching for a path that
+by identifier through `spec-kitty charter pack asset path <id>` rather than reaching for a path that
 only exists in our source tree. The one built-in asset, `common-docs-structural-lint`, is exactly
 this pattern — a lint script shipped as an asset instead of as a `scripts/…` reference.
 

@@ -21,7 +21,7 @@ from charter.offering.assets.repository import (
     AssetPathEscapeError,
     AssetRepository,
 )
-from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.base import ArtifactLayerCollisionWarning
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
@@ -113,7 +113,7 @@ def test_org_tier_overrides_builtin_and_reports_the_shadow(tmp_path: Path) -> No
     _write_asset(
         org_assets / "icon.asset.yaml", asset_id="icon", mime="image/svg+xml", blob_path="icon.svg"
     )
-    with pytest.warns(DoctrineLayerCollisionWarning):
+    with pytest.warns(ArtifactLayerCollisionWarning):
         repo = AssetRepository(built_in_dir=built_in, org_dirs=[org_assets])
     assert repo.get_provenance("icon") == "org"
     assert repo.source_path("icon") == org_assets / "icon.asset.yaml"
@@ -223,7 +223,7 @@ def test_org_override_resolves_via_winning_tier_anchor(tmp_path: Path) -> None:
         org_assets / "icon.asset.yaml", asset_id="icon", mime="image/svg+xml", blob_path="icon.svg"
     )
     _write_blob(org_assets / "icon.svg")
-    with pytest.warns(DoctrineLayerCollisionWarning):
+    with pytest.warns(ArtifactLayerCollisionWarning):
         repo = AssetRepository(built_in_dir=built_in, org_dirs=[org_assets])
     resolved = repo.resolve_path("icon")
     assert resolved == (org_assets / "icon.svg").resolve(strict=False)

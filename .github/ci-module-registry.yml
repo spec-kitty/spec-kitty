@@ -488,10 +488,10 @@ out_of_matrix_test_dirs:
     (recursive descendants include the excluded tests/specify_cli/cli/commands AND the
     execution_context-claimed tests/specify_cli/cli/commands/agent -- illegal to claim as
     a test_dirs parent). This tree's drift-prone single-topic invariants were extracted to
-    8 always-on architectural gates: tests/architectural/test_lifted_cli_no_visible_feature_alias.py,
+    7 always-on architectural gates: tests/architectural/test_lifted_cli_no_visible_feature_alias.py,
     test_lifted_cli_doctrine_retirement.py, test_lifted_cli_bytecode_heal_startup.py,
     test_lifted_cli_accept_coord_surface_anchor.py, test_lifted_cli_accept_birth_cutover.py,
-    test_lifted_cli_terminal_control_sanitization.py, test_lifted_cli_doctrine_charter_cr02_compat.py,
+    test_lifted_cli_terminal_control_sanitization.py,
     test_lifted_cli_project_root_resolution.py. Accepted named gap: the residual behavioral
     files in this tree remain make test-full-only -- lifting covers the drift-prone
     invariants, not the full behavioral surface.
@@ -629,12 +629,12 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/acceptance
   - tests/specify_cli/audit
   - tests/specify_cli/bulk_edit
+  - tests/specify_cli/charter_packs
   - tests/specify_cli/compat
   - tests/specify_cli/context
   - tests/specify_cli/contracts
   - tests/specify_cli/decisions
   - tests/specify_cli/distribution
-  - tests/specify_cli/doctrine
   - tests/specify_cli/dossier
   - tests/specify_cli/events
   - tests/specify_cli/git
@@ -831,6 +831,7 @@ out_of_matrix_test_dirs:
   - tests/_support/coverage_safety
   - tests/_support/git_template
   - tests/acceptance
+  - tests/acceptance/charter_pack_cutover
   - tests/adversarial
   - tests/ast_analysis
   - tests/characterization

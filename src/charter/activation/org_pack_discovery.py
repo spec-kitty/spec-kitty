@@ -29,6 +29,7 @@ from ruamel.yaml.error import YAMLError
 from charter.activation.schemas import DoctrineSelectionConfig
 from charter.activation.skill_preparation import SkillPreparationError, require_valid_skill_namespace
 from charter.offering.artifact_kinds import SELECTION_OVERLAYABLE_KIND_FIELDS, ArtifactKind
+from kernel.charter_pack_paths import pack_org_charter
 
 __all__ = [
     # `_enumerate_org_pack_paths` retired from __all__ (#3520 chain fold): its
@@ -52,7 +53,7 @@ _LOGGER = logging.getLogger(__name__)
 
 #: Artifact-kind suffixes for which an org pack may declare a
 #: ``required_<kind>`` list (mirrors
-#: :data:`specify_cli.doctrine.org_charter.REQUIRED_KIND_FIELDS`).  Kept
+#: :data:`charter.activation.org_charter.REQUIRED_KIND_FIELDS`).  Kept
 #: as a local constant inside the charter layer so we can do the
 #: cross-pack union without importing ``specify_cli`` (preserves the
 #: kernel <- doctrine <- charter <- specify_cli dependency direction).
@@ -155,7 +156,7 @@ def _iter_org_charter_docs(repo_root: Path) -> list[tuple[str, dict[str, Any]]]:
     yaml = YAML(typ="safe")
     docs: list[tuple[str, dict[str, Any]]] = []
     for name, pack_path in _enumerate_org_pack_paths(repo_root):
-        charter_path = pack_path / "org-charter.yaml"
+        charter_path = pack_org_charter(pack_path)
         if not charter_path.exists():
             continue
         try:
@@ -172,7 +173,7 @@ def union_required_tokens(into: list[str], items: Iterable[object]) -> None:
     """Union *items* into *into*: stripped, non-empty, first-seen order.
 
     THE merge rule for every ``required_<kind>`` field. The charter-layer
-    readers below and ``specify_cli.doctrine.org_charter`` (which folds parsed
+    readers below and ``charter.activation.org_charter`` (which folds parsed
     policies) both call it, so there is one owner of the semantics.
     """
     for item in items:
@@ -185,7 +186,7 @@ def last_non_empty_token(current: str | None, candidate: object) -> str | None:
     """Last-non-empty-wins fold step for ``skill_namespace``.
 
     Used by :func:`read_org_skill_namespace` (charter layer) and by
-    ``specify_cli.doctrine.org_charter`` when it folds parsed policies. ``org_name``
+    ``charter.activation.org_charter`` when it folds parsed policies. ``org_name``
     follows the same rule but is still open-coded in ``org_charter.py``.
     """
     if isinstance(candidate, str) and candidate.strip():
@@ -201,7 +202,7 @@ def _read_org_required_selections(repo_root: Path) -> dict[str, list[str]]:
     ``{kind: [ids...]}`` map covering the 8 kinds listed in
     :data:`_REQUIRED_KIND_FIELDS`.  Union preserves first-seen order
     across packs (declaration-order precedence, matching the merge
-    semantics of :func:`specify_cli.doctrine.org_charter.load_org_charter_policies`).
+    semantics of :func:`charter.activation.org_charter.load_org_charter_policies`).
     """
     out: dict[str, list[str]] = {kind: [] for kind in _REQUIRED_KIND_FIELDS}
     for _name, raw in _iter_org_charter_docs(repo_root):
@@ -232,7 +233,7 @@ def read_org_skill_namespace(repo_root: Path) -> str | None:
     """Return the org ``skill_namespace`` (last non-empty value across packs wins).
 
     Folds with :func:`last_non_empty_token`, the same helper
-    ``specify_cli.doctrine.org_charter`` uses (single owner of the rule). Every
+    ``charter.activation.org_charter`` uses (single owner of the rule). Every
     value read is checked against the skill-namespace grammar; an invalid one
     raises :class:`~charter.activation.skill_preparation.SkillPreparationError`.
     """
@@ -266,7 +267,7 @@ def require_org_skill_policy_readable(repo_root: Path, *, org_decides: bool) -> 
                 f"org pack {name!r} is configured but its path is not an existing directory ({pack_path}); "
                 f"run `spec-kitty charter fetch --pack {name}`, or remove the pack from .kittify/config.yaml"
             )
-        charter_path = pack_path / "org-charter.yaml"
+        charter_path = pack_org_charter(pack_path)
         if org_decides and charter_path.exists():
             _require_readable_required_skills(yaml, name, charter_path)
 
@@ -290,9 +291,11 @@ def _require_readable_required_skills(yaml: YAML, pack_name: str, charter_path: 
 def _load_doctrine_selection(repo_root: Path) -> DoctrineSelectionConfig:
     """Return the charter's :class:`DoctrineSelectionConfig` for *repo_root*.
 
-    Best-effort lookup: any failure (missing governance.yaml, parse
-    error, unexpected exception) collapses to a default-constructed
-    :class:`DoctrineSelectionConfig`.  This keeps the resolver hot path
+    Best-effort lookup: a failure (missing governance.yaml, parse error,
+    unexpected exception) collapses to a default-constructed
+    :class:`DoctrineSelectionConfig`. A retired shape (``RetiredPackFieldError``,
+    or the retired ``governance.doctrine`` key as ``ActiveCharterConfigError``)
+    propagates instead, so its selections are never dropped in silence.  This keeps the resolver hot path
     resilient (NFR-005) so a malformed governance file never crashes
     prompt rendering — the authority-paths block will simply lack
     charter-declared entries.
@@ -306,11 +309,16 @@ def _load_doctrine_selection(repo_root: Path) -> DoctrineSelectionConfig:
     additions append in first-seen order across packs.
     """
 
+    from charter.activation.pack_context import ActiveCharterConfigError
     from charter.activation.sync import load_governance_config
+    from charter.offering.packs.retired_fields import RetiredPackFieldError
 
     try:
         governance = load_governance_config(repo_root)
         selection = governance.charter
+    except (RetiredPackFieldError, ActiveCharterConfigError):
+        # A retired shape is not a parse failure: never dropped in silence (#3732, FR-011).
+        raise
     except Exception:  # noqa: BLE001 — best-effort governance load
         selection = DoctrineSelectionConfig()
 

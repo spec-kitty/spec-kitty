@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    import charter.offering.service as _doctrine_service_module
+    import charter.offering.service as _offering_service_module
 
     from charter.activation.scope import CharterScope
 
@@ -449,7 +449,7 @@ def build_charter_context_include(
     # (a gated ``dict``) off the gated service, so it is structurally
     # sufficient.
     service = (
-        cast("_doctrine_service_module.DoctrineService", gated_service)
+        cast("_offering_service_module.CharterOfferingService", gated_service)
         if gated_service is not None
         else _build_doctrine_service(repo_root, org_roots=org_roots)
     )

@@ -41,6 +41,7 @@ from charter.drg import (
     resolve_org_dirs,
 )
 from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
+from kernel.charter_pack_paths import pack_drg_fragment, project_pack_root
 from charter.mission_steps import (
     MissionStepContract,
     MissionStepContractRepository,
@@ -173,7 +174,7 @@ class StepContractExecutor:
         # org-inert (see `load_validated_graph`'s docstring); this executor
         # is a runtime caller and always resolves the full chain.
         self._contracts = contract_repository or MissionStepContractRepository(
-            project_dir=repo_root / ".kittify" / "doctrine" / "mission_step_contracts",
+            project_dir=project_pack_root(repo_root) / "mission_step_contracts",
             org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
         )
         self._invocation_executor = invocation_executor or ProfileInvocationExecutor(repo_root)
@@ -580,7 +581,7 @@ class StepContractExecutor:
         ``OrgPackParseError``, so this probe tolerates the fault class by
         name.
         """
-        if not (root / "drg" / "fragment.yaml").is_file():
+        if not pack_drg_fragment(root).is_file():
             return False
         try:
             load_org_pack(root.name, root, 1)

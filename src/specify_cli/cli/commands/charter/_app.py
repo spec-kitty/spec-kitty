@@ -24,7 +24,11 @@ from specify_cli.cli.commands.charter.list_cmd import charter_list_app
 from specify_cli.cli.commands.charter.pack import charter_pack_app
 from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
 from specify_cli.cli.commands.charter.mission_type import charter_mission_type_app
-from specify_cli.cli.commands.doctrine import fetch, new, org_app, validate
+from specify_cli.cli.commands.charter.authoring import fetch, new, validate
+from specify_cli.cli.commands.charter.consistency_check import consistency_check_cmd
+from specify_cli.cli.commands.charter.org import org_app
+from specify_cli.cli.commands.charter.pack_asset import asset_app
+from specify_cli.cli.commands.charter.pack_tooling import pack_assemble, pack_validate, regenerate_graph
 
 logger = logging.getLogger("specify_cli.cli.commands.charter")
 
@@ -68,10 +72,20 @@ charter_app.command("deactivate")(deactivate_cmd)
 # WP06 (FR-004/005/006/007): ``spec-kitty charter list`` — activation state table.
 charter_app.add_typer(charter_list_app, name="list")
 
-# WP06 (FR-011): ``spec-kitty charter pack consistency-check`` — pack management.
+# ``spec-kitty charter pack list|path`` (pack.py) plus the pack tooling homes
+# (mission charter-pack-cutover-01M491G6, FR-006): ``validate``, ``assemble``,
+# ``regenerate-graph`` and the ``asset`` sub-app. Registered here, not in
+# pack.py, so the handler modules stay independent of the pack listing.
+charter_pack_app.command("validate")(pack_validate)
+charter_pack_app.command("assemble")(pack_assemble)
+charter_pack_app.command("regenerate-graph")(regenerate_graph)
+charter_pack_app.add_typer(asset_app, name="asset")
 charter_app.add_typer(charter_pack_app, name="pack")
 
-# Authoring commands share handlers and option contracts with the legacy group.
+# ``spec-kitty charter consistency-check`` checks the active charter (OD-8).
+charter_app.command("consistency-check")(consistency_check_cmd)
+
+# Authoring commands (FR-006 homes; handlers in charter/authoring.py and charter/org.py).
 charter_app.command("new")(new)
 charter_app.command("validate")(validate)
 charter_app.command("fetch")(fetch)

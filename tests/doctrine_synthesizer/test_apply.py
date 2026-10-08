@@ -384,7 +384,7 @@ class TestFlagNotHelpful:
 
         flag_path = Path(result.applied[0].artifact_path).resolve()
         sidecar = Path(result.applied[0].provenance_path).resolve()
-        flags_dir = (repo_root / ".kittify" / "doctrine" / ".flags").resolve()
+        flags_dir = (repo_root / ".kittify" / "charter-packs" / ".flags").resolve()
         assert flag_path.is_relative_to(flags_dir)
         assert sidecar.is_relative_to(flags_dir / ".provenance")
         assert not (repo_root / "outside").exists()

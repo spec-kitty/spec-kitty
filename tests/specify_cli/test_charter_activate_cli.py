@@ -7,7 +7,7 @@ activation engine and the WP11 scoped cascade engine through the CLI surface:
   kinds activate only those kinds; ``--cascade all`` activates every referenced
   kind; absence emits a no-cascade warning (FR-013/014, Contract C3.3).
 * T054 — invalid pack config fails closed: a clean exit-1 with the
-  ``CHARTER_PACK_CONFIG_INVALID`` code and no mutation (FR-035, C1.5).
+  ``ACTIVE_CHARTER_CONFIG_INVALID`` code and no mutation (FR-035, C1.5).
 * T056 — the dead ``charter_activate_app`` / ``charter_deactivate_app`` exports
   are gone; the callbacks are the live exports and the commands stay registered.
 * T058 — cascade + no-cascade rendering, malformed-config fail-closed.
@@ -151,14 +151,14 @@ class TestLayerAwareActivation:
     ) -> None:
         org_pack = tmp_path / "org-pack"
         _write_directive(
-            org_pack / "doctrine" / "directives" / "org",
+            org_pack / "directives",
             "900-org-only-directive",
             "DIRECTIVE_900",
         )
         (project_root / ".kittify" / "config.yaml").write_text(
             textwrap.dedent(
                 f"""\
-                doctrine:
+                charter_packs:
                   org:
                     packs:
                       - name: acme
@@ -186,7 +186,7 @@ class TestLayerAwareActivation:
         self, project_root: Path
     ) -> None:
         _write_directive(
-            project_root / ".kittify" / "doctrine" / "directive",
+            project_root / ".kittify" / "charter-packs" / "directive",
             "950-project-only-directive",
             "DIRECTIVE_950",
         )
@@ -319,7 +319,7 @@ class TestFailClosedConfig:
         before = (malformed_project / ".kittify" / "config.yaml").read_bytes()
         result = _activate(malformed_project, "directive", "001-architectural-integrity-standard")
         assert result.exit_code == 1
-        assert "CHARTER_PACK_CONFIG_INVALID" in result.output
+        assert "ACTIVE_CHARTER_CONFIG_INVALID" in result.output
         # No mutation: config bytes unchanged.
         after = (malformed_project / ".kittify" / "config.yaml").read_bytes()
         assert before == after
@@ -328,7 +328,7 @@ class TestFailClosedConfig:
         before = (malformed_project / ".kittify" / "config.yaml").read_bytes()
         result = _deactivate(malformed_project, "directive", "001-architectural-integrity-standard")
         assert result.exit_code == 1
-        assert "CHARTER_PACK_CONFIG_INVALID" in result.output
+        assert "ACTIVE_CHARTER_CONFIG_INVALID" in result.output
         after = (malformed_project / ".kittify" / "config.yaml").read_bytes()
         assert before == after
 
@@ -358,10 +358,18 @@ class TestMissionTypeGeneralized:
 
 class TestDeactivate:
     def test_none_state_exits_1_with_guidance(self, project_root: Path) -> None:
-        """A None-state kind surfaces the engine error as a clean exit-1 (WP12)."""
+        """A None-state kind surfaces the engine error as a clean exit-1 (WP12).
+
+        The remedy names the action that materialises the list (activate one
+        artifact of the kind, or set the list explicitly), never ``spec-kitty
+        upgrade``, which no longer initialises a default pack (WP06, FR-015).
+        """
         result = _deactivate(project_root, "directive", "some-directive")
         assert result.exit_code == 1
-        assert "spec-kitty upgrade" in result.output
+        output = " ".join(result.output.split())
+        assert "has no explicit activation set" in output
+        assert "spec-kitty charter activate directive <id>" in output
+        assert "spec-kitty upgrade" not in output
 
     def test_deactivate_removes_from_config(self, tmp_path: Path) -> None:
         kittify = tmp_path / ".kittify"

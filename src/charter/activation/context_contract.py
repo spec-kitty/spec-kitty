@@ -7,7 +7,7 @@ version of its own, so an external consumer that pins to its shape could
 break silently on any doctrine-layer reshape. ``CONTEXT_SCHEMA_VERSION`` is
 the single-authority stamp for that top-level shape; it is deliberately
 named distinct from the *nested* ``org_charter.schema_version`` field
-(``specify_cli.doctrine.org_charter.OrgCharterPolicy.schema_version``),
+(``charter.activation.org_charter.OrgCharterPolicy.schema_version``),
 which versions one imported org policy document, not the envelope that
 carries it.
 

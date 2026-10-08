@@ -142,13 +142,13 @@ These warnings are categorized as `DoctrineLayerCollisionWarning` (a
 `UserWarning` subclass), so operators who maintain heavy overrides can
 filter them via standard Python `warnings` machinery if desired.
 
-#### Auditing collisions via `spec-kitty doctor doctrine`
+#### Auditing collisions via `spec-kitty doctor charter-packs`
 
 To audit the full set of override collisions across the resolved doctrine
 surface without parsing warning streams, run:
 
 ```bash
-spec-kitty doctor doctrine
+spec-kitty doctor charter-packs
 ```
 
 The output includes a `Collisions` section that lists every shadowed
@@ -183,7 +183,7 @@ the same three behaviours as every other overlaid artifact:
   absent fields fall through from the lower layer — so an override that adjusts a
   single selection need not restate the whole profile.
 - **`DoctrineLayerCollisionWarning`.** The resolver emits the same collision
-  warning when the override shadows a lower layer, and `spec-kitty doctor doctrine`
+  warning when the override shadows a lower layer, and `spec-kitty doctor charter-packs`
   audits it alongside every other override.
 
 Reusing the overlay stack is deliberate — it avoids duplicating the layer-merge
@@ -242,7 +242,7 @@ uv run spec-kitty charter context --action implement --json
 
 ```bash
 # Pack inventory (shows what is installed and where it came from)
-uv run spec-kitty doctor doctrine --json
+uv run spec-kitty doctor charter-packs --json
 ```
 
 When you see an artifact tagged `source: org`, it tells you the artifact resolved
@@ -352,18 +352,18 @@ remove the pack from .kittify/config.yaml.
 ```
 
 The diagnostic is intentionally actionable — operators are given two concrete
-remediation steps, and the error is raised by `MissingDoctrinePackError`
-(`src/specify_cli/doctrine/org_charter.py`) so callers can catch and report it
+remediation steps, and the error is raised by `OrgPackMissingError`
+(`src/charter/offering/drg/org_pack_loader.py`) so callers can catch and report it
 in their own UIs.
 
 **Migration**
 
-1. Run `spec-kitty doctor doctrine` to enumerate configured packs and their
+1. Run `spec-kitty doctor charter-packs` to enumerate configured packs and their
    on-disk status.
 2. For each missing pack, either:
    - `spec-kitty charter fetch --pack <name>` to populate the snapshot, or
    - Remove the entry from `.kittify/config.yaml` under `doctrine.org.packs`.
-3. Re-run `spec-kitty doctor doctrine` to confirm a clean state before the next
+3. Re-run `spec-kitty doctor charter-packs` to confirm a clean state before the next
    `charter context` build.
 
 This behaviour is non-negotiable: silent fallback risked teams unknowingly
@@ -386,7 +386,7 @@ override remains visible.
 As of mission `charter-mediated-doctrine-selection-01KRTZCA` (FR-015), this is a
 **hard error**. Earlier releases silently fell back to built-in + project; that
 behaviour was hiding misconfigured packs and stale paths. See the breaking-change
-section below for the migration path. `spec-kitty doctor doctrine` reports every
+section below for the migration path. `spec-kitty doctor charter-packs` reports every
 configured pack and flags any that are missing.
 
 **Is it safe to gitignore the snapshot directory?**
@@ -399,7 +399,7 @@ No. The built-in layer is unchanged. The org layer composes on top.
 
 **Where do I see which layer an artifact came from?**
 `uv run spec-kitty charter context --action <action> --json` lists every resolved
-artifact with its `source` tag. `uv run spec-kitty doctor doctrine --json` lists
+artifact with its `source` tag. `uv run spec-kitty doctor charter-packs --json` lists
 installed pack contents.
 
 ---

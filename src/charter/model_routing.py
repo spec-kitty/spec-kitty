@@ -2,9 +2,9 @@
 
 This module is the charter-layer proxy for runtime callers that need the
 deterministic model/task routing evaluator + loader. The runtime → charter →
-doctrine boundary (ADR 2026-03-27-1, re-affirmed by mission
+charter.offering boundary (ADR 2026-03-27-1, re-affirmed by mission
 ``doctrine-public-api-surface-01KZPDSR``) requires runtime modules under
-``src/specify_cli/`` to reach doctrine artifacts only through charter facades.
+``src/specify_cli/`` to reach charter offering artifacts only through charter facades.
 
 **Symbol-level, not whole-module.** This door re-exports the leaf callables and
 result types (``load``, ``evaluate``, ``RoutingRecommendation``,
@@ -21,7 +21,7 @@ Object identity is unchanged: ``charter.model_routing.load is charter.offering.a
 is charter.offering.model_task_routing.loader.load``.
 
 There is no import cycle: ``charter.offering.model_task_routing`` and ``charter.offering.api``
-depend only on ``doctrine`` / ``kernel``, never on ``charter`` or
+depend only on ``charter.offering`` / ``kernel``, never on the ``charter`` facades or
 ``specify_cli``.
 
 This file is a **pure re-export** module — no behaviour, no wrappers, no type

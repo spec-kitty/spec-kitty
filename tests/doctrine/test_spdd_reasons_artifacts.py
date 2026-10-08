@@ -1,6 +1,6 @@
 """Smoke tests for the SPDD/REASONS doctrine pack (WP01).
 
-Validates that the six new shipped doctrine artifacts load through DoctrineService
+Validates that the six new shipped doctrine artifacts load through CharterOfferingService
 with correct shape, that DIRECTIVE_038 declares lenient-adherence with four
 explicit allowances, and that the canvas template fragment carries all seven
 canonical section headers.
@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from charter.offering.pack_paths import resolve_pack_root
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 
 from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 
@@ -26,13 +26,13 @@ DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
 
 
 @pytest.fixture(scope="module")
-def service() -> DoctrineService:
+def service() -> CharterOfferingService:
     # No explicit built-in root: repositories self-resolve packs/built-in/<kind>
     # (WP04 seam); src/doctrine is emptied of built-in content post-relocation.
-    return DoctrineService()
+    return CharterOfferingService()
 
 
-def test_paradigm_loads_with_required_shape(service: DoctrineService) -> None:
+def test_paradigm_loads_with_required_shape(service: CharterOfferingService) -> None:
     paradigm = service.paradigms.get("structured-prompt-driven-development")
     assert paradigm is not None, "paradigm structured-prompt-driven-development not loaded"
     assert paradigm.id == "structured-prompt-driven-development"
@@ -50,7 +50,7 @@ def test_paradigm_loads_with_required_shape(service: DoctrineService) -> None:
 
 @pytest.mark.parametrize("tactic_id", ["reasons-canvas-fill", "reasons-canvas-review"])
 def test_tactic_loads_with_required_shape(
-    service: DoctrineService, tactic_id: str
+    service: CharterOfferingService, tactic_id: str
 ) -> None:
     tactic = service.tactics.get(tactic_id)
     assert tactic is not None, f"tactic {tactic_id} not loaded"
@@ -65,7 +65,7 @@ def test_tactic_loads_with_required_shape(
     assert shipped_path.is_file(), f"tactic must live in shipped/: {shipped_path}"
 
 
-def test_styleguide_loads_with_required_shape(service: DoctrineService) -> None:
+def test_styleguide_loads_with_required_shape(service: CharterOfferingService) -> None:
     styleguide = service.styleguides.get("reasons-canvas-writing")
     assert styleguide is not None, "styleguide reasons-canvas-writing not loaded"
     assert styleguide.id == "reasons-canvas-writing"
@@ -83,7 +83,7 @@ def test_styleguide_loads_with_required_shape(service: DoctrineService) -> None:
 
 
 def test_directive_038_lenient_adherence_with_four_allowances(
-    service: DoctrineService,
+    service: CharterOfferingService,
 ) -> None:
     directive = service.directives.get("DIRECTIVE_038")
     assert directive is not None, "DIRECTIVE_038 not loaded"

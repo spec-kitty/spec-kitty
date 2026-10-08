@@ -6,7 +6,7 @@ import pytest
 
 from charter.activation.catalog import resolve_doctrine_root
 from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn, resolve_config_id
-from specify_cli.doctrine.org_charter import _normalize_required_ids
+from charter.activation.org_charter import _normalize_required_ids
 from specify_cli.upgrade.migrations.m_unify_charter_activation import resolve_selected_id_to_stem
 
 pytestmark = pytest.mark.unit
@@ -23,9 +23,9 @@ def test_declared_id_maps_to_highest_layer_stem(tmp_path: Path, project_override
     identity = "ACME-001-FOO"
     for org in orgs:
         _directive(org / "directives", org.name, identity)
-    project = tmp_path / ".kittify"
+    project = tmp_path / ".kittify" / "charter-packs"
     if project_override:
-        _directive(project / "doctrine/directive", "project", identity)
+        _directive(project / "directive", "project", identity)
     kwargs = {"doctrine_root": resolve_doctrine_root(), "org_roots": orgs, "layer_roots": {"project": project}}
     expected = "project" if project_override else "team"
     assert resolve_config_id(f"directive:{identity}", **kwargs) == expected
@@ -67,15 +67,16 @@ def test_unresolvable_selection_returns_none(tmp_path: Path, raw_id: str) -> Non
 
 
 def test_project_identity_wins_regardless_of_layer_map_order(tmp_path: Path) -> None:
-    project = tmp_path / ".kittify"
+    project = tmp_path / ".kittify" / "charter-packs"
     org = tmp_path / "org"
-    _directive(project / "doctrine/directive", "project", "ACME-001-FOO")
-    _directive(org / "doctrine/directives/org", "org", "ACME-001-FOO")
+    _directive(project / "directive", "project", "ACME-001-FOO")
+    _directive(org / "directives", "org", "ACME-001-FOO")
     assert (
         resolve_config_id(
             "directive:ACME-001-FOO",
             doctrine_root=tmp_path,
-            layer_roots={"project": project, "org": org},
+            org_roots=[org],
+            layer_roots={"project": project},
         )
         == "project"
     )
@@ -87,9 +88,9 @@ def test_colliding_highest_layer_stem_uses_representable_lower_stem(tmp_path: Pa
     _directive(orgs[0] / "directives", "original", "CHOSEN-POLICY")
     _directive(orgs[0] / "directives", "shared", "OTHER-POLICY")
     _directive(orgs[1] / "directives", "shared", "CHOSEN-POLICY")
-    project = tmp_path / ".kittify"
+    project = tmp_path / ".kittify" / "charter-packs"
     if project_override:
-        _directive(project / "doctrine/directive", "shared", "CHOSEN-POLICY")
+        _directive(project / "directive", "shared", "CHOSEN-POLICY")
     kwargs = {"doctrine_root": tmp_path / "builtin", "org_roots": orgs, "layer_roots": {"project": project}}
     token = resolve_config_id("directive:CHOSEN-POLICY", **kwargs)
     assert token == "original"

@@ -1,0 +1,19 @@
+adapter_id: fixture
+adapter_notes: fixture:d9b6f2d13e94
+adapter_version: 1.0.0
+artifact_content_hash: 
+  19c8d150e4f42839c707c1008fd8976b49ab97053d1a1dfe1a65753e79bba688
+artifact_kind: directive
+artifact_slug: risk-appetite-directive
+artifact_urn: directive:PROJECT_003
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-01-01T01:00:52.645585+00:00'
+inputs_hash: d9b6f2d13e94a45e51460dfeab329b122b6bfce0da7cc5f62edf05de9f6ad114
+produced_at: '2026-10-06T22:00:18.011324+00:00'
+schema_version: '2'
+source_input_ids: []
+source_section: risk_appetite
+source_urns: []
+synthesis_run_id: 01KPE222CD1MMCYEGB3ZCY51VR
+synthesizer_version: 4.0.0rc6

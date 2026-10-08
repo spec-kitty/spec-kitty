@@ -1,0 +1,85 @@
+# Closed per-subsystem retired-identifier lists for FR-010 (#3732, WP01 T008).
+#
+# Read by tests/acceptance/charter_pack_cutover/test_package_split.py::test_fr010_retired_identifiers_absent.
+# Taken from occurrence_map.yaml and the WP19-WP22 rename tables. Frozen at the mission
+# base: a work package removes its own slice's identifiers, it never edits this file.
+#
+# kind: python -> AST scan (definitions, names, attributes, import bindings, module
+#                 segments, parameters and keyword names) of every *.py under `dirs`
+#                 and `files`, minus `exclude_patterns` (fnmatch on repo-relative paths).
+# kind: prose  -> case-insensitive token scan of tracked text files under `dirs`/`files`
+#                 that are FR-018 living surfaces, minus `exclude_patterns`.
+#
+# base_count: files scanned at base (lane HEAD fcf7a82710d2424a231c2f7b23f490ffde8bd9ab).
+# floor:      the minimum a run must scan (base_count less a 20% allowance for the files the
+#             mission deletes or moves out of the slice, e.g. src/specify_cli/doctrine/).
+slices:
+  r1:
+    pending: WP19
+    kind: python
+    dirs: [src/charter/offering, src/kernel]
+    files_glob: [src/charter/*.py]
+    exclude_patterns: []
+    identifiers:
+      - DoctrineService
+      - BaseDoctrineRepository
+      - DoctrineLayerCollisionWarning
+      - DoctrineArtifactLoadError
+      - DoctrineResolutionCycleError
+      - doctrine_package_dir
+      - _is_doctrine_package_root
+      - doctrine_root
+    base_count: 145
+    floor: 116
+  r2:
+    pending: WP20
+    kind: python
+    dirs: [src/charter/activation]
+    files_glob: []
+    exclude_patterns: []
+    identifiers:
+      - DoctrineService
+      - DoctrineCatalog
+      - load_doctrine_catalog
+      - resolve_doctrine_root
+      - DoctrineSelectionConfig
+      - _doctrine_paths
+      - doctrine_service_builder
+      - build_activation_aware_doctrine_service
+      - action_doctrine_bundle
+      - MissingDoctrinePackError
+    base_count: 101
+    floor: 80
+  r3r4:
+    pending: WP21
+    kind: python
+    dirs: [src/specify_cli]
+    files_glob: []
+    exclude_patterns:
+      - "src/specify_cli/upgrade/migrations/m_*.py"
+      - "src/specify_cli/upgrade/migrations/_charter_pack_cutover*"
+    identifiers:
+      - OrgDoctrineSource
+      - doctrine_service_factory
+      - doctrine_synthesizer
+    base_count: 961
+    floor: 768
+  prose:
+    pending: WP22
+    kind: prose
+    dirs: [packs, docs]
+    files_glob: [AGENTS.md]
+    exclude_patterns:
+      - "docs/changelog/*"
+      - "docs/context/charter.md"
+    identifiers:
+      - doctrine pack
+      - project doctrine
+      - doctrine catalog
+      - pack default charter
+      - default charter pack
+      - charter selection
+      - spec-kitty doctrine
+      - doctor doctrine
+    base_count: 893
+    floor: 714

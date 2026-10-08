@@ -83,7 +83,7 @@ _CORPUS_DATA_ROOTS = (
     "kitty-specs/",
     ".kittify/charter/",
     ".kittify/glossaries/",
-    ".kittify/doctrine/",
+    ".kittify/charter-packs/",
     # (`.kittify/release/downstream-verified.json` was dropped: it is not a tracked
     # file and is not in the router corpus group.)
 )
@@ -93,7 +93,7 @@ _CORPUS_DATA_ROOTS = (
 # tests/doctrine/conftest.py `built_in_graph`/`shipped_drg_graph` fixtures,
 # `load_built_in_graph()`/`built_in_graph_source()`, `resolve_pack_root()`,
 # `BUILT_IN_MISSIONS_ROOT`, a bare `AgentProfileRepository()`/
-# `DoctrineService()`, or a real-`REPO_ROOT`-anchored path) or the narrow
+# `CharterOfferingService()`, or a real-`REPO_ROOT`-anchored path) or the narrow
 # kitty-specs mission-spec leaves (spec.md/plan.md/tasks/contracts) this
 # WP's globs cover. Enumerated from research/corpus-suite-inventory.md plus
 # a full grep sweep for these entry points, then hand-verified file-by-file
@@ -108,6 +108,13 @@ _CORPUS_DATA_ROOTS = (
 # they read nothing real today).
 _CORPUS_MARKED_MODULES = frozenset(
     {
+        "tests/acceptance/charter_pack_cutover/test_cli_surface.py",
+        "tests/acceptance/charter_pack_cutover/test_gates_latency_messaging.py",
+        "tests/acceptance/charter_pack_cutover/test_package_split.py",
+        "tests/acceptance/charter_pack_cutover/test_presets.py",
+        "tests/acceptance/charter_pack_cutover/test_project_pack_root.py",
+        "tests/acceptance/charter_pack_cutover/test_rename_skills_glossary.py",
+        "tests/acceptance/charter_pack_cutover/test_traceability.py",
         "tests/architectural/test_bare_prose_corpus_ratchet.py",
         "tests/architectural/test_transition_guard_shrink_only.py",
         "tests/charter/synthesizer/test_manifest.py",

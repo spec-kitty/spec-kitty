@@ -14,6 +14,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from kernel.charter_pack_paths import project_pack_root
+
 from .findings import GraphState
 
 logger = logging.getLogger(__name__)
@@ -42,13 +44,13 @@ def _load_graph_file(path: Path) -> Any | None:
 
 
 def _load_project_drg(repo_root: Path) -> Any | None:
-    """Try to load the project DRG from ``.kittify/doctrine/``.
+    """Try to load the project DRG from the project pack root (``.kittify/charter-packs/``).
 
     Search order matches the one used by ``entity_pages.py``::
 
         graph.yaml > merged_drg.json > drg.json > compiled_drg.json
     """
-    drg_dir = repo_root / ".kittify" / "doctrine"
+    drg_dir = project_pack_root(repo_root)
     candidates = ["graph.yaml", "merged_drg.json", "drg.json", "compiled_drg.json"]
     for name in candidates:
         path = drg_dir / name
@@ -88,7 +90,7 @@ def load_merged_drg(repo_root: Path) -> tuple[Any | None, GraphState]:
     Resolution order (deterministic — locked by ADR
     ``2026-05-24-1-charter-freshness-ux-contract.md``):
 
-    1. Project DRG under ``.kittify/doctrine/`` →
+    1. Project DRG under ``.kittify/charter-packs/`` →
        ``(graph, GraphState.MERGED)``. The "merged" label reflects the
        contract that a synthesized project DRG already incorporates the
        built-in and any org-pack layers; callers do not need to merge

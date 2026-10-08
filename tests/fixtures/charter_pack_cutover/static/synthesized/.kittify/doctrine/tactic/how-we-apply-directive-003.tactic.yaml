@@ -1,0 +1,21 @@
+id: how-we-apply-directive-003
+name: How We Apply DIRECTIVE_003
+purpose: >
+  Describes the concrete workflow for producing and maintaining Architecture
+  Decision Records in this project, in accordance with DIRECTIVE_003.
+schema_version: '1.0'
+steps:
+- description: >
+    Recognize when a significant architectural choice has been made or
+    needs to be made.
+  examples:
+  - "Choosing a new persistence layer"
+  - "Adopting a new CLI framework"
+  title: Identify a decision
+- description: >
+    Use the ADR template in architecture/adrs/ to document context,
+    decision, rationale, and consequences.
+  title: Draft the ADR
+- description: >
+    Include the ADR in the same pull request as the code change it governs.
+  title: Review and merge

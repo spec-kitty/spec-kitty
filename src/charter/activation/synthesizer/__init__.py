@@ -2,7 +2,7 @@
 
 This package delivers Phase 3 of the Charter EPIC: turning interview answers,
 built-in doctrine, and the built-in DRG into project-local directives, tactics,
-and styleguides stored under .kittify/doctrine/ (content) and
+and styleguides stored under .kittify/charter-packs/ (content) and
 .kittify/charter/ (provenance bookkeeping).
 
 Public re-exports

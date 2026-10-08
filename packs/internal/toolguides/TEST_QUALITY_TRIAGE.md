@@ -33,7 +33,7 @@ Or call the asset directly through the doctrine resolver, which is the same
 file:
 
 ```bash
-python "$(spec-kitty doctrine asset path test-quality-scan)" \
+python "$(spec-kitty charter pack asset path test-quality-scan)" \
     --out work/test-quality/$(date +%F) [--paths tests/<domain>] [--since <rev>] [--top 25] [--no-git]
 ```
 

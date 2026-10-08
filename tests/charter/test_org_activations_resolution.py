@@ -77,7 +77,7 @@ def _governance_yaml_with_activation() -> str:
           - activation_context:
               mission_type: software-dev
               action: implement
-            doctrine_pack_id: project
+            charter_pack_id: project
             artifact_id: {_PROJECT_ARTIFACT_ID}
             artifact_kind: styleguides
         """
@@ -102,7 +102,7 @@ def _register_org_pack(repo_root: Path, pack_root: Path, *, name: str = _ORG_PAC
                 # "software-dev" mission type, unrelated to the org∪project
                 # activation-union semantics under test.
                 "mission_type_activations": ["software-dev"],
-                "doctrine": {"org": {"packs": [{"name": name, "local_path": str(pack_root)}]}},
+                "charter_packs": {"org": {"packs": [{"name": name, "local_path": str(pack_root)}]}},
             },
             fh,
         )
@@ -146,13 +146,13 @@ class TestOrgProjectActivationUnion:
                   - activation_context:
                       mission_type: software-dev
                       action: implement
-                    doctrine_pack_id: project
+                    charter_pack_id: project
                     artifact_id: {_PROJECT_ARTIFACT_ID}
                     artifact_kind: styleguides
                   - activation_context:
                       mission_type: software-dev
                       action: implement
-                    doctrine_pack_id: {_ORG_PACK_NAME}
+                    charter_pack_id: {_ORG_PACK_NAME}
                     artifact_id: {_ORG_ONLY_ARTIFACT_ID}
                     artifact_kind: tactics
                 """
@@ -205,7 +205,7 @@ class TestOrgActivationValidationAndSkip:
                   - activation_context:
                       mission_type: not-a-real-mission-type
                       action: implement
-                    doctrine_pack_id: orgzilla-governance-pack
+                    charter_pack_id: orgzilla-governance-pack
                     artifact_id: broken-entry
                     artifact_kind: styleguides
                 """

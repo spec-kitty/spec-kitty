@@ -40,7 +40,7 @@ from charter.activation.compiler import _ReferenceFields, _render_kind_reference
 from charter.activation.interview import default_interview
 from charter.activation.pack_context import PackContext
 from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
-from charter.offering.service import DoctrineService as RawDoctrineService
+from charter.offering.service import CharterOfferingService
 
 pytestmark = [pytest.mark.fast, pytest.mark.regression]
 
@@ -104,7 +104,7 @@ def _compile_with_transitive_directive_seed(repo_root: Path) -> Any:
     ``_default_doctrine_service`` share in production.
     """
     pack_context = _pack_context_seeding_procedure_only(repo_root)
-    doctrine_service = ActivationAwareDoctrineService(RawDoctrineService(project_root=None), pack_context=pack_context)
+    doctrine_service = ActivationAwareDoctrineService(CharterOfferingService(project_root=None), pack_context=pack_context)
     interview = default_interview(mission="software-dev", profile="minimal")
     return compile_charter(
         mission="software-dev",

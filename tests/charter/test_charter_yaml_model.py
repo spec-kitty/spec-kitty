@@ -51,7 +51,7 @@ def _governance() -> GovernanceConfig:
         activations=[
             ActivationEntry(
                 activation_context={"mission_type": "software-dev"},
-                doctrine_pack_id="very-serious-developers",
+                charter_pack_id="very-serious-developers",
                 artifact_id="caveman-comments",
             )
         ]

@@ -34,7 +34,7 @@ def _register_pack(repo_root: Path, org_root: Path, *, name: str = "test-org") -
     kit = repo_root / ".kittify"
     kit.mkdir(parents=True, exist_ok=True)
     (kit / "config.yaml").write_text(
-        yaml.safe_dump({"doctrine": {"org": {"packs": [{"name": name, "local_path": str(org_root)}]}}}),
+        yaml.safe_dump({"charter_packs": {"org": {"packs": [{"name": name, "local_path": str(org_root)}]}}}),
         encoding="utf-8",
     )
 

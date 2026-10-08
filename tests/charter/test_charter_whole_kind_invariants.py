@@ -91,7 +91,7 @@ class _StubRepository:
     """Minimal raw-repository double.
 
     ``.get(id)`` resolves only ids in *known*; everything else misses.
-    *scope_filtered_ids* mirrors ``BaseDoctrineRepository.scope_filtered_ids``
+    *scope_filtered_ids* mirrors ``BaseArtifactRepository.scope_filtered_ids``
     -- when a missing id is a member, the future classify-and-placeholder
     helper (``_diagnose_catalog_miss``) will route it to ``SCOPE_FILTERED``
     instead of ``MISSING_ARTIFACT``/``TYPO_SUSPECTED``.
@@ -172,7 +172,7 @@ def _call_build_references(
 
 
 def _write_dangling_edge_project_overlay(repo_root: Path) -> None:
-    """Write a project-level DRG overlay (``<repo>/.kittify/doctrine/graph.yaml``)
+    """Write a project-level DRG overlay (``<repo>/.kittify/charter-packs/graph.yaml``)
     with a dangling edge target, so ``assert_valid`` rejects the merged graph
     and ``_resolve_transitive_reference_graph``'s own ``except Exception:``
     branch (compiler.py, current ~line 1306) fires for real -- this is the
@@ -180,7 +180,7 @@ def _write_dangling_edge_project_overlay(repo_root: Path) -> None:
     calls for, exercised through the REAL function (not monkeypatched),
     since I4's defect is inside that function's own except branch.
     """
-    overlay_dir = repo_root / ".kittify" / "doctrine"
+    overlay_dir = repo_root / ".kittify" / "charter-packs"
     overlay_dir.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
     yaml.default_flow_style = False
@@ -615,7 +615,7 @@ def test_i1_i2_carve_out_transitive_only_id_under_graph_load_failure(tmp_path: P
 
 
 class _RawUnwrappedDoctrineServiceDouble:
-    """A raw/unwrapped ``charter.offering.service.DoctrineService`` double: no
+    """A raw/unwrapped ``charter.offering.service.CharterOfferingService`` double: no
     ``raw_repository`` method (per ``_raw_kind_repository``'s own docstring
     branch), and no attribute matching an untracked kind such as
     ``"templates"``/``"anti_patterns"``.

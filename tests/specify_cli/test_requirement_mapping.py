@@ -103,7 +103,7 @@ class TestDeclaredVsCitedRequirements:
 
     Regression for the real-world repro (issue #3385, mission
     ``org-activation-scan-dirs-01KZY1PT``): the spec's prose cited
-    ``CharterPackManager.activate``'s FR-021 default-pack materialization as
+    ``ActiveCharterManager.activate``'s FR-021 default-pack materialization as
     background evidence for why the bug being fixed is easy to miss. FR-021
     belongs to a different, already-shipped part of the codebase; the citing
     mission does not implement it and never should have been forced to route
@@ -119,7 +119,7 @@ class TestDeclaredVsCitedRequirements:
         """
         content = (
             "## Background\n\n"
-            "This bug is easy to miss -- see CharterPackManager.activate's "
+            "This bug is easy to miss -- see ActiveCharterManager.activate's "
             "FR-021 default-pack materialization for related prior art.\n\n"
             "### Functional Requirements\n\n"
             "| ID | Requirement | Status |\n"

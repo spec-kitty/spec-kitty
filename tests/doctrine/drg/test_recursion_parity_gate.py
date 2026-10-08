@@ -225,7 +225,7 @@ def test_top_level_builtin_still_reserved_flat_wins(tmp_path: Path) -> None:
 
 
 def test_no_base_repository_reoverrides_project_scan_non_recursively() -> None:
-    """No ``BaseDoctrineRepository`` subclass may re-declare ``_project_scan``.
+    """No ``BaseArtifactRepository`` subclass may re-declare ``_project_scan``.
 
     Directly guards the reintroduced-override regression the falsifiability probe
     cannot reach (a per-repo ``.glob`` override bypasses the shared authority the
@@ -233,9 +233,9 @@ def test_no_base_repository_reoverrides_project_scan_non_recursively() -> None:
     favour of the recursive base; a subclass that re-adds one -- recursive or not
     -- must fail here so the loader cannot silently diverge from the resolver.
     """
-    from charter.offering.base import BaseDoctrineRepository
+    from charter.offering.base import BaseArtifactRepository
 
-    offenders = [cls.__name__ for cls in BaseDoctrineRepository.__subclasses__() if "_project_scan" in cls.__dict__]
+    offenders = [cls.__name__ for cls in BaseArtifactRepository.__subclasses__() if "_project_scan" in cls.__dict__]
     assert not offenders, f"these repositories re-declare _project_scan instead of inheriting the authority-driven recursive base: {offenders}"
 
 

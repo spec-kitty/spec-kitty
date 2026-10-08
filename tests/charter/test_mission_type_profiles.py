@@ -29,7 +29,7 @@ from charter.activation.mission_type_profiles import (
     resolve_mission_type_context,
 )
 from charter.activation.pack_context import PackContext
-from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.base import ArtifactLayerCollisionWarning
 from charter.offering.missions.mission_type_repository import MissionTypeRepository
 
 
@@ -562,7 +562,7 @@ class TestPackContextProjection:
         ``project`` layer -- not a field-merged inherit of the org-layer's
         populated value (spec.md Edge Cases, full per-compound-key
         replacement -- MissionTypeRepository does not inherit
-        BaseDoctrineRepository, so the field-merge ADR
+        BaseArtifactRepository, so the field-merge ADR
         ``docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`` does
         not govern it) and not a silent resolve to ``[]`` (CL-003/FR-004,
         closed by WP06).
@@ -851,7 +851,7 @@ def _write_org_pack_config(
     for mission_type in activated_mission_types:
         lines.append(f"  - {mission_type}")
     if packs:
-        lines += ["doctrine:", "  org:", "    packs:"]
+        lines += ["charter_packs:", "  org:", "    packs:"]
         for name, local_path in packs:
             lines.append(f"      - name: {name}")
             lines.append(f"        local_path: {local_path}")
@@ -914,7 +914,7 @@ class TestOrgTierGovernanceProfileThreading:
             activated_mission_types=["software-dev"],
         )
 
-        with pytest.warns(DoctrineLayerCollisionWarning, match="software-dev"):
+        with pytest.warns(ArtifactLayerCollisionWarning, match="software-dev"):
             after = resolve_mission_type_context(tmp_path, mission_type="software-dev")
 
         assert after.provenance == "org"
@@ -930,7 +930,7 @@ class TestOrgTierGovernanceProfileThreading:
         ``resolve_org_dirs``) into ``MissionTypeProfileRepository.for_project``,
         so an ordering regression here would be this WP's own fault, not a
         pre-existing one — hence the explicit two-pack fixture rather than
-        relying solely on the generic ``resolve_org_dirs``/``BaseDoctrineRepository``
+        relying solely on the generic ``resolve_org_dirs``/``BaseArtifactRepository``
         coverage elsewhere.
         """
         _git_init_minimal(tmp_path)
@@ -962,7 +962,7 @@ class TestOrgTierGovernanceProfileThreading:
             activated_mission_types=["software-dev"],
         )
 
-        with pytest.warns(DoctrineLayerCollisionWarning, match="software-dev"):
+        with pytest.warns(ArtifactLayerCollisionWarning, match="software-dev"):
             bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
 
         assert bundle.provenance == "org"
@@ -1205,7 +1205,7 @@ class TestActionGrainBuiltinOnlyPathUnaffected:
 
         # Sanity: the WP04-fixed, repo_root-threaded path DOES see the org
         # override (same fixture as TestOrgTierGovernanceProfileThreading).
-        with pytest.warns(DoctrineLayerCollisionWarning, match="software-dev"):
+        with pytest.warns(ArtifactLayerCollisionWarning, match="software-dev"):
             threaded = _load_mission_type_profile("software-dev", repo_root=tmp_path)
         assert threaded is not None
         assert threaded.template_set == _ORG_OVERRIDE_TEMPLATE_SET

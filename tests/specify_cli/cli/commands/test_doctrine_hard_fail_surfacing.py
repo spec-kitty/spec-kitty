@@ -83,10 +83,11 @@ def _write_repo(root: Path, *, dangling: bool = False, unresolved: bool = False)
     (kittify / "config.yaml").write_text(
         dedent(
             f"""\
-            organisation_packs:
-              - name: example-org
-                source: local_path
-                path: {pack_dest}
+            charter_packs:
+              org:
+                packs:
+                  - name: example-org
+                    local_path: {pack_dest}
             """
         ),
         encoding="utf-8",
@@ -114,7 +115,7 @@ _MONOTONICITY_TABLE = [
 
 
 def _doctor_doctrine_json(repo_root: Path) -> tuple[int, dict[str, object]]:
-    """Invoke ``doctor doctrine --json`` and return ``(exit_code, payload)``.
+    """Invoke ``doctor charter-packs --json`` and return ``(exit_code, payload)``.
 
     ``merge_three_layers`` emits operator WARNINGs on stderr, which ``CliRunner``
     interleaves with stdout, so the payload is sliced from the first ``{``
@@ -126,7 +127,7 @@ def _doctor_doctrine_json(repo_root: Path) -> tuple[int, dict[str, object]]:
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=repo_root,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
 
     brace = result.output.find("{")
     assert brace != -1, f"no JSON payload in output: {result.output!r}"

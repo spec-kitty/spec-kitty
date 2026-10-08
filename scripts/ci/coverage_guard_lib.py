@@ -194,7 +194,7 @@ def is_data_only_package(pkg_prefix: str) -> bool:
     *data* file (``.yaml`` / ``.json`` / a template / …) and **no** ``.py`` file
     other than ``__init__.py`` (the F18 data-package exclusion). Such a package
     is not import-testable, so the reachability guard excludes it: e.g.
-    ``charter.activation.corpus`` / ``charter.activation.packs`` (only
+    ``charter.activation.corpus`` (only
     ``*.yaml``), ``specify_cli.skills.data`` (only ``*.json``).
 
     A *content-free* package (only ``__init__.py``, no data files) is **not**

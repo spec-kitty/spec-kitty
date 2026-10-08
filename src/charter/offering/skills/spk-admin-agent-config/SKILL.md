@@ -13,7 +13,7 @@ another agent for Spec Kitty.
 1. Identify the active host and project root.
 2. Verify skill and command install locations for that host.
 3. Confirm the agent name used by `spec-kitty next --agent <name>`.
-4. Load profile doctrine through `spk-doctrine-profile-load` when needed.
+4. Load profile doctrine through `spk-charter-profile-load` when needed.
 5. Use `spk-start-agent-surface` for host capability differences.
 
 ## Rule

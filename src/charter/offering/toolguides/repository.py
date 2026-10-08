@@ -10,12 +10,12 @@ from ruamel.yaml import YAML
 
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.pack_paths import built_in_dir
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 from .models import Toolguide
 from .validation import reject_toolguide_inline_refs
 
 
-class ToolguideRepository(BaseDoctrineRepository[Toolguide]):
+class ToolguideRepository(BaseArtifactRepository[Toolguide]):
     """Repository for loading and managing toolguide YAML files."""
 
     def __init__(

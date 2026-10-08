@@ -95,7 +95,7 @@ class _SpddActivationConfigError(ValueError):
     """Raised when the SPDD activation source is malformed or unreachable.
 
     A module-local, ``charter.activation``-import-free equivalent of
-    ``charter.activation.pack_context.CharterPackConfigError`` (FR-005) --
+    ``charter.activation.pack_context.ActiveCharterConfigError`` (FR-005) --
     C-004 forbids importing that class from this package, so this rewrite
     raises its own narrow exception type carrying an equivalent message
     instead of the real one.

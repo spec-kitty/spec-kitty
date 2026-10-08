@@ -15,7 +15,7 @@ instances directly), every test here drives the **real** on-disk pipeline:
 
 1. :func:`charter.offering.drg.org_pack_loader.load_org_pack` parses an actual
    ``drg/fragment.yaml`` (and, for the negative path/mime cases,
-   :func:`specify_cli.doctrine.pack_validator.validate_pack` scans an actual
+   :func:`charter.offering.packs.pack_validator.validate_pack` scans an actual
    ``assets/*.asset.yaml`` sidecar) from
    ``tests/doctrine/fixtures/org_pack_template_asset/``.
 2. :func:`charter.offering.drg.merge.merge_three_layers` merges the loaded fragment(s)
@@ -39,7 +39,7 @@ from charter.offering.drg.merge import DuplicateURNError, merge_three_layers
 from charter.offering.drg.models import DRGGraph, NodeKind, Relation
 from charter.offering.drg.org_pack_loader import OrgDRGFragment, load_org_pack
 from charter.offering.drg.query import resolve_transitive_refs
-from specify_cli.doctrine.pack_validator import validate_pack
+from charter.offering.packs.pack_validator import validate_pack
 from tests.doctrine._builtin_inventory import builtin_asset_urns
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]

@@ -160,7 +160,7 @@ def test_asset_payloads_relocated_under_packs_built_in() -> None:
 # relocation has long since landed; the frozen baseline had degenerated into a
 # pure change-detector that reds on every legitimate doctrine addition. Its
 # protection against silent per-edge ``when``/``reason``/``label`` drift is
-# permanently subsumed by ``spec-kitty doctrine regenerate-graph --check`` (the
+# permanently subsumed by ``spec-kitty charter pack regenerate-graph --check`` (the
 # committed DRG fragments must equal a fresh regeneration from frontmatter), so
 # nothing is lost by removing the frozen snapshot.
 # --------------------------------------------------------------------------- #

@@ -78,7 +78,7 @@ def _register_pack(repo_root: Path, pack_root: Path) -> None:
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
     (kittify / "config.yaml").write_text(
-        yaml.safe_dump({"doctrine": {"org": {"packs": [{"name": "gov-pack", "local_path": str(pack_root)}]}}}),
+        yaml.safe_dump({"charter_packs": {"org": {"packs": [{"name": "gov-pack", "local_path": str(pack_root)}]}}}),
         encoding="utf-8",
     )
 

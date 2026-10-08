@@ -17,17 +17,20 @@ them for canonical-root resolution and the ``charter.md`` staleness check. ``syn
 anything; it always reports ``synced=False`` / ``files_written=[]``.
 """
 
-import functools
 import logging
-import warnings
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from charter.activation._io import load_charter_file
 from charter.bundle import CANONICAL_MANIFEST, CHARTER_YAML
 from charter.activation.charter_yaml_io import load_charter_yaml
+from charter.activation.pack_context import ActiveCharterConfigError
 from charter.hasher import is_stale
+from charter.offering.packs.retired_fields import raise_retired_field_at
 from charter.resolution import resolve_canonical_repo_root
 from charter.activation.schemas import (
     DirectivesConfig,
@@ -35,12 +38,11 @@ from charter.activation.schemas import (
 )
 
 __all__ = [
-    "LegacyGovernanceKeyWarning",
     "SyncResult",
-    "apply_legacy_governance_selection_key_compat",
     "ensure_charter_bundle_fresh",
     "load_directives_config",
     "load_governance_config",
+    "require_canonical_governance",
     "sync",
 ]
 
@@ -209,6 +211,11 @@ def sync(
         )
 
 
+def _charter_yaml_path(repo_root: Path) -> Path:
+    """Return the canonical (main-checkout) ``charter.yaml`` path for *repo_root*."""
+    return Path(resolve_canonical_repo_root(repo_root), CHARTER_YAML)
+
+
 def _load_charter_yaml_section(repo_root: Path, section: str) -> object | None:
     """Return the named top-level ``charter.yaml`` section, or ``None``.
 
@@ -224,8 +231,7 @@ def _load_charter_yaml_section(repo_root: Path, section: str) -> object | None:
     caller's "use an empty config" signal, logged at different verbosity by
     the two public loaders below.
     """
-    canonical_root = resolve_canonical_repo_root(repo_root)
-    charter_yaml_path = canonical_root / CHARTER_YAML
+    charter_yaml_path = _charter_yaml_path(repo_root)
     if not charter_yaml_path.exists():
         return None
     document = load_charter_yaml(charter_yaml_path)
@@ -234,87 +240,33 @@ def _load_charter_yaml_section(repo_root: Path, section: str) -> object | None:
     return document.get(section)
 
 
-#: The retired/canonical governance selection-key pair (CR-01,
-#: ``kitty-specs/retire-doctrine-term-01M0JMK9/inventory.md`` line 163).
-#: Unlike the migration script's tokens (``scripts/migrate_charter_
-#: interview_answers.py``), these are ordinary literals: `charter.yaml`'s
-#: `governance:` section is hand-authored config, not the scanned governing-
-#: term surface the WP04 shrink-only guard polices, and a compat SHIM must
-#: literally recognize the legacy key to read it.
-_LEGACY_GOVERNANCE_SELECTION_KEY = "doctrine"
-_CANONICAL_GOVERNANCE_SELECTION_KEY = "charter"
+#: The retired governance selection key (CR-01) and the runbook that migrates it.
+#: ``spec-kitty upgrade`` rewrites ``governance.doctrine`` to ``governance.charter``
+#: (mission ``charter-pack-cutover-01M491G6``, FR-011); no reader maps it.
+_RETIRED_GOVERNANCE_SELECTION_KEY = "doctrine"
+_CUTOVER_RUNBOOK = "docs/migrations/charter-pack-cutover.md"
 
 
-class LegacyGovernanceKeyWarning(UserWarning):
-    """Emitted once per process when ``charter.yaml``'s ``governance:``
-    section still carries the retired ``doctrine:`` selection key instead
-    of the canonical ``charter:`` key (CR-01)."""
+def require_canonical_governance(governance: Mapping[str, Any], *, source: Path) -> Mapping[str, Any]:
+    """Return *governance* unchanged, refusing the retired ``doctrine`` selection key.
 
+    ``GovernanceConfig`` ignores unknown keys, so without this check a legacy
+    ``governance.doctrine`` block would be dropped in silence and its selected
+    artifacts lost. Every reader of a raw ``governance:`` mapping calls this
+    before reading ``charter``.
 
-@functools.lru_cache(maxsize=1)
-def _warn_legacy_governance_key_once() -> None:
-    """Emit the CR-01 compat warning exactly once per process.
-
-    Gated by ``lru_cache`` (precedent: ``charter.activation.compiler.
-    _legacy_activation_keys``) rather than the ``warnings`` module's own
-    de-dup filter, because callers -- including this project's own test
-    suite -- may run under a stricter ``filterwarnings`` configuration that
-    would turn a *repeated* warning into a hard failure instead of a silent
-    de-dup. Tests reset this gate via ``_warn_legacy_governance_key_once.
-    cache_clear()`` (precedent: ``resolve_canonical_repo_root.cache_clear()``
-    in ``tests/charter/conftest.py``).
+    Raises:
+        ActiveCharterConfigError: the mapping carries ``doctrine`` (code
+            ``ACTIVE_CHARTER_CONFIG_INVALID``); the message names *source*, the
+            key, ``spec-kitty upgrade`` and the runbook.
     """
-    warnings.warn(
-        f"charter.yaml governance section uses the legacy "
-        f"'{_LEGACY_GOVERNANCE_SELECTION_KEY}' key; reading it as "
-        f"'{_CANONICAL_GOVERNANCE_SELECTION_KEY}'. Run `spec-kitty charter "
-        "sync` (or hand-edit charter.yaml) to adopt the canonical key.",
-        LegacyGovernanceKeyWarning,
-        stacklevel=3,
-    )
-
-
-def apply_legacy_governance_selection_key_compat(
-    governance_data: dict[str, Any],
-) -> dict[str, Any]:
-    """Dict-level CR-01 compat: map legacy ``doctrine`` -> canonical ``charter``.
-
-    Applied to the RAW dict returned by ``_load_charter_yaml_section``
-    BEFORE ``GovernanceConfig.model_validate`` -- a pydantic ``Field(alias=
-    ...)`` would remap silently and defeat the warn-once contract (SC-002,
-    research.md Seam 2: "Silent pydantic alias fails warn-once").
-
-    When both keys are present the canonical value wins and the legacy
-    value is discarded WITHOUT a warning: an operator who has already
-    migrated should not be nagged about stale legacy data they no longer
-    read.
-
-    Public (promoted from ``_apply_legacy_governance_selection_key_compat``,
-    mission ``charter-authority-flip-01M14RB3`` WP03 remediation): the
-    ``consolidate_charter_bundle_fold`` migration
-    (``src/specify_cli/upgrade/migrations/
-    m_unify_charter_activation_finalize.py``) needs this same dict-level
-    remap when composing a fresh ``charter.yaml`` from a legacy standalone
-    ``governance.yaml`` -- reaching across the package boundary for a
-    private, underscore-prefixed name was a layering violation. The
-    underscore-prefixed name is kept as a thin deprecated alias below for
-    any other caller that imported the old private name directly.
-    """
-    if _LEGACY_GOVERNANCE_SELECTION_KEY not in governance_data:
-        return governance_data
-    result = dict(governance_data)
-    legacy_value = result.pop(_LEGACY_GOVERNANCE_SELECTION_KEY)
-    if _CANONICAL_GOVERNANCE_SELECTION_KEY in result:
-        return result
-    _warn_legacy_governance_key_once()
-    result[_CANONICAL_GOVERNANCE_SELECTION_KEY] = legacy_value
-    return result
-
-
-#: Deprecated private alias retained for any caller still importing the old
-#: underscore-prefixed name directly. New callers should use
-#: :func:`apply_legacy_governance_selection_key_compat`.
-_apply_legacy_governance_selection_key_compat = apply_legacy_governance_selection_key_compat
+    if _RETIRED_GOVERNANCE_SELECTION_KEY in governance:
+        raise ActiveCharterConfigError(
+            f"{source}: `governance.{_RETIRED_GOVERNANCE_SELECTION_KEY}` is the retired selection key "
+            "and is no longer read. Run `spec-kitty upgrade` to rewrite it as `governance.charter`. "
+            f"See {_CUTOVER_RUNBOOK}."
+        )
+    return governance
 
 
 def load_governance_config(repo_root: Path) -> GovernanceConfig:
@@ -342,14 +294,26 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
 
     Returns:
         GovernanceConfig instance (empty if charter.yaml/section missing)
+
+    Raises:
+        ActiveCharterConfigError: the section carries the retired
+            ``doctrine`` selection key (:func:`require_canonical_governance`).
+        RetiredPackFieldError: an activation entry still carries a retired
+            field (#3732); the error names the ``charter.yaml`` path, the
+            field and its replacement (code ``RETIRED_PACK_FIELD``).
+        pydantic.ValidationError: any other schema failure.
     """
     governance_data = _load_charter_yaml_section(repo_root, "governance")
     if governance_data is None:
         logger.info("charter.yaml governance section not found. Using empty governance config.")
         return GovernanceConfig()
-    if isinstance(governance_data, dict):
-        governance_data = apply_legacy_governance_selection_key_compat(governance_data)
-    return GovernanceConfig.model_validate(governance_data)
+    if isinstance(governance_data, Mapping):
+        require_canonical_governance(governance_data, source=_charter_yaml_path(repo_root))
+    try:
+        return GovernanceConfig.model_validate(governance_data)
+    except ValidationError as exc:
+        raise_retired_field_at(exc, _charter_yaml_path(repo_root))
+        raise
 
 
 def load_directives_config(repo_root: Path) -> DirectivesConfig:

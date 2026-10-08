@@ -38,7 +38,7 @@ def unlink_stale_project_graph(doctrine_dir: Path) -> None:
     writer disowns (FR-007).
 
     Args:
-        doctrine_dir: The project doctrine directory (``.kittify/doctrine``)
+        doctrine_dir: The project doctrine directory (``.kittify/charter-packs``)
             that may contain a residual ``graph.yaml``.
     """
     (doctrine_dir / _GRAPH_FILENAME).unlink(missing_ok=True)

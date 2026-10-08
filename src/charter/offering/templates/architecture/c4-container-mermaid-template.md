@@ -19,7 +19,7 @@ flowchart TB
       cli[CLI Command Surface]
       runtime[Runtime and Mission Resolver]
       governance[Charter and Governance Engine]
-      doctrine[Doctrine Artifact Catalog]
+      offering[Charter Offering]
       glossary[Glossary Corpus and Hook Layer]
       api[Orchestrator API]
       tracker[Tracker Connector Boundary]
@@ -27,7 +27,7 @@ flowchart TB
 
     cli --> runtime
     cli --> governance
-    runtime --> doctrine
+    runtime --> offering
     runtime --> glossary
     api --> runtime
     api --> tracker
@@ -40,7 +40,7 @@ flowchart TB
 | CLI Command Surface | User and agent entrypoint |
 | Runtime and Mission Resolver | Canonical `next` loop and mission resolution |
 | Charter and Governance Engine | Charter interview/generate/context/status/sync |
-| Doctrine Artifact Catalog | Typed directives/tactics/styleguides/templates |
+| Charter Offering | Typed directives/tactics/styleguides/templates |
 | Glossary Corpus and Hook Layer | Context glossary and runtime glossary checks |
 | Orchestrator API | External automation contract |
 | Tracker Connector Boundary | Tracker integration handoff point |

@@ -96,7 +96,7 @@ _EXEMPT_GET_PARTIALS: frozenset[str] = frozenset(
         # eight-arm if-chain no dict-scanning guard could see; converting it to a
         # dict makes the projection guard-visible (this exemption is the
         # documented reason it stays partial).
-        "specify_cli.cli.commands.doctrine::_STUB_TEMPLATES",
+        "specify_cli.cli.commands.charter.authoring::_STUB_TEMPLATES",
         # M6 (#3038): the emittable-project-tier-kind allowlist. Its keys are the
         # kinds emitted as project-overlay DRG nodes (directive/tactic/styleguide/
         # agent_profile); every other kind's absence is contractual (asset stays

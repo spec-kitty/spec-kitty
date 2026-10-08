@@ -70,18 +70,12 @@ class CharterRenameMigration(BaseMigration):
                 if m.is_dir() and (m / "constitution").exists():
                     return True
 
-        # Agent artifacts: old command files or skill dirs
+        # Agent artifacts: old command files
         for agent_root, subdir in get_agent_dirs_for_project(project_path):
             agent_dir = project_path / agent_root / subdir
             if not agent_dir.exists():
                 continue
             if (agent_dir / "spec-kitty.constitution.md").exists():
-                return True
-
-        # Agent skills: old constitution-doctrine skill dirs
-        for agent_root, subdir in get_agent_dirs_for_project(project_path):
-            skills_dir = project_path / agent_root / "skills"
-            if skills_dir.exists() and (skills_dir / "spec-kitty-constitution-doctrine").exists():
                 return True
 
         return False
@@ -379,7 +373,13 @@ class CharterRenameMigration(BaseMigration):
         errors: list[str],
         warnings: list[str],  # noqa: ARG002
     ) -> None:
-        """Rename agent command files and skill directories."""
+        """Rename agent command files.
+
+        A project-level ``spec-kitty-constitution-doctrine`` skill directory is
+        left untouched: its charter-era name ``spec-kitty-charter-doctrine`` is
+        retired by the charter-pack cutover, so renaming it would recreate a
+        retired, unmanaged skill directory after the cutover ran.
+        """
         for agent_root, subdir in get_agent_dirs_for_project(project_path):
             # Rename spec-kitty.constitution.md -> spec-kitty.charter.md (if command dir exists)
             agent_dir = project_path / agent_root / subdir
@@ -403,34 +403,6 @@ class CharterRenameMigration(BaseMigration):
                             )
                         except OSError as e:
                             errors.append(f"Failed to rename {agent_root}/{subdir}/spec-kitty.constitution.md: {e}")
-
-            # Rename skill directories (independent of command dir existence)
-            skills_dir = project_path / agent_root / "skills"
-            if not skills_dir.exists():
-                continue
-
-            old_skill = skills_dir / "spec-kitty-constitution-doctrine"
-            new_skill = skills_dir / "spec-kitty-charter-doctrine"
-            if old_skill.exists() and not new_skill.exists():
-                if dry_run:
-                    changes.append(f"Would rename {agent_root}/skills/spec-kitty-constitution-doctrine/")
-                else:
-                    try:
-                        shutil.move(str(old_skill), str(new_skill))
-                        changes.append(f"Renamed {agent_root}/skills/spec-kitty-constitution-doctrine/ -> spec-kitty-charter-doctrine/")
-                        # Rewrite content inside skill files
-                        for file_path in sorted(new_skill.rglob("*")):
-                            if file_path.is_file() and file_path.suffix in _TEXT_SUFFIXES:
-                                self._rewrite_file(
-                                    file_path,
-                                    project_path,
-                                    dry_run=False,
-                                    changes=changes,
-                                    errors=errors,
-                                    read_only=True,
-                                )
-                    except OSError as e:
-                        errors.append(f"Failed to rename {agent_root}/skills/spec-kitty-constitution-doctrine/: {e}")
 
     # ------------------------------------------------------------------
     # Phase 4: Metadata normalization

@@ -1,4 +1,4 @@
-"""CLI tests for ``spec-kitty doctrine validate`` (FR-017, WP09 T049).
+"""CLI tests for ``spec-kitty charter validate`` (FR-017, WP09 T049).
 
 Covers the three operator paths:
 
@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.doctrine import app as doctrine_app
+from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -64,7 +64,7 @@ def test_validate_single_file_passes(tmp_path: Path) -> None:
     target = tmp_path / "good.styleguide.yaml"
     _write_valid_styleguide(target)
 
-    result = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
+    result = runner.invoke(charter_app, ["validate", str(target)], catch_exceptions=False)
 
     assert result.exit_code == 0, result.stdout
     assert "OK" in result.stdout
@@ -74,7 +74,7 @@ def test_validate_single_file_reports_schema_failure(tmp_path: Path) -> None:
     target = tmp_path / "bad.styleguide.yaml"
     _write_invalid_styleguide(target)
 
-    result = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
+    result = runner.invoke(charter_app, ["validate", str(target)], catch_exceptions=False)
 
     assert result.exit_code == 1
     assert "FAIL" in result.stdout
@@ -86,7 +86,7 @@ def test_validate_directory_walks_per_kind_subdirs(tmp_path: Path) -> None:
     _write_valid_styleguide(tmp_path / "styleguides" / "one.styleguide.yaml", "one")
     _write_valid_styleguide(tmp_path / "styleguides" / "two.styleguide.yaml", "two")
 
-    result = runner.invoke(doctrine_app, ["validate", str(tmp_path)], catch_exceptions=False)
+    result = runner.invoke(charter_app, ["validate", str(tmp_path)], catch_exceptions=False)
 
     assert result.exit_code == 0, result.stdout
     # Rich wraps long absolute paths across newlines, so we assert on the
@@ -101,7 +101,7 @@ def test_validate_directory_returns_nonzero_on_any_failure(tmp_path: Path) -> No
     _write_valid_styleguide(tmp_path / "styleguides" / "good.styleguide.yaml", "good")
     _write_invalid_styleguide(tmp_path / "styleguides" / "bad.styleguide.yaml")
 
-    result = runner.invoke(doctrine_app, ["validate", str(tmp_path)], catch_exceptions=False)
+    result = runner.invoke(charter_app, ["validate", str(tmp_path)], catch_exceptions=False)
 
     assert result.exit_code == 1
     assert "FAIL" in result.stdout
@@ -113,7 +113,7 @@ def test_validate_rejects_unknown_suffix(tmp_path: Path) -> None:
     target = tmp_path / "random.yaml"
     target.write_text("hello: world\n", encoding="utf-8")
 
-    result = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
+    result = runner.invoke(charter_app, ["validate", str(target)], catch_exceptions=False)
 
     assert result.exit_code == 1
     flat = " ".join(result.stdout.split())
@@ -123,7 +123,7 @@ def test_validate_rejects_unknown_suffix(tmp_path: Path) -> None:
 def test_validate_missing_path_returns_2(tmp_path: Path) -> None:
     target = tmp_path / "does-not-exist.yaml"
 
-    result = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
+    result = runner.invoke(charter_app, ["validate", str(target)], catch_exceptions=False)
 
     assert result.exit_code == 2
     assert "Path not found" in result.stdout
@@ -131,7 +131,7 @@ def test_validate_missing_path_returns_2(tmp_path: Path) -> None:
 
 def test_validate_empty_directory_exits_0_with_warning(tmp_path: Path) -> None:
     """A directory with no doctrine artifacts is benign — exit 0 with a note."""
-    result = runner.invoke(doctrine_app, ["validate", str(tmp_path)], catch_exceptions=False)
+    result = runner.invoke(charter_app, ["validate", str(tmp_path)], catch_exceptions=False)
 
     assert result.exit_code == 0, result.stdout
     assert "No doctrine artifact files found" in result.stdout

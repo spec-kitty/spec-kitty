@@ -13,7 +13,7 @@ fallback hid three very different causes:
 3. **Schema validation failure** — an artifact YAML exists on disk but was
    silently dropped by the loader because Pydantic ``extra="forbid"``
    validation rejected it.  The loader emits a ``UserWarning`` (see
-   ``charter.offering.base.BaseDoctrineRepository._load_built_in_items``) but the
+   ``charter.offering.base.BaseArtifactRepository._load_built_in_items``) but the
    prompt renderer never sees the dropped artifact, so the user only
    discovers it via a downstream catalog-miss.
 

@@ -1,6 +1,6 @@
-"""Glossary-pack health in ``spec-kitty doctor doctrine --json`` (WP05, T024-T026).
+"""Glossary-pack health in ``spec-kitty doctor charter-packs --json`` (WP05, T024-T026).
 
-FR-012 / NFR-005 / SC-001: ``doctor doctrine --json`` must surface glossary-pack
+FR-012 / NFR-005 / SC-001: ``doctor charter-packs --json`` must surface glossary-pack
 counts + health, an invalid member pack must degrade the aggregate to
 **unhealthy** (never silently healthy — the exact anti-pattern SC-001
 forbids), and the command must stay fast.
@@ -219,7 +219,7 @@ class TestCollectGlossaryPackHealth:
         self, bare_repo_root: Path
     ) -> None:
         """INVALID arm (T024): a term missing ``definition`` fails schema validation."""
-        project_glossary_dir = bare_repo_root / ".kittify" / "doctrine" / "glossary_packs"
+        project_glossary_dir = bare_repo_root / ".kittify" / "charter-packs" / "glossary_packs"
         _write_glossary_pack(
             project_glossary_dir,
             "broken.glossary-pack.yaml",
@@ -253,7 +253,7 @@ class TestCollectGlossaryPackHealth:
             "confidence": 0.9,
             "status": "active",
         }
-        project_glossary_dir = bare_repo_root / ".kittify" / "doctrine" / "glossary_packs"
+        project_glossary_dir = bare_repo_root / ".kittify" / "charter-packs" / "glossary_packs"
         _write_glossary_pack(
             project_glossary_dir,
             "dup.glossary-pack.yaml",
@@ -277,7 +277,7 @@ def _invoke_doctrine_json(project_root: Path) -> tuple[int, dict[str, object]]:
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=project_root,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
     payload = json.loads(result.output)
     return result.exit_code, payload
 
@@ -299,7 +299,7 @@ class TestDoctorDoctrineGlossaryPackJson:
         self, bare_repo_root: Path
     ) -> None:
         """INVALID arm (T024): a malformed pack flips RC=1, never silently healthy."""
-        project_glossary_dir = bare_repo_root / ".kittify" / "doctrine" / "glossary_packs"
+        project_glossary_dir = bare_repo_root / ".kittify" / "charter-packs" / "glossary_packs"
         _write_glossary_pack(
             project_glossary_dir,
             "broken.glossary-pack.yaml",

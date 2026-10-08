@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from charter.bundle import CHARTER_YAML
 from charter.drg import ArtifactKind
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT_POSIX, pack_org_charter, project_pack_root
 from ._profile_health_render import _SELECTION_KIND_PLURALS
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
     )
 
 #: Parses the fixed ``"Skipping invalid <layer> <kind> <file>: <reason>"``
-#: shape ``charter.offering.base.BaseDoctrineRepository`` emits on an unloadable
+#: shape ``charter.offering.base.BaseArtifactRepository`` emits on an unloadable
 #: glossary-pack file (``_load_built_in_items`` / ``_apply_overlay_layer``).
 #: ``re.DOTALL`` so a multi-line pydantic ``ValidationError`` reason is
 #: captured in full, not truncated at the first newline.
@@ -69,6 +70,8 @@ __all__ = [
     "_collect_profile_health",
     "_run_cross_grain_check",
     "_run_operating_procedures_check",
+    "_run_retired_governance_key_check",
+    "_run_retired_layout_check",
     "_attach_pack_health",
     "_build_pack_entries",
     "_collect_doctrine_collisions",
@@ -80,11 +83,17 @@ __all__ = [
 _ORG_ARTIFACT_DIRS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.core)
 
 
+def _project_pack_root_or_none(repo_root: Path) -> Path | None:
+    """Return the project pack root to read for *repo_root*, or ``None`` when absent."""
+    project_pack = project_pack_root(repo_root)
+    return project_pack if project_pack.exists() else None
+
+
 def _read_authored_pack_version(pack_root: Path) -> str | None:
     """Read ``pack_version`` from an authored ``pack.yaml`` sibling, if any.
 
     IC-06 / FR-008 (pack-metadata-manifest-unification-01M052PT, WP04):
-    mirrors :func:`specify_cli.doctrine.pack_assembler._read_authored_pack_version`
+    mirrors :func:`charter.offering.packs.pack_assembler._read_authored_pack_version`
     (duplicated rather than imported to keep this collect-layer module's
     import discipline — collect → model/render/shared, never reaching into
     the assembler — intact). Returns ``None`` when no authored descriptor
@@ -168,14 +177,14 @@ def _summarize_org_charter(snapshot_path: Path) -> dict[str, object]:
     """Inspect ``org-charter.yaml`` in *snapshot_path* and return a JSON-able summary.
 
     Gracefully degrades when the optional
-    ``specify_cli.doctrine.org_charter`` module is not yet shipped (WP09).
+    ``charter.activation.org_charter`` module is not yet shipped (WP09).
     """
-    charter_path = snapshot_path / "org-charter.yaml"
+    charter_path = pack_org_charter(snapshot_path)
     if not charter_path.exists():
         return {"present": False}
 
     try:
-        from specify_cli.doctrine.org_charter import load_org_charter_policy
+        from charter.activation.org_charter import load_org_charter_policy
     except ImportError:
         # Module not yet shipped — surface presence without policy details.
         return {"present": True, "module_available": False}
@@ -199,7 +208,7 @@ def _summarize_org_charter(snapshot_path: Path) -> dict[str, object]:
 def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     """Build the agent-profile + org-DRG health report once (WP08, NFR-001).
 
-    Instantiates a single :class:`~charter.offering.service.DoctrineService` rooted at
+    Instantiates a single :class:`~charter.offering.service.CharterOfferingService` rooted at
     the configured org packs, reads the WP05
     ``AgentProfileRepository.skipped_profiles()`` diagnostics (no regex
     scraping), and groups valid + skipped counts into one ``PackHealth`` per
@@ -221,7 +230,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     inner service is wrapped via ``charter.activation.resolver.DoctrineService(inner,
     pack_context=None)`` -- the sanctioned unfiltered-diagnostic construction
     (data-model.md "unfiltered-diagnostic contract") -- rather than
-    constructing ``charter.offering.service.DoctrineService`` directly. The
+    constructing ``charter.offering.service.CharterOfferingService`` directly. The
     ``AgentProfileRepository``-specific ``get_provenance()`` /
     ``skipped_profiles()`` calls below need the raw repository object (a
     ``dict`` has neither method), so this reads through the wrapper's
@@ -236,14 +245,13 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
     skipped: list[SkippedProfile] = []
     load_error: str | None = None
     try:
-        from charter.offering.service import DoctrineService as RawDoctrineService
+        from charter.offering.service import CharterOfferingService
         from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
         from charter.drg import resolve_org_roots
 
         org_roots = resolve_org_roots(repo_root)
-        project_doctrine = repo_root / ".kittify" / "doctrine"
-        project_root = project_doctrine if project_doctrine.exists() else None
-        inner = RawDoctrineService(
+        project_root = _project_pack_root_or_none(repo_root)
+        inner = CharterOfferingService(
             org_roots=list(org_roots),
             project_root=project_root,
         )
@@ -285,7 +293,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
 def _parse_skipped_glossary_pack_warning(message: object) -> SkippedGlossaryPack:
     """Turn one captured ``UserWarning`` into a structured skip record.
 
-    ``BaseDoctrineRepository`` emits ``"Skipping invalid <layer> <kind> <file>:
+    ``BaseArtifactRepository`` emits ``"Skipping invalid <layer> <kind> <file>:
     <reason>"`` (see ``charter.offering.base._load_built_in_items`` /
     ``_apply_overlay_layer``); this parses that fixed shape rather than
     inventing a second diagnostic format. A message that doesn't match (the
@@ -312,7 +320,7 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     Sourced from ``DoctrineService``'s glossary-pack repository — the real
     production repository (WP02), not a re-implemented loader. Unlike
     ``AgentProfileRepository``, ``GlossaryPackRepository`` (a plain
-    ``BaseDoctrineRepository``) has no structured skip-diagnostics list: an
+    ``BaseArtifactRepository``) has no structured skip-diagnostics list: an
     unloadable pack file only ever surfaces as a ``UserWarning`` emitted
     during the repository's (lazy) ``_load()``. This collector captures those
     warnings during the first access to the repository and turns each into a
@@ -333,13 +341,13 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     the raw inner service is wrapped via ``charter.activation.resolver.DoctrineService(
     inner, pack_context=None)`` -- the sanctioned unfiltered-diagnostic
     construction (data-model.md "unfiltered-diagnostic contract") -- rather
-    than constructing ``charter.offering.service.DoctrineService`` directly. FR-005
+    than constructing ``charter.offering.service.CharterOfferingService`` directly. FR-005
     made ``glossary_packs`` a gated property that always returns a filtered
     ``dict`` (no ``.list_all()``), so this reads through
     :meth:`~charter.activation.resolver.DoctrineService.raw_repository` to reach the raw
     repository's ``list_all()``.
     """
-    from charter.offering.service import DoctrineService as RawDoctrineService
+    from charter.offering.service import CharterOfferingService
     from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
 
@@ -349,9 +357,8 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     invalid: list[SkippedGlossaryPack] = []
     try:
         org_roots = resolve_org_roots(repo_root)
-        project_doctrine = repo_root / ".kittify" / "doctrine"
-        project_root = project_doctrine if project_doctrine.exists() else None
-        inner = RawDoctrineService(
+        project_root = _project_pack_root_or_none(repo_root)
+        inner = CharterOfferingService(
             org_roots=list(org_roots), project_root=project_root
         )
         service = ActivationAwareDoctrineService(inner, pack_context=None)
@@ -597,9 +604,9 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     service is wrapped via ``charter.activation.resolver.DoctrineService(inner,
     pack_context=None)`` -- the sanctioned unfiltered-diagnostic construction
     (data-model.md "unfiltered-diagnostic contract") -- rather than
-    constructing ``charter.offering.service.DoctrineService`` directly. Each gated
+    constructing ``charter.offering.service.CharterOfferingService`` directly. Each gated
     property below still triggers the same eager, warning-emitting
-    repository ``_load()`` as the raw accessor did (``BaseDoctrineRepository.
+    repository ``_load()`` as the raw accessor did (``BaseArtifactRepository.
     __init__`` loads eagerly); only the return *value* is now a filtered
     ``dict`` (irrelevant here -- this loop only cares about the load
     side-effect, not the returned mapping).
@@ -607,16 +614,15 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     import re
     import warnings as _warnings
 
-    from charter.drg import DoctrineLayerCollisionWarning
-    from charter.offering.service import DoctrineService as RawDoctrineService
+    from charter.drg import ArtifactLayerCollisionWarning
+    from charter.offering.service import CharterOfferingService
     from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
 
     org_roots = resolve_org_roots(repo_root)
-    project_doctrine = repo_root / ".kittify" / "doctrine"
-    project_root = project_doctrine if project_doctrine.exists() else None
+    project_root = _project_pack_root_or_none(repo_root)
 
-    inner = RawDoctrineService(
+    inner = CharterOfferingService(
         org_roots=list(org_roots),
         project_root=project_root,
     )
@@ -628,7 +634,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
 
     collisions: list[dict[str, object]] = []
     pattern = re.compile(
-        r"Doctrine override: (?P<kind>\S+) (?P<item_id>\S+) "
+        r"Artifact override: (?P<kind>\S+) (?P<item_id>\S+) "
         r"from (?P<higher>\S+) shadowed (?P<lower>\S+) "
         r"\((?P<replaced>\d+) field\(s\) replaced; "
         r"(?P<inherited>\d+) field\(s\) inherited\)\."
@@ -642,7 +648,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
             except Exception:  # noqa: BLE001, S112 — doctor must not fail on a single repo's load error
                 continue
     for w in captured:
-        if not isinstance(w.message, DoctrineLayerCollisionWarning):
+        if not isinstance(w.message, ArtifactLayerCollisionWarning):
             continue
         m = pattern.match(str(w.message))
         if not m:
@@ -1014,7 +1020,7 @@ def _resolve_artifact_source(
     can pin them byte-for-byte:
 
     * ``built-in`` — artifact comes from the built-in doctrine layer
-    * ``project`` — artifact lives under ``.kittify/doctrine/``
+    * ``project`` — artifact lives under the project pack root (``.kittify/charter-packs/``)
     * ``org`` — artifact lives in an org pack (per-pack attribution is
       not yet tracked at the repository layer; see ``_collect_org_source_map``
       in charter.activation.context for the same limitation)
@@ -1074,25 +1080,69 @@ def _read_project_selections(repo_root: Path) -> dict[str, list[str]]:
     charter_yaml = repo_root / CHARTER_YAML
     if not charter_yaml.exists():
         return selections
+    from charter.activation.pack_context import ActiveCharterConfigError
+
     try:
         from charter.activation.charter_yaml_io import load_charter_yaml
+        from charter.activation.sync import require_canonical_governance
 
         data = load_charter_yaml(charter_yaml)
         governance_block = (data or {}).get("governance") or {}
-        # CR-01 (charter-authority-flip-01M14RB3 WP03): the selection block's
-        # key was renamed doctrine -> charter. This diagnostic reads the raw
-        # dict directly (see the docstring above) rather than through
-        # charter.activation.sync.load_governance_config's warn-once compat shim, so it
-        # carries its own narrow read of both keys, preferring the canonical
-        # one.
-        doctrine_block = governance_block.get("charter") or governance_block.get("doctrine") or {}
+        # Canonical key only. A retired ``governance.doctrine`` raises; the CLI-root
+        # LEGACY_CHARTER_STATE gate does NOT catch it (its predicate never reads
+        # charter.yaml), so :func:`_run_retired_governance_key_check` reports it
+        # as a finding and the selections here stay empty.
+        doctrine_block = require_canonical_governance(governance_block, source=charter_yaml).get("charter") or {}
         for kind in _SELECTION_KIND_PLURALS:
             value = doctrine_block.get(f"selected_{kind}")
             if isinstance(value, list):
                 selections[kind] = [str(v) for v in value]
+    except ActiveCharterConfigError:
+        # Reported by _run_retired_governance_key_check, not swallowed.
+        return {kind: [] for kind in _SELECTION_KIND_PLURALS}
     except Exception:  # noqa: BLE001 — diagnostics must never crash on malformed yaml
         pass
     return selections
+
+
+#: The retired governance selection key, as the doctor finding names it.
+_RETIRED_GOVERNANCE_KEY = "governance.doctrine"
+
+
+def _run_retired_governance_key_check(report: DoctrineHealthReport, repo_root: Path) -> None:
+    """Report a retired ``governance.doctrine`` key in ``charter.yaml`` (#3732, FR-011).
+
+    The selections reader cannot use it (it is the retired key), and the CLI-root
+    gate does not see it (its predicate never reads ``charter.yaml``), so this is
+    where an operator learns the project's selections are not being read.
+    Mirrors :func:`_run_cross_grain_check`: the message goes to
+    ``org_drg["errors"]`` (the report turns unhealthy, RC=1) and a structured
+    ``org_drg["retired_governance_key"]`` finding names the file, the key and the
+    remedy for the JSON and human surfaces. A missing or malformed ``charter.yaml``
+    is not this check's finding (read-only; never raises).
+    """
+    from charter.activation.charter_yaml_io import load_charter_yaml
+    from charter.activation.pack_context import ActiveCharterConfigError
+    from charter.activation.sync import require_canonical_governance
+
+    org_drg = report.org_drg
+    charter_yaml = repo_root / CHARTER_YAML
+    if not isinstance(org_drg, dict) or not charter_yaml.exists():
+        return
+    try:
+        governance = (load_charter_yaml(charter_yaml) or {}).get("governance")
+    except Exception:  # noqa: BLE001 — a malformed charter.yaml is reported by other surfaces
+        return
+    if not isinstance(governance, dict):
+        return
+    try:
+        require_canonical_governance(governance, source=charter_yaml)
+    except ActiveCharterConfigError as exc:
+        existing = org_drg.get("errors")
+        errors = list(existing) if isinstance(existing, list) else []
+        errors.append(exc.body)
+        org_drg["errors"] = errors
+        org_drg["retired_governance_key"] = {"file": str(charter_yaml), "key": _RETIRED_GOVERNANCE_KEY, "message": exc.body}
 
 
 def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
@@ -1105,11 +1155,12 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
         OrgPackEnvVarUnsetError,
         OrgPackSubdirEscapeError,
     )
+    from charter.packs import RetiredPackFieldError
 
     org_required: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
     try:
         from charter.activation.invocation_context import ProjectContext
-        from specify_cli.doctrine.org_charter import load_org_charter_policies
+        from charter.activation.org_charter import load_org_charter_policies
 
         _pack_ctx = None
         try:
@@ -1126,7 +1177,7 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
         policy = load_org_charter_policies(repo_root, pack_context=_pack_ctx)
         for kind in _SELECTION_KIND_PLURALS:
             org_required[kind] = list(getattr(policy, f"required_{kind}", []) or [])
-    except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError) as exc:
+    except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError, RetiredPackFieldError) as exc:
         logger.warning("org-charter policy load failed for selection diagnostics: %s", exc)
     except Exception:  # noqa: BLE001 — diagnostics must never crash on missing/invalid org
         pass
@@ -1157,13 +1208,13 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
     ``charter.activation.resolver.DoctrineService(inner, pack_context=None)`` -- the
     sanctioned unfiltered-diagnostic construction (data-model.md
     "unfiltered-diagnostic contract") -- rather than constructing
-    ``charter.offering.service.DoctrineService`` directly.
+    ``charter.offering.service.CharterOfferingService`` directly.
     ``_resolve_artifact_source`` reads through the wrapper's
     ``raw_repository(plural)`` accessor (FR-002 Option A) to reach
     ``get_provenance()``, since the gated per-kind properties always return
     a filtered ``dict``.
     """
-    from charter.offering.service import DoctrineService as RawDoctrineService
+    from charter.offering.service import CharterOfferingService
     from charter.activation.resolver import DoctrineService as ActivationAwareDoctrineService
     from charter.drg import resolve_org_roots
 
@@ -1172,9 +1223,8 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
 
     # DoctrineService instance for provenance lookup.
     org_roots = resolve_org_roots(repo_root)
-    project_doctrine = repo_root / ".kittify" / "doctrine"
-    project_root = project_doctrine if project_doctrine.exists() else None
-    inner = RawDoctrineService(
+    project_root = _project_pack_root_or_none(repo_root)
+    inner = CharterOfferingService(
         org_roots=list(org_roots),
         project_root=project_root,
     )
@@ -1200,3 +1250,65 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
             })
         result[kind] = entries
     return result
+
+
+#: Where a retired-layout finding sends the operator.
+_CUTOVER_RUNBOOK = "docs/migrations/charter-pack-cutover.md"
+
+
+def _retired_layout_findings(repo_root: Path) -> list[dict[str, str]]:
+    from charter.drg import load_pack_registry
+
+    from specify_cli.migration.legacy_charter_layout import retired_nested_org_layout, retired_repo_root_fallback
+
+    findings: list[dict[str, str]] = []
+    try:
+        packs = list(load_pack_registry(repo_root, quiet=True).packs)
+    except Exception:  # noqa: BLE001 — an unreadable registry is reported by the org-layer collector
+        packs = []
+    for pack in packs:
+        try:
+            root = pack.effective_root(repo_root)
+        except ValueError:
+            continue
+        nested = retired_nested_org_layout(root)
+        if nested is not None:
+            findings.append({
+                "path": str(nested),
+                "message": (
+                    f"org pack {pack.name!r} uses the retired nested layout {nested}/<kind>/<layer>/, which is not read; "
+                    f"move its artifacts to the flat layout {root}/<kind>/ (see {_CUTOVER_RUNBOOK})."
+                ),
+            })
+    fallback = retired_repo_root_fallback(repo_root)
+    if fallback is not None:
+        findings.append({
+            "path": str(fallback),
+            "message": (
+                f"{fallback} is no longer read as the project layer; move its artifacts to the project pack root "
+                f"{PROJECT_PACK_ROOT_POSIX}/ (see {_CUTOVER_RUNBOOK})."
+            ),
+        })
+    return findings
+
+
+def _run_retired_layout_check(report: DoctrineHealthReport, repo_root: Path) -> None:
+    """Report the retired doctrine layouts that now resolve to nothing (#3732, FR-011).
+
+    The nested org-pack layout ``<pack>/doctrine/<plural>/<layer>/`` and the
+    repo-root ``doctrine/`` fallback are no longer read, so their artifacts are
+    silently absent from activation. Mirrors :func:`_run_cross_grain_check`: each
+    finding's message goes to ``org_drg["errors"]`` (unhealthy, RC=1) and the
+    structured list to ``org_drg["retired_layouts"]``. Read-only; never raises.
+    """
+    org_drg = report.org_drg
+    if not isinstance(org_drg, dict):
+        return
+    findings = _retired_layout_findings(repo_root)
+    if not findings:
+        return
+    existing = org_drg.get("errors")
+    errors = list(existing) if isinstance(existing, list) else []
+    errors.extend(finding["message"] for finding in findings)
+    org_drg["errors"] = errors
+    org_drg["retired_layouts"] = findings

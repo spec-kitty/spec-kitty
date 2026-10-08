@@ -77,7 +77,7 @@ def synthesis_request() -> SynthesisRequest:
 def _project_directive_ids(service: Any) -> set[str]:
     """Return PROJECT_-prefixed directive ids visible on *service*.
 
-    *service* is either the raw ``charter.offering.service.DoctrineService``
+    *service* is either the raw ``charter.offering.service.CharterOfferingService``
     returned by ``charter.activation.context._build_doctrine_service`` (``.directives``
     is the repository itself, with ``.list_all()``) or, since WP03
     (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011),
@@ -108,7 +108,7 @@ def test_synthesis_creates_project_doctrine_root(
     adapter: FixtureAdapter,
 ) -> None:
     synthesize(synthesis_request, adapter=adapter, repo_root=tmp_path)
-    assert resolve_project_root(tmp_path) == tmp_path / ".kittify" / "doctrine"
+    assert resolve_project_root(tmp_path) == tmp_path / ".kittify" / "charter-packs"
 
 
 def test_compiler_service_reflects_project_directives_after_synthesis(

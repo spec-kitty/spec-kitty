@@ -100,7 +100,7 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # ``charter.offering.base`` census-drift door (WP01 FACADE-ONLY): the
         # layer-collision warning belongs on the layer-merge facade beside
         # ``merge_layers`` / ``merge_three_layers``. Consumer is WP05-owned.
-        ("DoctrineLayerCollisionWarning", "charter.offering.base"),
+        ("ArtifactLayerCollisionWarning", "charter.offering.base"),
         # Tabled during the #3321 landing squad (inverse-containment hardening,
         # below). These 10 were advertised in ``charter.drg.__all__`` yet absent
         # from this table, so they were public but identity-unchecked — a
@@ -129,6 +129,16 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # ``charter.offering.drg.merge.__all__`` with a live runtime consumer
         # (``specify_cli.drg_writers.registry``), so it is a plain re-export.
         ("bridge_org_edge_to_drg_edge", "charter.offering.drg.merge"),
+        # Added by mission ``charter-pack-cutover-01M491G6`` WP04 (#3732, research
+        # A.3 #7): the charter-pack adapters (``api_source``, ``snapshot``) reach
+        # the offering tier only through this facade once the
+        # ``specify_cli/doctrine`` boundary exemption is deleted. FACADE-ONLY.
+        ("CORE_KIND_PLURALS", "charter.offering.artifact_kinds"),
+        ("resolve_relative_path_within_root", "charter.offering.drg.org_pack_config"),
+        # Added by WP05 (#3732): ``specify_cli.charter_packs.snapshot`` types its
+        # fetch entry against the org pack config through this facade once
+        # ``specify_cli.doctrine.config``'s alias re-exports are deleted (C-001).
+        ("OrgPackConfig", "charter.offering.drg.org_pack_config"),
     ],
     # New door (WP03/T012): mission-template / mission-type / mission-step
     # repository surfaces. All FACADE-ONLY per the WP01 census.
@@ -203,6 +213,32 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
     # ``specify_cli``/``runtime`` -> ``charter.offering.provenance`` import that
     # ``test_runtime_charter_doctrine_boundary.py`` forbids. Same source
     # module, same identity-reexport shape. FACADE-ONLY.
+    # New door (mission ``charter-pack-cutover-01M491G6`` WP04, #3732, FR-010 /
+    # OD-9): the charter pack model and tooling moved from ``specify_cli.doctrine``
+    # to ``charter.offering.packs``; ``specify_cli`` reaches it only through this
+    # facade (research A.3 #8). FACADE-ONLY. WP05 dropped ``ValidationResult``
+    # (no ``specify_cli`` caller once ``org_charter`` imports offering directly)
+    # and added the two org-charter composing entries, which originate in
+    # ``charter.activation.org_charter`` and so are not tabled here.
+    "charter.packs": [
+        ("RECOGNISED_ARTIFACT_DIRS", "charter.offering.packs.pack_manifest"),
+        ("builtin_manifest_is_fresh", "charter.offering.packs.builtin_manifest"),
+        ("count_snapshot_artifacts", "charter.offering.packs.pack_manifest"),
+        ("generate_builtin_manifest", "charter.offering.packs.builtin_manifest"),
+        ("safe_urlsplit", "charter.offering.packs.pack_manifest"),
+        ("snapshot_sha256", "charter.offering.packs.pack_manifest"),
+        ("source_fingerprint", "charter.offering.packs.pack_manifest"),
+        ("strip_source_credentials", "charter.offering.packs.pack_manifest"),
+        ("write_pack_manifest", "charter.offering.packs.pack_manifest"),
+        ("AssemblyResult", "charter.offering.packs.pack_assembler"),
+        ("assemble_pack", "charter.offering.packs.pack_assembler"),
+        ("pack_document_dict", "charter.offering.packs.pack_assembler"),
+        ("render_assembly_result", "charter.offering.packs.pack_assembler"),
+        ("ValidationIssue", "charter.offering.packs.pack_validator"),
+        ("artifact_schema_registry", "charter.offering.packs.pack_validator"),
+        ("render_validation_result", "charter.offering.packs.pack_validator"),
+        ("validate_pack", "charter.offering.packs.pack_validator"),
+    ],
     "charter.provenance": [
         ("is_built_in_pack_path", "charter.offering.provenance"),
         ("to_portable_source_path", "charter.offering.provenance"),

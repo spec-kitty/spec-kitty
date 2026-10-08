@@ -109,7 +109,7 @@ def _write_directive_composer_graph(repo_root: Path) -> None:
     recognizes it.
     """
     _write_yaml(
-        repo_root / ".kittify" / "doctrine" / "graph.yaml",
+        repo_root / ".kittify" / "charter-packs" / "graph.yaml",
         {
             "schema_version": "1.0",
             "generated_at": "2026-07-22T00:00:00Z",

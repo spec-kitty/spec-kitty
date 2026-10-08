@@ -330,13 +330,11 @@ def test_casting_table_negative_control_rejects_researcher_ryan() -> None:
         assert repo.get(profile_id) is None, f"casting id '{profile_id}' must not resolve via AgentProfileRepository"
 
 
-def test_casting_table_ids_are_in_default_pack_activation() -> None:
-    from charter.activation.default_pack import load_default_pack_activation_ids
-
-    activated = frozenset(load_default_pack_activation_ids().get("activated_agent_profiles", []))
+def test_casting_table_ids_are_shipped_builtin_profiles() -> None:
+    shipped = frozenset(profile.profile_id for profile in _profile_repo().list_all())
     text = _raw_text(_PROCEDURE_PATH)
     rows = _parse_casting_block(text)
     all_ids = {profile_id for _, ids in rows for profile_id in ids}
-    missing = all_ids - activated
-    assert not missing, f"casting ids missing from activated_agent_profiles: {sorted(missing)}"
+    missing = all_ids - shipped
+    assert not missing, f"casting ids that are not shipped built-in agent profiles: {sorted(missing)}"
     assert {"doctrine-daphne", "randy-reducer"} <= all_ids

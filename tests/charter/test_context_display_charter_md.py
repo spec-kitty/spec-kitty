@@ -79,7 +79,7 @@ _GRAPH_WITH_DIRECTIVE_001 = textwrap.dedent("""\
 _CHARTER_YAML_WITH_DIRECTIVE_001 = textwrap.dedent("""\
     schema_version: "2.0.0"
     governance:
-      doctrine:
+      charter:
         selected_directives:
           - DIRECTIVE_001
     """)

@@ -65,7 +65,7 @@ from charter.activation.activations import ActivationEntry
 from charter.bundle import CHARTER_YAML
 from charter.activation.charter_yaml_io import load_charter_yaml
 from charter.activation.mission_type_key import canonical_mission_type_key, read_mission_type
-from charter.activation.sync import apply_legacy_governance_selection_key_compat
+from charter.activation.sync import require_canonical_governance
 
 if TYPE_CHECKING:
     from charter.activation.mission_type_profile_repository import MissionTypeProfileRepository
@@ -127,7 +127,7 @@ class MissionTypeProfile(BaseModel):
 
     Overlay identity (``id``)
     -------------------------
-    ``BaseDoctrineRepository`` (``doctrine/base.py``) keys every overlay on the
+    ``BaseArtifactRepository`` (``doctrine/base.py``) keys every overlay on the
     raw YAML ``id`` field and **skips id-less overlay files** (``base.py:249``),
     so a project override at
     ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` only
@@ -1007,7 +1007,7 @@ def validate_activatable_mission_type(mission_type_id: str, *, repo_root: Path) 
     fallback) were it activated. No-ops when *mission_type_id* has no resolvable
     YAML in any layer at all -- that configuration inconsistency is already governed
     by ``plan_activation``'s ``UnknownActivationIdError`` (raised moments later,
-    inside ``CharterPackManager.activate()`` via the ``available_ids`` membership
+    inside ``ActiveCharterManager.activate()`` via the ``available_ids`` membership
     check), which this function does not weaken, duplicate, or race (FR-004 note:
     this is a *different* pre-existing check than the read path's
     ``UnknownMissionTypeError``, and this function defers to the activation-time one).
@@ -1316,7 +1316,7 @@ def _load_mission_type_profile(
     project override from
     ``<repo_root>/.kittify/doctrine/mission_types/<mission_type>/governance-profile.yaml``
     via :class:`~charter.activation.mission_type_profile_repository.MissionTypeProfileRepository`
-    (project > org > builtin; :class:`~charter.offering.base.DoctrineLayerCollisionWarning`
+    (project > org > builtin; :class:`~charter.offering.base.ArtifactLayerCollisionWarning`
     on shadow).  Keying on the ``id == mission_type`` invariant means a profile
     whose declared type disagrees with its directory is simply not found under
     ``mission_type`` (returns ``None``) rather than silently mis-routed.
@@ -1356,14 +1356,18 @@ def _project_has_doctrine_overrides(repo_root: Path) -> bool:
     IC-04 (WP04): re-pointed from the retired ``.kittify/charter/
     governance.yaml`` onto ``charter.yaml``'s ``governance:`` section — a
     project "has overrides" when ``charter.yaml``'s ``governance.charter``
-    carries at least one non-empty ``selected_<kind>`` list. The retired
-    ``governance.doctrine`` key is read through the shared CR-01 compat shim.
+    carries at least one non-empty ``selected_<kind>`` list. A retired
+    ``governance.doctrine`` key is refused, never read
+    (:func:`~charter.activation.sync.require_canonical_governance` raises
+    ``ActiveCharterConfigError`` naming ``spec-kitty upgrade``).
     This is consulted by the governance slot to decide whether an unknown
     ``mission_type`` should hard-fail (no overrides) or merely skip the
     missing profile (overrides present).
 
     Best-effort: any I/O or parse failure collapses to ``False`` so a
-    malformed charter.yaml never silences the hard-fail contract.
+    malformed charter.yaml never silences the hard-fail contract. The retired
+    key is not a parse failure: it raises, so its selections are never lost
+    in silence.
     """
     charter_yaml_path = repo_root / CHARTER_YAML
     if not charter_yaml_path.exists():
@@ -1377,7 +1381,7 @@ def _project_has_doctrine_overrides(repo_root: Path) -> bool:
     governance = data.get("governance")
     if not isinstance(governance, dict):
         return False
-    doctrine = apply_legacy_governance_selection_key_compat(governance).get("charter")
+    doctrine = require_canonical_governance(governance, source=charter_yaml_path).get("charter")
     if not isinstance(doctrine, dict):
         return False
     for key, value in doctrine.items():

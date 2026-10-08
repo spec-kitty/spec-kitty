@@ -19,7 +19,7 @@ from charter.activation.resolver import (
 pytestmark = pytest.mark.fast
 
 
-_GOVERNANCE_SELECTION_KEY = "doc" + "trine"
+_GOVERNANCE_SELECTION_KEY = "charter"
 
 
 def _write_charter_files(
@@ -119,7 +119,7 @@ def test_resolve_governance_reads_charter_selections_first(
     _write_charter_files(
         repo_root,
         governance="""
-doctrine:
+charter:
   selected_paradigms: [test-first]
   selected_directives: [TEST_FIRST]
   available_tools: [git]
@@ -149,7 +149,7 @@ def test_resolve_governance_missing_paradigm_hard_fails(tmp_path: Path) -> None:
     _write_charter_files(
         tmp_path,
         governance="""
-doctrine:
+charter:
   selected_paradigms: [missing-paradigm]
 """,
     )
@@ -164,7 +164,7 @@ def test_resolve_governance_missing_directive_hard_fails(tmp_path: Path) -> None
     _write_charter_files(
         tmp_path,
         governance="""
-doctrine:
+charter:
   selected_directives: [NOT_A_DIRECTIVE]
 """,
     )
@@ -190,7 +190,7 @@ def test_resolve_governance_charter_declares_tool_outside_registry_is_unioned(tm
     _write_charter_files(
         tmp_path,
         governance="""
-doctrine:
+charter:
   available_tools: [imaginary-tool]
 """,
     )
@@ -211,7 +211,7 @@ def test_resolve_governance_missing_template_set_hard_fails(tmp_path: Path) -> N
     _write_charter_files(
         tmp_path,
         governance="""
-doctrine:
+charter:
   template_set: missing-template-set
 """,
     )
@@ -226,7 +226,7 @@ def test_resolve_governance_template_set_fallback_visible(tmp_path: Path) -> Non
     _write_charter_files(
         tmp_path,
         governance="""
-doctrine:
+charter:
   available_tools: []
 """,
     )
@@ -245,7 +245,7 @@ doctrine:
 def test_resolver_does_not_read_mission_files(tmp_path: Path) -> None:
     _write_charter_files(
         tmp_path,
-        governance="doctrine: {}\n",
+        governance="charter: {}\n",
     )
     mission_file = tmp_path / "src" / "charter" / "offering" / "missions" / "software-dev" / "mission.yaml"
     mission_file.parent.mkdir(parents=True)
@@ -259,7 +259,7 @@ def test_collect_governance_diagnostics_reports_failures(tmp_path: Path) -> None
     _write_charter_files(
         tmp_path,
         governance="""
-doctrine:
+charter:
   selected_directives: [NOT_A_DIRECTIVE]
 """,
     )
@@ -291,7 +291,7 @@ def test_resolve_governance_uses_registry_local_directives_and_template_fallback
     )
     _write_charter_files(
         tmp_path,
-        governance="doctrine: {}\n",
+        governance="charter: {}\n",
         directives="""
 directives:
   - id: LOCAL_ONLY
@@ -325,7 +325,7 @@ def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _write_charter_files(tmp_path, governance="doctrine: {}\n")
+    _write_charter_files(tmp_path, governance="charter: {}\n")
     monkeypatch.setattr(
         "charter.activation.resolver.load_doctrine_catalog",
         lambda: SimpleNamespace(
@@ -348,7 +348,7 @@ def test_bare_project_fallback_emits_catalog_default_diagnostic(
 ) -> None:
     """FR-005: the catalog-default fallback (branch 3a) is no longer silent —
     a diagnostic names the fallback and its size."""
-    _write_charter_files(tmp_path, governance="doctrine: {}\n")
+    _write_charter_files(tmp_path, governance="charter: {}\n")
     monkeypatch.setattr(
         "charter.activation.resolver.load_doctrine_catalog",
         lambda: SimpleNamespace(
@@ -429,7 +429,7 @@ def test_local_declaration_matching_catalog_id_dedups_in_base_position(
     )
     _write_charter_files(
         tmp_path,
-        governance="doctrine: {}\n",
+        governance="charter: {}\n",
         directives="""
 directives:
   - id: DIRECTIVE_003
@@ -483,7 +483,7 @@ def test_activation_base_and_local_declaration_union(
     )
     _write_charter_files(
         tmp_path,
-        governance="doctrine: {}\n",
+        governance="charter: {}\n",
         directives="""
 directives:
   - id: LOCAL_NEW
@@ -653,7 +653,7 @@ def test_resolve_governance_for_profile_records_unresolved_references_in_diagnos
 def test_collect_governance_diagnostics_returns_success_diagnostics(
     tmp_path: Path,
 ) -> None:
-    _write_charter_files(tmp_path, governance="doctrine: {}\n")
+    _write_charter_files(tmp_path, governance="charter: {}\n")
 
     diagnostics = collect_governance_diagnostics(
         tmp_path,
@@ -694,7 +694,7 @@ def test_paradigm_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) 
     repo_root = tmp_path / "repo"
     _write_charter_files(
         repo_root,
-        governance="doctrine:\n  selected_paradigms: [my-bad-paradigm]\n",
+        governance="charter:\n  selected_paradigms: [my-bad-paradigm]\n",
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
@@ -721,7 +721,7 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
     repo_root = tmp_path / "repo"
     _write_charter_files(
         repo_root,
-        governance="doctrine:\n  selected_paradigms: [any-value]\n",
+        governance="charter:\n  selected_paradigms: [any-value]\n",
     )
 
     # Should not raise — domain is absent so skip validation
@@ -737,7 +737,7 @@ def test_directive_failure_names_exact_offending_id(tmp_path: Path, monkeypatch)
     repo_root = tmp_path / "repo"
     _write_charter_files(
         repo_root,
-        governance="doctrine:\n  selected_directives: [GHOST_DIRECTIVE]\n",
+        governance="charter:\n  selected_directives: [GHOST_DIRECTIVE]\n",
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
@@ -754,7 +754,7 @@ def test_template_set_failure_names_exact_offending_value(tmp_path: Path, monkey
     repo_root = tmp_path / "repo"
     _write_charter_files(
         repo_root,
-        governance="doctrine:\n  template_set: ghost-template-set\n",
+        governance="charter:\n  template_set: ghost-template-set\n",
     )
 
     with pytest.raises(GovernanceResolutionError) as exc:
@@ -778,7 +778,7 @@ def test_tool_outside_registry_appears_in_diagnostic(tmp_path: Path, monkeypatch
     repo_root = tmp_path / "repo"
     _write_charter_files(
         repo_root,
-        governance="doctrine:\n  available_tools: [ghost-tool]\n",
+        governance="charter:\n  available_tools: [ghost-tool]\n",
     )
 
     result = resolve_project_governance(repo_root, tool_registry={"git"})
@@ -798,7 +798,7 @@ def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, m
     repo_root = tmp_path / "repo"
     _write_charter_files(
         repo_root,
-        governance="doctrine:\n  selected_directives: [LOCAL_ONLY]\n",
+        governance="charter:\n  selected_directives: [LOCAL_ONLY]\n",
         directives="directives:\n  - id: LOCAL_ONLY\n    title: Local rule\n",
     )
 

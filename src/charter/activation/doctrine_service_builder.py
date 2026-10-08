@@ -23,7 +23,7 @@ raw, conditionally wrap" pattern previously duplicated inline at
 ``specify_cli/charter_runtime/lint/checks/org_layer.py`` (both provenance-
 scan sites now route the raw inner construction through
 :func:`_build_doctrine_service` below — the one place in this codebase that
-constructs a raw ``charter.offering.service.DoctrineService`` — then wrap with
+constructs a raw ``charter.offering.service.CharterOfferingService`` — then wrap with
 ``charter.activation.resolver.DoctrineService(inner, pack_context=None)``, the
 sanctioned unfiltered-diagnostic form; see that module's docstring) and
 ``specify_cli/cli/commands/charter/generate.py`` (FR-002). The two former
@@ -78,7 +78,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from charter.activation.resolver import DoctrineService as _ActivationAwareDoctrineService
-    import charter.offering.service as _doctrine_service_module
+    import charter.offering.service as _offering_service_module
     from charter.activation.interview import CharterInterview
 
 from charter.activation._doctrine_paths import resolve_project_root
@@ -97,8 +97,8 @@ def _build_doctrine_service(
     agent_profile_overlay_dir: Path | None = None,
     interview: CharterInterview | None = None,
     prefer_interview: bool = False,
-) -> _doctrine_service_module.DoctrineService:
-    """Build a DoctrineService for the given repo root.
+) -> _offering_service_module.CharterOfferingService:
+    """Build a CharterOfferingService for the given repo root.
 
     The project-root candidate list (in priority order):
     1. ``.kittify/doctrine/``  — Phase 3 synthesis target (FR-009 / T025).
@@ -119,7 +119,7 @@ def _build_doctrine_service(
     #3176 (WP02): callers may also supply *agent_profile_overlay_dir* to point
     the inner service's agent-profile project overlay at an arbitrary path
     (e.g. ``.kittify/agent_profiles``). Like *org_roots*, it is passed into
-    :class:`~charter.offering.service.DoctrineService` **only when set**, so
+    :class:`~charter.offering.service.CharterOfferingService` **only when set**, so
     charter-internal callers that omit it see byte-identical kwargs (NFR-002).
 
     #4614 / FR-011 (split-brain fix): a *regenerate* re-derives the project
@@ -129,14 +129,14 @@ def _build_doctrine_service(
     ``infer_repo_languages`` call **only when set**; every other caller keeps the
     compiled-first, argument-free ``infer_repo_languages(repo_root)`` call.
     """
-    from charter.offering.service import DoctrineService
+    from charter.offering.service import CharterOfferingService
     # Patch seam, see module docstring.
     from charter.activation.context import infer_repo_languages  # noqa: PLC0415
 
     # No built_in_root kwarg: the repositories self-resolve
     # ``packs/built-in/<kind>`` via the built_in_dir seam (default None is
     # behaviour-preserving here; WP04 drops the now-dead param from
-    # DoctrineService entirely). Mission relocate-builtin-doctrine-packs moved
+    # CharterOfferingService entirely). Mission relocate-builtin-doctrine-packs moved
     # the built-in artefacts out of ``src/doctrine`` into ``packs/built-in``; a
     # ``resolve_doctrine_root()`` here would point at the emptied ``src/doctrine``
     # tree and silently load nothing.
@@ -152,24 +152,24 @@ def _build_doctrine_service(
     # can still type-check every argument against the constructor signature.
     if agent_profile_overlay_dir is not None:
         if org_roots:
-            return DoctrineService(
+            return CharterOfferingService(
                 project_root=project_root,
                 active_languages=active_languages,
                 org_roots=org_roots,
                 agent_profile_overlay_dir=agent_profile_overlay_dir,
             )
-        return DoctrineService(
+        return CharterOfferingService(
             project_root=project_root,
             active_languages=active_languages,
             agent_profile_overlay_dir=agent_profile_overlay_dir,
         )
     if org_roots:
-        return DoctrineService(
+        return CharterOfferingService(
             project_root=project_root,
             active_languages=active_languages,
             org_roots=org_roots,
         )
-    return DoctrineService(
+    return CharterOfferingService(
         project_root=project_root,
         active_languages=active_languages,
     )

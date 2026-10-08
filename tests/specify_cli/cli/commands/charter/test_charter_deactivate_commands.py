@@ -3,7 +3,7 @@
 Covers FR-005, FR-006, FR-007, FR-010:
 - Happy path: deactivate an activated artifact
 - Unknown kind: exits 1 with "Unknown kind" in output
-- None-state: exits 1 with "spec-kitty upgrade" guidance
+- None-state: exits 1 with "activate one first" guidance
 - Cascade flag: accepted and processed
 - Shared artifact protection: skipped with appropriate message
 """
@@ -100,7 +100,7 @@ def _invoke_activate(project_root: Path, *args: str) -> Result:
 
 def _write_org_pack_config(project_root: Path, packs: list[tuple[str, str]]) -> None:
     """Write ``.kittify/config.yaml`` with a declaration-ordered org-pack chain."""
-    lines: list[str] = ["doctrine:", "  org:", "    packs:"]
+    lines: list[str] = ["charter_packs:", "  org:", "    packs:"]
     for name, local_path in packs:
         lines.append(f"      - name: {name}")
         lines.append(f"        local_path: {local_path}")
@@ -199,9 +199,9 @@ class TestDeactivateNoneState:
     def test_none_state_exits_one_with_upgrade_guidance(self, empty_project_root: Path) -> None:
         """Deactivating from None-state exits 1 with rendered upgrade guidance (WP12/T054).
 
-        WP09 replaced the legacy ``sys.exit(1)`` in ``CharterPackManager.deactivate``
+        WP09 replaced the legacy ``sys.exit(1)`` in ``ActiveCharterManager.deactivate``
         with the engine's typed ``NoActivationRestrictionsError`` (carrying the
-        "run upgrade first" guidance). WP12 now **catches** that error in the CLI and
+        "activate one first" guidance). WP12 now **catches** that error in the CLI and
         renders it as a clean exit-1 with guidance (no propagated exception) — the
         behavior previously deferred to WP12. Assert the WP12 contract here.
         """
@@ -210,7 +210,9 @@ class TestDeactivateNoneState:
             ["deactivate", "--repo-root", str(empty_project_root), "directive", "some-directive"],
         )
         assert result.exit_code == 1
-        assert "spec-kitty upgrade" in result.output
+        output = " ".join(result.output.split())
+        assert "spec-kitty charter activate directive <id>" in output
+        assert "spec-kitty upgrade" not in output
 
 
 # ---------------------------------------------------------------------------

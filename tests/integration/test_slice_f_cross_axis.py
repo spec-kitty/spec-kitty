@@ -89,13 +89,7 @@ def tmp_complex_setup(tmp_path: Path) -> Path:
     # Axis 2: monorepo with two charter scopes
     (tmp_path / ".kittify").mkdir()
     config: dict = {
-        "organisation_packs": [
-            {
-                "name": "example-org",
-                "source": "local_path",
-                "path": str(pack_dest),
-            }
-        ],
+        "charter_packs": {"org": {"packs": [{"name": "example-org", "local_path": str(pack_dest)}]}},
         "charter_scopes": [
             {"root": "packages/auth", "name": "auth"},
             {"root": "packages/web", "name": "web"},

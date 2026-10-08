@@ -1,4 +1,4 @@
-"""CLI tests for ``spec-kitty doctrine regenerate-graph`` (WP09 / FR-009).
+"""CLI tests for ``spec-kitty charter pack regenerate-graph`` (WP09 / FR-009).
 
 Covers the operator-facing regeneration surface:
 
@@ -21,7 +21,7 @@ import pytest
 from typer.testing import CliRunner
 
 from charter.offering.drg.loader import load_built_in_graph
-from specify_cli.cli.commands.doctrine import app as doctrine_app
+from specify_cli.cli.commands.charter import charter_app
 
 if TYPE_CHECKING:
     from charter.offering.drg.models import DRGGraph
@@ -106,8 +106,8 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #:
 #: 2026-07-31 (mission charter-delivery-finish-context-degod, #3064, post-merge
 #: follow-up): WP03's ``asset:common-charter-scaffold-minimal`` doctrine asset was
-#: relocated to first-class charter-pack status (``src/charter/activation/packs/minimal.yaml``,
-#: applied via ``spec-kitty charter pack apply minimal``) — it is structurally a
+#: relocated to first-class charter-pack status (today the built-in ``minimal`` preset,
+#: applied via ``spec-kitty charter activate --preset minimal``) — it is structurally a
 #: charter pack, not a generic doctrine asset. The asset node is gone from the DRG,
 #: reverting the ceiling **22 -> 21**. Full narrative in ``drg-orphan-residual.md``.
 #:
@@ -148,7 +148,7 @@ def test_check_reports_committed_graph_fresh() -> None:
     with ``*.graph.yaml`` fragments.
     """
     result = runner.invoke(
-        doctrine_app, ["regenerate-graph", "--check", "--json"]
+        charter_app, ["pack", "regenerate-graph", "--check", "--json"]
     )
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
@@ -173,12 +173,12 @@ def test_regenerate_twice_is_byte_identical(
     shutil.copytree(DOCTRINE_ROOT, fake_doctrine)
     monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(fake_repo / "packs"))
 
-    r1 = runner.invoke(doctrine_app, ["regenerate-graph"])
+    r1 = runner.invoke(charter_app, ["pack", "regenerate-graph"])
     assert r1.exit_code == 0, r1.output
     first = {p.name: p.read_bytes() for p in _graph_files(fake_doctrine)}
     assert first, "regenerate-graph produced no graph source files"
 
-    r2 = runner.invoke(doctrine_app, ["regenerate-graph"])
+    r2 = runner.invoke(charter_app, ["pack", "regenerate-graph"])
     assert r2.exit_code == 0, r2.output
     second = {p.name: p.read_bytes() for p in _graph_files(fake_doctrine)}
 
@@ -208,7 +208,7 @@ def test_check_detects_stale_graph(
     )
 
     result = runner.invoke(
-        doctrine_app, ["regenerate-graph", "--check", "--json"]
+        charter_app, ["pack", "regenerate-graph", "--check", "--json"]
     )
     assert result.exit_code == 1, result.output
     payload = json.loads(result.stdout)

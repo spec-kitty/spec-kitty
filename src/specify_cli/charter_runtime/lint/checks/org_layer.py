@@ -7,7 +7,7 @@ to the project charter, never a hard gate.  Findings carry the
 ``org_layer`` category so operators can filter them.
 
 These checkers degrade silently when no org pack is configured or when the
-optional ``specify_cli.doctrine.org_charter`` module (owned by WP09) has not
+optional ``charter.activation.org_charter`` module (owned by WP09) has not
 yet shipped — they simply return an empty finding list.
 """
 
@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from charter.drg import ArtifactKind
+from charter.packs import RETIRED_PACK_FIELD, RetiredPackFieldError
 from specify_cli.charter_runtime.lint.findings import LintFinding
 
 KITTIFY_DIR_NAME = ".kittify"
@@ -78,7 +79,7 @@ class OrgCharterDeviationChecker:
     """Advisory: project charter deviates from an org charter governance policy.
 
     Reads the merged ``org-charter.yaml`` policies via
-    :func:`specify_cli.doctrine.org_charter.load_org_charter_policies` (owned
+    :func:`charter.activation.org_charter.load_org_charter_policies` (owned
     by WP09).  When the module is not yet shipped, the check returns ``[]``.
     """
 
@@ -93,7 +94,7 @@ class OrgCharterDeviationChecker:
 
         # Optional dependency on WP09's module.  When absent, advisory is a no-op.
         try:
-            from specify_cli.doctrine.org_charter import (
+            from charter.activation.org_charter import (
                 load_org_charter_policies,
             )
         except ImportError:
@@ -106,7 +107,7 @@ class OrgCharterDeviationChecker:
         # this same commit removes from ``generate.py``. ``charter`` is
         # first-party and ships in the same wheel, so there is no legitimate
         # "not yet available" case to tolerate here; call it directly and let
-        # ``charter.activation.pack_context.CharterPackConfigError`` (raised by
+        # ``charter.activation.pack_context.ActiveCharterConfigError`` (raised by
         # ``PackContext.from_config`` inside ``ProjectContext.from_repo``)
         # propagate rather than silently falling back to an unfiltered scan.
         from charter.activation.invocation_context import ProjectContext  # noqa: PLC0415
@@ -115,6 +116,9 @@ class OrgCharterDeviationChecker:
 
         try:
             policies = load_org_charter_policies(repo_root, pack_context=_pack_ctx)
+        except RetiredPackFieldError as exc:
+            # #3732: never drop a pack with a retired field in silence.
+            return [_retired_pack_field_finding(exc)]
         except Exception:  # noqa: BLE001
             return []
         governance_policies = list(getattr(policies, "governance_policies", []) or [])
@@ -155,6 +159,18 @@ class OrgCharterDeviationChecker:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _retired_pack_field_finding(exc: RetiredPackFieldError) -> LintFinding:
+    """A ``high`` finding for an org pack whose ``org-charter.yaml`` carries a retired field."""
+    return LintFinding(
+        category="org_layer",
+        type="retired_pack_field",
+        id=f"{exc.file}:{exc.field}",
+        severity="high",
+        message=f"{RETIRED_PACK_FIELD}: {exc}",
+        remediation_hint=f"Rename '{exc.field}' to '{exc.replacement}' in {exc.file}.",
+    )
 
 
 def _resolve_override_scan_services(repo_root: Path) -> tuple[Any, Any] | None:
@@ -251,7 +267,7 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     treats ``pack_context is None`` as "admit all"; this call site is
     distinguished from every activation-gated caller ONLY by that explicit
     argument, never by a different class or a raw, unwrapped
-    ``charter.offering.service.DoctrineService`` returned directly (the cycle-1
+    ``charter.offering.service.CharterOfferingService`` returned directly (the cycle-1
     violation: this function previously returned the raw inner service
     under a docstring-authorized "exception" that C-002 does not sanction —
     a docstring is not an escalation, and the claimed
@@ -274,7 +290,7 @@ def _build_scan_service(repo_root: Path, *, org_roots: list[Path] | None = None)
     The inner service is built via
     :func:`charter.activation.doctrine_service_builder._build_doctrine_service` — the
     ONE function in this codebase permitted to construct a raw
-    ``charter.offering.service.DoctrineService`` (NFR-001) — so this scan path
+    ``charter.offering.service.CharterOfferingService`` (NFR-001) — so this scan path
     shares the same ``active_languages``/``project_root`` resolution as
     every other consumer of the unified builder, rather than a bespoke
     shape that could silently drift from it.

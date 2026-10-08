@@ -27,15 +27,13 @@ from charter.activation.synthesizer.manifest import (
     SynthesisManifest,
     compute_manifest_hash,
     dump_yaml,
+    absorb_synthesis_manifest,
     finalize_manifest,
     load_yaml,
     verify_manifest_hash,
 )
 from charter.offering.artifact_kinds import ArtifactKind
-from specify_cli.doctrine.pack_manifest import (
-    CharterProfile,
-    absorb_synthesis_manifest,
-)
+from charter.offering.packs.pack_manifest import CharterProfile
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 

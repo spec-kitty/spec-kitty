@@ -62,7 +62,7 @@ If your installed Amazon Q version uses a different prompt-invocation convention
 - **Profile not loading.**
   Run inside Amazon Q:
   ```
-  /ad-hoc-profile-load researcher-robbie
+  /spk-charter-profile-load researcher-robbie
   ```
   Use the profile id from the work-package frontmatter.
 

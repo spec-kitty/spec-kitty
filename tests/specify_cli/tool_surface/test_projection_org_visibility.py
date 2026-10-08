@@ -95,7 +95,7 @@ def _write_config(
     """
     data: dict[str, object] = {}
     if pack_root is not None:
-        data["doctrine"] = {
+        data["charter_packs"] = {
             "org": {"packs": [{"name": _PACK_NAME, "local_path": str(pack_root)}]}
         }
     if activated is not None:

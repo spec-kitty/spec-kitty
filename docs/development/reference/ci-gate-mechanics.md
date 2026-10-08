@@ -745,7 +745,7 @@ exactly what they expect.
   then `--resume`.
 - **The graph-manifest check verifies the pack manifest, not just the graph
   files.** Regenerating the reference graph alone leaves the manifest stale; run
-  the full `spec-kitty doctrine regenerate-graph`, which regenerates both.
+  the full `spec-kitty charter pack regenerate-graph`, which regenerates both.
 - **The post-merge stale-assertion analyzer** flags test string-literals tied to
   removed code even when the test still passes. Confirm the test is green, then
   refresh the docstring or literal.

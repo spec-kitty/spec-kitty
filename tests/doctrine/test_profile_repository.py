@@ -174,15 +174,15 @@ class TestAgentProfileRepositoryZero:
 
 
 class TestAgentProfileCollisionWarning:
-    """Profile shadowing emits a DoctrineLayerCollisionWarning (MEDIUM-1)."""
+    """Profile shadowing emits an ArtifactLayerCollisionWarning (MEDIUM-1)."""
 
     def test_project_override_of_shipped_profile_warns(
         self, shipped_profiles_dir: Path, project_profiles_dir: Path
     ) -> None:
         """The shipped+project fixtures define python-pedro twice; this must warn."""
-        from charter.offering.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import ArtifactLayerCollisionWarning
 
-        with pytest.warns(DoctrineLayerCollisionWarning) as record:
+        with pytest.warns(ArtifactLayerCollisionWarning) as record:
             AgentProfileRepository(
                 built_in_dir=shipped_profiles_dir,
                 project_dir=project_profiles_dir,
@@ -198,7 +198,7 @@ class TestAgentProfileCollisionWarning:
         self, shipped_profiles_dir: Path, project_profiles_dir: Path
     ) -> None:
         """custom-reviewer exists only in project — no collision, no warning for it."""
-        from charter.offering.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import ArtifactLayerCollisionWarning
         import warnings as _w
 
         with _w.catch_warnings(record=True) as captured:
@@ -211,7 +211,7 @@ class TestAgentProfileCollisionWarning:
         msgs = [
             str(w.message)
             for w in captured
-            if isinstance(w.message, DoctrineLayerCollisionWarning)
+            if isinstance(w.message, ArtifactLayerCollisionWarning)
         ]
         # custom-reviewer must NOT appear in any collision message.
         assert not any("custom-reviewer" in m for m in msgs), msgs
@@ -356,7 +356,7 @@ specialization:
     ) -> None:
         """#4572: a language-scope drop is recorded, not silent.
 
-        Parity with ``BaseDoctrineRepository.scope_filtered_ids`` (FR-013):
+        Parity with ``BaseArtifactRepository.scope_filtered_ids`` (FR-013):
         the catalog-miss diagnosis reads this set so a present-but-scoped
         profile surfaces ``SCOPE_FILTERED`` instead of ``MISSING_ARTIFACT``.
         """

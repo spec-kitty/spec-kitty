@@ -49,7 +49,7 @@ Why this is not a duplicate of ``test_runtime_charter_doctrine_boundary.py``
 That gate is deliberately narrower on all three axes, and the WP09 prompt
 directs not re-asserting what an adjacent gate already proves:
 
-* **Scope** — it audits ``src/runtime/**`` (plus ``src/specify_cli/doctrine/``);
+* **Scope** — it audits ``src/specify_cli/**`` and ``src/runtime/**``;
   this one audits *all* of ``src/`` outside the two owning layers.
 * **Depth** — its ``_module_imports_doctrine_directly`` inspects **module-level**
   imports only (its own docstring says so). This gate walks every scope, so a

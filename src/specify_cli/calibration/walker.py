@@ -15,7 +15,7 @@ Required-scope map (inline):
     ``suggests`` traversal; those extras are tolerated as ``known_irrelevant``.
 
 Overlay loading:
-    The walker loads ``.kittify/doctrine/overlays/calibration-<mission>.yaml``
+    The walker loads ``.kittify/charter-packs/overlays/calibration-<mission>.yaml``
     (if present) alongside the built-in ``packs/built-in/*.graph.yaml``
     fragments.  Overlay
     ``add_edge`` and ``remove_edge`` mutations are applied before resolution.
@@ -38,6 +38,7 @@ from charter.drg import (
     merge_layers,
     resolve_context,
 )
+from kernel.charter_pack_paths import project_pack_root
 from specify_cli.calibration.inequality import InequalityResult, assert_inequality_holds
 
 
@@ -331,6 +332,11 @@ _MISSION_STEPS: dict[str, list[tuple[str, str, str]]] = {
 # ---------------------------------------------------------------------------
 
 
+def _calibration_overlay_path(repo_root: Path, mission_key: str) -> Path:
+    """Return the project calibration overlay path for *mission_key* (project pack root)."""
+    return project_pack_root(repo_root) / "overlays" / f"calibration-{mission_key}.yaml"
+
+
 def _load_overlay_graph(
     repo_root: Path,
     mission_key: str,
@@ -343,10 +349,7 @@ def _load_overlay_graph(
 
     Returns None when the overlay file does not exist or is empty.
     """
-    overlay_path = (
-        repo_root / ".kittify" / "doctrine" / "overlays"
-        / f"calibration-{mission_key}.yaml"
-    )
+    overlay_path = _calibration_overlay_path(repo_root, mission_key)
     if not overlay_path.exists():
         return None
 
@@ -391,10 +394,7 @@ def _load_overlay_graph(
 
 def _apply_remove_edges(graph: DRGGraph, repo_root: Path, mission_key: str) -> DRGGraph:
     """Remove edges listed in the overlay's ``remove_edge`` section."""
-    overlay_path = (
-        repo_root / ".kittify" / "doctrine" / "overlays"
-        / f"calibration-{mission_key}.yaml"
-    )
+    overlay_path = _calibration_overlay_path(repo_root, mission_key)
     if not overlay_path.exists():
         return graph
 
@@ -484,7 +484,7 @@ def walk_mission(
         mission_key: One of ``"software-dev"``, ``"research"``,
             ``"documentation"``, or ``"erp-custom"``.
         repo_root: Repository root containing the ``packs/built-in/*.graph.yaml``
-            fragments and (optionally) ``.kittify/doctrine/overlays/``.
+            fragments and (optionally) ``.kittify/charter-packs/overlays/``.
 
     Returns:
         One :class:`CalibrationFinding` per step in the mission.

@@ -121,7 +121,7 @@ def _enclosing_qualname(node: ast.AST, parents: dict[int, ast.AST]) -> str | Non
 
 
 def _module_dotted_name(path: Path, root: Path) -> str:
-    """``src/specify_cli/doctrine/pack_assembler.py`` -> ``specify_cli.doctrine.pack_assembler``."""
+    """``src/charter/offering/packs/pack_assembler.py`` -> ``charter.offering.packs.pack_assembler``."""
     rel_parts = path.relative_to(root).with_suffix("").parts
     if rel_parts and rel_parts[-1] == "__init__":
         rel_parts = rel_parts[:-1]

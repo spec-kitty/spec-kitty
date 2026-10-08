@@ -275,7 +275,7 @@
         "kitty-specs/**/acceptance-matrix.json",
         ".kittify/charter/**",
         ".kittify/glossaries/**",
-        ".kittify/doctrine/**",
+        ".kittify/charter-packs/**",
         "contracts/**"
       ],
       "note": "Doctrine corpus + mission data leaves (#3008), plus the contracts/ tree, which stays out of the wheel; non-src, no --cov subject."

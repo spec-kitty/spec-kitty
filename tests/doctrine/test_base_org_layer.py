@@ -1,4 +1,4 @@
-"""Unit tests for BaseDoctrineRepository three-layer loading (T010).
+"""Unit tests for BaseArtifactRepository three-layer loading (T010).
 
 Tests verify:
 - shipped-only loads with provenance 'builtin'
@@ -391,11 +391,11 @@ class TestOrgDirNotExists:
         assert repo.get_provenance("DIRECTIVE_001") == "builtin"
 
 
-class TestDoctrineLayerCollisionWarning:
+class TestArtifactLayerCollisionWarning:
     """Collision warnings surface higher-layer override of lower-layer artifacts (MEDIUM-1)."""
 
     def test_org_shadows_builtin_emits_warning(self, tmp_path: Path) -> None:
-        from charter.offering.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import ArtifactLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         org = tmp_path / "org"
@@ -411,7 +411,7 @@ class TestDoctrineLayerCollisionWarning:
             _directive_data("DIRECTIVE_001", title="Org"),
         )
 
-        with pytest.warns(DoctrineLayerCollisionWarning) as record:
+        with pytest.warns(ArtifactLayerCollisionWarning) as record:
             DirectiveRepository(built_in_dir=shipped, org_dirs=[org])
 
         messages = [str(w.message) for w in record]
@@ -426,7 +426,7 @@ class TestDoctrineLayerCollisionWarning:
         assert "field" in msg
 
     def test_project_shadows_org_emits_warning(self, tmp_path: Path) -> None:
-        from charter.offering.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import ArtifactLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         org = tmp_path / "org"
@@ -448,7 +448,7 @@ class TestDoctrineLayerCollisionWarning:
             _directive_data("DIRECTIVE_001", title="Project"),
         )
 
-        with pytest.warns(DoctrineLayerCollisionWarning) as record:
+        with pytest.warns(ArtifactLayerCollisionWarning) as record:
             DirectiveRepository(
                 built_in_dir=shipped, org_dirs=[org], project_dir=project
             )
@@ -459,7 +459,7 @@ class TestDoctrineLayerCollisionWarning:
         assert any("org" in m and "builtin" in m for m in messages)
 
     def test_project_shadows_builtin_when_no_org(self, tmp_path: Path) -> None:
-        from charter.offering.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import ArtifactLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         project = tmp_path / "project"
@@ -475,14 +475,14 @@ class TestDoctrineLayerCollisionWarning:
             _directive_data("DIRECTIVE_001", title="Project"),
         )
 
-        with pytest.warns(DoctrineLayerCollisionWarning) as record:
+        with pytest.warns(ArtifactLayerCollisionWarning) as record:
             DirectiveRepository(built_in_dir=shipped, project_dir=project)
 
         messages = [str(w.message) for w in record]
         assert any("project" in m and "builtin" in m for m in messages)
 
     def test_no_warning_when_no_collision(self, tmp_path: Path) -> None:
-        from charter.offering.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import ArtifactLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         org = tmp_path / "org"
@@ -505,13 +505,13 @@ class TestDoctrineLayerCollisionWarning:
         collision_msgs = [
             str(w.message)
             for w in captured
-            if isinstance(w.message, DoctrineLayerCollisionWarning)
+            if isinstance(w.message, ArtifactLayerCollisionWarning)
         ]
         assert collision_msgs == []
 
     def test_collision_warning_reports_field_count(self, tmp_path: Path) -> None:
         """The warning message includes how many fields were replaced and inherited."""
-        from charter.offering.base import DoctrineLayerCollisionWarning
+        from charter.offering.base import ArtifactLayerCollisionWarning
 
         shipped = tmp_path / "built-in"
         org = tmp_path / "org"
@@ -527,7 +527,7 @@ class TestDoctrineLayerCollisionWarning:
             _directive_data("DIRECTIVE_001", title="Org Title"),
         )
 
-        with pytest.warns(DoctrineLayerCollisionWarning) as record:
+        with pytest.warns(ArtifactLayerCollisionWarning) as record:
             DirectiveRepository(built_in_dir=shipped, org_dirs=[org])
 
         msg = next(str(w.message) for w in record if "DIRECTIVE_001" in str(w.message))

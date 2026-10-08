@@ -375,15 +375,14 @@ ORG_MISSION_TYPES_SUBDIR = "mission_types"
 #: record, not an import-by-analogy of the sibling's path.
 PROJECT_MISSION_TYPES_RELATIVE: tuple[str, ...] = (".kittify", "missions", "mission_types")
 
-#: Project-layer layout relative to the ``.kittify`` project root -- the tail
-#: of :data:`PROJECT_MISSION_TYPES_RELATIVE` past its leading ``.kittify``
-#: segment. Derived, never edited independently: consumers whose supplied base
-#: is already the ``.kittify`` root (``charter.activation.pack_manager``, whose
-#: ``layer_roots["project"]`` value is ``repo_root / ".kittify"`` per
-#: ``specify_cli.cli.commands.charter._layer_roots.resolve_layer_roots``) join
-#: this instead of slicing the repo-root-relative tuple at their own call
-#: site (#3427) -- the base-point reconciliation lives here, beside the
-#: authority it derives from.
+#: Project-layer layout relative to the ``.kittify`` directory -- the tail of
+#: :data:`PROJECT_MISSION_TYPES_RELATIVE` past its leading ``.kittify``
+#: segment. Derived, never edited independently: consumers whose base is the
+#: ``.kittify`` directory (``charter.activation.pack_manager``, which derives
+#: it from the project pack root ``layer_roots["project"]`` handed out by
+#: ``charter.activation.layer_roots.resolve_layer_roots``) join this instead of
+#: slicing the repo-root-relative tuple at their own call site (#3427) -- the
+#: base-point reconciliation lives here, beside the authority it derives from.
 PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT: tuple[str, ...] = PROJECT_MISSION_TYPES_RELATIVE[1:]
 
 
@@ -452,7 +451,7 @@ def scan_mission_types_dir(
     Public (PR-CONTRACT-002, pre-merge squad, mission
     up-mission-type-seam-01KZY1JB): the single-directory scan primitive
     :func:`resolve_layered_mission_types` itself uses, one layer at a time.
-    ``charter.activation.pack_manager.CharterPackManager.list_available_detailed``'s
+    ``charter.activation.pack_manager.ActiveCharterManager.list_available_detailed``'s
     ``kind is None`` (mission-type) branch also calls this directly (one
     call per ``(layer, scan_dir)`` pair, mirroring its own per-layer entry
     shape) so that the pre-activation availability catalog loud-fails on the
@@ -526,7 +525,7 @@ def _resolve_layered_mission_types_uncached(
 
     Layer precedence, full per-compound-key replacement (never a field-level
     merge -- ``MissionTypeRepository`` does not inherit
-    ``BaseDoctrineRepository``, spec.md Edge Cases): **project > org
+    ``BaseArtifactRepository``, spec.md Edge Cases): **project > org
     (earliest pack_root wins) > built-in-equivalent** -- matching
     ``MissionStepRepository``'s own documented precedence.
 

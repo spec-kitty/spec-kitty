@@ -4,7 +4,7 @@ Resolves active governance from charter selections and validates
 selected references against available profile/tool catalogs.
 
 Exports ``DoctrineService`` — an activation-aware wrapper around
-:class:`charter.offering.service.DoctrineService`.  The wrapper applies per-kind
+:class:`charter.offering.service.CharterOfferingService`.  The wrapper applies per-kind
 activation filters from :class:`~charter.activation.pack_context.PackContext` to nine
 gated properties: ``paradigms``, ``procedures``, ``agent_profiles``
 (pre-existing) plus ``directives``, ``tactics``, ``styleguides``,
@@ -44,6 +44,7 @@ from typing import TYPE_CHECKING, Any
 from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
 from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn
 from charter.activation.reference_resolver import resolve_references_transitively
+from kernel.charter_pack_paths import project_pack_root
 from charter.activation.schemas import DirectivesConfig, DoctrineSelectionConfig
 from charter.activation.sync import (
     load_directives_config,
@@ -87,7 +88,7 @@ if TYPE_CHECKING:
     from charter.offering.styleguides.models import Styleguide
     from charter.offering.tactics.models import Tactic
     from charter.offering.toolguides.models import Toolguide
-    import charter.offering.service as _doctrine_service_module
+    import charter.offering.service as _offering_service_module
     from charter.activation.interview import CharterInterview
     from charter.activation.pack_context import PackContext
 
@@ -168,7 +169,7 @@ def _resolve_unmatched_directive_token(token: str, all_directives: dict[str, Dir
 
 
 class DoctrineService:
-    """Activation-aware wrapper around :class:`charter.offering.service.DoctrineService`.
+    """Activation-aware wrapper around :class:`charter.offering.service.CharterOfferingService`.
 
     Applies per-kind activation filters from
     :class:`~charter.activation.pack_context.PackContext` when accessing the nine gated
@@ -196,7 +197,7 @@ class DoctrineService:
 
     def __init__(
         self,
-        _inner: _doctrine_service_module.DoctrineService,
+        _inner: _offering_service_module.CharterOfferingService,
         pack_context: PackContext | None = None,
     ) -> None:
         # Use object.__setattr__ to bypass any potential descriptor magic.
@@ -275,7 +276,7 @@ class DoctrineService:
                         token,
                         doctrine_root=doctrine_root,
                         org_roots=list(pack_ctx.org_roots),
-                        layer_roots={"project": pack_ctx.repo_root / ".kittify"},
+                        layer_roots={"project": project_pack_root(pack_ctx.repo_root)},
                     )
                     activated.add(urn.split(":", 1)[1])
                 except UnknownArtifactIdError:
@@ -404,7 +405,7 @@ class DoctrineService:
         ``specify_cli.charter_runtime.lint.checks.org_layer.OrgOverridesBuiltinChecker``)
         need those raw repository operations directly. This is the named,
         sanctioned way to reach them without either (a) reconstructing a
-        second, unwrapped ``charter.offering.service.DoctrineService`` (the FR-002
+        second, unwrapped ``charter.offering.service.CharterOfferingService`` (the FR-002
         violation this accessor exists to close) or (b) reaching into
         ``._inner`` from outside ``charter.activation.resolver`` (the FR-010
         reach-around this module's accessors close generally).
@@ -1004,7 +1005,7 @@ def resolve_governance_for_profile(
         raise ValueError("Profile ID is required for profile-aware governance resolution.")
 
     # Pattern C: agent_profiles may be a filtered dict (DoctrineService wrapper)
-    # or a repository (raw charter.offering.service.DoctrineService / MagicMock in tests).
+    # or a repository (raw charter.offering.service.CharterOfferingService / MagicMock in tests).
     agent_profiles_attr = doctrine_service.agent_profiles
     if isinstance(agent_profiles_attr, dict):
         profile = agent_profiles_attr.get(normalized_profile_id)

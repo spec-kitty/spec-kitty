@@ -2,8 +2,8 @@
 
 WP05 (mission ``unify-charter-activation-surfaces-01KX5SJ9``). Before this WP,
 ``charter.activation.consistency_check.run_consistency_check`` was reachable only from
-the CLI (``spec-kitty charter pack consistency-check``, wired at
-``src/specify_cli/cli/commands/charter/pack.py:31-47``). NFR-002 requires the
+the CLI (``spec-kitty charter consistency-check``, wired at
+``src/specify_cli/cli/commands/charter/consistency_check.py``). NFR-002 requires the
 fail-closed config<->derived parity guard to bite in the test suite too, not
 only when an operator remembers to run the CLI by hand -- this module is that
 entry point (T019), plus the non-vacuity self-tests (T020) that prove each
@@ -144,7 +144,7 @@ def _write_org_directive(org_pack_root: Path, *, stem: str, canonical_id: str) -
     ``<root>/<plural>/built-in/*.yaml``. This mirrors that exact shape so the
     fixture is reachable through the precise code path Fix A repairs -- not
     the (different) ``<root>/<plural>/*.yaml`` layout used by
-    ``charter.offering.service.DoctrineService``'s org layer elsewhere in the suite.
+    ``charter.offering.service.CharterOfferingService``'s org layer elsewhere in the suite.
     """
     directive_dir = org_pack_root / "directives" / "built-in"
     directive_dir.mkdir(parents=True, exist_ok=True)
@@ -163,7 +163,7 @@ def test_this_project_charter_pack_is_coherent() -> None:
     """The guard runs against this project's own config/doctrine/DRG.
 
     Previously this only happened when an operator ran
-    ``spec-kitty charter pack consistency-check`` by hand; this test makes
+    ``spec-kitty charter consistency-check`` by hand; this test makes
     it a suite-tier gate (NFR-002) so a #2524-style divergence fails
     locally, not only at CI or on manual invocation.
     """
@@ -365,7 +365,10 @@ def test_org_overlay_activated_artefact_resolves_for_parity(tmp_path: Path) -> N
 
     kittify = _write_config(
         tmp_path,
-        (f"activated_directives:\n  - org-only-directive\ndoctrine:\n  org:\n    packs:\n      - name: test-org\n        local_path: {org_pack_root.as_posix()}\n"),
+        (
+            "activated_directives:\n  - org-only-directive\n"
+            f"charter_packs:\n  org:\n    packs:\n      - name: test-org\n        local_path: {org_pack_root.as_posix()}\n"
+        ),
     )
     # Compiled WITHOUT the org directive -- the exact #2524 dangler shape.
     _write_charter_yaml_catalog(kittify, [])
@@ -385,7 +388,7 @@ def test_org_overlay_activated_artefact_resolves_for_parity(tmp_path: Path) -> N
     # resolves and the missing compiled entry is correctly reported.
     #
     # (`unknown_references` also fires here via a separate, pre-existing
-    # gap: `_collect_all_doctrine_ids`/`CharterPackManager.list_available`
+    # gap: `_collect_all_doctrine_ids`/`ActiveCharterManager.list_available`
     # is called with no `layer_roots` either, so it never sees org
     # artefacts. That is a different call site than the one #2529 reports
     # and is out of scope for this fix -- it does not change what this

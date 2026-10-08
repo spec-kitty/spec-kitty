@@ -7,7 +7,7 @@ Two jobs live in this module (T003):
    of ``_load_doctrine_selection`` (``charter/context.py:795-813``) —
    this branch had ZERO existing coverage before WP01 (the sibling
    ``test_org_charter_union.py`` covers a *different* function,
-   ``specify_cli.doctrine.org_charter.apply_org_charter_to_interview``).
+   ``charter.activation.org_charter.apply_org_charter_to_interview``).
    This test is authored and passes GREEN against pre-refactor code; it
    is the safety net that makes the T005 extraction of
    ``_iter_org_charter_docs`` provably behavior-preserving — it MUST
@@ -88,7 +88,7 @@ def _register_org_pack(repo_root: Path, pack_root: Path, *, name: str = "securit
                 # this key; unrelated to the org-pack union this fixture
                 # exercises, so no other activation key is written.
                 "mission_type_activations": ["software-dev"],
-                "doctrine": {"org": {"packs": [{"name": name, "local_path": str(pack_root)}]}},
+                "charter_packs": {"org": {"packs": [{"name": name, "local_path": str(pack_root)}]}},
             },
             fh,
         )

@@ -17,7 +17,7 @@ Covers:
 The old API (--action-sequence, mission-type subcommand, override file) is removed.
 All assertions for override-file behavior are also removed.
 The activate_mission_type_override function is removed (FR-014: activation now goes
-through CharterPackManager.activate() which writes to config.yaml directly).
+through ActiveCharterManager.activate() which writes to config.yaml directly).
 """
 
 from __future__ import annotations
@@ -103,12 +103,12 @@ class TestActivateCommand:
         assert "deferred" not in result.output.lower()
 
     def test_activate_cascade_calls_with_true(self, project_root: Path) -> None:
-        """--cascade flag passes cascade=True to CharterPackManager.activate (DD-4: parameter kept for stability)."""
+        """--cascade flag passes cascade=True to ActiveCharterManager.activate (DD-4: parameter kept for stability)."""
         from unittest.mock import patch
         from charter.activation.pack_manager import ActivationResult
 
         mock_result = ActivationResult(activated=["my-directive"], warnings=[])
-        with patch("charter.activation.pack_manager.CharterPackManager.activate", return_value=mock_result) as mock_activate:
+        with patch("charter.activation.pack_manager.ActiveCharterManager.activate", return_value=mock_result) as mock_activate:
             runner.invoke(
                 charter_app,
                 [

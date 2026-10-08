@@ -37,7 +37,7 @@ _MANIFEST_NAME = "plugin.json"
 
 _COPILOT_LAYOUT: dict[ToolSurfaceKind, str] = {
     ToolSurfaceKind.COMMAND_SKILL: "skills",
-    ToolSurfaceKind.DOCTRINE_SKILL: "skills",
+    ToolSurfaceKind.CHARTER_SKILL: "skills",
     ToolSurfaceKind.AGENT_PROFILE: "agents",
     ToolSurfaceKind.HOOK: "",
     ToolSurfaceKind.NATIVE_CONFIG: "",
@@ -46,7 +46,7 @@ _COPILOT_LAYOUT: dict[ToolSurfaceKind, str] = {
 _REQUIRED_KINDS: frozenset[ToolSurfaceKind] = frozenset(
     {
         ToolSurfaceKind.COMMAND_SKILL,
-        ToolSurfaceKind.DOCTRINE_SKILL,
+        ToolSurfaceKind.CHARTER_SKILL,
         ToolSurfaceKind.AGENT_PROFILE,
     }
 )

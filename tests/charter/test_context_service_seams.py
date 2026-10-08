@@ -235,7 +235,7 @@ class TestBuildDoctrineService:
     def test_org_roots_kwarg_omitted_when_empty(self, tmp_path: Path) -> None:
         calls: dict[str, object] = {}
 
-        class _StubDoctrineService:
+        class _StubOfferingService:
             def __init__(self, **kwargs: object) -> None:
                 calls.update(kwargs)
 
@@ -243,7 +243,7 @@ class TestBuildDoctrineService:
         built_in_root.mkdir()
         with (
             patch("charter.activation.catalog.resolve_doctrine_root", return_value=built_in_root),
-            patch("charter.offering.service.DoctrineService", _StubDoctrineService),
+            patch("charter.offering.service.CharterOfferingService", _StubOfferingService),
             patch("charter.activation.context.infer_repo_languages", return_value=["python"]),
         ):
             _build_doctrine_service(tmp_path, org_roots=None)
@@ -252,7 +252,7 @@ class TestBuildDoctrineService:
     def test_org_roots_kwarg_threaded_when_present(self, tmp_path: Path) -> None:
         calls: dict[str, object] = {}
 
-        class _StubDoctrineService:
+        class _StubOfferingService:
             def __init__(self, **kwargs: object) -> None:
                 calls.update(kwargs)
 
@@ -261,7 +261,7 @@ class TestBuildDoctrineService:
         org_root = tmp_path / "org"
         with (
             patch("charter.activation.catalog.resolve_doctrine_root", return_value=built_in_root),
-            patch("charter.offering.service.DoctrineService", _StubDoctrineService),
+            patch("charter.offering.service.CharterOfferingService", _StubOfferingService),
             patch("charter.activation.context.infer_repo_languages", return_value=["python"]),
         ):
             _build_doctrine_service(tmp_path, org_roots=[org_root])

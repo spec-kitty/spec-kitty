@@ -46,7 +46,7 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 | `packs/built-in/` | every downstream Spec Kitty user | ✅ in the PyPI wheel | product doctrine that should govern **all consumers** |
 | `packs/internal/` | the Spec Kitty core team | ❌ excluded from wheel/sdist | **in-house / maintainer / dogfooding** doctrine (how *we* land PRs, triage the tracker, calibrate P0, keep main honest) |
 
-**Before adding doctrine, ask: "does this govern consumers, or only how the core team works?"** In-house guidance placed in `built-in` gets force-shipped to everyone — a real defect. The wheel include is narrowed to `packs/built-in/` and guarded by `tests/cross_cutting/packaging/test_packaging_safety.py`. Internal-pack shape differs: a single `drg/fragment.yaml` (not sharded `*.graph.yaml`) + `org-charter.yaml`, loaded via `.kittify/config.yaml` → `charter_packs.org.packs` (legacy fallback `doctrine.org.packs`). Editing either pack trips the pack-manifest regen gate — run `spec-kitty doctrine regenerate-graph` after. See ADR `docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md` and `packs/internal/README.md`.
+**Before adding doctrine, ask: "does this govern consumers, or only how the core team works?"** In-house guidance placed in `built-in` gets force-shipped to everyone — a real defect. The wheel include is narrowed to `packs/built-in/` and guarded by `tests/cross_cutting/packaging/test_packaging_safety.py`. Internal-pack shape differs: a single `drg/fragment.yaml` (not sharded `*.graph.yaml`) + `org-charter.yaml`, loaded via `.kittify/config.yaml` → `charter_packs.org.packs`. Editing either pack trips the pack-manifest regen gate — run `spec-kitty charter pack regenerate-graph` after. See ADR `docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md` and `packs/internal/README.md`.
 
 ---
 
@@ -584,7 +584,7 @@ Governing ADR: [`docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`](d
 
 ### Activation Engine (`charter.activation.activation_engine`)
 
-Plan/commit seam: `plan_activation()` validates (non-mutating); `commit_plan()` writes config only after plan succeeds. Never mutates config on validation failure (NFR-003). `CharterPackConfigError` → fail-closed. (Companion seam: `plan_deactivation()` / `promote_activations()`.)
+Plan/commit seam: `plan_activation()` validates (non-mutating); `commit_plan()` writes config only after plan succeeds. Never mutates config on validation failure (NFR-003). `ActiveCharterConfigError` → fail-closed. (Companion seam: `plan_deactivation()` / `promote_activations()`.)
 
 ```python
 plan = plan_activation(kind="directive", artifact_id="010-...", pack_context=ctx)
@@ -645,7 +645,7 @@ edges:
 
 ### Profile Load Diagnostics
 
-`AgentProfileRepository.skipped_profiles` exposes load failures without filesystem rescans. Included in `spec-kitty doctor doctrine --json`. A pack with invalid profiles is NOT reported healthy even if DRG counts are valid (FR-010).
+`AgentProfileRepository.skipped_profiles` exposes load failures without filesystem rescans. Included in `spec-kitty doctor charter-packs --json`. A pack with invalid profiles is NOT reported healthy even if DRG counts are valid (FR-010).
 
 ### Upstream Deferred-Item References
 

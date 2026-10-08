@@ -18,7 +18,7 @@ def _profile(root: Path, value: str) -> None:
 
 def test_compiler_resolves_project_profile_from_charter_pointer(tmp_path: Path) -> None:
     kittify = tmp_path / ".kittify"
-    _profile(kittify / "doctrine" / "agent_profiles", "project-local")
+    _profile(kittify / "charter-packs" / "agent_profiles", "project-local")
     (kittify / "config.yaml").write_text("charter: .kittify/custom/charter.yaml\n")
     source = kittify / "custom" / "charter.yaml"
     source.parent.mkdir()
@@ -35,7 +35,8 @@ def test_compiler_missing_profile_names_actual_store_and_project_layer(tmp_path:
     with pytest.raises(UnknownArtifactIdError) as exc:
         resolve_config_activated_roots(repo_root=tmp_path)
     assert str(source) in str(exc.value)
-    assert str(kittify / "doctrine" / "agent_profiles") in str(exc.value)
+    # Neither project root exists: the project layer is reported at the project pack root.
+    assert str(kittify / "charter-packs" / "agent_profiles") in str(exc.value)
 
 
 def test_project_overrides_org_and_later_org_overrides_earlier(tmp_path: Path) -> None:
@@ -45,7 +46,7 @@ def test_project_overrides_org_and_later_org_overrides_earlier(tmp_path: Path) -
     _profile(project / "doctrine" / "agent_profiles", "project")
     kwargs = {"doctrine_root": tmp_path, "org_roots": [first, second]}
     assert resolve_artifact_urn(ArtifactKind.AGENT_PROFILE, "local", **kwargs) == "agent_profile:second"
-    assert resolve_artifact_urn(ArtifactKind.AGENT_PROFILE, "local", layer_roots={"project": project}, **kwargs) == "agent_profile:project"
+    assert resolve_artifact_urn(ArtifactKind.AGENT_PROFILE, "local", layer_roots={"project": project / "doctrine"}, **kwargs) == "agent_profile:project"
 
 
 def test_compiler_preflights_proposed_activation_without_writing(tmp_path: Path) -> None:
@@ -53,7 +54,7 @@ def test_compiler_preflights_proposed_activation_without_writing(tmp_path: Path)
     from charter.activation.pack_context import PackContext
 
     kittify = tmp_path / ".kittify"
-    _profile(kittify / "doctrine" / "agent_profiles", "project-local")
+    _profile(kittify / "charter-packs" / "agent_profiles", "project-local")
     config = kittify / "config.yaml"
     config.write_text("activated_agent_profiles: []\n")
     proposed = dataclasses.replace(PackContext.from_config(tmp_path), activated_agent_profiles=frozenset({"local"}))

@@ -1,4 +1,4 @@
-"""Single-source doctrine health model for ``spec-kitty doctor doctrine`` (WP08).
+"""Single-source doctrine health model for ``spec-kitty doctor charter-packs`` (WP08).
 
 Both the human-readable renderer and the ``--json`` emitter consume one
 :class:`DoctrineHealthReport`; neither assembles its own parallel view of the
@@ -104,7 +104,7 @@ class PackHealth:
 class SkippedGlossaryPack:
     """A single glossary-pack YAML file skipped during repository load (FR-012).
 
-    ``GlossaryPackRepository`` is a plain ``BaseDoctrineRepository`` and does
+    ``GlossaryPackRepository`` is a plain ``BaseArtifactRepository`` and does
     not carry a WP05-style ``SkippedProfile`` diagnostics list — an
     unloadable pack file (bad YAML, a missing required field, a duplicate
     term surface) is only ever surfaced today as a ``UserWarning`` emitted
@@ -287,7 +287,7 @@ class DoctrineHealthReport:
         return flattened
 
     def to_dict(self) -> dict[str, object]:
-        """The single JSON shape for ``doctor doctrine --json``."""
+        """The single JSON shape for ``doctor charter-packs --json``."""
         return {
             "healthy": self.healthy,
             "packs": [pack.to_dict() for pack in self.packs],

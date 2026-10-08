@@ -35,6 +35,7 @@ from charter.offering.drg.project_scan import (walk_project_agent_profile_nodes,
 
 from charter.activation.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 from kernel.clock import now_utc_seconds
+from kernel.charter_pack_paths import PROJECT_PACK_DIRNAME, project_pack_root
 
 from .errors import ProjectDRGValidationError
 from .path_guard import PathGuard
@@ -157,7 +158,7 @@ def _append_project_profile_nodes(
 ) -> None:
     """Append hand-authored project agent_profile nodes through the overlay guards.
 
-    Walks ``<project_root>/.kittify/doctrine/agent_profiles/`` (M6 / #3038) and
+    Walks ``<project_root>/.kittify/charter-packs/agent_profiles/`` (M6 / #3038) and
     merges the discovered ``agent_profile:<id>`` nodes into *nodes* in place,
     applying the same additive-only and overlay-dedupe invariants the
     answer-driven loop enforces:
@@ -225,7 +226,7 @@ def emit_project_layer(
     the source URN per existing DRG conventions).
 
     When *project_root* is supplied, hand-authored project-tier ``agent_profile``
-    artefacts under ``<project_root>/.kittify/doctrine/agent_profiles/`` are also
+    artefacts under ``<project_root>/.kittify/charter-packs/agent_profiles/`` are also
     walked and appended as ``agent_profile:<id>`` nodes (M6 / #3038), through the
     same additive-only / overlay-dedupe guards. When *project_root* is ``None``
     the emit is answer-driven-only (pre-M6 behaviour, unchanged).
@@ -417,13 +418,13 @@ def apply_post_condition(
     After ``write_pipeline.promote`` returns, exactly one of two states must
     hold:
 
-    1. ``has_project_graph=True``  -> ``.kittify/doctrine/graph.yaml`` exists
+    1. ``has_project_graph=True``  -> ``.kittify/charter-packs/graph.yaml`` exists
        and the synthesis manifest records ``built_in_only=False`` (default).
        No-op: ``promote`` already wrote both files in that case.
     2. ``has_project_graph=False`` -> no live ``graph.yaml`` is present and
        the synthesis manifest records ``built_in_only=True``.  This function
        performs the two mutations atomically from the caller's perspective:
-       it unlinks any pre-existing ``.kittify/doctrine/graph.yaml`` and
+       it unlinks any pre-existing ``.kittify/charter-packs/graph.yaml`` and
        rewrites the manifest with ``built_in_only=True`` via temp-file +
        atomic ``os.replace``.
 
@@ -457,7 +458,7 @@ def apply_post_condition(
     from .path_guard import PathGuard  # noqa: PLC0415
 
     manifest_path = repo_root / MANIFEST_PATH
-    graph_path = repo_root / ".kittify" / "doctrine" / _GRAPH_FILENAME
+    graph_path = project_pack_root(repo_root) / _GRAPH_FILENAME
 
     if not manifest_path.exists():
         # Synthesizer must have already written the manifest. Defensive: if
@@ -546,7 +547,7 @@ def persist(
             allowlist).
         guard: ``PathGuard`` instance that governs all writes.
     """
-    doctrine_dir = staging_dir / "doctrine"
+    doctrine_dir = staging_dir / PROJECT_PACK_DIRNAME
     guard.mkdir(doctrine_dir, caller="project_drg.persist")
     graph_path = doctrine_dir / _GRAPH_FILENAME
     guard.write_text(graph_path, _serialize_graph(graph), caller="project_drg.persist")

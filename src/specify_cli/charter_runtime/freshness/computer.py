@@ -52,7 +52,7 @@ Landmine 2):
   ``resynthesize`` (which recomputes the hash from current content and
   re-stamps the manifest), so it is a transient, self-clearing state, never
   a permanent-stale dead-end (unlike the retired #2758 missing-file trap).
-* ``synthesized_drg.state = "missing"`` when ``.kittify/doctrine/graph.yaml``
+* ``synthesized_drg.state = "missing"`` when ``.kittify/charter-packs/graph.yaml``
   is absent AND the manifest does not declare ``built_in_only: true``.
 * ``synthesized_drg.state = "built_in_only"`` when the manifest declares
   ``built_in_only: true`` (FR-009). When a project ``graph.yaml`` is ALSO
@@ -81,8 +81,8 @@ default when a file is absent.
 
 LD-3 routing (FR-013 / WP07): the synthesis manifest is loaded through the
 ``charter.activation.synthesizer.manifest`` public read API (``load_yaml`` + the canonical
-``MANIFEST_PATH`` constant); the doctrine graph path is anchored to
-``charter.bundle.DOCTRINE_DIR``. This consumes the chokepoint module's
+``MANIFEST_PATH`` constant); the project pack graph path is anchored to
+``kernel.charter_pack_paths``. This consumes the chokepoint module's
 read-only surface without invoking ``ensure_charter_bundle_fresh``'s
 refresh/write semantics — ``compute_freshness`` is a pure observer and must
 never trigger a sync (NFR-001 perf, and would otherwise defeat the freshness
@@ -93,6 +93,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass
+from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_root
 from kernel.clock import from_epoch
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -327,26 +328,17 @@ def _synthesis_manifest_path(repo_root: Path) -> Path:
 
 
 def _doctrine_graph_path(repo_root: Path) -> Path:
-    """Return the canonical doctrine graph path via lazy chokepoint imports.
+    """Return the project pack graph path (``kernel.charter_pack_paths``, FR-016).
 
-    Both the doctrine dir and the graph filename are resolved lazily to keep
-    this ``specify_cli`` module from eagerly importing the heavy
-    ``charter.activation.synthesizer`` package at load time (LD-3 discipline). The graph
-    filename is single-sourced from the leaf ``charter.activation.synthesizer._constants``.
+    Read through the temporary dual-root reader (FR-011, removed by WP14) so a
+    project that still has only the retired root keeps reporting its graph.
     """
-    from charter.bundle import DOCTRINE_DIR  # noqa: PLC0415
-    from charter.activation.synthesizer._constants import (  # noqa: PLC0415
-        GRAPH_FILENAME as _GRAPH_FILENAME,
-    )
-
-    return repo_root / DOCTRINE_DIR / _GRAPH_FILENAME
+    return project_pack_root(repo_root) / PROJECT_GRAPH_FILENAME
 
 
-def _doctrine_dir() -> Path:
-    """Return the canonical project doctrine directory via lazy chokepoint import."""
-    from charter.bundle import DOCTRINE_DIR  # noqa: PLC0415
-
-    return DOCTRINE_DIR
+def _project_pack_read_root(repo_root: Path) -> Path:
+    """Return the project charter pack root to read from (FR-016)."""
+    return project_pack_root(repo_root)
 
 
 def _safe_load_yaml(path: Path) -> dict[str, object] | None:
@@ -642,7 +634,7 @@ def _compute_synthesized_drg(
 ) -> FreshnessSubState:
     # LD-3: synthesis manifest and graph reads are routed through the
     # chokepoint module's public surface (``charter.activation.synthesizer.manifest``
-    # for the typed manifest; ``charter.bundle.DOCTRINE_DIR`` for the graph
+    # for the typed manifest; ``kernel.charter_pack_paths`` for the graph
     # location). No direct ``_safe_load_yaml`` reads of either file from this
     # module — see module docstring for the FR-013 routing contract.
     manifest_path = _synthesis_manifest_path(repo_root)
@@ -709,7 +701,7 @@ def _synthesized_drg_missing_graph_state(repo_root: Path) -> FreshnessSubState:
     ``built_in_only`` — either a legacy fresh-project seed marker (self-heals
     on the next synthesize) or a genuine ``missing`` state.
     """
-    legacy_fresh_seed = repo_root / _doctrine_dir() / "PROVENANCE.md"
+    legacy_fresh_seed = _project_pack_read_root(repo_root) / "PROVENANCE.md"
     if _looks_like_legacy_fresh_seed(legacy_fresh_seed):
         return FreshnessSubState(
             state="built_in_only",

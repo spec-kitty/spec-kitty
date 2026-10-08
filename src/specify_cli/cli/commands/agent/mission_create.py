@@ -489,7 +489,7 @@ def _emit_create_core_error_and_exit(
     ``MissionCreationError`` (with worktree navigation hint), or any other
     unexpected exception.
     """
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
     from mission_runtime import ActionContextError
     from specify_cli.core.mission_creation import MissionCreationError
     from specify_cli.missions._create import CoordinationBranchDiverged
@@ -539,7 +539,7 @@ def _emit_create_core_error_and_exit(
         else:
             console.print(f"[bold red]Error:[/bold red] {error_msg}")
             _print_worktree_navigation_hint(mission_slug, error_msg)
-    elif isinstance(exc, CharterPackConfigError):
+    elif isinstance(exc, ActiveCharterConfigError):
         # FR-010 (#3337): the fail-closed charter-pack gate raises a
         # ``KittyInternalConsistencyError`` whose ``str(exc)`` is only the
         # stable ``.code`` — the actionable remediation lives on ``.body``. The

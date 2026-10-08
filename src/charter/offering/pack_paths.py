@@ -1,7 +1,7 @@
-"""Shared pack-root resolver for doctrine packs (built-in, org, project).
+"""Shared pack-root resolver for Charter Packs (built-in, org, project).
 
 This module is the single seam through which every consumer resolves the
-filesystem root of a doctrine pack tier. ``packs/built-in/`` is deliberately
+filesystem root of a Charter Pack tier. ``packs/built-in/`` is deliberately
 *not* a Python package -- the hyphen in ``built-in`` is not a legal identifier
 -- so a package-relative :func:`importlib.resources.files` lookup cannot
 address it. A filesystem walk is required instead.
@@ -39,22 +39,22 @@ WP01) sit on top of the tier resolver above: :func:`built_in_root` (the bare
 built-in root, for callers like the DRG loader/extractor that need no kind
 subdirectory) and :func:`built_in_dir` (the per-kind
 ``packs/built-in/<plural>/`` directory, refusing the 3-kind carve-out with
-:class:`BuiltInContentDirNotAvailable`). These are the seam every doctrine
+:class:`BuiltInContentDirNotAvailable`). These are the seam every offering
 repository default and DRG root caller routes through -- no other module
 should compose its own ``resolve_pack_root("built-in") / ...`` join.
 
-Layer note (C-004): doctrine sits below charter/specify_cli in the dependency
+Layer note (C-004): ``charter.offering`` sits below the charter facades/specify_cli in the dependency
 graph and must not import upward. This module imports only the standard
 library (``pathlib``, :func:`importlib.resources.files`) plus
 :class:`~charter.offering.artifact_kinds.ArtifactKind` (an in-layer sibling, itself a
 zero-dependency leaf importing only ``enum``), :mod:`kernel.sibling_paths`,
-and :mod:`kernel.paths` (the root layer *below* doctrine -- a downward,
-allowed import per ``kernel (root) <- doctrine <- charter <- specify_cli``)
+and :mod:`kernel.paths` (the root layer *below* the offering -- a downward,
+allowed import per ``kernel (root) <- charter.offering <- charter <- specify_cli``)
 -- so this stays import-cycle-safe. The ``files("charter.offering")`` call inside
-:func:`doctrine_package_dir` is an in-layer self-reference and is made lazily
-*inside* the function to avoid an import cycle with ``doctrine/__init__.py``;
+:func:`offering_package_dir` is an in-layer self-reference and is made lazily
+*inside* the function to avoid an import cycle with ``charter/offering/__init__.py``;
 :func:`_resolve_built_in` no longer calls it directly (FR-004) -- see
-:func:`doctrine_package_dir`'s own docstring for its remaining callers.
+:func:`offering_package_dir`'s own docstring for its remaining callers.
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ __all__ = [
     "built_in_dir",
     "built_in_missions_root",
     "built_in_root",
-    "doctrine_package_dir",
+    "offering_package_dir",
 ]
 
 PackTier = Literal["built-in", "org", "project"]
@@ -129,7 +129,7 @@ def resolve_pack_root(
     org_root: Path | None = None,
     project_root: Path | None = None,
 ) -> Path:
-    """Resolve the filesystem root of a doctrine pack *tier*.
+    """Resolve the filesystem root of a Charter Pack *tier*.
 
     :param tier: ``"built-in"``, ``"org"``, or ``"project"``.
     :param org_root: caller-supplied root for the ``org`` tier.
@@ -156,7 +156,7 @@ def built_in_root() -> Path:
     """Return the filesystem root of the built-in pack tier (FR-001b / C1.6).
 
     The single callable a root-needing reader (e.g. the DRG loader, the DRG
-    migration extractor, a reference-pointer walk, ``doctrine
+    migration extractor, a reference-pointer walk, ``charter pack
     regenerate-graph``) uses instead of scattering bare
     ``resolve_pack_root("built-in")`` calls across modules.
 
@@ -231,7 +231,7 @@ def _resolve_built_in() -> Path:
     Kernel cannot import :class:`PackRootNotFound` (layer direction), so the
     primitive's own :class:`~kernel.sibling_paths.SiblingPathNotFound` is
     caught and translated here -- at least one consumer
-    (``specify_cli/doctrine/pack_validator.py``'s
+    (``charter/offering/packs/pack_validator.py``'s
     ``except (PackRootNotFound, BuiltInContentDirNotAvailable)``) depends on
     the specific :class:`PackRootNotFound` type surviving at this boundary.
     """
@@ -241,7 +241,7 @@ def _resolve_built_in() -> Path:
         raise PackRootNotFound(_BUILT_IN) from exc
 
 
-def doctrine_package_dir() -> Path | None:
+def offering_package_dir() -> Path | None:
     """Return the installed ``charter.offering`` package directory, or ``None``.
 
     ``files("charter.offering")`` is called lazily here (not at import time)

@@ -1,37 +1,23 @@
-"""CR-04 compat shim: ``.kittify/config.yaml`` ``doctrine.org.packs`` ->
-``charter_packs.org.packs`` (mission ``charter-code-topology-01M152G1`` S4).
+"""``.kittify/config.yaml`` org-pack registry: ``charter_packs.org.packs`` is the only shape read.
 
-Precedent for the read-both / canonical-wins / warn-once shape:
-``charter.activation.sync`` CR-01 (``src/charter/activation/sync.py:245-311``).
-
-Precedence order exercised here: ``charter_packs.org.packs`` (canonical, no
-warning) -> ``doctrine.org.packs`` (legacy, warns once) -> top-level
-``organisation_packs`` (oldest legacy, unchanged pre-existing
-``DeprecationWarning`` every call -- CR-04 does not touch that tier).
+Mission ``charter-pack-cutover-01M491G6`` (#3732, FR-011) deleted the read-side
+shims for the retired ``doctrine.org`` and ``organisation_packs`` keys: the
+upgrade migration rewrites them and the CLI-root ``LEGACY_CHARTER_STATE`` gate
+refuses a project that still has them. The registry reader therefore ignores
+them (an empty registry, never an error, so ``PackContext.from_config`` stays
+total) and never warns.
 """
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 import pytest
 
-from charter.offering.drg.org_pack_config import (
-    LegacyOrgPackDoctrineKeyWarning,
-    OrgPackConfig,
-    PackRegistry,
-    _warn_legacy_org_pack_doctrine_key_once,
-    load_pack_registry,
-    save_pack_registry,
-)
+from charter.offering.drg.org_pack_config import load_pack_registry, require_declared_org_roots
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
-
-
-@pytest.fixture(autouse=True)
-def _reset_warn_once_gate() -> None:
-    """Each test gets a fresh warn-once gate (precedent: charter.activation.sync tests)."""
-    _warn_legacy_org_pack_doctrine_key_once.cache_clear()
 
 
 def _write_config(repo_root: Path, text: str) -> Path:
@@ -42,94 +28,70 @@ def _write_config(repo_root: Path, text: str) -> Path:
     return config_path
 
 
-class TestCanonicalCharterPacksKeyReadsSilently:
-    def test_charter_packs_org_packs_reads_without_warning(self, tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
-        org_root = tmp_path / "org-pack"
-        org_root.mkdir()
-        _write_config(
-            tmp_path,
-            (f"charter_packs:\n  org:\n    packs:\n      - name: example-org\n        local_path: {org_root}\n"),
-        )
+def _packs_block(top_key: str, name: str, root: Path) -> str:
+    return f"{top_key}:\n  org:\n    packs:\n      - name: {name}\n        local_path: {root}\n"
 
+
+def test_charter_packs_org_packs_reads_without_warning(tmp_path: Path) -> None:
+    org_root = tmp_path / "org-pack"
+    org_root.mkdir()
+    _write_config(tmp_path, _packs_block("charter_packs", "example-org", org_root))
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
         registry = load_pack_registry(tmp_path)
 
-        assert registry.names() == ["example-org"]
-        assert not any(issubclass(w.category, LegacyOrgPackDoctrineKeyWarning) for w in recwarn.list)
-
-    def test_charter_packs_wins_over_doctrine_org_when_both_present(self, tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
-        canonical_root = tmp_path / "canonical-pack"
-        canonical_root.mkdir()
-        legacy_root = tmp_path / "legacy-pack"
-        legacy_root.mkdir()
-        _write_config(
-            tmp_path,
-            (
-                "charter_packs:\n"
-                "  org:\n"
-                "    packs:\n"
-                "      - name: canonical-org\n"
-                f"        local_path: {canonical_root}\n"
-                "doctrine:\n"
-                "  org:\n"
-                "    packs:\n"
-                "      - name: legacy-org\n"
-                f"        local_path: {legacy_root}\n"
-            ),
-        )
-
-        registry = load_pack_registry(tmp_path)
-
-        assert registry.names() == ["canonical-org"]
-        # Canonical wins silently -- no nag for an operator who already has
-        # both keys (mirrors CR-01's `apply_legacy_governance_selection_key_compat`).
-        assert not any(issubclass(w.category, LegacyOrgPackDoctrineKeyWarning) for w in recwarn.list)
+    assert registry.names() == ["example-org"]
 
 
-class TestLegacyDoctrineOrgKeyWarnsOnce:
-    def test_doctrine_org_packs_reads_with_warning(self, tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
-        org_root = tmp_path / "org-pack"
-        org_root.mkdir()
-        _write_config(
-            tmp_path,
-            (f"doctrine:\n  org:\n    packs:\n      - name: legacy-org\n        local_path: {org_root}\n"),
-        )
+@pytest.mark.parametrize("strict", [False, True], ids=["lenient", "strict"])
+@pytest.mark.parametrize(
+    "legacy_text",
+    [
+        "doctrine:\n  org:\n    packs:\n      - name: legacy-org\n        local_path: {root}\n",
+        "doctrine:\n  org:\n    local_path: {root}\n",
+        "organisation_packs:\n  - name: legacy-org\n    path: {root}\n",
+    ],
+    ids=["doctrine-org-packs", "doctrine-org-single-pack", "organisation-packs"],
+)
+def test_a_retired_key_is_not_read_and_not_rejected(tmp_path: Path, legacy_text: str, strict: bool) -> None:
+    """A legacy-only config yields an empty registry, silently, in both modes (the CLI gate owns refusal)."""
+    org_root = tmp_path / "org-pack"
+    org_root.mkdir()
+    _write_config(tmp_path, legacy_text.format(root=org_root))
 
-        registry = load_pack_registry(tmp_path)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        registry = load_pack_registry(tmp_path, strict=strict)
 
-        assert registry.names() == ["legacy-org"]
-        assert any(issubclass(w.category, LegacyOrgPackDoctrineKeyWarning) for w in recwarn.list)
-
-    def test_doctrine_org_packs_warns_only_once_per_process(self, tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
-        org_root = tmp_path / "org-pack"
-        org_root.mkdir()
-        _write_config(
-            tmp_path,
-            (f"doctrine:\n  org:\n    packs:\n      - name: legacy-org\n        local_path: {org_root}\n"),
-        )
-
-        load_pack_registry(tmp_path)
-        load_pack_registry(tmp_path)
-        load_pack_registry(tmp_path)
-
-        warnings_seen = [w for w in recwarn.list if issubclass(w.category, LegacyOrgPackDoctrineKeyWarning)]
-        assert len(warnings_seen) == 1
+    assert registry.names() == []
 
 
-class TestSavePackRegistryWritesCanonicalShape:
-    def test_save_writes_charter_packs_not_doctrine(self, tmp_path: Path) -> None:
-        registry = PackRegistry(packs=[OrgPackConfig(name="example-org", local_path=tmp_path / "pack")])
+def test_canonical_block_is_read_beside_a_stale_retired_key(tmp_path: Path) -> None:
+    canonical_root = tmp_path / "canonical-pack"
+    canonical_root.mkdir()
+    legacy_root = tmp_path / "legacy-pack"
+    legacy_root.mkdir()
+    _write_config(tmp_path, _packs_block("charter_packs", "canonical-org", canonical_root) + _packs_block("doctrine", "legacy-org", legacy_root))
 
-        save_pack_registry(tmp_path, registry)
+    assert load_pack_registry(tmp_path).names() == ["canonical-org"]
 
-        raw = (tmp_path / ".kittify" / "config.yaml").read_text(encoding="utf-8")
-        assert "charter_packs" in raw
-        assert "doctrine" not in raw
 
-    def test_save_then_load_round_trips_via_canonical_key(self, tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
-        registry = PackRegistry(packs=[OrgPackConfig(name="example-org", local_path=tmp_path / "pack")])
+def test_unnamed_single_pack_block_is_a_config_error(tmp_path: Path) -> None:
+    """``charter_packs.org.local_path`` is no second pack shape: lenient warns and reads nothing, strict raises."""
+    org_root = tmp_path / "org-pack"
+    org_root.mkdir()
+    _write_config(tmp_path, f"charter_packs:\n  org:\n    local_path: {org_root}\n")
 
-        save_pack_registry(tmp_path, registry)
-        loaded = load_pack_registry(tmp_path)
+    with pytest.warns(UserWarning, match=r"charter_packs\.org\.packs\[\]"):
+        assert load_pack_registry(tmp_path).names() == []
+    with pytest.raises(ValueError, match=r"charter_packs\.org\.local_path"):
+        load_pack_registry(tmp_path, strict=True)
+    with pytest.raises(ValueError, match="cannot be read"):
+        require_declared_org_roots(tmp_path)
 
-        assert loaded.names() == ["example-org"]
-        assert not any(issubclass(w.category, LegacyOrgPackDoctrineKeyWarning) for w in recwarn.list)
+
+def test_org_block_without_packs_is_an_empty_registry(tmp_path: Path) -> None:
+    _write_config(tmp_path, "charter_packs:\n  org: {}\n")
+
+    assert load_pack_registry(tmp_path, strict=True).names() == []

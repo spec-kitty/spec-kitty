@@ -199,7 +199,7 @@ def completed_selected_skill_bundle(selected: SelectedSkillBundle | None) -> Ite
 BUNDLE_SURFACE_KINDS: frozenset[ToolSurfaceKind] = frozenset(
     {
         ToolSurfaceKind.COMMAND_SKILL,
-        ToolSurfaceKind.DOCTRINE_SKILL,
+        ToolSurfaceKind.CHARTER_SKILL,
         ToolSurfaceKind.AGENT_PROFILE,
         ToolSurfaceKind.HOOK,
         ToolSurfaceKind.NATIVE_CONFIG,
@@ -224,8 +224,8 @@ def _bundle_relative_path(
     if kind == ToolSurfaceKind.AGENT_PROFILE:
         leaf = agent_filename(source_path.stem)
         return f"{prefix}/{leaf}" if prefix else leaf
-    if kind == ToolSurfaceKind.COMMAND_SKILL or kind == ToolSurfaceKind.DOCTRINE_SKILL:
-        # Command/doctrine skills are ``.../<name>/SKILL.md``; preserve the
+    if kind == ToolSurfaceKind.COMMAND_SKILL or kind == ToolSurfaceKind.CHARTER_SKILL:
+        # Command/charter skills are ``.../<name>/SKILL.md``; preserve the
         # skill directory name inside the bundle's ``skills/`` tree.
         if "skills" in source_path.parts:
             index = len(source_path.parts) - 1 - source_path.parts[::-1].index("skills")
