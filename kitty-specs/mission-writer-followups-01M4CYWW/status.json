@@ -1,7 +1,7 @@
 {
-  "event_count": 70,
-  "last_event_id": "01M4EAY9NMTN52QN7H95MTG0CJ",
-  "materialized_at": "2026-10-08T18:03:23.188923+00:00",
+  "event_count": 71,
+  "last_event_id": "01M4EAYK26HPW8026EBT7QPV5Y",
+  "materialized_at": "2026-10-08T18:03:32.806724+00:00",
   "mission_number": "",
   "mission_slug": "mission-writer-followups-01M4CYWW",
   "mission_type": "software-dev",
@@ -10,10 +10,10 @@
     "approved": 5,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 1,
+    "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 0,
     "planned": 10
   },
@@ -193,10 +193,13 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "claimed",
-      "last_event_id": "01M4EAY9NMTN52QN7H95MTG0CJ",
-      "last_transition_at": "2026-10-08T18:03:23.188923+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M4EAYK26HPW8026EBT7QPV5Y",
+      "last_transition_at": "2026-10-08T18:03:32.806724+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Stream B (runtime/templates) in the stream/runtime worktree"
+      ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer"
     },
