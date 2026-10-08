@@ -52,9 +52,7 @@ def mission(tmp_path: Path) -> Mission:
     primary = repo / "kitty-specs" / SLUG
     primary.mkdir(parents=True)
     (primary / "meta.json").write_text(
-        json.dumps(
-            {"mission_slug": SLUG, "mission_id": f"{MID8}XXXXXXXXXXXXXXXXXX", "mid8": MID8, "coordination_branch": f"kitty/mission-{COORD_NAME}"}
-        ),
+        json.dumps({"mission_slug": SLUG, "mission_id": f"{MID8}XXXXXXXXXXXXXXXXXX", "mid8": MID8, "coordination_branch": f"kitty/mission-{COORD_NAME}"}),
         encoding="utf-8",
     )
     coord = repo / ".worktrees" / f"{COORD_NAME}-coord" / "kitty-specs" / COORD_NAME
@@ -118,10 +116,10 @@ def _drive_lifecycle_append(repo: Path, primary: Path, coord: Path, _mp: pytest.
 
     persist_lifecycle_event_local(
         primary / "status.events.jsonl",
-        "NoSuchEvent",
-        {},
-        aggregate_id="a",
-        aggregate_type="Mission",
+        "WPCreated",
+        {"mission_slug": SLUG, "wp_id": "WP07", "wp_title": "demo", "depends_on": [], "actor": "test"},
+        aggregate_id="WP07",
+        aggregate_type="WorkPackage",
         mission_slug=SLUG,
         repo_root=repo,
     )
@@ -167,9 +165,7 @@ def _drive_review_start(repo: Path, primary: Path, coord: Path, mp: pytest.Monke
 
     mp.setattr(transition, "read_current_wp_state_transactional", _stop)
     with pytest.raises(_Stop):
-        start_review_status(
-            feature_dir=primary, mission_slug=SLUG, wp_id="WP01", actor="t", workspace_context="w", execution_mode="worktree", repo_root=repo
-        )
+        start_review_status(feature_dir=primary, mission_slug=SLUG, wp_id="WP01", actor="t", workspace_context="w", execution_mode="worktree", repo_root=repo)
 
 
 def _drive_coord_seed(repo: Path, primary: Path, coord: Path, mp: pytest.MonkeyPatch) -> None:
@@ -234,22 +230,41 @@ def _is_lock_call(call: ast.Call) -> bool:
     return (isinstance(func, ast.Name) and func.id == "feature_status_lock") or (isinstance(func, ast.Attribute) and func.attr == "feature_status_lock")
 
 
+def _call_name(node: ast.expr) -> str:
+    func = node.func if isinstance(node, ast.Call) else None
+    return getattr(func, "id", getattr(func, "attr", ""))
+
+
 def _is_key_call(node: ast.expr | None) -> bool:
-    return isinstance(node, ast.Call) and isinstance(node.func, ast.Name | ast.Attribute) and getattr(node.func, "id", getattr(node.func, "attr", "")) in {
-        "mission_lock_key",
-        "transaction_lock_key",
+    return node is not None and _call_name(node) in {"mission_lock_key", "transaction_lock_key"}
+
+
+def _key_names(tree: ast.AST) -> set[str]:
+    """Names assigned from a canonical key call (``key = mission_lock_key(...)``)."""
+    return {
+        target.id for node in ast.walk(tree) if isinstance(node, ast.Assign) and _is_key_call(node.value) for target in node.targets if isinstance(target, ast.Name)
     }
+
+
+def _unconverted_lines(source: str) -> list[int]:
+    """Lines of ``feature_status_lock`` calls whose key is not a canonical key call (or a name assigned from one)."""
+    tree = ast.parse(source)
+    names = _key_names(tree)
+    return [
+        node.lineno
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and _is_lock_call(node)
+        and not (_is_key_call(_key_argument(node)) or (isinstance(_key_argument(node), ast.Name) and getattr(_key_argument(node), "id", "") in names))
+    ]
 
 
 def _unconverted_callers() -> list[str]:
     found: list[str] = []
     for path in sorted(_SRC.rglob("*.py")):
         rel = path.relative_to(_SRC).as_posix()
-        if rel in _SWEEP_EXEMPT:
-            continue
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-            if isinstance(node, ast.Call) and _is_lock_call(node) and not _is_key_call(_key_argument(node)):
-                found.append(f"{rel}:{node.lineno}")
+        if rel not in _SWEEP_EXEMPT:
+            found.extend(f"{rel}:{line}" for line in _unconverted_lines(path.read_text(encoding="utf-8")))
     return found
 
 
@@ -260,16 +275,16 @@ def test_every_per_mission_lock_caller_passes_the_canonical_key() -> None:
 _SWEEP_SOURCES = {
     "directory name": ("feature_status_lock(root, feature_dir.name)", False),
     "attribute directory name": ("_t.feature_status_lock(root, st.feature_dir.name)", False),
+    "name from a directory name": ("key = d.name\nfeature_status_lock(root, key)", False),
     "canonical key": ("feature_status_lock(root, mission_lock_key(d, repo_root=root))", True),
     "keyword canonical key": ("feature_status_lock(root, lock_key=mission_lock_key(d))", True),
+    "name from a canonical key": ("key = mission_lock_key(d)\nfeature_status_lock(root, key)", True),
 }
 
 
 @pytest.mark.parametrize(("source", "converted"), list(_SWEEP_SOURCES.values()), ids=list(_SWEEP_SOURCES))
 def test_the_sweep_distinguishes_converted_from_unconverted_callers(source: str, converted: bool) -> None:
-    call = ast.parse(source).body[0].value  # type: ignore[attr-defined]
-    assert _is_lock_call(call)
-    assert _is_key_call(_key_argument(call)) is converted
+    assert (_unconverted_lines(source) == []) is converted
 
 
 # ---------------------------------------------------------------------------
@@ -396,3 +411,64 @@ def test_an_owned_checkout_transaction_hold_is_found_from_the_main_repo_root(mis
     with _transaction_hold(owned_root, COORD_NAME, SLUG, 5.0, main_root=repo):
         flatten_coordination_metadata(primary)
         assert mission_lock_key(primary, repo_root=repo) == COORD_NAME
+
+
+# ---------------------------------------------------------------------------
+# T054 -- the whole-file rewrites run under the Mission lock (A7)
+# ---------------------------------------------------------------------------
+
+
+def _holds_transaction_lock(repo: Path) -> bool:
+    from specify_cli.status.locking import holds_status_lock
+
+    return holds_status_lock(feature_status_lock_path(repo, _mission_specs_dir_name(SLUG, MID8)))
+
+
+def test_rebuild_state_replaces_the_event_log_under_the_transaction_lock(mission: Mission, monkeypatch: pytest.MonkeyPatch) -> None:
+    import os
+
+    import specify_cli.migration.rebuild_state as module
+
+    repo, primary, _coord = mission
+    tasks = primary / "tasks"
+    tasks.mkdir()
+    (tasks / "WP01-demo.md").write_text("---\nwp_code: 'WP01'\ntitle: t\nlane: 'in_progress'\ndependencies: []\n---\n\n# WP01\n", encoding="utf-8")
+    held_at_replace: list[bool] = []
+    real_replace = os.replace
+
+    def _replace(src: str | os.PathLike[str], dst: str | os.PathLike[str]) -> None:
+        held_at_replace.append(_holds_transaction_lock(repo))
+        real_replace(src, dst)
+
+    monkeypatch.setattr(module.os, "replace", _replace)
+    result = module.rebuild_event_log(primary, SLUG, {})
+    assert not result.errors
+    assert held_at_replace == [True]
+
+
+def test_lifecycle_envelope_migration_replaces_the_log_under_the_transaction_lock(mission: Mission, monkeypatch: pytest.MonkeyPatch) -> None:
+    import specify_cli.status.migrate_lifecycle_envelope as module
+    from specify_cli.status.lifecycle_events import emit_wp_created_local, mission_event_log_path
+
+    repo, primary, _coord = mission
+    emit_wp_created_local(primary, mission_slug=SLUG, wp_id="WP01", wp_title="T", project_uuid="44444444-4444-4444-4444-444444444444", project_slug="demo")
+    held_at_replace: list[bool] = []
+    real_replace = module._atomic_replace_file
+
+    def _replace(path: Path, content: str) -> None:
+        held_at_replace.append(_holds_transaction_lock(repo))
+        real_replace(path, content)
+
+    monkeypatch.setattr(module, "_atomic_replace_file", _replace)
+    manifest = module.migrate_lifecycle_envelope(mission_event_log_path(primary))
+    assert manifest.migrated_count == 1
+    assert held_at_replace and all(held_at_replace)
+
+
+def test_the_key_of_a_primary_checkout_root_never_resolves_a_main_repo_root(mission: Mission, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An owned-checkout caller passes its repository root; the key is read from it directly (owned authority)."""
+    import specify_cli.core.paths as paths_module
+
+    repo, primary, _coord = mission
+    monkeypatch.setattr(paths_module, "get_main_repo_root", lambda *a, **k: (_ for _ in ()).throw(AssertionError("get_main_repo_root reached")))
+    assert mission_lock_key(primary, repo_root=repo) == COORD_NAME
