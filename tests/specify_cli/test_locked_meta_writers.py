@@ -17,16 +17,21 @@ from typing import Any
 import pytest
 
 import specify_cli.mission_metadata as mm
+from specify_cli.core.atomic import atomic_write
+from specify_cli.lanes.implement_support import ensure_vcs_locked
 from specify_cli.mission_metadata import (
     clear_merge_metadata,
     flatten_coordination_metadata,
+    locked_update_meta,
     record_acceptance,
     record_discard,
+    restore_meta_text,
     set_documentation_state,
     set_origin_ticket,
     set_target_branch,
     set_vcs_lock,
 )
+from specify_cli.status import FeatureStatusLockTimeoutError, mission_write_lock
 
 pytestmark = [pytest.mark.unit]
 
@@ -163,3 +168,139 @@ def test_overlapping_writers_keep_both_writes(mission: tuple[Path, Path], monkey
             assert key in final, f"{name} write lost"
         if key == "target_branch":
             assert final[key] == "develop", f"{name} write lost"
+
+
+def test_locked_update_meta_rereads_under_the_lock_and_writes_atomically(mission: tuple[Path, Path]) -> None:
+    _repo, feature_dir = mission
+
+    def mutate(meta: dict[str, Any]) -> None:
+        meta["probe"] = meta["target_branch"] + "-seen"
+
+    result = locked_update_meta(feature_dir, mutate)
+
+    assert result["probe"] == "main-seen"
+    assert _meta(feature_dir)["probe"] == "main-seen"
+    assert not list(feature_dir.glob("*.tmp"))
+
+
+def test_locked_update_meta_skips_the_write_when_mutate_reports_no_change(mission: tuple[Path, Path]) -> None:
+    _repo, feature_dir = mission
+    before = (feature_dir / "meta.json").read_text(encoding="utf-8")
+
+    locked_update_meta(feature_dir, lambda meta: False)
+
+    assert (feature_dir / "meta.json").read_text(encoding="utf-8") == before
+
+
+def test_locked_update_meta_missing_meta_raises(mission: tuple[Path, Path]) -> None:
+    _repo, feature_dir = mission
+    (feature_dir / "meta.json").unlink()
+
+    with pytest.raises(FileNotFoundError):
+        locked_update_meta(feature_dir, lambda meta: None)
+
+
+def test_locked_update_meta_waits_a_bounded_time_then_fails_with_status_lock_held(mission: tuple[Path, Path]) -> None:
+    repo, feature_dir = mission
+    holder_in = threading.Event()
+    release = threading.Event()
+
+    def hold() -> None:
+        with mission_write_lock(feature_dir, repo_root=repo):
+            holder_in.set()
+            release.wait(JOIN_SECONDS)
+
+    thread = threading.Thread(target=hold)
+    thread.start()
+    try:
+        assert holder_in.wait(JOIN_SECONDS)
+        with pytest.raises(FeatureStatusLockTimeoutError) as caught:
+            locked_update_meta(feature_dir, lambda meta: None, repo_root=repo, timeout=0.2)
+        assert caught.value.error_code == "STATUS_LOCK_HELD"
+    finally:
+        release.set()
+        thread.join(JOIN_SECONDS)
+
+
+def test_setter_nests_under_a_held_mission_lock(mission: tuple[Path, Path]) -> None:
+    repo, feature_dir = mission
+
+    with mission_write_lock(feature_dir, repo_root=repo, timeout=0.2):
+        set_target_branch(feature_dir, "develop")
+        flatten_coordination_metadata(feature_dir)
+        record_discard(feature_dir)
+
+    final = _meta(feature_dir)
+    assert final["target_branch"] == "develop"
+    assert final["flattened"] is True
+    assert "discarded_at" in final
+
+
+def test_ensure_vcs_locked_writes_through_the_helper_without_a_second_acquisition(mission: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, feature_dir = mission
+    seen: list[float] = []
+    import specify_cli.status.mission_write as mission_write
+
+    real = mission_write.feature_status_lock
+
+    def recording(root: Path, key: str, *, timeout: float) -> Any:
+        seen.append(timeout)
+        return real(root, key, timeout=timeout)
+
+    monkeypatch.setattr(mission_write, "feature_status_lock", recording)
+
+    assert ensure_vcs_locked(feature_dir, repo_root=repo) is True
+    assert _meta(feature_dir)["vcs"] == "git"
+    assert seen[0] < 0  # the outer claim hold is unbounded (NFR-002)
+
+
+def test_uncontended_helper_adds_one_lock_acquisition_and_no_extra_subprocess(mission: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, feature_dir = mission
+    import specify_cli.status.mission_write as mission_write
+
+    acquisitions: list[str] = []
+    commands: list[list[str]] = []
+    real_lock = mission_write.feature_status_lock
+    real_run = subprocess.run
+
+    def recording_lock(root: Path, key: str, *, timeout: float) -> Any:
+        acquisitions.append(key)
+        return real_lock(root, key, timeout=timeout)
+
+    def recording_run(command: Any, *args: Any, **kwargs: Any) -> Any:
+        commands.append(list(command))
+        return real_run(command, *args, **kwargs)
+
+    monkeypatch.setattr(mission_write, "feature_status_lock", recording_lock)
+    monkeypatch.setattr(subprocess, "run", recording_run)
+
+    locked_update_meta(feature_dir, lambda meta: meta.update(probe=1), repo_root=repo)
+
+    assert len(acquisitions) == 1
+    # The only git call is the lock primitive's own common-dir lookup; the helper adds none.
+    assert all("--git-common-dir" in command for command in commands), commands
+
+
+def test_restore_meta_text_compare_and_swap(mission: tuple[Path, Path]) -> None:
+    repo, feature_dir = mission
+    meta_path = feature_dir / "meta.json"
+    original = meta_path.read_text(encoding="utf-8")
+    written = original.replace("main", "feature-x")
+    atomic_write(meta_path, written)
+
+    assert restore_meta_text(feature_dir, original, expected_current=written, repo_root=repo) is True
+    assert meta_path.read_text(encoding="utf-8") == original
+
+    atomic_write(meta_path, "someone else wrote this\n")
+    assert restore_meta_text(feature_dir, original, expected_current=written, repo_root=repo) is False
+    assert meta_path.read_text(encoding="utf-8") == "someone else wrote this\n"
+
+
+def test_restore_meta_text_without_expectation_still_restores(mission: tuple[Path, Path]) -> None:
+    _repo, feature_dir = mission
+    meta_path = feature_dir / "meta.json"
+    original = meta_path.read_text(encoding="utf-8")
+    atomic_write(meta_path, "changed\n")
+
+    assert restore_meta_text(feature_dir, original) is True
+    assert meta_path.read_text(encoding="utf-8") == original

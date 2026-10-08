@@ -16,11 +16,11 @@ from uuid import uuid4
 from charter.encoding_recovery import recover as _recover_encoding
 from kernel.paths import to_posix
 from specify_cli.core.agent_config import get_auto_commit_default
-from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
+from specify_cli.core.paths import read_target_branch_from_meta
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
 from specify_cli.mission import Mission, MissionError, get_mission_for_feature
-from specify_cli.mission_metadata import record_acceptance, resolve_mission_identity, write_meta
+from specify_cli.mission_metadata import locked_update_meta, record_acceptance, resolve_mission_identity
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME, StoreError
 
@@ -1694,6 +1694,26 @@ def _staged_paths(repo_root: Path, rel_path: str) -> tuple[GitPath, ...]:
         raise TaskCliError(str(exc)) from exc
 
 
+def _stamp_accept_commit(feature_dir: Path, accept_commit: str) -> bool:
+    """Stamp *accept_commit* into ``meta.json`` (and the newest history entry) under the Mission lock.
+
+    Returns ``False`` when the Mission has no ``meta.json`` (nothing to stamp, nothing to commit).
+    A corrupt ``meta.json`` raises the typed ``MissionMetaReadError`` (FR-007 route).
+    """
+
+    def mutate(meta: dict[str, Any]) -> None:
+        meta["accept_commit"] = accept_commit
+        history = meta.get("acceptance_history", [])
+        if history:
+            history[-1]["accept_commit"] = accept_commit
+
+    try:
+        locked_update_meta(feature_dir, mutate)
+    except FileNotFoundError:
+        return False
+    return True
+
+
 def _commit_acceptance_meta(
     summary: AcceptanceSummary,
     actor_name: str,
@@ -1764,16 +1784,9 @@ def _commit_acceptance_meta(
         accept_commit = None
 
     if accept_commit:
-        # FR-007 route: ``route-unwrapped`` census site -- corruption surfaces
-        # as the typed ``MissionMetaReadError`` and PROPAGATES (swallowing it
-        # would silently skip stamping ``accept_commit`` into meta.json).
-        _meta = load_meta_fail_closed(summary.feature_dir)
-        if _meta is not None:
-            _meta["accept_commit"] = accept_commit
-            _history = _meta.get("acceptance_history", [])
-            if _history:
-                _history[-1]["accept_commit"] = accept_commit
-            write_meta(summary.feature_dir, _meta)
+        # Corruption surfaces as the typed ``MissionMetaReadError`` and PROPAGATES
+        # (swallowing it would silently skip stamping ``accept_commit`` into meta.json).
+        if _stamp_accept_commit(summary.feature_dir, accept_commit):
             run_git(["add", meta_rel], cwd=repo_root, check=True)
             if _staged_paths(repo_root, meta_rel):
                 run_git(
@@ -1834,15 +1847,8 @@ def _commit_acceptance_meta_via_router(
     accept_commit: str | None = router_result.commit_hash
 
     if accept_commit:
-        # FR-007 route: ``route-unwrapped`` census site -- see the sibling
-        # ``_commit_acceptance_meta``; the typed error PROPAGATES.
-        _meta = load_meta_fail_closed(meta_path.parent)
-        if _meta is not None:
-            _meta["accept_commit"] = accept_commit
-            _history = _meta.get("acceptance_history", [])
-            if _history:
-                _history[-1]["accept_commit"] = accept_commit
-            write_meta(meta_path.parent, _meta)
+        # See the sibling ``_commit_acceptance_meta``; the typed error PROPAGATES.
+        if _stamp_accept_commit(meta_path.parent, accept_commit):
             # Second commit: record the accept_commit SHA back into meta.json.
             # T088 (D8): its result was discarded entirely before this WP --
             # now warn (never raise; this write is best-effort bookkeeping on

@@ -11,7 +11,6 @@ from specify_cli.mission_metadata import (
     _normalize_change_mode,
     get_change_mode,
     load_meta,
-    set_change_mode,
     validate_meta,
     write_meta,
 )
@@ -65,55 +64,6 @@ def test_validate_meta_with_invalid_change_mode_fails():
     assert len(errors) == 1
     assert "Invalid change_mode" in errors[0]
     assert "'yolo'" in errors[0]
-
-
-# ── set_change_mode ──────────────────────────────────────────────────────
-
-
-def test_set_change_mode_bulk_edit(tmp_path):
-    _write_minimal_meta(tmp_path)
-    result = set_change_mode(tmp_path, "bulk_edit")
-    assert result["change_mode"] == "bulk_edit"
-    # Round-trip: reload from disk
-    reloaded = load_meta(tmp_path)
-    assert reloaded["change_mode"] == "bulk_edit"
-
-
-def test_set_change_mode_accepts_str_path(tmp_path):
-    """A bare ``str`` feature_dir is coerced to Path and behaves identically
-    to a Path argument (regression for #3436 -- the documented shell one-liner
-    passes a string and must not raise ``TypeError``)."""
-    _write_minimal_meta(tmp_path)
-    result = set_change_mode(str(tmp_path), "bulk_edit")
-    assert result["change_mode"] == "bulk_edit"
-    # Round-trip: reload from disk to confirm the write actually landed.
-    reloaded = load_meta(tmp_path)
-    assert reloaded["change_mode"] == "bulk_edit"
-
-
-def test_set_change_mode_str_and_path_equivalent(tmp_path):
-    """str and Path inputs produce identical results."""
-    path_dir = tmp_path / "as_path"
-    str_dir = tmp_path / "as_str"
-    _write_minimal_meta(path_dir)
-    _write_minimal_meta(str_dir)
-
-    via_path = set_change_mode(path_dir, "bulk_edit")
-    via_str = set_change_mode(str(str_dir), "bulk_edit")
-
-    assert via_path["change_mode"] == via_str["change_mode"] == "bulk_edit"
-
-
-def test_set_change_mode_invalid_raises(tmp_path):
-    _write_minimal_meta(tmp_path)
-    with pytest.raises(ValueError, match="Invalid change_mode"):
-        set_change_mode(tmp_path, "nope")
-
-
-def test_set_change_mode_missing_meta_raises(tmp_path):
-    # No meta.json on disk at all
-    with pytest.raises(FileNotFoundError):
-        set_change_mode(tmp_path, "bulk_edit")
 
 
 # ── get_change_mode ──────────────────────────────────────────────────────
@@ -214,10 +164,11 @@ def test_normalize_change_mode_does_not_widen_vocabulary(tmp_path):
     """Repair heals reads, but the write-guard/vocabulary stay locked to bulk_edit.
 
     The normalize helper is a *read-path* repair; it must not relax what
-    ``set_change_mode`` will persist. ``VALID_CHANGE_MODES`` is unchanged and the
+    ``write_meta`` will persist. ``VALID_CHANGE_MODES`` is unchanged and the
     write-guard still rejects the very value repair silently drops (FR-004/C-001).
     """
     assert set(VALID_CHANGE_MODES) == {"bulk_edit"}
-    _write_minimal_meta(tmp_path)
+    meta = _minimal_meta()
+    meta["change_mode"] = "regular"
     with pytest.raises(ValueError, match="Invalid change_mode"):
-        set_change_mode(tmp_path, "regular")
+        write_meta(tmp_path, meta)

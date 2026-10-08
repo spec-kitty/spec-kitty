@@ -14,16 +14,13 @@ from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.mission_metadata import (
     HISTORY_CAP,
     REQUIRED_FIELDS,
-    clear_coordination_metadata,
     clear_merge_metadata,
     get_change_mode,
     load_meta,
     record_acceptance,
     resolve_mission_identity,
-    set_change_mode,
     set_documentation_state,
     set_origin_ticket,
-    set_purpose_summary,
     set_target_branch,
     set_vcs_lock,
     validate_meta,
@@ -841,25 +838,10 @@ class TestMutationHelpersFailClosedOnCorruptMeta:
         with pytest.raises(MissionMetaReadError):
             set_target_branch(tmp_path, "main")
 
-    def test_set_purpose_summary_raises_typed_error(self, tmp_path: Path) -> None:
-        _write_corrupt_meta(tmp_path)
-        with pytest.raises(MissionMetaReadError):
-            set_purpose_summary(tmp_path, purpose_tldr="probe", purpose_context="probe context")
-
-    def test_set_change_mode_raises_typed_error(self, tmp_path: Path) -> None:
-        _write_corrupt_meta(tmp_path)
-        with pytest.raises(MissionMetaReadError):
-            set_change_mode(tmp_path, "bulk_edit")
-
     def test_clear_merge_metadata_raises_typed_error(self, tmp_path: Path) -> None:
         _write_corrupt_meta(tmp_path)
         with pytest.raises(MissionMetaReadError):
             clear_merge_metadata(tmp_path)
-
-    def test_clear_coordination_metadata_raises_typed_error(self, tmp_path: Path) -> None:
-        _write_corrupt_meta(tmp_path)
-        with pytest.raises(MissionMetaReadError):
-            clear_coordination_metadata(tmp_path)
 
     def test_get_change_mode_raises_typed_error(self, tmp_path: Path) -> None:
         _write_corrupt_meta(tmp_path)

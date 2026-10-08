@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, TypedDict
@@ -528,8 +528,7 @@ def _normalize_change_mode(meta: dict[str, Any]) -> str | None:
     (invalid → deterministic default; run-twice yields no second diff), so it is
     safe to call before :func:`validate_meta` during canonicalization.
 
-    The write-guard :func:`set_change_mode` and :data:`VALID_CHANGE_MODES` are
-    intentionally left untouched — this helper only heals already-persisted meta
+    :data:`VALID_CHANGE_MODES` is intentionally left untouched — this helper only heals already-persisted meta
     on the repair path, it does not relax what may be written going forward.
 
     Args:
@@ -600,7 +599,13 @@ def write_meta(
     atomic_write(meta_path, content)
 
 
-def restore_meta_text(feature_dir: Path, original_text: str) -> None:
+def restore_meta_text(
+    feature_dir: Path,
+    original_text: str,
+    *,
+    expected_current: str | None = None,
+    repo_root: Path | None = None,
+) -> bool:
     """Restore ``meta.json`` to previously-captured, byte-exact text (rollback primitive).
 
     Unlike :func:`write_meta`, which re-serializes a ``dict`` through the
@@ -622,13 +627,33 @@ def restore_meta_text(feature_dir: Path, original_text: str) -> None:
     primitive every other mutation helper in this module uses -- not as a
     direct ``Path.write_text`` at the caller's own call site.
 
+    The write runs under the Mission write lock. With *expected_current* the
+    restore is a compare-and-swap (plan A8): it acts only while the file's
+    current text equals *expected_current* (what the caller wrote), so a
+    later writer's change is never clobbered.
+
     Args:
         feature_dir: Directory containing meta.json.
         original_text: The exact text to restore, written as-is (including
             whatever trailing newline / formatting the caller captured).
+        expected_current: When given, restore only if ``meta.json`` currently
+            holds exactly this text.
+        repo_root: Canonical repository root, when the caller knows it.
+
+    Returns:
+        ``True`` when the file was restored, ``False`` when it changed since
+        *expected_current* and was left alone.
     """
+    from specify_cli.status.mission_write import mission_write_lock
+
     meta_path = feature_dir / META_FILENAME
-    atomic_write(meta_path, original_text)
+    with mission_write_lock(feature_dir, repo_root=repo_root):
+        if expected_current is not None:
+            current = meta_path.read_text(encoding=_UTF8) if meta_path.exists() else None
+            if current != expected_current:
+                return False
+        atomic_write(meta_path, original_text)
+    return True
 
 
 # ---------------------------------------------------------------------------
@@ -679,6 +704,39 @@ def _require_meta(feature_dir: Path) -> dict[str, Any]:
     return meta
 
 
+def locked_update_meta(
+    feature_dir: Path,
+    mutate: Callable[[dict[str, Any]], bool | None],
+    *,
+    repo_root: Path | None = None,
+    timeout: float | None = None,
+    validate: bool = True,
+) -> dict[str, Any]:
+    """Read-modify-write ``meta.json`` under the Mission write lock and return the meta written.
+
+    The lock is :func:`~specify_cli.status.mission_write.mission_write_lock`, keyed on the
+    Mission's canonical lock key, so every writer of one Mission converges on one lock file and
+    nests re-entrantly on a thread that already holds it. ``meta.json`` is re-read fail-closed
+    INSIDE the lock, *mutate* edits that fresh dict in place, and the result is written atomically
+    through :func:`write_meta`. *mutate* is only called here (never stored); it returns ``False``
+    to say nothing changed and skip the write, any other value writes.
+
+    *timeout* is the lock wait in seconds; ``None`` is the bounded Mission write-lock wait
+    (NFR-002), which fails with ``STATUS_LOCK_HELD`` once spent.
+
+    Raises:
+        FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
+    """
+    from specify_cli.status.mission_write import MISSION_WRITE_LOCK_TIMEOUT_SECONDS, mission_write_lock
+
+    wait = MISSION_WRITE_LOCK_TIMEOUT_SECONDS if timeout is None else timeout
+    with mission_write_lock(feature_dir, repo_root=repo_root, timeout=wait):
+        meta = _require_meta(feature_dir)
+        if mutate(meta) is not False:
+            write_meta(feature_dir, meta, validate=validate)
+        return meta
+
+
 def record_acceptance(
     feature_dir: Path,
     *,
@@ -688,39 +746,38 @@ def record_acceptance(
     accept_commit: str | None = None,
 ) -> dict[str, Any]:
     """Record acceptance metadata.  Appends to bounded history."""
-    meta = _require_meta(feature_dir)
-
     now = _now_iso()
-    entry: dict[str, Any] = {
-        "accepted_at": now,
-        "accepted_by": accepted_by,
-        "acceptance_mode": mode,
-    }
-    if from_commit is not None:
-        entry["accepted_from_commit"] = from_commit
-    if accept_commit is not None:
-        entry["accept_commit"] = accept_commit
 
-    # Set top-level fields — always clear stale commit fields first
-    meta["accepted_at"] = now
-    meta["accepted_by"] = accepted_by
-    meta["acceptance_mode"] = mode
-    meta.pop("accepted_from_commit", None)
-    meta.pop("accept_commit", None)
-    if from_commit is not None:
-        meta["accepted_from_commit"] = from_commit
-    if accept_commit is not None:
-        meta["accept_commit"] = accept_commit
+    def mutate(meta: dict[str, Any]) -> None:
+        entry: dict[str, Any] = {
+            "accepted_at": now,
+            "accepted_by": accepted_by,
+            "acceptance_mode": mode,
+        }
+        if from_commit is not None:
+            entry["accepted_from_commit"] = from_commit
+        if accept_commit is not None:
+            entry["accept_commit"] = accept_commit
 
-    # Bounded history
-    history: list[dict[str, Any]] = meta.get("acceptance_history", [])
-    history.append(entry)
-    if len(history) > HISTORY_CAP:
-        history = history[-HISTORY_CAP:]
-    meta["acceptance_history"] = history
+        # Set top-level fields — always clear stale commit fields first
+        meta["accepted_at"] = now
+        meta["accepted_by"] = accepted_by
+        meta["acceptance_mode"] = mode
+        meta.pop("accepted_from_commit", None)
+        meta.pop("accept_commit", None)
+        if from_commit is not None:
+            meta["accepted_from_commit"] = from_commit
+        if accept_commit is not None:
+            meta["accept_commit"] = accept_commit
 
-    write_meta(feature_dir, meta)
-    return meta
+        # Bounded history
+        history: list[dict[str, Any]] = meta.get("acceptance_history", [])
+        history.append(entry)
+        if len(history) > HISTORY_CAP:
+            history = history[-HISTORY_CAP:]
+        meta["acceptance_history"] = history
+
+    return locked_update_meta(feature_dir, mutate)
 
 
 def record_discard(feature_dir: Path) -> dict[str, Any]:
@@ -738,7 +795,7 @@ def record_discard(feature_dir: Path) -> dict[str, Any]:
     discarded mission just refreshes the timestamp.
 
     Writes with ``validate=False``, like the sibling cleanup primitives
-    (:func:`clear_merge_metadata`, :func:`clear_coordination_metadata`,
+    (:func:`clear_merge_metadata`,
     :func:`flatten_coordination_metadata`). A mission being abandoned is exactly
     the one whose ``meta.json`` may be incomplete, and validating here would
     refuse the marker on those, leaving them on the dashboard forever -- the bug
@@ -747,10 +804,7 @@ def record_discard(feature_dir: Path) -> dict[str, Any]:
     Raises:
         FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
     """
-    meta = _require_meta(feature_dir)
-    meta["discarded_at"] = _now_iso()
-    write_meta(feature_dir, meta, validate=False)
-    return meta
+    return locked_update_meta(feature_dir, lambda meta: meta.update(discarded_at=_now_iso()), validate=False)
 
 
 def set_vcs_lock(
@@ -760,14 +814,13 @@ def set_vcs_lock(
     locked_at: str | None = None,
 ) -> dict[str, Any]:
     """Set VCS type and lock timestamp."""
-    meta = _require_meta(feature_dir)
 
-    meta["vcs"] = vcs_type
-    if locked_at is not None:
-        meta["vcs_locked_at"] = locked_at
+    def mutate(meta: dict[str, Any]) -> None:
+        meta["vcs"] = vcs_type
+        if locked_at is not None:
+            meta["vcs_locked_at"] = locked_at
 
-    write_meta(feature_dir, meta)
-    return meta
+    return locked_update_meta(feature_dir, mutate)
 
 
 def set_documentation_state(
@@ -775,12 +828,7 @@ def set_documentation_state(
     state: dict[str, Any],
 ) -> dict[str, Any]:
     """Set or replace ``documentation_state`` subtree."""
-    meta = _require_meta(feature_dir)
-
-    meta["documentation_state"] = state
-
-    write_meta(feature_dir, meta)
-    return meta
+    return locked_update_meta(feature_dir, lambda meta: meta.update(documentation_state=state))
 
 
 def set_origin_ticket(
@@ -798,8 +846,6 @@ def set_origin_ticket(
         FileNotFoundError: If meta.json does not exist in *feature_dir*.
         ValueError: If any required key is missing from *origin_ticket*.
     """
-    meta = _require_meta(feature_dir)
-
     required_keys = {
         "provider",
         "resource_type",
@@ -809,13 +855,14 @@ def set_origin_ticket(
         "external_issue_url",
         "title",
     }
-    missing = required_keys - set(origin_ticket.keys())
-    if missing:
-        raise ValueError(f"origin_ticket missing required keys: {sorted(missing)}")
 
-    meta["origin_ticket"] = origin_ticket
-    write_meta(feature_dir, meta)
-    return meta
+    def mutate(meta: dict[str, Any]) -> None:
+        missing = required_keys - set(origin_ticket.keys())
+        if missing:
+            raise ValueError(f"origin_ticket missing required keys: {sorted(missing)}")
+        meta["origin_ticket"] = origin_ticket
+
+    return locked_update_meta(feature_dir, mutate)
 
 
 def set_target_branch(
@@ -823,58 +870,7 @@ def set_target_branch(
     branch: str,
 ) -> dict[str, Any]:
     """Set ``target_branch`` field."""
-    meta = _require_meta(feature_dir)
-
-    meta["target_branch"] = branch
-
-    write_meta(feature_dir, meta)
-    return meta
-
-
-def set_purpose_summary(
-    feature_dir: Path,
-    *,
-    purpose_tldr: str,
-    purpose_context: str,
-) -> dict[str, Any]:
-    """Set mission-purpose summary fields in ``meta.json``."""
-    meta = _require_meta(feature_dir)
-
-    errors = validate_purpose_summary(purpose_tldr, purpose_context)
-    if errors:
-        raise ValueError("; ".join(errors))
-
-    meta["purpose_tldr"] = " ".join(purpose_tldr.split())
-    meta["purpose_context"] = " ".join(purpose_context.split())
-    write_meta(feature_dir, meta)
-    return meta
-
-
-def set_change_mode(
-    feature_dir: str | Path,
-    mode: str,
-) -> dict[str, Any]:
-    """Set ``change_mode`` field.
-
-    Validates *mode* is in :data:`VALID_CHANGE_MODES` before writing.
-
-    *feature_dir* accepts a :class:`~pathlib.Path` or a plain ``str``; the
-    latter is coerced to ``Path`` so a caller (e.g. the documented shell
-    one-liner in the bulk-edit classification skill) that passes a bare string
-    does not trip a ``TypeError`` deep inside the path-joining reader (#3436).
-
-    Raises:
-        ValueError: If *mode* is not a recognized change mode.
-        FileNotFoundError: If meta.json does not exist in *feature_dir*.
-    """
-    if mode not in VALID_CHANGE_MODES:
-        raise ValueError(f"Invalid change_mode {mode!r}; valid values: {sorted(VALID_CHANGE_MODES)}")
-    feature_dir = Path(feature_dir)
-    meta = _require_meta(feature_dir)
-
-    meta["change_mode"] = mode
-    write_meta(feature_dir, meta)
-    return meta
+    return locked_update_meta(feature_dir, lambda meta: meta.update(target_branch=branch))
 
 
 #: The canonical ``merged_*`` ``meta.json`` field set: the one writer-owned
@@ -924,43 +920,15 @@ def clear_merge_metadata(feature_dir: Path) -> dict[str, Any]:
     Raises:
         FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
     """
-    meta = _require_meta(feature_dir)
-
-    cleared = snapshot_merge_metadata(meta)
-    for field in cleared:
-        meta.pop(field)
-
-    if cleared:
-        write_meta(feature_dir, meta, validate=False)
-    return cleared
-
-
-def clear_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
-    """Remove the ``coordination_branch`` marker from ``meta.json`` (flatten).
-
-    Used by ``spec-kitty mission close --discard``: once the coordination branch
-    and worktree have been torn down, the mission is intentionally flattened to a
-    single-branch/primary topology. Leaving a dangling ``coordination_branch`` key
-    pointing at a now-deleted branch makes ``resolve_action_context`` fail closed
-    (``CoordinationBranchDeleted`` — "data loss") on every subsequent command for
-    that mission. Clearing it is the canonical "flatten the mission" recovery the
-    surface resolver itself recommends.
-
-    Returns a snapshot of the cleared fields (empty when none were present). The
-    write is tolerant (``validate=False``) so it never fails on legacy missions
-    whose ``meta.json`` predates a required field.
-
-    Raises:
-        FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
-    """
-    meta = _require_meta(feature_dir)
-
     cleared: dict[str, Any] = {}
-    if "coordination_branch" in meta:
-        cleared["coordination_branch"] = meta.pop("coordination_branch")
 
-    if cleared:
-        write_meta(feature_dir, meta, validate=False)
+    def mutate(meta: dict[str, Any]) -> bool:
+        cleared.update(snapshot_merge_metadata(meta))
+        for field in cleared:
+            meta.pop(field)
+        return bool(cleared)
+
+    locked_update_meta(feature_dir, mutate, validate=False)
     return cleared
 
 
@@ -1011,17 +979,18 @@ def flatten_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
     # already uses for ``core.paths`` in :func:`_load_meta_fail_closed`.
     from specify_cli.migration.backfill_topology import FLATTENED_KEY, TOPOLOGY_KEY
 
-    meta = _require_meta(feature_dir)
+    cleared: dict[str, Any] = {}
 
-    if "coordination_branch" not in meta:
-        return {}
+    def mutate(meta: dict[str, Any]) -> bool:
+        if "coordination_branch" not in meta:
+            return False
+        cleared["coordination_branch"] = meta.pop("coordination_branch")
+        if TOPOLOGY_KEY in meta:
+            cleared[TOPOLOGY_KEY] = meta.pop(TOPOLOGY_KEY)
+        meta[FLATTENED_KEY] = True
+        return True
 
-    cleared: dict[str, Any] = {"coordination_branch": meta.pop("coordination_branch")}
-    if TOPOLOGY_KEY in meta:
-        cleared[TOPOLOGY_KEY] = meta.pop(TOPOLOGY_KEY)
-    meta[FLATTENED_KEY] = True
-
-    write_meta(feature_dir, meta, validate=False)
+    locked_update_meta(feature_dir, mutate, validate=False)
     return cleared
 
 
