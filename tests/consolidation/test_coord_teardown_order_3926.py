@@ -219,6 +219,29 @@ def test_teardown_folds_coord_seed_events_onto_primary(coord_repo_with_live_work
     assert "01M1VRA2ZSEED00000000000000" in _git(repo, "show", f"HEAD:kitty-specs/{_SLUG}/status.events.jsonl").stdout
 
 
+def test_a_failed_coord_status_fold_keeps_the_coord_branch_and_marker(coord_repo_with_live_worktree: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A fold that cannot land refuses before anything is torn down (#3272)."""
+    repo = coord_repo_with_live_worktree
+    coord_path = repo / ".worktrees" / coord_dir_name(_SLUG, mid8=_MID8)
+    coord_dir = coord_path / "kitty-specs" / _SLUG
+    coord_dir.mkdir(parents=True)
+    (coord_dir / "status.events.jsonl").write_text('{"event_id": "x"}\n', encoding="utf-8")
+
+    def _boom(**_: object) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(phase_teardown, "_project_status_bookkeeping_to_target", _boom)
+    run = _run_state(repo)
+    run.feature_dir = coord_dir
+
+    with pytest.raises(run_state.CoordinationTeardownError, match="disk full"):
+        phase_teardown._teardown_coordination_triple(run)
+
+    assert _branch_exists(repo, _MISSION_BRANCH)
+    assert coord_path.is_dir()
+    assert load_meta(repo / "kitty-specs" / _SLUG).get("coordination_branch")
+
+
 def test_teardown_reads_identity_from_the_primary_metadata_not_the_status_dir(
     coord_repo_with_live_worktree: Path,
 ) -> None:
