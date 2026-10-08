@@ -1,18 +1,4 @@
----
-name: spec-kitty-spdd-reasons
-description: >-
-  Drive REASONS Canvas authoring and review for Spec Kitty missions that
-  opted in to Structured-Prompt-Driven Development (SPDD) via charter
-  selection.
-  Triggers: "use SPDD", "use REASONS", "generate a REASONS canvas",
-  "apply structured prompt driven development", "make this mission SPDD".
-  Does NOT handle: enforcing SPDD on projects whose charter has not
-  selected the doctrine pack (escalate to charter workflow instead). Does
-  NOT mirror code as prose; code remains the source of truth for current
-  behavior.
----
-
-# spec-kitty-spdd-reasons
+# REASONS Canvas Workflow (spk-charter-spdd-reasons reference)
 
 Drive REASONS Canvas authoring and review for missions that opted in to
 Structured-Prompt-Driven Development (SPDD) via charter selection. The
@@ -20,7 +6,7 @@ canvas is a thin, agent-curated reasoning layer that sits next to the spec,
 plan, and tasks; it is **not** a duplicate system mirror.
 
 This skill is documentation for the agent. It assumes the SPDD/REASONS
-doctrine pack (paradigm, tactics, styleguide, directive, template) has
+artifacts (paradigm, tactics, styleguide, directive, template) have
 already been shipped under `src/charter/offering/` and that activation can be
 detected via the helper described below.
 
@@ -161,7 +147,7 @@ canvas claim that contradicts the charter as `canvas_update_needed`.
 
 When canvas authoring or review surfaces a term that is missing,
 ambiguous, or in conflict with the project glossary, do NOT redefine the
-term inline. Escalate to the glossary skill (`spec-kitty-glossary-context`)
+term inline. Escalate to the glossary skill (`spk-charter-glossary`)
 so the canonical entry is updated once and propagated everywhere.
 
 ---

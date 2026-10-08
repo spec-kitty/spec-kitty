@@ -32,7 +32,7 @@ load a tactic, reading an action index to scope context). Skills should
 
 Teams can also ship **pack skills**: thin, parameterised entry points declared
 in an org pack (`<pack>/skills/`) or the project tier
-(`.kittify/doctrine/skills/`) as the `skill` doctrine kind. They are not part
+(`.kittify/charter-packs/skills/`) as the `skill` doctrine kind. They are not part
 of this shipped catalog. They are charter-activated
 (`spec-kitty charter activate skill <id>`), rendered as
 `<skill_namespace>-<id>` (the `spk-`, `spec-kitty-` and `spec-kitty.` prefixes
@@ -69,9 +69,9 @@ Families:
 - `spk-gate-*`: accept, merge, mission review, retrospective.
 - `spk-admin-*`: setup, agent config, upgrade.
 - `spk-team-*`: auth, sync, tracker, connectors.
-- `spk-doctrine-*`: charter, glossary, SPDD, profile load, bulk-edit policy.
-- `spk-doctrine-show-me`: compact visual communication grounded in diagram doctrine.
-- `spk-doctrine-semantic-compression`: behavior-preserving code reduction.
+- `spk-charter-*`: charter governance, glossary, SPDD, profile load.
+- `spk-practice-*`: bulk-edit policy, compact visual communication grounded in
+  diagram doctrine, behavior-preserving code reduction.
 - `spk-integrate-*`: orchestrator API, CI, external automation.
 - `spk-meta-*`: skill discovery and future skill authoring.
 
@@ -111,13 +111,13 @@ the public user-facing hierarchy moves to `spk-*`.
 | `spk-team-sync` | Tracker sync (local pull/push/run, hosted binding) |
 | `spk-team-tracker` | Tracker workflows |
 | `spk-team-connectors` | Connector integrations |
-| `spk-doctrine-charter` | Charter workflows |
-| `spk-doctrine-glossary` | Terminology |
-| `spk-doctrine-spdd-reasons` | REASONS Canvas |
-| `spk-doctrine-profile-load` | Agent profiles |
-| `spk-doctrine-show-me` | Compact visuals, diagrams, and TUI status rendering |
-| `spk-doctrine-semantic-compression` | Semantic compression |
-| `spk-doctrine-bulk-edit` | Bulk-edit classification |
+| `spk-charter-governance` | Charter lifecycle + `DoctrineService` programmatic access |
+| `spk-charter-glossary` | Terminology curation and semantic integrity |
+| `spk-charter-spdd-reasons` | REASONS Canvas |
+| `spk-charter-profile-load` | Load an agent profile on demand for interactive sessions outside the mission loop |
+| `spk-practice-show-me` | Compact visuals, diagrams, and TUI status rendering |
+| `spk-practice-semantic-compression` | Semantic compression |
+| `spk-practice-bulk-edit` | Detect bulk-edit intent and drive occurrence-map guardrail (DIRECTIVE_035) |
 | `spk-integrate-orchestrator-api` | External orchestrator API |
 | `spk-meta-skill-map` | Discovery and naming convention |
 | `spk-meta-skill-authoring` | Future skill authoring |
@@ -127,18 +127,14 @@ the public user-facing hierarchy moves to `spk-*`.
 | Skill | Purpose |
 |---|---|
 | `spec-kitty-runtime-next` | Drive the `next --agent` control loop with doctrine-aware context loading |
-| `spec-kitty-charter-doctrine` | Charter lifecycle + `DoctrineService` programmatic access |
 | `spec-kitty-mission-system` | Mission types, step contracts, procedures, action indices, template resolution |
-| `ad-hoc-profile-load` | Load an agent profile on demand for interactive sessions outside the mission loop |
 | `spec-kitty-runtime-review` | Review workflow surface: claim, review, approve/reject |
 | `spec-kitty-mission-review` | Post-merge mission review: FR trace, drift analysis, risk/security audit, final verdict |
 | `spec-kitty-implement-review` | Implement-review orchestration loop across WPs |
 | `spec-kitty-program-orchestrate` | Multi-repo program orchestration: drive several missions end-to-end in dependency order with parallel sub-agents and a pulse-heartbeat safety net |
 | `spec-kitty-setup-doctor` | Installation diagnostics and repair |
 | `spec-kitty-git-workflow` | Git operations, worktree lifecycle, safe-commit pattern |
-| `spec-kitty-glossary-context` | Terminology curation and semantic integrity |
 | `spec-kitty-orchestrator-api-operator` | External automation via orchestrator-api |
-| `spec-kitty-bulk-edit-classification` | Detect bulk-edit intent and drive occurrence-map guardrail (DIRECTIVE_035) |
 
 ## Source Location
 

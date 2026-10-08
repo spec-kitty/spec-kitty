@@ -61,7 +61,7 @@ If your installed Kilo Code version uses a different workflow-invocation convent
 - **Profile not loading.**
   Run inside Kilo Code:
   ```
-  /ad-hoc-profile-load researcher-robbie
+  /spk-charter-profile-load researcher-robbie
   ```
   Use the profile id from the work-package frontmatter.
 

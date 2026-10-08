@@ -19,13 +19,10 @@ SPK_SKILLS = {
     "spk-admin-git-workflow",
     "spk-admin-setup-doctor",
     "spk-admin-upgrade",
-    "spk-doctrine-bulk-edit",
-    "spk-doctrine-charter",
-    "spk-doctrine-glossary",
-    "spk-doctrine-profile-load",
-    "spk-doctrine-show-me",
-    "spk-doctrine-semantic-compression",
-    "spk-doctrine-spdd-reasons",
+    "spk-charter-glossary",
+    "spk-charter-governance",
+    "spk-charter-profile-load",
+    "spk-charter-spdd-reasons",
     "spk-gate-accept",
     "spk-gate-consolidate",
     "spk-gate-mission-review",
@@ -39,6 +36,9 @@ SPK_SKILLS = {
     "spk-mission-specify",
     "spk-mission-tasks",
     "spk-mission-types",
+    "spk-practice-bulk-edit",
+    "spk-practice-semantic-compression",
+    "spk-practice-show-me",
     "spk-run-blocked-recovery",
     "spk-run-implement-review",
     "spk-run-next",
@@ -55,11 +55,7 @@ SPK_SKILLS = {
     "spk-team-tracker",
 }
 LEGACY_ALIAS_SKILLS = {
-    "ad-hoc-profile-load",
-    "spec-kitty-bulk-edit-classification",
-    "spec-kitty-charter-doctrine",
     "spec-kitty-git-workflow",
-    "spec-kitty-glossary-context",
     "spec-kitty-implement-review",
     "spec-kitty-mission-review",
     "spec-kitty-mission-system",
@@ -68,7 +64,6 @@ LEGACY_ALIAS_SKILLS = {
     "spec-kitty-runtime-next",
     "spec-kitty-runtime-review",
     "spec-kitty-setup-doctor",
-    "spec-kitty-spdd-reasons",
 }
 
 
@@ -184,25 +179,24 @@ def test_legacy_alias_skills_remain_installed() -> None:
 
 def test_profile_load_skill_owns_and_installs_detailed_mechanics() -> None:
     registry = SkillRegistry.from_local_repo(REPO_ROOT)
-    skill = registry.get_skill("spk-doctrine-profile-load")
+    skill = registry.get_skill("spk-charter-profile-load")
 
     assert skill is not None
     reference = (
         SKILLS_ROOT
-        / "spk-doctrine-profile-load"
+        / "spk-charter-profile-load"
         / "references"
         / "profile-load-mechanics.md"
     )
     assert skill.references == [reference]
 
     skill_text = skill.skill_md.read_text(encoding="utf-8")
-    alias_text = (
-        SKILLS_ROOT / "ad-hoc-profile-load" / "SKILL.md"
-    ).read_text(encoding="utf-8")
     reference_text = reference.read_text(encoding="utf-8")
 
-    assert "`ad-hoc-profile-load` is a compatibility alias that points here" in skill_text
-    assert "`spk-doctrine-profile-load`" in alias_text
+    # The folded skill keeps the retired alias's trigger phrases (FR-008, #3732).
+    for trigger in ("act as the architect", "load the reviewer profile", "adopt a profile"):
+        assert trigger in skill_text, trigger
+    assert "alias" not in skill_text.lower(), "no compatibility alias remains (C-001)"
     assert "spec-kitty agent profile show <profile-id>" in reference_text
     assert "spec-kitty charter context --action <action> --json" in reference_text
     assert "read-only harness that cannot invoke the CLI" in reference_text

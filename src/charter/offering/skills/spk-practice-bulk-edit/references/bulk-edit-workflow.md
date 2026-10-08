@@ -1,19 +1,4 @@
----
-name: spec-kitty-bulk-edit-classification
-description: >-
-  Recognize when a mission is a bulk edit and drive the occurrence-classification
-  guardrail on the user's behalf. Triggers: user says any variant of "rename X
-  to Y", "change the terminology", "migrate all occurrences", "replace across
-  the codebase", "the X feature is now the Y feature", "sed everywhere", or any
-  request that touches the same identifier/path/key in many files. Also
-  triggers on gate errors mentioning "change_mode", "occurrence_map.yaml",
-  "Bulk Edit Gate: BLOCKED", or "Bulk Edit Review: Diff Compliance".
-  Does NOT handle: line-level semantic refactors inside one file, adding a new
-  feature that creates new identifiers without changing existing ones, or
-  reviewing finished missions for fidelity.
----
-
-# spec-kitty-bulk-edit-classification
+# Bulk-Edit Workflow (spk-practice-bulk-edit reference)
 
 Drive the occurrence-classification guardrail (shipped in #393, DIRECTIVE_035)
 so users never have to know it exists. A bulk edit is any change that touches
@@ -338,7 +323,7 @@ Dismissing carelessly defeats the guardrail. When in doubt, upgrade.
 The schema for `occurrence_map.yaml` — the required top-level `target:` block,
 the eight categories, and the four-value `action` vocabulary
 (`do_not_change`, `manual_review`, `rename`, `rename_if_user_visible`) — is
-documented in [`docs/api/bulk-edit-gate.md`](../../../../docs/api/bulk-edit-gate.md).
+documented in [`docs/api/bulk-edit-gate.md`](../../../../../docs/api/bulk-edit-gate.md).
 Consult that file when:
 
 - You need to look up exactly what an `action` value means.
@@ -353,6 +338,6 @@ Consult that file when:
   produces the prerequisites it checks.
 - `spec-kitty-runtime-review` — the review workflow that invokes the diff
   compliance check this skill's artifact governs.
-- `spec-kitty-glossary-context` — closely related for terminology normalization;
+- `spk-charter-glossary` — closely related for terminology normalization;
   the glossary tells you what the canonical terms are, this skill governs how
   you migrate *to* them.

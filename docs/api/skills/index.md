@@ -10,7 +10,7 @@ related:
 - docs/api/skills/spk-run-implement-review.md
 - docs/api/skills/spk-run-next.md
 - docs/api/skills/spk-gate-mission-review.md
-- docs/api/skills/spk-doctrine-profile-load.md
+- docs/api/skills/spk-charter-profile-load.md
 - docs/api/skills/spk-admin-setup-doctor.md
 - docs/api/skills/spk-meta-skill-map.md
 - docs/api/index.md
@@ -92,16 +92,22 @@ re-listing it here.
 | `spk-team-tracker` | Tracker workflows | — | — |
 | `spk-team-connectors` | Connector integrations | — | — |
 
-## spk-doctrine-*
+## spk-charter-*
 
 | Skill ID | Purpose | Legacy Alias | Deep Page |
 |---|---|---|---|
-| `spk-doctrine-charter` | Charter workflows | `spec-kitty-charter-doctrine` | — |
-| `spk-doctrine-glossary` | Terminology | `spec-kitty-glossary-context` | — |
-| `spk-doctrine-spdd-reasons` | REASONS Canvas | `spec-kitty-spdd-reasons` | — |
-| `spk-doctrine-profile-load` | Agent profiles | `ad-hoc-profile-load` | [spk-doctrine-profile-load](spk-doctrine-profile-load.md) |
-| `spk-doctrine-semantic-compression` | Semantic compression | — | — |
-| `spk-doctrine-bulk-edit` | Bulk-edit classification | `spec-kitty-bulk-edit-classification` | — |
+| `spk-charter-governance` | Charter workflows | — | — |
+| `spk-charter-glossary` | Terminology | — | — |
+| `spk-charter-spdd-reasons` | REASONS Canvas | — | — |
+| `spk-charter-profile-load` | Agent profiles | — | [spk-charter-profile-load](spk-charter-profile-load.md) |
+
+## spk-practice-*
+
+| Skill ID | Purpose | Legacy Alias | Deep Page |
+|---|---|---|---|
+| `spk-practice-bulk-edit` | Bulk-edit classification | — | — |
+| `spk-practice-semantic-compression` | Semantic compression | — | — |
+| `spk-practice-show-me` | Compact visuals, diagrams, and TUI status rendering | — | — |
 
 ## spk-integrate-*
 

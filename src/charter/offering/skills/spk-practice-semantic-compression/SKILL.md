@@ -1,9 +1,9 @@
 ---
-name: spk-doctrine-semantic-compression
+name: spk-practice-semantic-compression
 description: "Invoke Randy Reducer and semantic-compression doctrine for behavior-preserving code reduction."
 ---
 
-# spk-doctrine-semantic-compression
+# spk-practice-semantic-compression
 
 Use this skill when the user asks to reduce, simplify, deduplicate, delete dead
 code, or refactor while preserving existing behavior.
