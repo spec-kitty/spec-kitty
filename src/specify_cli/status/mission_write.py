@@ -477,6 +477,7 @@ def _committed_event_ids(events_path: Path) -> frozenset[str]:
 
     Raises:
         GitCommandError: git failed in a way that leaves the committed log unknown.
+        ValueError: the committed log holds a line that is not JSON (the committed ids are unknown).
     """
     cwd = events_path.parent
     # LC_ALL=C pins git's diagnostics to English so the non-repository probe below is locale-independent.
@@ -494,10 +495,7 @@ def _committed_event_ids(events_path: Path) -> frozenset[str]:
         return frozenset()
     ids: set[str] = set()
     for raw in committed.split(b"\n"):
-        try:
-            row = json.loads(raw) if raw.strip() else None
-        except ValueError:
-            continue
+        row = json.loads(raw) if raw.strip() else None  # a malformed committed line raises ValueError: the caller fails closed
         if isinstance(row, dict) and isinstance(row.get(_EVENT_ID_KEY), str):
             ids.add(row[_EVENT_ID_KEY])
     return frozenset(ids)

@@ -35,7 +35,6 @@ from specify_cli.status import (
     rollback_status_artifacts,
 )
 from specify_cli.status.locking import (
-    UNBOUNDED_LOCK_WAIT,
     FeatureStatusLockTimeoutError,
     _get_thread_locks,
     feature_status_lock_path,
@@ -186,17 +185,6 @@ def test_holds_status_lock_follows_the_calling_threads_hold(mission: Path, root:
         thread.join()
         assert seen_elsewhere == [False], "another thread does not hold it"
     assert not holds_status_lock(lock_path)
-
-
-def test_unbounded_lock_wait_is_the_unbounded_timeout() -> None:
-    assert UNBOUNDED_LOCK_WAIT < 0
-
-
-def test_named_constructor_builds_a_point_without_reading_or_locking(root: Path) -> None:
-    """The caller measured under its own hold; the constructor neither checks the lock nor touches the files."""
-    point = RollbackPoint.measured_under_held_lock(events_path=root / "log.jsonl", status_path=root / "status.json", pre_event_size=7, events_existed=True)
-
-    assert point == RollbackPoint(events_path=root / "log.jsonl", status_path=root / "status.json", pre_event_size=7, pre_status_bytes=None, events_existed=True)
 
 
 def test_io_error_refusal_does_not_claim_the_log_is_unchanged(tmp_path: Path) -> None:
@@ -422,6 +410,20 @@ def test_an_unreadable_head_fails_closed(mission: Path, root: Path, monkeypatch:
         raise GitCommandError(argv=("cat-file",), cwd=cwd, returncode=128, stderr="fatal: bad object")
 
     monkeypatch.setattr(mw, "blob_at", _boom)
+
+    outcome = rollback_status_artifacts(point, repo_root=root)
+
+    assert outcome.refusal is RollbackRefusal.HEAD_UNREADABLE
+    assert _snapshot(mission) == before
+
+
+def test_a_malformed_committed_line_fails_closed(mission: Path, root: Path) -> None:
+    """The committed ids are unknown when HEAD's log holds a non-JSON line, so no tail may be cut on that proof."""
+    _append(mission / EVENTS, "not json\n")
+    _commit_all(root, "corrupt committed log")
+    point = _point(mission, root)
+    _append(mission / EVENTS, _row("01B"))
+    before = _snapshot(mission)
 
     outcome = rollback_status_artifacts(point, repo_root=root)
 

@@ -41,7 +41,7 @@ import specify_cli.cli.commands.agent.workflow as workflow
 import specify_cli.cli.commands.agent.workflow_executor as workflow_executor
 import specify_cli.status.locking as locking
 from specify_cli import app as root_app
-from specify_cli.status import STATUS_ROLLBACK_REFUSED, RollbackPoint, capture_rollback_point, mission_write_lock
+from specify_cli.status import STATUS_ROLLBACK_REFUSED, RollbackPoint, RollbackRefusal, capture_rollback_point, mission_write_lock
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.compute import PLANNING_LANE_ID
 from specify_cli.lanes.models import ExecutionLane
@@ -681,6 +681,27 @@ def test_lane_sync_refusal_keeps_a_row_a_foreign_writer_appended_during_the_sync
     assert claimed.events.read_text(encoding="utf-8") == _claim_row("before") + _claim_row("claim") + _claim_row("foreign")
 
 
+def test_lane_sync_refusal_cuts_nothing_when_the_claim_rows_were_unreadable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """No ownership proof (the tail was torn while the lock was held) means no cut, even if the tail is whole by rollback time."""
+    claimed = _claim_repo(tmp_path, commit_claim=False)
+    with claimed.events.open("a", encoding="utf-8") as fh:
+        fh.write('{"event_id": "foreign"')  # torn: no closing brace, no newline
+
+    def _foreign_writer_completes_the_row() -> None:
+        with mission_write_lock(claimed.feature_dir, repo_root=claimed.repo, timeout=2.0), claimed.events.open("a", encoding="utf-8") as fh:
+            fh.write("}\n")
+
+    _coord_claim_with_slow_lane_sync(claimed, monkeypatch, _foreign_writer_completes_the_row)
+
+    with pytest.raises(typer.Exit):
+        _commit_releasing_lock_for_lane_sync(claimed)
+
+    assert RollbackRefusal.TAIL_UNPARSEABLE.value in capsys.readouterr().out
+    assert claimed.events.read_text(encoding="utf-8") == _claim_row("before") + _claim_row("claim") + '{"event_id": "foreign"}\n'
+
+
 def test_claim_wrappers_hand_the_body_a_release_for_the_mission_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """F1: ``implement_claim_transition`` holds the lock for the body and the body can release it for the lane sync."""
     repo, mission, _coord_branch = _build_two_lane_coord_mission(tmp_path, monkeypatch, mission_slug="release-hook")
@@ -907,6 +928,38 @@ def test_single_branch_agent_claims_serialize_on_the_checkout_lock(tmp_path: Pat
     rows = _disk_rows(feature_dir)
     assert [wp for wp in ("WP01", "WP02") if _lane_of(rows, wp) == "in_progress"] == ["WP01"], "both claimants passed the occupancy scan (#5796)\n" + out
     assert "WRITE_CHECKOUT_OCCUPIED" in out
+
+
+def test_agent_claim_with_a_checkout_lock_held_past_its_bound_names_status_lock_held(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """F7: the agent claim prints the STATUS_LOCK_HELD code (exit 1) instead of a bare error."""
+    import specify_cli.status as status_pkg
+
+    repo, mission = _build_flat_two_lane_mission(tmp_path, monkeypatch, mission_slug="agent-lock-held")
+    _make_single_branch(repo, mission)
+    real_lock = status_pkg.write_checkout_claim_lock
+    monkeypatch.setattr(status_pkg, "write_checkout_claim_lock", lambda root, **_kw: real_lock(root, timeout=0.2))
+
+    holding, release = threading.Event(), threading.Event()
+
+    def _hold() -> None:
+        with locking.write_checkout_claim_lock(repo):
+            holding.set()
+            release.wait(WAIT_SECONDS)
+
+    holder = threading.Thread(target=_hold, name="checkout-holder", daemon=True)
+    holder.start()
+    assert holding.wait(WAIT_SECONDS)
+    try:
+        rc = _invoke("agent", "action", "implement", "WP01", "--mission", mission, "--agent", "alice", "--allow-sparse-checkout")
+    finally:
+        release.set()
+        holder.join(WAIT_SECONDS)
+
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "STATUS_LOCK_HELD" in out and "Timed out acquiring status lock" in out
 
 
 def test_checkout_claim_lock_is_shared_across_missions_of_one_checkout(tmp_path: Path) -> None:

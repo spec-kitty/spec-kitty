@@ -284,3 +284,41 @@ def test_add_history_on_a_mission_whose_directory_differs_from_its_slug_locks_th
     lock_dir = _add_history_lock_dir(repo, handle, monkeypatch)
 
     assert feature_status_lock_path(repo, lock_dir.name) == expected
+
+
+# --- implement claim (#5819): one Mission, one lock across both claim paths -----------
+
+
+def test_implement_claim_hold_locks_the_directory_agent_action_implement_locks(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A coord Mission with a legacy primary directory name (``foo``) has a coord directory ``foo-<mid8>``.
+
+    ``agent action implement`` locks the coord directory; ``implement`` must take the same file,
+    or the two claim paths no longer exclude each other on that Mission.
+    """
+    import json
+    from contextlib import ExitStack
+
+    import specify_cli.status.mission_write as mission_write_module
+    from specify_cli.cli.commands import implement_phases
+    from specify_cli.cli.commands.agent import workflow_executor
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+    from tests.integration.coord_topology_fixture import _git, _make_git_repo
+
+    repo = _make_git_repo(tmp_path / "legacy-coord")
+    mid8, branch = "01AAAAAA", "kitty/mission-foo-01AAAAAA"
+    _git(repo, "branch", branch)
+    primary = repo / "kitty-specs" / SLUG
+    primary.mkdir(parents=True)
+    meta = {"mission_id": "01AAAAAAAAAAAAAAAAAAAAAAAA", "mission_slug": SLUG, "topology": "coord", "coordination_branch": branch, "target_branch": "main"}
+    (primary / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    coord_dir = CoordinationWorkspace.resolve(repo, SLUG, mid8) / "kitty-specs" / DIR_NAME
+    coord_dir.mkdir(parents=True)
+    assert workflow_executor.claim_status_dir(repo, SLUG) == coord_dir
+
+    spy = _Spy(mission_write_module, monkeypatch)
+    ctx: Any = SimpleNamespace(repo_root=repo, mission_slug=SLUG, mission_dir=primary)
+
+    with ExitStack() as stack:
+        implement_phases.hold_mission_write_lock(stack, ctx)
+
+    assert spy.paths == [feature_status_lock_path(repo, DIR_NAME)]

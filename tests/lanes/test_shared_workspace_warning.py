@@ -71,7 +71,7 @@ def test_review_arm_names_the_other_actor_holding_a_wp_in_progress(tmp_path: Pat
     writers = shared_workspace_writers(repo, MISSION, "WP02", _repo_root_workspace(), "bob")
 
     assert writers == [SharedWorkspaceWriter(MISSION, "WP01", "in_progress", "alice")]
-    assert writers[0].warning() == f"Warning: {MISSION}/WP01 is in_progress by alice in this workspace; one writer per checkout (#5099)."
+    assert writers[0].warning() == f"Warning: {MISSION}/WP01 is in_progress by alice in this workspace; one writer per checkout."
 
 
 def test_implement_arm_names_a_wp_another_actor_has_in_review(tmp_path: Path) -> None:
@@ -155,7 +155,7 @@ def test_warn_helper_prints_each_warning_and_returns_the_lines(tmp_path: Path, c
 
     lines = workflow_executor.warn_shared_workspace_writers(repo, MISSION, "WP02", _repo_root_workspace(), "bob")
 
-    assert lines == [f"Warning: {MISSION}/WP01 is in_progress by alice in this workspace; one writer per checkout (#5099)."]
+    assert lines == [f"Warning: {MISSION}/WP01 is in_progress by alice in this workspace; one writer per checkout."]
     assert capsys.readouterr().out.splitlines() == lines
 
 
@@ -263,7 +263,7 @@ def test_implement_command_warns_about_another_actor_on_its_lane_worktree(tmp_pa
 
     out = _run_action("implement", mission, "bob")
 
-    assert f"Warning: {mission}/WP02 is in_progress by alice in this workspace; one writer per checkout (#5099)." in out
+    assert f"Warning: {mission}/WP02 is in_progress by alice in this workspace; one writer per checkout." in out
 
 
 def test_implement_command_stays_quiet_for_the_same_actor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -277,4 +277,4 @@ def test_review_command_warns_about_another_actor_on_the_lane_worktree(tmp_path:
 
     out = _run_action("review", mission, "bob")
 
-    assert f"Warning: {mission}/WP02 is in_progress by alice in this workspace; one writer per checkout (#5099)." in out
+    assert f"Warning: {mission}/WP02 is in_progress by alice in this workspace; one writer per checkout." in out

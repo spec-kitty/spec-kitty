@@ -453,8 +453,8 @@ def _enter_checkout_claim_lock(stack: ExitStack, cmd: str, main_repo_root: Path,
     *stack* closes, i.e. through the claim emit. Any other WP (lane worktree, legacy
     Mission, non-single_branch Mission) takes nothing; a Mission whose lanes cannot be
     read takes nothing here and fails later with its usual error envelope. A lock that
-    stays held past the bound (or a lock-order violation) fails the command with the
-    ``STATUS_LOCK_HELD`` envelope instead of a traceback.
+    stays held past the bound fails the command with the ``STATUS_LOCK_HELD`` envelope
+    instead of a traceback. A lock-order violation is a programming error and propagates.
     """
     from kernel.errors import GuardedReadError
     from specify_cli.lanes.checkout_occupancy import is_single_branch_repo_root_lane
@@ -473,8 +473,6 @@ def _enter_checkout_claim_lock(stack: ExitStack, cmd: str, main_repo_root: Path,
         stack.enter_context(write_checkout_claim_lock(main_repo_root, timeout=CHECKOUT_CLAIM_LOCK_TIMEOUT_SECONDS))
     except FeatureStatusLockTimeoutError as exc:
         _fail(cmd, "STATUS_LOCK_HELD", str(exc), {**_common._mission_identity_payload(mission_dir), "wp_id": wp, "lock_timeout_seconds": exc.timeout})
-    except RuntimeError as exc:  # the lock-order guard of write_checkout_claim_lock
-        _fail(cmd, "STATUS_LOCK_HELD", str(exc), {**_common._mission_identity_payload(mission_dir), "wp_id": wp})
 
 
 def start_implementation(

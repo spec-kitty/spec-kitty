@@ -100,7 +100,7 @@ def test_timeout_names_the_holder(checkout: Path) -> None:
 def test_lock_order_guard_refuses_a_checkout_lock_under_a_mission_lock(checkout: Path) -> None:
     with (
         mission_write_lock(checkout / "kitty-specs" / "m-01ABCDEF", repo_root=checkout),
-        pytest.raises(RuntimeError, match="checkout claim lock must be taken before any Mission lock"),
+        pytest.raises(RuntimeError, match=r"checkout claim lock must be taken before any Mission lock \(this thread already holds: .*m-01ABCDEF"),
         write_checkout_claim_lock(checkout),
     ):
         pass

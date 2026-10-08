@@ -369,13 +369,14 @@ def write_checkout_claim_lock(
 
     Keyed on the case-normalized resolved checkout root under the git common dir.
     Lock order is fixed: **this lock first, then any Mission write lock**. Taking it
-    while the calling thread already holds a Mission lock (and not this checkout's
-    lock) raises ``RuntimeError`` instead of risking a deadlock against a claimant
-    that takes them in the right order.
+    while the calling thread already holds any other status lock (and not this
+    checkout's lock) raises ``RuntimeError`` naming the held lock keys instead of
+    risking a deadlock against a claimant that takes them in the right order.
     """
     lock_path = _checkout_claim_lock_path(write_checkout)
     held = _get_thread_locks()
-    if str(lock_path) not in held and any(not _is_checkout_claim_lock_key(key) for key in held):
-        raise RuntimeError("checkout claim lock must be taken before any Mission lock")
+    foreign = sorted(key for key in held if not _is_checkout_claim_lock_key(key))
+    if str(lock_path) not in held and foreign:
+        raise RuntimeError(f"checkout claim lock must be taken before any Mission lock (this thread already holds: {', '.join(foreign)})")
     with _named_status_lock(lock_path, timeout=timeout) as held_path:
         yield held_path

@@ -46,7 +46,7 @@ class SharedWorkspaceWriter:
     def warning(self) -> str:
         """The one-line advisory rendered by ``agent action implement`` / ``review`` (#5099)."""
         by = self.actor or "an unknown actor"
-        return f"Warning: {self.mission_slug}/{self.wp_id} is {self.lane} by {by} in this workspace; one writer per checkout (#5099)."
+        return f"Warning: {self.mission_slug}/{self.wp_id} is {self.lane} by {by} in this workspace; one writer per checkout."
 
 
 def is_single_branch_repo_root_lane(repo_root: Path, mission_slug: str, lane_or_workspace: object) -> bool:

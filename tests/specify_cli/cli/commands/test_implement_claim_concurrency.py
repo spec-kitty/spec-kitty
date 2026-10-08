@@ -36,6 +36,7 @@ import specify_cli.cli.commands.agent.tasks_move_task_executor as move_task_exec
 import specify_cli.lanes.implement_support as implement_support
 import specify_cli.orchestrator_api.wp_lifecycle as wp_lifecycle
 import specify_cli.status.locking as locking
+from specify_cli.status import mission_write_lock
 from specify_cli import app as root_app
 from specify_cli.cli.commands import implement_claim
 from specify_cli.lanes.persistence import write_lanes_json
@@ -321,16 +322,33 @@ def test_overlapping_single_branch_claims_leave_exactly_one_wp_in_progress(
     assert held == [True], "writer A did not hold the checkout lock between its scan and its claim (#5796)"
 
 
-def test_start_implementation_reports_a_held_checkout_lock_as_an_envelope_not_a_traceback(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+def test_start_implementation_lets_a_lock_order_violation_propagate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Taking the checkout lock under a Mission lock is a programming error, not a retryable STATUS_LOCK_HELD."""
+    repo = _single_branch_repo(tmp_path / "repo")
+    monkeypatch.chdir(repo)
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
+    mission, mission_id = "lock-order-alpha", "01LOCKORDERALPHA00000001"
+    _build_mission(repo, mission, mission_id)
+
+    with mission_write_lock(repo / "kitty-specs" / mission, repo_root=repo), pytest.raises(RuntimeError, match="checkout claim lock must be taken before"):
+        _claim_via(_ORCHESTRATOR, mission, "WP01", "alice")
+
+
+@pytest.mark.parametrize("kind", [_ORCHESTRATOR, _IMPLEMENT])
+def test_a_checkout_lock_held_past_its_bound_names_status_lock_held_on_the_envelope_and_implement_paths(
+    kind: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """F5: a checkout claim lock that stays held past its bound is the command's STATUS_LOCK_HELD JSON envelope."""
+    """F5/F7: a checkout claim lock that stays held past its bound is STATUS_LOCK_HELD, never a generic or create failure."""
+    import specify_cli.status as status_pkg
+
     repo = _single_branch_repo(tmp_path / "repo")
     monkeypatch.chdir(repo)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo))
     mission, mission_id = "lock-held-alpha", "01LOCKHELDALPHA000000001"
     _build_mission(repo, mission, mission_id)
     monkeypatch.setattr(wp_lifecycle, "CHECKOUT_CLAIM_LOCK_TIMEOUT_SECONDS", 0.2)
+    real_lock = status_pkg.write_checkout_claim_lock
+    monkeypatch.setattr(status_pkg, "write_checkout_claim_lock", lambda root, **_kw: real_lock(root, timeout=0.2))
     holding, release = threading.Event(), threading.Event()
 
     def _hold() -> None:
@@ -342,14 +360,19 @@ def test_start_implementation_reports_a_held_checkout_lock_as_an_envelope_not_a_
     holder.start()
     assert holding.wait(WAIT_SECONDS), "the holder never took the checkout claim lock"
     try:
-        rc = _claim_via(_ORCHESTRATOR, mission, "WP01", "alice")
+        rc = _claim_via(kind, mission, "WP01", "alice")
     finally:
         release.set()
         holder.join(WAIT_SECONDS)
 
-    envelope = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    out = capsys.readouterr().out
     assert rc == 1
-    assert envelope["success"] is False
-    assert envelope["error_code"] == "STATUS_LOCK_HELD"
-    assert envelope["data"]["wp_id"] == "WP01"
-    assert "Timed out acquiring status lock" in envelope["data"]["message"]
+    assert "STATUS_LOCK_HELD" in out
+    assert "Timed out acquiring status lock" in out
+    if kind == _ORCHESTRATOR:
+        envelope = json.loads(out.strip().splitlines()[-1])
+        assert envelope["success"] is False
+        assert envelope["error_code"] == "STATUS_LOCK_HELD"
+        assert envelope["data"]["wp_id"] == "WP01"
+    else:
+        assert "allocation failed" not in out

@@ -234,9 +234,14 @@ def _sync_lane_or_revert(
                 # is the finished state (still restore status.json); a non-empty one must be
                 # exactly the claim's rows, so a foreign row makes the rollback refuse.
                 reverted = appended_event_ids(rollback_point) == []
-                outcome = w._restore_status_artifacts(
-                    rollback_point=rollback_point, repo_root=repo_root, expected_event_ids=None if reverted else claim_event_ids
-                )
+                if reverted or claim_event_ids is not None:
+                    outcome = w._restore_status_artifacts(
+                        rollback_point=rollback_point, repo_root=repo_root, expected_event_ids=None if reverted else claim_event_ids
+                    )
+                else:
+                    # The claim's rows could not be read as whole rows while the lock was held, so
+                    # there is no ownership proof for what follows the capture point: cut nothing.
+                    outcome = RollbackOutcome(rolled_back=False, refusal=RollbackRefusal.TAIL_UNPARSEABLE, events_path=rollback_point.events_path)
             # A rows-still-committed tail means the revert left the claim in place: the
             # output says "committed", so the receipt stays committed too.
             if outcome.refusal is not RollbackRefusal.TAIL_ALREADY_COMMITTED:
@@ -425,6 +430,17 @@ def commit_workflow_change(
             error_prefix=f"Error: Failed to commit workflow status update for {wp_id}",
             include_recovery_note=True,
         )
+
+
+def claim_status_dir(main_repo_root: Path, mission_slug: str) -> Path:
+    """The status write surface a claim locks on (#5819): the one key both claim paths share.
+
+    ``agent action implement`` and ``implement`` must take the same Mission write lock for one
+    Mission, so both key it on this directory's name (the coordination worktree's Mission
+    directory on a coord Mission, which can differ from the primary directory name).
+    """
+    status_dir: Path = _wf()._canonical_status_feature_dir(main_repo_root, mission_slug)
+    return status_dir
 
 
 def enter_checkout_claim_lock(stack: ExitStack, main_repo_root: Path, mission_slug: str, workspace: ResolvedWorkspace) -> None:
@@ -1081,7 +1097,7 @@ def implement_claim_transition(
     Mission), so no other writer can append between the capture and the rollback.
     The wait is unbounded, like the review window.
     """
-    wf_feature_dir = _wf()._canonical_status_feature_dir(main_repo_root, mission_slug)
+    wf_feature_dir = claim_status_dir(main_repo_root, mission_slug)
     with ExitStack() as hold:
         hold.enter_context(mission_write_lock(mission_write_lock_dir(main_repo_root, mission_slug), repo_root=main_repo_root, timeout=UNBOUNDED_LOCK_WAIT))
         return _implement_claim_transition_body(

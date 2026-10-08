@@ -107,7 +107,7 @@ from kernel.clock import now_utc_iso
 # ``blocked`` or ``error`` (or ``success`` is false) instead of emitting success.
 # 1.13.0: ``start-implementation`` can newly fail with ``STATUS_LOCK_HELD`` (#5819):
 # the single_branch write-checkout claim lock stayed held by another claimant past its
-# bound (or was requested out of lock order). It used to escape as a traceback. The
+# bound. It used to escape as a traceback. The
 # failure ``data`` carries the mission identity, ``wp_id`` and ``message`` (and
 # ``lock_timeout_seconds`` for a timeout). A new ``error_code`` on an existing verb, so
 # a minor bump; no field is removed or renamed.
