@@ -54,7 +54,6 @@ __all__ = [
     "BranchIdentityUnresolved",
     "InvalidMissionIdentity",
     "LEGACY_FAILOVER_SUPPRESS_ENV",
-    "MissionLockKeyUnresolved",
     "PLANNING_LANE_ID",
     "code_lane_branch_name",
     "coord_branch_name",
