@@ -204,7 +204,8 @@
         "Forced only because the stream claim has no claim base; commits 5b4a8c857..9651145e2 merged from stream/runtime. next reads built-in runtime templates from the pack via builtin_missions_root(); src runtime copies deleted; ledger 23->22; query mode reads the frozen template; per-type parity fixture recorded first.",
         "Stream B WP06 rework cycle 1",
         "Stream B WP06 rework cycle 1",
-        "Cycle 1 fixes 4145ca7dc, 20c248139 (merged): format fix; mission_loader first write checks, reads and writes in one mission_write_lock region with a red-first concurrent-creator test; software-dev pack comment path and 'mission completeness' wording. Forced only because the stream claim has no claim base."
+        "Cycle 1 fixes 4145ca7dc, 20c248139 (merged): format fix; mission_loader first write checks, reads and writes in one mission_write_lock region with a red-first concurrent-creator test; software-dev pack comment path and 'mission completeness' wording. Forced only because the stream claim has no claim base.",
+        "Cycle 2 approved: loader first meta write locked (overlap test red with lock no-op'd, green 5/5), whole-repo ruff format clean, parity + terminology + layer rules + provenance green (307 passed), pack wording/comment restored, mypy/ruff clean."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
