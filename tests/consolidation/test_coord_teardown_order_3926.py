@@ -188,6 +188,7 @@ def test_a_leg_that_does_not_come_down_raises_instead_of_flattening(coord_repo_w
 def test_teardown_folds_coord_seed_events_onto_primary(coord_repo_with_live_worktree: Path) -> None:
     """A late coord-only seed must be committed before its branch is removed (#3272)."""
     repo = coord_repo_with_live_worktree
+    _git(repo, "branch", "-m", "main")
     coord_path = repo / ".worktrees" / coord_dir_name(_SLUG, mid8=_MID8)
     coord_dir = coord_path / "kitty-specs" / _SLUG
     coord_dir.mkdir(parents=True)
@@ -216,6 +217,8 @@ def test_teardown_folds_coord_seed_events_onto_primary(coord_repo_with_live_work
     primary_log = repo / "kitty-specs" / _SLUG / "status.events.jsonl"
     assert "01M1VRA2ZSEED00000000000000" in primary_log.read_text()
     assert "01M1VRA2ZSEED00000000000000" in _git(repo, "show", f"HEAD:kitty-specs/{_SLUG}/status.events.jsonl").stdout
+
+
 def test_teardown_reads_identity_from_the_primary_metadata_not_the_status_dir(
     coord_repo_with_live_worktree: Path,
 ) -> None:

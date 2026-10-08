@@ -50,6 +50,7 @@ from specify_cli.consolidation.bookkeeping_projection import (
     _post_checkpoint_mission_paths,
     _project_status_bookkeeping_to_target,
     _resolve_ref_sha,
+    assert_alias_events_preserved,
 )
 from specify_cli.consolidation.state import (
     save_state,
@@ -367,6 +368,37 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     console.print(f"  Projected the coordination commit(s) that landed during teardown onto {target}")
 
 
+def _fold_coord_status_before_flatten(run: _MergeRunState) -> None:
+    """Commit every coord status event to the primary corpus before deleting its branch."""
+    source = run.feature_dir / "status.events.jsonl"
+    target = run.target_feature_dir / "status.events.jsonl"
+    if source == target or not source.is_file() or not source.read_bytes().strip():
+        return
+    try:
+        events_path, status_path = _project_status_bookkeeping_to_target(
+            main_repo=run.main_repo,
+            mission_slug=run.mission_slug,
+            status_feature_dir=run.feature_dir,
+        )
+        assert_alias_events_preserved(alias_events_path=source, primary_events_path=events_path)
+        paths = [events_path, status_path]
+        if _paths_have_status_changes(run.main_repo, paths):
+            landed = commit_merge_bookkeeping(
+                repo_root=run.main_repo,
+                worktree_root=run.main_repo,
+                mission_slug=run.mission_slug,
+                branch=run.lanes_manifest.target_branch,
+                destination_ref_override=run.lanes_manifest.target_branch,
+                message=f"chore({run.mission_slug}): fold coordination status before flatten (#3272)",
+                paths=tuple(paths),
+            )
+            _carry_pass_anchor_over_own_commit(run, landed.sha)
+    except Exception as exc:
+        raise CoordinationTeardownError(
+            f"coordination status could not be folded onto {run.lanes_manifest.target_branch!r}; the coordination branch and flatten marker were left intact"
+        ) from exc
+
+
 def _teardown_coord_worktree(run: _MergeRunState) -> str | None:
     """Coordination worktree teardown (WP07/FR-016/SC-10).
 
@@ -473,6 +505,7 @@ def _teardown_coordination_triple(run: _MergeRunState) -> None:
     # window opens -- the gate's tip when one ran, else the tip read now, ahead of
     # the persist/worktree-destroy legs. A commit landing in between survives.
     _land_late_coordination_commits(run)
+    _fold_coord_status_before_flatten(run)
     pre_teardown_tip = _mission_branch_tip(run)
     approved_tip = _teardown_coord_worktree(run) or pre_teardown_tip
     if not _delete_mission_branch(run, approved_tip):
