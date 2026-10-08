@@ -33,7 +33,7 @@ from ruamel.yaml.error import YAMLError
 from charter.offering.artifact_kinds import DIRECT_WRITE_KINDS, ArtifactKind, PROJECT_KIND_DIRS
 from charter.offering.drg.migration.id_normalizer import artifact_to_urn
 from charter.offering.drg.models import DRGEdge, DRGNode, NodeKind, Relation, is_valid_urn
-from kernel.charter_pack_paths import resolve_project_pack_read_root
+from kernel.charter_pack_paths import project_pack_root
 
 # ``MalformedProjectProfileError`` is intentionally NOT exported here: it is a
 # fail-loud exception meant to *propagate* (never caught inside src/), so adding
@@ -72,7 +72,7 @@ class MalformedProjectProfileError(ValueError):
 
 def _profiles_dir(project_root: Path) -> Path:
     kind_dir: str = PROJECT_KIND_DIRS[_AGENT_PROFILE_KIND]
-    return resolve_project_pack_read_root(project_root, quiet=True) / kind_dir
+    return project_pack_root(project_root) / kind_dir
 
 
 def _load_profile_mapping(path: Path) -> dict[str, Any]:
@@ -197,7 +197,7 @@ def scan_project_artifacts(
     kinds = DIRECT_WRITE_KINDS
     artifacts: list[ProjectArtifact] = []
     seen: dict[str, Path] = {}
-    pack_root = resolve_project_pack_read_root(project_root, quiet=True)
+    pack_root = project_pack_root(project_root)
     for kind_name, schema in zip(kinds, schemas, strict=True):
         kind = ArtifactKind(kind_name)
         directory = pack_root / PROJECT_KIND_DIRS[kind]

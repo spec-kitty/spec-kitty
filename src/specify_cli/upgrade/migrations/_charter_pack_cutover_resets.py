@@ -147,7 +147,7 @@ def _id_set(key: str, value: Sequence[Any]) -> frozenset[str] | None:
 
 def _absent_meaning(key: str) -> str:
     """What the key's absence means, for the warning text."""
-    from charter.offering.artifact_kinds import ArtifactKind
+    from charter.drg import ArtifactKind
 
     plural = key.removeprefix(_KEY_PREFIX)
     noun = plural.replace("_", " ")

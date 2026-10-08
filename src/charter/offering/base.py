@@ -1,11 +1,11 @@
-"""Generic three-source loading base class for all doctrine asset repositories.
+"""Generic three-source loading base class for all charter offering repositories.
 
-All doctrine sub-repositories share an identical ``_load()`` pattern:
+All offering repositories share an identical ``_load()`` pattern:
 walk a built-in YAML directory (rglob), optionally walk an org override
 directory (glob), optionally walk a project override directory (glob),
 parse each file with Pydantic ``model_validate``, merge overrides into
 built-in instances at field level, and warn on bad files.
-``BaseDoctrineRepository[T]`` captures that pattern once.
+``BaseArtifactRepository[T]`` captures that pattern once.
 
 The loading order is: built-in → org → project, where each subsequent layer
 can override or add artifacts from the previous layers.
@@ -46,8 +46,8 @@ from charter.offering.yaml_utils import parse_shipped_yaml
 T = TypeVar("T", bound=BaseModel)
 
 
-class DoctrineLayerCollisionWarning(UserWarning):
-    """Emitted when a higher doctrine layer shadows an artifact from a lower layer.
+class ArtifactLayerCollisionWarning(UserWarning):
+    """Emitted when a higher layer (project > org > built-in) shadows an artifact from a lower layer.
 
     Field-level merge semantics apply (see ADR
     ``docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md``):
@@ -68,22 +68,22 @@ def _emit_collision_warning(
     higher_data: dict[str, Any],
     lower_dump: dict[str, Any],
 ) -> None:
-    """Emit a DoctrineLayerCollisionWarning for a single artifact ID collision."""
+    """Emit an ArtifactLayerCollisionWarning for a single artifact ID collision."""
     higher_keys = set(higher_data.keys())
     lower_keys = set(lower_dump.keys())
     replaced = len(higher_keys & lower_keys)
     inherited = len(lower_keys - higher_keys)
     warnings.warn(
-        f"Doctrine override: {kind} {item_id} from {higher_layer} shadowed "
+        f"Artifact override: {kind} {item_id} from {higher_layer} shadowed "
         f"{lower_layer} ({replaced} field(s) replaced; "
         f"{inherited} field(s) inherited).",
-        DoctrineLayerCollisionWarning,
+        ArtifactLayerCollisionWarning,
         stacklevel=3,
     )
 
 
-class BaseDoctrineRepository(ABC, Generic[T]):
-    """Abstract base for all doctrine asset repositories.
+class BaseArtifactRepository(ABC, Generic[T]):
+    """Abstract base for all charter offering repositories.
 
     Provides the three-source loading pattern (built-in rglob + org glob + project glob)
     with field-level merge semantics and warning emission on bad files.
@@ -156,8 +156,8 @@ class BaseDoctrineRepository(ABC, Generic[T]):
     def _project_scan(self, project_dir: Path) -> list[Path]:
         """Return the org/project overlay YAML files to load.
 
-        Recursion is sourced from the single doctrine recursion authority
-        (:func:`doctrine.discovery_recursion.overlay_scan_is_recursive`),
+        Recursion is sourced from the single overlay recursion authority
+        (:func:`charter.offering.discovery_recursion.overlay_scan_is_recursive`),
         unconditional per C-001, so org/project overlays discover nested
         artifacts with the same completeness as the built-in tier's ``rglob``
         (:meth:`_load_built_in_items`). The kind-specific ``self._glob`` (C-002)
@@ -239,7 +239,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         higher_layer: str,
         higher_data: dict[str, Any],
     ) -> None:
-        """Emit a DoctrineLayerCollisionWarning iff ``item_id`` is already loaded.
+        """Emit an ArtifactLayerCollisionWarning iff ``item_id`` is already loaded.
 
         Called at write time before ``self._items[item_id]`` is overwritten so
         the lower-layer dump is still available for field-count accounting.
@@ -272,7 +272,7 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         + merge-or-insert against ``built_in``. Tag every resulting item with the given
         layer_name as provenance.
 
-        Emits a ``DoctrineLayerCollisionWarning`` whenever an overlay artifact
+        Emits an ``ArtifactLayerCollisionWarning`` whenever an overlay artifact
         shadows an already-loaded artifact from a lower layer (FR-003 wording
         per ADR 2026-05-16-1).
 
@@ -453,4 +453,4 @@ class BaseDoctrineRepository(ABC, Generic[T]):
         return frozenset(self._scope_filtered_ids)
 
 
-__all__ = ["BaseDoctrineRepository"]
+__all__ = ["BaseArtifactRepository"]

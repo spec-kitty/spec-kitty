@@ -4,14 +4,14 @@ Rules are stated once, in one owner, and every other artifact references the
 owner by id. Trimming a copy can remove the only path that carried an owner
 into an agent's context, so this guard checks the owners through the SAME
 resolution ``charter context --action`` uses: the action doctrine bundle
-(``_load_action_doctrine_bundle``: shipped DRG -> activation filter ->
+(``_load_action_governance_bundle``: shipped DRG -> activation filter ->
 ``resolve_context``) for ``software-dev`` implement and review, at both the
 compact (d=1) and bootstrap (d=2) depths.
 
 Two activation profiles are pinned:
 
 * ``default-pack`` -- a project whose ``.kittify/config.yaml`` is the shipped
-  ``src/charter/activation/packs/default.yaml``;
+  built-in ``default`` preset (``packs/built-in/presets/default.yaml``);
 * ``unfiltered`` -- no activation filter (``pack_context=None``), i.e. every
   built-in artifact admitted, which is where the DRG edges themselves are
   measured.
@@ -39,7 +39,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.activation.action_doctrine_bundle import _load_action_doctrine_bundle
+from charter.activation.action_governance_bundle import _load_action_governance_bundle
 from charter.activation.pack_context import PackContext
 from charter.offering.drg.loader import load_built_in_graph
 from charter.offering.drg.models import Relation
@@ -47,7 +47,7 @@ from charter.offering.drg.models import Relation
 pytestmark = [pytest.mark.doctrine]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_PACK = _REPO_ROOT / "src/charter/activation/packs/default.yaml"
+_DEFAULT_PACK = _REPO_ROOT / "packs/built-in/presets/default.yaml"
 
 _SQUAD = "procedure:adversarial-squad-deployment"
 
@@ -90,7 +90,7 @@ def _delivered(tmp_path: Path, *, profile: str, action: str, depth: int) -> froz
     (root / ".kittify").mkdir(parents=True, exist_ok=True)
     (root / ".kittify" / "config.yaml").write_text(_DEFAULT_PACK.read_text(encoding="utf-8"), encoding="utf-8")
     pack_context = PackContext.from_config(root) if profile == "default-pack" else None
-    bundle = _load_action_doctrine_bundle(
+    bundle = _load_action_governance_bundle(
         repo_root=root,
         action=action,
         effective_depth=depth,
@@ -123,9 +123,9 @@ def test_directive_052_is_carried_by_test_first_bug_fixing(tmp_path: Path) -> No
 
 def test_disposition_contract_ships_inside_the_delivered_procedure() -> None:
     """The contract is part of the procedure, so procedure delivery carries it."""
-    from charter.offering.service import DoctrineService
+    from charter.offering.service import CharterOfferingService
 
-    procedure = DoctrineService().procedures.get("adversarial-squad-deployment")
+    procedure = CharterOfferingService().procedures.get("adversarial-squad-deployment")
     assert procedure is not None
     text = procedure.model_dump_json()
     for disposition in ("accepted", "changed", "deferred_with_rationale"):

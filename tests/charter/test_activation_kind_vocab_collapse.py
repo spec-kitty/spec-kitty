@@ -51,7 +51,7 @@ class _Repo:
 
 
 class _Service:
-    """Minimal DoctrineService double exposing only a glossary_packs repo."""
+    """Minimal ActiveCharterService double exposing only a glossary_packs repo."""
 
     def __init__(self) -> None:
         self.glossary_packs = _Repo({"spec-kitty-core"})

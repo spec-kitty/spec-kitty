@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from charter.activation.context import _ActionDoctrineBundle
+from charter.activation.context import _ActionGovernanceBundle
 from charter.activation.context_renderers.bootstrap_text import _render_action_doctrine_lines
 from charter.offering.glossary_packs.models import GlossaryPack, GlossaryTerm
 
@@ -60,8 +60,8 @@ class _Service:
         self.glossary_packs = _GlossaryRepo(pack)
 
 
-def _bundle(pack: GlossaryPack) -> _ActionDoctrineBundle:
-    return _ActionDoctrineBundle(
+def _bundle(pack: GlossaryPack) -> _ActionGovernanceBundle:
+    return _ActionGovernanceBundle(
         mission="software-dev",
         directive_ids=[],
         tactic_ids=[],
@@ -107,7 +107,7 @@ def test_org_sourced_pack_renders_identically_to_builtin() -> None:
 
 def test_no_glossary_ids_renders_no_glossary_block() -> None:
     """Byte-stability: a bundle with no glossary ids emits nothing new."""
-    bundle = _ActionDoctrineBundle(
+    bundle = _ActionGovernanceBundle(
         mission="software-dev",
         directive_ids=[],
         tactic_ids=[],

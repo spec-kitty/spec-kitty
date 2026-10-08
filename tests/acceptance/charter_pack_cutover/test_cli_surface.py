@@ -20,8 +20,8 @@ import pytest
 from click.testing import Result
 
 from ._requirements import REPO_ROOT
-from ._support import covers, describe, output_of, pending_until, read_json_output, run_cli
-from .legacy_fixtures import build_doctrine_command_fixture, project_from_template, upgraded_copy, write_doctrine_pack
+from ._support import covers, describe, output_of, read_json_output, run_cli
+from .legacy_fixtures import MISSION_TYPES, build_doctrine_command_fixture, finish, project_from_template, upgraded_copy, write_doctrine_pack
 
 FIXTURES_ROOT = REPO_ROOT / "tests" / "fixtures" / "charter_pack_cutover"
 CLI_BEFORE = FIXTURES_ROOT / "cli_before.json"
@@ -46,7 +46,7 @@ class Leaf:
 #: research/runtime-seams.md §4 + contracts/cli.md command map. Data only (imported by the generator).
 DOCTRINE_LEAVES: tuple[Leaf, ...] = (
     Leaf("fetch", ("doctrine", "fetch"), ("charter", "fetch"), (r"Pack 'acme': \d+ artifacts",), None),
-    Leaf("regenerate_graph", ("doctrine", "regenerate-graph", "--check"), ("charter", "pack", "regenerate-graph", "--check"), (r"DRG graph is fresh",), "WP15"),
+    Leaf("regenerate_graph", ("doctrine", "regenerate-graph", "--check"), ("charter", "pack", "regenerate-graph", "--check"), (r"DRG graph is fresh",), None),
     Leaf("new", ("doctrine", "new", "tactic", "fixture-new-tactic"), ("charter", "new", "tactic", "fixture-new-tactic"), (r"Created stub artifact",), None),
     Leaf(
         "validate",
@@ -55,13 +55,13 @@ DOCTRINE_LEAVES: tuple[Leaf, ...] = (
         (r"\d+ artifact\(s\) passed validation",),
         None,
     ),
-    Leaf("pack_validate", ("doctrine", "pack", "validate", "orgpack"), ("charter", "pack", "validate", "orgpack"), (r"Pack validation: 0 errors",), "WP15"),
+    Leaf("pack_validate", ("doctrine", "pack", "validate", "orgpack"), ("charter", "pack", "validate", "orgpack"), (r"Pack validation: 0 errors",), None),
     Leaf(
         "pack_assemble",
         ("doctrine", "pack", "assemble", "assembled", "orgpack"),
         ("charter", "pack", "assemble", "assembled", "orgpack"),
         (r"Assembled 1 pack",),
-        "WP15",
+        None,
     ),
     Leaf("org_init", ("doctrine", "org", "init", "scaffolded-pack"), ("charter", "org", "init", "scaffolded-pack"), (r"Org pack scaffolded at",), None),
     Leaf("org_validate", ("doctrine", "org", "validate", "orgpack"), ("charter", "org", "validate", "orgpack"), (r"Pack validation: 0 errors",), None),
@@ -72,16 +72,16 @@ DOCTRINE_LEAVES: tuple[Leaf, ...] = (
         (r"software-dev", r"documentation", r"research", r"plan"),
         None,
     ),
-    Leaf("asset_list", ("doctrine", "asset", "list"), ("charter", "pack", "asset", "list"), (r"common-docs-structural-lint",), "WP15"),
+    Leaf("asset_list", ("doctrine", "asset", "list"), ("charter", "pack", "asset", "list"), (r"common-docs-structural-lint",), None),
     Leaf(
         "asset_path",
         ("doctrine", "asset", "path", "common-docs-structural-lint"),
         ("charter", "pack", "asset", "path", "common-docs-structural-lint"),
         (r"docs_structural_lint\.py",),
-        "WP15",
+        None,
     ),
-    Leaf("consistency_check", ("charter", "pack", "consistency-check"), ("charter", "consistency-check"), (r"coherent",), "WP15"),
-    Leaf("doctor", ("doctor", "doctrine", "--json"), ("doctor", "charter-packs", "--json"), (), "WP15", json_keys=True),
+    Leaf("consistency_check", ("charter", "pack", "consistency-check"), ("charter", "consistency-check"), (r"coherent",), None),
+    Leaf("doctor", ("doctor", "doctrine", "--json"), ("doctor", "charter-packs", "--json"), (), None, json_keys=True),
 )
 
 
@@ -118,12 +118,8 @@ def json_key_set(payload: object) -> list[str]:
 
 
 #: Literal markers (test_traceability requires a literal WP id at every call site).
-_FR006_PENDING = {"WP15": pending_until("WP15", "charter home of a former doctrine leaf (FR-006)")}
-_FR007_PENDING = {
-    "WP13": pending_until("WP13", "`charter pack apply` removed (FR-005)"),
-    "WP15": pending_until("WP15", "old spelling removed with its charter home (FR-006)"),
-    "WP16": pending_until("WP16", "`spec-kitty doctrine` group removed (FR-007)"),
-}
+_FR006_PENDING: dict[str, pytest.MarkDecorator] = {}
+_FR007_PENDING: dict[str, pytest.MarkDecorator] = {}
 
 
 def _leaf_param(leaf: Leaf) -> object:
@@ -183,7 +179,6 @@ OLD_SPELLINGS = ("spec-kitty doctrine", "doctor doctrine")
 
 @covers("FR-006", "EC:Saved script calling `spec-kitty doctrine fetch`")
 @pytest.mark.corpus
-@pending_until("WP15", "in-repo callers move to the charter spellings")
 def test_fr006_in_repo_callers_use_charter_spellings() -> None:
     files = [REPO_ROOT / rel for rel in IN_REPO_CALLERS]
     files += sorted(p for p in (REPO_ROOT / "packs" / "internal").rglob("*") if p.is_file() and p.suffix in {".md", ".yaml", ".yml", ".py"})
@@ -205,6 +200,9 @@ class Removed:
     old: tuple[str, ...]
     new: tuple[str, ...]
     pending: str
+    #: Run the replacement on a project with no org pack: the doctrine-command fixture declares an
+    #: org pack it never fetches, and a preset's id check reads the whole offering (PRESET_ID_UNRESOLVED).
+    plain_control: bool = False
 
 
 def _removed_rows() -> list[Removed]:
@@ -214,7 +212,11 @@ def _removed_rows() -> list[Removed]:
             rows.append(Removed(leaf.key, leaf.old, leaf.new, "WP15"))
         else:
             rows.append(Removed(leaf.key, leaf.old, leaf.new, "WP16"))
-    rows.append(Removed("charter_pack_apply", ("charter", "pack", "apply", "minimal"), ("charter", "activate", "--preset", "minimal", "--force"), "WP13"))
+    rows.append(
+        Removed(
+            "charter_pack_apply", ("charter", "pack", "apply", "minimal"), ("charter", "activate", "--preset", "minimal", "--force"), "WP13", plain_control=True
+        )
+    )
     return rows
 
 
@@ -233,7 +235,7 @@ def _expected_replacement_exit(row: Removed) -> int:
 @pytest.mark.git_repo
 @pytest.mark.parametrize(
     "row",
-    [pytest.param(r, id=r.key, marks=_FR007_PENDING[r.pending]) for r in _removed_rows()],
+    [pytest.param(r, id=r.key, marks=_FR007_PENDING.get(r.pending, ())) for r in _removed_rows()],
 )
 def test_fr007_old_spelling_exits_2(row: Removed, tmp_path: Path) -> None:
     project = build_doctrine_command_fixture(tmp_path / "doctrine-commands")
@@ -243,7 +245,8 @@ def test_fr007_old_spelling_exits_2(row: Removed, tmp_path: Path) -> None:
     # Control: the replacement runs on the same fixture (a hidden alias would exit 0 above). A
     # former leaf must exit with the code recorded for it at base (SC-004; `doctor doctrine` exits 1
     # on this fixture because its org pack is not fetched); the other rows exit 0.
-    new = run_cli(list(row.new), project)
+    control = finish(tmp_path / "plain", {"mission_type_activations": MISSION_TYPES}) if row.plain_control else project
+    new = run_cli(list(row.new), control)
     assert UNKNOWN_COMMAND not in output_of(new), describe(new)
     assert new.exit_code == _expected_replacement_exit(row), describe(new)
 
@@ -281,7 +284,6 @@ def _scan_src(names: Sequence[str], modules: Sequence[str], root: Path) -> list[
 
 
 @covers("FR-005")
-@pending_until("WP13", "preset registry modules retired")
 def test_fr005_registry_modules_not_importable(tmp_path: Path) -> None:
     # Positive control for the scan: a planted definition is found.
     planted = tmp_path / "planted"
@@ -304,7 +306,6 @@ def _retired_reader_findings(root: Path) -> list[str]:
 
 
 @covers("FR-005")
-@pending_until("WP13", "no reader of the retired default.yaml surfaces")
 def test_fr005_no_default_yaml_reader_outside_migration_data(tmp_path: Path) -> None:
     planted = tmp_path / "planted"
     planted.mkdir()
@@ -320,7 +321,6 @@ def test_fr005_no_default_yaml_reader_outside_migration_data(tmp_path: Path) -> 
 
 @covers("US3-4", "OD-2", "FR-005")
 @pytest.mark.integration
-@pending_until("WP15", "`charter pack validate` rejects accompanies_doctrine_pack")
 def test_us3_4_accompanies_field_rejected(tmp_path: Path) -> None:
     good = write_doctrine_pack(tmp_path / "good")
     (good / "pack.yaml").write_text("pack_id: acme\npack_version: 1.0.0\nname: acme\n", encoding="utf-8")
@@ -386,7 +386,7 @@ def _gated_commands() -> list[tuple[str, ...]]:
 def _legacy_invocations() -> list[object]:
     covered = {*_gated_groups(), *_gated_commands()}
     rows = [*_gated_groups(), *_gated_commands(), *(p for p in HOT_PATHS if p not in covered)]
-    return [pytest.param(argv, id="-".join(argv), marks=pending_until("WP14", "CLI-root legacy gate")) for argv in rows]
+    return [pytest.param(argv, id="-".join(argv)) for argv in rows]
 
 
 def _assert_names_upgrade(result: Result) -> None:
@@ -427,7 +427,6 @@ def test_fr011_exempt_invocations(argv: tuple[str, ...], tmp_path: Path) -> None
 @covers("FR-011", "EC:Lane worktrees created before the upgrade")
 @pytest.mark.integration
 @pytest.mark.git_repo
-@pending_until("WP14", "the gate also checks the current checkout root")
 def test_fr011_stale_worktree_checkout_detected(tmp_path: Path) -> None:
     project = project_from_template("two_org_packs", tmp_path / "root")
     from ._support import git
@@ -451,7 +450,6 @@ RETIRED_SHIM_NAMES = ("LegacyDoctrineRootWarning", "LegacyTrackerOwnershipKeyWar
 
 @covers("FR-011")
 @pytest.mark.integration
-@pending_until("WP14", "read-side shims removed")
 def test_fr011_shims_removed(tmp_path: Path) -> None:
     src_text = "\n".join(p.read_text(encoding="utf-8") for p in sorted((REPO_ROOT / "src").rglob("*.py")))
     # Control: the scan reads real source (a definition no work package of this mission touches).
@@ -465,19 +463,19 @@ def test_fr011_shims_removed(tmp_path: Path) -> None:
 
 
 @covers("FR-011")
-@pending_until("WP14", "load_governance_config fails closed on governance.doctrine")
 def test_fr011_load_governance_config_fails_closed(tmp_path: Path) -> None:
     project = project_from_template("governance_doctrine_in_charter_yaml", tmp_path / "p")
     sync = importlib.import_module("charter.activation.sync")
-    with pytest.raises(Exception, match="spec-kitty upgrade"):
+    with pytest.raises(Exception, match="ACTIVE_CHARTER_CONFIG_INVALID") as caught:
         sync.load_governance_config(project)
+    # The error keeps its shape (str is the code, contracts/errors.md); the remedy is in .body.
+    assert "spec-kitty upgrade" in getattr(caught.value, "body", str(caught.value)), caught.value
     # Control: the canonical key loads.
     canonical = project_from_template("two_org_packs", tmp_path / "c")
     assert sync.load_governance_config(canonical) is not None
 
 
 @covers("FR-011")
-@pending_until("WP14", "PackContext.from_config stays total on a legacy project")
 def test_fr011_pack_context_from_config_total(tmp_path: Path) -> None:
     pack_context = importlib.import_module("charter.activation.pack_context")
     legacy = project_from_template("legacy_keys_only", tmp_path / "legacy")

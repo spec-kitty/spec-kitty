@@ -2,9 +2,10 @@
 
 Covers :mod:`charter.offering.packs.pack_lineage`: the ``pack_id -> resolvable
 key`` adapter that feeds ``extends.resolve_extends_order`` (no second
-walker, C-002/NFR-001), fail-closed rejection of unresolvable
-``parent_pack``/``accompanies_doctrine_pack`` edges, and the FR-007 positive
-read-back for ``accompanies_doctrine_pack``.
+walker, C-002/NFR-001) and fail-closed rejection of an unresolvable
+``parent_pack`` edge. (The ``accompanies_doctrine_pack`` binding was retired,
+#3732; its rejection is covered by
+``tests/charter/test_retired_accompanies_doctrine_pack.py``.)
 
 All fixtures are plain in-memory dicts (``pack_id -> name`` / ``pack_id ->
 parent pack_id``) -- this lane is decoupled from sibling work packages'
@@ -21,9 +22,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 from charter.offering.packs.extends import resolve_extends_order
 from charter.offering.packs.pack_lineage import (
     PackLineageCycleError,
-    UnresolvedDoctrinePackError,
     UnresolvedPackParentError,
-    resolve_accompanying_doctrine_pack,
     resolve_pack_lineage_order,
 )
 
@@ -113,34 +112,3 @@ class TestFailClosedParentPack:
             resolve_pack_lineage_order("id-a", parent_edges, pack_names)
         assert exc.value.cycle_path[0] == exc.value.cycle_path[-1]
         assert set(exc.value.cycle_path) == {"id-a", "id-b"}
-
-
-class TestResolveAccompanyingDoctrinePack:
-    """T012b: accompanies_doctrine_pack -- fail-closed + FR-007 positive read-back."""
-
-    def test_unset_binding_resolves_to_none(self) -> None:
-        resolved = resolve_accompanying_doctrine_pack(
-            "id-charter",
-            accompanies_doctrine_pack=None,
-            known_pack_ids={"id-charter", "id-doctrine"},
-        )
-        assert resolved is None
-
-    def test_set_binding_resolves_to_its_target(self) -> None:
-        """FR-007 positive read-back (US2 scenario 3): resolves at the pack level."""
-        resolved = resolve_accompanying_doctrine_pack(
-            "id-charter",
-            accompanies_doctrine_pack="id-doctrine",
-            known_pack_ids={"id-charter", "id-doctrine"},
-        )
-        assert resolved == "id-doctrine"
-
-    def test_unknown_target_fails_closed(self) -> None:
-        with pytest.raises(UnresolvedDoctrinePackError) as exc:
-            resolve_accompanying_doctrine_pack(
-                "id-charter",
-                accompanies_doctrine_pack="id-nonexistent",
-                known_pack_ids={"id-charter"},
-            )
-        assert exc.value.charter_pack_id == "id-charter"
-        assert exc.value.target_pack_id == "id-nonexistent"

@@ -154,12 +154,12 @@ class ManifestSchemaError(Exception):
 _cache: dict[tuple[str, tuple[str, ...]], ExpectedArtifactManifest | None] = {}
 
 
-def _doctrine_repository() -> MissionTemplateRepository:
-    """Return the doctrine mission repository bound to the bundled doctrine tree.
+def _offering_template_repository() -> MissionTemplateRepository:
+    """Return the offering's mission template repository bound to the built-in tree.
 
     Lazy-friendly seam (mirrors the pre-relocation discipline in
     ``specify_cli.dossier.manifest``): the single authority for reading
-    ``<type>/expected-artifacts.yaml`` from the canonical doctrine mission
+    ``<type>/expected-artifacts.yaml`` from the canonical built-in mission
     tree. Tests monkeypatch this function (not ``MissionTemplateRepository``
     itself) to inject fixture content through the real ``load_manifest``
     call path -- see ``tests/dossier/test_manifest.py``'s
@@ -169,7 +169,7 @@ def _doctrine_repository() -> MissionTemplateRepository:
 
 
 def _resolve_existing_org_roots(repo_root: Path) -> list[Path]:
-    """Return configured org doctrine roots that exist on disk for *repo_root*.
+    """Return configured org Charter Pack roots that exist on disk for *repo_root*.
 
     Delegates to the shared
     :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots`
@@ -186,14 +186,14 @@ def _resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     # (pyproject.toml), so the lazily-imported `resolve_existing_org_roots`
     # resolves to `Any` regardless of its real (already `list[Path]`)
     # signature -- the same pre-existing gap affects the identical pattern in
-    # `charter.activation.doctrine_service_builder._self_resolve_existing_org_roots`.
+    # `charter.activation.active_charter_service_builder._self_resolve_existing_org_roots`.
     return cast("list[Path]", resolve_existing_org_roots(repo_root))
 
 
 def load_manifest(mission_type: str, repo_root: Path | None = None) -> ExpectedArtifactManifest | None:
-    """Load manifest for mission type from the canonical doctrine tree.
+    """Load manifest for mission type from the canonical built-in tree.
 
-    Reads ``<type>/expected-artifacts.yaml`` from the doctrine mission tree
+    Reads ``<type>/expected-artifacts.yaml`` from the built-in mission tree
     via :meth:`~charter.offering.missions.repository.MissionTemplateRepository.get_expected_artifacts`
     and adapts the returned ``ConfigResult`` into an
     :class:`~charter.offering.missions.expected_artifact_manifest.ExpectedArtifactManifest`.
@@ -266,7 +266,7 @@ def load_manifest(mission_type: str, repo_root: Path | None = None) -> ExpectedA
     if org_parsed is not None:
         return _validate_and_cache_org_manifest(mission_type, org_roots, org_parsed, cache_key)
 
-    config = _doctrine_repository().get_expected_artifacts(mission_type)
+    config = _offering_template_repository().get_expected_artifacts(mission_type)
 
     if config is None:
         logger.debug(f"Manifest not found for mission type: {mission_type}")

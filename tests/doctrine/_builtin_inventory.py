@@ -34,7 +34,7 @@ there is no 1:1 source file to glob. They are counted from the committed
 per-kind fragments (``action.graph.yaml`` / ``template.graph.yaml``) via a raw
 YAML parse (independent of the DRG loader's ``DRGGraph`` construction, so a
 deserialization drop still reds). Their **exact** cardinality/edge integrity is
-the job of ``spec-kitty doctrine regenerate-graph --check`` (committed
+the job of ``spec-kitty charter pack regenerate-graph --check`` (committed
 fragments == a fresh regeneration), not of a frozen literal here.
 
 Edges

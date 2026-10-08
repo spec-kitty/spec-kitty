@@ -316,3 +316,10 @@ def test_real_catalog_lists_shipped_skills() -> None:
     names = real_shipped_skill_names()
     assert "spk-run-next" in names
     assert "spec-kitty-constitution-doctrine" not in names
+
+
+def test_no_builtin_catalog_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without a shipped catalog nothing can tell which removed skills are still shipped: refuse, never guess."""
+    monkeypatch.setattr("specify_cli.skills.catalog.resolve_builtin_skill_catalog", lambda: None)
+    with pytest.raises(MigrationStateUnreadableError, match="no skill catalog.*spec-kitty upgrade"):
+        real_shipped_skill_names()

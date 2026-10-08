@@ -268,7 +268,7 @@ modules:
   - src/charter/offering/**
   - src/specify_cli/core/**
   - src/specify_cli/coordination/**
-  - src/specify_cli/doctrine_synthesizer/**
+  - src/specify_cli/charter_pack_synthesizer/**
   - src/specify_cli/status/**
   - src/specify_cli/tool_surface/**
   - src/specify_cli/zeitgeist_client/**
@@ -293,7 +293,7 @@ modules:
   - tests/coordination
   - tests/specify_cli/coordination
   - tests/decisions
-  - tests/doctrine_synthesizer
+  - tests/charter_pack_synthesizer
   - tests/specify_cli/tool_surface
   # ownership-boundary-preservation-01M32KEN: the new asset-preservation guard's
   # unit tests, claimed alongside its tool_surface sibling so they run per-PR.
@@ -488,10 +488,10 @@ out_of_matrix_test_dirs:
     (recursive descendants include the excluded tests/specify_cli/cli/commands AND the
     execution_context-claimed tests/specify_cli/cli/commands/agent -- illegal to claim as
     a test_dirs parent). This tree's drift-prone single-topic invariants were extracted to
-    8 always-on architectural gates: tests/architectural/test_lifted_cli_no_visible_feature_alias.py,
+    7 always-on architectural gates: tests/architectural/test_lifted_cli_no_visible_feature_alias.py,
     test_lifted_cli_doctrine_retirement.py, test_lifted_cli_bytecode_heal_startup.py,
     test_lifted_cli_accept_coord_surface_anchor.py, test_lifted_cli_accept_birth_cutover.py,
-    test_lifted_cli_terminal_control_sanitization.py, test_lifted_cli_doctrine_charter_cr02_compat.py,
+    test_lifted_cli_terminal_control_sanitization.py,
     test_lifted_cli_project_root_resolution.py. Accepted named gap: the residual behavioral
     files in this tree remain make test-full-only -- lifting covers the drift-prone
     invariants, not the full behavioral surface.

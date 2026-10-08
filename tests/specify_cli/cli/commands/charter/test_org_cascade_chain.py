@@ -57,7 +57,7 @@ def _write_org_pack_config(project_root: Path, packs: list[tuple[str, str]]) -> 
     Carries ``mission_type_activations`` (WP04, C-A1): ``PackContext.from_config``
     fails closed without it.
     """
-    lines: list[str] = ["doctrine:", "  org:", "    packs:"]
+    lines: list[str] = ["charter_packs:", "  org:", "    packs:"]
     for name, local_path in packs:
         lines.append(f"      - name: {name}")
         lines.append(f"        local_path: {local_path}")
@@ -308,10 +308,10 @@ class TestIdMappingWideningNonVacuous:
 
         real_resolve_config_id = cascade_shared_mod.resolve_config_id
 
-        def _resolve_config_id_without_org_roots(urn, *, doctrine_root, org_roots=None, layer_roots=None, resolution_pass=None):
+        def _resolve_config_id_without_org_roots(urn, *, offering_root, org_roots=None, layer_roots=None, resolution_pass=None):
             del org_roots  # pre-T008 shape: never received the chain.
             return real_resolve_config_id(
-                urn, doctrine_root=doctrine_root, layer_roots=layer_roots, resolution_pass=resolution_pass
+                urn, offering_root=offering_root, layer_roots=layer_roots, resolution_pass=resolution_pass
             )
 
         monkeypatch.setattr(

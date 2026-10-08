@@ -1,13 +1,13 @@
 """Projection seam: derive ``action_sequence`` / ``template_set`` from steps.
 
-Single canonical, doctrine-layer seam (S-B, WP02; retired the persisted
+Single canonical, offering-layer seam (S-B, WP02; retired the persisted
 ``MissionType.template_set`` field entirely in the S-C atomic cutover,
 mission-step-creatability-01KXQA6R WP01). **Every** consumer -- the
 charter/runtime seam (:func:`charter.activation.mission_type_profiles._resolve_template_set_slot`)
 and the (future, FR-009) DRG extractor pass -- imports *this* module and
 its :func:`iter_template_refs` helper, never a second copy, never
 independently re-derived downstream (C-003, "one ordering authority: every
-consumer switches"). Layering: this module lives in ``doctrine`` and is
+consumer switches"). Layering: this module lives in ``charter.offering`` and is
 imported *by* the charter layer, never the reverse -- no layering
 inversion.
 

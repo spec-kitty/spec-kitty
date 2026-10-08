@@ -24,7 +24,7 @@ freshness signal onto derived-catalog equality -- that direction over-
 suppresses genuine staleness (see the WP04 task prompt's Landmines section).
 
 **LM-1 (fixture discipline)**: this checkout's own ``.git/info/exclude``
-masks ``.kittify/doctrine/`` and ``.kittify/charter/provenance/``, and the
+masks ``.kittify/charter-packs/`` and ``.kittify/charter/provenance/``, and the
 checkout itself reads ``built_in_only`` -- so the checkout cannot reproduce
 either scenario below. Both fixtures here fabricate a **real synthesized,
 doctrine-tracked** repo (a real ``charter.yaml`` + a real ``graph.yaml`` +

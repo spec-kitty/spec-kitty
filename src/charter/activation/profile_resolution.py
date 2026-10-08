@@ -16,7 +16,7 @@ the reset function are the SAME objects whether reached via
 dual-cache trap.
 
 Cycle note: several existing tests patch ``charter.activation.context._default_agent_profile_repository``
-/ ``charter.activation.context._build_activation_aware_doctrine_service`` and then
+/ ``charter.activation.context._build_active_charter_service`` and then
 exercise this module's resolvers indirectly (via ``build_charter_context`` or
 a direct call to ``_load_agent_profile``/``_activation_aware_profile_map``
 re-exported from ``charter.activation.context``). Because the calling functions here now
@@ -90,7 +90,7 @@ def _existing_org_roots(repo_root: Path) -> list[Path]:
     """Return on-disk org-pack roots declared in ``.kittify/config.yaml``.
 
     Best-effort: a missing/corrupt config yields an empty org-root list;
-    project-aware resolution still runs. Imports stay charter→doctrine
+    project-aware resolution still runs. Imports stay charter→charter.offering
     (never charter→specify_cli) so the layer rule holds.
     """
     try:
@@ -162,7 +162,7 @@ def _resolve_composed(repository: AgentProfileRepository, profile_id: str) -> Ag
 def _activation_aware_profile_map(repo_root: Path, org_roots: list[Path]) -> dict[str, AgentProfile]:
     """Return (and cache) the activation-gated, lineage-composed profile map.
 
-    Reuses :func:`~charter.activation.doctrine_service_builder._build_activation_aware_doctrine_service`
+    Reuses :func:`~charter.activation.active_charter_service_builder._build_active_charter_service`
     (the FR-016 precedent) so the ``activated_agent_profiles`` three-state
     gate is honoured — never re-implemented — and threads the discovered org
     roots in as **data** (no ``specify_cli`` import, preserving the layer
@@ -178,9 +178,9 @@ def _activation_aware_profile_map(repo_root: Path, org_roots: list[Path]) -> dic
     cached = _ACTIVATION_AWARE_PROFILE_MAPS.get(repo_root)
     if cached is not None:
         return cached
-    from charter.activation.context import _build_activation_aware_doctrine_service  # noqa: PLC0415
+    from charter.activation.context import _build_active_charter_service  # noqa: PLC0415
 
-    service = _build_activation_aware_doctrine_service(repo_root, org_roots=org_roots)
+    service = _build_active_charter_service(repo_root, org_roots=org_roots)
     gated = _profiles_dict_from_service(service)
     repository = getattr(service, "agent_profile_repository", None)
     profile_map: dict[str, AgentProfile] = {}
@@ -211,7 +211,7 @@ def _resolve_agent_profile_record(profile_id: str, repo_root: Path | None) -> Ag
 
 
 def _load_agent_profile(profile_id: str, repo_root: Path | None = None) -> AgentProfile | None:
-    """Resolve *profile_id* via the doctrine layer. Returns ``None`` on miss.
+    """Resolve *profile_id* via the offering layer. Returns ``None`` on miss.
 
     Errors are intentionally swallowed: this helper is on the prompt-build
     hot path and must never raise into the resolver. A diagnostic is logged

@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.doctrine import app
+from specify_cli.cli.commands.charter import charter_app as app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

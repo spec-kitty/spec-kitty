@@ -636,10 +636,10 @@ class TestSynthesizeWritesToDisk:
         """synthesize() places artifact YAML files under .kittify/charter-packs/."""
         synthesize(full_request, adapter=adapter, repo_root=tmp_path)
 
-        doctrine_root = tmp_path / ".kittify" / "charter-packs"
-        all_artifacts = list(doctrine_root.rglob("*.yaml"))
+        pack_root = tmp_path / ".kittify" / "charter-packs"
+        all_artifacts = list(pack_root.rglob("*.yaml"))
         assert len(all_artifacts) >= 1, (
-            f"No artifact files found under {doctrine_root}; "
+            f"No artifact files found under {pack_root}; "
             "expected at least one directive/tactic/styleguide YAML"
         )
 

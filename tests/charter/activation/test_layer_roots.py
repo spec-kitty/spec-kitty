@@ -35,13 +35,14 @@ class TestProjectLayerRoot:
         assert roots["project"] == tmp_path / ".kittify" / "charter-packs"
         assert roots["project"] == project_pack_root(tmp_path)
 
-    def test_legacy_layout_resolves_the_legacy_root(self, tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
+    def test_the_retired_root_is_not_a_project_layer(self, tmp_path: Path, recwarn: pytest.WarningsRecorder) -> None:
+        """FR-011: ``.kittify/doctrine/`` alone is no project layer (and no warning)."""
         (tmp_path / ".kittify" / "doctrine").mkdir(parents=True)
 
         roots = resolve_layer_roots(tmp_path)
 
-        assert roots["project"] == tmp_path / ".kittify" / "doctrine"
-        assert not recwarn.list, "layer-root discovery reads the legacy root quietly"
+        assert "project" not in roots
+        assert not recwarn.list
 
     def test_migrated_layout_wins_over_a_stale_legacy_tree(self, tmp_path: Path) -> None:
         (tmp_path / ".kittify" / "charter-packs").mkdir(parents=True)

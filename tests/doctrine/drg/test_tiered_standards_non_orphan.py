@@ -38,7 +38,7 @@ def test_tiered_standards_node_exists(built_in_graph: DRGGraph) -> None:
     node_urns = {node.urn for node in built_in_graph.nodes}
     assert _STYLEGUIDE_URN in node_urns, (
         f"Node {_STYLEGUIDE_URN!r} not found in shipped graph. "
-        "Run 'spec-kitty doctrine regenerate-graph' to refresh."
+        "Run 'spec-kitty charter pack regenerate-graph' to refresh."
     )
 
 
@@ -66,5 +66,5 @@ def test_tiered_standards_has_inbound_edge_from_directive_030(
         f"{_SOURCE_DIRECTIVE_URN!r} to {_STYLEGUIDE_URN!r} in shipped graph.yaml, "
         "but none was found. "
         "Ensure DIRECTIVE_030 has a references entry for 'tiered-standards' and "
-        "run 'spec-kitty doctrine regenerate-graph'."
+        "run 'spec-kitty charter pack regenerate-graph'."
     )

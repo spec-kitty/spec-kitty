@@ -14,7 +14,7 @@ tool installation is managed by `ToolConfig`.
 
 Each profile defines:
 
-1. **Context Sources** — Doctrine layers and directives to load
+1. **Context Sources** — Charter Pack layers and directives to load
 2. **Purpose** — What the agent does and does not do
 3. **Specialization** — Primary focus, secondary awareness, avoidance boundaries
 4. **Collaboration Contract** — Handoff partners, output artifacts, canonical verbs

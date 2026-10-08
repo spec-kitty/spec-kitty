@@ -41,14 +41,14 @@ from charter.offering.drg.org_pack_config import (
     load_pack_registry,
     resolve_relative_path_within_root,
 )
-from kernel.charter_pack_paths import PROJECT_PACK_ROOT, resolve_project_pack_read_root
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT, project_pack_root
 from kernel.resolution import resolve_rejecting_loops
 
 if TYPE_CHECKING:
     from charter.offering.drg.org_pack_loader import OrgDRGFragment
 
 # The functions are the public-by-name API (wired from
-# ``specify_cli.cli.commands._doctrine_collect`` and the architectural gate). The
+# ``specify_cli.cli.commands._charter_pack_collect`` and the architectural gate). The
 # supporting types/constants remain module-level symbols: direct
 # ``from charter.offering.drg.override_policy import X`` still works for the
 # callers that consume them by name; they are simply not part of the
@@ -85,10 +85,10 @@ POLICY_RELPATH = PROJECT_PACK_ROOT / PACK_POLICY_FILENAME
 def _consumer_policy_path(repo_root: Path) -> Path:
     """Return the consumer allowlist path to read for *repo_root*.
 
-    Resolved through the project pack read root (FR-016), so a project still on
-    the retired ``.kittify/doctrine/`` tree is read there until it migrates.
+    Resolved through the project pack root (FR-016); the retired
+    ``.kittify/doctrine/`` tree is never read (FR-011).
     """
-    return resolve_project_pack_read_root(repo_root, quiet=True) / PACK_POLICY_FILENAME
+    return project_pack_root(repo_root) / PACK_POLICY_FILENAME
 
 #: Pre-contract location some packs still ship; advisory only, never a sanction.
 LEGACY_TEMPLATE_RELPATH = "templates/setup/replaceable-builtins.yaml"

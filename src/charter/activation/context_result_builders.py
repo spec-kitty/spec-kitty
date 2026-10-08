@@ -33,10 +33,10 @@ from charter.activation.context_renderers.compact_governance import (
 )
 from charter.activation.context_renderers.reference_pointers import _load_references
 from charter.activation.context_state import _mark_action_loaded
-from charter.activation.org_pack_discovery import _load_doctrine_selection
+from charter.activation.org_pack_discovery import _load_governance_charter_config
 
 if TYPE_CHECKING:
-    from charter.activation.action_doctrine_bundle import _ActionDoctrineBundle
+    from charter.activation.action_governance_bundle import _ActionGovernanceBundle
     from charter.activation.context_state import _ContextStateBundle
     from charter.offering.agent_profiles import AgentProfile
 
@@ -116,7 +116,7 @@ def build_compact_bundle_context_result(
     normalized: str,
     state_bundle: _ContextStateBundle,
     profile_record: AgentProfile | None,
-    doctrine_bundle: _ActionDoctrineBundle,
+    governance_bundle: _ActionGovernanceBundle,
     *,
     suppress_project_resolver: bool,
     mark_loaded: bool,
@@ -134,7 +134,7 @@ def build_compact_bundle_context_result(
                 repo_root,
                 action=normalized,
                 profile=profile_record,
-                bundle=doctrine_bundle,
+                bundle=governance_bundle,
                 suppress_project_resolver=suppress_project_resolver,
             )
         ),
@@ -149,13 +149,13 @@ def build_bootstrap_context_result(
     charter_path: Path,
     canonical_root: Path,
     state_bundle: _ContextStateBundle,
-    doctrine_bundle: _ActionDoctrineBundle,
+    governance_bundle: _ActionGovernanceBundle,
     profile_record: AgentProfile | None,
     *,
     mark_loaded: bool,
     augment: Callable[[str], str],
 ) -> CharterContextResult:
-    """Build the full bootstrap-mode result (prose + references + doctrine bundle)."""
+    """Build the full bootstrap-mode result (prose + references + governance bundle)."""
     # FR-005 graceful-degrade: charter.md prose is optional now that presence
     # is authoritative via charter.yaml (SC-002 -- rendering must survive a
     # deleted charter.md), mirroring the existing compact-section handling of
@@ -167,16 +167,16 @@ def build_bootstrap_context_result(
         charter_content = ""
         summary = []
     references = _load_references(canonical_root)
-    doctrine_selection = _load_doctrine_selection(repo_root)
+    charter_config = _load_governance_charter_config(repo_root)
     text = _render_bootstrap_text(
         charter_path=charter_path,
         action=normalized,
         summary=summary,
-        doctrine_bundle=doctrine_bundle,
+        governance_bundle=governance_bundle,
         references=references,
         profile=profile_record,
         repo_root=repo_root,
-        doctrine_selection=doctrine_selection,
+        charter_config=charter_config,
         charter_content=charter_content,
     )
 

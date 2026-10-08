@@ -18,7 +18,7 @@ from pydantic import BaseModel
 
 from charter.activation import drg_activation, org_pack_discovery
 from charter.activation.pack_context import PackContext
-from charter.activation.schemas import DoctrineSelectionConfig
+from charter.activation.schemas import GovernanceCharterConfig
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.activation.org_charter import REQUIRED_KIND_FIELDS, OrgCharterPolicy
 
@@ -74,13 +74,13 @@ def test_requirable_matches_org_charter_policy_required_fields() -> None:
 
 
 def test_overlayable_is_the_selected_fields_minus_the_non_overlaid_kinds() -> None:
-    """``DoctrineSelectionConfig`` has ``selected_*`` fields that not every kind's org overlay fills.
+    """``GovernanceCharterConfig`` has ``selected_*`` fields that not every kind's org overlay fills.
 
     ``glossary_packs`` and ``assets`` have a ``selected_*`` field but are not
-    unioned from org ``required_*`` lists by ``_load_doctrine_selection``.
+    unioned from org ``required_*`` lists by ``_load_governance_charter_config``.
     """
     overlayable = frozenset(org_pack_discovery._REQUIRED_KIND_FIELDS)
-    selected = _model_fields(DoctrineSelectionConfig, "selected_")
+    selected = _model_fields(GovernanceCharterConfig, "selected_")
     assert overlayable <= selected
     assert selected - overlayable == {"glossary_packs", "assets"}
     # ``skills`` is org-requirable but has no ``selected_skills`` field and is

@@ -62,7 +62,7 @@ class TestJourney4ContextBundleAuthority:
 
         with (
             patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             before = build_charter_context(
@@ -77,7 +77,7 @@ class TestJourney4ContextBundleAuthority:
 
         with (
             patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             after = build_charter_context(
@@ -344,7 +344,7 @@ class TestFoldCLegacyCharterMdOnlyPresentFlipCell:
 
         with (
             patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-            patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
             patch("charter.offering.drg.validator.assert_valid"),
         ):
             result = build_charter_context(

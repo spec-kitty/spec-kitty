@@ -38,7 +38,7 @@ from typing import Any
 
 from charter.offering.drg.loader import load_graph_or_dir
 from charter.offering.drg.models import DRGGraph
-from kernel.charter_pack_paths import resolve_project_pack_read_root
+from kernel.charter_pack_paths import project_pack_root
 
 from .manifest import (
     MANIFEST_PATH,
@@ -369,7 +369,7 @@ def run(
             org_drg=org_drg,
             warnings_out=reference_warnings,
         )
-        existing_graph_dir = resolve_project_pack_read_root(_repo_root, quiet=True)
+        existing_graph_dir = project_pack_root(_repo_root)
         project_graph = updated_overlay
         if existing_graph_dir.exists():
             project_graph = _merge_project_overlay(
@@ -452,7 +452,7 @@ def _load_project_artifacts_from_provenance(
 
 def _load_project_graph_labels(repo_root: Path) -> dict[str, str]:
     """Return existing project graph labels keyed by URN, best-effort."""
-    project_graph_dir = resolve_project_pack_read_root(repo_root, quiet=True)
+    project_graph_dir = project_pack_root(repo_root)
     if not project_graph_dir.exists():
         return {}
     try:
@@ -481,7 +481,7 @@ def _load_merged_drg(
     # annotation keeps the two fallbacks strictly typed under both whole-package
     # and per-file checking, and de-duplicates the three snapshot reads below.
     snapshot: Mapping[str, Any] = request.drg_snapshot
-    project_graph_dir = resolve_project_pack_read_root(repo_root, quiet=True)
+    project_graph_dir = project_pack_root(repo_root)
     if not project_graph_dir.exists():
         return snapshot
 

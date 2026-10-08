@@ -272,9 +272,9 @@ def test_us1_as2_drift_artifact_is_effective_after_default(project_root: Path, t
     )
 
     assert PackContext.from_config(project_root).activated_directives is None, "absent key: unrestricted"
-    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.active_charter_service_builder import build_active_charter_service
 
-    effective = build_activation_aware_doctrine_service(project_root).directives
+    effective = build_active_charter_service(project_root).directives
     assert "DIRECTIVE_999" in effective, "the directive added after the preset was written is effective"
 
 

@@ -75,7 +75,7 @@ class ActiveCharterConfigError(KittyInternalConsistencyError):
 # Built-in constants
 # ---------------------------------------------------------------------------
 
-#: All built-in artifact kinds (plural form used by DoctrineService). Derived
+#: All built-in artifact kinds (plural form used by ActiveCharterService). Derived
 #: from the single :class:`ArtifactKind` authority — exactly
 #: ``{kind.plural for kind in ArtifactKind}`` — so it can never drift from the
 #: enum (issue #5409; it now includes ``anti_patterns``). Value-equal to
@@ -635,7 +635,7 @@ def _read_activated_mission_types(data: dict[str, Any]) -> frozenset[str]:
 
     Why totality: ``PackContext`` is constructed on dozens of hot read /
     compose paths (runtime-bridge composition through
-    ``doctrine_service_builder``, invocation ``ProfileRegistry``, charter
+    ``active_charter_service_builder``, invocation ``ProfileRegistry``, charter
     listing, tool-surface projection, ``doctor``) that must not crash on an
     unprovisioned project. Reading an empty activation set is a valid, total
     outcome. The fail-closed "a mission requires at least one activated
@@ -747,9 +747,9 @@ def _absent_key_default(kind: ArtifactKind, repo_root: Path) -> frozenset[str] |
 def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, ...], tuple[Path, ...]]:
     """Resolve org pack names and root paths from config data.
 
-    Delegates to ``charter.offering.drg.org_pack_config.load_pack_registry``
-    so that legacy ``organisation_packs`` form and deprecation warnings
-    are handled consistently with the rest of the codebase.
+    Delegates to ``charter.offering.drg.org_pack_config.load_pack_registry``,
+    which reads only the canonical ``charter_packs.org.packs``: a config that
+    carries only a retired key yields no packs, never an error.
 
     Returns
     -------

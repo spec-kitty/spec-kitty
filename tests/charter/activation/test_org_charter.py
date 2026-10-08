@@ -53,7 +53,7 @@ def _write_kittify_config(repo_root: Path, packs: list[dict]) -> None:
     """Write ``.kittify/config.yaml`` with ``doctrine.org.packs``."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
-    pack_yaml_lines = ["doctrine:", "  org:", "    packs:"]
+    pack_yaml_lines = ["charter_packs:", "  org:", "    packs:"]
     for pack in packs:
         pack_yaml_lines.append(f"      - name: {pack['name']}")
         pack_yaml_lines.append(f"        local_path: {pack['local_path']}")

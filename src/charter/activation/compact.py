@@ -19,7 +19,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from charter.activation._doctrine_paths import resolve_project_root
+from charter.activation._project_root_candidates import resolve_project_root
 from charter.activation._io import CharterEncodingError
 from charter.bundle import CHARTER_MD
 from charter.activation.language_advisory import CHARTER_EXTENSION_ADVISORY
@@ -273,7 +273,7 @@ def _render_text(
 
     project_root = resolve_project_root(repo_root)
     if project_root is not None and project_root != repo_root:
-        lines.append(f"  - Doctrine layer root: {project_root}")
+        lines.append(f"  - Project layer root: {project_root}")
 
     return "\n".join(lines)
 

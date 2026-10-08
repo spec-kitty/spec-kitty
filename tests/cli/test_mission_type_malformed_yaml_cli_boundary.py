@@ -22,7 +22,7 @@ grep found reaching the same three functions without a handler:
 
 - ``charter activate mission-type <id>``      (activate.py)
 - ``charter mission-type list``               (charter/mission_type.py)
-- ``doctrine mission-type list``               (doctrine.py)
+- ``charter mission-type list --include-inactive`` (charter/mission_type.py)
 - ``mission-type show <id>``                   (mission_type.py)
 - ``charter list --all --show-available``      (charter/list_cmd.py)
 
@@ -42,7 +42,6 @@ from typer.testing import CliRunner
 
 from charter.offering.missions.mission_type_repository import MissionTypeRepository
 from specify_cli.cli.commands.charter import charter_app
-from specify_cli.cli.commands.doctrine import app as doctrine_app
 from specify_cli.cli.commands.mission_type import app as mission_type_app
 
 runner = CliRunner()
@@ -72,7 +71,7 @@ def project_with_malformed_org_mission_type(tmp_path: Path) -> Path:
             f"""\
             mission_type_activations:
               - software-dev
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: broken-org-pack
@@ -144,8 +143,8 @@ class TestCharterMissionTypeListMalformedYamlBoundary:
         _asserts_clean_exit_naming_file(result)
 
 
-class TestDoctrineMissionTypeListMalformedYamlBoundary:
-    """``doctrine mission-type list`` (doctrine.py) -- sibling call site.
+class TestCharterMissionTypeListIncludeInactiveMalformedYamlBoundary:
+    """``charter mission-type list --include-inactive`` -- sibling call site.
 
     Same ``resolve_layered_roster`` call, unguarded, found by this mission's
     own grep for every reachable call site.
@@ -155,7 +154,7 @@ class TestDoctrineMissionTypeListMalformedYamlBoundary:
         self, project_with_malformed_org_mission_type: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.chdir(project_with_malformed_org_mission_type)
-        result = runner.invoke(doctrine_app, ["mission-type", "list", "--json"])
+        result = runner.invoke(charter_app, ["mission-type", "list", "--include-inactive", "--json"])
         _asserts_clean_exit_naming_file(result)
 
 

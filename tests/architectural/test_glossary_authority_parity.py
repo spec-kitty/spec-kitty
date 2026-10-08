@@ -53,7 +53,7 @@ _REPO_ROOT = _repo_root()
 _SEED_PATH: Path = _REPO_ROOT / ".kittify" / "glossaries" / "spec_kitty_core.yaml"
 _BUILT_IN_DIR: Path = _REPO_ROOT / "packs" / "built-in" / "glossary_packs"
 _PACK_ID = "spec-kitty-core"
-_DOCTRINE_MD_PATH: Path = _REPO_ROOT / "docs" / "context" / "charter.offering.md"
+_RETIRED_GLOSSARY_MD_PATH: Path = _REPO_ROOT / "docs" / "context" / "charter.offering.md"
 _CHARTER_MD_PATH: Path = _REPO_ROOT / "docs" / "context" / "charter.md"
 
 _RETIRED_GOVERNING_SURFACE = "doctrine"
@@ -135,7 +135,7 @@ def charter_md_headings() -> list[str]:
 
 def test_authority_3_file_moved_to_charter_md() -> None:
     """OC-40: ``docs/context/charter.offering.md`` is renamed to ``docs/context/charter.md``."""
-    assert not _DOCTRINE_MD_PATH.exists(), "docs/context/charter.offering.md must be git-mv'd to docs/context/charter.md (T003)"
+    assert not _RETIRED_GLOSSARY_MD_PATH.exists(), "docs/context/charter.offering.md must be git-mv'd to docs/context/charter.md (T003)"
     assert _CHARTER_MD_PATH.exists(), "docs/context/charter.md (glossary authority 3) does not exist yet (T003)"
 
 

@@ -147,7 +147,7 @@ categories:
     rationale: 'C. mission-type-drg-edges (#2677) charter.drg facade re-export. ``charter.drg`` is a contract-required
       FACADE module: the ``runtime-charter-doctrine-boundary`` plan (docs/plans/doctrine, ~L57) and the
       ``charter-facade-modules.md`` Symbol table mandate it re-export ``load_graph`` so consumers reach
-      the DRG loader through ``charter.drg.*`` -- an invariant independently enforced by ``test_charter_facades_reexport_doctrine``.
+      the DRG loader through ``charter.drg.*`` -- an invariant independently enforced by ``test_charter_facades_reexport_offering``.
       WP03 of this mission rerouted the LAST in-``src/`` consumer of ``charter.drg.load_graph`` to ``load_built_in_graph``,
       so the contract-required re-export now has no cross-file src/ caller (removing it would break the
       facade gate -- two-gate tension). ``load_graph`` is a LIVE COLLISION bare_name (3 live ``__all__``
@@ -246,7 +246,7 @@ categories:
       cluster) that let WP05–WP07 migrate runtime off direct ``doctrine.*`` imports (FR-003, NFR-002,
       contract C2). Those consumer WPs depend on WP03 and have NOT landed in this lane, so each new facade
       re-export currently has no cross-file ``src/`` caller. Every symbol below is a contract-required
-      facade re-export (``test_charter_facades_reexport_doctrine`` independently enforces the object-identity
+      facade re-export (``test_charter_facades_reexport_offering`` independently enforces the object-identity
       + ``__all__`` membership these entries would otherwise let a refactor drop). Each is a LIVE-COLLISION
       bare_name (the same name lives in the doctrine origin ``__all__`` and, for the PUBLIC ones, in ``charter.offering.api``
       too), so the FR-005 classifier escalates it to the module_path tier and it is deliberately NOT covered
@@ -258,18 +258,15 @@ categories:
     requires_issue: false
   category_c_charter_authority_flip_forward_api:
     rationale: 'C. charter-authority-flip (01M14RB3) forward public API (#3664). Two intentional public
-      symbols landed by the doctrine->charter governing-term flip that have no cross-file `src/` caller
-      yet, both content-tier (unique bare_name, no live collision): * ``charter.activation.interview::InterviewAnswersRegressionError``
+      symbol landed by the doctrine->charter governing-term flip that has no cross-file `src/` caller
+      yet, content-tier (unique bare_name, no live collision): * ``charter.activation.interview::InterviewAnswersRegressionError``
       -- raised by ``write_interview_answers(..., fail_closed_on_regression=True)``. That opt-in flag
       has no production caller today: the only caller is ``tests/charter/test_answers_migration.py`` (which
       asserts on the error directly), and the answers-migration script ``scripts/migrate_charter_interview_answers.py``
       deliberately does NOT use this writer at all -- it does byte-preserving anchored substitution to
       survive the archive-freeze gate. So this is test-only forward public API, exposed by design so that
-      future/external migration callers can catch it. * ``charter.activation.sync::LegacyGovernanceKeyWarning``
-      -- the ``UserWarning`` subclass ``_warn_legacy_governance_key_once()`` raises internally (same module,
-      so invisible to the cross-file caller graph); ``tests/charter/ test_governance_key_compat.py`` asserts
-      on it via ``pytest.warns(...)``. Public by design so any consumer can filter/assert on the specific
-      warning class rather than a bare ``UserWarning``.'
+      future/external migration callers can catch it. (Its former sibling ``LegacyGovernanceKeyWarning``
+      was deleted with the governance compat shim, mission ``charter-pack-cutover-01M491G6`` WP14.)'
     requires_issue: false
   category_c_path_conventions_forward_api:
     rationale: 'C. mission-type-canonical-source-01M302V9 path_conventions forward API (#3831/#4088, FR-303).
@@ -307,12 +304,7 @@ categories:
       that row''s body_hash, so the row was re-pinned in place rather than duplicated; under the current
       ``(module, name)`` identity this class of churn no longer applies).) None of
       the symbols below is dead: each is exported by design for a consumer outside this specific cross-file
-      caller graph, verified before allow-listing (never a blanket suppression): * ``charter.offering.drg.org_pack_config::LegacyOrgPackDoctrineKeyWarning``
-      -- raised internally by the module''s own legacy-key compat warn-once helper (same module, so invisible
-      to the cross-file caller graph), same shape as the established ``charter.activation.sync::LegacyGovernanceKeyWarning``
-      / ``specify_cli.tracker.config::LegacyTrackerOwnershipKeyWarning`` precedent above: public by design
-      so a consumer can filter/assert on the specific warning class. Asserted on via ``pytest.warns(...)``
-      in ``tests/runtime/test_bridge_io.py``, ``tests/runtime/test_resolver_unit.py``, and ``tests/unit/mission_loader/test_command.py``.
+      caller graph, verified before allow-listing (never a blanket suppression):
       * ``kernel.charter_pack_paths`` (mission ``charter-pack-cutover-01M491G6`` WP02, #3732, FR-016 /
       C-007), the single authority for the project charter pack root and the pack-relative paths. WP02
       cuts the READ side over; its API is binding for the later WPs of the same mission, which add the
@@ -320,17 +312,8 @@ categories:
       the writers), ``DRG_DIRNAME`` / ``DRG_FRAGMENT`` / ``pack_drg_fragment`` / ``ORG_CHARTER_FILENAME``
       / ``pack_org_charter`` (WP03''s path-authority gate forces the B.2 literal spellers onto them),
       ``PRESETS_DIRNAME`` / ``pack_presets_dir`` (the presets WPs, FR-001 to FR-004). Forward API, not
-      dropped callers; each entry is removed when its caller lands.
-      * ``kernel.charter_pack_paths::LegacyDoctrineRootWarning`` -- the "legacy compat warn-once, same-module
-      raise, public for external filtering" shape of ``LegacyOrgPackDoctrineKeyWarning`` above; deleted
-      with the legacy read fallback by WP14 (FR-011).'
-    requires_issue: false
-  category_c_charter_pack_cutover_retired_fields:
-    rationale: 'C. charter-pack-cutover retired-field table (#3732, WP17). ``RETIRED_PACK_FIELDS``
-      and ``RetiredField`` are the typed table behind ``RETIRED_PACK_FIELD`` (contracts/errors.md);
-      src callers reach them through ``reject_retired_fields`` / ``retired_field_errors``. WP13 (same
-      mission) wires the table directly when it adds the ``accompanies_doctrine_pack`` row (a new
-      ``pack.yaml`` top-level scope) and the pack.yaml descriptor check; burns down then.'
+      dropped callers; each entry is removed when its caller lands. (The legacy-key and legacy-root warning
+      classes once listed here were deleted with their read shims by WP14 of that mission, FR-011.)'
     requires_issue: false
   category_e_charter_activation_split_forward_api:
     rationale: 'E. charter-activation-split forward API (#806). EXPERIMENTAL deliberately retains its
@@ -450,21 +433,7 @@ entries:
     integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
     suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
 - module: charter.offering.packs.pack_lineage
-  name: UnresolvedDoctrinePackError
-  category: category_a_slice_f_deferred
-  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
-    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
-    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
-    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
-- module: charter.offering.packs.pack_lineage
   name: UnresolvedPackParentError
-  category: category_a_slice_f_deferred
-  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
-    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
-    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
-    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
-- module: charter.offering.packs.pack_lineage
-  name: resolve_accompanying_doctrine_pack
   category: category_a_slice_f_deferred
   rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
     schema/lineage/hash public API, declared now but not wired to production callers until the deferred
@@ -725,12 +694,6 @@ entries:
 # charter-pack-cutover-01M491G6 WP05 (#3732): both were "imported" in src only by the deleted
 # specify_cli.doctrine.config alias re-exports (C-001); the real users are tests
 # (registry round-trips). Not new debt: unmasked by deleting the conduit.
-- module: charter.offering.drg.org_pack_config
-  name: PackRegistry
-  category: category_b_grandfathered_legacy
-- module: charter.offering.drg.org_pack_config
-  name: save_pack_registry
-  category: category_b_grandfathered_legacy
 - module: charter.activation.org_charter
   name: GovernancePolicy
   category: category_b_grandfathered_legacy
@@ -1021,7 +984,7 @@ entries:
   name: template_nodes
   category: category_c_org_doctrine_closeout
   rationale: '``template_node`` / ``template_nodes`` stay allowlisted: still no live caller.'
-- module: specify_cli.cli.commands._doctrine_health
+- module: specify_cli.cli.commands._charter_pack_health
   name: PackHealth
   category: category_c_org_doctrine_closeout
 - module: specify_cli.session_presence.upgrade_check
@@ -1218,9 +1181,6 @@ entries:
 - module: charter.activation.interview
   name: InterviewAnswersRegressionError
   category: category_c_charter_authority_flip_forward_api
-- module: charter.activation.sync
-  name: LegacyGovernanceKeyWarning
-  category: category_c_charter_authority_flip_forward_api
 - module: charter.offering.missions.models
   name: VALID_PATH_KEYS
   category: category_c_path_conventions_forward_api
@@ -1233,14 +1193,8 @@ entries:
 - module: specify_cli.status._unsafe
   name: append_event
   category: category_c_fsm_write_path_unsafe_door
-- module: charter.offering.drg.org_pack_config
-  name: LegacyOrgPackDoctrineKeyWarning
-  category: category_d_charter_code_topology_relocation_forward_api
 - module: kernel.charter_pack_paths
   name: DRG_DIRNAME
-  category: category_d_charter_code_topology_relocation_forward_api
-- module: kernel.charter_pack_paths
-  name: LegacyDoctrineRootWarning
   category: category_d_charter_code_topology_relocation_forward_api
 - module: kernel.charter_pack_paths
   name: PRESETS_DIRNAME
@@ -1248,12 +1202,6 @@ entries:
 - module: charter.drg
   name: merge_three_layers
   category: category_e_charter_activation_split_forward_api
-- module: charter.offering.packs.retired_fields
-  name: RETIRED_PACK_FIELDS
-  category: category_c_charter_pack_cutover_retired_fields
-- module: charter.offering.packs.retired_fields
-  name: RetiredField
-  category: category_c_charter_pack_cutover_retired_fields
 - module: specify_cli.core.env
   name: MOMENT_HANDLER_DISABLE_ENV_VARS
   category: category_c_team_kitty_launch_defaults_3980
@@ -1460,8 +1408,6 @@ widened_grandfathered_470:
     name: set_iteration_mode
   - module: specify_cli.doc_analysis.doc_state
     name: update_documentation_state
-  - module: charter.offering.packs.pack_descriptor
-    name: PackDescriptor
   - module: specify_cli.dossier.hasher
     name: WP_DESCRIPTIVE_PROJECTION_FIELDS
   - module: specify_cli.dossier.hasher

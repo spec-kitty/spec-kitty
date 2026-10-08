@@ -23,8 +23,8 @@ from charter.activation.charter_yaml_io import save_charter_yaml
 from charter.activation.compiler import compile_charter
 from charter.activation.interview import default_interview, read_interview_answers
 from charter.activation.pack_context import PackContext
-from charter.activation.schemas import DirectivesConfig, DoctrineSelectionConfig, GovernanceConfig
-from charter.offering.service import DoctrineService
+from charter.activation.schemas import DirectivesConfig, GovernanceCharterConfig, GovernanceConfig
+from charter.offering.service import CharterOfferingService
 from charter.offering.spdd_reasons.activation import clear_activation_cache, is_spdd_reasons_active
 from specify_cli.cli.commands.charter import charter_app
 
@@ -82,12 +82,12 @@ def project_root(tmp_path: Path) -> Path:
 
 def _compiled_reference_ids(project_root: Path) -> set[str]:
     pack_context = PackContext.from_config(project_root)
-    doctrine_service = DoctrineService()
+    charter_service = CharterOfferingService()
     compiled = compile_charter(
         mission="software-dev",
         interview=default_interview(mission="software-dev"),
         repo_root=project_root,
-        doctrine_service=doctrine_service,
+        charter_service=charter_service,
         pack_context=pack_context,
     )
     return {reference.id for reference in compiled.references}
@@ -163,12 +163,12 @@ class TestDeactivateDropsNoAnswersEdit:
         # for a `test_no_new_charter_reference_danglers`-style guard to trip
         # on for THIS artefact).
         pack_context = PackContext.from_config(project_root)
-        doctrine_service = DoctrineService()
+        charter_service = CharterOfferingService()
         compiled = compile_charter(
             mission="software-dev",
             interview=default_interview(mission="software-dev"),
             repo_root=project_root,
-            doctrine_service=doctrine_service,
+            charter_service=charter_service,
             pack_context=pack_context,
         )
         assert f"`{_TARGET_ID}`" not in compiled.markdown
@@ -202,13 +202,13 @@ class TestSpddActivationDoesNotFlip:
         # deactivation regression on this project's own charter.
         assert "DIRECTIVE_038" in interview.selected_directives
 
-        doctrine_service = DoctrineService()
+        charter_service = CharterOfferingService()
         pack_context = PackContext.from_config(REPO_ROOT)
         compiled = compile_charter(
             mission=interview.mission,
             interview=interview,
             repo_root=REPO_ROOT,
-            doctrine_service=doctrine_service,
+            charter_service=charter_service,
             pack_context=pack_context,
         )
 
@@ -244,7 +244,7 @@ class TestSpddActivationDoesNotFlip:
         ]
 
         governance = GovernanceConfig(
-            charter=DoctrineSelectionConfig(
+            charter=GovernanceCharterConfig(
                 selected_paradigms=selected_paradigms_no_spdd,
                 selected_directives=selected_directives_no_spdd,
                 selected_tactics=selected_tactics_no_spdd,

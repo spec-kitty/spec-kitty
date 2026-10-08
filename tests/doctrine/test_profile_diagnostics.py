@@ -175,14 +175,14 @@ def test_shipped_builtins_have_zero_diagnostics() -> None:
     assert repo.skipped_profiles() == []
 
 
-# ── FR-007: diagnostics survive on DoctrineService ──────────────────────────
+# ── FR-007: diagnostics survive on CharterOfferingService ──────────────────────────
 
 
 def test_service_preserves_diagnostics_without_rescan() -> None:
     """FR-007: accessing service.agent_profiles twice yields the same cached repo."""
-    from charter.offering.service import DoctrineService
+    from charter.offering.service import CharterOfferingService
 
-    service = DoctrineService()
+    service = CharterOfferingService()
     repo_a = service.agent_profiles
     repo_b = service.agent_profiles
 

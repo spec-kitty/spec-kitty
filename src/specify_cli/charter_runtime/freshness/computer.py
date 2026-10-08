@@ -93,7 +93,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict, dataclass
-from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, resolve_project_pack_read_root
+from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_root
 from kernel.clock import from_epoch
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -327,18 +327,18 @@ def _synthesis_manifest_path(repo_root: Path) -> Path:
     return repo_root / MANIFEST_PATH
 
 
-def _doctrine_graph_path(repo_root: Path) -> Path:
+def _project_pack_graph_path(repo_root: Path) -> Path:
     """Return the project pack graph path (``kernel.charter_pack_paths``, FR-016).
 
     Read through the temporary dual-root reader (FR-011, removed by WP14) so a
     project that still has only the retired root keeps reporting its graph.
     """
-    return resolve_project_pack_read_root(repo_root, quiet=True) / PROJECT_GRAPH_FILENAME
+    return project_pack_root(repo_root) / PROJECT_GRAPH_FILENAME
 
 
 def _project_pack_read_root(repo_root: Path) -> Path:
     """Return the project charter pack root to read from (FR-016)."""
-    return resolve_project_pack_read_root(repo_root, quiet=True)
+    return project_pack_root(repo_root)
 
 
 def _safe_load_yaml(path: Path) -> dict[str, object] | None:
@@ -638,7 +638,7 @@ def _compute_synthesized_drg(
     # location). No direct ``_safe_load_yaml`` reads of either file from this
     # module — see module docstring for the FR-013 routing contract.
     manifest_path = _synthesis_manifest_path(repo_root)
-    graph_path = _doctrine_graph_path(repo_root)
+    graph_path = _project_pack_graph_path(repo_root)
     manifest = _load_synthesis_manifest_via_chokepoint(repo_root)
 
     built_in_only = bool(manifest.built_in_only) if manifest is not None else False

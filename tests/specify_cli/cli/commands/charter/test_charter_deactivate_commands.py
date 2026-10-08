@@ -100,7 +100,7 @@ def _invoke_activate(project_root: Path, *args: str) -> Result:
 
 def _write_org_pack_config(project_root: Path, packs: list[tuple[str, str]]) -> None:
     """Write ``.kittify/config.yaml`` with a declaration-ordered org-pack chain."""
-    lines: list[str] = ["doctrine:", "  org:", "    packs:"]
+    lines: list[str] = ["charter_packs:", "  org:", "    packs:"]
     for name, local_path in packs:
         lines.append(f"      - name: {name}")
         lines.append(f"        local_path: {local_path}")

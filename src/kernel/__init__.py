@@ -1,11 +1,10 @@
 """Kernel — zero-dependency shared utilities and primitive types.
 
-This package contains primitives shared by ``specify_cli``, ``charter``,
-and ``doctrine``.  It has **no imports from any of those packages**, keeping
-the dependency direction clean:
+This package contains primitives shared by ``specify_cli`` and ``charter``
+(including the ``charter.offering`` package).  It has **no imports from any
+of those packages**, keeping the dependency direction clean:
 
     kernel  <-  charter
-    kernel  <-  doctrine
     kernel  <-  specify_cli
 
 Modules
@@ -43,7 +42,7 @@ glossary_runner
     registry on first use (``get_runner()`` → ``None`` →
     ``import_module("glossary.attachment")`` →
     ``register(GlossaryAwarePrimitiveRunner)`` → retry) and degrades only when
-    ``glossary.attachment`` is unimportable; doctrine calls ``get_runner()``
+    ``glossary.attachment`` is unimportable; ``charter.offering`` calls ``get_runner()``
     without importing ``specify_cli``.
 """
 

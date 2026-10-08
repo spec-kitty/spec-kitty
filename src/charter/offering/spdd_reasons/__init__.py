@@ -1,4 +1,4 @@
-"""SPDD/REASONS doctrine pack: charter activation and context injection.
+"""SPDD/REASONS Charter Pack: charter activation and context injection.
 
 Public surface:
 

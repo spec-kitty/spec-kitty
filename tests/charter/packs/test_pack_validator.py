@@ -954,7 +954,7 @@ class TestAssetManifestValidation:
 class TestProfileSkippedDiagnostics:
     """FR-002: ``pack validate`` surfaces ``AgentProfileRepository``'s
     post-merge profile-skip diagnostics inline (``skipped_profiles()``),
-    not only via the separate, undocumented ``spec-kitty doctor doctrine
+    not only via the separate, undocumented ``spec-kitty doctor charter-packs
     --json`` command.
 
     This is additive wiring (AC-4), not a new validation engine: the checks
@@ -989,7 +989,7 @@ class TestProfileSkippedDiagnostics:
         Before this WP, ``pack_validator.py`` never calls
         ``AgentProfileRepository``/``skipped_profiles()`` at all, so this
         assertion fails — the only surface for this diagnostic today is the
-        separate ``spec-kitty doctor doctrine --json`` command.
+        separate ``spec-kitty doctor charter-packs --json`` command.
         """
         profile_path = _write_agent_profile_yaml(
             tmp_path,
@@ -1125,7 +1125,7 @@ class TestProfileSkippedDiagnostics:
         — the module ``AgentProfileRepository._default_built_in_dir``
         actually imported it into), so this fires regardless of which
         construction path calls into the repository (PR-M-002 routes that
-        construction through ``DoctrineService``, which does not change
+        construction through ``ActiveCharterService``, which does not change
         this seam).
         """
         from charter.offering.pack_paths import PackRootNotFound
@@ -1207,9 +1207,9 @@ class TestDrgRootGraphMissing:
         # AC-4's exit-code half: exercise the same fixture through the CLI.
         from typer.testing import CliRunner
 
-        from specify_cli.cli.commands.doctrine import app as doctrine_app
+        from specify_cli.cli.commands.charter import charter_app
 
-        cli_result = CliRunner().invoke(doctrine_app, ["pack", "validate", str(tmp_path)])
+        cli_result = CliRunner().invoke(charter_app, ["pack", "validate", str(tmp_path)])
         assert cli_result.exit_code == 1, cli_result.output
 
     def test_pack_root_graph_present_suppresses_diagnostic(self, tmp_path: Path) -> None:

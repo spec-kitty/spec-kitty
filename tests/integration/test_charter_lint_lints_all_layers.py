@@ -44,10 +44,11 @@ def tmp_repo_with_org_pack(tmp_path: Path) -> Path:
     (kittify / "config.yaml").write_text(
         dedent(
             f"""\
-            organisation_packs:
-              - name: example-org
-                source: local_path
-                path: {pack_dest}
+            charter_packs:
+              org:
+                packs:
+                  - name: example-org
+                    local_path: {pack_dest}
             """
         )
     )

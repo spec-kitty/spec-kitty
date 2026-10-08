@@ -314,7 +314,7 @@
     "distribution",
     "doc_analysis",
     "doctrine",
-    "doctrine_synthesizer",
+    "charter_pack_synthesizer",
     "dossier",
     "event_journal",
     "events",

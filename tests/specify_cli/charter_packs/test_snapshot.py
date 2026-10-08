@@ -20,7 +20,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @dataclass
 class _ScriptedSource:
-    """Test double implementing the OrgDoctrineSource protocol structurally."""
+    """Test double implementing the OrgCharterPackSource protocol structurally."""
 
     layout: Callable[[Path], None]
     result: FetchResult
@@ -299,7 +299,7 @@ class TestWriteSnapshot:
 
         assert result.ok is True
         assert (local_path / "pack" / "directives" / "sec-001.directive.yaml").is_file()
-        # Manifest at effective root so doctor doctrine finds it.
+        # Manifest at effective root so doctor charter-packs finds it.
         manifest_path = local_path / "pack" / "pack-manifest.yaml"
         assert manifest_path.is_file()
         manifest = yaml.safe_load(manifest_path.read_text())

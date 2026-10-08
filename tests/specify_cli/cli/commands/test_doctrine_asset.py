@@ -1,8 +1,8 @@
-"""CLI tests for ``spec-kitty doctrine asset`` (WP05, T026/T027).
+"""CLI tests for ``spec-kitty charter pack asset`` (WP05, T026/T027).
 
 The asset operator surface is a *read-only* window over the WP04 resolution
 repository (:class:`charter.offering.assets.repository.AssetRepository`, reached through
-:class:`charter.offering.service.DoctrineService` ``.assets``):
+:class:`charter.offering.service.CharterOfferingService` ``.assets``):
 
 * ``asset list [--json]`` enumerates every resolvable asset with its source tier.
 * ``asset path <id> [--json]`` resolves one identifier to a filesystem path,
@@ -22,8 +22,8 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands import _doctrine_asset as asset_module
-from specify_cli.cli.commands.doctrine import app as doctrine_app
+from specify_cli.cli.commands.charter import pack_asset as asset_module
+from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -48,8 +48,8 @@ def test_asset_path_resolves_shipped_asset() -> None:
     from pathlib import Path
 
     result = runner.invoke(
-        doctrine_app,
-        ["asset", "path", _SHIPPED_ASSET_ID],
+        charter_app,
+        ["pack", "asset", "path", _SHIPPED_ASSET_ID],
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
@@ -61,8 +61,8 @@ def test_asset_path_resolves_shipped_asset() -> None:
 def test_asset_path_json_carries_id_path_and_tier() -> None:
     """``asset path <id> --json`` emits a machine-readable id/path/tier record."""
     result = runner.invoke(
-        doctrine_app,
-        ["asset", "path", _SHIPPED_ASSET_ID, "--json"],
+        charter_app,
+        ["pack", "asset", "path", _SHIPPED_ASSET_ID, "--json"],
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
@@ -75,8 +75,8 @@ def test_asset_path_json_carries_id_path_and_tier() -> None:
 def test_asset_path_unknown_id_exits_nonzero_naming_it() -> None:
     """An unknown asset id exits non-zero and names the offending id (A-7)."""
     result = runner.invoke(
-        doctrine_app,
-        ["asset", "path", "no-such-asset-xyz"],
+        charter_app,
+        ["pack", "asset", "path", "no-such-asset-xyz"],
         catch_exceptions=False,
     )
     assert result.exit_code != 0
@@ -100,8 +100,8 @@ def test_asset_path_resolves_every_internal_pack_asset_to_its_blob(asset_id: str
     path that is not on disk.
     """
     result = runner.invoke(
-        doctrine_app,
-        ["asset", "path", asset_id, "--json"],
+        charter_app,
+        ["pack", "asset", "path", asset_id, "--json"],
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
@@ -114,8 +114,8 @@ def test_asset_path_resolves_every_internal_pack_asset_to_its_blob(asset_id: str
 def test_asset_list_includes_shipped_asset_and_tier() -> None:
     """``asset list`` names the shipped asset and its built-in tier."""
     result = runner.invoke(
-        doctrine_app,
-        ["asset", "list"],
+        charter_app,
+        ["pack", "asset", "list"],
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
@@ -126,8 +126,8 @@ def test_asset_list_includes_shipped_asset_and_tier() -> None:
 def test_asset_list_json_is_a_record_list() -> None:
     """``asset list --json`` yields a list of id/tier/path records."""
     result = runner.invoke(
-        doctrine_app,
-        ["asset", "list", "--json"],
+        charter_app,
+        ["pack", "asset", "list", "--json"],
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
@@ -155,7 +155,7 @@ def test_resolved_path_str_renders_marker_on_not_found_not_just_escape() -> None
 
     from charter.offering.assets.repository import AssetNotFoundError, AssetRepository
 
-    from specify_cli.cli.commands._doctrine_asset import _UNRESOLVABLE, _resolved_path_str
+    from specify_cli.cli.commands.charter.pack_asset import _UNRESOLVABLE, _resolved_path_str
 
     repo = create_autospec(AssetRepository, instance=True)
     repo.resolve_path.side_effect = AssetNotFoundError("orphaned-org-asset")
@@ -173,7 +173,7 @@ def test_asset_list_empty_prints_message_and_exits_zero(tmp_path: Path, monkeypa
         asset_module, "_build_asset_repository", lambda: AssetRepository(built_in_dir=empty_built_in)
     )
 
-    result = runner.invoke(doctrine_app, ["asset", "list"], catch_exceptions=False)
+    result = runner.invoke(charter_app, ["pack", "asset", "list"], catch_exceptions=False)
     assert result.exit_code == 0, result.output
     assert "No doctrine assets found." in result.output
 
@@ -193,7 +193,7 @@ def test_asset_path_escape_exits_nonzero_naming_it(tmp_path: Path, monkeypatch: 
         asset_module, "_build_asset_repository", lambda: AssetRepository(built_in_dir=built_in)
     )
 
-    result = runner.invoke(doctrine_app, ["asset", "path", "evil"], catch_exceptions=False)
+    result = runner.invoke(charter_app, ["pack", "asset", "path", "evil"], catch_exceptions=False)
     assert result.exit_code != 0
     assert "evil" in result.output
 
@@ -201,8 +201,8 @@ def test_asset_path_escape_exits_nonzero_naming_it(tmp_path: Path, monkeypatch: 
 def test_asset_path_unknown_id_json_carries_id_and_error() -> None:
     """``path --json`` on a failure renders the id/error record, not rich text."""
     result = runner.invoke(
-        doctrine_app,
-        ["asset", "path", "no-such-asset-xyz", "--json"],
+        charter_app,
+        ["pack", "asset", "path", "no-such-asset-xyz", "--json"],
         catch_exceptions=False,
     )
     assert result.exit_code != 0

@@ -14,7 +14,7 @@ import yaml
 from typer.testing import CliRunner
 
 from charter.activation.activation_engine import NoActivationRestrictionsError, plan_activation
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 from charter.activation.drg_activation import _SINGULAR_TO_PER_KIND_FIELD
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.org_pack_discovery import read_org_required_ids, read_org_skill_namespace
@@ -32,7 +32,7 @@ runner = CliRunner()
 
 
 def _skill_ids_in_force(project: Path) -> set[str]:
-    return set(build_activation_aware_doctrine_service(project).skills)
+    return set(build_active_charter_service(project).skills)
 
 
 def _activated(project: Path, key: str) -> list[str] | None:

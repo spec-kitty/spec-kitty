@@ -3,12 +3,12 @@ name: spk-charter-governance
 description: >-
   Run Spec Kitty charter interview, generation, context loading, and
   synchronization workflows for project governance. Access charter artifacts
-  programmatically via DoctrineService. Resolve agent profiles. Load
+  programmatically via ActiveCharterService. Resolve agent profiles. Load
   action-scoped governance context iteratively, not all at once.
   Triggers: "interview for charter", "generate charter",
   "sync charter", "use doctrine", "set up governance",
   "charter status", "extract governance config", "load doctrine",
-  "agent profile", "DoctrineService", "action index".
+  "agent profile", "ActiveCharterService", "action index".
   Does NOT handle: generic spec writing not tied to governance, direct runtime
   loop advancement, setup/repair diagnostics, or editorial glossary maintenance.
 ---
@@ -62,8 +62,8 @@ yourself, then let the CLI validate and promote them.
 
 - `references/charter-governance-workflow.md` -- Full workflow: agent-driven
   synthesis, the charter model and data flow, artifact kinds,
-  `DoctrineService` access, profile resolution, and common pitfalls.
+  `ActiveCharterService` access, profile resolution, and common pitfalls.
 - `references/charter-command-map.md` -- Full CLI command reference with all
   flags and output fields.
-- `references/doctrine-artifact-structure.md` -- File layout, authority
+- `references/charter-artifact-structure.md` -- File layout, authority
   classes, and data flow.

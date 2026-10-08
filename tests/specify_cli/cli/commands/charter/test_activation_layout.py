@@ -6,7 +6,7 @@ and scanned the nested ``<pack>/doctrine/<plural>/org/`` location
 (``pack_manager._scan_layer_dirs``). Runtime, by contrast, resolves org packs from
 the *flat* ``<pack>/<plural>/`` layout via
 ``charter.offering.drg.org_pack_config.resolve_org_roots`` and feeds those roots to
-``DoctrineService`` — so a runtime-resolvable org profile failed to activate with
+``ActiveCharterService`` — so a runtime-resolvable org profile failed to activate with
 "Unknown agent-profile ID".
 
 These tests pin the unified behaviour:
@@ -89,7 +89,7 @@ def _write_config_with_org_pack(project_root: Path, pack_local_path: str) -> Non
     fixtures must provision it like a real ``spec-kitty init``/``upgrade`` would.
     """
     (project_root / ".kittify" / "config.yaml").write_text(
-        "doctrine:\n"
+        "charter_packs:\n"
         "  org:\n"
         "    packs:\n"
         "      - name: orgzilla\n"
@@ -228,7 +228,7 @@ class TestNestedLayoutBackwardCompat:
         """Layout-tolerant fallback: a nested ``<pack>/doctrine/<plural>/org/`` pack
         remains activatable, so the un-owned nested catalog fixtures stay green."""
         pack_root = project_root / "org-packs" / "legacy"
-        nested_dir = pack_root / "doctrine" / "directives" / "org"
+        nested_dir = pack_root / "directives"
         nested_dir.mkdir(parents=True, exist_ok=True)
         (nested_dir / "950-legacy-rule.directive.yaml").write_text(
             _DIRECTIVE_TEMPLATE.format(did="DIRECTIVE_950", title="950-legacy-rule"),

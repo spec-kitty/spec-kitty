@@ -4,7 +4,7 @@ Provides the compatibility registry that maps bundle integer schema versions
 to supported CLI version ranges. Used by charter modules to decide whether
 a bundle can be read natively or needs migration.
 
-Dependency direction: charter -> doctrine (never reversed).
+Dependency direction: charter -> charter.offering (never reversed).
 This module must NOT import from charter.*.
 """
 
@@ -174,7 +174,7 @@ def get_bundle_schema_version(charter_dir: Path) -> int | None:
     ``extraction_mode`` / ``sections_parsed``). Callers pass the SAME
     ``charter_dir`` (``.kittify/charter/``) as before; only the filename and
     the nesting under ``metadata:`` changed. This module must not import
-    ``charter.*`` (dependency direction: charter -> doctrine, never
+    ``charter.*`` (dependency direction: charter -> charter.offering, never
     reversed), so the read is a plain YAML dict-walk, not a pydantic
     validation.
 
@@ -516,7 +516,7 @@ def _stamp_charter_bundle_version(
     onto ``<bundle_root>/charter.yaml``'s ``metadata:`` section -- the SAME
     file/section :func:`get_bundle_schema_version` reads (this function is
     its counterpart writer). This module must not import ``charter.*``
-    (dependency direction: charter -> doctrine, never reversed), so the
+    (dependency direction: charter -> charter.offering, never reversed), so the
     write is a plain round-trip YAML dict-walk, touching only the
     ``metadata.bundle_schema_version`` key -- every other top-level section
     (governance/directives/catalog/activation) loaded from disk is

@@ -48,7 +48,7 @@ DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[4] / "src" / "charter" / 
 _yaml = YAML(typ="safe")
 
 
-def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
+def _count_inline_refs(pack_root: Path) -> int:  # noqa: C901
     """Count every inline reference field entry across all shipped artifacts.
 
     This mirrors the extraction logic but only counts -- used for the T017
@@ -108,7 +108,7 @@ def _count_inline_refs(doctrine_root: Path) -> int:  # noqa: C901
                     total += 1
 
     # Action indices
-    missions_dir = doctrine_root / "missions"
+    missions_dir = pack_root / "missions"
     if missions_dir.is_dir():
         for index_path in sorted(missions_dir.rglob("actions/*/index.yaml")):
             data = _yaml.load(index_path)
@@ -242,8 +242,8 @@ class TestExtractArtifactEdges:
         — no inner ``built-in``); a synthetic root is honoured as-is by the
         extractor's artifact-root resolver.
         """
-        doctrine_root = tmp_path / "pack"
-        tactics_dir = doctrine_root / "tactics"
+        pack_root = tmp_path / "pack"
+        tactics_dir = pack_root / "tactics"
         tactics_dir.mkdir(parents=True)
         (tactics_dir / "metadata-merge.tactic.yaml").write_text(
             "\n".join(
@@ -264,7 +264,7 @@ class TestExtractArtifactEdges:
             encoding="utf-8",
         )
 
-        _, edges = extract_artifact_edges(doctrine_root)
+        _, edges = extract_artifact_edges(pack_root)
 
         edge = next(
             edge
@@ -283,8 +283,8 @@ class TestExtractArtifactEdges:
         promotions LOSSLESS -- without it a promoted edge would drop its curated
         ``reason`` and the regenerated fragment would drift.
         """
-        doctrine_root = tmp_path / "pack"
-        directives_dir = doctrine_root / "directives"
+        pack_root = tmp_path / "pack"
+        directives_dir = pack_root / "directives"
         directives_dir.mkdir(parents=True)
         (directives_dir / "reason-roundtrip.directive.yaml").write_text(
             "\n".join(
@@ -306,7 +306,7 @@ class TestExtractArtifactEdges:
             encoding="utf-8",
         )
 
-        _, edges = extract_artifact_edges(doctrine_root)
+        _, edges = extract_artifact_edges(pack_root)
 
         with_reason = next(
             e for e in edges if e.target == "styleguide:with-reason"
@@ -332,8 +332,8 @@ class TestExtractArtifactEdges:
         dropped its rationale at the extractor. Closes the defect class by
         construction (one helper feeds every reference branch).
         """
-        doctrine_root = tmp_path / "pack"
-        tactics_dir = doctrine_root / "tactics"
+        pack_root = tmp_path / "pack"
+        tactics_dir = pack_root / "tactics"
         tactics_dir.mkdir(parents=True)
         (tactics_dir / "reason-roundtrip.tactic.yaml").write_text(
             "\n".join(
@@ -358,7 +358,7 @@ class TestExtractArtifactEdges:
             encoding="utf-8",
         )
 
-        _, edges = extract_artifact_edges(doctrine_root)
+        _, edges = extract_artifact_edges(pack_root)
 
         top = next(e for e in edges if e.target == "styleguide:top-with-reason")
         assert top.when == "at the top level"
@@ -379,8 +379,8 @@ class TestExtractArtifactEdges:
         reference's authored ``when``/``reason`` never reached the DRG edge even
         though shipped procedure fixtures already author ``reason`` in YAML.
         """
-        doctrine_root = tmp_path / "pack"
-        procedures_dir = doctrine_root / "procedures"
+        pack_root = tmp_path / "pack"
+        procedures_dir = pack_root / "procedures"
         procedures_dir.mkdir(parents=True)
         (procedures_dir / "reason-roundtrip.procedure.yaml").write_text(
             "\n".join(
@@ -403,7 +403,7 @@ class TestExtractArtifactEdges:
             encoding="utf-8",
         )
 
-        _, edges = extract_artifact_edges(doctrine_root)
+        _, edges = extract_artifact_edges(pack_root)
 
         with_reason = next(
             e for e in edges if e.target == "styleguide:with-reason"
@@ -760,7 +760,7 @@ class TestExtractActionEdges:
             "procedure:issue-triage-state-machine",
         }
 
-    def test_nonexistent_doctrine_root(self) -> None:
+    def test_nonexistent_pack_root(self) -> None:
         nodes, edges = extract_action_edges(Path("/nonexistent"))
         assert nodes == []
         assert edges == []
@@ -858,7 +858,7 @@ class TestGenerateGraph:
         assert regenerated, "generate_graph produced no fragments"
         assert regenerated == committed, (
             "packs/built-in/*.graph.yaml fragments are stale. Regenerate the "
-            "shipped DRG with `spec-kitty doctrine regenerate-graph` and commit "
+            "shipped DRG with `spec-kitty charter pack regenerate-graph` and commit "
             "the result."
         )
 

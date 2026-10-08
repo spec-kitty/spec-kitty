@@ -62,7 +62,7 @@ from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from charter.offering.artifact_kinds import MISSION_TYPE_TOKEN, ArtifactKind
 from charter.offering.drg.org_pack_config import require_declared_org_roots, resolve_org_roots
 from charter.offering.pack_paths import built_in_dir
-from kernel.charter_pack_paths import resolve_project_pack_read_root
+from kernel.charter_pack_paths import project_pack_root
 
 __all__ = ["resolve_effective_sets"]
 
@@ -111,10 +111,10 @@ def _load_offering(repo_root: Path, *, with_service: bool) -> _Offering:
         raise _UnresolvableError(f"the layer roots cannot be resolved: {exc}") from exc
     service: Any = None
     if with_service:
-        from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+        from charter.activation.active_charter_service_builder import build_active_charter_service
 
         try:
-            service = build_activation_aware_doctrine_service(repo_root)
+            service = build_active_charter_service(repo_root)
         except Exception as exc:
             raise _UnresolvableError(f"the doctrine service cannot be built: {exc}") from exc
     return _Offering(layer_roots=layer_roots, org_roots=org_roots, service=service)
@@ -169,7 +169,7 @@ def _readable_roots(repo_root: Path) -> list[dict[str, Path]]:
     registry contributes no org root rather than failing the fallback.
     """
     base: dict[str, Path] = {}
-    project = resolve_project_pack_read_root(repo_root, quiet=True)
+    project = project_pack_root(repo_root)
     if project.is_dir():
         base["project"] = project
     try:
@@ -182,10 +182,10 @@ def _readable_roots(repo_root: Path) -> list[dict[str, Path]]:
 
 def _fallback_service(repo_root: Path) -> Any:  # noqa: ANN401 — the doctrine service has no public protocol
     """The activation-aware service, or ``None`` when it cannot be built (best effort)."""
-    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.active_charter_service_builder import build_active_charter_service
 
     try:
-        return build_activation_aware_doctrine_service(repo_root)
+        return build_active_charter_service(repo_root)
     except Exception as exc:  # noqa: BLE001 — the fallback degrades to the scanned ids
         logger.debug("doctrine service unavailable for the fallback: %s", exc)
         return None

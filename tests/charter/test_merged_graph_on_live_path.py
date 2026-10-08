@@ -26,7 +26,7 @@ def _built_in_from(root: Path) -> Any:
     WP03 (mission #2680) routed ``load_validated_graph`` through the canonical
     :func:`charter.offering.drg.loader.load_built_in_graph` seam, so tests inject the
     built-in layer by patching that seam rather than the retired
-    ``resolve_doctrine_root`` import.
+    ``resolve_offering_root`` import.
     """
     return load_graph_or_dir(root)
 
@@ -54,7 +54,7 @@ def test_load_validated_graph_invokes_assert_valid(tmp_path: Path) -> None:
 
 
 def test_load_validated_graph_overlays_project_graph(tmp_path: Path) -> None:
-    """When a project-overlay ``.kittify/doctrine/graph.yaml`` exists, the
+    """When a project-overlay ``.kittify/charter-packs/graph.yaml`` exists, the
     helper merges it onto the shipped graph before validating."""
     built_in_root = tmp_path / "doctrine"
     built_in_root.mkdir()
@@ -68,7 +68,7 @@ def test_load_validated_graph_overlays_project_graph(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    project_graph_dir = tmp_path / ".kittify" / "doctrine"
+    project_graph_dir = tmp_path / ".kittify" / "charter-packs"
     project_graph_dir.mkdir(parents=True)
     (project_graph_dir / "graph.yaml").write_text(
         "schema_version: '1.0'\n"

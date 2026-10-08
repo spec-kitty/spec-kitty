@@ -1,4 +1,4 @@
-"""Doctrine service for lazy access to all doctrine repositories."""
+"""Charter offering service: lazy access to every artifact repository of the offering."""
 
 from __future__ import annotations
 
@@ -18,21 +18,20 @@ from charter.offering.procedures import ProcedureRepository
 from charter.offering.styleguides import StyleguideRepository
 from charter.offering.tactics import TacticRepository
 from charter.offering.toolguides import ToolguideRepository
-from kernel.charter_pack_paths import KITTIFY_DIRNAME, LEGACY_PROJECT_PACK_DIRNAME, PROJECT_PACK_DIRNAME
-
-
-#: Directory names a project pack root may carry under ``.kittify``. The legacy
-#: name is TEMPORARY (FR-011): WP14 removes it with the read fallback.
-_PROJECT_PACK_DIRNAMES: frozenset[str] = frozenset({PROJECT_PACK_DIRNAME, LEGACY_PROJECT_PACK_DIRNAME})
+from kernel.charter_pack_paths import KITTIFY_DIRNAME, PROJECT_PACK_DIRNAME
 
 
 def _is_project_pack_root(root: Path) -> bool:
-    """Return whether *root* is a project pack root (``.kittify/charter-packs``, or the legacy root)."""
-    return root.name in _PROJECT_PACK_DIRNAMES and root.parent.name == KITTIFY_DIRNAME
+    """Return whether *root* is a project pack root (``.kittify/charter-packs``)."""
+    return root.name == PROJECT_PACK_DIRNAME and root.parent.name == KITTIFY_DIRNAME
 
 
-class DoctrineService:
-    """Lazy aggregation service for doctrine repositories."""
+class CharterOfferingService:
+    """Lazy, unfiltered aggregation over the charter offering's artifact repositories.
+
+    Raw by design: it applies no activation filter. Activation-aware callers
+    wrap it in the activation-aware service of :mod:`charter.activation.resolver`.
+    """
 
     def __init__(
         self,
@@ -47,7 +46,7 @@ class DoctrineService:
         # #3176 (WP02): optional override for the agent-profile project overlay
         # directory. When set, the ``agent_profiles`` property points its
         # project layer at this path (e.g. ``.kittify/agent_profiles``) instead
-        # of the doctrine-root ``agent_profiles`` dir ``_project_dir`` derives.
+        # of the project-root ``agent_profiles`` dir ``_project_dir`` derives.
         # Only ``agent_profiles`` consults it; every other repository is
         # unaffected. Default ``None`` ⇒ byte-identical behaviour (NFR-002).
         self._agent_profile_overlay_dir = agent_profile_overlay_dir

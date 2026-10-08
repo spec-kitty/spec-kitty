@@ -38,7 +38,7 @@ from charter.drg import (
     merge_layers,
     resolve_context,
 )
-from kernel.charter_pack_paths import resolve_project_pack_read_root
+from kernel.charter_pack_paths import project_pack_root
 from specify_cli.calibration.inequality import InequalityResult, assert_inequality_holds
 
 
@@ -334,7 +334,7 @@ _MISSION_STEPS: dict[str, list[tuple[str, str, str]]] = {
 
 def _calibration_overlay_path(repo_root: Path, mission_key: str) -> Path:
     """Return the project calibration overlay path for *mission_key* (project pack root)."""
-    return resolve_project_pack_read_root(repo_root, quiet=True) / "overlays" / f"calibration-{mission_key}.yaml"
+    return project_pack_root(repo_root) / "overlays" / f"calibration-{mission_key}.yaml"
 
 
 def _load_overlay_graph(

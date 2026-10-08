@@ -38,7 +38,7 @@ from charter.activation.skill_preparation import (
     prepare_project_skill_activations,
 )
 from charter.drg import resolve_existing_org_roots
-from kernel.charter_pack_paths import resolve_project_pack_read_root
+from kernel.charter_pack_paths import project_pack_root
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import UnsafePathSegmentError, assert_safe_path_segment
 from specify_cli.skills.manifest import ORIGIN_PACK, load_manifest
@@ -150,7 +150,7 @@ def _project_may_have_pack_skills(project_root: Path, *, installed_pack_skills: 
     """
     return (
         pack_skills_matter(project_root, installed_pack_skills=installed_pack_skills)
-        or (resolve_project_pack_read_root(project_root, quiet=True) / _PROJECT_SKILLS_DIRNAME).is_dir()
+        or (project_pack_root(project_root) / _PROJECT_SKILLS_DIRNAME).is_dir()
         or bool(resolve_existing_org_roots(project_root))
     )
 

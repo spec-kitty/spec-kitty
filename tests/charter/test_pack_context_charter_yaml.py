@@ -175,7 +175,7 @@ def test_org_pack_names_read_from_config_yaml_even_when_migrated(tmp_path: Path)
 vcs:
   type: git
 charter: .kittify/charter/charter.yaml
-doctrine:
+charter_packs:
   org:
     packs:
       - name: acme-pack

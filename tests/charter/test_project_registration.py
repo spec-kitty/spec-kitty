@@ -7,7 +7,7 @@ import pytest
 
 from charter.activation.synthesizer.manifest import load_yaml, verify
 from charter.offering.artifact_kinds import ArtifactKind, PROJECT_KIND_DIRS
-from specify_cli.cli.commands.doctrine import _STUB_TEMPLATES
+from specify_cli.cli.commands.charter.authoring import _STUB_TEMPLATES
 
 pytestmark = pytest.mark.unit
 
@@ -592,30 +592,3 @@ def test_corrupt_sidecar_degrades_to_untouched_not_crash(tmp_path):
     assert not any("Pruned project registration" in warning for warning in plan.warnings)
     assert plan.deletes == ()
     commit_project_registration(plan)
-
-
-def test_project_registration_legacy_root_read_fallback(tmp_path):
-    """TEMPORARY (FR-011, deleted by WP14 with the read shim).
-
-    A project still on the retired ``.kittify/doctrine/`` tree is read there
-    (artifacts and committed graph), while the graph the plan would write
-    always targets the project charter pack root (FR-016).
-    """
-    import shutil
-
-    from charter.activation.project_registration import plan_project_registration
-
-    author_guidance(tmp_path)
-    shutil.move(tmp_path / ".kittify/charter-packs", tmp_path / ".kittify/doctrine")
-    plan = plan_project_registration(tmp_path)
-    assert {a.node.kind.value for a in plan.artifacts} == {
-        "procedure",
-        "agent_profile",
-        "directive",
-        "tactic",
-        "styleguide",
-    }
-    assert all(a.path.is_relative_to(tmp_path / ".kittify/doctrine") for a in plan.artifacts)
-    written = {path for path, _ in plan.writes}
-    assert tmp_path / ".kittify/charter-packs/graph.yaml" in written
-    assert not any(path.is_relative_to(tmp_path / ".kittify/doctrine") for path in written)

@@ -37,7 +37,7 @@ from charter.offering.drg.merge import merge_three_layers
 from charter.offering.drg.models import DRGEdge, DRGGraph
 from charter.offering.drg.org_pack_loader import OrgDRGFragment
 from charter.offering.drg.validator import DRGValidationError, assert_valid, validate_graph
-from kernel.charter_pack_paths import resolve_project_pack_read_root
+from kernel.charter_pack_paths import pack_drg_fragment, project_pack_root
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -175,7 +175,7 @@ def load_validated_graph(
         # or never reach this branch, so this does not double-warn them; the
         # `activate` / `deactivate` / `gate_bindings` callers — which do not
         # pre-probe — get their only signal here.
-        fragment_exists = bool(root) and root.exists() and (root / "drg" / "fragment.yaml").exists()
+        fragment_exists = bool(root) and root.exists() and pack_drg_fragment(root).exists()
         if root and root.exists() and (not fragment_exists or org_fragments is None):
             missing_shape = (
                 "and no drg/fragment.yaml"
@@ -194,7 +194,7 @@ def load_validated_graph(
 
     project = None
     if include_project:
-        project_dir = resolve_project_pack_read_root(repo_root, quiet=True)
+        project_dir = project_pack_root(repo_root)
         project = (
             load_graph_or_dir(project_dir)
             if has_graph_files(project_dir)

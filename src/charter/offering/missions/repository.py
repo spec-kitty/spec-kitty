@@ -106,7 +106,7 @@ class TemplateResult:
 
     @property
     def tier(self) -> Any:
-        """Resolution tier (ResolutionTier enum or None for doctrine-level lookups)."""
+        """Resolution tier (ResolutionTier enum or None for offering-level lookups)."""
         return self._tier
 
     def __repr__(self) -> str:
@@ -196,7 +196,7 @@ class MissionTemplateRepository:
 
     @classmethod
     def default(cls) -> MissionTemplateRepository:
-        """Return a repository instance for the doctrine-bundled missions."""
+        """Return a repository instance for the built-in missions."""
         return cls(cls.default_missions_root())
 
     # ------------------------------------------------------------------

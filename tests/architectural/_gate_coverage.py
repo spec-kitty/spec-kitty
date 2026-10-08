@@ -2173,7 +2173,7 @@ _PRE_MISSION_MAPPED_SRC_DIRS: frozenset[str] = frozenset(
         "coordination",
         "core",
         "delivery",
-        "doctrine_synthesizer",
+        "charter_pack_synthesizer",
         "event_journal",
         "lanes",
         "missions",

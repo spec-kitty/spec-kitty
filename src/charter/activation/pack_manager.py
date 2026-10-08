@@ -227,7 +227,8 @@ def _scan_layout_for(kind: ArtifactKind | None) -> tuple[str, str, bool]:
     is not an :class:`ArtifactKind`, so its flat-directory layout and ``*.yaml``
     glob are spelled out explicitly.
 
-    Two base-dir outliers do not follow ``doctrine/<plural>``:
+    The standard kinds' ``base_dir`` is ``<plural>``. Two base-dir outliers
+    do not follow it:
 
     * ``mission-step-contract`` lives under
       ``missions/built_in_step_contracts`` (a flat directory, not a
@@ -253,27 +254,21 @@ def _scan_layout_for(kind: ArtifactKind | None) -> tuple[str, str, bool]:
     if kind is ArtifactKind.MISSION_STEP_CONTRACT:
         # Step contracts live in a single flat directory (no layer segment).
         return ("missions/built_in_step_contracts", kind.glob_pattern, False)
-    # The 7 standard artifact kinds: doctrine/<plural>/<layer>/ with the
-    # canonical glob from ArtifactKind.
-    return (f"doctrine/{kind.plural}", kind.glob_pattern, True)
+    # The standard artifact kinds: a flat <plural>/ directory per layer root,
+    # with the canonical glob from ArtifactKind.
+    return (kind.plural, kind.glob_pattern, True)
 
 
-def _resolve_org_layer_dir(root: Path, kind: ArtifactKind, base_dir: str) -> Path:
-    """Resolve the org-layer scan directory, tolerant of flat vs nested layouts.
+def _resolve_org_layer_dir(root: Path, kind: ArtifactKind) -> Path:
+    """Return the org-layer scan directory: the flat ``<pack>/<plural>/`` layout.
 
     FR-013 unifies the charter activation subsystem with runtime, which resolves
-    org packs from the **flat** ``<pack>/<plural>/`` layout
-    (``resolve_org_roots`` → ``DoctrineService``). Flat is therefore the
-    canonical, preferred layout. The legacy nested
-    ``<pack>/doctrine/<plural>/org/`` layout is kept as a fallback so packs that
-    already ship the nested layout keep resolving — a layout-tolerant default,
-    not a hard cutover (post-tasks squad decision; keeps the un-owned nested
-    catalog fixtures green).
+    org packs from the flat layout (``resolve_org_roots`` → ``ActiveCharterService``).
+    The retired nested ``<pack>/doctrine/<plural>/org/`` layout is not read
+    (mission ``charter-pack-cutover-01M491G6``, FR-011: no read-side fallback
+    for the retired doctrine layout).
     """
-    flat = root / kind.plural
-    if flat.is_dir():
-        return cast(Path, flat)
-    return root / base_dir / "org"
+    return cast(Path, root / kind.plural)
 
 
 def _kittify_root_of_project_pack(project_pack_root: Path) -> Path:
@@ -281,8 +276,8 @@ def _kittify_root_of_project_pack(project_pack_root: Path) -> Path:
 
     The project layer root handed out by
     :func:`charter.activation.layer_roots.resolve_layer_roots` is always a
-    direct child of ``<repo>/.kittify`` (the project pack root, or the retired
-    legacy root it falls back to until FR-011), so its parent is ``.kittify``.
+    direct child of ``<repo>/.kittify`` (the project pack root), so its parent
+    is ``.kittify``.
     Project mission types live at ``.kittify/missions/mission_types/``, outside
     the pack, and are resolved from here.
     """
@@ -309,7 +304,7 @@ def _resolve_layer_candidate(
         kind_dir = _PROJECT_KIND_DIRS.get(kind, kind.plural)
         return cast(Path, root / kind_dir)
     if layered and layer == "org" and kind is not None:
-        return _resolve_org_layer_dir(root, kind, base_dir)
+        return _resolve_org_layer_dir(root, kind)
     if layered and layer == "built-in" and kind is not None:
         # The built-in layer relocated from ``src/charter/offering/<plural>/built-in``
         # to the flattened ``packs/built-in/<plural>`` tree
@@ -358,7 +353,7 @@ def _resolve_layer_candidate(
         # `root` here is the org pack root itself (see
         # charter.activation.layer_roots.resolve_layer_roots
         # -> charter.drg.resolve_org_roots), the same root
-        # _resolve_org_layer_dir's flat-layout branch joins onto for the
+        # _resolve_org_layer_dir joins onto for the
         # ArtifactKind case above. The ``mission_types`` segment is the
         # authority's own constant (#3427) -- the same one
         # resolve_layered_mission_types scans -- never a locally re-spelled
@@ -880,7 +875,7 @@ class ActiveCharterManager:
 
         The built-in layer is rooted under the installed doctrine package
         (``src/doctrine``). Org/project roots are supplied **as data** (C-008).
-        Org roots use the pack layout ``doctrine/<plural>/org``. The project
+        Org roots use the flat pack layout ``<plural>/``. The project
         root is the project pack root (``.kittify/charter-packs/``) and uses
         the flat ``<singular>`` kind layout. Non-existent directories are
         skipped so a layer that is simply not present contributes nothing.

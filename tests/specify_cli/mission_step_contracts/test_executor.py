@@ -56,7 +56,7 @@ def _setup_fixture_profiles(repo_root: Path) -> None:
 
 def _write_project_graph(repo_root: Path) -> None:
     _write_yaml(
-        repo_root / ".kittify" / "doctrine" / "graph.yaml",
+        repo_root / ".kittify" / "charter-packs" / "graph.yaml",
         {
             "schema_version": "1.0",
             "generated_at": "2026-04-24T00:00:00Z",
@@ -268,7 +268,7 @@ def write_org_pack_config(repo_root: Path, org_root: Path, *, pack_name: str = O
     (config_dir / "config.yaml").write_text(
         "\n".join(
             [
-                "doctrine:",
+                "charter_packs:",
                 "  org:",
                 "    packs:",
                 f"      - name: {pack_name}",
@@ -888,7 +888,7 @@ def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(
     a hard block.
 
     ``StepContractExecutor``'s org-root resolution comment claims to mirror
-    ``charter.activation.action_doctrine_bundle._resolve_action_bundle``'s graceful
+    ``charter.activation.action_governance_bundle._resolve_action_bundle``'s graceful
     degrade (catch ``DRGLoadError``, warn, continue with built-in + project
     doctrine only) -- this pins that the executor actually does that for its
     own ``load_validated_graph`` call, not just cites the precedent.
@@ -1126,7 +1126,7 @@ def write_two_pack_org_config(
     (config_dir / "config.yaml").write_text(
         "\n".join(
             [
-                "doctrine:",
+                "charter_packs:",
                 "  org:",
                 "    packs:",
                 f"      - name: {pack_a_name}",

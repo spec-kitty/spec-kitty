@@ -27,7 +27,7 @@ exit_condition: >
   documented justification). Every artifact extracted from the source agent is written under the
   correct pack subdirectory and registered in the DRG with appropriate edges. If a dedicated
   agent profile was warranted it is created; if not, the decision not to create one is recorded.
-  For an org pack, spec-kitty doctor doctrine reports the pack installed with the
+  For an org pack, spec-kitty doctor charter-packs reports the pack installed with the
   expected artifact counts; for the project tier, spec-kitty charter list shows the new
   artifacts activated.
 steps:
@@ -231,11 +231,11 @@ steps:
     actor: human
     description: >
       Run the full verification suite for the chosen tier: the tier's validation command from the
-      first step (expect zero errors), then spec-kitty doctor doctrine (expect the pack installed
+      first step (expect zero errors), then spec-kitty doctor charter-packs (expect the pack installed
       with matching counts, for an org pack). For the project tier, confirm the
       artifacts are active with spec-kitty charter list, check the graph with
       spec-kitty charter lint, and, if a profile was created, inspect it with
-      spec-kitty profiles show <profile-id>. If spec-kitty doctor doctrine is unavailable, verify
+      spec-kitty profiles show <profile-id>. If spec-kitty doctor charter-packs is unavailable, verify
       manually that there are no duplicate ids within a kind and that each new artifact has a
       DRG node and at least one edge.
 

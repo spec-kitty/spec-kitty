@@ -826,7 +826,7 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 _EXPECTED_NODE_COUNT = pure_builtin_node_count()
 #: No frozen ``_EXPECTED_EDGE_COUNT``: edge totals come from frontmatter refs and
 #: cannot be independently derived from the filesystem. EXACT edge integrity is
-#: guaranteed by ``spec-kitty doctrine regenerate-graph --check`` (committed
+#: guaranteed by ``spec-kitty charter pack regenerate-graph --check`` (committed
 #: fragments == a fresh regeneration) and, in-process, by
 #: ``test_shipped_graph_is_fresh_and_byte_identical`` (regenerated edge SET ==
 #: shipped edge SET). Count assertions below use an ``edges >= nodes`` floor.

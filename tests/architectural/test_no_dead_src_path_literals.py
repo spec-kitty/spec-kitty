@@ -164,6 +164,13 @@ _ALLOWED_DEAD_LITERALS: dict[str, dict[str, str]] = {
     "docs/architecture/mission-type-resolution.md": {
         "src/doctrine/missions/<type>/": "relocation history: both mentions are phrased 'relocated from src/doctrine/missions/<type>/'",
     },
+    "docs/architecture/profile-load-reliability.md": {
+        # Dated investigation record (2026-09-30): its findings quote the preset
+        # file as it stood, a 16-entry allowlist at line 187. The #3732 cutover
+        # retired that registry; the successor packs/built-in/presets/default.yaml
+        # carries no agent-profile allowlist, so repointing would misstate the finding.
+        "src/charter/activation/packs/default.yaml": "investigation record of the retired preset registry (#3732)",
+    },
     "docs/architecture/spdd-reasons.md": {
         "src/foo/api.py": "illustrative example path in a structure sketch",
     },

@@ -85,7 +85,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from kernel.charter_pack_paths import resolve_project_pack_read_root
+from kernel.charter_pack_paths import project_pack_root
 from mission_runtime import OwnedCheckout
 
 from runtime.next import runtime_bridge_cores as _cores
@@ -278,7 +278,7 @@ def _resolve_runtime_contract_for_step(
         contract_ref = step.contract_ref.strip() if step.contract_ref else None
         if contract_ref:
             repository = MissionStepContractRepository(
-                project_dir=resolve_project_pack_read_root(repo_root, quiet=True) / "mission_step_contracts",
+                project_dir=project_pack_root(repo_root) / "mission_step_contracts",
                 org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
             )
             return lookup_contract(contract_ref, repository)

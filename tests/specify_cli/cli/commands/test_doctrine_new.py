@@ -1,4 +1,4 @@
-"""CLI tests for ``spec-kitty doctrine new`` (FR-016, WP09 T048).
+"""CLI tests for ``spec-kitty charter new`` (FR-016, WP09 T048).
 
 The scaffolder MUST write a YAML file that:
 
@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.doctrine import app as doctrine_app
+from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -38,7 +38,7 @@ def test_new_styleguide_writes_stub_under_project_doctrine_root(tmp_path: Path) 
     project = _make_project_root(tmp_path)
 
     with contextlib.chdir(project):
-        result = runner.invoke(doctrine_app, ["new", "styleguide", "foo"], catch_exceptions=False)
+        result = runner.invoke(charter_app, ["new", "styleguide", "foo"], catch_exceptions=False)
 
     assert result.exit_code == 0, result.stdout
     target = project / ".kittify" / "charter-packs" / "styleguide" / "foo.styleguide.yaml"
@@ -56,13 +56,13 @@ def test_new_validates_stub_against_schema_so_validate_passes(tmp_path: Path) ->
     project = _make_project_root(tmp_path)
 
     with contextlib.chdir(project):
-        result_new = runner.invoke(doctrine_app, ["new", "tactic", "my-tactic"], catch_exceptions=False)
+        result_new = runner.invoke(charter_app, ["new", "tactic", "my-tactic"], catch_exceptions=False)
         assert result_new.exit_code == 0, result_new.stdout
 
         target = project / ".kittify" / "charter-packs" / "tactic" / "my-tactic.tactic.yaml"
         assert target.exists()
 
-        result_validate = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
+        result_validate = runner.invoke(charter_app, ["validate", str(target)], catch_exceptions=False)
 
     assert result_validate.exit_code == 0, result_validate.stdout
     assert "OK" in result_validate.stdout
@@ -91,13 +91,13 @@ def test_new_special_kind_suffixes_validate_on_first_emit(
     project = _make_project_root(tmp_path)
 
     with contextlib.chdir(project):
-        result_new = runner.invoke(doctrine_app, ["new", kind, artifact_id], catch_exceptions=False)
+        result_new = runner.invoke(charter_app, ["new", kind, artifact_id], catch_exceptions=False)
         assert result_new.exit_code == 0, result_new.stdout
 
         target = project / ".kittify" / "charter-packs" / plural / filename
         assert target.exists()
 
-        result_validate = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
+        result_validate = runner.invoke(charter_app, ["validate", str(target)], catch_exceptions=False)
 
     assert result_validate.exit_code == 0, result_validate.stdout
     assert "OK" in result_validate.stdout
@@ -111,7 +111,7 @@ def test_new_asset_scaffolds_where_project_resolver_reads(tmp_path: Path) -> Non
     command exited 2 (``asset`` was rejected two dicts upstream). The stub must
     land under the *same* project-tier directory the resolver reads, which is
     the single authority ``charter.offering.artifact_kinds.PROJECT_KIND_DIRS[ASSET]``.
-    DoctrineService's round-trip over that same authority is WP04's
+    CharterOfferingService's round-trip over that same authority is WP04's
     (``tests/doctrine/test_service.py``); here we assert only the written path.
     """
     from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
@@ -119,7 +119,7 @@ def test_new_asset_scaffolds_where_project_resolver_reads(tmp_path: Path) -> Non
     project = _make_project_root(tmp_path)
 
     with contextlib.chdir(project):
-        result = runner.invoke(doctrine_app, ["new", "asset", "my-logo"], catch_exceptions=False)
+        result = runner.invoke(charter_app, ["new", "asset", "my-logo"], catch_exceptions=False)
 
     assert result.exit_code == 0, result.stdout
     resolver_dir = PROJECT_KIND_DIRS[ArtifactKind.ASSET]
@@ -137,11 +137,11 @@ def test_new_asset_stub_validates_on_first_emit(tmp_path: Path) -> None:
     project = _make_project_root(tmp_path)
 
     with contextlib.chdir(project):
-        result_new = runner.invoke(doctrine_app, ["new", "asset", "sample-blob"], catch_exceptions=False)
+        result_new = runner.invoke(charter_app, ["new", "asset", "sample-blob"], catch_exceptions=False)
         assert result_new.exit_code == 0, result_new.stdout
         target = project / ".kittify" / "charter-packs" / "assets" / "sample-blob.asset.yaml"
         assert target.exists()
-        result_validate = runner.invoke(doctrine_app, ["validate", str(target)], catch_exceptions=False)
+        result_validate = runner.invoke(charter_app, ["validate", str(target)], catch_exceptions=False)
 
     assert result_validate.exit_code == 0, result_validate.stdout
     assert "OK" in result_validate.stdout
@@ -157,7 +157,7 @@ def test_new_directive_scaffolds_kebab_filename_with_screaming_id_preserved(
     project = _make_project_root(tmp_path)
 
     with contextlib.chdir(project):
-        result = runner.invoke(doctrine_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False)
+        result = runner.invoke(charter_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False)
 
     assert result.exit_code == 0, result.stdout
     target = project / ".kittify" / "charter-packs" / "directive" / "my-directive.directive.yaml"
@@ -190,13 +190,13 @@ def test_scaffolder_engine_and_manifest_slugs_converge_for_screaming_directive(
 
     with contextlib.chdir(project):
         directive_result = runner.invoke(
-            doctrine_app,
+            charter_app,
             ["new", "directive", "SCREAMING_DIRECTIVE"],
             catch_exceptions=False,
         )
         assert directive_result.exit_code == 0, directive_result.stdout
         profile_result = runner.invoke(
-            doctrine_app,
+            charter_app,
             ["new", "agent_profile", "already-kebab-profile"],
             catch_exceptions=False,
         )
@@ -226,10 +226,10 @@ def test_new_refuses_to_overwrite_existing_file(tmp_path: Path) -> None:
     project = _make_project_root(tmp_path)
 
     with contextlib.chdir(project):
-        first = runner.invoke(doctrine_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False)
+        first = runner.invoke(charter_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False)
         assert first.exit_code == 0, first.stdout
 
-        second = runner.invoke(doctrine_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False)
+        second = runner.invoke(charter_app, ["new", "directive", "MY_DIRECTIVE"], catch_exceptions=False)
 
     assert second.exit_code == 1
     assert "Refusing to overwrite" in second.stdout
@@ -240,7 +240,7 @@ def test_new_rejects_unknown_kind(tmp_path: Path) -> None:
     project = _make_project_root(tmp_path)
 
     with contextlib.chdir(project):
-        result = runner.invoke(doctrine_app, ["new", "guideline", "foo"], catch_exceptions=False)
+        result = runner.invoke(charter_app, ["new", "guideline", "foo"], catch_exceptions=False)
 
     assert result.exit_code == 2
     assert "Unknown artifact kind" in result.stdout
@@ -256,7 +256,7 @@ def test_new_with_pack_targets_explicit_pack_root(tmp_path: Path) -> None:
 
     # No project root needed — pack mode bypasses locate_project_root.
     result = runner.invoke(
-        doctrine_app,
+        charter_app,
         ["new", "paradigm", "test-paradigm", "--pack", str(pack_dir)],
         catch_exceptions=False,
     )

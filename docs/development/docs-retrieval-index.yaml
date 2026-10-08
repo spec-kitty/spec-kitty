@@ -3973,6 +3973,7 @@ pages:
     - {slug: "spec-kitty-charter-activate", text: "spec-kitty charter activate", level: 2}
     - {slug: "spec-kitty-charter-bundle", text: "spec-kitty charter bundle", level: 2}
     - {slug: "spec-kitty-charter-bundle-validate", text: "spec-kitty charter bundle validate", level: 2}
+    - {slug: "spec-kitty-charter-consistency-check", text: "spec-kitty charter consistency-check", level: 2}
     - {slug: "spec-kitty-charter-context", text: "spec-kitty charter context", level: 2}
     - {slug: "spec-kitty-charter-deactivate", text: "spec-kitty charter deactivate", level: 2}
     - {slug: "spec-kitty-charter-fetch", text: "spec-kitty charter fetch", level: 2}
@@ -3987,10 +3988,14 @@ pages:
     - {slug: "spec-kitty-charter-org-init", text: "spec-kitty charter org init", level: 2}
     - {slug: "spec-kitty-charter-org-validate", text: "spec-kitty charter org validate", level: 2}
     - {slug: "spec-kitty-charter-pack", text: "spec-kitty charter pack", level: 2}
-    - {slug: "spec-kitty-charter-pack-apply", text: "spec-kitty charter pack apply", level: 2}
-    - {slug: "spec-kitty-charter-pack-consistency-check", text: "spec-kitty charter pack consistency-check", level: 2}
+    - {slug: "spec-kitty-charter-pack-assemble", text: "spec-kitty charter pack assemble", level: 2}
+    - {slug: "spec-kitty-charter-pack-asset", text: "spec-kitty charter pack asset", level: 2}
+    - {slug: "spec-kitty-charter-pack-asset-list", text: "spec-kitty charter pack asset list", level: 2}
+    - {slug: "spec-kitty-charter-pack-asset-path", text: "spec-kitty charter pack asset path", level: 2}
     - {slug: "spec-kitty-charter-pack-list", text: "spec-kitty charter pack list", level: 2}
     - {slug: "spec-kitty-charter-pack-path", text: "spec-kitty charter pack path", level: 2}
+    - {slug: "spec-kitty-charter-pack-regenerate-graph", text: "spec-kitty charter pack regenerate-graph", level: 2}
+    - {slug: "spec-kitty-charter-pack-validate", text: "spec-kitty charter pack validate", level: 2}
     - {slug: "spec-kitty-charter-preflight", text: "spec-kitty charter preflight", level: 2}
     - {slug: "spec-kitty-charter-resynthesize", text: "spec-kitty charter resynthesize", level: 2}
     - {slug: "spec-kitty-charter-status", text: "spec-kitty charter status", level: 2}
@@ -4012,12 +4017,12 @@ pages:
     - {slug: "spec-kitty-doctor", text: "spec-kitty doctor", level: 2}
     - {slug: "spec-kitty-doctor-bytecode", text: "spec-kitty doctor bytecode", level: 2}
     - {slug: "spec-kitty-doctor-channel", text: "spec-kitty doctor channel", level: 2}
+    - {slug: "spec-kitty-doctor-charter-packs", text: "spec-kitty doctor charter-packs", level: 2}
     - {slug: "spec-kitty-doctor-command-files", text: "spec-kitty doctor command-files", level: 2}
     - {slug: "spec-kitty-doctor-contracts", text: "spec-kitty doctor contracts", level: 2}
     - {slug: "spec-kitty-doctor-coordination", text: "spec-kitty doctor coordination", level: 2}
     - {slug: "spec-kitty-doctor-cutover", text: "spec-kitty doctor cutover", level: 2}
     - {slug: "spec-kitty-doctor-decisions", text: "spec-kitty doctor decisions", level: 2}
-    - {slug: "spec-kitty-doctor-doctrine", text: "spec-kitty doctor doctrine", level: 2}
     - {slug: "spec-kitty-doctor-env-file", text: "spec-kitty doctor env-file", level: 2}
     - {slug: "spec-kitty-doctor-identity", text: "spec-kitty doctor identity", level: 2}
     - {slug: "spec-kitty-doctor-invocation-pairing", text: "spec-kitty doctor invocation-pairing", level: 2}
@@ -4034,21 +4039,6 @@ pages:
     - {slug: "spec-kitty-doctor-tool-surfaces", text: "spec-kitty doctor tool-surfaces", level: 2}
     - {slug: "spec-kitty-doctor-topology", text: "spec-kitty doctor topology", level: 2}
     - {slug: "spec-kitty-doctor-workspaces", text: "spec-kitty doctor workspaces", level: 2}
-    - {slug: "spec-kitty-doctrine-asset", text: "spec-kitty doctrine asset", level: 2}
-    - {slug: "spec-kitty-doctrine-asset-list", text: "spec-kitty doctrine asset list", level: 2}
-    - {slug: "spec-kitty-doctrine-asset-path", text: "spec-kitty doctrine asset path", level: 2}
-    - {slug: "spec-kitty-doctrine-fetch", text: "spec-kitty doctrine fetch", level: 2}
-    - {slug: "spec-kitty-doctrine-mission-type", text: "spec-kitty doctrine mission-type", level: 2}
-    - {slug: "spec-kitty-doctrine-mission-type-list", text: "spec-kitty doctrine mission-type list", level: 2}
-    - {slug: "spec-kitty-doctrine-new", text: "spec-kitty doctrine new", level: 2}
-    - {slug: "spec-kitty-doctrine-org", text: "spec-kitty doctrine org", level: 2}
-    - {slug: "spec-kitty-doctrine-org-init", text: "spec-kitty doctrine org init", level: 2}
-    - {slug: "spec-kitty-doctrine-org-validate", text: "spec-kitty doctrine org validate", level: 2}
-    - {slug: "spec-kitty-doctrine-pack", text: "spec-kitty doctrine pack", level: 2}
-    - {slug: "spec-kitty-doctrine-pack-assemble", text: "spec-kitty doctrine pack assemble", level: 2}
-    - {slug: "spec-kitty-doctrine-pack-validate", text: "spec-kitty doctrine pack validate", level: 2}
-    - {slug: "spec-kitty-doctrine-regenerate-graph", text: "spec-kitty doctrine regenerate-graph", level: 2}
-    - {slug: "spec-kitty-doctrine-validate", text: "spec-kitty doctrine validate", level: 2}
     - {slug: "spec-kitty-events", text: "spec-kitty events", level: 2}
     - {slug: "spec-kitty-events-tail", text: "spec-kitty events tail", level: 2}
     - {slug: "spec-kitty-glossary", text: "spec-kitty glossary", level: 2}

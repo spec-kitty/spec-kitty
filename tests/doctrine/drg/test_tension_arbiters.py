@@ -1,7 +1,7 @@
 """Tests for FR-009 tension-arbiter annotation on ``resolve_context`` (WP02).
 
 WP02 of mission ``governance-at-the-gate``: ``resolve_context`` (and the
-``_ActionDoctrineBundle`` it feeds) gains two additive, trailing, hashable
+``_ActionGovernanceBundle`` it feeds) gains two additive, trailing, hashable
 fields -- ``tension_arbiters`` and ``unarbitrated_tensions`` -- surfacing
 ``reconciles_tension``/``in_tension_with`` edges reachable from an action's
 resolved scope, without a second graph walk (spec.md FR-009, NFR-003,

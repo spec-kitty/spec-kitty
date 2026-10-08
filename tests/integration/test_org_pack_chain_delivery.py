@@ -87,7 +87,7 @@ def _write_org_config(repo_root: Path, packs: list[tuple[str, Path]]) -> None:
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
     entries = "".join(f"      - name: {name}\n        local_path: {path}\n" for name, path in packs)
-    (kittify / "config.yaml").write_text(f"doctrine:\n  org:\n    packs:\n{entries}")
+    (kittify / "config.yaml").write_text(f"charter_packs:\n  org:\n    packs:\n{entries}")
 
 
 def _make_fragment_pack(root: Path, fragment_yaml: str) -> Path:

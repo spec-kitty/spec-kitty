@@ -25,7 +25,7 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.layer_roots import resolve_layer_roots
 from charter.activation.pack_context import PackContext
@@ -63,9 +63,9 @@ def _available(project_root: Path, kind: str) -> set[str]:
 
 def _effective_directives(repo: Path) -> set[str]:
     """The directive ids the activation-aware service has in force."""
-    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.active_charter_service_builder import build_active_charter_service
 
-    return set(build_activation_aware_doctrine_service(repo).directives)
+    return set(build_active_charter_service(repo).directives)
 
 
 def test_first_activation_keeps_every_previously_effective_directive(
@@ -206,7 +206,7 @@ def _write_org_procedure(pack_root: Path, *, stem: str, declared_id: str) -> Non
 
 
 def _declare_org_packs(repo: Path, *pack_roots: Path) -> None:
-    lines = ["mission_type_activations:", "  - software-dev", "doctrine:", "  org:", "    packs:"]
+    lines = ["mission_type_activations:", "  - software-dev", "charter_packs:", "  org:", "    packs:"]
     for index, root in enumerate(pack_roots):
         lines.append(f"      - name: preservation-fixture-{index}")
         lines.append(f"        local_path: {root}")
@@ -214,9 +214,9 @@ def _declare_org_packs(repo: Path, *pack_roots: Path) -> None:
 
 
 def _effective_procedures(repo: Path) -> set[str]:
-    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.active_charter_service_builder import build_active_charter_service
 
-    return set(build_activation_aware_doctrine_service(repo).procedures)
+    return set(build_active_charter_service(repo).procedures)
 
 
 def test_artifacts_in_the_second_org_pack_survive_activation(tmp_path: Path) -> None:
@@ -303,7 +303,7 @@ def _fb_config(root: Path) -> dict[str, object]:
 
 
 def _fb_effective_tactics(root: Path) -> set[str]:
-    return {str(key) for key in build_activation_aware_doctrine_service(root).tactics}
+    return {str(key) for key in build_active_charter_service(root).tactics}
 
 
 def _fb_activate(root: Path, kind: str, artifact_id: str) -> list[str]:
@@ -326,7 +326,7 @@ def test_missing_middle_org_root_keeps_pack_three_effective(tmp_path: Path) -> N
 
 
 def test_service_build_failure_keeps_both_readable_org_packs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import charter.activation.doctrine_service_builder as builder
+    import charter.activation.active_charter_service_builder as builder
 
     root = _fb_project(tmp_path, ["a", "c"])
     _fb_tactic(root / "org-packs" / "a" / "tactics", "org-a-tactic")
@@ -337,7 +337,7 @@ def test_service_build_failure_keeps_both_readable_org_packs(tmp_path: Path, mon
         raise RuntimeError(f"cannot build for {repo_root.name}")
 
     with monkeypatch.context() as patch:
-        patch.setattr(builder, "build_activation_aware_doctrine_service", broken)
+        patch.setattr(builder, "build_active_charter_service", broken)
         warnings = _fb_activate(root, "tactic", "org-a-tactic")
 
     written = _fb_config(root)["activated_tactics"]
