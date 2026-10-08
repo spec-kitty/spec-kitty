@@ -1,0 +1,450 @@
+"""Work-package frontmatter writers run under the Mission write lock (mission-writer-followups WP04, US2).
+
+Each overlap test pauses writer A just before it writes the work-package file (an injected pause point, not a
+sleep: ``tests/_meta_overlap.py``), lets writer B run on another thread, and releases A once B finished or was
+observed waiting for the lock. Without the lock A writes its stale copy over B's change; with it B queues
+behind A and both changes survive.
+
+The finalize tests cover its long in-memory window (it reads every work package long before it flushes) and the
+compare-and-swap restore of its write scope (plan A8, A9).
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from collections.abc import Iterator
+from pathlib import Path
+from typing import Any
+from unittest.mock import Mock, patch
+
+import pytest
+from typer.testing import CliRunner
+
+import specify_cli.frontmatter as frontmatter_module
+from specify_cli.cli.commands.agent import mission_finalize_bootstrap as bootstrap
+from specify_cli.cli.commands.agent import mission_finalize_commit as finalize_commit
+from specify_cli.cli.commands.agent.tasks import app as tasks_app
+from specify_cli.frontmatter import read_frontmatter, write_frontmatter
+from specify_cli.status.locking import feature_status_lock_path, holds_status_lock
+from tests._meta_overlap import run_overlap
+
+pytestmark = [pytest.mark.unit]
+
+SLUG = "060-test"
+MID8 = "01COORD0"
+COORD_NAME = f"{SLUG}-{MID8}"
+WP_ID = "WP01"
+BODY = "\n# WP01\n\n  indented line  \n\ttabbed\n\nUnicode: éè ✓\n\nlast line, no trailing newline"
+SPEC_CONTENT = """\
+# Spec
+## Functional Requirements
+| ID | Requirement | Acceptance Criteria | Status |
+| --- | --- | --- | --- |
+| FR-001 | First requirement | Done | proposed |
+| FR-002 | Second requirement | Done | proposed |
+"""
+
+
+def _is_wp_file(path: Path) -> bool:
+    return path.name.startswith("WP") and path.suffix == ".md"
+
+
+def _overlap(monkeypatch: pytest.MonkeyPatch, writer_a: Any, writer_b: Any) -> list[Exception]:
+    return run_overlap(monkeypatch, writer_a, writer_b, pause_when=_is_wp_file, atomic_modules=(frontmatter_module,))
+
+
+@pytest.fixture
+def mission(tmp_path: Path) -> tuple[Path, Path, Path]:
+    """``(repo, primary_dir, wp_file)`` for a legacy bare-directory coordination Mission (primary ``060-test``)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=repo, check=True, capture_output=True)
+    primary = repo / "kitty-specs" / SLUG
+    (primary / "tasks").mkdir(parents=True)
+    meta = {
+        "mission_slug": SLUG,
+        "slug": SLUG,
+        "mission_type": "software-dev",
+        "mission_id": f"{MID8}XXXXXXXXXXXXXXXXXX",
+        "mid8": MID8,
+        "coordination_branch": f"kitty/mission-{COORD_NAME}",
+        "target_branch": "main",
+    }
+    (primary / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    (primary / "spec.md").write_text(SPEC_CONTENT, encoding="utf-8")
+    wp_file = primary / "tasks" / f"{WP_ID}-test.md"
+    wp_file.write_text(
+        "---\n"
+        f'work_package_id: "{WP_ID}"\n'
+        'title: "Test"\n'
+        "dependencies: []\n"
+        "execution_mode: code_change\n"
+        "owned_files:\n- src/x.py\n"
+        "authoritative_surface: src/\n"
+        f"---\n{BODY}",
+        encoding="utf-8",
+    )
+    return repo, primary, wp_file
+
+
+def _refs(wp_file: Path) -> list[str]:
+    frontmatter, _body = read_frontmatter(wp_file)
+    return list(frontmatter.get("requirement_refs") or [])
+
+
+# ---------------------------------------------------------------------------
+# locked_update_frontmatter (D2)
+# ---------------------------------------------------------------------------
+
+
+def test_locked_update_frontmatter_preserves_the_body_byte_for_byte(mission: tuple[Path, Path, Path]) -> None:
+    from specify_cli.frontmatter import locked_update_frontmatter
+
+    repo, primary, wp_file = mission
+    written = locked_update_frontmatter(wp_file, lambda fm: fm.update(requirement_refs=["FR-001"]), feature_dir=primary, repo_root=repo)
+    assert written["requirement_refs"] == ["FR-001"]
+    _frontmatter, body = read_frontmatter(wp_file)
+    assert body == BODY
+    assert wp_file.read_text(encoding="utf-8").endswith(f"---\n{BODY}")
+
+
+def test_locked_update_frontmatter_writes_nothing_when_mutate_returns_false(mission: tuple[Path, Path, Path]) -> None:
+    from specify_cli.frontmatter import locked_update_frontmatter
+
+    repo, primary, wp_file = mission
+    before = wp_file.read_bytes()
+    locked_update_frontmatter(wp_file, lambda fm: False, feature_dir=primary, repo_root=repo)
+    assert wp_file.read_bytes() == before
+
+
+def test_locked_update_frontmatter_holds_the_canonical_mission_lock_while_it_mutates(mission: tuple[Path, Path, Path]) -> None:
+    """The primary directory ``060-test`` keys the lock the coordination directory ``060-test-01COORD0`` uses (A1)."""
+    from specify_cli.frontmatter import locked_update_frontmatter
+
+    repo, primary, wp_file = mission
+    lock_path = feature_status_lock_path(repo, COORD_NAME)
+    seen: list[bool] = []
+
+    def mutate(fm: dict[str, Any]) -> None:
+        seen.append(holds_status_lock(lock_path))
+        fm["requirement_refs"] = ["FR-002"]
+
+    locked_update_frontmatter(wp_file, mutate, feature_dir=primary, repo_root=repo)
+    assert seen == [True]
+    assert not holds_status_lock(lock_path)
+
+
+def test_two_locked_frontmatter_writers_both_keep_their_field(monkeypatch: pytest.MonkeyPatch, mission: tuple[Path, Path, Path]) -> None:
+    from specify_cli.frontmatter import locked_update_frontmatter
+
+    repo, primary, wp_file = mission
+    errors = _overlap(
+        monkeypatch,
+        lambda: locked_update_frontmatter(wp_file, lambda fm: fm.update(requirement_refs=["FR-001"]), feature_dir=primary, repo_root=repo),
+        lambda: locked_update_frontmatter(wp_file, lambda fm: fm.update(branch_strategy="kept"), feature_dir=primary, repo_root=repo),
+    )
+    assert errors == []
+    frontmatter, body = read_frontmatter(wp_file)
+    assert frontmatter["requirement_refs"] == ["FR-001"]
+    assert frontmatter["branch_strategy"] == "kept"
+    assert body == BODY
+
+
+# ---------------------------------------------------------------------------
+# FR-002 / T058: two overlapping ``map-requirements`` invocations keep both refs
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def restore_std_streams() -> Iterator[None]:
+    """``CliRunner.invoke`` swaps the process-wide std streams; two threads must not leave them swapped."""
+    saved = (sys.stdin, sys.stdout, sys.stderr)
+    try:
+        yield
+    finally:
+        sys.stdin, sys.stdout, sys.stderr = saved
+
+
+def _map_requirements(refs: str) -> int:
+    result = CliRunner().invoke(tasks_app, ["map-requirements", "--wp", WP_ID, "--refs", refs, "--no-auto-commit", "--json"])
+    return result.exit_code
+
+
+@pytest.mark.usefixtures("restore_std_streams")
+def test_two_overlapping_map_requirements_invocations_keep_both_refs(monkeypatch: pytest.MonkeyPatch, mission: tuple[Path, Path, Path]) -> None:
+    repo, _primary, wp_file = mission
+    monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+    exit_codes: dict[str, int] = {}
+
+    def run(name: str, refs: str) -> None:
+        exit_codes[name] = _map_requirements(refs)
+
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", Mock(return_value=repo)),
+        patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", Mock(return_value=SLUG)),
+        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", Mock(return_value=(repo, "main"))),
+    ):
+        errors = _overlap(monkeypatch, lambda: run("a", "FR-001"), lambda: run("b", "FR-002"))
+
+    assert errors == []
+    assert exit_codes == {"a": 0, "b": 0}
+    assert sorted(_refs(wp_file)) == ["FR-001", "FR-002"]
+    assert read_frontmatter(wp_file)[1] == BODY
+
+
+# ---------------------------------------------------------------------------
+# FR-003: the finalize flush applies its delta to the frontmatter and body it reads under the lock
+# ---------------------------------------------------------------------------
+
+
+def _bootstrap_state(repo: Path, wp_file: Path) -> bootstrap._BootstrapState:
+    """Finalize's in-memory window: the work package is read now and flushed later."""
+    state = bootstrap._BootstrapState()
+    contradiction = bootstrap._bootstrap_one_wp(
+        wp_file,
+        state,
+        {WP_ID: []},
+        {},
+        None,
+        SLUG,
+        repo,
+        "main",
+        merge_target_branch=None,
+        validate_only=False,
+        json_output=True,
+    )
+    assert contradiction is None
+    assert state.pending_writes, "the fixture work package must need a bootstrap write"
+    return state
+
+
+def test_finalize_flush_keeps_a_requirement_ref_a_concurrent_writer_added(mission: tuple[Path, Path, Path]) -> None:
+    repo, _primary, wp_file = mission
+    state = _bootstrap_state(repo, wp_file)
+
+    frontmatter, body = read_frontmatter(wp_file)  # map-requirements lands after finalize read the work package
+    frontmatter["requirement_refs"] = ["FR-001"]
+    write_frontmatter(wp_file, frontmatter, body)
+
+    bootstrap._flush_frontmatter_writes(state, validate_only=False)
+
+    flushed, _ = read_frontmatter(wp_file)
+    assert flushed["requirement_refs"] == ["FR-001"]
+    assert flushed["planning_base_branch"] == "main"  # finalize's own field delta still lands
+
+
+def test_finalize_flush_keeps_a_body_note_a_concurrent_writer_added(mission: tuple[Path, Path, Path]) -> None:
+    repo, _primary, wp_file = mission
+    state = _bootstrap_state(repo, wp_file)
+
+    frontmatter, body = read_frontmatter(wp_file)
+    note = f"{body}\n\n## Reviewer note\n\nadded after finalize read the file\n"
+    write_frontmatter(wp_file, frontmatter, note)
+
+    bootstrap._flush_frontmatter_writes(state, validate_only=False)
+
+    flushed, flushed_body = read_frontmatter(wp_file)
+    assert flushed_body == note
+    assert flushed["planning_base_branch"] == "main"
+
+
+def test_finalize_flush_does_not_overwrite_refs_populated_meanwhile_by_its_own_populate_when_empty_rule(
+    mission: tuple[Path, Path, Path],
+) -> None:
+    """``requirement_refs`` is populated only into an empty list (FR-004, #2991): re-judged on the fresh read."""
+    repo, _primary, wp_file = mission
+    state = bootstrap._BootstrapState()
+    bootstrap._bootstrap_one_wp(
+        wp_file, state, {WP_ID: []}, {WP_ID: ["FR-002"]}, None, SLUG, repo, "main", merge_target_branch=None, validate_only=False, json_output=True
+    )
+    frontmatter, body = read_frontmatter(wp_file)
+    frontmatter["requirement_refs"] = ["FR-001"]
+    write_frontmatter(wp_file, frontmatter, body)
+
+    bootstrap._flush_frontmatter_writes(state, validate_only=False)
+
+    assert _refs(wp_file) == ["FR-001"]
+
+
+def test_finalize_flush_and_a_locked_writer_overlap_keep_both(monkeypatch: pytest.MonkeyPatch, mission: tuple[Path, Path, Path]) -> None:
+    from specify_cli.frontmatter import locked_update_frontmatter
+
+    repo, primary, wp_file = mission
+    state = _bootstrap_state(repo, wp_file)
+    errors = _overlap(
+        monkeypatch,
+        lambda: bootstrap._flush_frontmatter_writes(state, validate_only=False),
+        lambda: locked_update_frontmatter(wp_file, lambda fm: fm.update(requirement_refs=["FR-001"]), feature_dir=primary, repo_root=repo),
+    )
+    assert errors == []
+    flushed, body = read_frontmatter(wp_file)
+    assert flushed["requirement_refs"] == ["FR-001"]
+    assert flushed["planning_base_branch"] == "main"
+    assert body == BODY
+
+
+# ---------------------------------------------------------------------------
+# A8: the finalize write-scope restore is a compare-and-swap on every branch
+# ---------------------------------------------------------------------------
+
+
+class _LockRecorder:
+    """Stands in for ``mission_write_lock`` and records whether the restore ran inside a hold."""
+
+    def __init__(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        self.depth = 0
+        self.writes_outside_hold: list[str] = []
+        real = finalize_commit.mission_write_lock
+        recorder = self
+        real_write_bytes = Path.write_bytes
+        real_unlink = Path.unlink
+
+        from contextlib import contextmanager
+
+        @contextmanager
+        def recording_lock(*args: Any, **kwargs: Any) -> Iterator[Path]:
+            with real(*args, **kwargs) as held:
+                recorder.depth += 1
+                try:
+                    yield held
+                finally:
+                    recorder.depth -= 1
+
+        def write_bytes(self_path: Path, data: bytes) -> int:
+            if recorder.depth == 0 and self_path.name == "tasks.md":
+                recorder.writes_outside_hold.append(str(self_path))
+            return real_write_bytes(self_path, data)
+
+        def unlink(self_path: Path, missing_ok: bool = False) -> None:
+            if recorder.depth == 0 and self_path.name == "created.md":
+                recorder.writes_outside_hold.append(str(self_path))
+            real_unlink(self_path, missing_ok=missing_ok)
+
+        monkeypatch.setattr(finalize_commit, "mission_write_lock", recording_lock)
+        monkeypatch.setattr(Path, "write_bytes", write_bytes)
+        monkeypatch.setattr(Path, "unlink", unlink)
+
+
+@pytest.fixture
+def scope(mission: tuple[Path, Path, Path]) -> tuple[Path, Path]:
+    """``(mission_dir, tasks_md)``: a tracked file finalize rewrites."""
+    _repo, primary, _wp = mission
+    tasks_md = primary / "tasks.md"
+    tasks_md.write_text("original\n", encoding="utf-8")
+    return primary, tasks_md
+
+
+def test_restore_rewrites_a_file_still_holding_what_finalize_wrote(monkeypatch: pytest.MonkeyPatch, scope: tuple[Path, Path]) -> None:
+    mission_dir, tasks_md = scope
+    recorder = _LockRecorder(monkeypatch)
+    before = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    tasks_md.write_text("finalize wrote this\n", encoding="utf-8")
+    written = finalize_commit._snapshot_mission_write_scope(mission_dir)
+
+    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=written)
+
+    assert tasks_md.read_text(encoding="utf-8") == "original\n"
+    assert kept == []
+    assert recorder.writes_outside_hold == []
+
+
+def test_restore_keeps_a_rewritten_file_another_writer_changed(scope: tuple[Path, Path]) -> None:
+    mission_dir, tasks_md = scope
+    before = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    tasks_md.write_text("finalize wrote this\n", encoding="utf-8")
+    written = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    tasks_md.write_text("another writer's edit\n", encoding="utf-8")
+
+    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=written)
+
+    assert tasks_md.read_text(encoding="utf-8") == "another writer's edit\n"
+    assert kept == [tasks_md]
+
+
+def test_restore_deletes_a_file_finalize_created_while_it_is_unchanged(monkeypatch: pytest.MonkeyPatch, scope: tuple[Path, Path]) -> None:
+    mission_dir, _tasks_md = scope
+    recorder = _LockRecorder(monkeypatch)
+    before = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    created = mission_dir / "created.md"
+    created.write_text("finalize created this\n", encoding="utf-8")
+    written = finalize_commit._snapshot_mission_write_scope(mission_dir)
+
+    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=written)
+
+    assert not created.exists()
+    assert kept == []
+    assert recorder.writes_outside_hold == []
+
+
+def test_restore_keeps_a_created_file_another_writer_edited(scope: tuple[Path, Path]) -> None:
+    mission_dir, _tasks_md = scope
+    before = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    created = mission_dir / "created.md"
+    created.write_text("finalize created this\n", encoding="utf-8")
+    written = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    created.write_text("another writer appended\n", encoding="utf-8")
+
+    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=written)
+
+    assert created.read_text(encoding="utf-8") == "another writer appended\n"
+    assert kept == [created]
+
+
+def test_restore_keeps_a_removed_file_another_writer_put_back(scope: tuple[Path, Path]) -> None:
+    mission_dir, tasks_md = scope
+    before = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    tasks_md.unlink()  # finalize removed a tracked file; another writer put a different one back
+    written = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    tasks_md.write_text("another writer's file\n", encoding="utf-8")
+
+    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written=written)
+
+    assert tasks_md.read_text(encoding="utf-8") == "another writer's file\n"
+    assert kept == [tasks_md]
+
+
+def test_restore_defaults_to_the_snapshot_taken_at_the_call(scope: tuple[Path, Path]) -> None:
+    """Callers that pass no ``written`` keep the previous restore, now taken inside the lock."""
+    mission_dir, tasks_md = scope
+    before = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    tasks_md.write_text("finalize wrote this\n", encoding="utf-8")
+
+    assert finalize_commit._restore_mission_write_scope(before, mission_dir) == []
+    assert tasks_md.read_text(encoding="utf-8") == "original\n"
+
+
+def test_meta_revert_is_a_compare_and_swap_on_what_finalize_wrote(mission: tuple[Path, Path, Path]) -> None:
+    _repo, primary, _wp = mission
+    meta_path = primary / "meta.json"
+    original = meta_path.read_text(encoding="utf-8")
+    written = json.dumps({**json.loads(original), "target_branch": "develop"}, indent=2) + "\n"
+    meta_path.write_text(written, encoding="utf-8")
+    progress = finalize_commit._MetaBranchOverrideProgress()
+
+    meta_path.write_text(written.replace("develop", "release"), encoding="utf-8")  # another writer's change
+    message = finalize_commit._revert_unpersisted_target_branch_override(
+        meta_path, original, meta_json_persisted=True, meta_commit_progress=progress, written_text=written
+    )
+
+    assert message is not None
+    assert "another writer" in message
+    assert '"release"' in meta_path.read_text(encoding="utf-8")
+
+
+def test_meta_revert_restores_the_original_when_untouched(mission: tuple[Path, Path, Path]) -> None:
+    _repo, primary, _wp = mission
+    meta_path = primary / "meta.json"
+    original = meta_path.read_text(encoding="utf-8")
+    written = json.dumps({**json.loads(original), "target_branch": "develop"}, indent=2) + "\n"
+    meta_path.write_text(written, encoding="utf-8")
+
+    message = finalize_commit._revert_unpersisted_target_branch_override(
+        meta_path, original, meta_json_persisted=True, meta_commit_progress=finalize_commit._MetaBranchOverrideProgress(), written_text=written
+    )
+
+    assert message is None
+    assert meta_path.read_text(encoding="utf-8") == original
+

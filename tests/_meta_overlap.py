@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import importlib
 import threading
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Sequence
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 import pytest
@@ -33,27 +34,41 @@ JOIN_SECONDS = 30.0
 META_NAME = "meta.json"
 
 
+def _is_meta_json(path: Path) -> bool:
+    return path.name == META_NAME
+
+
 def run_overlap(
     monkeypatch: pytest.MonkeyPatch,
     writer_a: Callable[[], object],
     writer_b: Callable[[], object],
+    *,
+    pause_when: Callable[[Path], bool] = _is_meta_json,
+    atomic_modules: Sequence[ModuleType] = (mm,),
 ) -> list[Exception]:
-    """Run *writer_a* paused before its meta.json write while *writer_b* runs; return both errors."""
+    """Run *writer_a* paused before its write while *writer_b* runs; return both errors.
+
+    *pause_when* picks the file whose first write by writer A is the pause point (``meta.json`` by default) and
+    *atomic_modules* lists the modules whose ``atomic_write`` name is wrapped, so a writer that imports it
+    elsewhere (the frontmatter helper, the issue-matrix writer) pauses too. ``Path.write_text`` is always wrapped.
+    """
     a_at_write = threading.Event()
     release_a = threading.Event()
     errors: list[Exception] = []
-    real_atomic_write = mm.atomic_write
     real_write_text = Path.write_text
     real_lock = mission_write.feature_status_lock
 
     def pause_if_writer_a(path: Path) -> None:
-        if threading.current_thread().name == WRITER_A and path.name == META_NAME and not a_at_write.is_set():
+        if threading.current_thread().name == WRITER_A and pause_when(path) and not a_at_write.is_set():
             a_at_write.set()
             release_a.wait(JOIN_SECONDS)
 
-    def paused_atomic_write(path: Path, *args: Any, **kwargs: Any) -> None:
-        pause_if_writer_a(path)
-        real_atomic_write(path, *args, **kwargs)
+    def paused_for(real_atomic_write: Callable[..., None]) -> Callable[..., None]:
+        def paused_atomic_write(path: Path, *args: Any, **kwargs: Any) -> None:
+            pause_if_writer_a(path)
+            real_atomic_write(path, *args, **kwargs)
+
+        return paused_atomic_write
 
     def paused_write_text(self: Path, *args: Any, **kwargs: Any) -> int:
         pause_if_writer_a(self)
@@ -73,7 +88,10 @@ def run_overlap(
                 held = stack.enter_context(real_lock(root, key, timeout=timeout))
             yield held
 
-    monkeypatch.setattr(mm, "atomic_write", paused_atomic_write)
+    for module in atomic_modules:
+        real = getattr(module, "atomic_write", None)
+        if real is not None:  # a module that has not adopted ``atomic_write`` yet is paused through ``Path.write_text``
+            monkeypatch.setattr(module, "atomic_write", paused_for(real))
     monkeypatch.setattr(Path, "write_text", paused_write_text)
     monkeypatch.setattr(mission_write, "feature_status_lock", probing_lock)
 
