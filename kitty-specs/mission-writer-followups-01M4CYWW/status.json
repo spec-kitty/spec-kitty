@@ -1,7 +1,7 @@
 {
-  "event_count": 65,
-  "last_event_id": "01M4E9CCPPXY8R3125VW5PTM5A",
-  "materialized_at": "2026-10-08T17:36:07.894218+00:00",
+  "event_count": 66,
+  "last_event_id": "01M4E9CPJHQ6XF1EGP6KCHTC76",
+  "materialized_at": "2026-10-08T17:36:18.001207+00:00",
   "mission_number": "",
   "mission_slug": "mission-writer-followups-01M4CYWW",
   "mission_type": "software-dev",
@@ -10,10 +10,10 @@
     "approved": 4,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 1,
+    "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 0,
     "planned": 11
   },
@@ -156,14 +156,15 @@
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
-      "lane": "claimed",
-      "last_event_id": "01M4E9CCPPXY8R3125VW5PTM5A",
-      "last_transition_at": "2026-10-08T17:36:07.894218+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M4E9CPJHQ6XF1EGP6KCHTC76",
+      "last_transition_at": "2026-10-08T17:36:18.001207+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Stream B (runtime/templates) claimed for a parallel worktree at /home/user/sk-stream-runtime; operator chose parallel streams 2026-10-08",
         "Implementing in the stream-B worktree",
-        "Forced only because the parallel-stream claim was recorded with move-task, so no claim base exists; implementation commits 717ef0738..24cba0fe8 are on the branch (ff-merged from stream/runtime). Terminal retrospective gate as the engine's before_run_completed hook on all three legacy paths; speculative rollback deleted; RetrospectiveGateRefused adapter; transition-only capture."
+        "Forced only because the parallel-stream claim was recorded with move-task, so no claim base exists; implementation commits 717ef0738..24cba0fe8 are on the branch (ff-merged from stream/runtime). Terminal retrospective gate as the engine's before_run_completed hook on all three legacy paths; speculative rollback deleted; RetrospectiveGateRefused adapter; transition-only capture.",
+        "Stream B rework cycle 1 in the stream/runtime worktree"
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
