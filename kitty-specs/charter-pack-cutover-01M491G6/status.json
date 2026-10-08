@@ -714,7 +714,7 @@
     },
     "WP22": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -724,9 +724,11 @@
       "last_transition_at": "2026-10-08T21:47:07.932318+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP22 prose cutover: built-in/internal packs, skills, CLI help text, living docs, AGENTS.md/CLAUDE.md; usage-journey rewritten to activation presets; CLI reference + retrieval index regenerated. Prose slice green (0/894). Reviewer: please rule on the fixture exclude for the generated docs-retrieval-index (c5a4154f). Activity log: /tmp/claude-0/-home-user-spec-kitty/f9460057-6c9a-5dbf-a006-51ed9650d09d/scratchpad/WP22-activity-log.md"
+        "WP22 prose cutover: built-in/internal packs, skills, CLI help text, living docs, AGENTS.md/CLAUDE.md; usage-journey rewritten to activation presets; CLI reference + retrieval index regenerated. Prose slice green (0/894). Reviewer: please rule on the fixture exclude for the generated docs-retrieval-index (c5a4154f). Activity log: /tmp/claude-0/-home-user-spec-kitty/f9460057-6c9a-5dbf-a006-51ed9650d09d/scratchpad/WP22-activity-log.md",
+        "Changes requested: stale completion manifest (freshness gate red) and retired doctrine: key in environment-variables.md example; two small owned-doc fixes."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/charter-pack-cutover-01M491G6-coord/kitty-specs/charter-pack-cutover-01M491G6/tasks/WP22-prose-packs-and-docs/review-cycle-1.md",
         "reference": "review-cycle://charter-pack-cutover-01M491G6/WP22-prose-packs-and-docs/review-cycle-1.md",
@@ -734,13 +736,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 6492,
-      "shell_pid_created_at": "1791494550.17",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T101": "done",
-        "T102": "done",
-        "T103": "done",
-        "T104": "done"
+        "T101": "planned",
+        "T102": "planned",
+        "T103": "planned",
+        "T104": "planned"
       }
     },
     "WP23": {
