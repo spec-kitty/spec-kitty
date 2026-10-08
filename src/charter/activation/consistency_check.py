@@ -169,7 +169,7 @@ class ConsistencyReport:
             kind violations, duplicates, config<->derived parity
             divergences, or verification failures were found.
         unknown_references: IDs activated for a kind that do not exist in doctrine.
-        missing_from_doctrine: IDs referenced by DRG edges but absent from the
+        missing_from_offering: IDs referenced by DRG edges but absent from the
             target kind's activation set.
         kind_violations: IDs that appear in the wrong kind's activation set, or
             duplicate IDs within a single activation set.
@@ -240,7 +240,7 @@ class ConsistencyReport:
 
     coherent: bool
     unknown_references: list[str] = field(default_factory=list)
-    missing_from_doctrine: list[str] = field(default_factory=list)
+    missing_from_offering: list[str] = field(default_factory=list)
     kind_violations: list[str] = field(default_factory=list)
     reference_id_divergences: list[str] = field(default_factory=list)
     graph_kind_gaps: list[str] = field(default_factory=list)
@@ -256,7 +256,7 @@ class ConsistencyReport:
             {
                 "coherent": self.coherent,
                 "unknown_references": self.unknown_references,
-                "missing_from_doctrine": self.missing_from_doctrine,
+                "missing_from_offering": self.missing_from_offering,
                 "kind_violations": self.kind_violations,
                 "reference_id_divergences": self.reference_id_divergences,
                 "graph_kind_gaps": self.graph_kind_gaps,
@@ -366,7 +366,7 @@ def _load_raw_activation_lists(ctx: ProjectContext) -> dict[str, list[str] | Non
     return result
 
 
-def _collect_all_doctrine_ids(
+def _collect_all_offering_ids(
     ctx: ProjectContext,
     manager: ActiveCharterManager,
 ) -> dict[str, frozenset[str]]:
@@ -399,7 +399,7 @@ def _split_urn(urn: str) -> tuple[str, str]:
 
 def _check_unknown_references(
     activated_by_kind: dict[str, frozenset[str] | None],
-    all_doctrine_ids: dict[str, frozenset[str]],
+    all_offering_ids: dict[str, frozenset[str]],
     unknown_references: list[str],
     suggestions: list[str],
 ) -> None:
@@ -408,7 +408,7 @@ def _check_unknown_references(
         activated = _get_activation_set(activated_by_kind, kind)
         if activated is None:
             continue
-        known_ids = all_doctrine_ids.get(kind, frozenset())
+        known_ids = all_offering_ids.get(kind, frozenset())
         for activated_id in sorted(activated):
             if activated_id not in known_ids:
                 unknown_references.append(f"{kind}/{activated_id}")
@@ -418,10 +418,10 @@ def _check_unknown_references(
 def _check_drg_cross_kind_refs(
     ctx: ProjectContext,
     activated_by_kind: dict[str, frozenset[str] | None],
-    missing_from_doctrine: list[str],
+    missing_from_offering: list[str],
     suggestions: list[str],
 ) -> None:
-    """Populate *missing_from_doctrine* for cross-kind DRG edge gaps (FR-012).
+    """Populate *missing_from_offering* for cross-kind DRG edge gaps (FR-012).
 
     Background: The DRG uses numeric URN IDs (e.g. ``directive:DIRECTIVE_001``)
     while config.yaml uses human-readable IDs (e.g.
@@ -449,7 +449,7 @@ def _check_drg_cross_kind_refs(
             _inspect_drg_edge(
                 edge,
                 activated_by_kind,
-                missing_from_doctrine,
+                missing_from_offering,
                 suggestions,
                 reported_kind_pairs,
             )
@@ -461,7 +461,7 @@ def _check_drg_cross_kind_refs(
 def _inspect_drg_edge(
     edge: object,
     activated_by_kind: dict[str, frozenset[str] | None],
-    missing_from_doctrine: list[str],
+    missing_from_offering: list[str],
     suggestions: list[str],
     reported_kind_pairs: set[tuple[str, str]],
 ) -> None:
@@ -491,8 +491,8 @@ def _inspect_drg_edge(
     reported_kind_pairs.add(pair_key)
 
     entry = f"{tgt_cli_kind}/<all>"
-    if entry not in missing_from_doctrine:
-        missing_from_doctrine.append(entry)
+    if entry not in missing_from_offering:
+        missing_from_offering.append(entry)
         suggestions.append(
             f"{tgt_cli_kind}/<all>: Kind '{tgt_cli_kind}' is referenced by "
             f"activated '{src_cli_kind}' artifacts via DRG edges but its "
@@ -520,7 +520,7 @@ def _check_duplicates(
 
 def _check_kind_violations(
     activated_by_kind: dict[str, frozenset[str] | None],
-    all_doctrine_ids: dict[str, frozenset[str]],
+    all_offering_ids: dict[str, frozenset[str]],
     unknown_references: list[str],
     kind_violations: list[str],
 ) -> None:
@@ -529,13 +529,13 @@ def _check_kind_violations(
         activated = _get_activation_set(activated_by_kind, kind)
         if activated is None:
             continue
-        own_ids = all_doctrine_ids.get(kind, frozenset())
+        own_ids = all_offering_ids.get(kind, frozenset())
         for artifact_id in sorted(activated):
             _check_kind_violation_for_artifact(
                 kind,
                 artifact_id,
                 own_ids,
-                all_doctrine_ids,
+                all_offering_ids,
                 unknown_references,
                 kind_violations,
             )
@@ -545,7 +545,7 @@ def _check_kind_violation_for_artifact(
     kind: str,
     artifact_id: str,
     own_ids: frozenset[str],
-    all_doctrine_ids: dict[str, frozenset[str]],
+    all_offering_ids: dict[str, frozenset[str]],
     unknown_references: list[str],
     kind_violations: list[str],
 ) -> None:
@@ -554,7 +554,7 @@ def _check_kind_violation_for_artifact(
         return  # Already flagged; avoid double-reporting.
     if artifact_id in own_ids:
         return  # Correct kind.
-    other_kind = _find_owning_kind(artifact_id, kind, all_doctrine_ids)
+    other_kind = _find_owning_kind(artifact_id, kind, all_offering_ids)
     if other_kind is not None:
         kind_violations.append(f"{kind}/{artifact_id}: ID belongs to kind '{other_kind}', not '{kind}'.")
 
@@ -562,10 +562,10 @@ def _check_kind_violation_for_artifact(
 def _find_owning_kind(
     artifact_id: str,
     exclude_kind: str,
-    all_doctrine_ids: dict[str, frozenset[str]],
+    all_offering_ids: dict[str, frozenset[str]],
 ) -> str | None:
     """Return the first kind (other than *exclude_kind*) whose id set contains *artifact_id*."""
-    for other_kind, other_ids in all_doctrine_ids.items():
+    for other_kind, other_ids in all_offering_ids.items():
         if other_kind == exclude_kind:
             continue
         if artifact_id in other_ids:
@@ -1566,7 +1566,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         A frozen ConsistencyReport with coherence flag and categorised findings.
     """
     unknown_references: list[str] = []
-    missing_from_doctrine: list[str] = []
+    missing_from_offering: list[str] = []
     kind_violations: list[str] = []
     reference_id_divergences: list[str] = []
     graph_kind_gaps: list[str] = []
@@ -1641,12 +1641,12 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
             suggestions=suggestions,
         )
 
-    all_doctrine_ids = _collect_all_doctrine_ids(ctx, manager)
+    all_offering_ids = _collect_all_offering_ids(ctx, manager)
 
-    _check_unknown_references(activated_by_kind, all_doctrine_ids, unknown_references, suggestions)
-    _check_drg_cross_kind_refs(ctx, activated_by_kind, missing_from_doctrine, suggestions)
+    _check_unknown_references(activated_by_kind, all_offering_ids, unknown_references, suggestions)
+    _check_drg_cross_kind_refs(ctx, activated_by_kind, missing_from_offering, suggestions)
     _check_duplicates(raw_activated_by_kind, kind_violations)
-    _check_kind_violations(activated_by_kind, all_doctrine_ids, unknown_references, kind_violations)
+    _check_kind_violations(activated_by_kind, all_offering_ids, unknown_references, kind_violations)
     _check_reference_id_parity(
         ctx,
         raw_activated_by_kind,
@@ -1677,7 +1677,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     # advisory signals.
     coherent = not (
         unknown_references
-        or missing_from_doctrine
+        or missing_from_offering
         or kind_violations
         or reference_id_divergences
         or graph_kind_gaps
@@ -1688,7 +1688,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     return ConsistencyReport(
         coherent=coherent,
         unknown_references=unknown_references,
-        missing_from_doctrine=missing_from_doctrine,
+        missing_from_offering=missing_from_offering,
         kind_violations=kind_violations,
         reference_id_divergences=reference_id_divergences,
         graph_kind_gaps=graph_kind_gaps,

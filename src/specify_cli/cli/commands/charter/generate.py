@@ -550,7 +550,7 @@ def generate(
             interview=interview_data,
             template_set=template_set,
             repo_root=repo_root,
-            doctrine_service=_build_doctrine_service_with_org_layer(
+            charter_service=_build_doctrine_service_with_org_layer(
                 repo_root,
                 interview=interview_data,
                 prefer_interview=rederive_languages,

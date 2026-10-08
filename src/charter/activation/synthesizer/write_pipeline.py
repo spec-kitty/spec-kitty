@@ -47,7 +47,7 @@ from kernel.charter_pack_paths import (
 from charter.bundle import compute_bundle_content_hash
 from charter.activation.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 
-from .artifact_naming import artifact_filename, doctrine_kind_subdir
+from .artifact_naming import artifact_filename, pack_kind_subdir
 from .errors import NeutralityGateViolation, StagingPromoteError
 from .evidence import EvidenceBundle
 from .manifest import (
@@ -87,7 +87,7 @@ _PROVENANCE_DIRNAME = "provenance"
 #   * ``path``        — repo-relative POSIX path that the live tree will (or
 #                       did) carry. Computed from the same helpers
 #                       ``promote()`` uses below — see ``_artifact_filename``
-#                       and ``_doctrine_kind_subdir`` — so dry-run and
+#                       and ``_pack_kind_subdir`` — so dry-run and
 #                       non-dry-run agree byte-for-byte.
 #   * ``kind``        — doctrine kind (``directive`` / ``tactic`` / ``styleguide``)
 #                       lifted directly from ``ProvenanceEntry.artifact_kind``.
@@ -178,7 +178,7 @@ def compute_written_artifacts(
         slug = prov.artifact_slug
         artifact_id = _artifact_id_from_provenance(prov)
         filename = artifact_filename(kind, slug, artifact_id)
-        live_path = project_pack_path(repo_root, doctrine_kind_subdir(kind), filename)
+        live_path = project_pack_path(repo_root, pack_kind_subdir(kind), filename)
         rel_path = live_path.relative_to(repo_root).as_posix()
         entries.append(
             StagedArtifact(
@@ -208,9 +208,9 @@ def _artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> 
     return artifact_filename(kind, slug, artifact_id)
 
 
-def _doctrine_kind_subdir(kind: str) -> str:
+def _pack_kind_subdir(kind: str) -> str:
     """Return the doctrine subdirectory name for a given artifact kind."""
-    return doctrine_kind_subdir(kind)
+    return pack_kind_subdir(kind)
 
 
 def _compute_content_hash(yaml_bytes: bytes) -> str:
@@ -506,12 +506,12 @@ def _validate_or_fail(
 def _ensure_live_dirs(guard: PathGuard, repo_root: Path) -> None:
     """Create destination directories for every doctrine kind + provenance.
 
-    Uses ``doctrine_kind_subdir()`` so the names match the .gitignore
+    Uses ``pack_kind_subdir()`` so the names match the .gitignore
     whitelist (step 3 prep).
     """
     for kind in ("directive", "tactic", "styleguide"):
         guard.mkdir(
-            project_pack_path(repo_root, _doctrine_kind_subdir(kind)),
+            project_pack_path(repo_root, _pack_kind_subdir(kind)),
             caller="write_pipeline.promote[mkdir-doctrine]",
         )
 
@@ -550,7 +550,7 @@ def _replace_one_artifact(
     # produces byte-identical content. Skip the replace when unchanged
     # so the tracked file (and its mtime) is left alone (#1912).
     staged_content = staging_dir.path_for_content(kind, filename)
-    live_content = project_pack_path(repo_root, _doctrine_kind_subdir(kind), filename)
+    live_content = project_pack_path(repo_root, _pack_kind_subdir(kind), filename)
     if not _substantively_equal(yaml_bytes, live_content, frozenset()):
         guard.replace(staged_content, live_content, caller="write_pipeline.promote[content-replace]")
     # else: unchanged — staged copy is discarded by staging_dir.wipe().

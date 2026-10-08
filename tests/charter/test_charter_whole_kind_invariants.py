@@ -157,13 +157,13 @@ def _call_build_references(
     monkeypatch.setattr(compiler_module, "_resolve_transitive_reference_graph", lambda **_kwargs: graph)
     diagnostics: list[str] = []
     unresolved_records: list[dict[str, str]] = []
-    doctrine_service = _StubActiveCharterService(**(repositories or {}))
+    charter_service = _StubActiveCharterService(**(repositories or {}))
     references = compiler_module._build_references_from_service(
         mission="software-dev",
         template_set="default",
         config_roots=config_roots or _empty_config_roots(),
         offering_root=Path("/nonexistent-doctrine-root-not-used-once-patched"),
-        doctrine_service=doctrine_service,
+        charter_service=charter_service,
         repo_root=None,
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,
@@ -488,7 +488,7 @@ def test_total_graph_load_failure_yields_loud_diagnostic_not_fail_closed(tmp_pat
 
     _write_dangling_edge_project_overlay(tmp_path)
 
-    doctrine_service = real_compiler_module._default_active_charter_service(tmp_path)
+    charter_service = real_compiler_module._default_active_charter_service(tmp_path)
     config_roots = ConfigActivatedRoots(
         directives=[],
         paradigms=[],
@@ -506,7 +506,7 @@ def test_total_graph_load_failure_yields_loud_diagnostic_not_fail_closed(tmp_pat
         template_set="default",
         config_roots=config_roots,
         offering_root=real_compiler_module.resolve_offering_root(),
-        doctrine_service=doctrine_service,
+        charter_service=charter_service,
         repo_root=tmp_path,
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,
@@ -545,7 +545,7 @@ def test_i1_i2_carve_out_transitive_only_id_under_graph_load_failure(tmp_path: P
 
     _write_dangling_edge_project_overlay(tmp_path)
 
-    doctrine_service = real_compiler_module._default_active_charter_service(tmp_path)
+    charter_service = real_compiler_module._default_active_charter_service(tmp_path)
     # A directive is activated directly; in a healthy graph its transitive
     # closure would reach further styleguide/tactic ids with no direct
     # config root of their own -- but the graph never loads here, so ONLY
@@ -569,7 +569,7 @@ def test_i1_i2_carve_out_transitive_only_id_under_graph_load_failure(tmp_path: P
             template_set="default",
             config_roots=config_roots,
             offering_root=real_compiler_module.resolve_offering_root(),
-            doctrine_service=doctrine_service,
+            charter_service=charter_service,
             repo_root=tmp_path,
             diagnostics=diagnostics,
             unresolved_records=unresolved_records,
@@ -625,7 +625,7 @@ class _RawUnwrappedOfferingServiceDouble:
 def test_raw_kind_repository_degrades_instead_of_raising_for_untracked_kind() -> None:
     """Round-6-folded residual: ``_raw_kind_repository``'s raw-service
     fallback branch (``compiler.py`` ~line 1093, ``return getattr(
-    doctrine_service, kind)``, no default) raises ``AttributeError`` instead
+    charter_service, kind)``, no default) raises ``AttributeError`` instead
     of degrading to ``None`` for a kind with no matching attribute on the
     raw/unwrapped shape.
 
@@ -639,17 +639,17 @@ def test_raw_kind_repository_degrades_instead_of_raising_for_untracked_kind() ->
     the ``"RAISED"`` sentinel, not ``None`` -- the assertion fails on that
     observed, named difference.
     """
-    doctrine_service = _RawUnwrappedOfferingServiceDouble()
-    assert not hasattr(doctrine_service, "raw_repository")
-    assert not hasattr(doctrine_service, "templates")
+    charter_service = _RawUnwrappedOfferingServiceDouble()
+    assert not hasattr(charter_service, "raw_repository")
+    assert not hasattr(charter_service, "templates")
 
     try:
-        outcome: Any = _raw_kind_repository(doctrine_service, "templates")
+        outcome: Any = _raw_kind_repository(charter_service, "templates")
     except AttributeError:
         outcome = "RAISED"
 
     assert outcome is None, (
         f"_raw_kind_repository must degrade to None for an untracked kind on "
-        f"a raw/unwrapped doctrine_service, got: {outcome!r} (pre-fix, "
+        f"a raw/unwrapped charter_service, got: {outcome!r} (pre-fix, "
         f"AttributeError propagates instead of degrading)"
     )

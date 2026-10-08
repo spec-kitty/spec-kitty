@@ -635,7 +635,7 @@ def resolve_mission_type_context(
     # UnknownMissionTypeError.registered_ids keeps its documented list shape.
     registered = existing_mission_types(repo_root)
     is_registered = type_key in registered
-    has_override = _project_has_doctrine_overrides(repo_root)
+    has_override = _project_has_pack_overrides(repo_root)
 
     # FR-002 (WP04): construct the real PackContext and thread it into both
     # projection slots below -- sibling to (not a replacement for) the
@@ -1350,7 +1350,7 @@ def _load_mission_type_profile(
 # ---------------------------------------------------------------------------
 
 
-def _project_has_doctrine_overrides(repo_root: Path) -> bool:
+def _project_has_pack_overrides(repo_root: Path) -> bool:
     """Return ``True`` iff the project charter declares any selection.
 
     IC-04 (WP04): re-pointed from the retired ``.kittify/charter/

@@ -35,7 +35,7 @@ from charter.activation.context import (
     _default_agent_profile_repository,
     _jsonable_artifact_value,
     _load_agent_profile,
-    _render_doctrine_artifact_include,
+    _render_offering_artifact_include,
 )
 from charter.activation.context_renderers.artifact_bodies import (
     _format_full_artifact_payload_body,
@@ -412,7 +412,7 @@ class TestFetchSelectorRecovery:
         sg = _DummyStyleguide(title="Caveman", principles=["Prefer concrete names."])
         service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
 
-        text = _render_doctrine_artifact_include(service, "styleguide", "caveman-comments")
+        text = _render_offering_artifact_include(service, "styleguide", "caveman-comments")
 
         assert text is not None
         assert "Styleguide caveman-comments: Caveman" in text
@@ -420,7 +420,7 @@ class TestFetchSelectorRecovery:
 
     def test_unknown_doctrine_artifact_include_fails_closed(self) -> None:
         with pytest.raises(ValueError, match="No styleguide found"):
-            _render_doctrine_artifact_include(
+            _render_offering_artifact_include(
                 _StubService(),
                 "styleguide",
                 "does-not-exist",
@@ -436,7 +436,7 @@ class TestFetchSelectorRecovery:
         )
         service = _StubService(procedures=_StubRepo(items={"review-before-merge": procedure}))
 
-        text = _render_doctrine_artifact_include(
+        text = _render_offering_artifact_include(
             service, "procedure", "review-before-merge"
         )
 
@@ -509,12 +509,12 @@ class TestFetchSelectorRecovery:
             ("skill", "ship", "builtin:spec-kitty.consolidate"),
         )
         for kind, artifact_id, marker in cases:
-            text = _render_doctrine_artifact_include(service, kind, artifact_id)
+            text = _render_offering_artifact_include(service, kind, artifact_id)
             assert text is not None
             assert "Full artifact:" in text
             assert marker in text
         # A skill that exists is rendered, not reported as "not found" (#5193).
-        assert "Skill ship: Ship" in _render_doctrine_artifact_include(service, "skill", "ship")
+        assert "Skill ship: Ship" in _render_offering_artifact_include(service, "skill", "ship")
 
     def test_directive_and_tactic_include_recovers_fields_outside_inline_summary(
         self,

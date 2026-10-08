@@ -105,7 +105,7 @@ class TestContextGenericArtifactIncludeExcludesNonBareProbeableKinds:
         )
         monkeypatch.setattr(
             template_include_mod,
-            "_render_doctrine_artifact_include",
+            "_render_offering_artifact_include",
             _fake_doctrine_artifact_include,
         )
 

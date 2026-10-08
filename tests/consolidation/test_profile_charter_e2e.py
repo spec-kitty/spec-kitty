@@ -188,7 +188,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
         },
     )
 
-    doctrine_service = CharterOfferingService()
+    charter_service = CharterOfferingService()
     offering_catalog = OfferingCatalog(
         paradigms=frozenset(),
         directives=frozenset({"REVIEW_FIRST", "INTERVIEW_ONLY"}),
@@ -217,7 +217,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
     resolution = resolve_governance_for_profile(
         "reviewer",
         "reviewer",
-        doctrine_service,
+        charter_service,
         interview,
         graph=drg,
     )
@@ -251,7 +251,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(
                 agent_role=resolution.role,
             ),
             offering_catalog=offering_catalog,
-            doctrine_service=doctrine_service,
+            charter_service=charter_service,
         )
     result = write_compiled_charter(output_dir, compiled, force=True)
 

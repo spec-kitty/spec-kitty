@@ -200,7 +200,7 @@ class TestResolveMissionTypeGovernanceValidation:
                 return_value=["documentation", "plan", "research", "software-dev"],
             ),
             patch(
-                "charter.activation.mission_type_profiles._project_has_doctrine_overrides",
+                "charter.activation.mission_type_profiles._project_has_pack_overrides",
                 return_value=False,
             ),
             pytest.raises(UnknownMissionTypeError) as exc_info,
@@ -228,7 +228,7 @@ class TestResolveMissionTypeGovernanceValidation:
                 return_value=activated,
             ),
             patch(
-                "charter.activation.mission_type_profiles._project_has_doctrine_overrides",
+                "charter.activation.mission_type_profiles._project_has_pack_overrides",
                 return_value=False,
             ),
             pytest.raises(UnknownMissionTypeError) as exc_info,
@@ -260,7 +260,7 @@ class TestResolveMissionTypeGovernanceValidation:
                 return_value=["documentation", "plan", "research", "software-dev"],
             ),
             patch(
-                "charter.activation.mission_type_profiles._project_has_doctrine_overrides",
+                "charter.activation.mission_type_profiles._project_has_pack_overrides",
                 return_value=True,
             ),
         ):

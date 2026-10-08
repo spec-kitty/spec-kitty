@@ -178,7 +178,7 @@ def test_custom_activated_type_is_not_dropped_by_the_gate(tmp_path: Path) -> Non
     FR-006's gate is binary against the project's *activation* set, not
     against the built-in catalog — a project is free to activate a mission
     type id that has no built-in profile, backed entirely by a project-level
-    doctrine override (``_project_has_doctrine_overrides`` tolerance in
+    doctrine override (``_project_has_pack_overrides`` tolerance in
     ``_resolve_governance_slot``). Filtering by ``builtin_mission_type_id_set()``
     here would be a *stricter*, wrong gate: it would silently exclude a
     legitimately-activated custom type, contradicting the pre-existing

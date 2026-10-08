@@ -127,7 +127,7 @@ def test_charter_references_surface_model_task_routing_body() -> None:
         mission=interview.mission,
         interview=interview,
         repo_root=REPO_ROOT,
-        doctrine_service=_real_doctrine_service(),
+        charter_service=_real_doctrine_service(),
     )
 
     by_id = {ref.id: ref for ref in compiled.references}

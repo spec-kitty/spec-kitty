@@ -251,7 +251,7 @@ def test_run_consistency_check_returns_report_object(tmp_path: Path) -> None:
     assert isinstance(report, ConsistencyReport)
     assert isinstance(report.coherent, bool)
     assert isinstance(report.unknown_references, list)
-    assert isinstance(report.missing_from_doctrine, list)
+    assert isinstance(report.missing_from_offering, list)
     assert isinstance(report.kind_violations, list)
     assert isinstance(report.suggestions, list)
 
@@ -269,7 +269,7 @@ def test_no_activation_keys_skips_doctrine_scan(
     def fail_scan(*_args: object, **_kwargs: object) -> dict[str, frozenset[str]]:
         raise AssertionError("doctrine scan should not run without activation keys")
 
-    monkeypatch.setattr(consistency_check, "_collect_all_doctrine_ids", fail_scan)
+    monkeypatch.setattr(consistency_check, "_collect_all_offering_ids", fail_scan)
 
     report = run_consistency_check(ctx)
 

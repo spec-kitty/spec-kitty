@@ -200,7 +200,7 @@ def test_unresolved_reference_records_mirrors_diagnostics_for_a_mixed_fixture(
         template_set="default",
         config_roots=config_roots,
         offering_root=compiler_module.resolve_offering_root(),
-        doctrine_service=_StubActiveCharterService(),
+        charter_service=_StubActiveCharterService(),
         repo_root=None,
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,
@@ -262,7 +262,7 @@ def test_graph_unresolved_urn_with_scope_filtered_cause_gets_a_real_placeholder(
         template_set="default",
         config_roots=config_roots,
         offering_root=compiler_module.resolve_offering_root(),
-        doctrine_service=_StubActiveCharterService(),
+        charter_service=_StubActiveCharterService(),
         repo_root=None,
         diagnostics=diagnostics,
     )

@@ -36,7 +36,7 @@ def consistency_check_cmd(
             console.print("[red]Consistency issues found:[/red]")
             for ref in report.unknown_references:
                 console.print(f"  [red]Unknown reference:[/red] {ref}")
-            for ref in report.missing_from_doctrine:
+            for ref in report.missing_from_offering:
                 console.print(f"  [yellow]Missing from charter.offering:[/yellow] {ref}")
             for v in report.kind_violations:
                 console.print(f"  [red]Kind violation:[/red] {v}")

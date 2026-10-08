@@ -75,15 +75,15 @@ def test_load_governance_config_reads_the_canonical_key(tmp_path: Path) -> None:
 
 
 def test_mission_type_override_probe_fails_closed(tmp_path: Path) -> None:
-    from charter.activation.mission_type_profiles import _project_has_doctrine_overrides
+    from charter.activation.mission_type_profiles import _project_has_pack_overrides
 
     _write_governance_section(tmp_path, _LEGACY_BODY)
     with pytest.raises(ActiveCharterConfigError) as caught:
-        _project_has_doctrine_overrides(tmp_path)
+        _project_has_pack_overrides(tmp_path)
     assert "spec-kitty upgrade" in caught.value.body
 
     _write_governance_section(tmp_path, _CANONICAL_BODY)
-    assert _project_has_doctrine_overrides(tmp_path) is True
+    assert _project_has_pack_overrides(tmp_path) is True
 
 
 def test_analysis_inputs_declared_paths_fail_closed(tmp_path: Path) -> None:

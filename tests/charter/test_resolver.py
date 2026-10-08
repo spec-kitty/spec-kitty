@@ -513,20 +513,20 @@ def test_resolve_governance_for_profile_merges_profile_directives_first() -> Non
             SimpleNamespace(code="PROFILE_SECOND"),
         ],
     )
-    doctrine_service = MagicMock()
-    doctrine_service.agent_profiles.resolve_profile.return_value = profile
-    doctrine_service.directives.get.side_effect = lambda artifact_id: SimpleNamespace(
+    charter_service = MagicMock()
+    charter_service.agent_profiles.resolve_profile.return_value = profile
+    charter_service.directives.get.side_effect = lambda artifact_id: SimpleNamespace(
         id=artifact_id,
         title=artifact_id,
         intent=f"Intent for {artifact_id}",
         tactic_refs=[],
     )
-    doctrine_service.tactics.get.return_value = None
-    doctrine_service.styleguides.get.return_value = None
-    doctrine_service.toolguides.get.return_value = None
-    doctrine_service.procedures.get.return_value = None
+    charter_service.tactics.get.return_value = None
+    charter_service.styleguides.get.return_value = None
+    charter_service.toolguides.get.return_value = None
+    charter_service.procedures.get.return_value = None
 
-    resolution = resolve_governance_for_profile("reviewer", "reviewer", doctrine_service, interview)
+    resolution = resolve_governance_for_profile("reviewer", "reviewer", charter_service, interview)
 
     assert resolution.profile_id == "reviewer"
     assert resolution.role == "reviewer"
@@ -546,8 +546,8 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
             SimpleNamespace(code="PROFILE_SECOND"),
         ],
     )
-    doctrine_service = MagicMock()
-    doctrine_service.agent_profiles.resolve_profile.return_value = profile
+    charter_service = MagicMock()
+    charter_service.agent_profiles.resolve_profile.return_value = profile
 
     # Post-WP03: monkeypatch charter.activation.resolver.resolve_transitive_refs; its
     # result is a :class:`charter.offering.drg.query.ResolveTransitiveRefsResult`
@@ -570,7 +570,7 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
         resolution = resolve_governance_for_profile(
             " reviewer ",
             "   ",
-            doctrine_service,
+            charter_service,
             interview,
             graph=stub_graph,
         )
@@ -587,21 +587,21 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
 
 def test_resolve_governance_for_profile_missing_profile_raises_value_error() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
-    doctrine_service = MagicMock()
-    doctrine_service.agent_profiles.resolve_profile.side_effect = KeyError("missing")
+    charter_service = MagicMock()
+    charter_service.agent_profiles.resolve_profile.side_effect = KeyError("missing")
 
     with pytest.raises(ValueError) as exc:
-        resolve_governance_for_profile("missing", None, doctrine_service, interview)
+        resolve_governance_for_profile("missing", None, charter_service, interview)
 
     assert "missing" in str(exc.value)
 
 
 def test_resolve_governance_for_profile_rejects_blank_profile_id() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
-    doctrine_service = MagicMock()
+    charter_service = MagicMock()
 
     with pytest.raises(ValueError, match="Profile ID is required"):
-        resolve_governance_for_profile("   ", None, doctrine_service, interview)
+        resolve_governance_for_profile("   ", None, charter_service, interview)
 
 
 def test_resolve_governance_for_profile_records_unresolved_references_in_diagnostics() -> None:
@@ -617,8 +617,8 @@ def test_resolve_governance_for_profile_records_unresolved_references_in_diagnos
         profile_id="reviewer",
         directive_references=[SimpleNamespace(code="MISSING_DIRECTIVE")],
     )
-    doctrine_service = MagicMock()
-    doctrine_service.agent_profiles.resolve_profile.return_value = profile
+    charter_service = MagicMock()
+    charter_service.agent_profiles.resolve_profile.return_value = profile
 
     monkeypatch_graph = SimpleNamespace(
         tactics=[],
@@ -641,7 +641,7 @@ def test_resolve_governance_for_profile_records_unresolved_references_in_diagnos
         resolution = resolve_governance_for_profile(
             "reviewer",
             None,
-            doctrine_service,
+            charter_service,
             interview,
             graph=stub_graph,
         )
@@ -920,6 +920,6 @@ def test_resolve_governance_for_profile_raises_when_profile_not_in_dict() -> Non
         resolve_governance_for_profile(
             "nonexistent-profile",
             role=None,
-            doctrine_service=service,
+            charter_service=service,
             interview=interview,
         )

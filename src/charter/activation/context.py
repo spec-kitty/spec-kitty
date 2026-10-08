@@ -62,7 +62,7 @@ from charter.activation.context_renderers.reference_pointers import (
 from charter.activation.context_renderers.template_include import (
     _render_agent_profile_include_selector,
     _render_catalog_kind_include_selector,
-    _render_doctrine_artifact_include as _render_doctrine_artifact_include,  # FR-009 preserved surface
+    _render_offering_artifact_include as _render_offering_artifact_include,  # FR-009 preserved surface
     _render_generic_artifact_include,
     _render_section_include_selector,
     _render_template_include,

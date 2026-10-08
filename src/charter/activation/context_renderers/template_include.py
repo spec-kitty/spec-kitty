@@ -11,7 +11,7 @@ each one resolves and formats a single ``--include <kind>:<id>`` selector.
   service), matching the WP04 typing pass.
 * :func:`_render_generic_artifact_include` — the best-effort ``artifact:<id>``
   probe that fans out across every bare-probeable kind.
-* :func:`_render_doctrine_artifact_include` — the shared renderer for the
+* :func:`_render_offering_artifact_include` — the shared renderer for the
   remaining (non-directive/tactic) doctrine artifact kinds.
 
 ``_default_missions_root`` is a private helper consumed only by
@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 __all__ = [
     "_render_agent_profile_include_selector",
     "_render_catalog_kind_include_selector",
-    "_render_doctrine_artifact_include",
+    "_render_offering_artifact_include",
     "_render_generic_artifact_include",
     "_render_section_include_selector",
     "_render_template_include",
@@ -194,7 +194,7 @@ def _render_generic_artifact_include(service: _offering_service_module.CharterOf
             elif candidate_kind == "tactic":
                 rendered = _render_tactic_include(service.tactics, identifier, selector)
             else:
-                rendered = _render_doctrine_artifact_include(service, candidate_kind, identifier)
+                rendered = _render_offering_artifact_include(service, candidate_kind, identifier)
         except ValueError:
             continue
         if rendered is not None:
@@ -226,7 +226,7 @@ def _format_inline_glossary_pack_body(pack: object) -> list[str]:
     return lines
 
 
-def _render_doctrine_artifact_include(
+def _render_offering_artifact_include(
     service: object,
     kind: str,
     identifier: str,
@@ -356,7 +356,7 @@ def _resolve_include_kind(kind: str, selector: str) -> ArtifactKind:
 def _render_agent_profile_include_selector(
     # object (not ActiveCharterService): the caller forwards either the plain or the
     # activation-aware service (charter.activation.resolver.ActiveCharterService, an unrelated
-    # class), and this only forwards it to _render_doctrine_artifact_include(service: object).
+    # class), and this only forwards it to _render_offering_artifact_include(service: object).
     gated_service: object,
     canonical_kind: str,
     identifier: str,
@@ -373,11 +373,11 @@ def _render_agent_profile_include_selector(
     (e.g. ``tests/charter/test_context_include_activation.py``).
     """
     # For a kind with a registered renderer (agent_profile has one),
-    # _render_doctrine_artifact_include renders the activated profile or
+    # _render_offering_artifact_include renders the activated profile or
     # raises ("No agent_profile found ...") for a gated/missing one — it
     # never returns None here, so a direct return is sufficient (no dead
     # fall-through branch to guard).
-    artifact_result = _render_doctrine_artifact_include(gated_service, canonical_kind, identifier)
+    artifact_result = _render_offering_artifact_include(gated_service, canonical_kind, identifier)
     if artifact_result is None:
         raise ValueError(f"No {canonical_kind} found for selector '{selector}'.")
     return artifact_result
@@ -406,4 +406,4 @@ def _render_catalog_kind_include_selector(
         return _render_directive_include(service.directives, identifier, selector)
     if canonical_kind == ArtifactKind.TACTIC.value:
         return _render_tactic_include(service.tactics, identifier, selector)
-    return _render_doctrine_artifact_include(service, canonical_kind, identifier)
+    return _render_offering_artifact_include(service, canonical_kind, identifier)

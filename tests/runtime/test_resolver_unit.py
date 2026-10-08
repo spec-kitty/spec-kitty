@@ -1248,7 +1248,7 @@ class TestExpectedArtifactManifestSchemaErrorBoundary:
 
         monkeypatch.setattr(
             manifest_loader,
-            "_doctrine_repository",
+            "_offering_template_repository",
             lambda: _FakeRepository(),
         )
 

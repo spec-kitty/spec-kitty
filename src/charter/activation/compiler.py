@@ -353,7 +353,7 @@ if TYPE_CHECKING:
     # wrapped instance -- ``generate.py``/``pack.py`` via
     # ``_build_doctrine_service_with_org_layer``, this module via the change
     # below -- so the annotation now matches what actually flows through
-    # ``compile_charter``'s ``doctrine_service`` parameter and its helpers.
+    # ``compile_charter``'s ``charter_service`` parameter and its helpers.
     from charter.activation.resolver import ActiveCharterService
 
 
@@ -409,7 +409,7 @@ def compile_charter(
     interview: CharterInterview,
     template_set: str | None = None,
     offering_catalog: OfferingCatalog | None = None,
-    doctrine_service: ActiveCharterService | None = None,
+    charter_service: ActiveCharterService | None = None,
     repo_root: Path | None = None,
     pack_context: PackContext | None = None,
     rederive_languages: bool = False,
@@ -417,7 +417,7 @@ def compile_charter(
     """Compile charter markdown, references manifest, and library docs.
 
     Artifact loading and transitive reference resolution always prefer the
-    typed repository API and DRG-backed path. When *doctrine_service* is not
+    typed repository API and DRG-backed path. When *charter_service* is not
     supplied, a default service rooted at built-in doctrine (and an optional
     project overlay under *repo_root*) is constructed automatically.
 
@@ -465,8 +465,8 @@ def compile_charter(
     diagnostics: list[str] = []
     unresolved_reference_records: list[UnresolvedReferenceRecord] = []
 
-    if doctrine_service is None:
-        doctrine_service = _default_active_charter_service(repo_root)
+    if charter_service is None:
+        charter_service = _default_active_charter_service(repo_root)
 
     if pack_context is None and repo_root is not None:
         pack_context = PackContext.from_config(repo_root)
@@ -503,7 +503,7 @@ def compile_charter(
         template_set=template,
         interview=interview,
         config_roots=config_roots,
-        doctrine_service=doctrine_service,
+        charter_service=charter_service,
         repo_root=repo_root,
         diagnostics=diagnostics,
         unresolved_reference_records=unresolved_reference_records,
@@ -527,7 +527,7 @@ def compile_charter(
         selected_tactics=config_roots.tactics,
         available_tools=available_tools,
         references=references,
-        doctrine_service=doctrine_service,
+        charter_service=charter_service,
     )
 
     return CompiledCharter(
@@ -1157,7 +1157,7 @@ def _build_references(
     template_set: str,
     interview: CharterInterview,
     config_roots: ConfigActivatedRoots,
-    doctrine_service: ActiveCharterService,
+    charter_service: ActiveCharterService,
     repo_root: Path | None = None,
     diagnostics: list[str] | None = None,
     unresolved_reference_records: list[UnresolvedReferenceRecord] | None = None,
@@ -1172,7 +1172,7 @@ def _build_references(
             template_set=template_set,
             config_roots=config_roots,
             offering_root=offering_root,
-            doctrine_service=doctrine_service,
+            charter_service=charter_service,
             repo_root=repo_root,
             diagnostics=diagnostics if diagnostics is not None else [],
             unresolved_records=unresolved_reference_records if unresolved_reference_records is not None else [],
@@ -1181,10 +1181,10 @@ def _build_references(
     return references
 
 
-def _raw_kind_repository(doctrine_service: ActiveCharterService, kind: str) -> Any:
-    """Return the RAW, unfiltered repository for *kind* from *doctrine_service*.
+def _raw_kind_repository(charter_service: ActiveCharterService, kind: str) -> Any:
+    """Return the RAW, unfiltered repository for *kind* from *charter_service*.
 
-    ``compile_charter`` accepts two concrete ``doctrine_service`` shapes in
+    ``compile_charter`` accepts two concrete ``charter_service`` shapes in
     practice (only the first is the type its annotation names, but callers --
     including in-repo tests, e.g. ``tests/charter/test_activate_resolves_no_answers_edit.py``
     -- pass the second directly too):
@@ -1205,10 +1205,10 @@ def _raw_kind_repository(doctrine_service: ActiveCharterService, kind: str) -> A
     ``raw_repository(kind)`` accessor, which degrades to ``None`` for the same
     kinds rather than raising ``AttributeError``.
     """
-    raw_repository = getattr(doctrine_service, "raw_repository", None)
+    raw_repository = getattr(charter_service, "raw_repository", None)
     if callable(raw_repository):
         return raw_repository(kind)
-    return getattr(doctrine_service, kind, None)
+    return getattr(charter_service, kind, None)
 
 
 #: Shared free-text template for every unresolved-reference diagnostic line
@@ -1428,7 +1428,7 @@ def _model_reference(kind: str, model: Any, fields: _ReferenceFields) -> Charter
 def _route_unresolved_urn(
     urn: str,
     *,
-    doctrine_service: ActiveCharterService,
+    charter_service: ActiveCharterService,
     diagnostics: list[str],
     unresolved_records: list[UnresolvedReferenceRecord],
     project_root: Path | None,
@@ -1479,7 +1479,7 @@ def _route_unresolved_urn(
         return None, None
 
     plural = artifact_kind.plural
-    repository = _raw_kind_repository(doctrine_service, plural)
+    repository = _raw_kind_repository(charter_service, plural)
     if artifact_kind.value not in _TRACKED_KINDS:
         detail = (
             f"no repository for kind: {kind_prefix}"
@@ -1627,7 +1627,7 @@ def _build_references_from_service(
     template_set: str,
     config_roots: ConfigActivatedRoots,
     offering_root: Path,
-    doctrine_service: ActiveCharterService,
+    charter_service: ActiveCharterService,
     repo_root: Path | None,
     diagnostics: list[str],
     unresolved_records: list[UnresolvedReferenceRecord] | None = None,
@@ -1670,7 +1670,7 @@ def _build_references_from_service(
         kind_references = _render_kind_references(
             getattr(graph, tracked.plural),
             kind=kind,
-            repository=_raw_kind_repository(doctrine_service, tracked.plural),
+            repository=_raw_kind_repository(charter_service, tracked.plural),
             fields=tracked.fields,
             diagnostics=diagnostics,
             unresolved_records=unresolved_records,
@@ -1686,7 +1686,7 @@ def _build_references_from_service(
     for urn, _urn_dup in graph.unresolved:
         attributed_kind, reference = _route_unresolved_urn(
             urn,
-            doctrine_service=doctrine_service,
+            charter_service=charter_service,
             diagnostics=diagnostics,
             unresolved_records=unresolved_records,
             project_root=repo_root,
@@ -2113,7 +2113,7 @@ def _render_charter_markdown(
     selected_directives: list[str],
     available_tools: list[str],
     references: list[CharterReference],
-    doctrine_service: ActiveCharterService,
+    charter_service: ActiveCharterService,
     selected_tactics: list[str] | None = None,
 ) -> str:
     selected_tactics = selected_tactics or []
@@ -2138,7 +2138,7 @@ def _render_charter_markdown(
         f"- Deployment Constraints: {deployment}",
     ]
 
-    numbered_directives = _render_directives(interview, selected_directives, doctrine_service)
+    numbered_directives = _render_directives(interview, selected_directives, charter_service)
 
     reference_rows = ["| Reference ID | Kind | Summary | Local Doc |", "|---|---|---|---|"]
     for reference in references:
@@ -2190,13 +2190,13 @@ def _render_charter_markdown(
 def _render_directives(
     interview: CharterInterview,
     selected_directives: list[str],
-    doctrine_service: ActiveCharterService,
+    charter_service: ActiveCharterService,
 ) -> str:
     lines: list[str] = []
     index = 1
 
     for directive_id in selected_directives:
-        directive = doctrine_service.directives.get(directive_id)
+        directive = charter_service.directives.get(directive_id)
         if directive is None:
             lines.append(f"{index}. Apply doctrine directive `{directive_id}` to planning and implementation decisions.")
             index += 1

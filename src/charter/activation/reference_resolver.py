@@ -22,7 +22,7 @@ __all__ = [
 
 def resolve_references_transitively(
     directive_ids: list[str],
-    doctrine_service: object,
+    charter_service: object,
     *,
     graph: DRGGraph | None = None,
     repo_root: Path | None = None,
@@ -40,7 +40,7 @@ def resolve_references_transitively(
         (FR-032, FR-036, WP08) before transitive resolution. Pass ``None``
         to skip the filter (backward-compatible behaviour).
     """
-    _ = doctrine_service
+    _ = charter_service
 
     if not directive_ids:
         return ResolveTransitiveRefsResult()

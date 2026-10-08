@@ -118,7 +118,7 @@ class TestTemplateIncludeSeam:
         # every other unrecognised kind token returns None (never raises),
         # letting the caller (or the generic-artifact fan-out) decide.
         assert (
-            template_include._render_doctrine_artifact_include(
+            template_include._render_offering_artifact_include(
                 object(), "not-a-real-kind", "some-id"
             )
             is None
@@ -131,7 +131,7 @@ class TestTemplateIncludeSeam:
 
         service = type("Service", (), {"paradigms": _EmptyRepo()})()
         with pytest.raises(ValueError, match="No paradigm found"):
-            template_include._render_doctrine_artifact_include(
+            template_include._render_offering_artifact_include(
                 service, "paradigm", "missing-id"
             )
 

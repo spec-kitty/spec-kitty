@@ -280,7 +280,7 @@ def rewrite_manifest(
 
     from charter.bundle import compute_bundle_content_hash  # noqa: PLC0415
 
-    from .artifact_naming import artifact_filename, doctrine_kind_subdir  # noqa: PLC0415
+    from .artifact_naming import artifact_filename, pack_kind_subdir  # noqa: PLC0415
     from .manifest import ManifestArtifactEntry, SynthesisManifest, finalize_manifest  # noqa: PLC0415
     from .provenance import provenance_path_for  # noqa: PLC0415
     from .synthesize_pipeline import _get_synthesizer_version, canonical_yaml  # noqa: PLC0415
@@ -300,7 +300,7 @@ def rewrite_manifest(
         yaml_bytes = canonical_yaml(body)
         content_hash = hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
-        rel_content = (PROJECT_PACK_ROOT / doctrine_kind_subdir(kind) / filename).as_posix()
+        rel_content = (PROJECT_PACK_ROOT / pack_kind_subdir(kind) / filename).as_posix()
         rel_prov = provenance_path_for(kind, slug)
 
         new_entries_by_key[(kind, slug)] = ManifestArtifactEntry(

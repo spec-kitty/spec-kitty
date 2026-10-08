@@ -54,14 +54,14 @@ from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 from charter.offering.missions.repository import MissionTemplateRepository
 
 # FR-003: the ONLY import of ``charter.offering.resolver``'s tier functions in the
-# charter layer. Aliased with a ``_doctrine_`` prefix so a reader of a call
-# site inside this module can never mistake the doctrine tier function for a
+# charter layer. Aliased with an ``_offering_`` prefix so a reader of a call
+# site inside this module can never mistake the offering tier function for a
 # charter-layer helper of the same bare name.
 from charter.offering.resolver import (
     ResolutionResult,
-    resolve_command as _doctrine_resolve_command,
-    resolve_mission as _doctrine_resolve_mission,
-    resolve_template as _doctrine_resolve_template,
+    resolve_command as _offering_resolve_command,
+    resolve_mission as _offering_resolve_mission,
+    resolve_template as _offering_resolve_template,
 )
 
 __all__ = [
@@ -492,7 +492,7 @@ class ActiveCharterService:
         Raises:
             FileNotFoundError: If no tier provides the requested template.
         """
-        return _doctrine_resolve_template(name, project_dir, mission)
+        return _offering_resolve_template(name, project_dir, mission)
 
     @staticmethod
     def resolve_command_asset(
@@ -517,7 +517,7 @@ class ActiveCharterService:
         Raises:
             FileNotFoundError: If no tier provides the requested command template.
         """
-        return _doctrine_resolve_command(name, project_dir, mission)
+        return _offering_resolve_command(name, project_dir, mission)
 
     @staticmethod
     def resolve_mission_definition(name: str, project_dir: Path) -> ResolutionResult:
@@ -538,7 +538,7 @@ class ActiveCharterService:
         Raises:
             FileNotFoundError: If no tier provides the mission config.
         """
-        return _doctrine_resolve_mission(name, project_dir)
+        return _offering_resolve_mission(name, project_dir)
 
     @staticmethod
     def resolve_package_default_asset_path(
@@ -993,7 +993,7 @@ def resolve_project_governance(
 def resolve_governance_for_profile(
     profile_id: str,
     role: str | None,
-    doctrine_service: ActiveCharterService,
+    charter_service: ActiveCharterService,
     interview: CharterInterview,
     *,
     graph: DRGGraph | None = None,
@@ -1006,7 +1006,7 @@ def resolve_governance_for_profile(
 
     # Pattern C: agent_profiles may be a filtered dict (ActiveCharterService wrapper)
     # or a repository (raw charter.offering.service.CharterOfferingService / MagicMock in tests).
-    agent_profiles_attr = doctrine_service.agent_profiles
+    agent_profiles_attr = charter_service.agent_profiles
     if isinstance(agent_profiles_attr, dict):
         profile = agent_profiles_attr.get(normalized_profile_id)
         if profile is None:
@@ -1021,7 +1021,7 @@ def resolve_governance_for_profile(
     merged_directives = _merge_unique(profile_directives, interview.selected_directives)
     resolution_graph = resolve_references_transitively(
         merged_directives,
-        doctrine_service,
+        charter_service,
         graph=graph,
         repo_root=repo_root,
     )

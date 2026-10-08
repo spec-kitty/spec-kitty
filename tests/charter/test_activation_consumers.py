@@ -117,12 +117,12 @@ def test_reference_resolver_none_path_matches_no_filter_at_all(tmp_path: Path) -
     graph = _single_directive_graph()
 
     unfiltered = resolve_references_transitively(
-        [_REAL_DIRECTIVE_CANONICAL_ID], doctrine_service=None, graph=graph, pack_context=None
+        [_REAL_DIRECTIVE_CANONICAL_ID], charter_service=None, graph=graph, pack_context=None
     )
     default_allow_ctx = _pack_context(activated_directives=None, repo_root=tmp_path)
     default_allow = resolve_references_transitively(
         [_REAL_DIRECTIVE_CANONICAL_ID],
-        doctrine_service=None,
+        charter_service=None,
         graph=graph,
         pack_context=default_allow_ctx,
     )
@@ -144,7 +144,7 @@ def test_reference_resolver_populated_stem_retains_directive_node() -> None:
     )
 
     result = resolve_references_transitively(
-        [_REAL_DIRECTIVE_CANONICAL_ID], doctrine_service=None, graph=graph, pack_context=ctx
+        [_REAL_DIRECTIVE_CANONICAL_ID], charter_service=None, graph=graph, pack_context=ctx
     )
 
     assert result.directives == [_REAL_DIRECTIVE_CANONICAL_ID]
@@ -214,7 +214,7 @@ def test_compiler_closure_populated_stem_retains_directive_node(tmp_path: Path) 
 # ---------------------------------------------------------------------------
 # T012 -- charter/consistency_check.py::_check_drg_cross_kind_refs (:424)
 # ---------------------------------------------------------------------------
-# Observable: ``missing_from_doctrine`` -- the KIND-level cross-ref gap
+# Observable: ``missing_from_offering`` -- the KIND-level cross-ref gap
 # report. The check only inspects an edge if BOTH its endpoints survive
 # ``filter_graph_by_activation`` first, so a directive node the gate silently
 # drops means its outgoing edges are never inspected -- a legitimate
@@ -268,16 +268,16 @@ def test_cross_kind_refs_none_path_matches_no_filter_at_all(tmp_path: Path) -> N
     }
 
     ctx = ProjectContext(repo_root=tmp_path, pack_context=default_allow_ctx)
-    missing_from_doctrine: list[str] = []
+    missing_from_offering: list[str] = []
     suggestions: list[str] = []
     _check_drg_cross_kind_refs(
         ctx,
         {"directive": None, "tactic": None},
-        missing_from_doctrine,
+        missing_from_offering,
         suggestions,
     )
 
-    assert missing_from_doctrine == []
+    assert missing_from_offering == []
 
 
 def test_cross_kind_refs_populated_stem_surfaces_kind_gap(tmp_path: Path) -> None:
@@ -308,12 +308,12 @@ def test_cross_kind_refs_populated_stem_surfaces_kind_gap(tmp_path: Path) -> Non
         "directive": frozenset({_REAL_DIRECTIVE_STEM}),
         "tactic": frozenset(),
     }
-    missing_from_doctrine: list[str] = []
+    missing_from_offering: list[str] = []
     suggestions: list[str] = []
 
-    _check_drg_cross_kind_refs(ctx, activated_by_kind, missing_from_doctrine, suggestions)
+    _check_drg_cross_kind_refs(ctx, activated_by_kind, missing_from_offering, suggestions)
 
-    assert f"{_REAL_TACTIC_CLI_KIND}/<all>" in missing_from_doctrine
+    assert f"{_REAL_TACTIC_CLI_KIND}/<all>" in missing_from_offering
 
 
 # ---------------------------------------------------------------------------

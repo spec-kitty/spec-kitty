@@ -154,7 +154,7 @@ class ManifestSchemaError(Exception):
 _cache: dict[tuple[str, tuple[str, ...]], ExpectedArtifactManifest | None] = {}
 
 
-def _doctrine_repository() -> MissionTemplateRepository:
+def _offering_template_repository() -> MissionTemplateRepository:
     """Return the doctrine mission repository bound to the bundled doctrine tree.
 
     Lazy-friendly seam (mirrors the pre-relocation discipline in
@@ -266,7 +266,7 @@ def load_manifest(mission_type: str, repo_root: Path | None = None) -> ExpectedA
     if org_parsed is not None:
         return _validate_and_cache_org_manifest(mission_type, org_roots, org_parsed, cache_key)
 
-    config = _doctrine_repository().get_expected_artifacts(mission_type)
+    config = _offering_template_repository().get_expected_artifacts(mission_type)
 
     if config is None:
         logger.debug(f"Manifest not found for mission type: {mission_type}")

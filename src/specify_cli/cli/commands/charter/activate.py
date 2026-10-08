@@ -584,7 +584,7 @@ def recompile_catalog(repo_root: Path) -> list[str]:
         mission=resolved_mission,
         interview=interview_data,
         repo_root=repo_root,
-        doctrine_service=_build_doctrine_service_with_org_layer(repo_root),
+        charter_service=_build_doctrine_service_with_org_layer(repo_root),
         pack_context=PackContext.from_config(repo_root),
     )
     bundle_result = write_compiled_charter(charter_dir, compiled, repo_root=repo_root)

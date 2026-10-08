@@ -4,7 +4,7 @@
 (``compile_charter`` / ``write_compiled_charter``, C-001/C-004). Finding 4b
 diagnosed a silent-placeholder defect: ``_render_kind_references``
 (``compiler.py``) looked up DRG-transitively-reached ids against
-``doctrine_service.<kind>`` -- an ACTIVATION-FILTERED dict scoped to
+``charter_service.<kind>`` -- an ACTIVATION-FILTERED dict scoped to
 ``config.activated_*`` only -- so an id reached solely via a ``requires``/
 ``suggests`` edge (not directly config-activated) missed even when a bundled
 definition genuinely exists in the doctrine corpus, and fell back to the
@@ -15,12 +15,12 @@ Empirical mechanism (pinned by this file, confirmed via T001 before any fix
 was written -- see the WP01 prompt's "confirm empirically" instruction): NOT
 a URN/config-stem id-format mismatch (transitively-reached directive ids
 already match the typed repository's own canonical keys byte-for-byte); the
-mismatch is which repository backs the lookup. ``doctrine_service.directives``
+mismatch is which repository backs the lookup. ``charter_service.directives``
 et al. (the nine gated properties on ``charter.activation.resolver.ActiveCharterService``)
 return only the DIRECTLY config-activated subset; the DRG transitive closure
 (``graph.directives`` et al.) legitimately reaches ids beyond that subset.
 The fix routes the lookup through the raw, unfiltered repository
-(``doctrine_service.raw_repository(kind)``, the sanctioned FR-002 accessor)
+(``charter_service.raw_repository(kind)``, the sanctioned FR-002 accessor)
 instead, and treats a miss against THAT repository as the genuine-unresolved
 case (contract C4).
 
@@ -104,12 +104,12 @@ def _compile_with_transitive_directive_seed(repo_root: Path) -> Any:
     ``_default_active_charter_service`` share in production.
     """
     pack_context = _pack_context_seeding_procedure_only(repo_root)
-    doctrine_service = ActiveCharterService(CharterOfferingService(project_root=None), pack_context=pack_context)
+    charter_service = ActiveCharterService(CharterOfferingService(project_root=None), pack_context=pack_context)
     interview = default_interview(mission="software-dev", profile="minimal")
     return compile_charter(
         mission="software-dev",
         interview=interview,
-        doctrine_service=doctrine_service,
+        charter_service=charter_service,
         pack_context=pack_context,
     )
 

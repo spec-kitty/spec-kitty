@@ -137,12 +137,12 @@ def _read_config_yaml(consumer: Path) -> dict:
 
 def _compile(project_root: Path, interview: CharterInterview):
     pack_context = PackContext.from_config(project_root)
-    doctrine_service = CharterOfferingService()
+    charter_service = CharterOfferingService()
     return compile_charter(
         mission=interview.mission,
         interview=interview,
         repo_root=project_root,
-        doctrine_service=doctrine_service,
+        charter_service=charter_service,
         pack_context=pack_context,
     )
 

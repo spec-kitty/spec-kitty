@@ -377,9 +377,9 @@ def test_charter_template_resolver_routes_the_tier_chain_through_the_factory(
 @pytest.mark.parametrize(
     ("factory_method", "doctrine_symbol"),
     [
-        ("resolve_content_asset", "_doctrine_resolve_template"),
-        ("resolve_command_asset", "_doctrine_resolve_command"),
-        ("resolve_mission_definition", "_doctrine_resolve_mission"),
+        ("resolve_content_asset", "_offering_resolve_template"),
+        ("resolve_command_asset", "_offering_resolve_command"),
+        ("resolve_mission_definition", "_offering_resolve_mission"),
     ],
 )
 def test_factory_methods_delegate_to_doctrine_tier_functions(
