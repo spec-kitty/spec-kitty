@@ -118,7 +118,7 @@
     },
     "WP04": {
       "actor": "claude-reviewer",
-      "agent": "claude-reviewer",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -131,6 +131,7 @@
         "Frontmatter, finalize and matrix writers take the Mission lock: locked_update_frontmatter (body byte-for-byte); map-requirements plan+write in one hold; finalize flush applies its field delta under the lock; write-scope and meta restores are compare-and-swap with kept-file reporting; matrix helpers/guard/issue-verdict/scaffold key through mission_write_lock; remaining frontmatter and tasks.md writers locked. Red-first and mutation checks recorded in the tracer; 5x repeats green."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/kitty-specs/mission-writer-followups-01M4CYWW/tasks/WP04-frontmatter-and-matrix/review-cycle-1.md",
         "reference": "review-cycle://mission-writer-followups-01M4CYWW/WP04-frontmatter-and-matrix/review-cycle-1.md",
@@ -138,15 +139,15 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 25099,
-      "shell_pid_created_at": "1791472465.36",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T015": "done",
-        "T016": "done",
-        "T017": "done",
-        "T018": "done",
-        "T019": "done",
-        "T058": "done"
+        "T015": "planned",
+        "T016": "planned",
+        "T017": "planned",
+        "T018": "planned",
+        "T019": "planned",
+        "T058": "planned"
       }
     },
     "WP05": {
