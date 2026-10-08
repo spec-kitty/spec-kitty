@@ -121,6 +121,9 @@ jobs:
       # Contract-tools group (#5558): non-src, like ci_config above; gates only `tests (contract tools)`
       # (together with `corpus`, which owns contracts/**). Never in the unmatched loop.
       contract_tools: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.contract_tools }}
+      # Mission-state group (#5864): non-src, like contract_tools above; gates only `mission-state audit`.
+      # Never in the unmatched loop.
+      mission_state: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.mission_state }}
       # Raw fail-closed catch-all signal (FR-004): any src/** changed but no named src group did.
       unmatched: ${{ steps.unmatched.outputs.unmatched }}
     steps:
@@ -234,6 +237,12 @@ jobs:
               - 'contracts/**'
               # Intended: an Op-journal commit under kitty-ops/ triggers the corpus job (the Ops read of the reality suite reads it).
               - 'kitty-ops/**'
+            # Mission-state group (#5864): NON-src (not in the unmatched loop); gates only `mission-state audit`.
+            # Every file of a Mission can change what `doctor mission-state --audit` reports (status.json against
+            # its event log, meta.json, lanes.json, WP frontmatter), and the `corpus` globs above name only the
+            # planning leaves, so a status-only diff used to select no job and a drifted snapshot landed unchecked (#5862).
+            mission_state:
+              - 'kitty-specs/**'
             e2e:
               - 'tests/e2e/**'
               - 'tests/cross_cutting/**'
@@ -1038,6 +1047,44 @@ jobs:
             --ignore=tests/contract/test_mission_status_reality.py \
             -n 4 --dist loadfile
 
+  # The Mission-state audit (#5864). The upgrade witness
+  # (tests/upgrade/preview_support/test_public_witnesses.py::test_original_full_corpus_has_no_teamspace_blockers)
+  # audits the checkout's whole kitty-specs/ with this command and gate, but it runs only when upgrade code
+  # changes, so a Mission that landed with a drifted status.json (SNAPSHOT_DRIFT, #5862) went red on the next
+  # unrelated upgrade PR instead of its own. The corpus jobs do not catch it: the reality check passes on a
+  # drifted snapshot. This job runs the same audit on every kitty-specs/ change: about 20-30 s of audit after
+  # the environment install, against the 4 upgrade shards or the corpus-blocking job (5-10 min). It is
+  # read-only. On failure it prints the offending Missions and their error findings; the fix for
+  # SNAPSHOT_DRIFT is `spec-kitty agent status materialize --mission <slug>`. Pinned by
+  # tests/ci/test_mission_state_audit_routing.py.
+  mission-state-audit:
+    name: mission-state audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    needs: [changes]
+    if: ${{ needs.changes.outputs.mission_state == 'true' }}
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the locked Python environment
+        run: uv sync --frozen
+      - name: Audit every Mission's state
+        run: |
+          set -uo pipefail
+          report="$RUNNER_TEMP/mission-state-audit.json"
+          uv run --frozen --no-sync spec-kitty doctor mission-state --audit --fail-on teamspace-blocker --json > "$report"
+          status=$?
+          jq '.repo_summary' "$report"
+          if [ "$status" -ne 0 ]; then
+            echo "::error::doctor mission-state --audit found Missions with errors or TeamSpace blockers (exit $status)."
+            jq -c '.missions[] | select(.has_errors or .has_teamspace_blockers) | {mission: .mission_slug, errors: [.findings[] | select(.severity == "error") | {code, artifact_path, detail}]}' "$report"
+          fi
+          exit "$status"
+
   # ---------------------------------------------------------------------------
   # router-gate: terminal aggregator. `if: always() && !cancelled()` realizes
   # the FR-018/FR-019 full-mode semantics (skipped != pass) — it evaluates the
@@ -1071,6 +1118,7 @@ jobs:
       - tests-e2e
       - tests-corpus-blocking
       - tests-contract-tools
+      - mission-state-audit
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() && !cancelled() }}
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0

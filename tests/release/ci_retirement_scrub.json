@@ -288,6 +288,13 @@
         "tests/cross_cutting/**"
       ],
       "note": "End-to-end / cross-cutting suite; not a src --cov subject."
+    },
+    {
+      "group": "mission_state",
+      "roots": [
+        "kitty-specs/**"
+      ],
+      "note": "Every Mission file under kitty-specs/ (#5864): gates only the mission-state audit job; non-src, no --cov subject."
     }
   ],
   "excluded_surfaces": [
