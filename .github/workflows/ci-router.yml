@@ -1078,6 +1078,12 @@ jobs:
           report="$RUNNER_TEMP/mission-state-audit.json"
           uv run --frozen --no-sync spec-kitty doctor mission-state --audit --fail-on teamspace-blocker --json > "$report"
           status=$?
+          if ! jq -e . "$report" >/dev/null 2>&1; then
+            echo "::error::doctor mission-state --audit produced no JSON report (exit $status)."
+            cat "$report"
+            if [ "$status" -ne 0 ]; then exit "$status"; fi
+            exit 1
+          fi
           jq '.repo_summary' "$report"
           if [ "$status" -ne 0 ]; then
             echo "::error::doctor mission-state --audit found Missions with errors or TeamSpace blockers (exit $status)."
