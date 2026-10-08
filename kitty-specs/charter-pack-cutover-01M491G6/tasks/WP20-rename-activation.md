@@ -387,3 +387,9 @@ A resuming session reads the Activity Log, checks `git log --oneline` against th
 ### Updating Status
 
 Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task <WPID> --to <status>` to change WP status.
+
+## Carry-over from WP19
+
+- Rename the activation wrapper `charter.activation.resolver.DoctrineService` → **`ActiveCharterService`** (WP19 renamed the raw offering class to `CharterOfferingService`), including bare `DoctrineService` mentions in activation code and tests; `id_normalizer.py:~7`, `org_pack_config.py:~486`.
+- Sole-door gate: drop `"DoctrineService"` from `DOCTRINE_SERVICE_CANDIDATE_NAMES` and rename `WRAPPER_DOCTRINE_SERVICE_QUALNAME`.
+- Rename the `doctrine_root` keyword on `resolve_config_id` and related functions (WP19 used `pack_root` for the extractor/overlay/bundle sites; keep naming consistent).
