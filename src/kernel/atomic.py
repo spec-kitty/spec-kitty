@@ -36,6 +36,7 @@ from pathlib import Path
 
 __all__ = [
     "atomic_write",
+    "notify_file_written",
     "notify_written",
     "observe_writes",
     "stop_observing_writes",
@@ -65,6 +66,17 @@ def observe_writes(observer: Callable[[Path, bytes], None]) -> Token[Callable[[P
 def stop_observing_writes(token: Token[Callable[[Path, bytes], None] | None]) -> None:
     """Remove the observer :func:`observe_writes` installed."""
     _WRITE_OBSERVER.reset(token)
+
+
+def notify_file_written(path: Path) -> None:
+    """Tell the installed observer, if any, the bytes *path* holds now; the file is read only when an observer is installed.
+
+    For a writer that appends in place: call it inside the same lock hold as the append, so the recorded
+    bytes cannot include another writer's later append.
+    """
+    observer = _WRITE_OBSERVER.get()
+    if observer is not None:
+        observer(path, path.read_bytes())
 
 
 def notify_written(path: Path, content: bytes) -> None:

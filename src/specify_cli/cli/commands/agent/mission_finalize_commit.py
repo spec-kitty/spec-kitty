@@ -610,11 +610,6 @@ def _emit_tasks_started(
         )
     except Exception as tasks_started_exc:  # noqa: BLE001 — non-blocking emission call (not the write-location resolution above)
         logger.debug("TasksStarted emission skipped: %s", tasks_started_exc)
-    finally:
-        if planning_dir is not None:
-            from specify_cli.cli.commands.agent import mission_finalize as _mf
-
-            _mf.note_status_files_written(planning_dir, owned.repository_root if owned else None)
 
 
 def _run_commit_pipeline(
@@ -699,7 +694,7 @@ def _run_commit_pipeline(
     # #5641: every status-surface commit before the final commit -- the per-WP
     # seeds, and on a coordination surface the acceptance-matrix scaffold -- lands
     # inside this window, so the guard records the tip once it closes.
-    with status_surface.recording() if status_surface is not None else contextlib.nullcontext():
+    with status_surface.recording(lock_root=owned.repository_root if owned else None) if status_surface is not None else contextlib.nullcontext():
         _mf._emit_local_canonical_events(planning_dir, mission_slug, repo_root, state.work_packages, json_output=json_output, owned=owned)
 
         bootstrap_result = _mf._bootstrap_canonical_state_via_mission(
@@ -1059,7 +1054,7 @@ class FinalizeWriteLedger:
 
     Every write finalize makes through :func:`kernel.atomic.atomic_write` is recorded at the moment it
     happens (the writers hold the Mission write lock then), and the status files finalize's emissions
-    touched are noted by :func:`note_status_files_written`. The write-scope restore acts on a path only
+    append to are recorded by :func:`kernel.atomic.notify_file_written` inside the appending hold. The write-scope restore acts on a path only
     when it is in the ledger and the file still holds the recorded bytes: a file finalize never wrote,
     or one another writer changed since, is never put back.
     """
@@ -1097,26 +1092,6 @@ def active_write_ledger() -> FinalizeWriteLedger | None:
     return _ACTIVE_LEDGER.get()
 
 
-def note_status_files_written(planning_dir: Path, repo_root: Path | None = None) -> None:
-    """Record the Mission's in-directory status files as finalize's emissions left them.
-
-    Status rows are appended, not atomically replaced, so the ledger reads the files back right after the
-    emission, inside the Mission write lock. A no-op outside a finalize run.
-    """
-    ledger = _ACTIVE_LEDGER.get()
-    if ledger is None:
-        return
-    with mission_write_lock(planning_dir, repo_root=repo_root):
-        for name in _STATUS_FILE_NAMES:
-            content = _bytes_or_none(planning_dir / name)
-            if content is not None:
-                ledger.record(planning_dir / name, content)
-
-
-#: The in-directory status files a finalize emission writes by appending.
-_STATUS_FILE_NAMES: Final = ("status.events.jsonl", "status.json")
-
-
 def _bytes_or_none(path: Path) -> bytes | None:
     """The bytes at *path*, or ``None`` when it is not a readable file."""
     try:
@@ -1152,8 +1127,7 @@ def _restore_mission_write_scope(
     by resolved path) a file is rewritten or deleted only while its bytes still equal
     what the attempt wrote there; a file the attempt never wrote, or one another writer
     changed since, is neither rewritten nor deleted: it is kept and returned (sorted), so
-    the caller can report it. A file that is already gone is put back whatever the ledger
-    says. Without ``written`` every changed file is undone (a status directory the status
+    the caller can report it; that includes a file another writer deleted. Without ``written`` every changed file is undone (a status directory the status
     guard restores by its own compare-and-swap).
 
     The lock is the Mission write lock of ``lock_dir`` (``mission_dir`` by default): a directory
@@ -1176,8 +1150,8 @@ def _restore_mission_write_scope(
             now = _bytes_or_none(path)
             if now == original:
                 continue  # already as it was before the attempt (for example restored with the status branch)
-            if written is not None and now is not None and now != written.get(path.resolve(), None):
-                kept_changed.append(path)  # not what finalize wrote: another writer's change, left alone
+            if written is not None and (path.resolve() not in written or now != written[path.resolve()]):
+                kept_changed.append(path)  # not what finalize wrote (changed, created or deleted by another writer): left alone
                 continue
             _undo_one_path(path, original)
     return sorted(kept_changed)

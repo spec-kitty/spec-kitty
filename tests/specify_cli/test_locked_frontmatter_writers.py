@@ -424,12 +424,24 @@ def test_restore_keeps_a_removed_file_another_writer_put_back(scope: tuple[Path,
     assert kept == [tasks_md]
 
 
-def test_restore_puts_back_a_file_that_is_gone(scope: tuple[Path, Path]) -> None:
+def test_restore_keeps_a_file_another_writer_deleted_and_reports_it(scope: tuple[Path, Path]) -> None:
+    """A deletion is a concurrent change too: with a ledger, a file finalize never wrote is not resurrected."""
+    mission_dir, tasks_md = scope
+    before = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    tasks_md.unlink()  # another writer removed it; finalize wrote nothing
+
+    kept = finalize_commit._restore_mission_write_scope(before, mission_dir, written={})
+
+    assert not tasks_md.exists()
+    assert kept == [tasks_md]
+
+
+def test_restore_without_a_ledger_puts_back_a_file_that_is_gone(scope: tuple[Path, Path]) -> None:
     mission_dir, tasks_md = scope
     before = finalize_commit._snapshot_mission_write_scope(mission_dir)
     tasks_md.unlink()
 
-    assert finalize_commit._restore_mission_write_scope(before, mission_dir, written={}) == []
+    assert finalize_commit._restore_mission_write_scope(before, mission_dir) == []
     assert tasks_md.read_text(encoding="utf-8") == "original\n"
 
 
@@ -496,13 +508,43 @@ def test_the_ledger_records_the_meta_text_inside_the_writing_hold(mission: tuple
     assert text == (primary / "meta.json").read_text(encoding="utf-8")
 
 
-def test_note_status_files_written_records_the_status_files_inside_a_run(mission: tuple[Path, Path, Path]) -> None:
-    repo, primary, _wp = mission
-    (primary / "status.events.jsonl").write_text('{"a": 1}\n', encoding="utf-8")
-    finalize_commit.note_status_files_written(primary, repo)  # outside a run: nothing recorded, nothing raised
+def test_a_status_append_is_recorded_in_the_ledger_with_the_bytes_of_the_appending_hold(mission: tuple[Path, Path, Path]) -> None:
+    from specify_cli.status import StatusEvent
+    from specify_cli.status.store import append_event
+
+    _repo, primary, _wp = mission
+    event = StatusEvent.from_dict(
+        {
+            "actor": "t",
+            "at": "2026-01-01T00:00:00+00:00",
+            "event_id": "01JTEST00000000000000000009",
+            "evidence": None,
+            "execution_mode": "direct_repo",
+            "mission_slug": SLUG,
+            "force": False,
+            "from_lane": "planned",
+            "reason": None,
+            "review_ref": None,
+            "to_lane": "claimed",
+            "wp_id": "WP01",
+        }
+    )
+    append_event(primary, event)  # outside a run: nothing is recorded and nothing raises
     with _finalize_run() as ledger:
-        finalize_commit.note_status_files_written(primary, repo)
-    assert ledger.written == {(primary / "status.events.jsonl").resolve(): b'{"a": 1}\n'}
+        append_event(primary, event)
+    assert ledger.written == {(primary / "status.events.jsonl").resolve(): (primary / "status.events.jsonl").read_bytes()}
+
+
+def test_the_flush_fallback_for_a_vanished_work_package_is_atomic_and_recorded(mission: tuple[Path, Path, Path]) -> None:
+    repo, primary, wp01 = mission
+    state = _bootstrap_state(repo, wp01)
+    wp01.unlink()
+
+    with _finalize_run() as ledger:
+        bootstrap._flush_frontmatter_writes(state, validate_only=False, repo_root=repo)
+
+    assert wp01.exists()
+    assert ledger.written == {wp01.resolve(): wp01.read_bytes()}
 
 
 def test_meta_revert_is_a_compare_and_swap_on_what_finalize_wrote(mission: tuple[Path, Path, Path]) -> None:

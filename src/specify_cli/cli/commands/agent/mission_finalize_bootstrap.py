@@ -25,7 +25,8 @@ import typer
 from kernel._safe_re import re
 from mission_runtime import MissionArtifactKind
 from mission_runtime import OwnedCheckout
-from specify_cli.frontmatter import locked_update_frontmatter, write_frontmatter
+from kernel.atomic import atomic_write
+from specify_cli.frontmatter import FrontmatterManager, locked_update_frontmatter
 from specify_cli.ownership import infer_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
 from specify_cli.ownership.inference import detect_post_integration_acceptance
@@ -484,7 +485,8 @@ def _flush_one_frontmatter_write(wp_file: Path, updated_meta: WPMetadata, body: 
     if delta is None or not wp_file.exists():
         # Nothing recorded to re-apply, or the file does not exist yet: the queued model is all there is.
         with mission_write_lock(feature_dir, repo_root=repo_root):
-            write_frontmatter(wp_file, updated_meta.model_dump(exclude_none=True, mode="json"), body)
+            # Atomic, so a reader never sees a torn file, and recorded in the run's write ledger by ``atomic_write``.
+            atomic_write(wp_file, FrontmatterManager().render(updated_meta.model_dump(exclude_none=True, mode="json"), body))
         return
     locked_update_frontmatter(wp_file, lambda frontmatter: _apply_finalize_delta(frontmatter, wp_file, delta), feature_dir=feature_dir, repo_root=repo_root)
 
@@ -944,6 +946,3 @@ def _emit_local_canonical_events(
     except Exception as local_wp_exc:  # noqa: BLE001 — non-blocking emission
         if not json_output:
             _mf.console.print(f"[yellow]Warning:[/yellow] Local canonical WPCreated/TasksCompleted persistence failed: {local_wp_exc}")
-    finally:
-        # The emissions append status rows: record the in-directory status files in the run's write ledger (plan A8).
-        _mf.note_status_files_written(planning_dir, owned.repository_root if owned else None)
