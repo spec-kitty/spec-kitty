@@ -255,3 +255,8 @@ Never run bare `tests/architectural/` or `make test-full` (`NO_FULL_HEAVY_SUITES
 ### Updating Status
 
 Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task <WPID> --to <status>` to change WP status.
+
+## Carry-over from WP21
+
+- Remove the dead `parents[3]/doctrine/skills` fallbacks in 7 migrations (listed in `FILE_EXEMPTIONS` of `tests/architectural/test_charter_pack_path_authority.py`) and drain those exemptions plus the remaining path-allowlist entries you own.
+- Gate bug (silent non-check): `tests/architectural/test_charter_facades_reexport_offering.py` `_IDENTITY_REQUIRED_ORIGINS` still keys on the top-level package `"doctrine"`, which no longer exists, so re-exports originating in `charter.offering` are never identity-checked. Fix the key, show the gate red on a planted non-identical re-export, then green.
