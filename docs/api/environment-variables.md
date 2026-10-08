@@ -97,7 +97,7 @@ export SPEC_KITTY_PACK_HOME=/opt/acme-doctrine
 ```
 ```yaml
 # .kittify/config.yaml
-doctrine:
+charter_packs:
   org:
     packs:
       - name: acme

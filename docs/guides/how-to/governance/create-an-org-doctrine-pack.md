@@ -216,7 +216,7 @@ with an `unresolved_edge_endpoint` conflict naming the token; there is no
 DRG fragments are **additive only**. They may add new edges and nodes but must not
 remove or modify built-in graph state. An org pack contributes a single
 `drg/fragment.yaml`; its edges are appended to the resolved graph in the order the pack
-is listed under `organisation_packs:` (the `layer_index` the loader assigns).
+is listed under `charter_packs.org.packs` (the `layer_index` the loader assigns).
 
 ---
 

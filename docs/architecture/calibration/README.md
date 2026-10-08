@@ -49,7 +49,7 @@ Supported keys: `add_edge`, `remove_edge`, `nodes`.
 
 The runtime DRG resolver reads these overlays via
 `specify_cli.calibration.walker._build_graph()` which calls
-`doctrine.drg.loader.merge_layers()` followed by
+`charter.offering.drg.loader.merge_layers()` followed by
 `_apply_remove_edges()`.
 
 ## Reports
