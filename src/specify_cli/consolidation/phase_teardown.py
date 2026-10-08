@@ -393,9 +393,12 @@ def _fold_coord_status_before_flatten(run: _MergeRunState) -> None:
                 paths=tuple(paths),
             )
             _carry_pass_anchor_over_own_commit(run, landed.sha)
+            console.print(f"  Folded the coordination status onto {run.lanes_manifest.target_branch} before teardown")
     except Exception as exc:
         raise CoordinationTeardownError(
-            f"coordination status could not be folded onto {run.lanes_manifest.target_branch!r}; the coordination branch and flatten marker were left intact"
+            f"coordination status could not be folded onto {run.lanes_manifest.target_branch!r} ({escape(str(exc))}); "
+            f"branch {run.lanes_manifest.mission_branch!r} was NOT deleted and the mission's coordination marker was left intact. "
+            "Re-run `spec-kitty consolidate --resume` once the cause is fixed."
         ) from exc
 
 
