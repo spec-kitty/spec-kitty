@@ -94,7 +94,7 @@
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
       "verdict": "in-mission",
-      "wp": "WP03"
+      "wp": "WP04"
     },
     "#5884": {
       "evidence_ref": "<link or commit>",
