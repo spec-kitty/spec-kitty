@@ -369,10 +369,10 @@ class TestCheckConcernRefsCoverage:
         assert len(warnings) == 1
         assert "WP01" in warnings[0]
 
-    def test_loaded_manifest_with_explicit_empty_refs_warns(
+    def test_loaded_manifest_with_explicit_empty_refs_is_quiet_without_plan_ics(
         self, tmp_path: object
     ) -> None:
-        """An opted-in manifest with empty refs and no cross_cutting still warns."""
+        """Empty concern refs are fine when plan.md declares no concerns."""
         from pathlib import Path
 
         feature_dir = Path(str(tmp_path))
@@ -385,9 +385,7 @@ class TestCheckConcernRefsCoverage:
         )
         manifest = load_wps_manifest(feature_dir)
         assert manifest is not None
-        warnings = check_concern_refs_coverage(manifest)
-        assert len(warnings) == 1
-        assert "WP01" in warnings[0]
+        assert check_concern_refs_coverage(manifest) == []
 
     def test_wps_schema_accepts_plan_concern_fields(self) -> None:
         """The documented JSON schema accepts the Pydantic manifest fields."""
