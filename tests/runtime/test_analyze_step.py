@@ -218,6 +218,30 @@ class TestAnalyzeStepGuard:
         assert decision.mission_state == "analyze"
         assert _issued_step(repo, slug) == "analyze"
 
+    def test_composed_tasks_advance_cannot_skip_analyze(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """T056: ``tasks`` is a composed action; its advance is planned from the template DAG, so it lands on analyze.
+
+        The spy proves the composition path ran for this call (not the legacy DAG dispatch),
+        so the tasks to implement edge cannot be hiding in ``runtime_bridge_composition``.
+        """
+        from runtime.next import runtime_bridge_composition as composition
+
+        repo = tmp_path / "walked"
+        slug = _walked_to(repo, "tasks")
+        dispatched: list[str] = []
+        real = composition._dispatch_via_composition
+
+        def _spy(**kwargs: Any) -> Any:
+            dispatched.append(kwargs["action"])
+            return real(**kwargs)
+
+        monkeypatch.setattr(composition, "_dispatch_via_composition", _spy)
+
+        decision = _advance(repo, slug)
+
+        assert dispatched == ["tasks"], "the tasks step must have been completed through composition"
+        assert (decision.kind, decision.action) == (_STEP, "analyze"), decision.reason
+
     @pytest.mark.parametrize(
         ("check", "code", "failures"),
         [

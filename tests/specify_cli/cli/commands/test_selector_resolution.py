@@ -490,7 +490,7 @@ def test_next_step_canonical_selector_passes_mission_slug(
 ) -> None:
     captured: dict[str, object] = {}
 
-    def _fake_query(agent: str, mission_slug: str, repo_root: Path):
+    def _fake_query(agent: str, mission_slug: str, repo_root: Path, **_kwargs: object):
         captured.update({"agent": agent, "mission_slug": mission_slug, "repo_root": repo_root})
         return SimpleNamespace(
             to_dict=lambda: {"kind": "query", "mission": mission_slug},
@@ -546,7 +546,7 @@ def test_next_step_alias_selector_warns_and_passes_mission_slug(
     """
     captured: dict[str, object] = {}
 
-    def _fake_query(agent: str, mission_slug: str, repo_root: Path):
+    def _fake_query(agent: str, mission_slug: str, repo_root: Path, **_kwargs: object):
         captured.update({"agent": agent, "mission_slug": mission_slug, "repo_root": repo_root})
         return SimpleNamespace(
             to_dict=lambda: {"kind": "query", "mission": mission_slug},

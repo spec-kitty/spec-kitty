@@ -380,16 +380,24 @@ def decide_next(
             decision = spec-kitty next --agent X --json
             if decision.kind == "terminal": break
             execute(decision.prompt_file)
+
+    ``analysis_currency`` is the injected analysis-report check (WP07, FR-016):
+    the bridge reads it only on the software-dev ``analyze`` step and in the
+    finalized-board override that would hand out ``implement``; ``None`` there
+    fails closed with ``ANALYSIS_CURRENCY_UNAVAILABLE``.
     """
     from runtime.next.runtime_bridge import decide_next_via_runtime
 
+    # Forwarded only when injected, so a caller (or a test double) that never
+    # supplies a check sees the exact pre-WP07 call.
+    injected: dict[str, AnalysisCurrency] = {} if analysis_currency is None else {"analysis_currency": analysis_currency}
     decision = decide_next_via_runtime(
         agent,
         mission_slug,
         result,
         repo_root,
         owned=owned,
-        analysis_currency=analysis_currency,
+        **injected,
     )
     return _with_guard_failure_paths(decision, repo_root, owned=owned)
 

@@ -38,6 +38,7 @@ from tests.integration.test_placement_partition_golden_path import (
 )
 from tests.runtime._next_mission_scaffold import (
     advance_to_step,
+    analysis_is_current,
     reject_wp_on_status_surface,
     scaffold_coord_software_dev,
     scaffold_software_dev,
@@ -296,7 +297,7 @@ def test_review_reject_redispatches_implement_single_branch(tmp_path: Path) -> N
 
     from runtime.next.runtime_bridge import decide_next_via_runtime, query_current_state
 
-    query_decision = query_current_state("pedro", mission_slug, repo)
+    query_decision = query_current_state("pedro", mission_slug, repo, analysis_currency=analysis_is_current)
     advance_decision = decide_next_via_runtime("pedro", mission_slug, "success", repo)
 
     assert advance_decision.kind == DecisionKind.step
@@ -329,7 +330,7 @@ def test_coord_implement_dispatch_reaches_wp01(tmp_path: Path) -> None:
 
     from runtime.next.runtime_bridge import decide_next_via_runtime, query_current_state
 
-    query_decision = query_current_state("pedro", mission_slug, repo)
+    query_decision = query_current_state("pedro", mission_slug, repo, analysis_currency=analysis_is_current)
     advance_decision = decide_next_via_runtime("pedro", mission_slug, "success", repo)
 
     assert query_decision.wp_id == "WP01"  # absolute anchor on the query side
@@ -356,7 +357,7 @@ def test_review_reject_redispatches_implement_coord_family(tmp_path: Path, topol
 
     from runtime.next.runtime_bridge import decide_next_via_runtime, query_current_state
 
-    query_decision = query_current_state("pedro", mission_slug, repo)
+    query_decision = query_current_state("pedro", mission_slug, repo, analysis_currency=analysis_is_current)
     advance_decision = decide_next_via_runtime("pedro", mission_slug, "success", repo)
 
     assert advance_decision.kind == DecisionKind.step
@@ -485,7 +486,7 @@ def test_multi_wp_dependency_order_reject_redispatch(tmp_path: Path) -> None:
     from runtime.next.discovery import preview_claimable_wp
     from runtime.next.runtime_bridge import decide_next_via_runtime, query_current_state
 
-    query_decision = query_current_state("pedro", mission_slug, repo)
+    query_decision = query_current_state("pedro", mission_slug, repo, analysis_currency=analysis_is_current)
     advance_decision = decide_next_via_runtime("pedro", mission_slug, "success", repo)
 
     assert advance_decision.kind == DecisionKind.step

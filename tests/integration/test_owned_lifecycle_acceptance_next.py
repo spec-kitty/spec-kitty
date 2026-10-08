@@ -67,8 +67,9 @@ from tests.integration.test_owned_next_runtime import (
     _coord_owned_with_removed_worktree,
     _inject_git_worktree_failure,
     _provision_charter,
-    _walk_to_tasks,
+    _walk_to_analyze,
 )
+from tests.runtime._next_mission_scaffold import analysis_is_current
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -154,9 +155,15 @@ def _r_snapshotter(checkouts: OwnedCheckouts) -> RSnapshotter:
     return RSnapshotter(checkouts.repository_root, checkouts.owned_root, None)
 
 
+def _analysis_gate_passes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These rows are about the owned checkout, not the analysis report (WP07): the wrapper's check reports a current report."""
+    monkeypatch.setattr(next_cmd, "analysis_currency_for", lambda *_a, **_k: analysis_is_current)
+
+
 def _as1(checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The AS-1 fixture: finalized owned mission whose run sits on the ``tasks`` step, cwd = R."""
-    _walk_to_tasks(checkouts, monkeypatch)
+    """The AS-1 fixture: finalized owned mission whose run sits on the ``analyze`` step (one step past ``tasks``), cwd = R."""
+    _walk_to_analyze(checkouts, monkeypatch)
+    _analysis_gate_passes(monkeypatch)
     _at(monkeypatch, checkouts.repository_root)
 
 
@@ -228,12 +235,12 @@ class TestFr023TopologyPairing:
 
 
 # ---------------------------------------------------------------------------
-# FR-008 / O5: tasks -> implement is not wedged
+# FR-008 / O5: analyze -> implement is not wedged (WP07 put analyze between tasks and implement)
 # ---------------------------------------------------------------------------
 
 
 class TestO5NoWedge:
-    def test_result_success_at_tasks_advances_into_p(self, owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_result_success_at_analyze_advances_into_p(self, owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
         _as1(owned_checkouts, monkeypatch)
         snap = _r_snapshotter(owned_checkouts)
         before = snap.take()
@@ -704,7 +711,8 @@ class TestFr021FlaglessAdoption:
         validation_count: list[tuple[Any, ...]],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        _walk_to_tasks(owned_checkouts, monkeypatch)
+        _walk_to_analyze(owned_checkouts, monkeypatch)
+        _analysis_gate_passes(monkeypatch)
         _at(monkeypatch, owned_checkouts.owned_root)
         validation_count.clear()
 

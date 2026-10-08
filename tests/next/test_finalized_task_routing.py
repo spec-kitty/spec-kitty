@@ -10,6 +10,7 @@ from runtime.next.decision import DecisionKind
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from tests.lane_test_utils import write_single_lane_manifest
+from tests.runtime._next_mission_scaffold import analysis_is_current
 
 pytestmark = pytest.mark.git_repo
 
@@ -72,7 +73,7 @@ def test_query_prefers_finalized_planned_wps_over_discovery(tmp_path: Path) -> N
 
     from runtime.next.runtime_bridge import query_current_state
 
-    decision = query_current_state("codex", mission_slug, repo)
+    decision = query_current_state("codex", mission_slug, repo, analysis_currency=analysis_is_current)
 
     assert decision.kind == DecisionKind.query
     assert decision.mission_state == "implement"

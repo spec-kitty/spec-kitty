@@ -263,13 +263,15 @@ def _check_cli_guards(
     Returns list of failure descriptions; empty list means all guards pass.
     """
     mission_family = mission_family if mission_family is not None else get_mission_type(feature_dir)
+    # Forwarded only when injected: no step but ``analyze`` reads it.
+    injected: dict[str, AnalysisCurrency] = {} if analysis_currency is None else {"analysis_currency": analysis_currency}
     snapshot = _io_seam.gather_artifact_presence(
         feature_dir,
         mission_family=mission_family,
         step_id=step_id,
         repo_root=repo_root,
         owned=owned,
-        analysis_currency=analysis_currency,
+        **injected,
     )
     if step_id in ("implement", "review"):
         # Intentionally NOT anchored (no repo_root=/mission_slug= forwarded), even

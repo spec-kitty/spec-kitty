@@ -76,7 +76,7 @@ def _without_exempt(mission_type: str, steps: list[dict[str, Any]]) -> list[dict
     def spliced(depends_on: list[str]) -> list[str]:
         out: list[str] = []
         for dep in depends_on:
-            out.extend(own_depends[dep] if dep in own_depends else [dep])
+            out.extend(own_depends.get(dep, [dep]))
         return out
 
     return [dict(s, depends_on=spliced(s["depends_on"])) for s in steps if s["id"] not in exempt]
