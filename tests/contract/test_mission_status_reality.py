@@ -3330,9 +3330,14 @@ def coordination_repo(
 
 def test_the_fallback_derivation_agrees_with_the_resolver_and_each_arm_it_does_not_mirror_is_pinned(scratch_git: Path) -> None:
     """The derivation beside the resolver for each arm: agreement on absent and on a local head, and the four arms the derivation does not mirror (FRESH3-002)."""
-    bare = scratch_git / "bare.git"
-    bare.mkdir()
-    _git(bare, "init", "--bare", "-q")
+    # One bare remote per arm: two fixture repositories pushing the same branch to one
+    # remote collide as a non-fast-forward when their commits land in different
+    # seconds (commit dates are not pinned), which a slow CI runner hits.
+    bares: dict[str, Path] = {}
+    for kind in ("remote-tracking", "remote-only"):
+        bares[kind] = scratch_git / f"{kind}.git"
+        bares[kind].mkdir()
+        _git(bares[kind], "init", "--bare", "-q")
     merged, reopened = (
         {"merged_at": "2026-09-02T10:00:00+00:00"},
         helper.lifecycle_row(1, "MissionReopened", "2026-09-03T10:00:00+00:00", aggregate_id=DHO_NAMES[14]),
@@ -3340,8 +3345,8 @@ def test_the_fallback_derivation_agrees_with_the_resolver_and_each_arm_it_does_n
     arms = {
         "absent": coordination_repo(scratch_git, "absent", None),
         "local-head": coordination_repo(scratch_git, "local-head", None, branch_kind="local-head"),
-        "remote-tracking": coordination_repo(scratch_git, "tracking", str(bare), branch_kind="remote-tracking"),
-        "remote-only": coordination_repo(scratch_git, "remote-only", str(bare), branch_kind="remote-only"),
+        "remote-tracking": coordination_repo(scratch_git, "tracking", str(bares["remote-tracking"]), branch_kind="remote-tracking"),
+        "remote-only": coordination_repo(scratch_git, "remote-only", str(bares["remote-only"]), branch_kind="remote-only"),
         "stored topology without coordination": coordination_repo(scratch_git, "topology", None, meta={"topology": "lanes"}),
         "merged and reopened": coordination_repo(scratch_git, "reopened", None, meta=merged, extra_rows=[reopened]),
     }
