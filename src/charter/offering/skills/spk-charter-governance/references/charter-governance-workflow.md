@@ -132,7 +132,7 @@ The interview fields map to target artifact kinds:
 For each synthesis target, derive: `kind`, `slug` (kebab-case, project-specific),
 `title`, and `body` (the full artifact content as YAML matching the shipped schema).
 
-### Step 4 — Author the project doctrine
+### Step 4 — Author the project layer
 
 All five supported project kinds are `directive`, `tactic`, `styleguide`,
 `procedure`, and `agent_profile`. For direct authoring, run `charter new <kind>
@@ -216,7 +216,7 @@ the runtime reads it without any parse/extract step in between.
      rewrites these two sections deterministically on every run (doctrine
      reference manifest, generation timestamp); everything else in the file
      is preserved byte-for-byte through a round-trip merge.
-   - `overrides` — hand-authored, forward-compatible project doctrine
+   - `overrides` — hand-authored, forward-compatible project-layer
      overrides.
 
 2. **Curated companion** (`.kittify/charter/charter.md`) — Human-editable
@@ -798,7 +798,7 @@ retrieval.
    First call gets bootstrap (depth-2), subsequent calls get compact (depth-1).
 3. **Mid-step, when guidance needed**: Pull specific tactic or directive by ID
    through `ActiveCharterService`.
-4. **Never**: Load the full doctrine catalog into prompt context.
+4. **Never**: Load the full charter offering into prompt context.
 
 ### Why This Matters
 

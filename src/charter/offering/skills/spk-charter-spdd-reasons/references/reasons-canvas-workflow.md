@@ -1,7 +1,7 @@
 # REASONS Canvas Workflow (spk-charter-spdd-reasons reference)
 
 Drive REASONS Canvas authoring and review for missions that opted in to
-Structured-Prompt-Driven Development (SPDD) via charter selection. The
+Structured-Prompt-Driven Development (SPDD) via the active charter. The
 canvas is a thin, agent-curated reasoning layer that sits next to the spec,
 plan, and tasks; it is **not** a duplicate system mirror.
 

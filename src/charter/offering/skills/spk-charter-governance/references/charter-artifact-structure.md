@@ -34,7 +34,7 @@ activated_kinds: [ ... ]        # AUTHORED — flat root activation keys (one li
 mission_type_activations: [ ... ]
 activated_directives: [ ... ]
 # ... one flat root list per kind (styleguides/toolguides/paradigms/procedures/agent_profiles/mission_step_contracts)
-overrides: { ... }              # AUTHORED — project doctrine overrides (forward-compat)
+overrides: { ... }              # AUTHORED — project-layer overrides (forward-compat)
 metadata:
   generated_at: <iso8601>       # DERIVED — refreshed by generate
   bundle_schema_version: 2

@@ -52,7 +52,7 @@ Skills should teach agents to load doctrine **iteratively**:
 1. At init: resolve agent profile, load initialization declaration.
 2. At each step boundary: call `build_charter_context(action, depth=1)`.
 3. When stuck or need guidance: pull specific tactic/directive by ID.
-4. Never: load the full doctrine catalog into prompt context upfront.
+4. Never: load the full charter offering into prompt context upfront.
 
 ## Naming Convention
 
