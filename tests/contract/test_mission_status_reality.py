@@ -2970,22 +2970,17 @@ SHARED_PRODUCTION_SYMBOLS = {
 }
 
 
+PRODUCTION_ROOTS = frozenset({"kernel", "specify_cli", "charter", "runtime", "glossary", "mission_runtime"})
+
+
 def production_imports(tree: ast.AST) -> set[tuple[str, str]]:
     """Every ``(module, name)`` the tree imports from outside the standard library and ``tests.contract``."""
     found: set[tuple[str, str]] = set()
     for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.ImportFrom)
-            and node.module
-            and node.module.split(".")[0] in {"kernel", "specify_cli", "charter", "runtime", "glossary", "mission_runtime"}
-        ):
+        if isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] in PRODUCTION_ROOTS:
             found.update((node.module, alias.name) for alias in node.names)
         elif isinstance(node, ast.Import):
-            found.update(
-                (alias.name, "")
-                for alias in node.names
-                if alias.name.split(".")[0] in {"kernel", "specify_cli", "charter", "runtime", "glossary", "mission_runtime"}
-            )
+            found.update((alias.name, "") for alias in node.names if alias.name.split(".")[0] in PRODUCTION_ROOTS)
     return found
 
 
