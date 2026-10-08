@@ -32,9 +32,9 @@ from specify_cli.coordination.transaction_errors import (
 )
 from specify_cli.lanes.branch_naming import (
     coord_mission_dir_name as _seam_coord_mission_dir_name,
-    mission_lock_dir_name as _seam_mission_lock_dir_name,
 )
 from specify_cli.mission_metadata import load_meta
+from specify_cli.status.mission_write import transaction_lock_key as _seam_transaction_lock_key
 
 logger = logging.getLogger(__name__)
 
@@ -54,15 +54,15 @@ def _mission_specs_dir_name(mission_slug: str, mid8: str) -> str:
     return _seam_coord_mission_dir_name(mission_slug, mid8=mid8)
 
 
-def _transaction_lock_key(mission_slug: str, mid8: str) -> str:
+def _transaction_lock_key(repo_root: Path, mission_slug: str, mid8: str) -> str:
     """Return the Mission write-lock key the bookkeeping transaction takes.
 
-    The same authority ``status.mission_write.mission_lock_key`` composes from
-    (``lanes.branch_naming.mission_lock_dir_name``): ``<slug>-<mid8>``, and the bare
-    slug when the Mission has no mid8 -- never the trailing-dash ``<slug>-`` that
-    :func:`_mission_specs_dir_name` keeps for path composition (plan A3).
+    ``status.mission_write.transaction_lock_key``: the routing decision of
+    ``mission_lock_key``, so the transaction and every door resolve one lock file
+    (plan A1). Never the trailing-dash ``<slug>-`` that :func:`_mission_specs_dir_name`
+    keeps for path composition (plan A3).
     """
-    return _seam_mission_lock_dir_name(mission_slug, mid8=mid8)
+    return _seam_transaction_lock_key(repo_root, mission_slug, mid8)
 
 
 def _checkout_mission_dir(surface_root: Path, mission_slug: str, mid8: str) -> Path:

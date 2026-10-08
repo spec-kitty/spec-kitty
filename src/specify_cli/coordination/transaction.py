@@ -21,8 +21,8 @@ from __future__ import annotations
 from specify_cli.core.constants import WORKTREES_DIR
 import logging
 import subprocess
-from collections.abc import Callable
-from contextlib import AbstractContextManager
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from kernel.clock import now_utc
 from kernel.git import GitCommandError, status_entries
 from pathlib import Path
@@ -63,7 +63,14 @@ from specify_cli.git.commit_helpers import (
 )
 from specify_cli.lanes.branch_naming import coord_mission_dir_name
 from specify_cli.status import reducer as _reducer
-from specify_cli.status.mission_write import STATUS_ROLLBACK_REFUSED, RollbackPoint, append_refusal_to_error, appended_event_ids, rollback_events_log
+from specify_cli.status.mission_write import (
+    STATUS_ROLLBACK_REFUSED,
+    RollbackPoint,
+    append_refusal_to_error,
+    appended_event_ids,
+    registered_hold,
+    rollback_events_log,
+)
 from specify_cli.status.locking import (
     FeatureStatusLockTimeoutError,
     feature_status_lock,
@@ -423,6 +430,13 @@ def _preflight_policy_verdict(
     return WorkflowMutationPolicy.assert_allowed(change_set, coord_available=coord_available, owned=owned)
 
 
+@contextmanager
+def _transaction_hold(lock_root: Path, key: str, mission_slug: str, timeout: float) -> Iterator[Path]:
+    """The transaction's Mission lock hold, registered like ``mission_write_lock`` so a nested entry keeps the key."""
+    with feature_status_lock(lock_root, key, timeout=timeout) as held, registered_hold(lock_root, mission_slug, key):
+        yield held
+
+
 class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
     """The single chokepoint for coordination-branch writes.
 
@@ -565,7 +579,7 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # transaction object; on any setup failure below, release it before
         # propagating the domain error.
         lock_root = owned.owned_root if owned is not None else repo_root
-        lock_cm = feature_status_lock(lock_root, _transaction_lock_key(mission_slug, mid8), timeout=timeout)
+        lock_cm = _transaction_hold(lock_root, _transaction_lock_key(lock_root, mission_slug, mid8), mission_slug, timeout)
         try:
             lock_cm.__enter__()
         except FeatureStatusLockTimeoutError as exc:

@@ -47,7 +47,7 @@ from typing import BinaryIO
 from kernel.atomic import atomic_write
 from kernel.git import GitCommandError, blob_at, run_git
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.lanes.branch_naming import coordination_lock_dir_name
+from specify_cli.lanes.branch_naming import coordination_lock_dir_name, mission_lock_dir_name
 from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import literal_primary_meta
 from specify_cli.status.locking import (
@@ -71,6 +71,8 @@ __all__ = [
     "capture_rollback_point",
     "locked_rewrite_text",
     "mission_lock_key",
+    "registered_hold",
+    "transaction_lock_key",
     "mission_write_lock",
     "rollback_io_failure",
     "rollback_events_log",
@@ -131,13 +133,30 @@ def _lock_name_for_ad_hoc_dir(feature_dir: Path) -> str:
 def _lock_name_for_dir(feature_dir: Path, root: Path) -> str:
     """The lock key of the Mission whose primary or coordination directory is *feature_dir*.
 
-    A coordination directory is named by the key itself, so a directory whose canonical
+    The primary ``meta.json`` is read through the read-path resolver's primary-directory leaf, which resolves a
+    worktree's ``.git`` pointer to the main checkout, so a lane worktree's copy never decides (plan A4). A coordination
+    directory is named by the key itself, so a directory whose canonical
     primary ``meta.json`` does not route through coordination is keyed on its own name.
     """
     name = feature_dir.name
     if feature_dir.parent.name != KITTY_SPECS_DIR:
         return _lock_name_for_ad_hoc_dir(feature_dir)
     return _lock_name_from_meta(literal_primary_meta(root, name), name) or name
+
+
+def transaction_lock_key(repo_root: Path, mission_slug: str, mid8: str) -> str:
+    """The Mission write-lock key ``BookkeepingTransaction`` takes: the door's routing decision, not its own.
+
+    When the canonical primary ``meta.json`` of ``kitty-specs/<mission_slug>/`` exists the key is
+    the one :func:`mission_lock_key` returns for that directory (the coordination name only for a
+    coordination-routed Mission, the directory name otherwise), so the transaction and every
+    door can never diverge (plan A1). When the slug names no recorded Mission, *mid8* composes the
+    coordination directory name (the bare slug without one, never ``<slug>-``).
+    """
+    meta = literal_primary_meta(repo_root, mission_slug)
+    if not meta:
+        return mission_lock_dir_name(mission_slug, mid8=mid8)
+    return _lock_name_from_meta(meta, mission_slug) or mission_slug
 
 
 def mission_lock_key(feature_dir: Path, *, repo_root: Path | None = None) -> str:
@@ -165,7 +184,7 @@ def mission_lock_key(feature_dir: Path, *, repo_root: Path | None = None) -> str
 
 
 @contextmanager
-def _registered_hold(root: Path, directory_name: str, key: str) -> Iterator[None]:
+def registered_hold(root: Path, directory_name: str, key: str) -> Iterator[None]:
     """Record that this thread holds *key* for *directory_name* (and for a directory named *key*) until exit."""
     held = _held_keys()
     slots = [(os.path.realpath(root), directory_name), (os.path.realpath(root), key)]
@@ -199,7 +218,7 @@ def mission_write_lock(
     """
     root = resolve_status_lock_root(feature_dir, repo_root)
     key = mission_lock_key(feature_dir, repo_root=root)
-    with feature_status_lock(root, key, timeout=timeout) as held, _registered_hold(root, feature_dir.name, key):
+    with feature_status_lock(root, key, timeout=timeout) as held, registered_hold(root, feature_dir.name, key):
         yield held
 
 

@@ -725,9 +725,13 @@ def coordination_lock_dir_name(
     ``meta.mid8``, then ``mission_id[:8]``, then the slug tail) and composes
     :func:`mission_lock_dir_name`.
 
+    A legacy ``NNN-`` slug whose cascade returns ``""`` is the documented dual-era carve-out
+    (it routes to the bare-slug surface, exactly as the transaction does), so its key is the
+    bare slug, not an error.
+
     Raises:
-        MissionLockKeyUnresolved: the cascade is exhausted, including a legacy ``NNN-``
-            slug whose cascade returns ``""`` (no silent fall back to the bare slug).
+        MissionLockKeyUnresolved: a modern slug whose cascade is exhausted. The cascade itself
+            raises there, so the transaction cannot resolve the Mission either.
     """
     try:
         resolved = resolve_transaction_mid8(
@@ -738,8 +742,6 @@ def coordination_lock_dir_name(
         )
     except BranchIdentityUnresolved as exc:
         raise MissionLockKeyUnresolved(mission_slug) from exc
-    if not resolved:
-        raise MissionLockKeyUnresolved(mission_slug)
     return mission_lock_dir_name(mission_slug, mid8=resolved)
 
 
