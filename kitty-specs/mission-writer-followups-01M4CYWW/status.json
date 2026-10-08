@@ -1,7 +1,7 @@
 {
-  "event_count": 32,
-  "last_event_id": "01M4DF95NEXDFMN31W4K48MFFE",
-  "materialized_at": "2026-10-08T09:59:59.406976+00:00",
+  "event_count": 34,
+  "last_event_id": "01M4DFB2E0744DQESADPDFG630",
+  "materialized_at": "2026-10-08T10:01:01.492472+00:00",
   "mission_number": "",
   "mission_slug": "mission-writer-followups-01M4CYWW",
   "mission_type": "software-dev",
@@ -13,9 +13,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 16
+    "planned": 15
   },
   "work_packages": {
     "WP01": {
@@ -129,15 +129,15 @@
       "last_transition_at": "2026-10-08T06:29:52.506647+00:00"
     },
     "WP13": {
-      "actor": "claude-reviewer",
+      "actor": "claude",
       "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "planned",
-      "last_event_id": "01M4DF95NEXDFMN31W4K48MFFE",
-      "last_transition_at": "2026-10-08T09:59:59.406976+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M4DFB2E0744DQESADPDFG630",
+      "last_transition_at": "2026-10-08T10:01:01.492472+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Every per-Mission lock caller keys on mission_lock_key; coord_seed + owned-checkout holds registered; A7 rewrites pinned under lock; red-first 14/19 failed pre-fix; 5/5 repeats + 3 mutations fail as required; blast radius 8392+5401 passed; make test-fast 2492 passed",
@@ -151,7 +151,7 @@
         "reviewer": "claude-reviewer",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
+      "role": "implementer",
       "shell_pid": null,
       "shell_pid_created_at": null,
       "subtasks": {
