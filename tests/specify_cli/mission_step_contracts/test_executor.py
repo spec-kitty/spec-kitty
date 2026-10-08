@@ -888,7 +888,7 @@ def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(
     a hard block.
 
     ``StepContractExecutor``'s org-root resolution comment claims to mirror
-    ``charter.activation.action_doctrine_bundle._resolve_action_bundle``'s graceful
+    ``charter.activation.action_governance_bundle._resolve_action_bundle``'s graceful
     degrade (catch ``DRGLoadError``, warn, continue with built-in + project
     doctrine only) -- this pins that the executor actually does that for its
     own ``load_validated_graph`` call, not just cites the precedent.

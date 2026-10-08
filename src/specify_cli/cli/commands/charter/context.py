@@ -90,7 +90,7 @@ def context(
         # / ``build_charter_context_json`` must NOT receive this truncated
         # value — an explicit (already-truncated) ``org_root`` is honoured
         # verbatim by ``_resolve_action_bundle`` and never widens into the
-        # full chain (``charter.activation.action_doctrine_bundle._resolve_action_bundle``
+        # full chain (``charter.activation.action_governance_bundle._resolve_action_bundle``
         # docstring). Passing ``org_root=None`` through to those two calls
         # instead lets the charter-layer self-resolution walk the FULL
         # declaration-ordered org-pack chain via ``resolve_existing_org_roots``.

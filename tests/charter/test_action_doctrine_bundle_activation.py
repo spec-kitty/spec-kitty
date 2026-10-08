@@ -1,5 +1,5 @@
 """WP02 (spdd-reasons-activation-split-brain, #3838) -- re-derive
-``_load_action_doctrine_bundle``'s ``project_directives``/``selected_tactics``/
+``_load_action_governance_bundle``'s ``project_directives``/``selected_tactics``/
 ``selected_paradigms`` from ``pack_context.activated_*`` instead of the stale
 ``governance.charter.selected_*`` (Decision Record 2, FR-006/007/008/014).
 
@@ -73,7 +73,7 @@ first follow-on's fix exposed (operator ruling 2, ``reviews/wp02.ruling-2.md``):
 
 Design note on FR-014's call boundary: this fixture is deliberately built
 against :func:`_classify_artifact_urns` directly rather than through the full
-:func:`_load_action_doctrine_bundle` pipeline. Going through the full pipeline
+:func:`_load_action_governance_bundle` pipeline. Going through the full pipeline
 would route ``pack_context.activated_directives=frozenset()`` through
 ``filter_graph_by_activation``'s OWN (WP01-owned, already-correct) per-ID gate
 first, which independently treats an explicit empty set as "exclude
@@ -95,7 +95,7 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from charter.activation.action_doctrine_bundle import _load_action_doctrine_bundle
+from charter.activation.action_governance_bundle import _load_action_governance_bundle
 from charter.activation.catalog import load_offering_catalog
 from charter.activation.context_renderers.delivery_table import _classify_artifact_urns
 from charter.activation.pack_context import PackContext
@@ -217,7 +217,7 @@ def test_activated_directive_not_in_stale_selected_is_still_delivered(
 
     with (
         patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph),
-        # create=True: WP02's fix removes action_doctrine_bundle's own
+        # create=True: WP02's fix removes action_governance_bundle's own
         # reference to _load_governance_charter_config entirely (replaced by
         # _read_org_required_selections) -- this patch target therefore only
         # exists pre-fix. create=True keeps the SAME test collectible and
@@ -225,12 +225,12 @@ def test_activated_directive_not_in_stale_selected_is_still_delivered(
         # name up any more) and the real activated_*-derived behavior this
         # case asserts on takes over, unaffected by a stale patch target.
         patch(
-            "charter.activation.action_doctrine_bundle._load_governance_charter_config",
+            "charter.activation.action_governance_bundle._load_governance_charter_config",
             return_value=stale_selection,
             create=True,
         ),
     ):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action=_ACTION,
             effective_depth=2,
@@ -268,7 +268,7 @@ def test_dogfood_shape_activated_ids_widen_the_closure_roots(tmp_path: Path) -> 
     )
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action=_ACTION,
             effective_depth=2,
@@ -298,7 +298,7 @@ def test_explicit_empty_project_directives_excludes_everything() -> None:
 
     Tested directly against ``_classify_artifact_urns`` (this WP's own
     exclusion-guard boundary) rather than through the full
-    ``_load_action_doctrine_bundle`` pipeline -- see the module docstring's
+    ``_load_action_governance_bundle`` pipeline -- see the module docstring's
     design note for why the full pipeline confounds this specific case.
     """
     graph = _scoped_action_graph(f"directive:{_DIRECTIVE_038_CANONICAL}")
@@ -342,7 +342,7 @@ def test_activated_tactics_and_paradigms_absent_widen_to_full_catalog(
     catalog = load_offering_catalog()
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action=_ACTION,
             effective_depth=2,
@@ -377,7 +377,7 @@ def test_org_required_stem_form_directive_is_normalized_before_union(
     NOTE on this fixture's RED-ness against literal current ``main``: reading
     ``org_pack_discovery._load_governance_charter_config`` live shows it ALREADY
     unions raw org-required stems into ``selected_directives`` internally,
-    and ``_load_action_doctrine_bundle``'s existing single
+    and ``_load_action_governance_bundle``'s existing single
     ``_normalize_directive_id`` comprehension over the merged
     ``selected_directives`` set normalizes them "for free" today -- so this
     exact fixture, run through the current unmodified pipeline, is observed
@@ -396,7 +396,7 @@ def test_org_required_stem_form_directive_is_normalized_before_union(
     pack_context = _pack_context(activated_directives=None, repo_root=tmp_path)
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action=_ACTION,
             effective_depth=2,
@@ -442,7 +442,7 @@ def test_direct_activated_directives_stem_form_is_normalized(tmp_path: Path) -> 
     pack_context = _pack_context(activated_directives=frozenset({_DIRECTIVE_024_STEM}), repo_root=tmp_path)
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action=_ACTION,
             effective_depth=2,
@@ -507,7 +507,7 @@ def test_activated_directive_scoped_to_another_action_is_not_delivered(
     )
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action=_ACTION,
             effective_depth=2,
@@ -544,7 +544,7 @@ def test_activated_directive_scoped_to_no_action_still_widens(tmp_path: Path) ->
     )
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action=_ACTION,
             effective_depth=2,
@@ -601,7 +601,7 @@ def test_type_wide_scoped_directive_reached_by_closure_still_widens(
     )
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action=_ACTION,
             effective_depth=2,
@@ -656,7 +656,7 @@ def test_activated_directive_present_only_in_active_graph_still_delivered(
     pack_context = _pack_context(repo_root=tmp_path)  # activated_directives=None
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action=_ACTION,
             effective_depth=2,
@@ -690,7 +690,7 @@ def test_graph_reachable_but_unactivated_directive_is_not_delivered(
     (WP02 ruling 2, ``reviews/wp02.ruling-2.md``): the "None -> all built-ins"
     default unions the real catalog with the ACTIVE (activation-filtered)
     merged graph -- never the raw, unfiltered graph. That bound holds only
-    because ``_load_action_doctrine_bundle`` filters ``merged`` via
+    because ``_load_action_governance_bundle`` filters ``merged`` via
     ``filter_graph_by_activation`` BEFORE computing the union. Nothing else
     enforces that ordering; this test pins the observable consequence if it
     is ever lost.
@@ -721,7 +721,7 @@ def test_graph_reachable_but_unactivated_directive_is_not_delivered(
     )  # "directives" kind is NOT activated; activated_directives stays None.
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action=_ACTION,
             effective_depth=2,

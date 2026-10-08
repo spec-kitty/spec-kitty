@@ -48,7 +48,7 @@ from ruamel.yaml import YAML
 
 from charter.activation.compiler import _resolve_transitive_reference_graph
 from charter.activation.consistency_check import _check_drg_cross_kind_refs
-from charter.activation.context import _load_action_doctrine_bundle
+from charter.activation.context import _load_action_governance_bundle
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.pack_context import _BUILTIN_ARTIFACT_KINDS, PackContext
 from charter.activation.reference_resolver import resolve_references_transitively
@@ -317,9 +317,9 @@ def test_cross_kind_refs_populated_stem_surfaces_kind_gap(tmp_path: Path) -> Non
 
 
 # ---------------------------------------------------------------------------
-# T013 -- charter/context.py:928 (``_load_action_doctrine_bundle``)
+# T013 -- charter/context.py:928 (``_load_action_governance_bundle``)
 # ---------------------------------------------------------------------------
-# Observable: ``_ActionDoctrineBundle.directive_ids`` -- the resolved
+# Observable: ``_ActionGovernanceBundle.directive_ids`` -- the resolved
 # context's activated directive set.
 
 _ACTION_GRAPH_WITH_DIRECTIVE_001 = {
@@ -356,7 +356,7 @@ def test_context_bundle_none_path_matches_no_filter_at_all(tmp_path: Path) -> No
     graph = _action_graph()
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        unfiltered = _load_action_doctrine_bundle(
+        unfiltered = _load_action_governance_bundle(
             repo_root=tmp_path,
             action="implement",
             effective_depth=2,
@@ -364,7 +364,7 @@ def test_context_bundle_none_path_matches_no_filter_at_all(tmp_path: Path) -> No
             pack_context=None,
         )
         default_allow_ctx = _pack_context(activated_directives=None, repo_root=tmp_path)
-        default_allow = _load_action_doctrine_bundle(
+        default_allow = _load_action_governance_bundle(
             repo_root=tmp_path,
             action="implement",
             effective_depth=2,
@@ -387,7 +387,7 @@ def test_context_bundle_populated_stem_retains_directive_node(tmp_path: Path) ->
     )
 
     with patch("charter.activation._drg_helpers.load_validated_graph", return_value=graph):
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action="implement",
             effective_depth=2,

@@ -647,7 +647,7 @@ def resolve_mission_type_context(
     # PackContext instance -- each constructs its own from the same
     # repo_root. PackContext.from_config() is a plain read (no caching of
     # its own) and is called this way at every other charter call site
-    # (see e.g. charter.activation.compiler, charter.activation.action_doctrine_bundle).
+    # (see e.g. charter.activation.compiler, charter.activation.action_governance_bundle).
     from charter.activation.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular
 
     pack_context = PackContext.from_config(repo_root)

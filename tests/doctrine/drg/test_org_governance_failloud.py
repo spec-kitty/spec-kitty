@@ -6,7 +6,7 @@ tier was read and guarded. An org pack carries its governance at
 extraction pass ever read, so an org-tier ``selected_*`` typo was neither minted
 into the DRG nor caught (a total no-op). This module pins the net-new behaviour
 as delivered on the SAME path the runtime consumers (``mission_step_contracts``
-executor and ``charter.action_doctrine_bundle``) use:
+executor and ``charter.action_governance_bundle``) use:
 
 * :func:`doctrine.drg.org_governance.collect_org_governance_scope_edges` +
   :func:`doctrine.drg.org_pack_loader._collect_governance_scope_edges` mint the
@@ -87,7 +87,7 @@ def _load_merged_via_production_path(repo_root: Path):
     """Load the merged DRG exactly as the runtime consumers do.
 
     Mirrors ``mission_step_contracts.executor`` and
-    ``charter.action_doctrine_bundle``:
+    ``charter.action_governance_bundle``:
     ``load_validated_graph(repo_root, org_fragments=load_org_drg(repo_root, strict=False))``.
     Raises :class:`DRGValidationError` (via ``assert_valid``) on a dangling
     governance-scope target.

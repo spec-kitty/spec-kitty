@@ -13,7 +13,7 @@ import pytest
 
 from charter.activation.context import (
     CharterContextResult,
-    _ActionDoctrineBundle,
+    _ActionGovernanceBundle,
     _build_offering_service,
     _bundle_root_for_json,
     _project_charter_json_block,
@@ -979,7 +979,7 @@ def test_render_bootstrap_uses_fallback_labels_without_summary_or_references() -
     # WP13 (T072): the test-only ``_render_bootstrap`` dead render path was
     # deleted; its fallback-label behaviour lives on the live renderer
     # ``_render_bootstrap_text``, which this assertion now targets.
-    bundle = _ActionDoctrineBundle(
+    bundle = _ActionGovernanceBundle(
         mission="software-dev",
         directive_ids=[],
         tactic_ids=[],
@@ -994,7 +994,7 @@ def test_render_bootstrap_uses_fallback_labels_without_summary_or_references() -
         charter_path=Path("/nonexistent/charter.md"),
         action="implement",
         summary=[],
-        doctrine_bundle=bundle,
+        governance_bundle=bundle,
         references=[],
     )
 
@@ -1035,7 +1035,7 @@ def test_render_emits_every_kind_the_bundle_resolves() -> None:
     retired the ``_EXTENDED_CONTEXT_DEPTH`` render gate, so these kinds now
     render on the bootstrap load unconditionally rather than only at depth>=3.
     """
-    bundle = _ActionDoctrineBundle(
+    bundle = _ActionGovernanceBundle(
         mission="software-dev",
         directive_ids=[],
         tactic_ids=[],
@@ -1050,7 +1050,7 @@ def test_render_emits_every_kind_the_bundle_resolves() -> None:
         charter_path=Path("/nonexistent/charter.md"),
         action="implement",
         summary=[],
-        doctrine_bundle=bundle,
+        governance_bundle=bundle,
         references=[],
     )
 

@@ -23,9 +23,9 @@ if TYPE_CHECKING:
 
 from ruamel.yaml import YAML as YAML
 
-from charter.activation.action_doctrine_bundle import (
-    _ActionDoctrineBundle as _ActionDoctrineBundle,
-    _load_action_doctrine_bundle as _load_action_doctrine_bundle,
+from charter.activation.action_governance_bundle import (
+    _ActionGovernanceBundle as _ActionGovernanceBundle,
+    _load_action_governance_bundle as _load_action_governance_bundle,
     _resolve_action_bundle as _resolve_action_bundle,
 )
 from charter.bundle import CHARTER_MD, CHARTER_YAML
@@ -116,7 +116,7 @@ _LOGGER = logging.getLogger(__name__)
 BOOTSTRAP_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "review"})
 
 
-def _action_node_declared(bundle: _ActionDoctrineBundle, action: str) -> bool:
+def _action_node_declared(bundle: _ActionGovernanceBundle, action: str) -> bool:
     """FR-001 (#3596, ADR 2026-08-21-1-charter-gate-predicate-inversion).
 
     Node-URN membership predicate -- NOT an empty-grain check.
@@ -131,13 +131,13 @@ def _action_node_declared(bundle: _ActionDoctrineBundle, action: str) -> bool:
     type was unresolved (typeless), which must always yield ``False``
     (``compact``, FR-003).  ``bundle.mission`` mirrors the type used to
     resolve the bundle (``resolved_type or ""`` -- see
-    ``_load_action_doctrine_bundle`` in
-    ``charter.activation.action_doctrine_bundle``),
+    ``_load_action_governance_bundle`` in
+    ``charter.activation.action_governance_bundle``),
     so reusing it here keeps the membership test on the exact node the
     bundle was resolved against.
 
-    Kept in this module (rather than alongside ``_ActionDoctrineBundle`` in
-    ``charter.activation.action_doctrine_bundle``) because it is WP02's owned-files
+    Kept in this module (rather than alongside ``_ActionGovernanceBundle`` in
+    ``charter.activation.action_governance_bundle``) because it is WP02's owned-files
     boundary (``rc3-charter-gate-predicate-inversion``, #3596): both
     consumers (``build_charter_context`` / ``build_charter_context_json``
     below) live here, and this predicate is inseparable from the two gate
@@ -293,7 +293,7 @@ def build_charter_context(
     # NOT depend on charter.md/charter.yaml presence (it reads only the DRG +
     # org/project doctrine), so it is safe to resolve ahead of the
     # charter-presence gate below.
-    doctrine_bundle = _resolve_action_bundle(
+    governance_bundle = _resolve_action_bundle(
         repo_root,
         action=normalized,
         effective_depth=state_bundle.effective_depth,
@@ -313,7 +313,7 @@ def build_charter_context(
     # sources project directives from ``.kittify/config.yaml``/charter.yaml
     # directly and degrades gracefully when absent).
     if normalized not in BOOTSTRAP_ACTIONS and not _action_node_declared(
-        doctrine_bundle, normalized
+        governance_bundle, normalized
     ):
         return _non_bootstrap_context_result(
             repo_root,
@@ -338,7 +338,7 @@ def build_charter_context(
             normalized,
             state_bundle,
             profile_record,
-            doctrine_bundle,
+            governance_bundle,
             suppress_project_resolver=suppress_project_resolver,
             mark_loaded=mark_loaded,
             augment=_augment,
@@ -350,7 +350,7 @@ def build_charter_context(
         charter_path,
         canonical_root,
         state_bundle,
-        doctrine_bundle,
+        governance_bundle,
         profile_record,
         mark_loaded=mark_loaded,
         augment=_augment,
@@ -549,11 +549,11 @@ def build_charter_context_json(
 
     # SPEC-ARCH-002 (T018): route through the self-resolving wrapper, the
     # same one ``build_charter_context`` (plain-text) already uses above —
-    # NOT the private ``_load_action_doctrine_bundle`` directly. When
+    # NOT the private ``_load_action_governance_bundle`` directly. When
     # ``org_root`` is None, ``_resolve_action_bundle`` widens to the FULL
     # declaration-ordered org-pack chain via ``resolve_existing_org_roots``
-    # (see ``charter.activation.action_doctrine_bundle``); calling
-    # ``_load_action_doctrine_bundle`` directly here bypassed that widening
+    # (see ``charter.activation.action_governance_bundle``); calling
+    # ``_load_action_governance_bundle`` directly here bypassed that widening
     # entirely and always resolved at most one org pack.
     #
     # FR-001/FR-004 (rc3-charter-gate-predicate-inversion WP02, #3596): the

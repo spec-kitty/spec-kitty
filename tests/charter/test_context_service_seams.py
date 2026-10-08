@@ -1,6 +1,6 @@
 """T033 (WP06, #2532) — focused unit tests for the 5 service/profile-
 resolution seams extracted from ``charter.activation.context``: ``context_json``,
-``org_pack_discovery``, ``action_doctrine_bundle``, ``profile_resolution``,
+``org_pack_discovery``, ``action_governance_bundle``, ``profile_resolution``,
 and ``active_charter_service_builder``.
 
 Each seam module is imported from its NEW home (not re-exported through
@@ -9,7 +9,7 @@ FR-009 preserved-surface re-export — mirroring the WP04/WP05 precedent
 (``tests/charter/test_context_leaf_seams.py`` /
 ``tests/charter/test_context_render_seams.py``). Also doubles as the
 seam-existence manifest's real-consumer wiring for ``context_json``,
-``action_doctrine_bundle``, and ``active_charter_service_builder`` — the 3 seams
+``action_governance_bundle``, and ``active_charter_service_builder`` — the 3 seams
 whose only OTHER consumer is a lazy, function-local import from
 ``charter.activation.context`` itself (see ``tests/charter/test_context_decomposition_completion.py``).
 """
@@ -21,9 +21,9 @@ from unittest.mock import patch
 
 import pytest
 
-from charter.activation.action_doctrine_bundle import (
-    _ActionDoctrineBundle,
-    _load_action_doctrine_bundle,
+from charter.activation.action_governance_bundle import (
+    _ActionGovernanceBundle,
+    _load_action_governance_bundle,
 )
 from charter.activation.context_json import (
     _EMPTY_ORG_CHARTER,
@@ -151,13 +151,13 @@ class TestLoadDoctrineSelection:
 
 
 # ---------------------------------------------------------------------------
-# action_doctrine_bundle.py
+# action_governance_bundle.py
 # ---------------------------------------------------------------------------
 
 
-class TestActionDoctrineBundle:
+class TestActionGovernanceBundle:
     def test_optional_fields_default_empty(self) -> None:
-        bundle = _ActionDoctrineBundle(
+        bundle = _ActionGovernanceBundle(
             mission="software-dev",
             directive_ids=[],
             tactic_ids=[],
@@ -172,12 +172,12 @@ class TestActionDoctrineBundle:
         assert bundle.bridge_urns == ()
 
 
-class TestLoadActionDoctrineBundleTypeless:
+class TestLoadActionGovernanceBundleTypeless:
     def test_typeless_mission_degrades_to_empty_bundle(self, tmp_path: Path) -> None:
         """FR-003a: no mission_type and no feature_dir -> no DRG action node
         is resolved; the bundle is empty rather than defaulting to
         software-dev."""
-        bundle = _load_action_doctrine_bundle(
+        bundle = _load_action_governance_bundle(
             repo_root=tmp_path,
             action="implement",
             effective_depth=2,

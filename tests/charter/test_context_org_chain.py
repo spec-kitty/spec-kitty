@@ -4,12 +4,12 @@
 Root cause (see this WP's own review finding, SPEC-ARCH-002, and
 ``spec.md`` User Story 4's "Corrected scope" note): the truncation is not
 JSON-only. ``build_charter_context`` already routed through the
-self-resolving wrapper ``charter.activation.action_doctrine_bundle._resolve_action_bundle``
+self-resolving wrapper ``charter.activation.action_governance_bundle._resolve_action_bundle``
 — but that wrapper only widens to the full org-pack chain when its caller
 passes ``org_root=None``; an *explicit* (already-truncated) ``org_root`` is
 honoured verbatim and never widens. ``build_charter_context_json`` had a
 SECOND, independent defect on top of this: it called the private
-``_load_action_doctrine_bundle`` directly, bypassing ``_resolve_action_bundle``
+``_load_action_governance_bundle`` directly, bypassing ``_resolve_action_bundle``
 entirely -- so even a caller passing ``org_root=None`` never widened.
 
 Both halves are required together (T017 stops the CLI-level truncation that
@@ -216,7 +216,7 @@ def _directive_ids(json_payload: dict[str, object]) -> set[str]:
 class TestTwoPackChainReachesBothPaths:
     """Red-first (pre-fix): pack B's directive is absent from BOTH the JSON
     ``directives`` array and the plain-text ``Action Doctrine`` stanza --
-    the JSON path never even threads a chain (bug #1: ``_load_action_doctrine_bundle``
+    the JSON path never even threads a chain (bug #1: ``_load_action_governance_bundle``
     called directly, no ``org_roots``), and the plain-text path's already-
     "correct" wrapper (``_resolve_action_bundle``) never widens because the
     CLI truncates ``org_root`` to ``org_roots[0]`` before either call (bug #2,

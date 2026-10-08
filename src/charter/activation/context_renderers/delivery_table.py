@@ -1,7 +1,7 @@
 """The NodeKind delivery table -- which action-bundle slot each kind feeds.
 
 Every :class:`~charter.offering.drg.models.NodeKind` the DRG can resolve must have a
-recorded verdict: which :class:`_ActionDoctrineBundle` list (if any) it feeds,
+recorded verdict: which :class:`_ActionGovernanceBundle` list (if any) it feeds,
 and which reachability gate governs it. :func:`_classify_artifact_urns`
 partitions a resolved action's artifact URNs into that slot-keyed mapping,
 using :func:`action_bundle_bucket` / :func:`action_bundle_gate` as the total
@@ -76,7 +76,7 @@ class _Gate(Enum):
 class _KindDelivery(NamedTuple):
     """One row of the NodeKind delivery table: the ``slot`` and ``gate`` columns.
 
-    ``slot`` is the :class:`_ActionDoctrineBundle` list the kind feeds (``None``
+    ``slot`` is the :class:`_ActionGovernanceBundle` list the kind feeds (``None``
     = not delivered, with a stated reason). ``gate`` is total over ``NodeKind``
     so ``TEMPLATE``'s exclusion carries a reason rather than being ASSET's
     untreated twin (B-1a).
@@ -215,7 +215,7 @@ def _classify_artifact_urns(
 
     WP02 (Decision Record 2, FR-014): ``project_directives`` is three-state
     (``None`` / ``frozenset()`` / non-empty) at THIS boundary too, mirroring
-    :func:`~charter.activation.action_doctrine_bundle._load_action_doctrine_bundle`'s
+    :func:`~charter.activation.action_governance_bundle._load_action_governance_bundle`'s
     own three-state handling of its caller-facing fields. The production
     caller never passes ``None`` here -- it converts once, at assignment,
     before calling in -- but this function stays correct standing alone
@@ -271,7 +271,7 @@ def _classify_artifact_urns(
     # guard anywhere in this function (only project_directives does, below) --
     # these two lines are therefore defense-in-depth / a documented no-op
     # guard against a caller passing None, not load-bearing after WP02 (the
-    # real caller, _load_action_doctrine_bundle, converts None to a concrete
+    # real caller, _load_action_governance_bundle, converts None to a concrete
     # catalog-default set once, before calling in).
     selected_tactics = selected_tactics or set()
     selected_paradigms = selected_paradigms or set()

@@ -4,7 +4,7 @@ Rules are stated once, in one owner, and every other artifact references the
 owner by id. Trimming a copy can remove the only path that carried an owner
 into an agent's context, so this guard checks the owners through the SAME
 resolution ``charter context --action`` uses: the action doctrine bundle
-(``_load_action_doctrine_bundle``: shipped DRG -> activation filter ->
+(``_load_action_governance_bundle``: shipped DRG -> activation filter ->
 ``resolve_context``) for ``software-dev`` implement and review, at both the
 compact (d=1) and bootstrap (d=2) depths.
 
@@ -39,7 +39,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.activation.action_doctrine_bundle import _load_action_doctrine_bundle
+from charter.activation.action_governance_bundle import _load_action_governance_bundle
 from charter.activation.pack_context import PackContext
 from charter.offering.drg.loader import load_built_in_graph
 from charter.offering.drg.models import Relation
@@ -90,7 +90,7 @@ def _delivered(tmp_path: Path, *, profile: str, action: str, depth: int) -> froz
     (root / ".kittify").mkdir(parents=True, exist_ok=True)
     (root / ".kittify" / "config.yaml").write_text(_DEFAULT_PACK.read_text(encoding="utf-8"), encoding="utf-8")
     pack_context = PackContext.from_config(root) if profile == "default-pack" else None
-    bundle = _load_action_doctrine_bundle(
+    bundle = _load_action_governance_bundle(
         repo_root=root,
         action=action,
         effective_depth=depth,

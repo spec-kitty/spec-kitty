@@ -194,7 +194,7 @@ class StepContractExecutor:
 
         profile_hint = self._resolve_profile_hint(context, selected_contract)
         # #3525 Fold B: resolve the FULL declaration-ordered org-pack chain
-        # (mirrors charter/action_doctrine_bundle.py:_resolve_action_bundle),
+        # (mirrors charter/action_governance_bundle.py:_resolve_action_bundle),
         # not just the first configured pack.
         effective_org_roots = resolve_existing_org_roots(context.repo_root)
         graph = self._graph or self._load_graph_degrading_malformed_org_pack(
@@ -388,7 +388,7 @@ class StepContractExecutor:
         "no contribution from that pack" instead of letting it crash
         composition.
 
-        Mirrors ``charter.activation.action_doctrine_bundle._resolve_action_bundle``'s
+        Mirrors ``charter.activation.action_governance_bundle._resolve_action_bundle``'s
         established handling of the same ``load_validated_graph(...,
         org_roots=...)`` call: a configured org pack whose on-disk DRG layout
         does not conform to ``load_graph_or_dir`` (no ``graph.yaml``/

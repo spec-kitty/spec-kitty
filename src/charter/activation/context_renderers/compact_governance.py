@@ -34,7 +34,7 @@ from charter.activation.governance_references import render_governance_reference
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from charter.activation.context import _ActionDoctrineBundle
+    from charter.activation.context import _ActionGovernanceBundle
     from charter.offering.agent_profiles import AgentProfile
 
 __all__ = [
@@ -182,7 +182,7 @@ def _render_compact_from_bundle(
     *,
     action: str,
     profile: AgentProfile | None,
-    bundle: _ActionDoctrineBundle,
+    bundle: _ActionGovernanceBundle,
     suppress_project_resolver: bool = False,
 ) -> str:
     """Render the widened compact rail (T061): the steady-state render carries

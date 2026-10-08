@@ -83,7 +83,7 @@ def _declared_action_labels(repo_root: Path) -> frozenset[str]:
 
     Best-effort: any DRG load failure degrades to an empty set (the fast-path
     set alone still governs acceptance), mirroring
-    ``_load_action_doctrine_bundle``'s WARNING-and-degrade posture for the
+    ``_load_action_governance_bundle``'s WARNING-and-degrade posture for the
     same failure mode -- interview validation must not hard-fail on a
     charter-less or malformed project. ``FileNotFoundError``/``OSError`` are
     caught alongside ``DRGLoadError`` -- the shipped-graph-missing case

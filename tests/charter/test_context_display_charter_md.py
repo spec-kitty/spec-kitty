@@ -331,7 +331,7 @@ class TestNoGovernanceDecisionReadsCharterMdProse:
     #: functions that decide governance content (directive/tactic/paradigm
     #: selection); none of these may reference the prose seam.
     _DECISION_FUNCTIONS = (
-        context_module._load_action_doctrine_bundle,
+        context_module._load_action_governance_bundle,
         context_module._load_governance_charter_config,
         context_module._classify_artifact_urns,
         context_module._build_offering_service,
@@ -370,10 +370,10 @@ class TestNoGovernanceDecisionReadsCharterMdProse:
                 "charter.yaml only (INV-3)."
             )
 
-    def test_load_action_doctrine_bundle_signature_excludes_prose(self) -> None:
+    def test_load_action_governance_bundle_signature_excludes_prose(self) -> None:
         # Structural proof: the decision entry point cannot read prose
         # because it is never handed the companion file's content or path.
-        params = set(inspect.signature(context_module._load_action_doctrine_bundle).parameters)
+        params = set(inspect.signature(context_module._load_action_governance_bundle).parameters)
         assert not params & {"charter_content", "charter_path", "summary"}
 
     def test_compact_governance_summary_resolver_does_not_reference_prose_seam(self) -> None:
