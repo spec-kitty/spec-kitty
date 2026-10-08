@@ -150,6 +150,16 @@ def _raise_if_claim_commit_head_mismatch(repo_root: Path, mission_slug: str, wp_
     raise mismatch
 
 
+def claim_status_pair_paths(artifacts: Iterable[Path]) -> list[Path]:
+    """The claim-written status pair (``status.events.jsonl``, ``status.json``) among collected status artifacts (#5673).
+
+    The one selection both claim entry points (``implement`` and ``agent action implement``) commit through:
+    ``tasks.md`` is collected beside the pair but no claim rewrites it, and neither claim rewrites the WP prompt
+    except where :func:`claim_commit_paths` is told allocation stamped it.
+    """
+    return [path.resolve() for path in artifacts if is_status_state_path(path)]
+
+
 def _primary_surface_status_paths(artifacts: Iterable[Path], *, routes_through_coord: bool) -> list[Path]:
     """Filter collected status artifacts down to the status pair a PRIMARY-root claim commit may carry.
 
@@ -166,7 +176,7 @@ def _primary_surface_status_paths(artifacts: Iterable[Path], *, routes_through_c
     """
     if routes_through_coord:
         return []
-    return [path.resolve() for path in artifacts if is_status_state_path(path)]
+    return claim_status_pair_paths(artifacts)
 
 
 def claim_commit_paths(

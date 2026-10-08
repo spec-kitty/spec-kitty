@@ -218,6 +218,28 @@ class TestImplementClaimPolicyMetadata:
         assert wp_state.get("agent") == "test-agent"
         assert isinstance(wp_state.get("shell_pid"), int)
 
+    def test_claim_commits_the_same_path_list_as_spec_kitty_implement(self, workflow_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """#5673 parity: ``agent action implement`` commits exactly what ``implement`` selects for a claim that
+        stamped nothing: the status pair, never the WP prompt or ``tasks.md``."""
+        from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
+        from specify_cli.cli.commands.implement_claim import claim_commit_paths
+
+        feature_dir, wp_path = _seed_mission(workflow_repo)
+        commit_calls: list[dict[str, object]] = []
+        monkeypatch.setattr(workflow, "_commit_workflow_change", lambda **kwargs: commit_calls.append(kwargs))
+
+        result = CliRunner().invoke(workflow.app, ["implement", "WP01", "--mission", _MISSION_SLUG, "--agent", "test-agent"])
+
+        assert result.exit_code == 0, result.stdout
+        expected = claim_commit_paths(
+            feature_dir=feature_dir,
+            status_artifacts=_collect_status_artifacts(feature_dir),
+            routes_through_coord=False,
+            meta_written=False,
+        )
+        assert [c["paths"] for c in commit_calls] == [expected]
+        assert {p.name for p in expected} == {"status.events.jsonl", "status.json"}
+
     def test_claim_leaves_wp_file_byte_stable(self, workflow_repo: Path) -> None:
         """SC-001/SC-005 (post-cutover, UNCONDITIONAL): the runtime-state
         dual-write is torn down (WP04, FR-006/FR-007), so a claim writes NO
@@ -374,6 +396,10 @@ class TestResumeShellPidRefresh:
         assert "Refresh WP01 implementation liveness" in str(
             commit_calls[0]["message"]
         )
+        # #5673: the refresh commits the status pair only, never the WP prompt or tasks.md.
+        refreshed = commit_calls[0]["paths"]
+        assert isinstance(refreshed, list)
+        assert {p.name for p in refreshed} == {"status.events.jsonl", "status.json"}
 
         # No fresh planned -> claimed transition was driven by the resume.
         claimed_transitions = [e for e in stream_after_resume.transitions if e.wp_id == "WP01" and str(e.to_lane) == "claimed"]
