@@ -14,6 +14,7 @@ survive. The acquisition test checks the writer takes the Mission lock at all.
 
 from __future__ import annotations
 
+import importlib
 import json
 import subprocess
 from collections.abc import Callable
@@ -25,12 +26,13 @@ from typing import Any
 
 import pytest
 
-import specify_cli.status.mission_write as mission_write
 from specify_cli.mission_metadata import locked_update_meta
 from specify_cli.status.mission_write import mission_lock_key
 from tests._meta_overlap import run_overlap
 
 pytestmark = [pytest.mark.unit]
+
+mission_write = importlib.import_module("specify_cli.status.mission_write")
 
 SLUG = "060-test"
 MISSION_ID = "01TESTMISSION00000000000000"
@@ -145,7 +147,8 @@ def _write_feature_meta(repo: Path, feature_dir: Path) -> object:
     from specify_cli.upgrade.feature_meta import load_feature_meta, write_feature_meta
 
     loaded = load_feature_meta(feature_dir) or {}
-    return write_feature_meta(feature_dir, {**loaded, "baseline_marker": "written"})
+    write_feature_meta(feature_dir, {**loaded, "baseline_marker": "written"})
+    return None
 
 
 def _restamp_single_branch(repo: Path, feature_dir: Path) -> object:

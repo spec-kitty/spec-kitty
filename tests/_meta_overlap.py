@@ -13,6 +13,7 @@ assumed. ``JOIN_SECONDS`` only bounds a hung test.
 
 from __future__ import annotations
 
+import importlib
 import threading
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack, contextmanager
@@ -21,9 +22,11 @@ from typing import Any
 
 import pytest
 
-import specify_cli.mission_metadata as mm
-import specify_cli.status.mission_write as mission_write
 from specify_cli.status.locking import FeatureStatusLockTimeoutError
+
+# Patched by attribute name: ``importlib`` keeps the module attributes dynamic for the type checker.
+mm = importlib.import_module("specify_cli.mission_metadata")
+mission_write = importlib.import_module("specify_cli.status.mission_write")
 
 WRITER_A = "writer-a"
 JOIN_SECONDS = 30.0
