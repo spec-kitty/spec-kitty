@@ -79,7 +79,7 @@ _GRAPH_WITH_DIRECTIVE_001 = textwrap.dedent("""\
 _CHARTER_YAML_WITH_DIRECTIVE_001 = textwrap.dedent("""\
     schema_version: "2.0.0"
     governance:
-      doctrine:
+      charter:
         selected_directives:
           - DIRECTIVE_001
     """)
@@ -158,7 +158,7 @@ def _build_bootstrap_context(tmp_path: Path, *, charter_md: str | None) -> Chart
 
     with (
         patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+        patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
         patch("charter.offering.drg.validator.assert_valid"),
     ):
         return build_charter_context(
@@ -331,10 +331,10 @@ class TestNoGovernanceDecisionReadsCharterMdProse:
     #: functions that decide governance content (directive/tactic/paradigm
     #: selection); none of these may reference the prose seam.
     _DECISION_FUNCTIONS = (
-        context_module._load_action_doctrine_bundle,
-        context_module._load_doctrine_selection,
+        context_module._load_action_governance_bundle,
+        context_module._load_governance_charter_config,
         context_module._classify_artifact_urns,
-        context_module._build_doctrine_service,
+        context_module._build_offering_service,
     )
 
     #: identifiers that mark a reference to the charter.md prose-parsing
@@ -370,10 +370,10 @@ class TestNoGovernanceDecisionReadsCharterMdProse:
                 "charter.yaml only (INV-3)."
             )
 
-    def test_load_action_doctrine_bundle_signature_excludes_prose(self) -> None:
+    def test_load_action_governance_bundle_signature_excludes_prose(self) -> None:
         # Structural proof: the decision entry point cannot read prose
         # because it is never handed the companion file's content or path.
-        params = set(inspect.signature(context_module._load_action_doctrine_bundle).parameters)
+        params = set(inspect.signature(context_module._load_action_governance_bundle).parameters)
         assert not params & {"charter_content", "charter_path", "summary"}
 
     def test_compact_governance_summary_resolver_does_not_reference_prose_seam(self) -> None:

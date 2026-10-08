@@ -5,20 +5,20 @@ from __future__ import annotations
 import pytest
 
 from charter.offering.drg.models import DRGGraph
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 
 @pytest.fixture(scope="module")
-def service() -> DoctrineService:
+def service() -> CharterOfferingService:
     # No explicit built-in root: each repository self-resolves the flattened
     # built-in tier via resolve_pack_root("built-in") (packs/built-in/<kind>). Post-
     # relocation, pointing at src/doctrine would load an emptied tree.
-    return DoctrineService()
+    return CharterOfferingService()
 
 
-def test_debugger_debbie_profile_loads(service: DoctrineService) -> None:
+def test_debugger_debbie_profile_loads(service: CharterOfferingService) -> None:
     profile = service.agent_profiles.get("debugger-debbie")
 
     assert profile is not None
@@ -29,7 +29,7 @@ def test_debugger_debbie_profile_loads(service: DoctrineService) -> None:
     assert any(ref.id == "five-paradigm-parallel-debugging" for ref in profile.tactic_references)
 
 
-def test_five_paradigm_tactic_loads(service: DoctrineService) -> None:
+def test_five_paradigm_tactic_loads(service: CharterOfferingService) -> None:
     tactic = service.tactics.get("five-paradigm-parallel-debugging")
 
     assert tactic is not None
@@ -39,7 +39,7 @@ def test_five_paradigm_tactic_loads(service: DoctrineService) -> None:
     assert any(ref.id == "DIRECTIVE_040" for ref in tactic.references)
 
 
-def test_directive_040_loads(service: DoctrineService) -> None:
+def test_directive_040_loads(service: CharterOfferingService) -> None:
     directive = service.directives.get("DIRECTIVE_040")
 
     assert directive is not None

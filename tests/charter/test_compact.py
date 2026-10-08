@@ -94,15 +94,15 @@ def test_render_compact_view_labels_doctrine_directory_as_layer_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    doctrine_root = tmp_path / ".kittify" / "doctrine"
+    offering_root = tmp_path / ".kittify" / "doctrine"
     monkeypatch.setattr(
         "charter.activation.compact.resolve_project_root",
-        lambda _repo_root: doctrine_root,
+        lambda _repo_root: offering_root,
     )
 
     compact = render_compact_view(tmp_path, section_anchors=())
 
-    assert f"Doctrine layer root: {doctrine_root}" in compact.text
+    assert f"Project layer root: {offering_root}" in compact.text
     assert "Project root:" not in compact.text
 
 
@@ -117,7 +117,7 @@ def test_render_compact_view_omits_missing_doctrine_layer_root(
 
     compact = render_compact_view(tmp_path, section_anchors=())
 
-    assert "Doctrine layer root:" not in compact.text
+    assert "Project layer root:" not in compact.text
 
 
 def test_render_compact_view_omits_languages_when_inference_cannot_read(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

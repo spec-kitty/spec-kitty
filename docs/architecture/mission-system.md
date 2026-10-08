@@ -2,7 +2,7 @@
 title: The Mission System Explained
 description: "Why mission types exist and how they nest: the Mission Type, Mission, work package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/divio-documentation.md
@@ -116,7 +116,7 @@ parity ratchet). #883 is slice 1: governance and the dossier gate reader.
 
 Historically `software-dev` was the default and carried hardcoded status woven
 through the core loop. The direction now is that `software-dev` is an ordinary
-built-in doctrine mission type on equal footing with `documentation`, `research`,
+built-in mission type on equal footing with `documentation`, `research`,
 and `plan`. Its behaviour resolves from `meta.json` through the same path as the
 other three, with no `software-dev-default` special-casing. `software-dev` remains
 the fallback mission type when `meta.json` omits the `mission` field, but that

@@ -1,12 +1,12 @@
 """Unit tests for ``tool_surface.providers.managed_skills``.
 
-These tests verify that the managed doctrine-skill provider conforms to the
+These tests verify that the managed charter-skill provider conforms to the
 reporting provider protocol, expands per-tool instances from the
 ``.kittify/skills-manifest.json`` manifest, probes on-disk state, and delegates
 repair to the underlying ``skills.verifier`` (which owns both
 ``verify_installed_skills`` and ``repair_skills``) without reimplementing its
 logic. Doctrine skills must surface as
-``surface_kind: "doctrine_skill"`` -- distinct from command skills.
+``surface_kind: "charter_skill"`` -- distinct from command skills.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ from specify_cli.tool_surface.providers.command_skills import (
 )
 from specify_cli.tool_surface.providers.managed_skills import (
     ManagedSkillsProvider,
-    doctrine_skill_entries,
+    charter_skill_entries,
     managed_skill_definition,
 )
 from specify_cli.tool_surface.providers.protocol import ReportingSurfaceProvider
@@ -705,10 +705,10 @@ def test_real_provider_partial_failure_reports_paths_not_count_prefix(
     assert not (project / ".kittify/skills-manifest.json").exists()
 
 
-def test_managed_skills_provider_can_handle_doctrine_skill() -> None:
+def test_managed_skills_provider_can_handle_charter_skill() -> None:
     provider = ManagedSkillsProvider()
     definition = managed_skill_definition()
-    assert definition.kind == ToolSurfaceKind.DOCTRINE_SKILL
+    assert definition.kind == ToolSurfaceKind.CHARTER_SKILL
     assert provider.can_handle(definition) is True
 
 
@@ -763,19 +763,19 @@ def test_managed_skills_expand_returns_per_tool_skills(tmp_path: Path) -> None:
     instances = provider.expand(managed_skill_definition(), "codex", tmp_path)
     assert len(instances) == 2
     assert all(i.owner == "codex" for i in instances)
-    assert all(i.definition.kind == ToolSurfaceKind.DOCTRINE_SKILL for i in instances)
+    assert all(i.definition.kind == ToolSurfaceKind.CHARTER_SKILL for i in instances)
 
 
-def test_doctrine_skill_entries_helper(tmp_path: Path) -> None:
+def test_charter_skill_entries_helper(tmp_path: Path) -> None:
     h1 = _write_skill_file(tmp_path, ".agents/skills/a/SKILL.md")
     _write_manifest(
         tmp_path,
         [_entry("codex", ".agents/skills/a/SKILL.md", h1, skill_name="a")],
     )
-    entries = doctrine_skill_entries(tmp_path, "codex")
+    entries = charter_skill_entries(tmp_path, "codex")
     assert [e.agent_key for e in entries] == ["codex"]
-    assert doctrine_skill_entries(tmp_path, "claude") == []
-    assert doctrine_skill_entries(tmp_path / "missing", "codex") == []
+    assert charter_skill_entries(tmp_path, "claude") == []
+    assert charter_skill_entries(tmp_path / "missing", "codex") == []
 
 
 def test_managed_skills_probe_present(tmp_path: Path) -> None:
@@ -1018,8 +1018,8 @@ def test_repair_default_path_repairs_without_injection(tmp_path: Path) -> None:
     actually restores the file. Cycle-1 reject was masked because every repair
     test injected a ``_StubInstaller``; this one injects nothing.
     """
-    skill_name = "ad-hoc-profile-load"
-    installed_rel = ".agents/skills/ad-hoc-profile-load/SKILL.md"
+    skill_name = "spk-charter-profile-load"
+    installed_rel = ".agents/skills/spk-charter-profile-load/SKILL.md"
     project = tmp_path.resolve()  # dodge macOS /var -> /private/var symlink mismatch
     placeholder_hash = _write_skill_file(project, installed_rel, body="placeholder")
     _write_manifest(
@@ -1103,11 +1103,11 @@ def test_doctrine_vs_command_skill_in_doctor_output(
     )
     outcome = run_tool_surfaces(tmp_path, ["codex"])
     kinds = {s.instance.definition.kind for s in outcome.report.surfaces}
-    assert ToolSurfaceKind.DOCTRINE_SKILL in kinds
+    assert ToolSurfaceKind.CHARTER_SKILL in kinds
     assert ToolSurfaceKind.COMMAND_SKILL in kinds
     payload = outcome.to_json()
     surface_kinds = {entry["kind"] for entry in payload["surfaces"]}
-    assert "doctrine_skill" in surface_kinds
+    assert "charter_skill" in surface_kinds
     assert "command_skill" in surface_kinds
 
 
@@ -1126,7 +1126,7 @@ def test_run_tool_surfaces_kind_filter_doctrine_only(
     monkeypatch.setattr(
         svc,
         "_KIND_TOKENS",
-        {"doctrine-skill": ToolSurfaceKind.DOCTRINE_SKILL},
+        {"charter-skill": ToolSurfaceKind.CHARTER_SKILL},
     )
 
     h1 = _write_skill_file(tmp_path, ".agents/skills/a/SKILL.md")
@@ -1137,11 +1137,11 @@ def test_run_tool_surfaces_kind_filter_doctrine_only(
     (tmp_path / ".kittify" / "command-skills-manifest.json").write_text(
         json.dumps({"schema_version": 1, "entries": []}), encoding="utf-8"
     )
-    kind = svc.surface_kind_from_token("doctrine-skill")
-    assert kind == ToolSurfaceKind.DOCTRINE_SKILL
+    kind = svc.surface_kind_from_token("charter-skill")
+    assert kind == ToolSurfaceKind.CHARTER_SKILL
     outcome = run_tool_surfaces(tmp_path, ["codex"], kinds=[kind])
     kinds = {s.instance.definition.kind for s in outcome.report.surfaces}
-    assert kinds == {ToolSurfaceKind.DOCTRINE_SKILL}
+    assert kinds == {ToolSurfaceKind.CHARTER_SKILL}
 
 
 def _shared_parent_case(
@@ -1205,7 +1205,7 @@ def _shared_parent_case(
     managed = builder.assess(
         ("codex",),
         AssessmentInputs(root, projected=installation, consent=consent),
-        kinds=(ToolSurfaceKind.DOCTRINE_SKILL,),
+        kinds=(ToolSurfaceKind.CHARTER_SKILL,),
     ).assessments[0]
     assert managed == installation.project_skills
     assert all(a.complete for a in (installation.global_assets, managed, commands))

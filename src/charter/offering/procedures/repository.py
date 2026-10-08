@@ -9,12 +9,12 @@ from ruamel.yaml import YAML
 
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.pack_paths import built_in_dir
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 from .models import Procedure
 from .validation import reject_procedure_inline_refs
 
 
-class ProcedureRepository(BaseDoctrineRepository[Procedure]):
+class ProcedureRepository(BaseArtifactRepository[Procedure]):
     """Repository for loading and managing procedure YAML files."""
 
     def __init__(

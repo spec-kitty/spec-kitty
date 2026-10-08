@@ -30,7 +30,7 @@ import charter.offering.resolver as doctrine_resolver_module
 import specify_cli.runtime.resolver as runtime_resolver_module
 from charter.resolution import ResolutionResult, ResolutionTier
 from charter.activation.pack_context import PackContext
-from charter.activation.resolver import DoctrineService
+from charter.activation.resolver import ActiveCharterService
 from charter.activation.template_resolver import CharterTemplateResolver
 from charter.offering.missions.repository import MissionTemplateRepository
 from tests.architectural.test_charter_sole_door_resolver_imports import (
@@ -130,7 +130,7 @@ def test_content_asset_tier_walk_matches_doctrine_resolver(
     ]
 
     for expected_tier, expected_path in tiers:
-        via_factory = DoctrineService.resolve_content_asset(_CONTENT_NAME, project_dir, _MISSION)
+        via_factory = ActiveCharterService.resolve_content_asset(_CONTENT_NAME, project_dir, _MISSION)
         via_doctrine = doctrine_resolver_module.resolve_template(_CONTENT_NAME, project_dir, _MISSION)
 
         assert via_factory == ResolutionResult(
@@ -140,7 +140,7 @@ def test_content_asset_tier_walk_matches_doctrine_resolver(
         expected_path.unlink()
 
     with pytest.raises(FileNotFoundError):
-        DoctrineService.resolve_content_asset(_CONTENT_NAME, project_dir, _MISSION)
+        ActiveCharterService.resolve_content_asset(_CONTENT_NAME, project_dir, _MISSION)
 
 
 def test_command_asset_tier_walk_matches_doctrine_resolver(
@@ -170,7 +170,7 @@ def test_command_asset_tier_walk_matches_doctrine_resolver(
     ]
 
     for expected_tier, expected_path in tiers:
-        via_factory = DoctrineService.resolve_command_asset(_COMMAND_NAME, project_dir, _MISSION)
+        via_factory = ActiveCharterService.resolve_command_asset(_COMMAND_NAME, project_dir, _MISSION)
         via_doctrine = doctrine_resolver_module.resolve_command(_COMMAND_NAME, project_dir, _MISSION)
 
         assert via_factory == ResolutionResult(
@@ -206,7 +206,7 @@ def test_mission_definition_tier_walk_matches_doctrine_resolver(
     ]
 
     for expected_tier, expected_path in tiers:
-        via_factory = DoctrineService.resolve_mission_definition(_MISSION, project_dir)
+        via_factory = ActiveCharterService.resolve_mission_definition(_MISSION, project_dir)
         via_doctrine = doctrine_resolver_module.resolve_mission(_MISSION, project_dir)
 
         assert via_factory == ResolutionResult(
@@ -216,7 +216,7 @@ def test_mission_definition_tier_walk_matches_doctrine_resolver(
         expected_path.unlink()
 
     with pytest.raises(FileNotFoundError):
-        DoctrineService.resolve_mission_definition(_MISSION, project_dir)
+        ActiveCharterService.resolve_mission_definition(_MISSION, project_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -239,13 +239,13 @@ def test_package_default_paths_match_the_retired_resolver_calls(tmp_path: Path) 
 
     legacy = CharterTemplateResolver.from_missions_root(missions_root)
 
-    assert DoctrineService.resolve_package_default_asset_path(
+    assert ActiveCharterService.resolve_package_default_asset_path(
         missions_root=missions_root, mission=_MISSION, subdir="command-templates", name=_COMMAND_NAME
     ) == legacy.resolve_command_template_path(_MISSION, _COMMAND_STEM) == command
-    assert DoctrineService.resolve_package_default_asset_path(
+    assert ActiveCharterService.resolve_package_default_asset_path(
         missions_root=missions_root, mission=_MISSION, subdir="templates", name=_CONTENT_NAME
     ) == legacy.resolve_content_template_path(_MISSION, _CONTENT_NAME) == content
-    assert DoctrineService.resolve_package_default_mission_config_path(
+    assert ActiveCharterService.resolve_package_default_mission_config_path(
         missions_root=missions_root, mission=_MISSION
     ) == legacy.resolve_mission_config_path(_MISSION) == mission_config
 
@@ -257,25 +257,25 @@ def test_package_default_asset_path_unknown_subdir_and_misses(tmp_path: Path) ->
     charter_resolver_module._mission_template_repository.cache_clear()
 
     assert (
-        DoctrineService.resolve_package_default_asset_path(
+        ActiveCharterService.resolve_package_default_asset_path(
             missions_root=missions_root, mission=_MISSION, subdir="actions", name="index.yaml"
         )
         == other
     )
     assert (
-        DoctrineService.resolve_package_default_asset_path(
+        ActiveCharterService.resolve_package_default_asset_path(
             missions_root=missions_root, mission=_MISSION, subdir="actions", name="absent.yaml"
         )
         is None
     )
     assert (
-        DoctrineService.resolve_package_default_asset_path(
+        ActiveCharterService.resolve_package_default_asset_path(
             missions_root=missions_root, mission=_MISSION, subdir="templates", name="absent.md"
         )
         is None
     )
     assert (
-        DoctrineService.resolve_package_default_mission_config_path(
+        ActiveCharterService.resolve_package_default_mission_config_path(
             missions_root=missions_root, mission="no-such-mission"
         )
         is None
@@ -325,12 +325,12 @@ def test_runtime_tier5_hop_keeps_its_own_package_root_authority(
     redirected every runtime tier-5 lookup.
     """
     runtime_root = tmp_path / "runtime-pkg"
-    doctrine_root = tmp_path / "doctrine-pkg"
+    offering_root = tmp_path / "doctrine-pkg"
     expected = _write(runtime_root / _MISSION / "templates" / _CONTENT_NAME, "runtime root wins")
-    _write(doctrine_root / _MISSION / "templates" / _CONTENT_NAME, "doctrine default")
+    _write(offering_root / _MISSION / "templates" / _CONTENT_NAME, "doctrine default")
     monkeypatch.setattr(runtime_resolver_module, "get_package_asset_root", lambda: runtime_root)
     monkeypatch.setattr(
-        MissionTemplateRepository, "default_missions_root", classmethod(lambda cls: doctrine_root)
+        MissionTemplateRepository, "default_missions_root", classmethod(lambda cls: offering_root)
     )
     charter_resolver_module._mission_template_repository.cache_clear()
 
@@ -355,8 +355,8 @@ def test_charter_template_resolver_routes_the_tier_chain_through_the_factory(
         calls.append(f"command:{name}")
         return ResolutionResult(path=sentinel, tier=ResolutionTier.GLOBAL, mission=mission)
 
-    monkeypatch.setattr(DoctrineService, "resolve_content_asset", _fake_content)
-    monkeypatch.setattr(DoctrineService, "resolve_command_asset", _fake_command)
+    monkeypatch.setattr(ActiveCharterService, "resolve_content_asset", _fake_content)
+    monkeypatch.setattr(ActiveCharterService, "resolve_command_asset", _fake_command)
 
     resolver = CharterTemplateResolver()
     content = resolver.resolve_content_template(_MISSION, _CONTENT_NAME, project_dir=project_dir)
@@ -377,9 +377,9 @@ def test_charter_template_resolver_routes_the_tier_chain_through_the_factory(
 @pytest.mark.parametrize(
     ("factory_method", "doctrine_symbol"),
     [
-        ("resolve_content_asset", "_doctrine_resolve_template"),
-        ("resolve_command_asset", "_doctrine_resolve_command"),
-        ("resolve_mission_definition", "_doctrine_resolve_mission"),
+        ("resolve_content_asset", "_offering_resolve_template"),
+        ("resolve_command_asset", "_offering_resolve_command"),
+        ("resolve_mission_definition", "_offering_resolve_mission"),
     ],
 )
 def test_factory_methods_delegate_to_doctrine_tier_functions(
@@ -399,7 +399,7 @@ def test_factory_methods_delegate_to_doctrine_tier_functions(
     )
     monkeypatch.setattr(charter_resolver_module, doctrine_symbol, lambda *a, **k: marker)
 
-    method = getattr(DoctrineService, factory_method)
+    method = getattr(ActiveCharterService, factory_method)
     if factory_method == "resolve_mission_definition":
         assert method(_MISSION, project_dir) is marker
     else:
@@ -417,7 +417,7 @@ def _override_content(project_dir: Path) -> tuple[Path, ResolutionResult, Resolu
     path = _write(project_dir / ".kittify" / "overrides" / "templates" / _CONTENT_NAME, "o")
     return (
         path,
-        DoctrineService.resolve_content_asset(_CONTENT_NAME, project_dir, _MISSION),
+        ActiveCharterService.resolve_content_asset(_CONTENT_NAME, project_dir, _MISSION),
         doctrine_resolver_module.resolve_template(_CONTENT_NAME, project_dir, _MISSION),
     )
 
@@ -426,7 +426,7 @@ def _override_command(project_dir: Path) -> tuple[Path, ResolutionResult, Resolu
     path = _write(project_dir / ".kittify" / "overrides" / "command-templates" / _COMMAND_NAME, "o")
     return (
         path,
-        DoctrineService.resolve_command_asset(_COMMAND_NAME, project_dir, _MISSION),
+        ActiveCharterService.resolve_command_asset(_COMMAND_NAME, project_dir, _MISSION),
         doctrine_resolver_module.resolve_command(_COMMAND_NAME, project_dir, _MISSION),
     )
 
@@ -435,7 +435,7 @@ def _override_mission(project_dir: Path) -> tuple[Path, ResolutionResult, Resolu
     path = _write(project_dir / ".kittify" / "overrides" / "missions" / _MISSION / "mission.yaml", "o")
     return (
         path,
-        DoctrineService.resolve_mission_definition(_MISSION, project_dir),
+        ActiveCharterService.resolve_mission_definition(_MISSION, project_dir),
         doctrine_resolver_module.resolve_mission(_MISSION, project_dir),
     )
 
@@ -479,7 +479,7 @@ def test_new_factory_method_names_do_not_collide_with_the_delegate(method_name: 
     contract applies.
     """
     assert hasattr(CharterTemplateResolver, method_name)
-    assert not hasattr(DoctrineService, method_name)
+    assert not hasattr(ActiveCharterService, method_name)
 
 
 def test_template_resolver_does_not_import_the_doctrine_tier_functions() -> None:

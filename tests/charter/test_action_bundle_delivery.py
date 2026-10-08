@@ -125,7 +125,7 @@ def test_classify_skips_unresolvable_urn_and_out_of_scope_directive() -> None:
 
 
 def test_bundle_carries_procedure_and_asset_fields() -> None:
-    field_names = {f.name for f in dataclasses.fields(context._ActionDoctrineBundle)}
+    field_names = {f.name for f in dataclasses.fields(context._ActionGovernanceBundle)}
 
     assert {"procedure_ids", "asset_ids"} <= field_names
     assert {"mission", "service", "directive_ids"} <= field_names

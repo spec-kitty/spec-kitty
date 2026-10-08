@@ -77,7 +77,7 @@ If Kiro's current syntax differs, consult the host docs at <https://kiro.dev/doc
 - **Profile not loading.**
   Run inside Kiro:
   ```
-  /ad-hoc-profile-load researcher-robbie
+  /spk-charter-profile-load researcher-robbie
   ```
   Use the profile id from the work-package frontmatter.
 

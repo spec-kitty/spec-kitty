@@ -19,12 +19,13 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from charter.activation._doctrine_paths import resolve_project_root
+from charter.activation._project_root_candidates import resolve_project_root
 from charter.activation._io import CharterEncodingError
 from charter.bundle import CHARTER_MD
 from charter.activation.language_advisory import CHARTER_EXTENSION_ADVISORY
 from charter.activation.language_scope import infer_repo_languages, lacks_specialist_guidance
 from charter.activation.resolver import GovernanceResolutionError, resolve_project_governance
+from charter.offering.packs.retired_fields import RetiredPackFieldError
 
 
 __all__ = [
@@ -272,7 +273,7 @@ def _render_text(
 
     project_root = resolve_project_root(repo_root)
     if project_root is not None and project_root != repo_root:
-        lines.append(f"  - Doctrine layer root: {project_root}")
+        lines.append(f"  - Project layer root: {project_root}")
 
     return "\n".join(lines)
 
@@ -321,6 +322,10 @@ def _resolve_governance_summary(
     except GovernanceResolutionError as exc:
         diagnostics.append(f"governance unresolved ({exc})")
         return template_set, paradigms, tools, diagnostics, resolver_directives
+    except RetiredPackFieldError:
+        # Fail closed (#3732): a retired field in charter.yaml is
+        # operator-actionable, never a degraded "governance unavailable" line.
+        raise
     except Exception as exc:  # pragma: no cover - defensive degrade
         diagnostics.append(f"governance unavailable ({exc})")
         return template_set, paradigms, tools, diagnostics, resolver_directives

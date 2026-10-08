@@ -5,9 +5,9 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 from charter.offering.glossary_packs.repository import GlossaryPackRepository
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -15,7 +15,7 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 class TestGlossaryPackRepository:
     def test_inherits_base_doctrine_repository(self) -> None:
         """The reviewer-called-out invariant: no re-implemented glob/merge logic."""
-        assert issubclass(GlossaryPackRepository, BaseDoctrineRepository)
+        assert issubclass(GlossaryPackRepository, BaseArtifactRepository)
 
     def test_list_all_from_shipped(self, tmp_glossary_pack_dir: Path) -> None:
         repo = GlossaryPackRepository(built_in_dir=tmp_glossary_pack_dir)
@@ -129,8 +129,8 @@ class TestGlossaryPackRepository:
         assert pack.description == "Overridden description"
 
 
-class TestDoctrineServiceGlossaryPacksAccessor:
-    """T009 liveness proof: DoctrineService.glossary_packs is really wired.
+class TestCharterOfferingServiceGlossaryPacksAccessor:
+    """T009 liveness proof: CharterOfferingService.glossary_packs is really wired.
 
     Constructs the service with a built-in root that ships a fixture pack
     under ``glossary_packs/built-in/`` and confirms the accessor resolves
@@ -151,7 +151,7 @@ class TestDoctrineServiceGlossaryPacksAccessor:
         with (pack_dir / "spec-kitty-core.glossary-pack.yaml").open("w") as f:
             yaml.dump(sample_pack_data, f)
 
-        service = DoctrineService()
+        service = CharterOfferingService()
         repo = service.glossary_packs
 
         assert isinstance(repo, GlossaryPackRepository)
@@ -166,7 +166,7 @@ class TestDoctrineServiceGlossaryPacksAccessor:
         (packs_root / "built-in").mkdir(parents=True)
         monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
 
-        service = DoctrineService()
+        service = CharterOfferingService()
         assert "glossary_packs" not in service._cache
 
         first = service.glossary_packs

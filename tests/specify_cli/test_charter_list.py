@@ -79,9 +79,9 @@ def layered_project(tmp_path: Path) -> Path:
     Layout::
 
         <repo>/.kittify/config.yaml                 (registers the org pack)
-        <repo>/.kittify/doctrine/directive/<...>.directive.yaml
-        <repo>/.kittify/doctrine/missions/<mission>/templates/<name>
-        <org-pack>/doctrine/directives/org/<...>.directive.yaml
+        <repo>/.kittify/charter-packs/directive/<...>.directive.yaml
+        <repo>/.kittify/charter-packs/missions/<mission>/templates/<name>
+        <org-pack>/directives/<...>.directive.yaml
         <org-pack>/missions/<mission>/templates/<name>   (flat -- FR-006/WP03)
     """
     repo = tmp_path / "repo"
@@ -91,7 +91,7 @@ def layered_project(tmp_path: Path) -> Path:
     # Org pack on disk, registered via the doctrine.org.packs config block.
     org_pack = tmp_path / "org-pack"
     _write_directive(
-        org_pack / "doctrine" / "directives" / "org",
+        org_pack / "directives",
         "900-org-only-directive",
         "900-org-only-directive",
     )
@@ -99,7 +99,7 @@ def layered_project(tmp_path: Path) -> Path:
     (kittify / "config.yaml").write_text(
         textwrap.dedent(
             f"""\
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: acme
@@ -111,14 +111,14 @@ def layered_project(tmp_path: Path) -> Path:
 
     # Project doctrine layer directive.
     _write_directive(
-        kittify / "doctrine" / "directive",
+        kittify / "charter-packs" / "directive",
         "950-project-only-directive",
         "950-project-only-directive",
     )
 
     # Project mission template (mission-qualified discovery target).
     _write_template(
-        kittify / "doctrine" / "missions",
+        kittify / "charter-packs" / "missions",
         "acme-mission",
         "project-spec-template.md",
         "# project spec template\n",

@@ -1,6 +1,6 @@
 """``collect_operating_procedure_entries`` is the single falsy-filter authority.
 
-Three consumers (DRG extractor, ``doctor doctrine`` collector, architectural
+Three consumers (DRG extractor, ``doctor charter-packs`` collector, architectural
 gate) harvest the ``collaboration.operating-procedures`` field. This test pins
 the one policy they now share: falsy entries (e.g. an authored ``""``) are
 dropped, and a profile with no field maps to an empty list — so the harvest can

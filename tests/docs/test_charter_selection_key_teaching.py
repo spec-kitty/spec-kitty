@@ -7,7 +7,8 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SURFACES = (
-    _REPO_ROOT / "src/charter/offering/skills/spec-kitty-charter-doctrine/SKILL.md",
+    _REPO_ROOT / "src/charter/offering/skills/spk-charter-governance/SKILL.md",
+    _REPO_ROOT / "src/charter/offering/skills/spk-charter-governance/references/charter-governance-workflow.md",
     _REPO_ROOT / "docs/context/charter-overview.md",
     _REPO_ROOT / "docs/context/governance-files.md",
     _REPO_ROOT / "docs/guides/how-to/governance/setup-governance.md",

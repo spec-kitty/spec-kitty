@@ -42,9 +42,18 @@ _ALLOWLIST: dict[str, str] = {}
 _FACTORIES = frozenset({"from_package", "from_local_repo"})
 _CLASS = "SkillRegistry"
 
-#: The seam function that returns shipped skills only, and the one module that may use it.
+#: The seam function that returns shipped skills only, and the modules that may use it.
+#: ``_charter_pack_cutover_skills.py`` (#3732) reads only the shipped skill *names*, to
+#: skip a removed name the installed CLI still ships; it never passes the catalog to
+#: ``assess_project_skills`` and a pack skill cannot carry a reserved ``spk-`` name.
 _BUILTIN_ONLY = "resolve_builtin_skill_catalog"
-_BUILTIN_ONLY_ALLOWED = frozenset({"src/specify_cli/skills/catalog.py", "src/specify_cli/runtime/agent_skills.py"})
+_BUILTIN_ONLY_ALLOWED = frozenset(
+    {
+        "src/specify_cli/skills/catalog.py",
+        "src/specify_cli/runtime/agent_skills.py",
+        "src/specify_cli/upgrade/migrations/_charter_pack_cutover_skills.py",
+    }
+)
 
 
 def _class_aliases(tree: ast.Module) -> set[str]:

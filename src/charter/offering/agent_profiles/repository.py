@@ -332,7 +332,7 @@ class AgentProfileRepository:
         schema validation, but its ``applies_to_languages`` field did
         not overlap with the active language set configured at
         construction time. Parity with
-        :class:`charter.offering.base.BaseDoctrineRepository`'s property
+        :class:`charter.offering.base.BaseArtifactRepository`'s property
         of the same name (FR-013): the catalog-miss diagnosis
         (:func:`charter.activation.context_renderers.catalog_diagnosis._diagnose_catalog_miss`)
         reads this set so a present-but-scoped profile surfaces
@@ -366,7 +366,7 @@ class AgentProfileRepository:
         )
 
         # Org packs, then project, overlay onto the same store in order. Org and
-        # project overlay discovery is recursive via the single doctrine
+        # project overlay discovery is recursive via the single overlay
         # recursion authority (unconditional per C-001), matching the built-in
         # layer above so a nested `agent_profiles/<sub>/x.agent.yaml` is not
         # silently dropped (#3490). This was the third, separate recursion
@@ -547,7 +547,7 @@ class AgentProfileRepository:
             # one that never existed, so a charter-selected profile
             # that ``agent profile list`` reports available was
             # diagnosed ``MISSING_ARTIFACT``. Parity with
-            # ``BaseDoctrineRepository.scope_filtered_ids`` (FR-013).
+            # ``BaseArtifactRepository.scope_filtered_ids`` (FR-013).
             self._scope_filtered_ids.add(profile_id)
             return None
 
@@ -567,7 +567,7 @@ class AgentProfileRepository:
         higher_layer: str,
         higher_data: dict[str, Any],
     ) -> None:
-        """Emit a DoctrineLayerCollisionWarning iff ``profile_id`` is already loaded.
+        """Emit an ArtifactLayerCollisionWarning iff ``profile_id`` is already loaded.
 
         Called at write time so the lower-layer dump is still available for
         field-count accounting (FR-003 wording per ADR 2026-05-16-1).
@@ -924,9 +924,9 @@ class AgentProfileRepository:
         Exposed read-only so the charter render layer can project the profile
         channel's ``suggests`` deliveries (``when`` clauses live on graph edges,
         surfaced by ``charter.activation.progressive_disclosure.profile_channel_references``)
-        against the *same* graph this repository walked — the doctrine layer holds
+        against the *same* graph this repository walked — ``charter.offering`` holds
         the graph but must not import the charter projection (layer direction:
-        charter → doctrine).
+        charter → charter.offering).
         """
         return self._drg
 

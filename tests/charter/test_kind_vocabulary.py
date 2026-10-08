@@ -18,7 +18,7 @@ import pytest
 
 pytestmark = [pytest.mark.unit]
 
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.kind_vocabulary import (
     MissionTypeNotAnArtifactKind,
     UnknownArtifactIdError,
@@ -126,8 +126,8 @@ def test_charter_kind_tokens_artifact_entries_all_resolve() -> None:
 # --------------------------------------------------------------------------- #
 
 @pytest.fixture()
-def doctrine_root() -> Path:
-    return resolve_doctrine_root()
+def offering_root() -> Path:
+    return resolve_offering_root()
 
 
 @pytest.mark.parametrize(
@@ -151,9 +151,9 @@ def doctrine_root() -> Path:
     ],
 )
 def test_resolve_artifact_urn_uses_id_field(
-    kind: ArtifactKind, config_id: str, expected_urn: str, doctrine_root: Path
+    kind: ArtifactKind, config_id: str, expected_urn: str, offering_root: Path
 ) -> None:
-    urn = resolve_artifact_urn(kind, config_id, doctrine_root=doctrine_root)
+    urn = resolve_artifact_urn(kind, config_id, offering_root=offering_root)
     assert urn == expected_urn
 
 
@@ -166,15 +166,15 @@ def test_resolve_artifact_urn_uses_id_field(
     ],
 )
 def test_round_trip_config_id(
-    kind: ArtifactKind, config_id: str, doctrine_root: Path
+    kind: ArtifactKind, config_id: str, offering_root: Path
 ) -> None:
-    urn = resolve_artifact_urn(kind, config_id, doctrine_root=doctrine_root)
-    assert resolve_config_id(urn, doctrine_root=doctrine_root) == config_id
+    urn = resolve_artifact_urn(kind, config_id, offering_root=offering_root)
+    assert resolve_config_id(urn, offering_root=offering_root) == config_id
 
 
 def test_project_layer_resolver_ignores_legacy_plural_directory(tmp_path: Path) -> None:
     """Project layer ID resolution scans singular runtime dirs only."""
-    doctrine_root = tmp_path / "src-doctrine"
+    offering_root = tmp_path / "src-doctrine"
     project_root = tmp_path / ".kittify"
     singular_dir = project_root / "doctrine" / "directive"
     plural_dir = project_root / "doctrine" / "directives" / "project"
@@ -193,8 +193,8 @@ def test_project_layer_resolver_ignores_legacy_plural_directory(tmp_path: Path) 
         resolve_artifact_urn(
             ArtifactKind.DIRECTIVE,
             "950-project-rule",
-            doctrine_root=doctrine_root,
-            layer_roots={"project": project_root},
+            offering_root=offering_root,
+            layer_roots={"project": project_root / "doctrine"},
         )
         == "directive:DIRECTIVE_950"
     )
@@ -202,23 +202,23 @@ def test_project_layer_resolver_ignores_legacy_plural_directory(tmp_path: Path) 
         resolve_artifact_urn(
             ArtifactKind.DIRECTIVE,
             "951-legacy-project-rule",
-            doctrine_root=doctrine_root,
-            layer_roots={"project": project_root},
+            offering_root=offering_root,
+            layer_roots={"project": project_root / "doctrine"},
         )
     with pytest.raises(UnknownArtifactIdError):
         resolve_config_id(
             "directive:DIRECTIVE_951",
-            doctrine_root=doctrine_root,
-            layer_roots={"project": project_root},
+            offering_root=offering_root,
+            layer_roots={"project": project_root / "doctrine"},
         )
 
 
 def test_resolve_artifact_urn_unknown_id_raises_structured_error(
-    doctrine_root: Path,
+    offering_root: Path,
 ) -> None:
     with pytest.raises(UnknownArtifactIdError) as excinfo:
         resolve_artifact_urn(
-            ArtifactKind.DIRECTIVE, "999-nonexistent", doctrine_root=doctrine_root
+            ArtifactKind.DIRECTIVE, "999-nonexistent", offering_root=offering_root
         )
     message = str(excinfo.value)
     assert "directive" in message
@@ -226,17 +226,17 @@ def test_resolve_artifact_urn_unknown_id_raises_structured_error(
 
 
 def test_resolve_config_id_unknown_urn_raises_structured_error(
-    doctrine_root: Path,
+    offering_root: Path,
 ) -> None:
     with pytest.raises(UnknownArtifactIdError) as excinfo:
-        resolve_config_id("directive:DIRECTIVE_999", doctrine_root=doctrine_root)
+        resolve_config_id("directive:DIRECTIVE_999", offering_root=offering_root)
     message = str(excinfo.value)
     assert "directive" in message
     assert "DIRECTIVE_999" in message
 
 
 def test_resolve_config_id_malformed_urn_raises_value_error(
-    doctrine_root: Path,
+    offering_root: Path,
 ) -> None:
     with pytest.raises(ValueError):
-        resolve_config_id("not-a-valid-urn", doctrine_root=doctrine_root)
+        resolve_config_id("not-a-valid-urn", offering_root=offering_root)

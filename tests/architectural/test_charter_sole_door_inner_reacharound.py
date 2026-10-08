@@ -1,5 +1,5 @@
 """Gate 5 (FR-007/FR-010, WP04): zero-tolerance `._inner` reach-around on
-``charter.activation.resolver.DoctrineService`` outside ``src/charter/**`` (and
+``charter.activation.resolver.ActiveCharterService`` outside ``src/charter/**`` (and
 ``tests/charter/**``).
 
 A post-plan squad delegate found that ``src/specify_cli/invocation/registry.py``
@@ -9,7 +9,7 @@ wrapper's own charter-activation filtering to the raw, unfiltered
 ``AgentProfileRepository``. Left open, this defeats every gate the sibling
 FR-001-006/008 work ships: a "sole door" factory with a documented side door
 is not a sole door. FR-010 closes the two known sites onto the pinned
-``DoctrineService.agent_profile_repository`` accessor (WP01, FR-001); this
+``ActiveCharterService.agent_profile_repository`` accessor (WP01, FR-001); this
 module is the durable, non-fakeable proof that closure holds and cannot be
 silently reopened anywhere else in the codebase (C-002: zero-tolerance, no
 shrink-only allowlist -- see NFR-001/C-002 in
@@ -21,12 +21,12 @@ A bare ``grep -r "._inner"`` is too broad: ``src/specify_cli/auth/transport.py``
 and ``src/specify_cli/events/decision_log.py`` both hold unrelated, legitimate
 ``self._inner`` wrapper attributes (an ``OAuthHttpClient`` wrapper and a
 decision-log delegate, respectively) that have nothing to do with
-``DoctrineService`` -- a bare scan would false-positive on both (debugger-debbie
+``ActiveCharterService`` -- a bare scan would false-positive on both (debugger-debbie
 finding, post-tasks squad). This gate instead resolves, per file, which local
 names are bound (directly or by import alias) to a *construction* of a
-``charter.activation.resolver.DoctrineService`` -- either the sanctioned factory
-(``build_activation_aware_doctrine_service``, FR-008's unified builder) or the
-wrapper's own constructor (``charter.activation.resolver.DoctrineService``) -- and flags a
+``charter.activation.resolver.ActiveCharterService`` -- either the sanctioned factory
+(``build_active_charter_service``, FR-008's unified builder) or the
+wrapper's own constructor (``charter.activation.resolver.ActiveCharterService``) -- and flags a
 reach-around only when its receiver is one of those tainted names, or an inline
 construction call. ``self._inner`` on an untainted receiver (the two
 false-positive risks above) is never flagged, because ``self`` is never
@@ -64,7 +64,7 @@ both only when the trailing kind cannot be resolved statically.
 
 Known limitation (documented, not hidden): this is a static, per-file,
 name-based approximation -- not full dataflow/type inference. A caller that
-threads a ``DoctrineService`` through an unconventional indirection (e.g. a
+threads an ``ActiveCharterService`` through an unconventional indirection (e.g. a
 dict of services, a ``for`` loop over a computed iterable, or a return value
 re-assigned across module boundaries) could in principle evade detection.
 This is the same class of tradeoff ``test_mission_resolver_walker_gate.py``
@@ -102,15 +102,15 @@ _EXEMPT_DIR_PREFIXES = ("src/charter/", "tests/charter/")
 # distinction holding forever as this file grows.
 _EXEMPT_FILES = frozenset({"tests/architectural/test_charter_sole_door_inner_reacharound.py"})
 
-# The one sanctioned construction path for a charter.activation.resolver.DoctrineService
+# The one sanctioned construction path for a charter.activation.resolver.ActiveCharterService
 # outside src/charter/** (FR-008's unified builder).
-_FACTORY_FUNC_NAME = "build_activation_aware_doctrine_service"
-_FACTORY_MODULES = frozenset({"specify_cli.doctrine_service_factory", "charter.activation.doctrine_service_builder"})
+_FACTORY_FUNC_NAME = "build_active_charter_service"
+_FACTORY_MODULES = frozenset({"charter.activation.active_charter_service_builder"})
 
 # The wrapper's own constructor -- tracked too so the taint heuristic stays
 # correct even though NFR-001's sibling gate independently forbids
 # constructing it directly outside src/charter/**.
-_CTOR_NAME = "DoctrineService"
+_CTOR_NAME = "ActiveCharterService"
 _CTOR_MODULE = "charter.activation.resolver"
 
 #: The pinned lineage/mutation accessor for the ``agent_profiles`` kind
@@ -147,7 +147,7 @@ def _matches_sanctioned_origin(module: str, name: str) -> bool:
     return (module in _FACTORY_MODULES and name == _FACTORY_FUNC_NAME) or (module == _CTOR_MODULE and name == _CTOR_NAME)
 
 
-def _call_constructs_doctrine_service(call: ast.Call, aliases: _Bindings) -> bool:
+def _call_constructs_charter_service(call: ast.Call, aliases: _Bindings) -> bool:
     """True if *call* invokes the factory or the wrapper constructor.
 
     Resolves by import alias (``from module import name as local``), by
@@ -177,7 +177,7 @@ def _taint_if_construction(
     value: ast.expr,
     aliases: _Bindings,
 ) -> None:
-    if isinstance(target, ast.Name) and isinstance(value, ast.Call) and _call_constructs_doctrine_service(value, aliases):
+    if isinstance(target, ast.Name) and isinstance(value, ast.Call) and _call_constructs_charter_service(value, aliases):
         tainted.add(target.id)
 
 
@@ -234,7 +234,7 @@ def _is_inner_dict_subscript(node: ast.Subscript) -> bool:
 def _receiver_is_tainted(receiver: ast.expr, tainted: set[str], aliases: _Bindings) -> bool:
     if isinstance(receiver, ast.Name) and receiver.id in tainted:
         return True
-    return isinstance(receiver, ast.Call) and _call_constructs_doctrine_service(receiver, aliases)
+    return isinstance(receiver, ast.Call) and _call_constructs_charter_service(receiver, aliases)
 
 
 def _attribute_wrapping(tree: ast.AST) -> dict[int, ast.Attribute]:
@@ -365,13 +365,13 @@ def _remedy_message(kind: str | None) -> str:
 # ---------------------------------------------------------------------------
 
 
-def test_no_inner_reacharound_on_doctrine_service_outside_charter() -> None:
-    """Zero reach-around access on a ``charter.activation.resolver.DoctrineService``
+def test_no_inner_reacharound_on_charter_service_outside_charter() -> None:
+    """Zero reach-around access on a ``charter.activation.resolver.ActiveCharterService``
     outside ``src/charter/**`` and ``tests/charter/**`` (FR-010, NFR-001).
 
     Zero-tolerance (C-002): no allowlist. To fix a violation, use the
     ``agent_profile_repository`` accessor (for ``agent_profiles`` lineage /
-    provenance operations) or ``DoctrineService.raw_repository(kind)`` naming
+    provenance operations) or ``ActiveCharterService.raw_repository(kind)`` naming
     the SPECIFIC other gated kind (for any other gated kind's raw repository
     operations) instead of reaching past the sole door.
     """
@@ -384,7 +384,7 @@ def test_no_inner_reacharound_on_doctrine_service_outside_charter() -> None:
         pytest.fail(
             "Found a `._inner` reach-around (direct attribute access, "
             "getattr()/object.__getattribute__(), or __dict__ subscript) on a "
-            "charter.activation.resolver.DoctrineService outside src/charter/** and "
+            "charter.activation.resolver.ActiveCharterService outside src/charter/** and "
             "tests/charter/** (FR-010). Each finding below names the ONE "
             "sanctioned accessor for the kind actually reached.\n\n"
             f"Violations:\n{details}"
@@ -407,13 +407,13 @@ def test_planted_reacharound_at_function_local_scope_is_detected(tmp_path: Path)
     """
     planted = tmp_path / "planted_reacharound.py"
     planted.write_text(
-        "from specify_cli.doctrine_service_factory import (\n"
-        "    build_activation_aware_doctrine_service,\n"
+        "from charter.activation.active_charter_service_builder import (\n"
+        "    build_active_charter_service,\n"
         ")\n"
         "\n"
         "\n"
         "def build_catalog(repo_root):\n"
-        "    service = build_activation_aware_doctrine_service(repo_root)\n"
+        "    service = build_active_charter_service(repo_root)\n"
         "    inner_repo = service._inner.agent_profiles\n"
         "    return inner_repo\n",
         encoding="utf-8",
@@ -456,13 +456,13 @@ def test_getattr_string_reach_around_is_flagged(tmp_path: Path) -> None:
     """
     planted = tmp_path / "getattr_reacharound.py"
     planted.write_text(
-        "from specify_cli.doctrine_service_factory import (\n"
-        "    build_activation_aware_doctrine_service,\n"
+        "from charter.activation.active_charter_service_builder import (\n"
+        "    build_active_charter_service,\n"
         ")\n"
         "\n"
         "\n"
         "def build_catalog(repo_root):\n"
-        "    service = build_activation_aware_doctrine_service(repo_root)\n"
+        "    service = build_active_charter_service(repo_root)\n"
         '    return getattr(service, "_inner").agent_profiles\n',
         encoding="utf-8",
     )

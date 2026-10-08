@@ -37,7 +37,7 @@ to agree, and what boundaries constrain an acceptable plan.
 
 Apply the visual doctrine when stakeholder relationships, decision boundaries,
 dependencies, or a non-trivial sequence is clearer visually. Load
-`spk-doctrine-show-me` and add the smallest useful diagram. Keep it focused on
+`spk-practice-show-me` and add the smallest useful diagram. Keep it focused on
 the planning problem; do not introduce implementation architecture.
 
 ## What to Do

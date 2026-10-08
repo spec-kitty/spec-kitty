@@ -2,7 +2,7 @@
 title: Implementation Mapping (living)
 description: 'Living implementation mapping (C4 level 4): where each architecture concept lives in the source tree today. A derived view of the enforced module map.'
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/00_landscape/README.md
@@ -173,7 +173,7 @@ Agent calls: spec-kitty charter context --action implement
   → src/charter/activation/context.py (Action Context Resolver)
   → Load action index: packs/built-in/missions/software-dev/actions/implement/index.yaml
   → Two-stage intersection: action index ∩ project selections (references.yaml)
-  → src/charter/offering/service.py (DoctrineService) → fetch directive/tactic content by depth
+  → src/charter/offering/service.py (CharterOfferingService) → fetch directive/tactic content by depth
   → Load action guidelines: packs/built-in/missions/mission-steps/software-dev/implement/guidelines.md
   → Render CharterContextResult (governance text injected into agent prompt)
   → Persist context-state.json (first-load tracking for depth semantics)
@@ -227,7 +227,7 @@ Orchestration lifecycle event triggers:
 | **WP Lifecycle Engine** | `status/transitions.py` | 16-pair transition matrix, guard conditions |
 | **Target-Line Router** | `mission_runtime/lifecycle_phase.py`, `core/` | Phase resolution, target branch routing |
 | **Tracker Connector Gateway** | `tracker/` | External tracker API adapters (the former `sync/` runtime coordinator was retired in the convergence) |
-| **Doctrine Catalog Loader** | `src/charter/offering/service.py` | `DoctrineService` — lazy aggregation facade |
+| **Charter Offering Loader** | `src/charter/offering/service.py` | `CharterOfferingService` — lazy aggregation facade |
 | **Schema Validation Gate** | `src/charter/offering/*/validation.py`, `src/charter/offering/schemas/` | JSON Schema + Pydantic validation |
 | **Glossary Hook Coordinator** | `src/charter/offering/missions/glossary_hook.py`, `src/glossary/` | Glossary checks during mission execution |
 | **Charter Interview Flow** | `charter/activation/interview.py` | Guided Q&A for governance capture |
@@ -249,7 +249,7 @@ and returns the first file that exists:
 |---|---|---|---|
 | 1 | **Project Override** | `.kittify/overrides/{templates,command-templates}/{name}` | Highest precedence. User's explicit project-level override. |
 | 2 | **Legacy** (deprecated) | `.kittify/{templates,command-templates}/{name}` | Pre-migration project files. Emits deprecation warning or one-time "run `spec-kitty migrate`" nudge. Will be removed in next major version. |
-| 3 | **Org** | `<org_root>/missions/{mission}/{templates,command-templates}/{name}` | Org-provided doctrine pack roots, checked in declaration order. No-op when no org packs are configured. |
+| 3 | **Org** | `<org_root>/missions/{mission}/{templates,command-templates}/{name}` | Org Charter Pack roots, checked in declaration order. No-op when no org packs are configured. |
 | 4 | **Global Mission-Specific** | `~/.kittify/missions/{mission}/{templates,command-templates}/{name}` | User-global, scoped to a specific mission type. Populated by `spec-kitty migrate` / `ensure_runtime`. |
 | 5 | **Global Non-Mission** | `~/.kittify/{templates,command-templates}/{name}` | User-global, cross-mission. |
 | 6 | **Package Default** | `packs/built-in/missions/{mission}/{templates,command-templates}/{name}` | Lowest precedence. Bundled pack content (resolved through the `charter.offering` chain). Resolved via `kernel.paths.get_package_asset_root()`. |
@@ -337,7 +337,7 @@ Cross-cutting infrastructure used by all artifact subpackages:
 | Module | Purpose |
 |---|---|
 | `schema_utils.py` | `SchemaUtilities.load_schema(name)` — single cached schema loader replacing six near-identical per-type functions |
-| `exceptions.py` | `DoctrineArtifactLoadError` — fail-open signal for corrupt/unreadable artifact files; `DoctrineResolutionCycleError` — raised when a cycle is detected in the reference graph |
+| `exceptions.py` | `ArtifactLoadError` — fail-open signal for corrupt/unreadable artifact files; `ArtifactResolutionCycleError` — raised when a cycle is detected in the reference graph |
 
 **Why shared utilities matter:** Before `shared/`, each `validation.py` duplicated identical schema-loading logic (importlib.resources lookup + filesystem fallback + LRU cache). The `shared/` module eliminates that duplication and provides a single place to evolve the loading strategy.
 
@@ -347,15 +347,14 @@ Cross-cutting infrastructure used by all artifact subpackages:
    (resolved through the `charter.offering` chain). These are the defaults that
    come with Spec Kitty.
 2. **Project artifacts** live in the user's project under the canonical
-   `.kittify/charter-packs/` tree (e.g., `.kittify/charter-packs/directives/`);
-   the legacy `.kittify/doctrine/` location is still read as a fallback until
-   the M3 on-disk data move lands (`src/kernel/doctrine_root.py`,
-   `resolve_doctrine_read_root`, CR-07). Project artifacts can override
+   `.kittify/charter-packs/` tree (e.g., `.kittify/charter-packs/directives/`),
+   resolved through `src/kernel/charter_pack_paths.py`; there is no legacy read
+   fallback (`spec-kitty upgrade` moves a retired tree). Project artifacts can override
    shipped artifacts via field-level merge or add entirely new ones. (`.kittify/charter/`
    is a distinct tree — the compiled Charter Bundle output, not the
    project-layer artifact source.)
 
-The `DoctrineService` (`src/charter/offering/service.py`) is the aggregation facade —
+The `CharterOfferingService` (`src/charter/offering/service.py`) is the aggregation facade —
 it lazily instantiates all per-type repositories and is the single entry point
 for all consumers (Charter compiler, Connectors, Kitty-core).
 
@@ -393,10 +392,10 @@ update and a valid fixture update.
 | Cross-artifact references (`tactic_refs`, `references[]`) | ✅ Complete | Wired with test coverage across `tests/doctrine/` (185 test files, 3,017 collected tests as of 2026-09-07 — this figure grows over time, not a ceiling) |
 | Tension/rejection modeling (`in_tension_with`/`reconciles_tension`/`rejects` DRG edges) | ✅ Complete | Hand-authored edges in `packs/built-in/*.graph.yaml`; validated via `assert_valid` |
 | DAG cycle detection — shipped artifacts | ✅ Complete | `test_tactic_reference_graph_has_no_cycles` in `tests/doctrine/test_directive_consistency.py` |
-| Cycle detection at resolution boundary | 🟡 Partial | Moved into the DRG validator: `src/charter/offering/drg/validator.py` rejects `requires` cycles (`_validate_requires_cycles`) and `specializes_from` lineage cycles at load time. The former `reference_resolver._Walker` boundary check is gone, and `DoctrineResolutionCycleError` is defined (`offering/shared/exceptions.py`, covered by `tests/doctrine/shared/test_exceptions.py`) but no longer raised anywhere in `src/`. |
+| Cycle detection at resolution boundary | 🟡 Partial | Moved into the DRG validator: `src/charter/offering/drg/validator.py` rejects `requires` cycles (`_validate_requires_cycles`) and `specializes_from` lineage cycles at load time. The former `reference_resolver._Walker` boundary check is gone, and `ArtifactResolutionCycleError` is defined (`offering/shared/exceptions.py`, covered by `tests/doctrine/shared/test_exceptions.py`) but no longer raised anywhere in `src/`. |
 | Shared schema loading (`SchemaUtilities`) | ✅ Complete | `src/charter/offering/shared/schema_utils.py`; replaces 6 duplicated per-type loaders |
-| Domain exceptions (`DoctrineArtifactLoadError`, `DoctrineResolutionCycleError`) | ✅ Complete | `src/charter/offering/shared/exceptions.py` |
-| `DoctrineService` aggregation facade | ✅ Complete | `src/charter/offering/service.py` |
+| Domain exceptions (`ArtifactLoadError`, `ArtifactResolutionCycleError`) | ✅ Complete | `src/charter/offering/shared/exceptions.py` |
+| `CharterOfferingService` aggregation facade | ✅ Complete | `src/charter/offering/service.py` |
 | Charter compiler consumes Doctrine | ✅ Complete | `src/charter/activation/compiler.py` |
 | Command templates as connector implementation | ✅ Complete | 12-agent template system via migrations |
 | Transitive reference resolution (directive → tactic → styleguide/toolguide) | ✅ Complete | `src/charter/activation/reference_resolver.py` (mission 054) |

@@ -24,7 +24,7 @@ migrated in the #5409 mission rather than grandfathered.
 
 Scope (#5538): the #5409 gate scanned only ``src/charter`` and only module- and
 class-level assignments, so a mirror in a consumer package
-(``specify_cli/doctrine/pack_validator.py``'s plural→singular map) or inside a
+(``charter/offering/packs/pack_validator.py``'s plural→singular map) or inside a
 function body survived ungoverned. The gate now scans **every package under
 ``src/``** and **every collection display at any depth** — module, class,
 function-local, and bare ``return``/subscript displays alike. A mirror cannot

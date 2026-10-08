@@ -64,7 +64,7 @@ def _registry() -> ToolSurfaceRegistry:
     registry.register_definition("claude", _definition(_PROFILE_PATTERN, ToolSurfaceKind.AGENT_PROFILE))
     # Sentinel + manifest-embedded patterns must be excluded from validation.
     registry.register_definition("claude", _definition(_SENTINEL_PATTERN, ToolSurfaceKind.CONTEXT_FILE))
-    registry.register_definition("claude", _definition(_MANIFEST_PATTERN, ToolSurfaceKind.DOCTRINE_SKILL))
+    registry.register_definition("claude", _definition(_MANIFEST_PATTERN, ToolSurfaceKind.CHARTER_SKILL))
     return registry
 
 

@@ -14,9 +14,9 @@ WP11 scoped cascade engine into the CLI surface:
   :func:`charter.activation.cascade.referenced_but_not_cascaded` so the operator is warned
   about referenced-but-skipped artifacts (FR-013).
 * In-scope cascade targets (:func:`charter.activation.cascade.cascade_activation_targets`)
-  are activated through the same :class:`~charter.activation.pack_manager.CharterPackManager`
+  are activated through the same :class:`~charter.activation.pack_manager.ActiveCharterManager`
   seam as the direct activation, and rendered per kind (FR-014).
-* :class:`charter.activation.pack_context.CharterPackConfigError` is caught and surfaced as
+* :class:`charter.activation.pack_context.ActiveCharterConfigError` is caught and surfaced as
   a clean exit-1 with its diagnostic code + remediation, before any mutation
   (FR-035 fail-closed, C1.5).
 """
@@ -27,8 +27,11 @@ import contextlib
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
 
+import click
 import typer
+from click.core import ParameterSource
 from rich.console import Console
+from rich.markup import escape
 from specify_cli.cli.console import console
 
 from charter.activation.cascade import (
@@ -37,7 +40,7 @@ from charter.activation.cascade import (
     referenced_but_not_cascaded,
 )
 from charter.drg import DRGLoadError
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.drg_activation import load_org_drg
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
@@ -47,8 +50,15 @@ from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from charter.activation.pack_context import CharterPackConfigError, PackContext
-from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.pack_context import ActiveCharterConfigError, PackContext
+from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
+from charter.activation.preset_application import (
+    PresetApplicationError,
+    PresetPlan,
+    apply_preset_plan,
+    plan_preset_application,
+)
+from charter.packs import PresetFormatError
 from charter.activation.project_registration import (
     commit_project_registration,
     plan_project_registration,
@@ -58,11 +68,12 @@ from specify_cli.cli.commands.charter._cascade_shared import (
     drg_urn_to_config_id,
     render_kind_filtered_line,
 )
+from specify_cli.cli.commands.charter._coded_errors import render_coded_error, render_preset_format_error
 from specify_cli.cli.commands.charter._charter_write_root import (
     CharterWriteRootError,
     resolve_charter_write_root,
 )
-from specify_cli.cli.commands.charter._layer_roots import (
+from charter.activation.layer_roots import (
     resolve_layer_roots,
     resolve_org_root_chain,
 )
@@ -100,10 +111,10 @@ CASCADE_ZERO_ACTIVATABLE_TARGETS_MESSAGE = (
 
 
 
-def render_pack_config_error(exc: CharterPackConfigError, console: Console) -> None:
-    """Render a :class:`CharterPackConfigError` as fail-closed CLI guidance (FR-035).
+def render_pack_config_error(exc: ActiveCharterConfigError, console: Console) -> None:
+    """Render a :class:`ActiveCharterConfigError` as fail-closed CLI guidance (FR-035).
 
-    Surfaces the stable ``CHARTER_PACK_CONFIG_INVALID`` diagnostic code plus the
+    Surfaces the stable ``ACTIVE_CHARTER_CONFIG_INVALID`` diagnostic code plus the
     error body (which already carries the remediation hint). Shared by the
     activate and deactivate commands so both fail closed identically.
     """
@@ -113,7 +124,7 @@ def render_pack_config_error(exc: CharterPackConfigError, console: Console) -> N
 def validate_pack_config(repo_root: Path) -> None:
     """Load the project pack context to fail closed on invalid config (FR-035).
 
-    :meth:`PackContext.from_config` raises :class:`CharterPackConfigError` when
+    :meth:`PackContext.from_config` raises :class:`ActiveCharterConfigError` when
     ``.kittify/config.yaml`` has an invalid charter-pack shape. Calling it here
     — *before* any mutation — gives that previously dead-ended error type a live
     external caller and guarantees no write happens on a malformed config (C1.5).
@@ -146,7 +157,7 @@ def _source_urn(
         resolved: str = resolve_artifact_urn(
             kind_enum,
             artifact_id,
-            doctrine_root=resolve_doctrine_root(),
+            offering_root=resolve_offering_root(),
             org_roots=org_roots,
             layer_roots=layer_roots,
         )
@@ -223,7 +234,7 @@ def _validate_mission_type_activatable(kind: str, artifact_id: str, repo_root: P
 
 
 def _activate_cascade_target(
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
     ctx_project: ProjectContext,
     kind_token: str,
     config_id: str,
@@ -232,7 +243,7 @@ def _activate_cascade_target(
 ) -> None:
     """Activate one cascade target, trying each org root in the chain in turn.
 
-    T009 (mission ``cascade-org-inert-01M07E9P``): :meth:`CharterPackManager.activate`
+    T009 (mission ``cascade-org-inert-01M07E9P``): :meth:`ActiveCharterManager.activate`
     validates artifact availability through its own ``layer_roots["org"]``
     single-``Path`` slot (``charter/pack_manager.py`` -- not owned by this WP;
     its ``dict[str, Path]`` contract is load-bearing for ``charter list
@@ -243,7 +254,7 @@ def _activate_cascade_target(
     only ever sees pack 1 through ``layer_roots``. This substitutes each
     candidate org root from the chain, in declaration order, for
     ``layer_roots["org"]`` and retries, so a chain artifact still activates
-    without widening ``CharterPackManager.activate``'s signature. When
+    without widening ``ActiveCharterManager.activate``'s signature. When
     ``org_roots`` is empty/``None`` (no org packs, or none in the chain),
     exactly one attempt is made with the original *layer_roots* -- byte-for-
     byte the pre-T008 call shape (FR-001 AC4 no-org-pack regression).
@@ -284,7 +295,7 @@ def _activate_cascade_target(
 
 
 def _render_cascade_activation(
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
     ctx_project: ProjectContext,
     source_urn: str,
     scope: CascadeScope,
@@ -315,7 +326,7 @@ def _render_cascade_activation(
         org_fragments=load_org_drg(repo_root, strict=False),
     )
     result = cascade_activation_targets(graph, source_urn, scope)
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
 
     for kind_value in sorted(result.activated):
         kind_token = ArtifactKind(kind_value).operator_token
@@ -323,7 +334,7 @@ def _render_cascade_activation(
             # The cascade engine reports DRG bare IDs; activation lists use
             # config-stem IDs. Resolve back through the kind-vocabulary bridge.
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{cascade_drg_id}", doctrine_root, layer_roots, org_roots
+                f"{kind_value}:{cascade_drg_id}", offering_root, layer_roots, org_roots
             )
             try:
                 _activate_cascade_target(
@@ -346,7 +357,7 @@ def _render_cascade_activation(
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_id in result.skipped_by_scope[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{skipped_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{skipped_id}", offering_root, layer_roots, org_roots, render_pass
             )
             console.print(
                 f"[dim]Skipped (out of scope)[/dim]: {kind_token}/{config_id}"
@@ -363,7 +374,7 @@ def _render_cascade_activation(
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in result.not_cascaded_kind_filtered[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{filtered_id}", offering_root, layer_roots, org_roots, render_pass
             )
             render_kind_filtered_line(kind_token, config_id)
 
@@ -390,12 +401,12 @@ def _render_tension_warnings(repo_root: Path) -> None:
     """Surface unreconciled tension findings as activate-time warnings (FR-010).
 
     Calls the SAME scan :func:`charter.activation.consistency_check.scan_unreconciled_tensions`
-    that ``spec-kitty charter pack consistency-check`` uses (single canonical
+    that ``spec-kitty charter consistency-check`` uses (single canonical
     authority, contracts/tension-finding.md SC-001) so this warning and that
     JSON surface can never render a tension pair differently.
 
     Builds its own fully-populated :class:`ProjectContext` via
-    :meth:`ProjectContext.from_repo` (matching ``pack.py``'s consistency-check
+    :meth:`ProjectContext.from_repo` (matching ``consistency_check.py``'s
     command) rather than reusing the caller's ``ctx_project`` -- the
     ``activate_cmd``/``deactivate_cmd`` local is a bare
     ``ProjectContext(repo_root=repo_root)`` with ``pack_context=None``, which
@@ -451,7 +462,7 @@ def _render_no_cascade_warning(
     report = referenced_but_not_cascaded(graph, source_urn)
     if not report.has_skipped:
         return
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     # A read-only render: one resolution pass parses each artifact file once
     # for every warning line, not once per referenced artifact (#5526).
     render_pass = ResolutionPass()
@@ -459,7 +470,7 @@ def _render_no_cascade_warning(
         kind_token = ArtifactKind(kind_value).operator_token
         for skipped_drg_id in report.skipped[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{skipped_drg_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{skipped_drg_id}", offering_root, layer_roots, org_roots, render_pass
             )
             console.print(
                 f"[yellow]Warning[/yellow]: referenced {kind_token}/{config_id} "
@@ -491,7 +502,7 @@ def _render_no_cascade_warning(
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in report.not_cascaded_kind_filtered[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{filtered_id}", offering_root, layer_roots, org_roots, render_pass
             )
             render_kind_filtered_line(kind_token, config_id)
 
@@ -506,8 +517,7 @@ def recompile_catalog(repo_root: Path) -> list[str]:
     `activate_cmd` and `deactivate_cmd` (FR-001/FR-002) unless `--no-compile`
     is passed.
 
-    Modeled EXACTLY on `pack.py`'s `_compile_bundle_after_merge` (the
-    `charter pack apply --compile` seam) -- the same
+    Uses the same
     `_load_interview_for_generate(..., from_interview=False, ...)` ->
     `compile_charter` -> `write_compiled_charter` call chain `charter
     generate --no-from-interview` itself uses (single compiler authority,
@@ -536,7 +546,7 @@ def recompile_catalog(repo_root: Path) -> list[str]:
 
     from specify_cli.cli.commands.charter._common import _interview_path  # noqa: PLC0415
     from specify_cli.cli.commands.charter.generate import (  # noqa: PLC0415
-        _build_doctrine_service_with_org_layer,
+        _build_active_charter_service_with_org_layer,
         _load_interview_for_generate,
     )
 
@@ -574,7 +584,7 @@ def recompile_catalog(repo_root: Path) -> list[str]:
         mission=resolved_mission,
         interview=interview_data,
         repo_root=repo_root,
-        doctrine_service=_build_doctrine_service_with_org_layer(repo_root),
+        charter_service=_build_active_charter_service_with_org_layer(repo_root),
         pack_context=PackContext.from_config(repo_root),
     )
     bundle_result = write_compiled_charter(charter_dir, compiled, repo_root=repo_root)
@@ -671,7 +681,10 @@ def resolve_write_root_or_exit(repo_root: Path) -> Path:
     body under the complexity ceiling (Sonar S3776 / ruff C901).
     """
     try:
-        return resolve_charter_write_root(repo_root)
+        # Resolve first: the kernel git-topology probes are ``lru_cache``d on the
+        # path they receive, so the relative default ``Path(".")`` would return
+        # the checkout of the first in-process call after a ``chdir``.
+        return resolve_charter_write_root(repo_root.resolve())
     except CharterWriteRootError as exc:
         # Catch the BASE class (not just LinkedWorktreeCharterWriteError): the
         # only subclass raised today is the linked-worktree case, so this is
@@ -794,6 +807,95 @@ def reproject_pack_skills(repo_root: Path, kind: str) -> None:
         console.print(f"[yellow]Skill file preserved[/yellow]: {path} ({reason})")
 
 
+#: The pack ``--preset`` reads when ``--pack`` is not given.
+DEFAULT_PRESET_PACK = "built-in"
+
+#: Code of a ``--preset --json`` run whose preset was written but whose
+#: post-write resynthesis failed.
+_RESYNTHESIS_FAILED = "RESYNTHESIS_FAILED"
+
+_PRESET_ONLY_OPTIONS: tuple[tuple[str, str], ...] = (("pack", "--pack"), ("force", "--force"), ("json_output", "--json"))
+
+
+def _check_preset_flags(ctx: typer.Context, *, preset: str | None, positional: bool, cascade: str | None) -> None:
+    """Enforce the ``--preset`` flag rules through Click's usage path (exit 2, before any I/O)."""
+    if preset is not None:
+        if positional:
+            raise click.UsageError("--preset cannot be combined with a positional KIND ARTIFACT_ID.", ctx=ctx)
+        if cascade is not None:
+            raise click.UsageError("--cascade cannot be combined with --preset (presets do not cascade).", ctx=ctx)
+        return
+    given = [flag for name, flag in _PRESET_ONLY_OPTIONS if ctx.get_parameter_source(name) is not ParameterSource.DEFAULT]
+    if given:
+        raise click.UsageError(f"{', '.join(given)} only apply with --preset.", ctx=ctx)
+
+
+def _render_preset_plan(plan: PresetPlan) -> None:
+    if plan.is_noop:
+        console.print(f"Preset '{escape(plan.preset)}' of pack '{escape(plan.pack)}' is already in force in {plan.target_file}; nothing changed.")
+        return
+    console.print(f"[green]Applied preset[/green] '{escape(plan.preset)}' of pack '{escape(plan.pack)}' to {plan.target_file}")
+    for key, ids in plan.written.items():
+        console.print(f"  [green]Wrote[/green] {key}: {escape(', '.join(ids)) or '(none)'}")
+    for key in plan.removed:
+        console.print(f"  [yellow]Removed[/yellow] {key} (unrestricted)")
+
+
+def _preset_payload(plan: PresetPlan) -> dict[str, object]:
+    """The ``--json`` shape of an applied preset (contracts/cli.md)."""
+    return {"pack": plan.pack, "preset": plan.preset, "written": plan.written, "removed": plan.removed, "target_file": str(plan.target_file)}
+
+
+def _plan_and_apply_preset(repo_root: Path, pack: str, preset: str, *, force: bool, json_output: bool) -> PresetPlan:
+    """Validate the config, plan and apply the preset; render a refusal and exit(1) on failure."""
+    try:
+        validate_pack_config(repo_root)
+        plan = plan_preset_application(repo_root, pack, preset)
+        apply_preset_plan(repo_root, plan, force=force)
+    except PresetApplicationError as exc:
+        render_coded_error(exc.code, str(exc), details=exc.detail_lines(), payload=exc.payload(), json_output=json_output)
+        raise typer.Exit(1) from exc
+    except ActiveCharterConfigError as exc:
+        render_coded_error(exc.code, exc.body, json_output=json_output)
+        raise typer.Exit(1) from exc
+    except PresetFormatError as exc:
+        render_preset_format_error(exc, json_output=json_output)
+        raise typer.Exit(1) from exc
+    return plan
+
+
+def _activate_preset(repo_root: Path, pack: str, preset: str, *, force: bool, json_output: bool, compile_catalog: bool, resynthesize: bool) -> None:
+    """``charter activate --preset``: apply a pack's preset with replace semantics (FR-001).
+
+    Order: write-root resolution (fails closed from a linked worktree) ->
+    pack-config validation -> the pure plan -> refusal without ``--force``
+    when a customised key would change -> one write -> the same catalog
+    refresh the positional path finishes with. Presets never govern skills, so
+    no pack-skill re-projection runs. ``--resynthesize`` runs the full
+    resynthesis after the write only: the positional path's read-only
+    preflight is per ``(kind, id)`` and has no whole-preset form.
+    """
+    repo_root = resolve_write_root_or_exit(repo_root)
+    plan = _plan_and_apply_preset(repo_root, pack, preset, force=force, json_output=json_output)
+    if not json_output:
+        _render_preset_plan(plan)
+        recompile_or_notify(repo_root, resynthesize=resynthesize, compile_catalog=compile_catalog)
+        return
+    try:
+        with console.capture():
+            recompile_or_notify(repo_root, resynthesize=resynthesize, compile_catalog=compile_catalog)
+    except typer.Exit as exc:
+        if exc.exit_code == 0:
+            raise
+        message = (
+            f"preset {plan.preset!r} of pack {plan.pack!r} was applied to {plan.target_file}, "
+            f"but the resynthesis failed (exit {exc.exit_code}); re-run `spec-kitty charter synthesize`."
+        )
+        render_coded_error(_RESYNTHESIS_FAILED, message, payload=_preset_payload(plan), json_output=True)
+        raise typer.Exit(1) from exc
+    console.emit_json(_preset_payload(plan))
+
+
 def activate_cmd(
     ctx: typer.Context,
     kind: str | None = typer.Argument(None, help="Activation kind (e.g. directive, agent-profile)."),
@@ -817,10 +919,41 @@ def activate_cmd(
         "--compile/--no-compile",
         help=NO_COMPILE_HELP,
     ),
+    preset: str | None = typer.Option(
+        None,
+        "--preset",
+        help="Apply this activation preset of the pack with replace semantics instead of activating one artifact.",
+    ),
+    pack: str = typer.Option(
+        DEFAULT_PRESET_PACK,
+        "--pack",
+        help="Pack whose preset --preset applies (built-in, an org pack name). Only with --preset.",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Apply the preset even when it changes a customised activation key. Only with --preset.",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Output the applied preset as JSON. Only with --preset."),
     repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
-    """Activate a doctrine artifact by kind and ID (FR-004), with optional cascade."""
+    """Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's preset.
+
+    Two forms:
+
+      spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE]
+
+      spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]
+
+    A preset replaces every activation key it governs: keys it lists are
+    written (plus the org's required ids), keys it leaves out are removed.
+    A change to a customised key is refused without --force.
+    """
     if ctx.invoked_subcommand is not None:
+        return
+    _check_preset_flags(ctx, preset=preset, positional=kind is not None or artifact_id is not None, cascade=cascade)
+    if preset is not None:
+        _activate_preset(repo_root, pack, preset, force=force, json_output=json_output, compile_catalog=compile_catalog, resynthesize=resynthesize)
         return
     if kind is None or artifact_id is None:
         console.print(ctx.get_help())
@@ -848,7 +981,7 @@ def activate_cmd(
     # FR-035 fail-closed: reject invalid pack config before any mutation (C1.5).
     try:
         validate_pack_config(repo_root)
-    except CharterPackConfigError as exc:
+    except ActiveCharterConfigError as exc:
         render_pack_config_error(exc, console)
         raise typer.Exit(1) from exc
 
@@ -885,7 +1018,7 @@ def activate_cmd(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
-    manager = CharterPackManager()
+    manager = ActiveCharterManager()
     try:
         registration = plan_project_registration(repo_root)
         if resynthesize:

@@ -402,14 +402,14 @@ class TestRebaselineErrorBranches:
         itself (tracer-design-decisions.md Decision 3). One of two missions in
         the sweep resolves to a malformed manifest (routed through the real
         `ManifestRegistry.load_manifest()` via the T002 typo'd fixture, same
-        `_doctrine_repository` seam); pre-T006/T007 the typo is silently
+        `_offering_template_repository` seam); pre-T006/T007 the typo is silently
         swallowed (manifest=None) and both missions rebaseline cleanly;
         post-T006 the raised `ValidationError` propagates through
         `Indexer.index_feature()` for the bad mission only, captured here as a
         per-mission `error="reindex_failed: ..."` while the other mission's
         outcome is unaffected (sweep continues).
 
-        WP01 (#3770) relocated the `_doctrine_repository` seam from
+        WP01 (#3770) relocated the `_offering_template_repository` seam from
         `specify_cli.dossier.manifest` into `charter.activation.manifest_loader`
         alongside the load+cache logic that owns it, so the monkeypatch below
         targets the new module.
@@ -436,7 +436,7 @@ class TestRebaselineErrorBranches:
         content = fixture_path.read_text(encoding="utf-8")
         yaml = ruamel.yaml.YAML(typ="safe")
         parsed = yaml.load(content)
-        real_repository = manifest_loader_module._doctrine_repository()
+        real_repository = manifest_loader_module._offering_template_repository()
 
         class _FakeRepository:
             def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
@@ -444,7 +444,7 @@ class TestRebaselineErrorBranches:
                     return ConfigResult(content=content, origin="test-fixture", parsed=parsed)
                 return real_repository.get_expected_artifacts(mission)
 
-        monkeypatch.setattr(manifest_loader_module, "_doctrine_repository", lambda: _FakeRepository())
+        monkeypatch.setattr(manifest_loader_module, "_offering_template_repository", lambda: _FakeRepository())
 
         def _fake_mission_type(feature_dir: Path) -> str:
             return "typo-fixture" if feature_dir.name == bad_slug else "software-dev"
@@ -489,7 +489,7 @@ def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) ->
     """
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
-    lines: list[str] = ["doctrine:", "  org:", "    packs:"]
+    lines: list[str] = ["charter_packs:", "  org:", "    packs:"]
     for name, local_path in packs:
         lines.append(f"      - name: {name}")
         lines.append(f"        local_path: {local_path}")

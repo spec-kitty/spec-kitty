@@ -7,10 +7,10 @@ whose generator has not yet run does not read ``0``.
 
 T007 pins the two genuine **pack** per-kind counts readers green:
 ``pack_assembler._has_recognisable_pack_manifest`` and
-``cli/commands/_profile_health_render._render_doctrine_pack`` — proving the
+``cli/commands/_profile_health_render._render_charter_pack`` — proving the
 derived view yields the identical ``dict[str, int]`` they consume.
 
-Deliberately NOT pinned: ``_doctrine_collect._count_pack_artifacts`` (an
+Deliberately NOT pinned: ``_charter_pack_collect._count_pack_artifacts`` (an
 independent on-disk counter that never reads the stored block — a "derived ==
 stored" assertion there is vacuous, paula SF-1) and the ``dossier``
 ``{total, required, required_present}`` counts (a different domain fed by
@@ -24,7 +24,7 @@ from pathlib import Path
 import pytest
 
 from charter.offering.artifact_kinds import ArtifactKind
-from specify_cli.doctrine.pack_manifest import (
+from charter.offering.packs.pack_manifest import (
     Constituent,
     counts_by_kind,
     resolve_counts,
@@ -74,7 +74,7 @@ class TestPinPackAssemblerReader:
     def test_recognises_manifest_with_derived_counts(self, tmp_path) -> None:
         import yaml
 
-        from specify_cli.doctrine.pack_assembler import _has_recognisable_pack_manifest
+        from charter.offering.packs.pack_assembler import _has_recognisable_pack_manifest
 
         payload = {
             "pack_version": "1.0.0",
@@ -88,10 +88,10 @@ class TestPinPackAssemblerReader:
 
 
 class TestPinProfileHealthReader:
-    """``_render_doctrine_pack`` consumes the derived counts identically."""
+    """``_render_charter_pack`` consumes the derived counts identically."""
 
     def test_render_consumes_derived_counts(self) -> None:
-        from specify_cli.cli.commands._profile_health_render import _render_doctrine_pack
+        from specify_cli.cli.commands._profile_health_render import _render_charter_pack
 
         pack_entry = {
             "name": "acme",
@@ -103,7 +103,7 @@ class TestPinProfileHealthReader:
         }
         # The reader iterates ``artifact_counts.items()`` — feeding the derived
         # dict must not raise and must expose the same per-kind items.
-        _render_doctrine_pack(pack_entry, 0)
+        _render_charter_pack(pack_entry, 0)
         assert dict(pack_entry["artifact_counts"]) == _STORED
 
 
@@ -112,15 +112,13 @@ class TestSnapshotWriteStaysRecognisable:
     recognisable to the pinned pack_assembler reader (NFR-002)."""
 
     def test_write_pack_manifest_is_recognisable(self, tmp_path) -> None:
-        from specify_cli.doctrine.pack_assembler import _has_recognisable_pack_manifest
-        from specify_cli.doctrine.snapshot import write_pack_manifest
-        from specify_cli.doctrine.sources.protocol import FetchResult
+        from charter.offering.packs.pack_assembler import _has_recognisable_pack_manifest
+        from charter.offering.packs.pack_manifest import write_pack_manifest
 
         local = tmp_path / "snap"
         (local / "directives").mkdir(parents=True)
         (local / "directives" / "a.directive.yaml").write_text("id: A\n", encoding="utf-8")
-        result = FetchResult(ok=True, artifacts_written=1, pack_version="git")
-        write_pack_manifest(local, result, source_url="https://x/y", source_type="git")
+        write_pack_manifest(local, pack_version="git", etag=None, source_url="https://x/y", source_type="git")
 
         manifest = Path(local) / "pack-manifest.yaml"
         assert manifest.is_file()

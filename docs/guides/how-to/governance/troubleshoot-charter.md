@@ -2,7 +2,7 @@
 title: Troubleshooting Charter Failures
 description: Diagnose and fix stale bundle, missing doctrine, compact-context, retrospective gate, and synthesizer rejection failures.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/external/tech-lead-evaluator.md
 type: how-to
 related:
@@ -39,7 +39,7 @@ start at [How to Set Up Project Governance](setup-governance.md) instead.
 **What is happening**: `charter.yaml` (the authoritative source) was edited after the last
 `charter synthesize` run, so the synthesis manifest's stored content hash no longer matches a
 freshly computed hash of `charter.yaml`. The synthesized doctrine graph (DRG) under
-`.kittify/doctrine/` is stale relative to the charter that produced it. This is expected any time
+`.kittify/charter-packs/` is stale relative to the charter that produced it. This is expected any time
 you hand-edit `governance`, `directives`, or activation in `charter.yaml` — it self-heals on the
 next successful synthesis run, which recomputes and re-stamps the hash.
 
@@ -67,11 +67,11 @@ so it is not part of this fix.
 ## 2. Missing doctrine
 
 **Symptoms**:
-- `uv run spec-kitty charter status` reports no bundle, an empty bundle, or missing `.kittify/doctrine/`
+- `uv run spec-kitty charter status` reports no bundle, an empty bundle, or missing `.kittify/charter-packs/`
 - `spec-kitty next` fails or warns that no governance context is available
 - Agent prompts receive no Charter context
 
-**What is happening**: The synthesis step has not been run, or the `.kittify/doctrine/` directory
+**What is happening**: The synthesis step has not been run, or the `.kittify/charter-packs/` directory
 is missing or empty.
 
 **Fix**:
@@ -111,25 +111,26 @@ of a specialist, on a project with no charter configured yet.
 
 **What is happening**: the generic-agent fallback (`is_charter_empty`) fires whenever
 `.kittify/charter/charter.yaml` is absent, no org/project pack is registered, and no
-`agent_profiles` activation is present. Plain `charter pack apply minimal` only writes activation
-keys into `.kittify/config.yaml` — it does not compile `charter.yaml`, so the bundle stays absent
-and the fallback still fires. Applying `minimal` alone does **not** resolve this symptom.
+`agent_profiles` activation is present. On a fresh project, `charter activate --preset minimal`
+only writes activation keys into the active charter (`.kittify/config.yaml`) — its default
+recompile refreshes an existing `charter.yaml` but never creates one, so the bundle stays absent
+and the fallback still fires. Activating `minimal` alone does **not** resolve this symptom.
 
-**Fix**: apply a starter pack and compile it into the bundle in the same step, so
+**Fix**: activate the preset, then compile it into the bundle, so
 `.kittify/charter/charter.yaml` actually exists:
 
 ```bash
-uv run spec-kitty charter pack apply minimal --compile
+uv run spec-kitty charter activate --preset minimal
+uv run spec-kitty charter generate --no-from-interview
 ```
 
-`--compile` chains `spec-kitty charter generate --no-from-interview`, producing
-`.kittify/charter/charter.yaml`. The fallback check only tests the bundle's *presence*, not its
+`charter generate --no-from-interview` produces `.kittify/charter/charter.yaml`. The fallback check only tests the bundle's *presence*, not its
 contents, so once the file exists `spec-kitty dispatch` moves off the generic-agent short-circuit
 and back to normal profile routing (verified directly: `empty_charter_fallback` flips from `true`
 to `false`, and an unambiguous request routes to a real specialist profile).
 
 Note: `minimal` activates a curated set of directives and tactics only — it declares no
-`agent_profiles` key (see `src/charter/activation/packs/minimal.yaml`'s own header), so this fix does not by
+`agent_profiles` key (see `packs/built-in/presets/minimal.yaml`'s own header), so this fix does not by
 itself narrow which specialist gets picked. With no explicit `agent_profiles` activation, the
 router still considers every built-in profile (three-state "admit all" semantics) and may report
 `ROUTER_AMBIGUOUS` for underspecified requests — pass `--profile <profile-id>` to disambiguate

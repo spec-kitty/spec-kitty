@@ -35,7 +35,7 @@ from charter.offering.drg.migration.hand_authored_overlay import (
 from charter.offering.drg.models import DRGGraph, NodeKind, Relation
 from specify_cli.charter_runtime.lint._drg import load_merged_drg
 from specify_cli.charter_runtime.lint.findings import GraphState
-from specify_cli.doctrine.pack_validator import validate_pack
+from charter.offering.packs.pack_validator import validate_pack
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.corpus]
 
@@ -53,8 +53,8 @@ def reference_graph() -> DRGGraph:
     shipped built-in URN universe against its true full reference rather than
     a subset that would spuriously look "extra" on the shipped side.
     """
-    doctrine_root = built_in_graph_source()
-    return generate_reference_graph_with_overlay(doctrine_root)
+    pack_root = built_in_graph_source()
+    return generate_reference_graph_with_overlay(pack_root)
 
 
 def _lineage_children(graph: DRGGraph) -> list[str]:

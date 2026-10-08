@@ -3560,6 +3560,7 @@ pages:
     - {slug: "7-full-cutover-no-aliases-no-shims", text: "7. Full cutover: no aliases, no shims", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "execution", text: "Execution", level: 2}
+    - {slug: "amendment-2026-10-06-rulings-from-the-mission-specification", text: "Amendment 2026-10-06: rulings from the mission specification", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -3972,6 +3973,7 @@ pages:
     - {slug: "spec-kitty-charter-activate", text: "spec-kitty charter activate", level: 2}
     - {slug: "spec-kitty-charter-bundle", text: "spec-kitty charter bundle", level: 2}
     - {slug: "spec-kitty-charter-bundle-validate", text: "spec-kitty charter bundle validate", level: 2}
+    - {slug: "spec-kitty-charter-consistency-check", text: "spec-kitty charter consistency-check", level: 2}
     - {slug: "spec-kitty-charter-context", text: "spec-kitty charter context", level: 2}
     - {slug: "spec-kitty-charter-deactivate", text: "spec-kitty charter deactivate", level: 2}
     - {slug: "spec-kitty-charter-fetch", text: "spec-kitty charter fetch", level: 2}
@@ -3986,10 +3988,14 @@ pages:
     - {slug: "spec-kitty-charter-org-init", text: "spec-kitty charter org init", level: 2}
     - {slug: "spec-kitty-charter-org-validate", text: "spec-kitty charter org validate", level: 2}
     - {slug: "spec-kitty-charter-pack", text: "spec-kitty charter pack", level: 2}
-    - {slug: "spec-kitty-charter-pack-apply", text: "spec-kitty charter pack apply", level: 2}
-    - {slug: "spec-kitty-charter-pack-consistency-check", text: "spec-kitty charter pack consistency-check", level: 2}
+    - {slug: "spec-kitty-charter-pack-assemble", text: "spec-kitty charter pack assemble", level: 2}
+    - {slug: "spec-kitty-charter-pack-asset", text: "spec-kitty charter pack asset", level: 2}
+    - {slug: "spec-kitty-charter-pack-asset-list", text: "spec-kitty charter pack asset list", level: 2}
+    - {slug: "spec-kitty-charter-pack-asset-path", text: "spec-kitty charter pack asset path", level: 2}
     - {slug: "spec-kitty-charter-pack-list", text: "spec-kitty charter pack list", level: 2}
     - {slug: "spec-kitty-charter-pack-path", text: "spec-kitty charter pack path", level: 2}
+    - {slug: "spec-kitty-charter-pack-regenerate-graph", text: "spec-kitty charter pack regenerate-graph", level: 2}
+    - {slug: "spec-kitty-charter-pack-validate", text: "spec-kitty charter pack validate", level: 2}
     - {slug: "spec-kitty-charter-preflight", text: "spec-kitty charter preflight", level: 2}
     - {slug: "spec-kitty-charter-resynthesize", text: "spec-kitty charter resynthesize", level: 2}
     - {slug: "spec-kitty-charter-status", text: "spec-kitty charter status", level: 2}
@@ -4011,12 +4017,12 @@ pages:
     - {slug: "spec-kitty-doctor", text: "spec-kitty doctor", level: 2}
     - {slug: "spec-kitty-doctor-bytecode", text: "spec-kitty doctor bytecode", level: 2}
     - {slug: "spec-kitty-doctor-channel", text: "spec-kitty doctor channel", level: 2}
+    - {slug: "spec-kitty-doctor-charter-packs", text: "spec-kitty doctor charter-packs", level: 2}
     - {slug: "spec-kitty-doctor-command-files", text: "spec-kitty doctor command-files", level: 2}
     - {slug: "spec-kitty-doctor-contracts", text: "spec-kitty doctor contracts", level: 2}
     - {slug: "spec-kitty-doctor-coordination", text: "spec-kitty doctor coordination", level: 2}
     - {slug: "spec-kitty-doctor-cutover", text: "spec-kitty doctor cutover", level: 2}
     - {slug: "spec-kitty-doctor-decisions", text: "spec-kitty doctor decisions", level: 2}
-    - {slug: "spec-kitty-doctor-doctrine", text: "spec-kitty doctor doctrine", level: 2}
     - {slug: "spec-kitty-doctor-env-file", text: "spec-kitty doctor env-file", level: 2}
     - {slug: "spec-kitty-doctor-identity", text: "spec-kitty doctor identity", level: 2}
     - {slug: "spec-kitty-doctor-invocation-pairing", text: "spec-kitty doctor invocation-pairing", level: 2}
@@ -4033,21 +4039,6 @@ pages:
     - {slug: "spec-kitty-doctor-tool-surfaces", text: "spec-kitty doctor tool-surfaces", level: 2}
     - {slug: "spec-kitty-doctor-topology", text: "spec-kitty doctor topology", level: 2}
     - {slug: "spec-kitty-doctor-workspaces", text: "spec-kitty doctor workspaces", level: 2}
-    - {slug: "spec-kitty-doctrine-asset", text: "spec-kitty doctrine asset", level: 2}
-    - {slug: "spec-kitty-doctrine-asset-list", text: "spec-kitty doctrine asset list", level: 2}
-    - {slug: "spec-kitty-doctrine-asset-path", text: "spec-kitty doctrine asset path", level: 2}
-    - {slug: "spec-kitty-doctrine-fetch", text: "spec-kitty doctrine fetch", level: 2}
-    - {slug: "spec-kitty-doctrine-mission-type", text: "spec-kitty doctrine mission-type", level: 2}
-    - {slug: "spec-kitty-doctrine-mission-type-list", text: "spec-kitty doctrine mission-type list", level: 2}
-    - {slug: "spec-kitty-doctrine-new", text: "spec-kitty doctrine new", level: 2}
-    - {slug: "spec-kitty-doctrine-org", text: "spec-kitty doctrine org", level: 2}
-    - {slug: "spec-kitty-doctrine-org-init", text: "spec-kitty doctrine org init", level: 2}
-    - {slug: "spec-kitty-doctrine-org-validate", text: "spec-kitty doctrine org validate", level: 2}
-    - {slug: "spec-kitty-doctrine-pack", text: "spec-kitty doctrine pack", level: 2}
-    - {slug: "spec-kitty-doctrine-pack-assemble", text: "spec-kitty doctrine pack assemble", level: 2}
-    - {slug: "spec-kitty-doctrine-pack-validate", text: "spec-kitty doctrine pack validate", level: 2}
-    - {slug: "spec-kitty-doctrine-regenerate-graph", text: "spec-kitty doctrine regenerate-graph", level: 2}
-    - {slug: "spec-kitty-doctrine-validate", text: "spec-kitty doctrine validate", level: 2}
     - {slug: "spec-kitty-events", text: "spec-kitty events", level: 2}
     - {slug: "spec-kitty-events-tail", text: "spec-kitty events tail", level: 2}
     - {slug: "spec-kitty-glossary", text: "spec-kitty glossary", level: 2}
@@ -4492,7 +4483,8 @@ pages:
     - {slug: "spk-gate", text: "spk-gate-*", level: 2}
     - {slug: "spk-admin", text: "spk-admin-*", level: 2}
     - {slug: "spk-team", text: "spk-team-*", level: 2}
-    - {slug: "spk-doctrine", text: "spk-doctrine-*", level: 2}
+    - {slug: "spk-charter", text: "spk-charter-*", level: 2}
+    - {slug: "spk-practice", text: "spk-practice-*", level: 2}
     - {slug: "spk-integrate", text: "spk-integrate-*", level: 2}
     - {slug: "spk-meta", text: "spk-meta-*", level: 2}
     - {slug: "legacy-detailed-workflow-skills", text: "Legacy / Detailed Workflow Skills", level: 2}
@@ -4507,8 +4499,8 @@ pages:
     - {slug: "flow", text: "Flow", level: 2}
     - {slug: "what-it-does-not-do", text: "What it does not do", level: 2}
     - {slug: "legacy-alias", text: "Legacy alias", level: 2}
-  - path: "docs/api/skills/spk-doctrine-profile-load.md"
-    title: "spk-doctrine-profile-load"
+  - path: "docs/api/skills/spk-charter-profile-load.md"
+    title: "spk-charter-profile-load"
     divio_type: "none"
     abstract: "Load a Spec Kitty agent profile on demand for interactive sessions, outside the mission runtime loop."
     anchors:
@@ -4517,7 +4509,7 @@ pages:
     - {slug: "trigger-phrase", text: "Trigger phrase", level: 2}
     - {slug: "flow", text: "Flow", level: 2}
     - {slug: "what-it-does-not-do", text: "What it does not do", level: 2}
-    - {slug: "legacy-alias", text: "Legacy alias", level: 2}
+    - {slug: "detailed-mechanics", text: "Detailed mechanics", level: 2}
   - path: "docs/api/skills/spk-gate-mission-review.md"
     title: "Skill: spk-gate-mission-review"
     divio_type: "none"
@@ -4943,15 +4935,15 @@ pages:
     - {slug: "4-open-questions", text: "4. Open questions", level: 2}
     - {slug: "5-non-goals", text: "5. Non-goals", level: 2}
   - path: "docs/architecture/charter-pack-usage-journey.md"
-    title: "Charter Pack Usage Journey: Apply, Generate, and the Dispatch Safety Net"
+    title: "Activation Preset Usage Journey: Activate, Generate, and the Dispatch Safety Net"
     divio_type: "none"
-    abstract: "Why `charter pack apply` alone does not deliver working governance, the required `generate` follow-up, and how the dispatch fallback behaves before and after compilation."
+    abstract: "Why `charter activate --preset` alone does not deliver governance on a fresh project, the `generate` follow-up, and how the dispatch fallback behaves around compilation."
     anchors:
     - {slug: "tl-dr", text: "TL;DR", level: 2}
     - {slug: "three-tiers-not-two", text: "Three tiers, not two", level: 2}
-    - {slug: "step-1-charter-pack-apply", text: "Step 1 — `charter pack apply`", level: 2}
+    - {slug: "step-1-charter-activate-preset", text: "Step 1 — `charter activate --preset`", level: 2}
     - {slug: "step-2-compile-the-bundle", text: "Step 2 — compile the bundle", level: 2}
-    - {slug: "why-apply-does-not-auto-compile", text: "Why `apply` does not auto-compile", level: 3}
+    - {slug: "why-activation-does-not-bootstrap-a-bundle", text: "Why activation does not bootstrap a bundle", level: 3}
     - {slug: "the-dispatch-safety-net", text: "The dispatch safety net", level: 2}
     - {slug: "what-empty-means", text: "What \"empty\" means", level: 3}
     - {slug: "the-deliberate-behaviour-change", text: "The deliberate behaviour change", level: 3}
@@ -5442,9 +5434,9 @@ pages:
     - {slug: "what-this-means-for-teams", text: "What this means for teams", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/architecture/org-doctrine-layer.md"
-    title: "Understanding the Org Doctrine Layer"
+    title: "Understanding the Org Layer of the Charter Offering"
     divio_type: "none"
-    abstract: "How the three-layer doctrine model resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter."
+    abstract: "How the three-layer charter offering resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter."
     anchors:
     - {slug: "the-three-layer-model", text: "The three-layer model", level: 2}
     - {slug: "why-the-org-layer-exists", text: "Why the org layer exists", level: 2}
@@ -5553,7 +5545,7 @@ pages:
   - path: "docs/architecture/spdd-reasons.md"
     title: "SPDD and the REASONS Canvas"
     divio_type: "explanation"
-    abstract: "Optional Spec Kitty doctrine pack that records change-intent and change-boundary as a structured artifact alongside the spec and plan."
+    abstract: "Optional set of Spec Kitty built-in artifacts that records change-intent and change-boundary as a structured artifact alongside the spec and plan."
     anchors:
     - {slug: "why-this-exists", text: "Why this exists", level: 2}
     - {slug: "spec-kitty-s-adaptation-of-spdd", text: "Spec Kitty's adaptation of SPDD", level: 2}
@@ -11090,7 +11082,7 @@ pages:
     - {slug: "allow-a-legitimate-word", text: "Allow a legitimate word", level: 3}
     - {slug: "exempt-a-quoted-literal", text: "Exempt a quoted literal", level: 3}
     - {slug: "known-blind-spots", text: "Known blind spots", level: 3}
-    - {slug: "shippable-doctrine-built-in-doctrine-must-work-in-a-consumer-repo", text: "Shippable doctrine: built-in doctrine must work in a consumer repo", level: 2}
+    - {slug: "shippable-doctrine-the-built-in-charter-pack-must-work-in-a-consumer-repo", text: "Shippable doctrine: the built-in Charter Pack must work in a consumer repo", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/index.md"
     title: "Development"
@@ -11556,9 +11548,9 @@ pages:
     - {slug: "good-habits", text: "Good Habits", level: 2}
     - {slug: "see-also", text: "See Also", level: 2}
   - path: "docs/guides/how-to/governance/create-an-org-doctrine-pack.md"
-    title: "How to Create an Org Doctrine Pack"
+    title: "How to Create an Org Charter Pack"
     divio_type: "how-to"
-    abstract: "Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack."
+    abstract: "Author, validate, assemble, publish, and consume a spec-kitty org Charter Pack."
     anchors:
     - {slug: "before-you-start", text: "Before you start", level: 2}
     - {slug: "step-1-lay-out-the-pack-directory", text: "Step 1: Lay out the pack directory", level: 2}
@@ -11681,7 +11673,7 @@ pages:
     - {slug: "3b-validate-the-bundle-schema", text: "3b. Validate the bundle schema", level: 3}
     - {slug: "3c-check-status", text: "3c. Check status", level: 3}
     - {slug: "step-4-synthesize-doctrine", text: "Step 4: Synthesize Doctrine", level: 2}
-    - {slug: "quick-baseline-via-a-starter-pack", text: "Quick baseline via a starter pack", level: 3}
+    - {slug: "quick-baseline-via-an-activation-preset", text: "Quick baseline via an activation preset", level: 3}
     - {slug: "step-5-confirm-governance-is-active", text: "Step 5: Confirm Governance Is Active", level: 2}
     - {slug: "how-context-loading-works", text: "How context loading works", level: 3}
     - {slug: "verify-with-a-real-mission-action", text: "Verify with a real mission action", level: 3}

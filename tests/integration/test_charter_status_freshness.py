@@ -151,7 +151,7 @@ def _write_manifest(
 
 
 def _write_graph(repo: Path) -> None:
-    p = repo / ".kittify" / "doctrine" / "graph.yaml"
+    p = repo / ".kittify" / "charter-packs" / "graph.yaml"
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text("schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8")
 

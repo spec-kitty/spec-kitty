@@ -2,7 +2,7 @@
 
 Operator ruling 2026-07-28 removed the ``rtk-search-tooling`` toolguide outright:
 the artefact, its guide, its DRG node, and its entry in the shipped default
-charter pack (``src/charter/activation/packs/default.yaml``) are all gone. RTK will not be
+charter pack (the retired built-in preset registry's ``default.yaml``) are all gone. RTK will not be
 pushed to the userbase.
 
 Why a migration is required

@@ -2,7 +2,7 @@
 
 Verifies that:
 1. ``Directive.references`` is an additive ``list[str]`` defaulting to ``[]``.
-2. ``DoctrineSelectionConfig.authority_paths`` is an additive ``list[str]``
+2. ``GovernanceCharterConfig.authority_paths`` is an additive ``list[str]``
    defaulting to ``[]``.
 3. YAML round-trips without the new fields parse cleanly (NFR-005 backward
    compatibility).
@@ -20,7 +20,7 @@ from ruamel.yaml import YAML
 
 from charter.activation.schemas import (
     Directive,
-    DoctrineSelectionConfig,
+    GovernanceCharterConfig,
 )
 
 pytestmark = pytest.mark.fast
@@ -98,18 +98,18 @@ class TestDirectiveReferencesField:
 
 
 # ---------------------------------------------------------------------------
-# DoctrineSelectionConfig.authority_paths
+# GovernanceCharterConfig.authority_paths
 # ---------------------------------------------------------------------------
 
 
 class TestDoctrineSelectionAuthorityPathsField:
     def test_default_is_empty_list(self) -> None:
-        config = DoctrineSelectionConfig()
+        config = GovernanceCharterConfig()
         assert config.authority_paths == []
 
     def test_default_is_not_shared_between_instances(self) -> None:
-        a = DoctrineSelectionConfig()
-        b = DoctrineSelectionConfig()
+        a = GovernanceCharterConfig()
+        b = GovernanceCharterConfig()
         a.authority_paths.append("docs/context/")
         assert b.authority_paths == []
 
@@ -124,7 +124,7 @@ class TestDoctrineSelectionAuthorityPathsField:
             "template_set: null\n"
         )
         data = _load_yaml_str(yaml_text)
-        config = DoctrineSelectionConfig(**data)
+        config = GovernanceCharterConfig(**data)
 
         assert config.authority_paths == []
 
@@ -143,7 +143,7 @@ class TestDoctrineSelectionAuthorityPathsField:
             "  - docs/adr/3.x/\n"
         )
         data = _load_yaml_str(yaml_text)
-        config = DoctrineSelectionConfig(**data)
+        config = GovernanceCharterConfig(**data)
 
         assert config.authority_paths == [
             "docs/context/",

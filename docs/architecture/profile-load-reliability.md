@@ -2,7 +2,7 @@
 title: Profile-Load Reliability (Squads & WP Prompts)
 description: 'Why adversarial and research squads stopped loading charter agent profiles, and the stabilization design: resolve-then-inject, fail-loud dispatch, and /spk-load-profile.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/architecture/governed-profile-invocation.md
@@ -78,7 +78,7 @@ matches "recently stopped."
 
 ### 2.3 It ships upstream
 
-`src/charter/activation/packs/default.yaml:187` — the built-in default charter pack — carries its own
+`src/charter/activation/packs/default.yaml:187` — the built-in `default` preset as it then stood — carried its own
 narrower (16-entry) allowlist that **also omits both profiles**. **Every new project inherits the gap**,
 not just this dogfooding checkout.
 
@@ -103,16 +103,14 @@ and the activation set drifted apart the moment the allowlist was compiled.
 
 ## 3. Secondary finding — WP-prompt naming hygiene (Issue 2, LOW)
 
-- **`ad-hoc-load` does not exist anywhere** (0 hits). It is a conflation; the real token
-  is `/ad-hoc-profile-load`.
-- `/ad-hoc-profile-load` is a **deliberately maintained, test-locked** (`tests/doctrine/
-  test_spk_skill_pack.py:127`) compatibility alias for canonical
-  `spk-doctrine-profile-load`. It **resolves correctly** — nothing is broken. This is
-  canonical-naming drift (LOW), not a defect.
-- Software-dev WP source templates reference the legacy alias
-  (`packs/built-in/missions/software-dev/templates/task-prompt-template.md:31`, the
+- **`ad-hoc-load` does not exist anywhere** (0 hits). It was a conflation of the
+  then-current compatibility alias with its canonical profile-load skill.
+- **Resolved by #3732 (FR-008):** the alias and the canonical skill were folded into one
+  skill, `spk-charter-profile-load`; the alias name was retired, not redirected. WP source
+  templates (`packs/built-in/missions/*/templates/task-prompt-template.md`, the
   `implement`/`review`/`tasks(-packages)` prompts, `reviewer-implementer-role-separation.
-  tactic.yaml:26`, and the rc35 handoff migration).
+  tactic.yaml`, and the rc35 handoff migration's inserted text) now name
+  `/spk-charter-profile-load`.
 - **`research` and `documentation` task-prompt templates carry no profile-load section at
   all** — a real cross-mission-type inconsistency, but *additive*, not a rename target.
 
@@ -126,7 +124,9 @@ orchestrator-injects contract closes the failure **class**.
 Activate the two doctrine lenses everywhere the allowlist is authored:
 - This project: `spec-kitty charter activate agent-profile doctrine-daphne randy-reducer`
   (or edit `charter.yaml` + `charter sync`).
-- Upstream default pack: add both to `src/charter/activation/packs/default.yaml:187`.
+- Upstream default preset: none needed now. The registry file `src/charter/activation/packs/default.yaml`
+  was retired by #3732; its successor `packs/built-in/presets/default.yaml` carries no agent-profile
+  allowlist.
 - **Regression guard:** a test asserting *every lens the `adversarial-squad` skill names
   resolves `EXIT 0`* (or, equivalently, source-profile-count parity for squad-eligible
   lenses). This discharges directive 043 (close-by-construction) for these two instances; the failure **class** closes on §4.2 — see §6 D4.
@@ -153,20 +153,16 @@ Consequences:
 
 ### 4.3 The `/spk-load-profile <id> <instructions>` primitive
 
-Consolidate `spk-doctrine-profile-load` + the `ad-hoc-profile-load` alias into a single
+Build on `spk-charter-profile-load` (the single profile-load skill since #3732) a
 dispatch primitive `/spk-load-profile <name|id> <instructions>` that both **resolves** the
 profile and **carries the task** the profiled agent runs — the surface the orchestrator
-emits under §4.2. Retain the two existing names as **redirecting aliases** (they are
-test-locked — redirect, never delete). *(New surface: `/spk-load-profile` does not exist
-today.)* Per §6 D3 this is a redirect/emitter over `dispatch --profile`, **not** a third
+emits under §4.2. *(New surface: `/spk-load-profile` does not exist today.)* Per §6 D3 this is a redirect/emitter over `dispatch --profile`, **not** a third
 resolution engine (directive 044).
 
 ### 4.4 WP-prompt hygiene (LOW, optional)
 
-If pursued, rename WP-template references `/ad-hoc-profile-load → /spk-load-profile`,
+If pursued, rename WP-template references `/spk-charter-profile-load → /spk-load-profile`,
 **keeping the leading slash**, and:
-- **Exclude** the alias-*declaring* surfaces (`spk-doctrine-profile-load/SKILL.md:35`,
-  `src/charter/offering/skills/README.md:116`) — they are test-locked; editing them goes red.
 - Do it via a **new forward migration**, not by editing the shipped rc35 migration in
   place (mutating emitted text diverges already-migrated installs).
 - Gate on `pytest tests/doctrine/test_spk_skill_pack.py`.

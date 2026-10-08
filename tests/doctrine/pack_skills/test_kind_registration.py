@@ -8,7 +8,7 @@ import pytest
 
 from charter.activation.context_renderers.delivery_table import _ACTION_BUNDLE_DELIVERY_BY_KIND, _DELIVERY_REASON_BY_KIND
 from charter.activation.pack_context import PackContext
-from charter.activation.resolver import DoctrineService as ActivationService
+from charter.activation.resolver import ActiveCharterService as ActivationService
 from charter.offering.artifact_kinds import (
     CHARTER_ACTIVATABLE_KINDS,
     CHARTER_KIND_TOKENS,
@@ -20,8 +20,8 @@ from charter.offering.artifact_kinds import (
 from charter.offering.drg.migration.extractor import _emit_skill_nodes
 from charter.offering.drg.models import DRGNode, NodeKind
 from charter.offering.pack_paths import built_in_dir
-from charter.offering.service import DoctrineService
-from specify_cli.doctrine.org_charter import (
+from charter.offering.service import CharterOfferingService
+from charter.activation.org_charter import (
     REQUIRED_KIND_FIELDS,
     OrgCharterPolicy,
     _fold_policies,
@@ -132,11 +132,11 @@ def test_extractor_emits_nodes_for_built_in_skills_and_nothing_when_absent(tmp_p
     assert nodes["skill:core-skill"].kind is NodeKind.SKILL
 
 
-def _service(tmp_path: Path) -> DoctrineService:
+def _service(tmp_path: Path) -> CharterOfferingService:
     project = tmp_path / "doctrine"
     write_skill(project / "skills", prompt_skill("alpha"))
     write_skill(project / "skills", prompt_skill("beta"))
-    return DoctrineService(project_root=project)
+    return CharterOfferingService(project_root=project)
 
 
 def test_service_exposes_skills_repository(tmp_path: Path) -> None:

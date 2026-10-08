@@ -9,7 +9,7 @@ from charter.activation.schemas import (
     CommitConfig,
     Directive,
     DirectivesConfig,
-    DoctrineSelectionConfig,
+    GovernanceCharterConfig,
     ExtractionMetadata,
     GovernanceConfig,
     PerformanceConfig,
@@ -55,7 +55,7 @@ class TestBranchStrategyConfig:
 
 class TestDoctrineSelectionConfig:
     def test_default_values(self) -> None:
-        config = DoctrineSelectionConfig()
+        config = GovernanceCharterConfig()
         assert config.selected_paradigms == []
         assert config.selected_directives == []
         assert config.available_tools == []
@@ -69,14 +69,14 @@ class TestGovernanceConfig:
         assert isinstance(config.testing, CharterTestingConfig)
         assert isinstance(config.quality, QualityConfig)
         assert isinstance(config.performance, PerformanceConfig)
-        assert isinstance(config.charter, DoctrineSelectionConfig)
+        assert isinstance(config.charter, GovernanceCharterConfig)
         assert config.enforcement == {}
 
     def test_custom_nested_values(self) -> None:
         config = GovernanceConfig(
             testing=CharterTestingConfig(min_coverage=90, tdd_required=True),
             quality=QualityConfig(linting="ruff"),
-            charter=DoctrineSelectionConfig(selected_paradigms=["test-first"]),
+            charter=GovernanceCharterConfig(selected_paradigms=["test-first"]),
         )
         assert config.testing.min_coverage == 90
         assert config.quality.linting == "ruff"

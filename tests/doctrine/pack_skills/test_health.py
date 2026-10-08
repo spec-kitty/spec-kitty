@@ -10,8 +10,8 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands._doctrine_collect import _collect_pack_skill_health, _parse_skipped_pack_skill_warning
-from specify_cli.cli.commands._doctrine_health import DoctrineHealthReport, PackHealth, PackSkillHealth, SkippedPackSkill
+from specify_cli.cli.commands._charter_pack_collect import _collect_pack_skill_health, _parse_skipped_pack_skill_warning
+from specify_cli.cli.commands._charter_pack_health import CharterPackHealthReport, PackHealth, PackSkillHealth, SkippedPackSkill
 from specify_cli.cli.commands.doctor import app as doctor_app
 
 from .conftest import prompt_skill, write_skill
@@ -30,7 +30,7 @@ def repo_root(tmp_path: Path) -> Path:
 
 
 def _project_skills(root: Path) -> Path:
-    return root / ".kittify" / "doctrine" / "skills"
+    return root / ".kittify" / "charter-packs" / "skills"
 
 
 def test_model_health_flags() -> None:
@@ -48,9 +48,9 @@ def test_model_health_flags() -> None:
 
 def test_report_folds_skill_health_into_aggregate() -> None:
     pack = PackHealth(pack_id="builtin", layer="builtin", discovered_count=1, valid_count=1)
-    assert DoctrineHealthReport(packs=[pack]).healthy is True
+    assert CharterPackHealthReport(packs=[pack]).healthy is True
     bad = PackSkillHealth(skill_count=0, invalid_skills=[SkippedPackSkill("org", "x", "y")])
-    report = DoctrineHealthReport(packs=[pack], skills=bad)
+    report = CharterPackHealthReport(packs=[pack], skills=bad)
     assert report.healthy is False
     assert report.to_dict()["skills"]["healthy"] is False
 
@@ -83,7 +83,7 @@ def test_collect_reports_malformed_skill_as_skipped(repo_root: Path) -> None:
 
 def test_collect_degrades_on_hard_load_failure(repo_root: Path) -> None:
     with patch(
-        "charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service",
+        "charter.activation.active_charter_service_builder.build_active_charter_service",
         side_effect=RuntimeError("boom"),
     ):
         health = _collect_pack_skill_health(repo_root)
@@ -93,7 +93,7 @@ def test_collect_degrades_on_hard_load_failure(repo_root: Path) -> None:
 
 def _doctor_json(root: Path) -> tuple[int, dict[str, Any]]:
     with patch("specify_cli.cli.commands.doctor.locate_project_root", return_value=root):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
     return result.exit_code, json.loads(result.output)
 
 

@@ -32,11 +32,11 @@ from charter.offering.drg.override_policy import (
 pytestmark = pytest.mark.fast
 
 _NOT_LISTED = (
-    "not on .kittify/doctrine/replaceable-builtins.yaml or pack '{pack}' "
+    "not on .kittify/charter-packs/replaceable-builtins.yaml or pack '{pack}' "
     "replaceable-builtins.yaml"
 )
 _REVOKED = (
-    "pack '{pack}' sanction revoked by .kittify/doctrine/replaceable-builtins.yaml "
+    "pack '{pack}' sanction revoked by .kittify/charter-packs/replaceable-builtins.yaml "
     "(revoked_pack_sanctions)"
 )
 _CONSUMER_REASON = "directive override requires a non-empty reason"

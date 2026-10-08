@@ -200,7 +200,7 @@ jobs:
               - 'src/charter/offering/**'
               - 'src/specify_cli/core/**'
               - 'src/specify_cli/coordination/**'
-              - 'src/specify_cli/doctrine_synthesizer/**'
+              - 'src/specify_cli/charter_pack_synthesizer/**'
               - 'src/specify_cli/status/**'
               - 'src/specify_cli/tool_surface/**'
               - 'src/specify_cli/zeitgeist_client/**'
@@ -230,7 +230,7 @@ jobs:
               - 'kitty-specs/**/acceptance-matrix.json'
               - '.kittify/charter/**'
               - '.kittify/glossaries/**'
-              - '.kittify/doctrine/**'
+              - '.kittify/charter-packs/**'
               - 'contracts/**'
             e2e:
               - 'tests/e2e/**'
@@ -942,6 +942,9 @@ jobs:
   # kitty-specs/) and tests/contract/test_mission_status_payloads.py (its payload helper).
   # tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py (#5579) is listed as well: its
   # module row deselects the corpus marker, so no other required job runs it.
+  # The seven tests/acceptance/charter_pack_cutover/ modules that carry corpus-marked tests
+  # (#3732; 25 node-ids, outside the module matrix) are listed too, so the job now names
+  # thirteen selections.
   # The contract tool unit tests (tests/contract/test_bundle.py .. test_schema_formats.py) read no
   # corpus: they run in the separate `tests-contract-tools` job below (with them this job
   # took 7m20s of its 10 minute timeout), so this job stays well inside its timeout.
@@ -964,6 +967,13 @@ jobs:
       - run: |
           uv sync --frozen --all-extras
           uv run --frozen pytest -m "corpus and not windows_ci" \
+            tests/acceptance/charter_pack_cutover/test_cli_surface.py \
+            tests/acceptance/charter_pack_cutover/test_gates_latency_messaging.py \
+            tests/acceptance/charter_pack_cutover/test_package_split.py \
+            tests/acceptance/charter_pack_cutover/test_presets.py \
+            tests/acceptance/charter_pack_cutover/test_project_pack_root.py \
+            tests/acceptance/charter_pack_cutover/test_rename_skills_glossary.py \
+            tests/acceptance/charter_pack_cutover/test_traceability.py \
             tests/contract/test_example_round_trip.py \
             tests/contract/test_mission_status_payloads.py \
             tests/contract/test_mission_status_reality.py \

@@ -1833,7 +1833,7 @@ def _t027_write_org_pack_config(repo_root: Path, *, org_name: str, org_root: Pat
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "config.yaml").write_text(
-        "doctrine:\n"
+        "charter_packs:\n"
         "  org:\n"
         "    packs:\n"
         f"      - name: {org_name}\n"

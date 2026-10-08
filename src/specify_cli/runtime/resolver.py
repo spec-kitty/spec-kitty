@@ -249,7 +249,7 @@ def _package_default_path(
     ``charter.activation.template_resolver.CharterTemplateResolver``, obtained from an
     ``lru_cache``d ``_charter_template_resolver_for(missions_root)`` factory
     keyed on a ``missions_root`` *string*, while the canonical charter factory
-    (``charter.activation.resolver.DoctrineService``) is built from a ``repo_root`` by the
+    (``charter.activation.resolver.ActiveCharterService``) is built from a ``repo_root`` by the
     unified builder. Those two construction contracts do not compose, and the
     mapping is resolved as follows:
 
@@ -278,9 +278,9 @@ def _package_default_path(
     scope. Only the tier-6 hop is charter-mediated, which is why the factory
     exposes a tier-6-only entry point at all.
     """
-    from charter.activation.resolver import DoctrineService  # noqa: PLC0415 — lazy: keeps the charter import off module load
+    from charter.activation.resolver import ActiveCharterService  # noqa: PLC0415 — lazy: keeps the charter import off module load
 
-    return DoctrineService.resolve_package_default_asset_path(
+    return ActiveCharterService.resolve_package_default_asset_path(
         missions_root=pkg_missions,
         mission=mission,
         subdir=subdir,
@@ -833,10 +833,10 @@ def resolve_mission(
     # canonical charter factory; see _package_default_path's docstring for the
     # construction-contract mapping this call site shares.
     try:
-        from charter.activation.resolver import DoctrineService  # noqa: PLC0415 — lazy, mirrors _package_default_path
+        from charter.activation.resolver import ActiveCharterService  # noqa: PLC0415 — lazy, mirrors _package_default_path
 
         pkg_missions = get_package_asset_root()
-        pkg_path = DoctrineService.resolve_package_default_mission_config_path(
+        pkg_path = ActiveCharterService.resolve_package_default_mission_config_path(
             missions_root=pkg_missions,
             mission=name,
         )

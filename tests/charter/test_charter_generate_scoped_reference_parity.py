@@ -179,7 +179,7 @@ def test_charter_generate_preserves_language_scope_filtered_activated_references
     assert report.coherent, (
         f"run_consistency_check reported the fixture NOT coherent: "
         f"unknown_references={report.unknown_references!r} "
-        f"missing_from_doctrine={report.missing_from_doctrine!r} "
+        f"missing_from_offering={report.missing_from_offering!r} "
         f"reference_id_divergences={report.reference_id_divergences!r} "
         f"graph_kind_gaps={report.graph_kind_gaps!r}"
     )

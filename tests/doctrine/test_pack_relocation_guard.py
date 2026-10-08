@@ -31,14 +31,14 @@ from pathlib import Path
 import pytest
 
 from charter.offering.pack_paths import resolve_pack_root
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine, pytest.mark.corpus]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTENT_MANIFEST = Path(__file__).parent / "fixtures" / "content-manifest.json"
 
-# The 9 relocated content kinds -> the DoctrineService accessor that builds each
+# The 9 relocated content kinds -> the CharterOfferingService accessor that builds each
 # kind's repository. ``mission_step_contracts`` and ``templates``/``schemas`` are
 # intentionally excluded: they were NOT part of the pack relocation.
 KIND_TO_ACCESSOR: dict[str, str] = {
@@ -55,9 +55,9 @@ KIND_TO_ACCESSOR: dict[str, str] = {
 RELOCATED_KINDS = sorted(KIND_TO_ACCESSOR)
 
 
-def _self_resolving_service() -> DoctrineService:
+def _self_resolving_service() -> CharterOfferingService:
     """A service with no explicit built-in root so each repo self-resolves the pack."""
-    return DoctrineService()
+    return CharterOfferingService()
 
 
 def _resolved_built_in_dir(kind: str) -> Path:

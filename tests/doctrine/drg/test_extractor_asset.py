@@ -24,7 +24,7 @@ from charter.offering.drg.migration.extractor import (
     _kind_for_type,
 )
 from charter.offering.drg.models import DRGNode, NodeKind
-from specify_cli.cli.commands.doctrine import _detect_artifact_kind
+from specify_cli.cli.commands.charter.authoring import _detect_artifact_kind
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 

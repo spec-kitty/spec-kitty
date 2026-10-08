@@ -2,7 +2,7 @@
 title: How to Manage the Glossary
 description: Curate canonical terminology, resolve conflicts, and configure strictness enforcement.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-10-08'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -439,9 +439,9 @@ Adding or changing a durable term usually means:
 
 1. Editing the appropriate `.kittify/glossaries/<scope>.yaml` seed file.
 2. Re-running `spec-kitty glossary list` to verify it loads.
-3. Re-running `charter synthesize` when the doctrine overlay needs to reflect the change.
+3. Re-running `charter synthesize` when the project layer needs to reflect the change.
 
-Do not add terms by editing generated doctrine files under `.kittify/doctrine/` directly.
+Do not add terms by editing generated doctrine files under `.kittify/charter-packs/` directly.
 
 ### Glossary and retrospective proposals
 
@@ -472,7 +472,7 @@ uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --apply
 When `--apply` is used, accepted glossary proposals are written to the project-local glossary
 overlay under `.kittify/glossary/` with provenance sidecars. If you want the change to become
 part of the durable curated glossary, port it into the appropriate `.kittify/glossaries/<scope>.yaml`
-seed file. Run `charter synthesize` afterward when the DRG/doctrine overlay should reflect the
+seed file. Run `charter synthesize` afterward when the DRG/project layer should reflect the
 updated terms:
 ```bash
 uv run spec-kitty charter synthesize

@@ -2,7 +2,7 @@
 title: Calibration Report Template
 description: Template for per-mission-type calibration reports that check, for every mission step, that DRG context resolution returns what the step needs and nothing irrelevant.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/architecture/calibration/documentation.md
@@ -42,14 +42,14 @@ whenever calibration is re-run.
 Project-local DRG mutations go to:
 
 ```
-.kittify/doctrine/overlays/calibration-<mission>.yaml
+.kittify/charter-packs/overlays/calibration-<mission>.yaml
 ```
 
 Supported keys: `add_edge`, `remove_edge`, `nodes`.
 
 The runtime DRG resolver reads these overlays via
 `specify_cli.calibration.walker._build_graph()` which calls
-`doctrine.drg.loader.merge_layers()` followed by
+`charter.offering.drg.loader.merge_layers()` followed by
 `_apply_remove_edges()`.
 
 ## Reports

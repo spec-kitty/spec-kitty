@@ -81,7 +81,7 @@ _PYDANTIC_CONFIG_FIELD = "model_config"
 #: for the schema's `from`/`moves`/`to` properties in
 #: ``doctrine-silence-guards-01KYFV7Q``; ``structural_targets`` — added by a
 #: later PR — is the same class of false positive, not a new kind of debt.)
-_NON_DOCTRINE_SCHEMAS = frozenset({"occurrence-map.schema.yaml"})
+_NON_ARTIFACT_SCHEMAS = frozenset({"occurrence-map.schema.yaml"})
 
 
 def _load_keys_verbatim(text: str) -> list[object]:
@@ -127,7 +127,7 @@ def _iter_schema_slot_names(node: object) -> Iterator[str]:
 def _schema_slots(root: Path) -> Iterator[InertSlot]:
     schemas = root / _SRC / _CHARTER / _OFFERING / _SCHEMAS
     for path in sorted(schemas.glob(_SCHEMA_GLOB)):
-        if path.name in _NON_DOCTRINE_SCHEMAS:
+        if path.name in _NON_ARTIFACT_SCHEMAS:
             continue
         for document in _load_keys_verbatim(path.read_text(encoding="utf-8")):
             for name in _iter_schema_slot_names(document):
@@ -167,10 +167,10 @@ def _iter_model_field_names(tree: ast.Module) -> Iterator[str]:
 
 
 def _model_slots(root: Path) -> Iterator[InertSlot]:
-    doctrine = root / _SRC / _CHARTER / _OFFERING
-    if not doctrine.is_dir():
+    offering = root / _SRC / _CHARTER / _OFFERING
+    if not offering.is_dir():
         return
-    for path in sorted(doctrine.rglob(_MODELS_FILENAME)):
+    for path in sorted(offering.rglob(_MODELS_FILENAME)):
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for name in _iter_model_field_names(tree):
             yield InertSlot(name=name, declared_at=path.relative_to(root))

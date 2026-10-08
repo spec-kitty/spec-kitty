@@ -30,14 +30,14 @@ proven good. Codes map to the review rubric in the procedure:
     provenance-tokens    development-assist hint: WP/FR/T-ids or issue numbers
                          in the test name or docstring
 
-Usage (from the repository root; the asset resolves through the doctrine layer)::
+Usage (from the repository root; the asset resolves through the charter offering)::
 
-    python "$(spec-kitty doctrine asset path test-quality-scan)" \
+    python "$(spec-kitty charter pack asset path test-quality-scan)" \
         --out work/test-quality/$(date +%F)
 
     # one domain only, or only tests new/changed since a revision:
-    python "$(spec-kitty doctrine asset path test-quality-scan)" --paths tests/status
-    python "$(spec-kitty doctrine asset path test-quality-scan)" --since origin/main~50
+    python "$(spec-kitty charter pack asset path test-quality-scan)" --paths tests/status
+    python "$(spec-kitty charter pack asset path test-quality-scan)" --since origin/main~50
 
 Outputs, all under ``--out``:
 

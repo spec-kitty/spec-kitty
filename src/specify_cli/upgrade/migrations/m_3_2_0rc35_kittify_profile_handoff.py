@@ -75,7 +75,7 @@ persona automatically.
 3. Commit the updated frontmatter together with your implementation changes **before**
    running `spec-kitty agent tasks move-task WPxx --to for_review`.
 
-The reviewer will then use `/ad-hoc-profile-load` with the reviewer profile and apply
+The reviewer will then use `/spk-charter-profile-load` with the reviewer profile and apply
 its self-review gates automatically.
 """
 
@@ -84,7 +84,7 @@ _REVIEW_PROFILE_LOAD_BLOCK = """\
 ### 2a. Load Agent Profile
 
 Before proceeding with the review, load the agent profile from the WP frontmatter
-using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to browse
+using the `/spk-charter-profile-load` skill (or `spec-kitty agent profile list` to browse
 available profiles). Apply the profile's reviewer guidance and self-review gates for
 the rest of this review session.
 
@@ -98,7 +98,7 @@ _TASK_PROMPT_DO_THIS_FIRST_BLOCK = """\
 
 ## ⚡ Do This First: Load Agent Profile
 
-Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the
+Use the `/spk-charter-profile-load` skill to load the agent profile specified in the
 frontmatter, and behave according to its guidance before parsing the rest of this
 prompt.
 

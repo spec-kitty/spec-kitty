@@ -72,9 +72,10 @@ Org-pack-resolvable skip
 -------------------------
 An id moved to an org pack (e.g. ``packs/internal``) still resolves for a
 project that loads that pack via ``.kittify/config.yaml``'s
-``charter_packs.org.packs`` (or its legacy ``doctrine.org.packs`` /
-``organisation_packs`` synonyms -- see
-``charter.offering.drg.org_pack_config``). :func:`_still_resolves_via_org_pack`
+``charter_packs.org.packs``, or still declares it under a retired key
+(``doctrine.org`` / ``organisation_packs``, read by
+:func:`_retired_key_org_roots` because the registry no longer reads them).
+:func:`_still_resolves_via_org_pack`
 is the cheap check: does any configured, existing org-pack root carry
 ``<kind_prefix>s/<stem>.<kind_prefix>.yaml``? When it does, every surface
 for that retirement is left alone -- the project's activation genuinely
@@ -349,7 +350,51 @@ def _still_resolves_via_org_pack(project_path: Path, retirement: Retirement) -> 
 
     kind_dir = f"{retirement.reference_prefix.lower()}s"
     filename = f"{retirement.stem}.{retirement.reference_prefix.lower()}.yaml"
-    return any((root / kind_dir / filename).is_file() for root in resolve_existing_org_roots(project_path))
+    roots = [*resolve_existing_org_roots(project_path), *_retired_key_org_roots(project_path)]
+    return any((root / kind_dir / filename).is_file() for root in roots)
+
+
+def _retired_key_org_roots(project_path: Path) -> list[Path]:
+    """Existing org pack roots a config still declares under a retired key.
+
+    The retired keys are ``doctrine.org`` (a ``packs`` list or the single-pack
+    form) and ``organisation_packs``. The org-pack registry no longer reads them
+    (#3732 FR-011), and this engine cannot rely on the 4.0.0rc6 charter-pack
+    cutover having rewritten them: that migration is ``runs_first`` when it
+    applies, but upgrade selection evaluates ``detect()`` of every pending
+    migration before any of them applies, so a retired key can still be on disk
+    here. An org pack declared there is therefore read here: a migration is a
+    reader of legacy state by design.
+    """
+    from charter.drg import OrgPackConfig  # noqa: PLC0415 -- public door; lazy for the reason given above
+
+    roots: list[Path] = []
+    for entry in _retired_key_org_entries(_load_mapping(project_path / _CONFIG_RELATIVE_PATH) or {}):
+        try:
+            pack = OrgPackConfig(name="retired-key-org-pack", local_path=entry["local_path"], subdir=entry.get("subdir"))
+        except (KeyError, ValueError):
+            continue
+        roots.append(pack.effective_root(project_path))
+    return [root for root in roots if root.exists()]
+
+
+def _retired_key_org_entries(config: dict[str, Any]) -> list[Any]:
+    """The pack entries of the retired org keys, each a mapping with ``local_path`` when well formed."""
+    from specify_cli.migration.legacy_charter_layout import (  # noqa: PLC0415 -- keeps migration-registry discovery light
+        ORGANISATION_PACKS_KEYWORD,
+        is_convertible_organisation_pack,
+        legacy_org_block,
+    )
+
+    entries: list[Any] = []
+    org = legacy_org_block(config)
+    if org is not None:
+        packs = org.get("packs")
+        entries.extend([entry for entry in packs if isinstance(entry, dict)] if isinstance(packs, list) else [org])
+    flat = config.get(ORGANISATION_PACKS_KEYWORD)
+    if isinstance(flat, list):
+        entries.extend({"local_path": entry["path"]} for entry in flat if is_convertible_organisation_pack(entry))
+    return entries
 
 
 # --------------------------------------------------------------------------- #

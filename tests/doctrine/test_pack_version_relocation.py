@@ -7,9 +7,9 @@ provenance (``snapshot.py``'s writer is unchanged) because it is a required
 key of ``_has_recognisable_pack_manifest``. The two real consumers this
 tests pin:
 
-* :func:`specify_cli.cli.commands._doctrine_collect._resolve_pack_version`
+* :func:`specify_cli.cli.commands._charter_pack_collect._resolve_pack_version`
   (the real resolver; ``doctor.py`` only re-exports it).
-* :func:`specify_cli.doctrine.pack_assembler._has_recognisable_pack_manifest`
+* :func:`charter.offering.packs.pack_assembler._has_recognisable_pack_manifest`
   (must still recognise a fetched-pack manifest that carries the generated
   ``pack_version`` key, AND must newly recognise a built-in-shaped manifest
   that omits it in favour of a sibling authored ``pack.yaml``).
@@ -28,8 +28,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from specify_cli.cli.commands._doctrine_collect import _resolve_pack_version
-from specify_cli.doctrine.pack_assembler import _has_recognisable_pack_manifest
+from specify_cli.cli.commands._charter_pack_collect import _resolve_pack_version
+from charter.offering.packs.pack_assembler import _has_recognisable_pack_manifest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 
@@ -50,7 +50,7 @@ def _fetched_pack_manifest_payload(*, pack_version: str = "9.9.9") -> dict[str, 
 
 
 # ---------------------------------------------------------------------------
-# _resolve_pack_version (the real resolver, _doctrine_collect.py:81)
+# _resolve_pack_version (the real resolver, _charter_pack_collect.py:81)
 # ---------------------------------------------------------------------------
 
 

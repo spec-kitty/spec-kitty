@@ -1,7 +1,7 @@
 # Mission-type governance profile — documentation
 #
 # Pinned by `tests/missions/test_mission_type_profile_resolution.py`.
-# Schema: `charter.mission_type_profiles.MissionTypeProfile`
+# Schema: `charter.activation.mission_type_profiles.MissionTypeProfile`
 # Contract: kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/contracts/mission-type-profile.md
 #
 # template_set is intentionally null: documentation missions resolve their own
@@ -9,10 +9,10 @@
 # this empty guarantees `software-dev-default` does not leak in
 # (FR-011 / journey 4).
 #
-# `id` is the overlay identity for the `doctrine/base.py` builtin → org →
-# project stack (it keys overlays on `id` and skips id-less files, base.py:249).
+# `id` is the overlay identity for the `charter/offering/base.py` built-in → org →
+# project stack (it keys overlays on `id` and skips id-less files, base.py:320).
 # INVARIANT (from WP05): `id == mission_type` for every governance-profile.yaml —
-# shipped or a project override at `.kittify/doctrine/mission_types/documentation/`.
+# shipped or a project override at `.kittify/charter-packs/mission_types/documentation/`.
 # A project override MUST repeat `id: documentation` or field-merge would skip it
 # silently.
 #

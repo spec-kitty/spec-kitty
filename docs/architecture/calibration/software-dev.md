@@ -2,14 +2,14 @@
 title: 'Calibration Report: software-dev'
 description: 'Calibration report for the software-dev mission: the §4.5.1 inequality check per step, finding no edge changes required against the calibration overlay.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
 ---
 # Calibration Report: software-dev
 
 **Mission**: software-dev  
 **Date**: 2026-04-27  
-**Overlay**: `.kittify/doctrine/overlays/calibration-software-dev.yaml`  
+**Overlay**: `.kittify/charter-packs/overlays/calibration-software-dev.yaml`  
 **Status**: No edge changes required — all steps pass §4.5.1
 
 ---

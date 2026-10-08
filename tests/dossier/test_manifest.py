@@ -617,7 +617,7 @@ def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) ->
     config_dir.mkdir(parents=True, exist_ok=True)
     lines: list[str] = []
     if packs:
-        lines += ["doctrine:", "  org:", "    packs:"]
+        lines += ["charter_packs:", "  org:", "    packs:"]
         for name, local_path in packs:
             lines.append(f"      - name: {name}")
             lines.append(f"        local_path: {local_path}")
@@ -919,12 +919,12 @@ class TestSchemaHardeningAndLoudFailure:
         that gap is tracked separately in
         https://github.com/Priivacy-ai/spec-kitty/issues/3412. Routes the
         typo'd fixture through the same
-        `_doctrine_repository().get_expected_artifacts()` seam the real loader
+        `_offering_template_repository().get_expected_artifacts()` seam the real loader
         uses -- WP01 (#3770) relocated that seam from
         `specify_cli.dossier.manifest` into
         `charter.activation.manifest_loader` alongside the load+cache logic
         it belongs to, so the monkeypatch below targets the new module -- by
-        monkeypatching `_doctrine_repository` to return a fake repository
+        monkeypatching `_offering_template_repository` to return a fake repository
         whose `get_expected_artifacts()` serves the fixture's parsed YAML as
         a real `ConfigResult`.
         """
@@ -941,7 +941,7 @@ class TestSchemaHardeningAndLoudFailure:
             def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
                 return ConfigResult(content=content, origin="test-fixture", parsed=parsed)
 
-        monkeypatch.setattr(manifest_loader_module, "_doctrine_repository", lambda: _FakeRepository())
+        monkeypatch.setattr(manifest_loader_module, "_offering_template_repository", lambda: _FakeRepository())
 
         with pytest.raises(ManifestSchemaError) as exc_info:
             ManifestRegistry.load_manifest("typo-fixture")
@@ -980,7 +980,7 @@ class TestSchemaHardeningAndLoudFailure:
             def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
                 return ConfigResult(content=content, origin=distinctive_origin, parsed=parsed)
 
-        monkeypatch.setattr(manifest_loader_module, "_doctrine_repository", lambda: _FakeRepository())
+        monkeypatch.setattr(manifest_loader_module, "_offering_template_repository", lambda: _FakeRepository())
 
         with pytest.raises(ManifestSchemaError) as exc_info:
             ManifestRegistry.load_manifest("typo-fixture")

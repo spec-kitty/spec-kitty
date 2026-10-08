@@ -77,7 +77,7 @@ def test_hic_marker_survives_narrowed_activation(tmp_path: Path) -> None:
 
     Regression (charter-sole-door-bypass-closure-01KZ3WAA landing-fold
     defect 1): ``_get_hic_marker``'s self-resolving fallback (``repo=None``)
-    built its profile lookup from ``DoctrineService.agent_profiles`` -- the
+    built its profile lookup from ``ActiveCharterService.agent_profiles`` -- the
     activation-*gated* dict -- so a project that narrows activation to
     exclude ``human-in-charge`` (e.g. ``activated_agent_profiles:
     [architect-alphonso]``) silently loses the sentinel marker even though

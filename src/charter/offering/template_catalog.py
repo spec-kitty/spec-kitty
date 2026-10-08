@@ -1,4 +1,4 @@
-"""Doctrine template discovery + DRG addressing (#1333, FR-033/034).
+"""Charter offering template discovery + DRG addressing (#1333, FR-033/034).
 
 Templates are the one :class:`~charter.offering.artifact_kinds.ArtifactKind` that is
 resolved *specially*: they live in mission-scoped tier directories
@@ -22,7 +22,7 @@ This module adds three things on top of the existing 6-tier
    :class:`~charter.offering.drg.models.DRGNode` records of kind
    :attr:`~charter.offering.drg.models.NodeKind.TEMPLATE` with mission-qualified URNs
    ``template:<mission>/<name>`` so templates are addressable in the
-   (doctrine-merged, WP03) DRG. Nodes are emitted as *data* the merge /
+   (layer-merged, WP03) DRG. Nodes are emitted as *data* the merge /
    aggregation layer can include; this module does not import ``charter`` or
    ``specify_cli`` (layer rule, zero upward dependency).
 
@@ -34,8 +34,8 @@ This module adds three things on top of the existing 6-tier
 
 Layering
 --------
-``doctrine`` is zero-dependency upward: this module imports only from
-``doctrine`` and ``kernel``. It MUST NOT import ``charter`` or ``specify_cli``.
+``charter.offering`` is zero-dependency upward: this module imports only from
+``charter.offering`` and ``kernel``. It MUST NOT import ``charter`` or ``specify_cli``.
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ _NON_TEMPLATE_FILES: frozenset[str] = frozenset({"README.md"})
 class TierRoot:
     """A resolution-tier root supplied to discovery **as data** (C-008).
 
-    The caller is responsible for resolving these paths (the doctrine layer
+    The caller is responsible for resolving these paths (the offering
     never reaches into ``.kittify`` / ``~/.kittify`` on its own). Each root
     points at a *missions root* — a directory whose immediate children are
     per-mission directories, each of which may contain ``templates/`` and

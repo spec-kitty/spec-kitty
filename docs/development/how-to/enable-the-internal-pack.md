@@ -2,7 +2,7 @@
 title: How to enable the internal charter and skills
 description: Register the internal org pack in your clone, project the four kitty-* maintainer skills into each tool, verify them, and work around two known defects.
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 related:
@@ -29,8 +29,7 @@ charter_packs:
       local_path: packs/internal
 ```
 
-This is the canonical shape. The retired `doctrine.org.packs` key is still read, but write the
-canonical one. This repository's own config already carries the entry.
+This is the canonical shape. This repository's own config already carries the entry.
 
 The pack's `org-charter.yaml` sets `skill_namespace: kitty` and lists all four skills in
 `required_skills`, so registering the pack puts them in force. You do not run
@@ -85,4 +84,4 @@ rebuilds the ledger, and `upgrade` projects the `kitty-*` skills.
 
 - [Internal pack README](../../../packs/internal/README.md): what the pack contains.
 - [Create and activate a pack skill](create-a-pack-skill.md): author your own skill.
-- [Understanding the Org Doctrine Layer](../../architecture/org-doctrine-layer.md): how a project registers a pack.
+- [Understanding the Org Layer of the Charter Offering](../../architecture/org-doctrine-layer.md): how a project registers a pack.

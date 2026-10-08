@@ -1,7 +1,7 @@
-# Doctrine
+# Charter offering
 
-The **doctrine** package is a standalone catalog of reusable governance
-knowledge. It ships typed, schema-validated YAML artifacts that define *how work
+The **charter offering** (`charter.offering`) is a self-contained catalog of
+reusable governance knowledge. It ships typed, schema-validated YAML artifacts that define *how work
 should be done* — independent of any specific project or charter configuration.
 
 ## What it contains
@@ -21,13 +21,13 @@ should be done* — independent of any specific project or charter configuration
 
 ## Design principle
 
-Doctrine is a **pure knowledge library**. It has no dependency on the charter
-package or the CLI. The charter package reads from charter.offering to compile
-project-specific governance bundles, but doctrine itself is unaware of any
-consumer.
+The offering is a **pure knowledge library**. It has no dependency on the
+charter facades, `charter.activation` or the CLI. The activation side reads
+from `charter.offering` to compile project-specific governance bundles, but the
+offering itself is unaware of any consumer.
 
-**Dependency direction:** nothing in this package imports from `charter` or
-`specify_cli`.
+**Dependency direction:** nothing in this package imports from the `charter`
+facades, `charter.activation` or `specify_cli`.
 
 ## Authoring pipeline
 

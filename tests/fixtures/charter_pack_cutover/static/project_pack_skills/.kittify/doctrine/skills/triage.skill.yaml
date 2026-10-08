@@ -1,0 +1,6 @@
+schema_version: "1.0"
+id: triage
+title: Skill triage
+description: Pack skill triage.
+form: prompt
+body_path: triage.skill.md

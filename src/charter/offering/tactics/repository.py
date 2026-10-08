@@ -15,12 +15,12 @@ from ruamel.yaml import YAML
 
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.pack_paths import built_in_dir
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 from .models import Tactic
 from .validation import reject_tactic_inline_refs
 
 
-class TacticRepository(BaseDoctrineRepository[Tactic]):
+class TacticRepository(BaseArtifactRepository[Tactic]):
     """Repository for loading and managing tactic YAML files."""
 
     def __init__(

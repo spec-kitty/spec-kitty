@@ -16,8 +16,8 @@ safe cascade engine on the removal side:
   active source named.
 * :class:`charter.activation.activation_engine.NoActivationRestrictionsError` (raised by
   the WP10 engine for a None-state kind) is caught and surfaced as a clean
-  exit-1 with the upgrade guidance.
-* :class:`charter.activation.pack_context.CharterPackConfigError` is caught and surfaced as
+  exit-1 with the "activate one first" guidance.
+* :class:`charter.activation.pack_context.ActiveCharterConfigError` is caught and surfaced as
   fail-closed guidance before any mutation (FR-035, C1.5).
 """
 
@@ -30,7 +30,7 @@ from specify_cli.cli.console import console
 
 from charter.activation.activation_engine import NoActivationRestrictionsError
 from charter.activation.cascade import CascadeScope, deactivation_plan
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.drg_activation import load_org_drg
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
@@ -38,8 +38,8 @@ from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from charter.activation.pack_context import CharterPackConfigError
-from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.pack_context import ActiveCharterConfigError
+from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from charter.activation.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
 
 from specify_cli.cli.commands.charter._cascade_shared import (
@@ -55,7 +55,7 @@ from specify_cli.cli.commands.charter.activate import (
     resolve_write_root_or_exit,
     validate_pack_config,
 )
-from specify_cli.cli.commands.charter._layer_roots import (
+from charter.activation.layer_roots import (
     resolve_layer_roots,
     resolve_org_root_chain,
 )
@@ -92,7 +92,7 @@ def _source_urn(
     ``org_roots`` (T008/T010, mission ``cascade-org-inert-01M07E9P``): the
     full declaration-ordered org-pack chain, additive to ``layer_roots``'s
     single-pack-only ``roots["org"]`` — see
-    ``specify_cli.cli.commands.charter._layer_roots.resolve_org_root_chain``.
+    ``charter.activation.layer_roots.resolve_org_root_chain``.
     """
     try:
         kind_enum = ArtifactKind.from_operator_token(kind)
@@ -102,7 +102,7 @@ def _source_urn(
         return resolve_artifact_urn(
             kind_enum,
             artifact_id,
-            doctrine_root=resolve_doctrine_root(),
+            offering_root=resolve_offering_root(),
             org_roots=org_roots,
             layer_roots=layer_roots,
         )
@@ -111,7 +111,7 @@ def _source_urn(
 
 
 def _active_urns(
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
     ctx_project: ProjectContext,
     layer_roots: dict[str, Path] | None,
     org_roots: list[Path] | None = None,
@@ -129,7 +129,7 @@ def _active_urns(
     Contract C3.4 shared-reference safety (NFR-002: a dropped active URN is a
     silent-wrong-data risk, not merely a display gap).
     """
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     urns: set[str] = set()
     for kind_token, ids in manager.list_activated(ctx_project).items():
         if ids is None:
@@ -144,7 +144,7 @@ def _active_urns(
                     resolve_artifact_urn(
                         kind_enum,
                         config_id,
-                        doctrine_root=doctrine_root,
+                        offering_root=offering_root,
                         org_roots=org_roots,
                         layer_roots=layer_roots,
                     )
@@ -155,7 +155,7 @@ def _active_urns(
 
 
 def _render_cascade_deactivation(
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
     ctx_project: ProjectContext,
     target_urn: str,
     scope: CascadeScope,
@@ -184,12 +184,12 @@ def _render_cascade_deactivation(
     )
     active = _active_urns(manager, ctx_project, layer_roots, org_roots)
     plan = deactivation_plan(graph, target_urn, scope, active_urns=active)
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
 
     for urn in plan.deactivate:
         kind_value, _, _ = urn.partition(":")
         kind_token = ArtifactKind(kind_value).operator_token
-        config_id = drg_urn_to_config_id(urn, doctrine_root, layer_roots, org_roots)
+        config_id = drg_urn_to_config_id(urn, offering_root, layer_roots, org_roots)
         try:
             manager.deactivate(
                 ctx_project,
@@ -236,7 +236,7 @@ def _render_cascade_deactivation(
         kind_token = ArtifactKind(kind_value).operator_token
         for filtered_id in plan.not_cascaded_kind_filtered[kind_value]:
             config_id = drg_urn_to_config_id(
-                f"{kind_value}:{filtered_id}", doctrine_root, layer_roots, org_roots, render_pass
+                f"{kind_value}:{filtered_id}", offering_root, layer_roots, org_roots, render_pass
             )
             render_kind_filtered_line(kind_token, config_id)
 
@@ -292,13 +292,13 @@ def deactivate_cmd(
     # FR-035 fail-closed: reject invalid pack config before any mutation (C1.5).
     try:
         validate_pack_config(repo_root)
-    except CharterPackConfigError as exc:
+    except ActiveCharterConfigError as exc:
         render_pack_config_error(exc, console)
         raise typer.Exit(1) from exc
 
     ctx_project = ProjectContext(repo_root=repo_root)
     layer_roots = resolve_layer_roots(repo_root)
-    manager = CharterPackManager()
+    manager = ActiveCharterManager()
 
     try:
         result = manager.deactivate(
@@ -309,8 +309,8 @@ def deactivate_cmd(
             layer_roots=layer_roots,
         )
     except NoActivationRestrictionsError as exc:
-        # WP10 engine raises this for a None-state kind; surface the upgrade
-        # guidance carried in the error and exit non-zero (no mutation).
+        # WP10 engine raises this for a None-state kind; surface the
+        # "activate one first" guidance carried in the error and exit non-zero (no mutation).
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
     except ValueError as exc:

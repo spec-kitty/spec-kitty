@@ -33,7 +33,7 @@ Randy Reducer maps the protected, externally observable behavior of a piece of c
 
 ## How to load it from your harness
 
-Inside Claude Code, Codex, or another configured harness, you don't run a CLI command to attach this profile to a session. Either describe the work in chat ("reduce duplication in this module while keeping behavior identical") and let spec-kitty's routing pick Randy Reducer for you, or explicitly ask to load it by name if your harness supports on-demand profile loading (the `ad-hoc-profile-load` mechanic) — for example, "load the Randy Reducer profile" or "act as Randy Reducer."
+Inside Claude Code, Codex, or another configured harness, you don't run a CLI command to attach this profile to a session. Either describe the work in chat ("reduce duplication in this module while keeping behavior identical") and let spec-kitty's routing pick Randy Reducer for you, or explicitly ask to load it by name if your harness supports on-demand profile loading (the `spk-charter-profile-load` mechanic) — for example, "load the Randy Reducer profile" or "act as Randy Reducer."
 
 ## See also
 

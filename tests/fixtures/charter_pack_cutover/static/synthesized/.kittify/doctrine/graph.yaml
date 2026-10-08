@@ -1,0 +1,30 @@
+schema_version: '1.0'
+generated_at: '2026-10-06T22:00:18+00:00'
+generated_by: spec-kitty charter synthesize 4.0.0rc6
+nodes:
+- urn: directive:PROJECT_001
+  kind: directive
+  label: Mission Type Directive
+- urn: directive:PROJECT_002
+  kind: directive
+  label: Neutrality Posture Directive
+- urn: directive:PROJECT_003
+  kind: directive
+  label: Risk Appetite Directive
+- urn: tactic:how-we-apply-directive-003
+  kind: tactic
+  label: How We Apply DIRECTIVE_003
+- urn: tactic:testing-philosophy-tactic
+  kind: tactic
+  label: Testing Philosophy Tactic
+- urn: styleguide:python-style-guide
+  kind: styleguide
+  label: Python Style Guide
+- urn: styleguide:testing-style-guide
+  kind: styleguide
+  label: Testing Philosophy Styleguide
+edges:
+- source: tactic:how-we-apply-directive-003
+  target: directive:DIRECTIVE_003
+  relation: applies
+  reason: Derived from synthesis target 'how-we-apply-directive-003'

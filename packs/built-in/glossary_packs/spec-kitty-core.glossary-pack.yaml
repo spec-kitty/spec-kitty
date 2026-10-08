@@ -174,7 +174,7 @@ terms:
   surface: diff compliance gate
 - confidence: 0.95
   definition: A doctrine artifact encoding a specific governance rule or 
-    constraint. The primary building block of project doctrine; referenced by 
+    constraint. The primary building block of a project's governance; referenced by 
     agent profiles and action scopes.
   status: active
   surface: directive
@@ -758,7 +758,7 @@ terms:
   status: active
   surface: charter-content migration
 - confidence: 0.95
-  definition: "Declarative field on a doctrine pack artifact (tactic, styleguide,
+  definition: "Declarative field on a Charter Pack artifact (tactic, styleguide,
     paradigm, procedure, agent profile) that asserts the artifact augments a built-in
     artifact with the same ID via field-merge. Suppresses the same-ID-collision advisory
     and auto-emits an `ENHANCES` DRG edge.\n"
@@ -769,7 +769,7 @@ terms:
   - augments
   - extends
 - confidence: 0.95
-  definition: "Declarative field on a doctrine pack artifact that asserts the artifact
+  definition: "Declarative field on a Charter Pack artifact that asserts the artifact
     fully replaces a built-in artifact with the same ID. Suppresses the same-ID advisory
     and auto-emits an `OVERRIDES` DRG edge.\n"
   introduced_in_mission: charter-ux-and-org-pack-vocabulary-01KSAF14

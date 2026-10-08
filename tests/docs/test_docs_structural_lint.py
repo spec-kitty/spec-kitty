@@ -47,15 +47,15 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 #: The structural lint ships as the ``common-docs-structural-lint`` doctrine
 #: asset — its single canonical copy. FR-008 (proof by first user): this
 #: repository's own consumer resolves it through the WP04 resolution surface
-#: (``DoctrineService.assets``) by its stable identifier, instead of reaching
+#: (``CharterOfferingService.assets``) by its stable identifier, instead of reaching
 #: through a hard-coded ``_REPO_ROOT`` path. In the dev checkout this lands on
 #: ``src/charter/offering/assets/built-in/…``; from a clean installation it lands on
 #: packaged data — the same addressing the WP05 operator surface uses.
 def _resolve_lint_asset_path() -> Path:
-    """Resolve the shipped structural-lint asset via ``DoctrineService.assets``."""
-    from charter.offering.service import DoctrineService
+    """Resolve the shipped structural-lint asset via ``CharterOfferingService.assets``."""
+    from charter.offering.service import CharterOfferingService
 
-    return DoctrineService().assets.resolve_path("common-docs-structural-lint")
+    return CharterOfferingService().assets.resolve_path("common-docs-structural-lint")
 
 
 _LINT_ASSET_PATH = _resolve_lint_asset_path()
@@ -866,19 +866,19 @@ def test_shipped_lint_asset_resolved_via_doctrine_service() -> None:
 
     WP05's proof-by-first-user: this repository's own consumer of the shipped
     ``common-docs-structural-lint`` asset must resolve it through
-    :class:`charter.offering.service.DoctrineService` ``.assets`` (the WP04 resolver),
+    :class:`charter.offering.service.CharterOfferingService` ``.assets`` (the WP04 resolver),
     not by reaching through a hard-coded ``_REPO_ROOT`` path. Guards against
     reintroducing the retired reach-through so the fix cannot silently regress.
     """
-    from charter.offering.service import DoctrineService
+    from charter.offering.service import CharterOfferingService
 
     source = Path(__file__).read_text(encoding="utf-8")
     # Built by concatenation so this guard does not match its own source text.
     forbidden = "src/charter/offering/assets/" + "built-in/docs_structural_lint.py"
     assert forbidden not in source, (
-        "structural-lint test must not hard-code the shipped asset's repo path; resolve it by id through DoctrineService.assets.resolve_path (FR-008)."
+        "structural-lint test must not hard-code the shipped asset's repo path; resolve it by id through CharterOfferingService.assets.resolve_path (FR-008)."
     )
 
-    resolved = DoctrineService().assets.resolve_path("common-docs-structural-lint")
+    resolved = CharterOfferingService().assets.resolve_path("common-docs-structural-lint")
     assert resolved == _LINT_ASSET_PATH, "the lint asset consumed by this suite must be the one the resolver returns for 'common-docs-structural-lint' (FR-008)."
     assert _LINT_ASSET_PATH.is_file()

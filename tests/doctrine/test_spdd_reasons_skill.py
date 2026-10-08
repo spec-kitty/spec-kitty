@@ -1,4 +1,4 @@
-"""Discovery tests for the spec-kitty-spdd-reasons skill (WP03).
+"""Discovery tests for the spk-charter-spdd-reasons skill (WP03; renamed by #3732).
 
 Validates that the SKILL.md file exists, parses, declares the right name,
 embeds all five FR-010 trigger phrases, lists every canonical canvas
@@ -17,7 +17,7 @@ from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 SKILL_PATH = (
-    DOCTRINE_SOURCE_ROOT / "skills" / "spec-kitty-spdd-reasons" / "SKILL.md"
+    DOCTRINE_SOURCE_ROOT / "skills" / "spk-charter-spdd-reasons" / "SKILL.md"
 )
 
 FR_010_TRIGGERS = [
@@ -53,7 +53,7 @@ def test_skill_file_exists() -> None:
 
 def test_skill_frontmatter_name_and_triggers() -> None:
     fm, _ = _split_frontmatter(SKILL_PATH.read_text(encoding="utf-8"))
-    assert fm.get("name") == "spec-kitty-spdd-reasons"
+    assert fm.get("name") == "spk-charter-spdd-reasons"
     description = fm.get("description") or ""
     missing = [t for t in FR_010_TRIGGERS if t not in description]
     assert not missing, f"description missing FR-010 triggers: {missing}"

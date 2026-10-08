@@ -1,4 +1,4 @@
-"""Tests for ``BaseDoctrineRepository._post_validate`` (T025).
+"""Tests for ``BaseArtifactRepository._post_validate`` (T025).
 
 The base loader had a ``_pre_validate`` hook only, called before
 ``model_validate``/``_merge`` at all three item-entry points
@@ -13,7 +13,7 @@ bookkeeping is written even when the subsequent validation fails, because
 *only* on success, at the same three call sites, gated by the same
 ``_include_item`` condition that gates the actual ``self._items`` write.
 These tests prove the hook's firing contract generically, via a minimal
-``BaseDoctrineRepository`` subclass with a recording spy, independent of any
+``BaseArtifactRepository`` subclass with a recording spy, independent of any
 concrete doctrine artifact type.
 """
 
@@ -26,13 +26,13 @@ import pytest
 from pydantic import BaseModel, ConfigDict
 from ruamel.yaml import YAML
 
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
 class _MinimalItem(BaseModel):
-    """Smallest possible schema for a ``BaseDoctrineRepository`` subclass."""
+    """Smallest possible schema for a ``BaseArtifactRepository`` subclass."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -40,7 +40,7 @@ class _MinimalItem(BaseModel):
     value: str
 
 
-class _RecordingRepository(BaseDoctrineRepository[_MinimalItem]):
+class _RecordingRepository(BaseArtifactRepository[_MinimalItem]):
     """Minimal repository subclass exercising the ``_post_validate`` hook."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:

@@ -1,4 +1,4 @@
-"""Helpers for artifact filenames and doctrine subdirectories.
+"""Helpers for artifact filenames and project-pack subdirectories.
 
 These helpers intentionally avoid regex backtracking so they remain safe when
 fed arbitrary artifact IDs from external inputs or persisted manifests.
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 __all__ = [
     "artifact_filename",
-    "doctrine_kind_subdir",
+    "pack_kind_subdir",
 ]
 
 
@@ -56,8 +56,8 @@ def artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> s
     raise ValueError(f"Unknown artifact kind: {kind!r}")
 
 
-def doctrine_kind_subdir(kind: str) -> str:
-    """Return the doctrine subdirectory name for a given artifact kind.
+def pack_kind_subdir(kind: str) -> str:
+    """Return the project-pack subdirectory name for a given artifact kind.
 
     Returns singular names that match the ``.gitignore`` whitelist entries
     (``directive/``, ``tactic/``, ``styleguide/``).  Plural names

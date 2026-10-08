@@ -65,7 +65,7 @@ from charter.activation.manifest_loader import (
 # `charter.offering.*` import (test_runtime_charter_doctrine_boundary.py) --
 # so this goes through the already-established `charter.missions` door
 # (object identity preserved; see
-# tests/architectural/test_charter_facades_reexport_doctrine.py).
+# tests/architectural/test_charter_facades_reexport_offering.py).
 from charter.missions import MalformedManifestError as MalformedManifestError
 
 if TYPE_CHECKING:

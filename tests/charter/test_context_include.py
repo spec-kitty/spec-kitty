@@ -34,7 +34,7 @@ from typing import Any
 import pytest
 
 import charter.activation.context as context_module
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 from charter.activation.context import build_charter_context_include
 from charter.activation.context_renderers import template_include as template_include_module
 
@@ -43,12 +43,12 @@ pytestmark = pytest.mark.fast
 
 
 # ---------------------------------------------------------------------------
-# Stub doubles for the DoctrineService repositories
+# Stub doubles for the ActiveCharterService repositories
 # ---------------------------------------------------------------------------
 
 
 class _StubRepo:
-    """Minimal repository stub mirroring ``BaseDoctrineRepository.get``."""
+    """Minimal repository stub mirroring ``BaseArtifactRepository.get``."""
 
     def __init__(self, items: dict[str, Any] | None = None) -> None:
         self._items = items or {}
@@ -61,7 +61,7 @@ class _StubRepo:
 
 
 class _StubService:
-    """DoctrineService stand-in carrying the kinds WP17 routes."""
+    """ActiveCharterService stand-in carrying the kinds WP17 routes."""
 
     def __init__(
         self,
@@ -110,7 +110,7 @@ def _patch_service(monkeypatch: pytest.MonkeyPatch, service: _StubService) -> No
     """Route ``build_charter_context_include`` onto a stub doctrine service."""
     monkeypatch.setattr(
         context_module,
-        "_build_doctrine_service",
+        "_build_offering_service",
         lambda repo_root, *, org_roots=None: service,
     )
 
@@ -119,7 +119,7 @@ def _write_minimal_config(repo_root: Path) -> None:
     """Provision ``mission_type_activations`` on a bare ``tmp_path``.
 
     The ``agent-profile`` include branch routes through
-    ``_build_activation_aware_doctrine_service``, which always calls
+    ``_build_active_charter_service``, which always calls
     ``PackContext.from_config`` (WP04, C-A1: the provisioned charter is the
     sole activation authority for mission types) -- a genuinely absent key
     hard-fails even though these tests only exercise selector routing, not
@@ -289,7 +289,7 @@ class TestTemplateInclude:
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         def _raise_pack_config_error(_repo_root: Path) -> Path | None:
-            raise CharterPackConfigError("broken pack config")
+            raise ActiveCharterConfigError("broken pack config")
 
         # WP05 (#2532): ``_render_template_include`` relocated to
         # ``context_renderers/template_include.py``; it resolves
@@ -301,7 +301,7 @@ class TestTemplateInclude:
             template_include_module, "resolve_project_root", _raise_pack_config_error
         )
 
-        with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+        with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID"):
             build_charter_context_include(
                 tmp_path, "template:software-dev/spec-template.md"
             )

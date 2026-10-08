@@ -1,8 +1,8 @@
 """Expected artifact manifest schema (FR-009 / C-001).
 
 Relocated from ``specify_cli.dossier.manifest`` so the runtime resolver and
-dossier registry can share pure doctrine-layer data models without importing
-``specify_cli`` from the charter/doctrine layers.
+dossier registry can share pure offering-layer data models without importing
+``specify_cli`` from the charter layers.
 """
 
 from __future__ import annotations

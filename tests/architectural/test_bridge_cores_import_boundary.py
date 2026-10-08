@@ -11,7 +11,7 @@ pins that invariant by construction; a future edit (this mission's own WP05
 included) could add a convenient cross-package import and nothing would
 notice.
 
-Mirrors the AST-walk pattern of ``test_kernel_no_doctrine_import.py`` /
+Mirrors the AST-walk pattern of ``test_kernel_no_charter_offering_import.py`` /
 ``test_charter_no_specify_cli_import.py`` / ``test_clock_import_ban.py``: it
 walks the FULL AST (``ast.walk``) so an in-function or in-``try`` import is
 caught, not merely a module-level ``import`` statement, and it parses the

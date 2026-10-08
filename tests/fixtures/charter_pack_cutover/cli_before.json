@@ -1,0 +1,175 @@
+{
+  "base_sha": "b9c2365a2e53851b081f7d8700ac1d821ca05edc",
+  "leaves": {
+    "asset_list": {
+      "argv": [
+        "doctrine",
+        "asset",
+        "list"
+      ],
+      "exit_code": 0,
+      "key_lines": [
+        "common-docs-structural-lint"
+      ],
+      "stdout": "\u250f\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2533\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2533\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2513 \u2503 ID \u2503 TIER \u2503 PATH \u2503 \u2521\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2547\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2547\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2529 \u2502 common-docs-structural-lint \u2502 builtin \u2502 /home/user/spec-kitty/.worktre\u2026 \u2502 \u2502 writing-audience-agentic-framew\u2026 \u2502 builtin \u2502 /home/user/spec-kitty/.worktre\u2026 \u2502 \u2502 writing-audience-automation-age\u2026 \u2502 builtin \u2502 /home/user/spec-kitty/.worktre\u2026 \u2502 \u2502 writing-audience-line-manager \u2502 builtin \u2502 /home/user/spec-kitty/.worktre\u2026 \u2502 \u2502 writing-audience-nontech-educat\u2026 \u2502 builtin \u2502 /home/user/spec-kitty/.worktre\u2026 \u2502 \u2502 writing-audience-software-engin\u2026 \u2502 builtin \u2502 /home/user/spec-kitty/.worktre\u2026 \u2502 \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518"
+    },
+    "asset_path": {
+      "argv": [
+        "doctrine",
+        "asset",
+        "path",
+        "common-docs-structural-lint"
+      ],
+      "exit_code": 0,
+      "key_lines": [
+        "docs_structural_lint.py"
+      ],
+      "stdout": "<REPO>/packs/built-in/assets/docs_structural_lint.py"
+    },
+    "consistency_check": {
+      "argv": [
+        "charter",
+        "pack",
+        "consistency-check"
+      ],
+      "exit_code": 0,
+      "key_lines": [
+        "coherent"
+      ],
+      "stdout": "Charter pack is coherent."
+    },
+    "doctor": {
+      "argv": [
+        "doctor",
+        "doctrine",
+        "--json"
+      ],
+      "exit_code": 1,
+      "json_keys": [
+        "collisions",
+        "org_configured",
+        "org_drg",
+        "packs",
+        "profile_health",
+        "selections"
+      ],
+      "stdout": "{ \"org_configured\": true, \"packs\": [ { \"name\": \"acme\", \"local_path\": \"<ROOT>/orgpack-fetched\", \"source_type\": \"git\", \"url\": \"file://<ROOT>/remote-pack\", \"ref\": \"main\", \"snapshot_present\": false } ], \"selections\": { \"directives\": [], \"tactics\": [], \"paradigms\": [], \"styleguides\": [], \"toolguides\": [], \"procedures\": [], \"mission_step_contracts\": [], \"agent_profiles\": [] }, \"org_drg\": { \"configured_packs\": [], \"collision_warnings\": [], \"dangling_endpoints\": [], \"errors\": [ \"Org pack 'acme' configured at '<ROOT>/orgpack-fetched' not found. Either fetch the pack (`spec-kitty charter fetch --pack <name>`) or remove the entry from `.kittify/config.yaml`.\" ], \"operating_procedures_unresolved\": [] }, \"profile_health\": { \"healthy\": false, \"packs\": [ { \"pack_id\": \"builtin\", \"layer\": \"builtin\", \"discovered_count\": 26, \"valid_count\": 26, \"healthy\": true, \"invalid_profiles\": [] } ], \"org_drg\": { \"configured_packs\": [], \"collision_warnings\": [], \"dangling_endpoints\": [], \"errors\": [ \"Org pack 'acme' configured at '<ROOT>/orgpack-fetched' not found. Either fetch the pack (`spec-kitty charter fetch --pack <name>`) or remove the entry from `.kittify/config.yaml`.\" ], \"operating_procedures_unresolved\": [] }, \"glossary_packs\": { \"pack_count\": 1, \"term_count\": 115, \"healthy\": true, \"invalid_packs\": [] }, \"skills\": { \"skill_count\": 0, \"loaded\": 0, \"skipped\": 0, \"healthy\": true, \"invalid_skills\": [] } }, \"collisions\": [] }"
+    },
+    "fetch": {
+      "argv": [
+        "doctrine",
+        "fetch"
+      ],
+      "exit_code": 0,
+      "key_lines": [
+        "Pack 'acme': 2 artifacts"
+      ],
+      "stdout": "Pack 'acme': 2 artifacts Version: <SHA>"
+    },
+    "mission_type_list": {
+      "argv": [
+        "doctrine",
+        "mission-type",
+        "list"
+      ],
+      "exit_code": 0,
+      "key_lines": [
+        "software-dev",
+        "documentation",
+        "research",
+        "plan"
+      ],
+      "stdout": "\u250f\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2533\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2533\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2513 \u2503 ID \u2503 SOURCE \u2503 DISPLAY NAME \u2503 \u2521\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2547\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2547\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2529 \u2502 documentation \u2502 built-in \u2502 Documentation \u2502 \u2502 plan \u2502 built-in \u2502 Plan \u2502 \u2502 research \u2502 built-in \u2502 Research \u2502 \u2502 software-dev \u2502 built-in \u2502 Software Development \u2502 \u2514\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2534\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2518"
+    },
+    "new": {
+      "argv": [
+        "doctrine",
+        "new",
+        "tactic",
+        "fixture-new-tactic"
+      ],
+      "exit_code": 0,
+      "key_lines": [
+        "Created stub artifact"
+      ],
+      "stdout": "Created stub artifact: <ROOT>/.kittify/doctrine/tactic/fixtu re-new-tactic.tactic.yaml Run spec-kitty charter validate <ROOT>/.kittify/doctrine/tactic/fixtu re-new-tactic.tactic.yaml to confirm."
+    },
+    "org_init": {
+      "argv": [
+        "doctrine",
+        "org",
+        "init",
+        "scaffolded-pack"
+      ],
+      "exit_code": 0,
+      "key_lines": [
+        "Org pack scaffolded at"
+      ],
+      "stdout": "Org pack scaffolded at: scaffolded-pack org-charter.yaml drg/fragment.yaml README.md Run spec-kitty charter org validate scaffolded-pack to confirm."
+    },
+    "org_validate": {
+      "argv": [
+        "doctrine",
+        "org",
+        "validate",
+        "orgpack"
+      ],
+      "exit_code": 0,
+      "key_lines": [
+        "Pack validation: 0 errors"
+      ],
+      "stdout": "Pack validation: 0 errors, 0 advisories"
+    },
+    "pack_assemble": {
+      "argv": [
+        "doctrine",
+        "pack",
+        "assemble",
+        "assembled",
+        "orgpack"
+      ],
+      "exit_code": 0,
+      "key_lines": [
+        "Assembled 1 pack"
+      ],
+      "stdout": "Assembled 1 pack \u2192 assembled/ (0 artifacts)"
+    },
+    "pack_validate": {
+      "argv": [
+        "doctrine",
+        "pack",
+        "validate",
+        "orgpack"
+      ],
+      "exit_code": 0,
+      "key_lines": [
+        "Pack validation: 0 errors"
+      ],
+      "stdout": "Pack validation: 0 errors, 0 advisories"
+    },
+    "regenerate_graph": {
+      "argv": [
+        "doctrine",
+        "regenerate-graph",
+        "--check"
+      ],
+      "exit_code": 0,
+      "key_lines": [
+        "DRG graph is fresh"
+      ],
+      "stdout": "DRG graph is fresh: <REPO>/packs/buil t-in"
+    },
+    "validate": {
+      "argv": [
+        "doctrine",
+        "validate",
+        "authoring/fixture-tactic.tactic.yaml"
+      ],
+      "exit_code": 0,
+      "key_lines": [
+        "1 artifact(s) passed validation"
+      ],
+      "stdout": "OK authoring/fixture-tactic.tactic.yaml 1 artifact(s) passed validation."
+    }
+  }
+}

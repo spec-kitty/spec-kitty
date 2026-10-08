@@ -3,7 +3,7 @@
 ``charter.activation.synthesizer.graph_residue.unlink_stale_project_graph`` is the single
 sanctioned removal of a project ``graph.yaml`` that a ``built_in_only`` writer
 disowns. It consolidates the two former bare-``unlink`` sites
-(``project_drg.apply_post_condition`` and ``_fresh_doctrine``). These tests pin
+(``project_drg.apply_post_condition`` and ``_fresh_project_layer``). These tests pin
 its behaviour: present-file removal, missing-file no-op, idempotency, and that
 it touches ONLY ``graph.yaml`` (never sibling artifacts).
 """
@@ -130,7 +130,7 @@ def test_apply_post_condition_unlinks_present_graph(tmp_path: Path) -> None:
     from charter.activation.synthesizer.project_drg import apply_post_condition
 
     manifest_path = _seed_manifest(tmp_path, built_in_only=False)
-    graph_path = tmp_path / ".kittify" / "doctrine" / _GRAPH_FILENAME
+    graph_path = tmp_path / ".kittify" / "charter-packs" / _GRAPH_FILENAME
     graph_path.parent.mkdir(parents=True, exist_ok=True)
     graph_path.write_text(
         "schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8"

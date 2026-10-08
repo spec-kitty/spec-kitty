@@ -51,7 +51,7 @@ def _write_config(repo_root: Path, *, local_path: Path, subdir: str | None = Non
     subdir_line = f"\n                    subdir: {subdir}" if subdir else ""
     (kittify / "config.yaml").write_text(
         dedent(f"""\
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: {_PACK_NAME}
@@ -75,11 +75,11 @@ def _build_pack_at(pack_root: Path) -> None:
 
 def test_sc001_subdir_pack_loads_healthy(tmp_path: Path) -> None:
     """SC-001: a pack configured with ``subdir: pack`` resolves artifacts
-    under ``<local_path>/pack/`` and makes doctor doctrine report healthy
+    under ``<local_path>/pack/`` and makes doctor charter-packs report healthy
     (both T007 load_org_drg path and T009 _build_pack_entries path).
     """
     from specify_cli.cli.commands.doctor import _build_pack_entries, _collect_org_layer_data  # noqa: PLC0415
-    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
 
     repo_root = tmp_path / "consumer"
     repo_root.mkdir()
@@ -93,7 +93,7 @@ def test_sc001_subdir_pack_loads_healthy(tmp_path: Path) -> None:
     # T007 coverage: _collect_org_layer_data calls load_org_drg → build_org_drg_fragments
     result = _collect_org_layer_data(repo_root)
     assert result["errors"] == [], (
-        f"SC-001: doctor doctrine must be healthy for a subdir pack. errors={result['errors']!r}"
+        f"SC-001: doctor charter-packs must be healthy for a subdir pack. errors={result['errors']!r}"
     )
 
     # T009 coverage: _build_pack_entries must resolve the effective root
@@ -113,7 +113,7 @@ def test_sc001_subdir_pack_loads_healthy(tmp_path: Path) -> None:
 def test_sc002_no_subdir_pack_unchanged(tmp_path: Path) -> None:
     """SC-002: a pack without ``subdir`` behaves identically to before WP02."""
     from specify_cli.cli.commands.doctor import _build_pack_entries, _collect_org_layer_data  # noqa: PLC0415
-    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
 
     repo_root = tmp_path / "consumer"
     repo_root.mkdir()
@@ -143,11 +143,11 @@ def test_sc002_no_subdir_pack_unchanged(tmp_path: Path) -> None:
 
 def test_sc003_wrong_subdir_reports_errors(tmp_path: Path) -> None:
     """SC-003: a pack with ``subdir: nonexistent`` → effective root doesn't
-    exist → doctor doctrine reports errors; _build_pack_entries shows
+    exist → doctor charter-packs reports errors; _build_pack_entries shows
     snapshot_present=False.
     """
     from specify_cli.cli.commands.doctor import _build_pack_entries, _collect_org_layer_data  # noqa: PLC0415
-    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
 
     repo_root = tmp_path / "consumer"
     repo_root.mkdir()
@@ -176,13 +176,13 @@ def test_sc003_wrong_subdir_reports_errors(tmp_path: Path) -> None:
 
 
 def _make_fake_source(local_path: Path) -> MagicMock:
-    """Return a MagicMock OrgDoctrineSource whose fetch() writes minimal YAML artifacts.
+    """Return a MagicMock OrgCharterPackSource whose fetch() writes minimal YAML artifacts.
 
     The source writes a single directive YAML into the target directory so that
     ``_count_artifacts`` returns a non-empty dict for no-subdir packs.
     Used to drive ``fetch_pack`` without a real git/https/api remote.
     """
-    from specify_cli.doctrine.sources.protocol import FetchResult  # noqa: PLC0415
+    from specify_cli.charter_packs.sources.protocol import FetchResult  # noqa: PLC0415
 
     def _fake_fetch(target_dir: Path) -> FetchResult:
         (target_dir / "directives").mkdir(parents=True, exist_ok=True)
@@ -198,8 +198,8 @@ def _make_fake_source(local_path: Path) -> MagicMock:
 
 def test_fetch_pack_int_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """FR-007: fetch_pack must return artifacts_written as a scalar int, not a dict."""
-    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
-    from specify_cli.doctrine.snapshot import fetch_pack  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
+    from specify_cli.charter_packs.snapshot import fetch_pack  # noqa: PLC0415
 
     local_path = tmp_path / "pack-store"
     repo_root = tmp_path / "consumer"
@@ -212,7 +212,7 @@ def test_fetch_pack_int_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     pack = registry.packs[0]
 
     monkeypatch.setattr(
-        "specify_cli.doctrine.snapshot._build_source",
+        "specify_cli.charter_packs.snapshot._build_source",
         lambda p: _make_fake_source(local_path),
     )
 
@@ -233,8 +233,8 @@ def test_fetch_pack_wrong_subdir_fails_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A configured effective root with no artifacts must not replace last-good."""
-    from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
-    from specify_cli.doctrine.snapshot import fetch_pack  # noqa: PLC0415
+    from charter.offering.drg.org_pack_config import load_pack_registry  # noqa: PLC0415
+    from specify_cli.charter_packs.snapshot import fetch_pack  # noqa: PLC0415
 
     local_path = tmp_path / "pack-store"
     repo_root = tmp_path / "consumer"
@@ -247,7 +247,7 @@ def test_fetch_pack_wrong_subdir_fails_closed(
     pack = registry.packs[0]
 
     monkeypatch.setattr(
-        "specify_cli.doctrine.snapshot._build_source",
+        "specify_cli.charter_packs.snapshot._build_source",
         lambda p: _make_fake_source(local_path),
     )
 
@@ -327,7 +327,7 @@ def test_config_schema_accepts_every_runtime_source_type() -> None:
     assert form_b_types == runtime_types
     Draft202012Validator(schema).validate(
         {
-            "doctrine": {
+            "charter_packs": {
                 "org": {
                     "packs": [
                         {

@@ -4,7 +4,7 @@ Five facades — ``charter.assets``, ``charter.glossary_packs``, ``charter.missi
 ``charter.model_routing`` and ``charter.spdd_reasons`` — are pure re-export doors
 for the future ``spec-kitty-doctrine`` wheel. Nothing under ``src/`` imports them
 yet, so their only importer was the architectural facade-identity gate
-(``tests/architectural/test_charter_facades_reexport_doctrine.py``). That gate runs
+(``tests/architectural/test_charter_facades_reexport_offering.py``). That gate runs
 in the ``arch-adversarial`` shard, which measures ``--cov=specify_cli`` /
 ``--cov=mission_runtime`` but **not** ``--cov=charter`` — so the facades' only
 lines (their ``from charter.offering.… import …`` block and ``__all__``) had zero recorded

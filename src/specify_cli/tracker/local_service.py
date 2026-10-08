@@ -207,15 +207,7 @@ class LocalTrackerService:
             "configured": True,
             "provider": config.provider,
             "workspace": config.workspace,
-            # CR-03 (mission `charter-code-topology-01M152G1` S4): canonical
-            # key is `ownership_mode`. `doctrine_mode` is kept alongside it
-            # (same value, not a warning) because this dict is a MACHINE
-            # payload (`tracker status --json`) -- a downstream-contract
-            # output surface, not a config-file read -- so an external
-            # consumer still keyed on the old field name is not silently
-            # broken by this rename.
             "ownership_mode": config.ownership_mode,
-            "doctrine_mode": config.ownership_mode,
             "field_owners": config.ownership_field_owners,
             "db_path": str(db_path),
             "issue_count": len(issues),

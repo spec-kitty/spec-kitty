@@ -41,12 +41,12 @@ three-state contract the other 9 kinds follow:
   to the mission-create / require boundary (``create_mission_core``). A typed
   ``resolve_mission_type_context`` request against the empty set still
   hard-fails via ``UnknownMissionTypeError`` (the use-boundary contract,
-  FR-003), never a construction ``CharterPackConfigError``.
+  FR-003), never a construction ``ActiveCharterConfigError``.
 * T036 — subset-activation regression: a proper subset of activated types
   narrows the result to exactly that subset.
 
 No test in this suite touches ``charter.activation.mission_type_profile_repository``
-(WP06's exclusive ownership) or adds anything to ``charter.activation.resolver.DoctrineService``.
+(WP06's exclusive ownership) or adds anything to ``charter.activation.resolver.ActiveCharterService``.
 """
 
 from __future__ import annotations
@@ -112,7 +112,7 @@ def test_bare_project_resolve_context_hard_fails_on_unknown_type(
     For a bare/unprovisioned project that set is empty, so requesting any
     typed mission still hard-fails via ``UnknownMissionTypeError`` (FR-003) --
     but this is the *use*-boundary hard-fail on an unregistered type, NOT a
-    construction ``CharterPackConfigError``. The empty ``registered_ids``
+    construction ``ActiveCharterConfigError``. The empty ``registered_ids``
     reported by the error is the fingerprint of the total read path."""
     with pytest.raises(UnknownMissionTypeError) as exc_info:
         resolve_mission_type_context(tmp_path, mission_type="not-a-real-mission-type")
@@ -178,7 +178,7 @@ def test_custom_activated_type_is_not_dropped_by_the_gate(tmp_path: Path) -> Non
     FR-006's gate is binary against the project's *activation* set, not
     against the built-in catalog — a project is free to activate a mission
     type id that has no built-in profile, backed entirely by a project-level
-    doctrine override (``_project_has_doctrine_overrides`` tolerance in
+    doctrine override (``_project_has_pack_overrides`` tolerance in
     ``_resolve_governance_slot``). Filtering by ``builtin_mission_type_id_set()``
     here would be a *stricter*, wrong gate: it would silently exclude a
     legitimately-activated custom type, contradicting the pre-existing

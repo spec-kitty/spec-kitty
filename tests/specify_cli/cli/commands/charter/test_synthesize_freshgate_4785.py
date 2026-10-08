@@ -111,7 +111,7 @@ def test_synthesize_established_store_via_activated_directives_does_not_seed(tmp
     update_charter_yaml_section(charter_yaml, "activation", {"activated_directives": ["PROJECT_PROBE_DIRECTIVE"]})
 
     _assert_no_generated_dir(tmp_path)
-    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    doctrine_dir = tmp_path / ".kittify" / "charter-packs"
     assert not doctrine_dir.exists(), "test pre-condition: no doctrine tree yet"
 
     result = _run_synthesize(tmp_path, "--json")
@@ -125,7 +125,7 @@ def test_synthesize_established_store_via_activated_directives_does_not_seed(tmp
     if payload is not None:
         assert payload.get("mode") not in {"fresh_project_seed", "fresh_project_seed_dry_run"}, f"established store took the fresh-project seed mode: {payload!r}"
     # The fresh-seed short-circuit is the ONLY thing that materializes
-    # .kittify/doctrine/ on a store with no generated/ dir and no registered
+    # .kittify/charter-packs/ on a store with no generated/ dir and no registered
     # direct-write project artifacts -- it must not have fired.
     assert not doctrine_dir.exists(), "established store must not have the minimal-doctrine seed materialized"
 
@@ -187,7 +187,7 @@ def test_synthesize_truly_fresh_store_still_seeds(tmp_path: Path) -> None:
     _write_minimal_interview(tmp_path)
     _run_generate(tmp_path)
 
-    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    doctrine_dir = tmp_path / ".kittify" / "charter-packs"
     assert not doctrine_dir.exists(), "test pre-condition: no doctrine tree yet"
     _assert_no_generated_dir(tmp_path)
 

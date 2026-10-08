@@ -54,7 +54,7 @@ def test_resolve_relative_path_within_root_valid_subdir_is_accepted(tmp_path: Pa
 @pytest.mark.skipif(not hasattr(os, "symlink"), reason=_SYMLINK_UNAVAILABLE_REASON)
 def test_path_guard_assert_allowed_loop_raises_violation(tmp_path: Path) -> None:
     guard = PathGuard(repo_root=tmp_path)
-    loop = tmp_path / ".kittify" / "doctrine" / "loop"
+    loop = tmp_path / ".kittify" / "charter-packs" / "loop"
     loop.parent.mkdir(parents=True)
     loop.symlink_to(loop)
 
@@ -64,7 +64,7 @@ def test_path_guard_assert_allowed_loop_raises_violation(tmp_path: Path) -> None
 
 def test_path_guard_assert_allowed_allowed_target_is_accepted(tmp_path: Path) -> None:
     guard = PathGuard(repo_root=tmp_path)
-    target_dir = tmp_path / ".kittify" / "doctrine"
+    target_dir = tmp_path / ".kittify" / "charter-packs"
     target_dir.mkdir(parents=True)
     target = target_dir / "file.yaml"
 

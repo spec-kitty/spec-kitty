@@ -144,7 +144,7 @@ class TestSynthesizeHappyPath:
                 ["directive:test-directive"],
                 [
                     {
-                        "path": ".kittify/doctrine/directive/001-test-directive.directive.yaml",
+                        "path": ".kittify/charter-packs/directive/001-test-directive.directive.yaml",
                         "kind": "directive",
                         "slug": "test-directive",
                         "artifact_id": "PROJECT_001",
@@ -199,7 +199,7 @@ class TestSynthesizeHappyPath:
             "specify_cli.cli.commands.charter._load_written_artifacts_from_manifest",
             return_value=[
                 {
-                    "path": ".kittify/doctrine/directive/001-test.directive.yaml",
+                    "path": ".kittify/charter-packs/directive/001-test.directive.yaml",
                     "kind": "directive",
                     "slug": "test",
                     "artifact_id": "PROJECT_001",
@@ -216,7 +216,7 @@ class TestSynthesizeHappyPath:
         assert data["adapter"] == {"id": "fixture", "version": "1.0.0"}
         assert data["written_artifacts"] == [
             {
-                "path": ".kittify/doctrine/directive/001-test.directive.yaml",
+                "path": ".kittify/charter-packs/directive/001-test.directive.yaml",
                 "kind": "directive",
                 "slug": "test",
                 "artifact_id": "PROJECT_001",
@@ -272,7 +272,7 @@ class TestSynthesizeHappyPath:
             result = runner.invoke(app, ["synthesize", "--adapter", "fixture"])
 
         assert result.exit_code == 0, f"Expected exit 0: {result.output}"
-        assert "spec-kitty safe-commit .kittify/charter/synthesis-manifest.yaml .kittify/charter/provenance/ .kittify/doctrine/" in result.output
+        assert "spec-kitty safe-commit .kittify/charter/synthesis-manifest.yaml .kittify/charter/provenance/ .kittify/charter-packs/" in result.output
         assert '-m "chore: charter synthesis artifacts"' in result.output
         # The reminder must name --to-branch,
         # resolved from the repo root's current branch -- never silently
@@ -298,7 +298,7 @@ class TestSynthesizeHappyPath:
                 ["directive:test-directive"],
                 [
                     {
-                        "path": ".kittify/doctrine/directive/001-test-directive.directive.yaml",
+                        "path": ".kittify/charter-packs/directive/001-test-directive.directive.yaml",
                         "kind": "directive",
                         "slug": "test-directive",
                         "artifact_id": "PROJECT_001",
@@ -453,7 +453,7 @@ class TestSynthesizeErrorPaths:
         assert LINKED_WORKTREE_REFUSAL not in " ".join(result.output.split())
 
     def test_pack_config_error_surfaces_diagnostic_body(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
-        """CHARTER_PACK_CONFIG_INVALID body reaches the operator, not just the code (#2850).
+        """ACTIVE_CHARTER_CONFIG_INVALID body reaches the operator, not just the code (#2850).
 
         Regression for the diagnostic-quality gap the issue flagged: a
         ``KittyInternalConsistencyError`` must be caught specifically (per
@@ -465,7 +465,7 @@ class TestSynthesizeErrorPaths:
         config = tmp_path / ".kittify" / "config.yaml"
         config.parent.mkdir(parents=True, exist_ok=True)
         # A STRING charter: pointer to a non-existent charter.yaml triggers a
-        # fail-loud CharterPackConfigError whose body names the bad pointer.
+        # fail-loud ActiveCharterConfigError whose body names the bad pointer.
         config.write_text("charter: does-not-exist/charter.yaml\n", encoding="utf-8")
 
         charter_cwd_isolation()
@@ -476,3 +476,59 @@ class TestSynthesizeErrorPaths:
         # The informative body — previously swallowed — must be present.
         assert "does-not-exist/charter.yaml" in result.output
         assert "Remediation:" in result.output
+
+
+# ---------------------------------------------------------------------------
+# FR-016 (#3732, WP03 T020): synthesis on a migrated project writes only the
+# project charter pack root.
+# ---------------------------------------------------------------------------
+
+_MIGRATED_DIRECTIVE = Path("directive") / "901-migrated-project-directive.directive.yaml"
+_MIGRATED_DIRECTIVE_ID = "PROJECT_901"
+
+
+def _listed_project_directives(repo: Path) -> set[str]:
+    result = runner.invoke(app, ["list", "--all", "--json"], catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    rows = {row["kind"]: row for row in payload["kinds"]}
+    return {a["artifact_id"] for a in rows["directive"]["available"] or [] if a["layer"] == "project"}
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_synthesize_migrated_project_writes_only_charter_pack_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, charter_cwd_isolation: Callable[..., Path]
+) -> None:
+    import subprocess
+
+    from charter.activation.synthesizer.manifest import load_yaml
+
+    subprocess.run(["git", "init", "--initial-branch=main"], cwd=tmp_path, check=True, capture_output=True)
+    charter_cwd_isolation(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    _write_interview_answers(tmp_path)
+    generated = runner.invoke(app, ["generate", "--from-interview"], catch_exceptions=False)
+    assert generated.exit_code == 0, generated.output
+    directive = tmp_path / ".kittify" / "charter-packs" / _MIGRATED_DIRECTIVE
+    directive.parent.mkdir(parents=True, exist_ok=True)
+    directive.write_text(
+        f'schema_version: "1.0"\nid: {_MIGRATED_DIRECTIVE_ID}\ntitle: Migrated project directive\n'
+        "intent: Keep the project layer readable.\nenforcement: advisory\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(app, ["synthesize", "--json"], catch_exceptions=False)
+
+    assert result.exit_code == 0, result.output
+    assert not (tmp_path / ".kittify" / "doctrine").exists(), "synthesis recreated the retired root"
+    assert (tmp_path / ".kittify" / "charter-packs" / "graph.yaml").is_file()
+    manifest = load_yaml(tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml")
+    paths = [entry.path for entry in manifest.artifacts]
+    assert paths, "control: the direct-written directive is registered"
+    assert all(p.startswith(".kittify/charter-packs/") for p in paths), paths
+    # Positive control: the project layer lists the artifact, and stops once it is gone.
+    listed_as = {_MIGRATED_DIRECTIVE_ID, _MIGRATED_DIRECTIVE.name.removesuffix(".directive.yaml")}
+    assert listed_as & _listed_project_directives(tmp_path)
+    directive.unlink()
+    assert not listed_as & _listed_project_directives(tmp_path)
