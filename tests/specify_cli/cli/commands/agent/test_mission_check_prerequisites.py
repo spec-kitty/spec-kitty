@@ -153,7 +153,7 @@ def test_resume_probe_marks_committed_substantive_spec_complete(tmp_path: Path) 
     assert payload["spec_committed_and_substantive"] is True
 
 
-def test_resume_probe_conservatively_marks_committed_research_spec_complete(tmp_path: Path) -> None:
+def test_resume_probe_checks_committed_research_spec_content(tmp_path: Path) -> None:
     feature_dir = _write_resume_scaffold(
         tmp_path,
         "completed-research",
@@ -173,6 +173,20 @@ def test_resume_probe_conservatively_marks_committed_research_spec_complete(tmp_
     payload = seam._build_resume_probe_payload(tmp_path, "completed-research")
 
     assert payload["resume_state"] == "found"
+    assert payload["spec_committed_and_substantive"] is False
+
+    (feature_dir / "spec.md").write_text(
+        "# Research Specification\n\n## Research Question & Scope\n\n"
+        "**Primary Research Question**: How do teams assess evidence?\n\n"
+        "**Scope**:\n- **In Scope**: Evidence assessment across teams\n\n"
+        "## Research Requirements\n\n"
+        "- **DR-001**: Interview teams.\n- **AR-001**: Synthesize patterns.\n"
+        "- **QR-001**: Cite evidence.\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", "kitty-specs"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-m", "populate research spec"], cwd=tmp_path, check=True, capture_output=True)
+    payload = seam._build_resume_probe_payload(tmp_path, "completed-research")
     assert payload["spec_committed_and_substantive"] is True
 
 

@@ -11,10 +11,12 @@ or tokenise a ``requirement_refs`` value; that boundary is enforced by
 
 See ``kitty-specs/requirement-id-grammar-01M3NRCA/data-model.md`` and
 ``kitty-specs/requirement-id-grammar-01M3NRCA/contracts/grammar.md`` for the
-full grammar contract this module implements verbatim:
+software-development grammar contract, extended here for the built-in research
+template's native requirement kinds:
 
     id         := [qualifier "#"] kind "-" digits [suffix]
-    kind       := "FR" | "NFR" | "C" | "SC"          ; input case-insensitive
+    kind       := "FR" | "NFR" | "C" | "SC" | "DR" | "AR" | "QR"
+                                                        ; input case-insensitive
     digits     := DIGIT+                              ; verbatim, width significant
     suffix     := LOWER_LETTER                         ; spec scan: lowercase only
                                                         ; ref matching: either case
@@ -63,7 +65,7 @@ __all__ = [
     "RULE_TEXT",
 ]
 
-Kind = Literal["FR", "NFR", "C", "SC"]
+Kind = Literal["FR", "NFR", "C", "SC", "DR", "AR", "QR"]
 
 #: The single detectable core literal (C-001): the ONE requirement-ID kind
 #: alternation in product code. Every pattern below -- ``MALFORMED_DECLARED_LEAD``
@@ -73,7 +75,7 @@ Kind = Literal["FR", "NFR", "C", "SC"]
 #: other (no kind is a leading substring of another), so alternation order
 #: cannot shadow a longer match. The C-001 architectural gate's floor test
 #: asserts that the one grammar.py site it detects IS this named constant.
-_KIND_ALT: str = "FR|NFR|SC|C"
+_KIND_ALT: str = "FR|NFR|SC|C|DR|AR|QR"
 
 #: Legacy kinds only -- the frozen, unqualified, unsuffixed alias below
 #: exists solely to keep ``tests/specify_cli/test_bare_prose_false_negative_sample.py``'s
@@ -119,6 +121,12 @@ def _normalize_kind(raw: str) -> Kind:
         return "SC"
     if upper == "C":
         return "C"
+    if upper == "DR":
+        return "DR"
+    if upper == "AR":
+        return "AR"
+    if upper == "QR":
+        return "QR"
     raise ValueError(f"unrecognized requirement-id kind: {raw!r}")
 
 

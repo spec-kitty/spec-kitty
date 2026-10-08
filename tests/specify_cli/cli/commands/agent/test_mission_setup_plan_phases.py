@@ -204,6 +204,35 @@ def test_spec_gate_evaluator_builds_blocked_result_without_reporting(
     assert "Blocked" in message
 
 
+def test_research_spec_gate_uses_research_schema(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    import json
+
+    feature_dir = tmp_path / "001-research"
+    feature_dir.mkdir()
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_type": "research"}), encoding="utf-8")
+    spec_file = feature_dir / "spec.md"
+    spec_file.write_text(
+        "# Research\n\n## Research Question & Scope\n\n"
+        "**Primary Research Question**: How do teams assess evidence?\n\n"
+        "**Scope**:\n- **In Scope**: Evidence assessment across teams\n\n"
+        "## Research Requirements\n\n"
+        "- **DR-001**: Interview teams.\n- **AR-001**: Synthesize patterns.\n"
+        "- **QR-001**: Cite evidence.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("specify_cli.missions._substantive.is_committed", lambda *a, **k: True)
+    monkeypatch.setattr(seam, "_evaluate_requirement_id_gate", lambda *a: (None, None))
+
+    outcome, _ = seam._evaluate_spec_gate(spec_file, feature_dir, "001-research", tmp_path, target_branch="main", current_branch="main")
+    assert outcome is None
+
+    spec_file.write_text(spec_file.read_text(encoding="utf-8").replace("**In Scope**", "**Other**"), encoding="utf-8")
+    outcome, _ = seam._evaluate_spec_gate(spec_file, feature_dir, "001-research", tmp_path, target_branch="main", current_branch="main")
+    assert outcome is not None
+    assert outcome.payload["spec_substantive"] is False
+    assert "DR/AR/QR" in str(outcome.payload["blocked_reason"])
+
+
 # ---------------------------------------------------------------------------
 # _scaffold_plan_template
 # ---------------------------------------------------------------------------

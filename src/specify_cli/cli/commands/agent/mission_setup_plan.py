@@ -472,15 +472,23 @@ def _evaluate_spec_gate(
 
     _commit_diagnostics: list[str] = []
     spec_is_committed = is_committed(spec_file, repo_root, diagnostics=_commit_diagnostics)
-    spec_is_substantive = is_substantive(spec_file, "spec")
+    mission_type = get_mission_type(feature_dir)
+    spec_is_substantive = is_substantive(spec_file, "spec", mission_type=mission_type)
     if spec_is_committed and spec_is_substantive:
         return _evaluate_requirement_id_gate(spec_file, feature_dir, mission_slug)
 
-    blocked_reason = (
-        "spec.md must be committed AND substantive before setup-plan can run. "
-        "Populate the Functional Requirements (at least one FR-### row with "
-        "real description content), commit spec.md, then re-run setup-plan."
-    )
+    if mission_type == "research":
+        blocked_reason = (
+            "spec.md must be committed AND substantive before setup-plan can run. "
+            "Populate the primary research question, in-scope boundary, and at least one "
+            "substantive DR/AR/QR requirement each; commit spec.md, then re-run setup-plan."
+        )
+    else:
+        blocked_reason = (
+            "spec.md must be committed AND substantive before setup-plan can run. "
+            "Populate the Functional Requirements (at least one FR-### row with "
+            "real description content), commit spec.md, then re-run setup-plan."
+        )
     payload = {
         "result": "blocked",
         "phase_complete": False,

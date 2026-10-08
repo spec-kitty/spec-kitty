@@ -47,7 +47,7 @@ from specify_cli.cli.commands.agent.mission_parsing import (
 from specify_cli.cli.commands.agent.mission_finalize_seams import ISSUE_MATRIX_FILENAME, TASKS_MD_FILENAME
 
 
-def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool) -> tuple[set[str], set[str], list[str], str]:
+def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool, mission_type: str = "software-dev") -> tuple[set[str], set[str], list[str], str]:
     """Phase: parse spec.md requirement ids (all + functional) + #3394 F1 warnings.
 
     The third element is a (possibly empty) list of non-blocking warning
@@ -76,6 +76,9 @@ def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool) -> tupl
     spec_content = spec_md.read_text(encoding="utf-8")
     spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_content)
     extraction_warnings = _find_undeclared_requirement_citations(spec_content)
+    if mission_type == "research":
+        native_ids = set(spec_requirement_ids.get("data_collection", []) + spec_requirement_ids.get("analysis", []) + spec_requirement_ids.get("quality", []))
+        return native_ids, native_ids, extraction_warnings, spec_content
     return (
         set(spec_requirement_ids["all"]),
         set(spec_requirement_ids["functional"]),
@@ -547,6 +550,9 @@ def _build_requirement_diagnostics(
         "constraint": buckets["constraint"],
         "success_criteria": buckets["success_criteria"],
     }
+    for key in ("data_collection", "analysis", "quality"):
+        if key in buckets:
+            parsed_spec_ids[key] = buckets[key]
     success_criteria_coverage = _build_success_criteria_coverage(buckets["success_criteria"], wp_requirement_refs, all_spec_requirement_ids)
     return {
         "parsed_spec_ids": parsed_spec_ids,

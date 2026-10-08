@@ -455,6 +455,9 @@ _KIND_TO_BUCKET: dict[str, str] = {
     "NFR": "non_functional",
     "C": "constraint",
     "SC": "success_criteria",
+    "DR": "data_collection",
+    "AR": "analysis",
+    "QR": "quality",
 }
 
 
@@ -484,19 +487,22 @@ def parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]
         "functional" is the FR subset (used for FR coverage gating).
     """
     declared = _declared_ids(spec_content)
-    buckets: dict[str, list[str]] = {"functional": [], "non_functional": [], "constraint": [], "success_criteria": []}
+    buckets: dict[str, list[str]] = {key: [] for key in _KIND_TO_BUCKET.values()}
     for req_id in declared:
         requirement_id = grammar.parse(req_id)
         if requirement_id is None:
             continue
         buckets[_KIND_TO_BUCKET[requirement_id.kind]].append(req_id)
-    return {
+    result = {
         "all": sorted(declared),
         "functional": sorted(buckets["functional"]),
         "non_functional": sorted(buckets["non_functional"]),
         "constraint": sorted(buckets["constraint"]),
         "success_criteria": sorted(buckets["success_criteria"]),
     }
+    if any(buckets[key] for key in ("data_collection", "analysis", "quality")):
+        result.update({key: sorted(buckets[key]) for key in ("data_collection", "analysis", "quality")})
+    return result
 
 
 def _read_wp_frontmatter_values(

@@ -920,12 +920,15 @@ def _run_finalize_validation_gates(
     wp_files = list(tasks_dir.glob("WP*.md"))
     expected_wp_ids = _extract_wp_ids_from_task_files(wp_files)
 
+    from specify_cli.mission import get_mission_type
+
+    mission_type = get_mission_type(planning_dir)
     (
         all_spec_requirement_ids,
         functional_spec_requirement_ids,
         requirement_extraction_warnings,
         spec_content,
-    ) = _read_spec_requirement_ids(planning_dir, json_output=json_output)
+    ) = _read_spec_requirement_ids(planning_dir, json_output=json_output, mission_type=mission_type)
 
     # Snapshot pre-existing primary-side files BEFORE any finalize writer runs
     # (WP02 / FR-006 / A-r1 — residue cleanup scoping, research R6).
