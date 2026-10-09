@@ -108,6 +108,30 @@ class SubtaskStatus(StrEnum):
 Status = Lane
 SubtaskValue: TypeAlias = Lane | SubtaskStatus
 
+#: Subtask values that count as "finished" for the review gate: completed work
+#: (``Lane.DONE``) or a deliberate operator decision not to do it (``skipped``).
+#: The single authority every gate site consumes (no bare ``"skipped"`` literal).
+TERMINAL_SUBTASK_STATES: frozenset[str] = frozenset({str(Lane.DONE), str(SubtaskStatus.SKIPPED)})
+
+#: Operator-facing synonyms for a subtask status. Input boundary only: the alias
+#: is resolved before any event is built and is never persisted.
+_SUBTASK_STATUS_ALIASES: dict[str, str] = {"not_applicable": str(SubtaskStatus.SKIPPED)}
+
+
+def is_subtask_terminal(value: object) -> bool:
+    """Return True when a reduced-snapshot subtask value is done or skipped."""
+    return str(value) in TERMINAL_SUBTASK_STATES
+
+
+def resolve_subtask_status_alias(value: str) -> str:
+    """Resolve a subtask-status alias (``not_applicable`` -> ``skipped``).
+
+    Mirrors ``transitions.resolve_lane_alias``: returns the normalized input
+    when it is not an alias. The alias is never persisted.
+    """
+    normalized = value.strip().lower()
+    return _SUBTASK_STATUS_ALIASES.get(normalized, normalized)
+
 
 #: The ``actor`` on a ``StatusEvent`` / ``InnerStateChanged`` is EITHER a plain
 #: ``str`` identity (the common case) OR a ``{role, profile, tool, model}``

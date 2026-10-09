@@ -721,7 +721,7 @@ def _snapshot_unchecked_subtasks(req: MoveTaskRequest) -> tuple[str, ...] | None
 
     # Lazy import: the snapshot read is I/O and only runs once the shell supplies
     # a feature_dir, so the pure decision core keeps a minimal import graph.
-    from specify_cli.status import wp_snapshot_state
+    from specify_cli.status import is_subtask_terminal, wp_snapshot_state
 
     # Shared reduce->get accessor (IC-08). An empty log -> no entry -> None ->
     # legacy fallback, identical to the prior explicit empty-stream guard.
@@ -729,7 +729,7 @@ def _snapshot_unchecked_subtasks(req: MoveTaskRequest) -> tuple[str, ...] | None
     if wp_state is None:
         return None
     subtasks = wp_state.get("subtasks") or {}
-    return tuple(str(sid) for sid, status in subtasks.items() if str(status) not in {str(Lane.DONE), "skipped"})
+    return tuple(str(sid) for sid, status in subtasks.items() if not is_subtask_terminal(status))
 
 
 def _guard_subtasks(req: MoveTaskRequest) -> RefuseExit1 | None:

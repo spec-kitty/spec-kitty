@@ -92,8 +92,25 @@ from specify_cli.core.subtask_rows import (
     authored_subtask_roster,
 )
 from specify_cli.core.owned_mission import require_unstaged_index
-from specify_cli.status import mission_lock_key
+from specify_cli.status import Lane, SubtaskStatus, SubtaskValue, mission_lock_key, resolve_subtask_status_alias
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
+
+#: ``--status`` values; ``not_applicable`` is an input alias for ``skipped``.
+_VALID_MARK_STATUSES = ("done", "pending", "skipped", "not_applicable")
+
+
+def _requested_subtask_value(status: str) -> SubtaskValue:
+    """Map a validated ``--status`` to the subtask value it records.
+
+    The single place ``--status`` becomes a persisted value, so the
+    already-satisfied check and the emitted delta cannot disagree. The
+    ``not_applicable`` alias resolves to ``skipped`` here and is never persisted.
+    """
+    resolved = resolve_subtask_status_alias(status)
+    if resolved == SubtaskStatus.SKIPPED:
+        return SubtaskStatus.SKIPPED
+    return Lane.DONE if resolved == "done" else Lane.PLANNED
+
 
 #: WP prompt directories carry a README that is not a work package.
 _README_FILENAME = "readme.md"
@@ -155,7 +172,7 @@ def _ms_validate_inputs(st: _MarkStatusState) -> None:
     """Phase A: validate ``--status`` + non-empty task IDs, then normalize IDs."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    if st.status not in ("done", "pending", "skipped", "not_applicable"):
+    if st.status not in _VALID_MARK_STATUSES:
         _tasks._output_error(st.json_output, f"Invalid status '{st.status}'. Must be 'done', 'pending', 'skipped', or 'not_applicable'.")
         raise typer.Exit(1)
     if st.wp is not None:
@@ -403,7 +420,7 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
 
                 current = wp_snapshot_state(st.status_dir, wp_id)
                 subtasks = (current.get("subtasks") or {}) if current is not None else {}
-                requested = "skipped" if st.status in ("skipped", "not_applicable") else ("done" if st.status == "done" else "planned")
+                requested = str(_requested_subtask_value(st.status))
                 if subtasks.get(task_id) == requested:
                     result = TaskIdResult(
                         task_id, TaskIdResolutionOutcome.ALREADY_SATISFIED, result.format, f"{task_id} in {wp_id} is already {requested}; no event written."
@@ -442,15 +459,12 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     ``Path.cwd()`` (C-003/#2647).
     """
     from mission_runtime import is_single_branch, resolve_topology
-    from specify_cli.status import Lane, WPInnerStateDelta
-    from specify_cli.status.models import SubtaskStatus
+    from specify_cli.status import WPInnerStateDelta
 
     if not st.updated_tasks:
         return
 
-    target_status: Lane | SubtaskStatus = (
-        SubtaskStatus.SKIPPED if st.status in ("skipped", "not_applicable") else (Lane.DONE if st.status == "done" else Lane.PLANNED)
-    )
+    target_status = _requested_subtask_value(st.status)
     tasks_content = st.tasks_md.read_text(encoding="utf-8")
     resolved_tasks_by_wp: dict[str, list[str]] = {}
     unresolved_tasks: list[str] = []

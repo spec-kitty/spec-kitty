@@ -121,17 +121,18 @@ def test_repeated_subtask_requires_wp_and_scoped_mark_is_idempotent(tmp_path: Pa
     assert (mission_dir / "status.events.jsonl").read_text(encoding="utf-8") == events_before
 
 
-def test_skipped_subtask_is_terminal_for_review_gate(tmp_path: Path) -> None:
-    from specify_cli.core.subtask_rows import unchecked_subtask_ids_from_snapshot
+def test_skipped_subtask_delta_round_trips() -> None:
+    """The review-gate terminal rule for ``skipped`` is pinned against a real
+    reduced event log in test_tasks_transition_core / test_subtask_rows_snapshot;
+    this keeps only the wire round-trip of the new value."""
     from specify_cli.status import WPInnerStateDelta
 
     delta = WPInnerStateDelta(subtasks={"T001": "skipped"})
     assert WPInnerStateDelta.from_dict(delta.to_dict()).to_dict() == delta.to_dict()
-    with patch("specify_cli.status.wp_snapshot_state", return_value={"subtasks": {"T001": "skipped"}}):
-        assert unchecked_subtask_ids_from_snapshot(tmp_path, "WP01", ["T001"]) == []
 
 
-def test_mark_skipped_emits_skipped_state(tmp_path: Path) -> None:
+@pytest.mark.parametrize("requested", ["skipped", "not_applicable"])
+def test_mark_skipped_emits_skipped_state(tmp_path: Path, requested: str) -> None:
     slug = "5067-skipped"
     mission_dir = _write_mission(tmp_path, slug, "# Tasks\n\n## WP01\nSubtasks: T001\n", wp_ids=("WP01",))
     with (
@@ -141,9 +142,11 @@ def test_mark_skipped_emits_skipped_state(tmp_path: Path) -> None:
         patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
         patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
     ):
-        result = runner.invoke(app, ["mark-status", "T001", "--wp", "WP01", "--status", "skipped", "--mission", slug, "--json", "--no-auto-commit"])
+        result = runner.invoke(app, ["mark-status", "T001", "--wp", "WP01", "--status", requested, "--mission", slug, "--json", "--no-auto-commit"])
     assert result.exit_code == 0, result.output
-    assert '"T001": "skipped"' in (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
+    events = (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
+    assert '"T001": "skipped"' in events
+    assert "not_applicable" not in events  # the alias is an input synonym, never persisted
 
 
 def test_inline_subtasks_single(tmp_path: Path) -> None:

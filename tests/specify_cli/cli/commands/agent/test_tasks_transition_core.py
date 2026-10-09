@@ -55,6 +55,8 @@ from specify_cli.status.models import (
     Lane,
     ReviewResult,
     StatusEvent,
+    SubtaskStatus,
+    SubtaskValue,
     WPInnerStateDelta,
 )
 from specify_cli.status.store import append_annotations_atomic_verified, append_event, read_event_stream
@@ -750,7 +752,7 @@ def _phase1_feature_dir(
     tmp_path: Path,
     *,
     wp_id: str,
-    subtasks: dict[str, Lane] | None,
+    subtasks: dict[str, SubtaskValue] | None,
 ) -> Path:
     """Seed a phase-1 (``status_phase: 1``) feature dir with a WP in the event log.
 
@@ -792,13 +794,16 @@ def _phase1_feature_dir(
     return feature_dir
 
 
+@pytest.mark.parametrize("terminal", [Lane.DONE, SubtaskStatus.SKIPPED], ids=["done", "skipped"])
 def test_guard_subtasks_passes_on_snapshot_completion_with_tasks_md_absent(
     tmp_path: Path,
+    terminal: SubtaskValue,
 ) -> None:
-    """SC-003: completion recorded in the snapshot passes the gate even though the
+    """SC-003: completion recorded in the snapshot (done, or deliberately skipped
+    -- read from a real reduced event log) passes the gate even though the
     legacy ``unchecked_subtasks`` tuple still reports them unchecked AND no
     ``tasks.md`` exists — proving the snapshot slot is the resolution source."""
-    feature_dir = _phase1_feature_dir(tmp_path, wp_id="WP01", subtasks={"T001": Lane.DONE, "T002": Lane.DONE})
+    feature_dir = _phase1_feature_dir(tmp_path, wp_id="WP01", subtasks={"T001": terminal, "T002": Lane.DONE})
     assert not (feature_dir / "tasks.md").exists()
     req = _base_request(
         task_id="WP01",
@@ -814,7 +819,7 @@ def test_guard_subtasks_refuses_genuinely_incomplete_from_snapshot(
 ) -> None:
     """The refusal branch survives the re-source: a subtask still ``in_progress``
     in the snapshot is refused with the canonical unchecked-subtasks message."""
-    feature_dir = _phase1_feature_dir(tmp_path, wp_id="WP01", subtasks={"T001": Lane.DONE, "T002": Lane.IN_PROGRESS})
+    feature_dir = _phase1_feature_dir(tmp_path, wp_id="WP01", subtasks={"T001": SubtaskStatus.SKIPPED, "T002": Lane.IN_PROGRESS})
     req = _base_request(
         task_id="WP01",
         target_lane="for_review",
@@ -825,7 +830,7 @@ def test_guard_subtasks_refuses_genuinely_incomplete_from_snapshot(
     assert isinstance(outcome, RefuseExit1)
     assert "unchecked subtasks" in outcome.error
     assert "T002" in outcome.error
-    assert "T001" not in outcome.error  # the DONE subtask is not listed
+    assert "T001" not in outcome.error  # the skipped subtask is not listed
 
 
 def test_guard_subtasks_zero_snapshot_subtasks_passes(tmp_path: Path) -> None:
