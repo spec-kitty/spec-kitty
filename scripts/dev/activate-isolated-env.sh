@@ -10,13 +10,13 @@
 # root instead of the shared, machine-global ~/.spec-kitty. Nothing here leaks
 # into the machine-global installation or into sibling clones.
 #
-# The script is path-agnostic: it derives the clone root from its own location,
-# so the same file works unmodified in every clone. Undo with:
+# The script binds the current Git checkout, even when sourced from another
+# worktree. Outside Git, it falls back to its own location. Undo with:
 #     deactivate_spec_kitty
 #
-# See docs/development/isolated_dev_environments.md for the full rationale.
+# See docs/development/getting-started/isolated-dev-environments.md for the full rationale.
 
-# --- resolve this clone's root (works when sourced from bash or zsh) ---------
+# --- resolve this checkout's root (works when sourced from bash or zsh) ------
 if [ -n "${BASH_SOURCE:-}" ]; then
   _spk_script="${BASH_SOURCE[0]}"
 elif [ -n "${ZSH_VERSION:-}" ]; then
@@ -25,7 +25,10 @@ elif [ -n "${ZSH_VERSION:-}" ]; then
 else
   _spk_script="$0"
 fi
-_spk_root="$(cd "$(dirname "$_spk_script")/../.." && pwd)"
+_spk_root="$(git rev-parse --show-toplevel 2>/dev/null)"
+if [ -z "$_spk_root" ]; then
+  _spk_root="$(cd "$(dirname "$_spk_script")/../.." && pwd)"
+fi
 unset _spk_script
 
 # --- idempotency: re-sourcing for the same clone is a no-op refresh ----------
@@ -38,7 +41,13 @@ fi
 # --- guardrail: the virtualenv must exist ------------------------------------
 if [ ! -d "$_spk_root/.venv" ]; then
   echo "spec-kitty: no .venv found at $_spk_root" >&2
-  echo "  Create it first — see docs/development/isolated_dev_environments.md" >&2
+  echo "  Create it first — see docs/development/getting-started/isolated-dev-environments.md" >&2
+  unset _spk_root
+  return 1 2>/dev/null || exit 1
+fi
+if [ ! -f "$_spk_root/.venv/bin/spec-kitty" ] || [ ! -x "$_spk_root/.venv/bin/spec-kitty" ]; then
+  echo "spec-kitty: no executable spec-kitty CLI found at $_spk_root/.venv/bin/spec-kitty" >&2
+  echo "  Install this checkout first — see docs/development/getting-started/isolated-dev-environments.md" >&2
   unset _spk_root
   return 1 2>/dev/null || exit 1
 fi
