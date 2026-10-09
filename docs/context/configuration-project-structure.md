@@ -96,4 +96,4 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Context** | Configuration & Project Structure |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Project Charter](#project-charter), [Charter offering](./charter.md#doctrine-catalog) |
+| **Related terms** | [Project Charter](#project-charter), [Charter offering](./charter.md#charter-offering) |

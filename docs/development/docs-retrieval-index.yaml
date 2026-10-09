@@ -9367,13 +9367,14 @@ pages:
     abstract: "Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release."
     anchors:
     - {slug: "unreleased-4-0-0rc6", text: "[Unreleased] - 4.0.0rc6", level: 2}
+    - {slug: "breaking", text: "Breaking", level: 3}
     - {slug: "upgrade-notes", text: "Upgrade Notes", level: 3}
     - {slug: "added", text: "Added", level: 3}
     - {slug: "changed", text: "Changed", level: 3}
     - {slug: "fixed", text: "Fixed", level: 3}
     - {slug: "internal", text: "Internal", level: 3}
     - {slug: "4-0-0rc5-2026-10-02", text: "[4.0.0rc5] - 2026-10-02", level: 2}
-    - {slug: "breaking", text: "Breaking", level: 3}
+    - {slug: "breaking-2", text: "Breaking", level: 3}
     - {slug: "upgrade-notes-2", text: "Upgrade Notes", level: 3}
     - {slug: "added-2", text: "Added", level: 3}
     - {slug: "changed-2", text: "Changed", level: 3}
@@ -9393,7 +9394,7 @@ pages:
     - {slug: "fixed-5", text: "Fixed", level: 3}
     - {slug: "changed-4", text: "Changed", level: 3}
     - {slug: "4-0-0rc1-2026-09-13", text: "[4.0.0rc1] - 2026-09-13", level: 2}
-    - {slug: "breaking-2", text: "💥 Breaking", level: 3}
+    - {slug: "breaking-3", text: "💥 Breaking", level: 3}
     - {slug: "changed-5", text: "Changed", level: 3}
     - {slug: "removed", text: "Removed", level: 3}
     - {slug: "added-6", text: "Added", level: 3}
@@ -10277,6 +10278,12 @@ pages:
     anchors:
     - {slug: "context-charter", text: "Context: Charter", level: 2}
     - {slug: "charter", text: "charter", level: 3}
+    - {slug: "charter-offering", text: "Charter offering", level: 3}
+    - {slug: "charter-pack", text: "Charter Pack", level: 3}
+    - {slug: "activation-preset", text: "Activation preset", level: 3}
+    - {slug: "active-charter", text: "Active charter", level: 3}
+    - {slug: "project-layer", text: "Project layer", level: 3}
+    - {slug: "charter-bundle", text: "Charter Bundle", level: 3}
     - {slug: "doctrine-domain", text: "Doctrine Domain", level: 3}
     - {slug: "guideline", text: "Guideline", level: 3}
     - {slug: "paradigm", text: "Paradigm", level: 3}
@@ -10288,8 +10295,6 @@ pages:
     - {slug: "toolguide", text: "Toolguide", level: 3}
     - {slug: "schema-doctrine-artifact", text: "Schema (Doctrine Artifact)", level: 3}
     - {slug: "import-candidate", text: "Import Candidate", level: 3}
-    - {slug: "charter-selection", text: "Charter Selection", level: 3}
-    - {slug: "doctrine-catalog", text: "Doctrine Catalog", level: 3}
     - {slug: "specification-by-example-paradigm", text: "Specification by Example (Paradigm)", level: 3}
     - {slug: "living-documentation-sync-directive", text: "Living Documentation Sync (Directive)", level: 3}
     - {slug: "usage-examples-sync-tactic", text: "Usage Examples Sync (Tactic)", level: 3}
@@ -10299,8 +10304,6 @@ pages:
     - {slug: "context-scoped-selection", text: "Context-Scoped Selection", level: 3}
     - {slug: "activation-registry", text: "Activation Registry", level: 3}
     - {slug: "activation-context", text: "Activation Context", level: 3}
-    - {slug: "doctrine-pack", text: "Doctrine Pack", level: 3}
-    - {slug: "doctrine-pack-id", text: "Doctrine Pack ID", level: 3}
     - {slug: "trigger-registry", text: "Trigger Registry", level: 3}
     - {slug: "charter-facade", text: "Charter Facade", level: 3}
     - {slug: "mission-type-profile", text: "Mission-Type Profile", level: 3}
@@ -12923,6 +12926,28 @@ pages:
     - {slug: "timeline", text: "Timeline", level: 2}
     - {slug: "how-to-silence-the-warning-temporarily", text: "How to silence the warning temporarily", level: 2}
     - {slug: "questions", text: "Questions", level: 2}
+  - path: "docs/migrations/charter-pack-cutover.md"
+    title: "Migration: Charter Pack Cutover"
+    divio_type: "how-to"
+    abstract: "Runbook for the charter pack cutover (#3732): run spec-kitty upgrade once, handle LEGACY_CHARTER_STATE and lanes in flight, update packs, and rewrite saved scripts."
+    anchors:
+    - {slug: "what-changed", text: "What changed", level: 2}
+    - {slug: "operators", text: "Operators", level: 2}
+    - {slug: "upgrade-a-project", text: "Upgrade a project", level: 3}
+    - {slug: "read-the-upgrade-summary", text: "Read the upgrade summary", level: 3}
+    - {slug: "keys-that-were-reset", text: "Keys that were reset", level: 3}
+    - {slug: "refusals-during-the-upgrade", text: "Refusals during the upgrade", level: 3}
+    - {slug: "legacy-charter-state-the-project-is-not-migrated-yet", text: "`LEGACY_CHARTER_STATE`: the project is not migrated yet", level: 3}
+    - {slug: "config-that-the-upgrade-does-not-rewrite", text: "Config that the upgrade does not rewrite", level: 3}
+    - {slug: "missions-in-flight", text: "Missions in flight", level: 2}
+    - {slug: "choosing-a-starting-point", text: "Choosing a starting point", level: 2}
+    - {slug: "pack-authors", text: "Pack authors", level: 2}
+    - {slug: "saved-scripts", text: "Saved scripts", level: 2}
+    - {slug: "commands", text: "Commands", level: 3}
+    - {slug: "skills", text: "Skills", level: 3}
+    - {slug: "config-keys-and-paths", text: "Config keys and paths", level: 3}
+    - {slug: "error-codes", text: "Error codes", level: 3}
+    - {slug: "python-callers", text: "Python callers", level: 3}
   - path: "docs/migrations/cross-repo-e2e-gate.md"
     title: "Cross-Repo E2E Gate — Operator Migration Guide"
     divio_type: "none"

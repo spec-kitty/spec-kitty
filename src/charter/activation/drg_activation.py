@@ -8,7 +8,7 @@ the top-level ``charter.drg`` facade unchanged. The logic below reads
 project-charter activation state (:class:`~charter.activation.pack_context.PackContext`)
 to decide which doctrine artifacts are visible — an activation concern, not
 an offering-type concern — so it lives inside ``charter.activation`` per the
-runtime -> charter -> offering/activation boundary (ADR 2026-08-22-2 §5,
+runtime -> charter -> offering/activation boundary (ADR 2026-10-06-1 §1,
 C-004).
 
 Provides:

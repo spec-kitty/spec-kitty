@@ -6,7 +6,8 @@ everything that reads project-charter state (:class:`PackContext` and
 friends) to decide which doctrine artifacts are *activated* for a project.
 
 Split out of the flat ``src/charter/`` package (mission
-``charter-activation-split-01M16ZSE``, ADR ``2026-08-22-2`` §5) so the
+``charter-activation-split-01M16ZSE``; the offering / activation split is
+named in ADR ``2026-10-06-1`` §1) so the
 runtime -> charter -> offering/activation boundary is a real package wall:
 ``tests/architectural/test_charter_offering_does_not_import_activation.py``
 forbids any ``charter.offering.*`` module from importing

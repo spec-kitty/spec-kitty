@@ -4418,6 +4418,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/migrations/charter-pack-cutover.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/migrations/cross-repo-e2e-gate.md
   tag: current
   divio_type: none

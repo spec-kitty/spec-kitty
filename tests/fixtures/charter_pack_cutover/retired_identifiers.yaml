@@ -77,6 +77,13 @@ slices:
       # and is never hand-edited. Same exemption as the removed-command gate
       # (docs/development/reference/terminology-exemptions.md). Added by WP22 (#3732).
       - "docs/development/docs-retrieval-index.yaml"
+      # The built-in glossary pack records the retired terms as `status: deprecated`
+      # entries naming their successor: test_fr013_retired_terms_redirected requires
+      # exactly those entries there (it calls the seed and this pack the FR-018-exempt
+      # glossary surfaces), so the pack must spell the retired surfaces. Same reason as
+      # docs/context/charter.md above. Added by WP24 (#3732); WP25's FR-018 gate needs
+      # the matching file exemption.
+      - "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml"
     identifiers:
       - doctrine pack
       - project doctrine
