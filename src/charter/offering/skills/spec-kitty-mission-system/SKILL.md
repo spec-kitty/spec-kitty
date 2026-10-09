@@ -311,17 +311,12 @@ Profiles do not use relationship fields such as `specializes_from`. Lineage and
 specialization relationships belong in the doctrine DRG; profile matching uses
 weighted signals (language, framework, file path, keyword, exact-id).
 
-The `mission.yaml` `task_types` section maps WP actions to agent roles:
-
-```yaml
-task_types:
-  implement:
-    agent_role: implementer
-  review:
-    agent_role: reviewer
-  plan:
-    agent_role: planner
-```
+Work-package actions are matched to roles through the profiles themselves, not
+through a `mission.yaml` block: the shipped built-in `mission.yaml` files carry
+no `task_types` mapping. A work package records its intended role on its
+`agent_profile` frontmatter, profile matching scores the candidates by the same
+weighted signals (language, framework, file path, keyword, exact-id), and
+`spec-kitty dispatch` routes an ad-hoc request to the fitting profile.
 
 ```bash
 # Discover activated profiles (--all for the full on-disk catalog)

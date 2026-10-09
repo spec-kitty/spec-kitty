@@ -89,15 +89,17 @@ negative is the silent-breakage class of bugs #393 was created to prevent.
    JSON:
 
    ```python
-   from specify_cli.mission_metadata import set_change_mode
-   set_change_mode(feature_dir, "bulk_edit")
+   from pathlib import Path
+
+   from specify_cli.mission_metadata import locked_update_meta
+   locked_update_meta(Path(feature_dir), lambda meta: meta.update(change_mode="bulk_edit"))
    ```
 
    Or via shell after `mission create`:
 
    ```bash
-   python -c "from pathlib import Path; from specify_cli.mission_metadata import set_change_mode; \
-              set_change_mode(Path('<feature_dir>'), 'bulk_edit')"
+   python -c "from pathlib import Path; from specify_cli.mission_metadata import locked_update_meta; \
+              locked_update_meta(Path('<feature_dir>'), lambda meta: meta.update(change_mode='bulk_edit'))"
    ```
 
 3. **Name the target in the spec.** In `spec.md`, state explicitly what's
@@ -314,7 +316,7 @@ Dismissing carelessly defeats the guardrail. When in doubt, upgrade.
 | Question | Answer |
 |---|---|
 | Who decides to turn on bulk_edit? | The agent, during specify/plan. Users don't know this flag exists. |
-| Where is it set? | `meta.json` via `set_change_mode(feature_dir, "bulk_edit")`. |
+| Where is it set? | `meta.json` via `locked_update_meta(Path(feature_dir), lambda meta: meta.update(change_mode="bulk_edit"))`. |
 | What artifact is required? | `kitty-specs/<mission>/occurrence_map.yaml` |
 | How many categories must the map classify? | All 8 standard categories. |
 | What blocks implement? | Missing, malformed, or inadmissible map. |

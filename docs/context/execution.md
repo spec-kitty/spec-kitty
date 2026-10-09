@@ -257,7 +257,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 
 | | |
 |---|---|
-| **Definition** | The Actor realized inside the Execution domain — the execution-bound realization of an Actor that performs actions within a mission run, producing or consuming communication artifacts (commits, PRs, comments). Named concept in docs only; no code type until a concrete actor-kind-mismatch bug triggers materialization. |
+| **Definition** | The Actor realized inside the Execution domain — the execution-bound realization of an Actor that performs actions within a Mission, producing or consuming communication artifacts (commits, PRs, comments). Named concept in docs only; no code type until a concrete actor-kind-mismatch bug triggers materialization. |
 | **Context** | Execution |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |

@@ -326,7 +326,7 @@ In 15 minutes, you have:
 - A detailed implementation plan with technology choices and rationale
 - API contracts and data models ready for code generation
 - Comprehensive test scenarios for both automated and manual testing
-- All documents properly versioned in a feature branch
+- All documents properly versioned in a topic branch
 
 ### The Power of Structured Automation
 

@@ -5,13 +5,13 @@
 # How to add a new scope mapping:
 #   1. Add an entry under `scopes` with:
 #      - path: relative path from repo root to the src directory
-#      - contexts: list of context slugs (filenames without .md from glossary/contexts/)
+#      - contexts: list of context slugs (filenames without .md from docs/context/)
 #      - description: short human-readable note
 #   2. Run: python scripts/generate_contextive_glossaries.py generate
 #   3. Commit the updated generated files alongside this map.
 #
-# Available context slugs (from glossary/contexts/):
-#   configuration-project-structure, doctrine, dossier, execution,
+# Available context slugs (from docs/context/):
+#   configuration-project-structure, charter, dossier, execution,
 #   governance, identity, lexical, orchestration, practices-principles,
 #   system-events, technology-foundations
 
