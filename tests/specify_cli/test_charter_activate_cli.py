@@ -358,10 +358,18 @@ class TestMissionTypeGeneralized:
 
 class TestDeactivate:
     def test_none_state_exits_1_with_guidance(self, project_root: Path) -> None:
-        """A None-state kind surfaces the engine error as a clean exit-1 (WP12)."""
+        """A None-state kind surfaces the engine error as a clean exit-1 (WP12).
+
+        The remedy names the action that materialises the list (activate one
+        artifact of the kind, or set the list explicitly), never ``spec-kitty
+        upgrade``, which no longer initialises a default pack (WP06, FR-015).
+        """
         result = _deactivate(project_root, "directive", "some-directive")
         assert result.exit_code == 1
-        assert "spec-kitty upgrade" in result.output
+        output = " ".join(result.output.split())
+        assert "has no explicit activation set" in output
+        assert "spec-kitty charter activate directive <id>" in output
+        assert "spec-kitty upgrade" not in output
 
     def test_deactivate_removes_from_config(self, tmp_path: Path) -> None:
         kittify = tmp_path / ".kittify"

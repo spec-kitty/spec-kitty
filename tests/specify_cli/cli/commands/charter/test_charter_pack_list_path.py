@@ -114,7 +114,7 @@ def test_path_preset_of_a_pack_without_presets(project: Path) -> None:
     assert error["code"] == "PRESET_NOT_FOUND" and error["available"] == []
 
 
-def test_path_malformed_preset_fails_with_the_fallback_code(project: Path) -> None:
+def test_path_malformed_preset_fails_with_preset_invalid(project: Path) -> None:
     _dump(project / "org-packs" / "acme" / "presets" / "bad.yaml", {"name": "bad", "description": "x", "unknown_key": 1})
 
     result = _pack(project, "path", "acme", "--preset", "bad")

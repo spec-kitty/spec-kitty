@@ -486,3 +486,68 @@ def test_unparseable_target_is_a_config_error(tmp_path: Path) -> None:
 
     with pytest.raises(ActiveCharterConfigError):
         plan_preset_application(root, "built-in", "minimal")
+
+
+# ---------------------------------------------------------------------------
+# WP08 review follow-ups: the three fail-closed branches each get a test
+# ---------------------------------------------------------------------------
+
+
+def test_unreadable_mission_type_roster_is_a_reason_and_nothing_is_written(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def malformed(repo_root: Path, org_roots: Any) -> frozenset[str]:
+        raise ValueError("mission_types/broken.yaml: not a mapping")
+
+    monkeypatch.setattr(engine, "_available_mission_types", malformed)
+    root = _project(tmp_path)
+    before = (root / ".kittify" / "config.yaml").read_bytes()
+
+    with pytest.raises(PresetIdUnresolvedError) as caught:
+        plan_preset_application(root, "built-in", "default")
+
+    assert caught.value.reasons == {"mission_type_activations": "the mission-type roster cannot be read: mission_types/broken.yaml: not a mapping"}
+    assert caught.value.unresolved == {}
+    assert (root / ".kittify" / "config.yaml").read_bytes() == before
+
+
+def test_unreadable_org_charter_fails_closed_for_a_preset_listing_ids(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def unreadable(repo_root: Path) -> Any:
+        raise ValueError("org-charter.yaml: retired field 'doctrine_pack_id'")
+
+    monkeypatch.setattr(engine, "load_org_charter_policies", unreadable)
+    root = _with_org_pack(_project(tmp_path), presets={"team": {"activated_tactics": [ORG_TACTIC]}})
+    before = (root / ".kittify" / "config.yaml").read_bytes()
+
+    with pytest.raises(PresetIdUnresolvedError) as caught:
+        plan_preset_application(root, ORG, "team")
+
+    (reason,) = caught.value.reasons.values()
+    assert reason == "the org charter cannot be read: org-charter.yaml: retired field 'doctrine_pack_id'"
+    assert (root / ".kittify" / "config.yaml").read_bytes() == before
+
+
+def test_org_charter_is_not_read_for_a_preset_listing_no_ids(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def unreadable(repo_root: Path) -> Any:
+        raise AssertionError("the org charter must not be read for a mission-types-only preset")
+
+    monkeypatch.setattr(engine, "load_org_charter_policies", unreadable)
+
+    plan = plan_preset_application(_project(tmp_path), "built-in", "default")
+
+    assert "mission_type_activations" in plan.written
+
+
+def test_flow_style_target_root_is_a_config_error_and_unchanged(tmp_path: Path) -> None:
+    from charter.activation.pack_context import ActiveCharterConfigError
+
+    root = tmp_path / "project"
+    config = _write(root / ".kittify" / "config.yaml", "{vcs: {type: git}, activated_directives: [DIRECTIVE_001]}\n")
+    before = config.read_bytes()
+    plan = plan_preset_application(root, "built-in", "default")
+    assert plan.removed == ["activated_directives"], "control: the default preset removes the per-kind key"
+
+    with pytest.raises(ActiveCharterConfigError) as caught:
+        apply_preset_plan(root, plan, force=True)
+
+    assert caught.value.code == "ACTIVE_CHARTER_CONFIG_INVALID"
+    assert "cannot take the preset" in caught.value.body and "flow-style" in caught.value.body
+    assert config.read_bytes() == before

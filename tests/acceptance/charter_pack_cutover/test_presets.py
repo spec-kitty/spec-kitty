@@ -326,7 +326,6 @@ def test_fr003_init_without_activation_equals_default_preset(tmp_path: Path) -> 
 
 @covers("FR-003")
 @pytest.mark.integration
-@pending_until("WP09", "init fails closed when the default preset is missing")
 def test_fr003_default_preset_missing_fails_closed(tmp_path: Path, copied_builtin_pack: Path) -> None:
     intact = _init(tmp_path / "intact", "p")
     assert active_charter(intact).get("mission_type_activations"), "control: the intact copied pack provisions"
@@ -341,7 +340,6 @@ def test_fr003_default_preset_missing_fails_closed(tmp_path: Path, copied_builti
 
 @covers("FR-003")
 @pytest.mark.integration
-@pending_until("WP09", "init reads the default preset's mission types")
 def test_fr003_copied_pack_default_preset_drives_init(tmp_path: Path, copied_builtin_pack: Path) -> None:
     write_yaml(copied_builtin_pack / "presets" / "default.yaml", {"name": "default", "description": "fixture", "mission_type_activations": ["software-dev"]})
     project = _init(tmp_path, "p")

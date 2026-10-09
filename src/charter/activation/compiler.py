@@ -30,13 +30,14 @@ from charter.activation.charter_yaml_io import (
     update_charter_yaml_section,
     yaml_documents_equal,
 )
+from kernel.charter_pack_paths import pack_presets_dir
 from kernel.clock import now_utc_stamp
+from kernel.errors import KittyInternalConsistencyError
 from charter.activation.interview import (
     CharterInterview,
     LocalSupportDeclaration,
     validate_local_support_declarations,
 )
-from charter.activation.default_pack import load_default_mission_type_activations
 from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn
 from charter.activation.language_scope import infer_repo_languages
 from charter.activation.pack_context import PackContext
@@ -49,7 +50,8 @@ from charter.activation.schemas import (
     DirectivesConfig,
     GovernanceConfig,
 )
-from charter.offering.pack_paths import built_in_dir
+from charter.offering.pack_paths import built_in_dir, built_in_root
+from charter.offering.packs.presets import PresetFormatError, PresetNotFoundError, load_preset
 from charter.offering.provenance import to_portable_source_path
 
 logger = logging.getLogger(__name__)
@@ -57,9 +59,11 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "CharterReference",
     "CompiledCharter",
+    "DefaultPresetMissingError",
     "WholeKindUnresolvedError",
     "WriteBundleResult",
     "compile_charter",
+    "default_preset_mission_types",
     "provision_mission_type_activations",
     "resolve_config_activated_roots",
     "write_compiled_charter",
@@ -616,9 +620,65 @@ class _PreparedMissionTypeActivations:
         return apply_yaml_write(self.write)
 
 
+#: The built-in pack's preset that seeds ``mission_type_activations`` (FR-003).
+_DEFAULT_PRESET_NAME = "default"
+
+
+class DefaultPresetMissingError(KittyInternalConsistencyError):
+    """The built-in pack's ``default`` preset cannot seed ``mission_type_activations``.
+
+    Raised by ``spec-kitty init``, ``spec-kitty charter generate`` and the upgrade
+    provisioning (FR-003) when ``presets/default.yaml`` of the built-in pack is
+    absent, unreadable or malformed, or lists no mission types: a broken
+    spec-kitty install, never a legitimate project state.
+    """
+
+    def __init__(self, preset_path: Path, detail: str) -> None:
+        self.preset_path = preset_path
+        super().__init__(
+            "DEFAULT_PRESET_MISSING",
+            f"The built-in pack's `default` preset {preset_path} {detail}. Cannot provision this project's "
+            "mission types. This indicates a broken spec-kitty install: reinstall spec-kitty and re-run the command.",
+        )
+
+
+def _default_preset_path() -> Path:
+    """The built-in pack's ``default`` preset file (whether or not it exists)."""
+    return pack_presets_dir(built_in_root()) / f"{_DEFAULT_PRESET_NAME}.yaml"
+
+
+def default_preset_mission_types() -> list[str]:
+    """Return the built-in ``default`` preset's ``mission_type_activations``, failing closed.
+
+    The single seed-read of every mission-type provisioner (``init``,
+    ``charter generate``, upgrade). The list is copied verbatim: it is never
+    intersected with the mission-type catalog nor re-derived by scanning it.
+    An absent key or an empty list in the *shipped* preset is a broken
+    install, so it raises like a missing or malformed file.
+
+    Raises:
+        DefaultPresetMissingError: the preset file is absent, unreadable or
+            malformed, or declares no (or an empty) ``mission_type_activations``.
+    """
+    path = _default_preset_path()
+    try:
+        preset = load_preset(built_in_root(), _DEFAULT_PRESET_NAME)
+    except PresetNotFoundError as exc:
+        raise DefaultPresetMissingError(path, "does not exist") from exc
+    except PresetFormatError as exc:
+        raise DefaultPresetMissingError(path, f"is malformed ({exc})") from exc
+    if not preset.mission_type_activations:
+        raise DefaultPresetMissingError(path, f"declares no non-empty '{_MISSION_TYPE_ACTIVATIONS_KEY}' list")
+    return list(preset.mission_type_activations)
+
+
 def prepare_mission_type_activations(repo_root: Path) -> _PreparedMissionTypeActivations:
-    """Read missing-key policy and prepare exact bytes without provisioning."""
-    from charter.activation.default_pack import _default_pack_yaml_path
+    """Read missing-key policy and prepare exact bytes without provisioning.
+
+    An absent key is seeded from the built-in ``default`` preset; the preset
+    file (and its parents) is recorded as an observed input, so the prepared
+    write refuses when the seed changed between preparation and apply.
+    """
     from charter.activation.pack_manager import prepare_activation_write, resolve_activation_write_target
 
     repo_root = repo_root.resolve()
@@ -630,9 +690,9 @@ def prepare_mission_type_activations(repo_root: Path) -> _PreparedMissionTypeAct
     if present:
         values = data[_MISSION_TYPE_ACTIVATIONS_KEY]
     else:
-        seed = _default_pack_yaml_path(None)
+        seed = _default_preset_path()
         source_inputs = tuple(observe_yaml_input(path) for path in (*reversed(seed.parents), seed))
-        values = load_default_mission_type_activations()
+        values = default_preset_mission_types()
     if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
         raise ValueError(f"{_MISSION_TYPE_ACTIVATIONS_KEY} must be a list of strings")
     prepared = initial if present else prepare_activation_write(repo_root, {_MISSION_TYPE_ACTIVATIONS_KEY: values})
@@ -657,11 +717,10 @@ def provision_mission_type_activations(repo_root: Path) -> bool:
     actually offers its mission types, mirroring the built-in
     ``activated_<kind>`` keys.
 
-    Additive and idempotent (charter contract C-A2): the built-in mission-type
-    set authored in ``src/charter/activation/packs/default.yaml`` is written ONLY when the
-    key is entirely absent from the activation authority. An already-present
-    list — a custom set or an explicit ``[]`` fail-closed opt-out — is left
-    untouched.
+    Additive and idempotent (charter contract C-A2): the mission types of the
+    built-in pack's ``default`` preset are written ONLY when the key is
+    entirely absent from the activation authority. An already-present list —
+    a custom set or an explicit ``[]`` fail-closed opt-out — is left untouched.
 
     The write routes through
     :func:`charter.activation.pack_manager.resolve_activation_write_target` (the single
@@ -678,13 +737,10 @@ def provision_mission_type_activations(repo_root: Path) -> bool:
 
     Raises
     ------
-    ActiveCharterConfigError
-        When the shipped default pack declares no ``mission_type_activations``
-        set (a broken install) — fail-closed rather than seeding an empty,
-        equally-unusable list. Raised by the shared seed-read helper
-        :func:`charter.activation.default_pack.load_default_mission_type_activations`
-        (also consumed by ``spec-kitty init``/``upgrade`` provisioning), so
-        both provisioners fail closed on the identical condition.
+    DefaultPresetMissingError
+        When the key is absent and the built-in ``default`` preset cannot seed
+        it (:func:`default_preset_mission_types`, the seed-read ``spec-kitty
+        init`` shares) — fail-closed rather than seeding an empty list.
     """
     return prepare_mission_type_activations(repo_root).apply()
 

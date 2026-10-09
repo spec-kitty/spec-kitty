@@ -812,7 +812,7 @@ def reproject_pack_skills(repo_root: Path, kind: str) -> None:
 DEFAULT_PRESET_PACK = "built-in"
 
 #: Code of a ``--preset --json`` run whose preset was written but whose
-#: post-write resynthesis failed. Provisional name pending the owner's ruling.
+#: post-write resynthesis failed.
 _RESYNTHESIS_FAILED = "RESYNTHESIS_FAILED"
 
 _PRESET_ONLY_OPTIONS: tuple[tuple[str, str], ...] = (("pack", "--pack"), ("force", "--force"), ("json_output", "--json"))

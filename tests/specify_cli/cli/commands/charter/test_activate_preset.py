@@ -192,7 +192,7 @@ def test_invalid_pack_config_fails_closed(tmp_path: Path) -> None:
     assert _config(tmp_path).read_bytes() == before
 
 
-def test_malformed_preset_file_fails_with_the_fallback_code(project_root: Path) -> None:
+def test_malformed_preset_file_fails_with_preset_invalid(project_root: Path) -> None:
     _dump(project_root / ORG_DIR / "presets" / "bad.yaml", {"name": "bad", "description": "x", "unknown_key": 1})
     _dump(_config(project_root), {"mission_type_activations": ["software-dev"], "charter_packs": {"org": {"packs": [{"name": ORG, "local_path": ORG_DIR}]}}})
 

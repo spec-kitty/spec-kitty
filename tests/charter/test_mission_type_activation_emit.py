@@ -11,8 +11,8 @@ feature offered NO mission types (mission-create on it fails closed).
 These tests pin ``charter.activation.compiler.provision_mission_type_activations`` — the
 non-crashing, additive provisioning primitive that emits the built-in mission
 type set into the activation authority (the pointer-resolved ``charter.yaml``
-for a migrated project, or ``config.yaml`` for a legacy one), mirroring
-``src/charter/activation/packs/default.yaml``'s authored ``mission_type_activations`` list.
+for a migrated project, or ``config.yaml`` for a legacy one), mirroring the
+``mission_type_activations`` of the built-in pack's ``default`` preset.
 """
 
 from __future__ import annotations
@@ -22,8 +22,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.activation.compiler import provision_mission_type_activations
-from charter.activation.default_pack import load_default_mission_type_activations
+from charter.activation.compiler import default_preset_mission_types, provision_mission_type_activations
 from charter.activation.pack_context import PackContext
 
 
@@ -68,11 +67,11 @@ def _load(path: Path) -> dict:
 
 
 def _builtin_mission_types() -> list[str]:
-    return load_default_mission_type_activations()
+    return default_preset_mission_types()
 
 
 def test_provision_emits_builtin_set_into_pointer_charter(tmp_path: Path) -> None:
-    """A pointer charter that lacks the key gains the default.yaml built-in set."""
+    """A pointer charter that lacks the key gains the default preset's mission types."""
     charter_path = _write_pointer_project(tmp_path, _CHARTER_YAML_WITHOUT_KEY)
 
     written = provision_mission_type_activations(tmp_path)

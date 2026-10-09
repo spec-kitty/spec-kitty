@@ -1,165 +1,131 @@
-"""Fold for PR #3246 (MINOR-1): unify the ``mission_type_activations`` seed-READ.
+"""One seed-read for ``mission_type_activations``: the built-in ``default`` preset (FR-003).
 
-``spec-kitty init``/``upgrade``
+``spec-kitty init``
 (:func:`specify_cli.provisioning.default_charter.provision_default_mission_type_activations`)
-and ``spec-kitty charter generate``
-(:func:`charter.activation.compiler.provision_mission_type_activations`) both seed
-``mission_type_activations`` from the same shipped
-``src/charter/activation/packs/default.yaml``, but previously read it through two
-independent, near-identical stacks with divergent fail-closed behaviour:
-one (``specify_cli``) silently accepted an authored-empty list, the other
-(``charter.activation.compiler``) already raised.
+and ``spec-kitty charter generate`` / upgrade
+(:func:`charter.activation.compiler.provision_mission_type_activations`) both
+seed ``mission_type_activations`` through
+:func:`charter.activation.compiler.default_preset_mission_types`. This suite
+pins:
 
-Both now consume the single, fail-closed
-:func:`charter.activation.default_pack.load_default_mission_type_activations`. This
-suite pins:
+* both provisioners seed the IDENTICAL set from the real built-in ``default``
+  preset;
+* a missing, malformed or empty ``default`` preset fails closed on BOTH write
+  paths with the same ``DEFAULT_PRESET_MISSING`` error, writing nothing.
 
-* both provisioners seed the IDENTICAL set from the real shipped
-  ``default.yaml`` (the parity the shared read now guarantees);
-* a malformed/absent default pack fails closed on BOTH write paths, each
-  still surfacing its own historical exception type
-  (``DefaultCharterPackMissingError`` for ``specify_cli``,
-  ``ActiveCharterConfigError`` for ``charter.activation.compiler``).
-
-Write-side behaviour (which config file, additive-only, idempotence,
-authored-``[]``-preserved) is unchanged and already covered by
+Each broken case points ``SPEC_KITTY_PACKS_ROOT`` at a tmp copy of the
+built-in pack. Write-side behaviour (which file, additive-only, idempotence,
+authored ``[]`` preserved) is covered by
 ``tests/specify_cli/cli/commands/test_init_provisioning.py`` and
-``tests/charter/test_mission_type_activation_emit.py``; this file is scoped
-to the shared read.
+``tests/charter/test_mission_type_activation_emit.py``.
 """
 
 from __future__ import annotations
 
+import shutil
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from ruamel.yaml import YAML
 
-import charter.activation.default_pack as default_pack_module
-from charter.activation.compiler import provision_mission_type_activations
-from charter.activation.default_pack import load_default_mission_type_activations
-from charter.activation.pack_context import ActiveCharterConfigError
-from specify_cli.provisioning import default_charter
-from specify_cli.provisioning.default_charter import (
-    DefaultCharterPackMissingError,
-    provision_default_mission_type_activations,
+from charter.activation.compiler import (
+    DefaultPresetMissingError,
+    default_preset_mission_types,
+    provision_mission_type_activations,
 )
+from specify_cli.provisioning.default_charter import provision_default_mission_type_activations
 
 pytestmark = [pytest.mark.fast]
 
 _SAFE_YAML = YAML(typ="safe")
+_BUILT_IN = Path(__file__).resolve().parents[2] / "packs" / "built-in"
+_SHIPPED = _SAFE_YAML.load((_BUILT_IN / "presets" / "default.yaml").read_text(encoding="utf-8"))
 
 
 def _load_config(config_file: Path) -> dict:
     return _SAFE_YAML.load(config_file) or {}
 
 
+def _missing(preset: Path) -> None:
+    preset.unlink()
+
+
+def _malformed(preset: Path) -> None:
+    preset.write_text("name: default\ndescription: [unclosed\n", encoding="utf-8")
+
+
+def _empty(preset: Path) -> None:
+    preset.write_text("name: default\ndescription: fixture\nmission_type_activations: []\n", encoding="utf-8")
+
+
+_BREAKAGES: dict[str, Callable[[Path], None]] = {"missing": _missing, "malformed": _malformed, "empty": _empty}
+
+
+@pytest.fixture
+def broken_default_preset(request: pytest.FixtureRequest, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A tmp copy of the built-in pack whose ``default`` preset is broken as ``request.param`` names."""
+    packs_root = tmp_path / "packs-root"
+    shutil.copytree(_BUILT_IN, packs_root / "built-in")
+    preset = packs_root / "built-in" / "presets" / "default.yaml"
+    _BREAKAGES[request.param](preset)
+    monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+    return preset
+
+
+def _legacy_project(root: Path) -> Path:
+    kittify = root / ".kittify"
+    kittify.mkdir(parents=True)
+    (kittify / "config.yaml").write_text("vcs:\n  type: git\n", encoding="utf-8")
+    return root
+
+
 # ---------------------------------------------------------------------------
-# Parity: both provisioners seed the identical set from the real default.yaml
+# Parity: both provisioners seed the identical set from the real default preset
 # ---------------------------------------------------------------------------
 
 
-def test_both_provisioners_seed_identical_set_from_real_default_pack(
-    tmp_path: Path,
-) -> None:
-    """init/upgrade and charter-generate write the SAME activation list."""
+def test_both_provisioners_seed_identical_set_from_the_default_preset(tmp_path: Path) -> None:
+    """init and charter-generate write the SAME activation list, the preset's."""
     init_project = tmp_path / "init-project"
     assert provision_default_mission_type_activations(init_project) is True
     init_config = _load_config(init_project / ".kittify" / "config.yaml")
 
-    gen_project = tmp_path / "gen-project"
-    kittify = gen_project / ".kittify"
-    kittify.mkdir(parents=True)
-    (kittify / "config.yaml").write_text("vcs:\n  type: git\n", encoding="utf-8")
+    gen_project = _legacy_project(tmp_path / "gen-project")
     assert provision_mission_type_activations(gen_project) is True
-    gen_config = _load_config(kittify / "config.yaml")
+    gen_config = _load_config(gen_project / ".kittify" / "config.yaml")
 
-    shared = load_default_mission_type_activations()
+    shared = default_preset_mission_types()
 
+    assert shared == _SHIPPED["mission_type_activations"]
     assert init_config["mission_type_activations"] == shared
     assert gen_config["mission_type_activations"] == shared
-    assert init_config["mission_type_activations"] == gen_config["mission_type_activations"]
-    assert shared  # non-empty: a real fixture-free regression would be silent otherwise
+    assert shared  # non-empty: a fixture-free regression would be silent otherwise
 
 
 # ---------------------------------------------------------------------------
-# Fail-closed: a malformed/absent default pack blocks BOTH provisioners
+# Fail-closed: a missing / malformed / empty default preset blocks BOTH provisioners
 # ---------------------------------------------------------------------------
 
 
-def test_shared_helper_fails_closed_on_missing_default_pack(tmp_path: Path) -> None:
-    missing_root = tmp_path / "no-such-charter-pkg"
+@pytest.mark.parametrize("broken_default_preset", sorted(_BREAKAGES), indirect=True)
+def test_charter_generate_path_fails_closed_on_broken_default_preset(broken_default_preset: Path, tmp_path: Path) -> None:
+    project = _legacy_project(tmp_path / "project")
 
-    with pytest.raises(ActiveCharterConfigError):
-        load_default_mission_type_activations(pack_path=missing_root / "default.yaml")
-
-
-def test_shared_helper_fails_closed_on_pack_without_mission_type_key(
-    tmp_path: Path,
-) -> None:
-    broken_pack = tmp_path / "broken-default.yaml"
-    broken_pack.write_text("activated_kinds: []\n", encoding="utf-8")
-
-    with pytest.raises(ActiveCharterConfigError):
-        load_default_mission_type_activations(pack_path=broken_pack)
-
-
-def test_shared_helper_fails_closed_on_authored_empty_list_in_shipped_pack(
-    tmp_path: Path,
-) -> None:
-    """An empty list in the SHIPPED default.yaml is a broken-install signal.
-
-    Distinct from an authored ``[]`` in a *project's* own config.yaml /
-    charter.yaml (a legitimate zero-types opt-out preserved verbatim by both
-    write paths) -- this is the shipped source-of-truth file itself, so an
-    empty list there can never be provisioned from.
-    """
-    empty_pack = tmp_path / "empty-default.yaml"
-    empty_pack.write_text("mission_type_activations: []\n", encoding="utf-8")
-
-    with pytest.raises(ActiveCharterConfigError):
-        load_default_mission_type_activations(pack_path=empty_pack)
-
-
-def test_charter_generate_path_fails_closed_on_broken_default_pack(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """``charter.activation.compiler.provision_mission_type_activations`` fails closed too."""
-    broken_pack = tmp_path / "broken-default.yaml"
-    broken_pack.write_text("activated_kinds: []\n", encoding="utf-8")
-    monkeypatch.setattr(
-        default_pack_module, "_default_pack_yaml_path", lambda root: broken_pack
-    )
-
-    project = tmp_path / "project"
-    kittify = project / ".kittify"
-    kittify.mkdir(parents=True)
-    (kittify / "config.yaml").write_text("vcs:\n  type: git\n", encoding="utf-8")
-
-    with pytest.raises(ActiveCharterConfigError):
+    with pytest.raises(DefaultPresetMissingError) as caught:
         provision_mission_type_activations(project)
 
-    # Fail-closed means untouched: no partial/garbage key written.
-    assert "mission_type_activations" not in _load_config(kittify / "config.yaml")
+    assert caught.value.code == "DEFAULT_PRESET_MISSING"
+    assert str(broken_default_preset) in caught.value.body
+    assert "mission_type_activations" not in _load_config(project / ".kittify" / "config.yaml")
 
 
-def test_init_upgrade_path_fails_closed_on_broken_default_pack_via_shared_helper(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """``specify_cli`` provisioning fails closed through the SAME shared reader.
-
-    Regression guard for the divergence this fold closes: before, an
-    authored-empty ``mission_type_activations: []`` in the shipped pack was
-    silently ACCEPTED by this path (isinstance-list-only check) while
-    ``charter.activation.compiler``'s already raised. Both must now raise identically.
-    """
-    empty_pack = tmp_path / "empty-default.yaml"
-    empty_pack.write_text("mission_type_activations: []\n", encoding="utf-8")
-    monkeypatch.setattr(default_charter, "resolve_builtin_pack_path", lambda name: empty_pack)
-
+@pytest.mark.parametrize("broken_default_preset", sorted(_BREAKAGES), indirect=True)
+def test_init_path_fails_closed_on_broken_default_preset(broken_default_preset: Path, tmp_path: Path) -> None:
     project = tmp_path / "project"
 
-    with pytest.raises(DefaultCharterPackMissingError):
+    with pytest.raises(DefaultPresetMissingError) as caught:
         provision_default_mission_type_activations(project)
 
+    assert caught.value.code == "DEFAULT_PRESET_MISSING"
     assert not (project / ".kittify" / "config.yaml").exists()

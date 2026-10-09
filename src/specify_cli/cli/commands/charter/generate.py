@@ -402,6 +402,22 @@ def _error_code(error: Exception) -> str | None:
     return None
 
 
+def _provision_mission_types_or_exit(repo_root: Path, *, json_output: bool) -> None:
+    """Seed ``mission_type_activations`` (additive); a missing ``default`` preset exits 1.
+
+    ``DEFAULT_PRESET_MISSING`` is a broken install: it is rendered with its code
+    (``Error (DEFAULT_PRESET_MISSING): ...`` or the ``--json`` envelope) rather
+    than as an unexpected error.
+    """
+    from charter.activation.compiler import DefaultPresetMissingError, provision_mission_type_activations
+
+    try:
+        provision_mission_type_activations(repo_root)
+    except DefaultPresetMissingError as e:
+        _emit_error(console, json_output=json_output, message=e.body, code=e.code)
+        raise typer.Exit(code=1) from e
+
+
 @charter_app.command()
 def generate(
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults"),
@@ -435,7 +451,6 @@ def generate(
     """
     from charter.activation.compiler import (
         compile_charter,
-        provision_mission_type_activations,
         write_compiled_charter,
     )
     from charter.activation.pack_context import PackContext
@@ -508,11 +523,11 @@ def generate(
         # SOLE mission-type activation authority. Construction returns an empty
         # set on an absent key; a project with no activated types offers none
         # (mission-CREATE then fails closed). Emit it
-        # into the activation authority FIRST (additive/idempotent, built-in
-        # set from default.yaml) so `generate` self-heals a pre-provisioning
+        # into the activation authority FIRST (additive/idempotent, seeded from
+        # the built-in pack's `default` preset) so `generate` self-heals a pre-provisioning
         # pointer charter instead of crashing on the very key it is about to
         # (re)generate.
-        provision_mission_type_activations(repo_root)
+        _provision_mission_types_or_exit(repo_root, json_output=json_output)
 
         # FR-001/FR-002 (WP02): `.kittify/config.yaml` `activated_*` is the
         # activation authority the compiled reference set derives from --
