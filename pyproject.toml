@@ -624,7 +624,6 @@ exclude = [
     "src/specify_cli/migration/rewrite_opposed_by.py",
     "src/specify_cli/migration/runner.py",
     "src/specify_cli/migration/schema_version.py",
-    "src/specify_cli/migration/strip_frontmatter.py",
     "src/specify_cli/migration/verdict_provenance_backfill.py",
     "src/specify_cli/mission.py",
     "src/specify_cli/mission_loader/command.py",
