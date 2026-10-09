@@ -356,15 +356,21 @@ def next_step(
     # effect (it precedes the decision-answer persistence and run-start in
     # ``_maybe_handle_answer``) and a concurrent API writer cannot slip in.
     with _api_authoring_completion_gate(mission_slug, repo_root, json_output, result=result, owned=owned):
-        answered_id = _maybe_handle_answer(
-            agent,
-            mission_slug,
-            answer,
-            decision_id,
-            repo_root,
-            json_output,
-            owned=owned,
-        )
+        # #3930: capture decision-log commit warnings around the answer
+        # persistence so a failed Git commit (for example a rejecting pre-commit
+        # hook) surfaces in the advancing-mode JSON instead of being swallowed.
+        from specify_cli.events.decision_log import capture_commit_warnings
+
+        with capture_commit_warnings() as commit_warnings:
+            answered_id = _maybe_handle_answer(
+                agent,
+                mission_slug,
+                answer,
+                decision_id,
+                repo_root,
+                json_output,
+                owned=owned,
+            )
 
         # Query mode: bare call without --result remains read-only and does not
         # require agent identity.
@@ -393,6 +399,7 @@ def next_step(
             answered_id,
             answer,
             owned=owned,
+            commit_warnings=commit_warnings,
         )
 
 
@@ -445,6 +452,7 @@ def _dispatch_advancing_mode(
     answer: str | None,
     *,
     owned: OwnedCheckout | None,
+    commit_warnings: list[str] | None = None,
 ) -> None:
     """Advance the runtime and emit the resulting decision.
 
@@ -487,7 +495,7 @@ def _dispatch_advancing_mode(
     if owned is not None:
         _commit_owned_next_mutations(owned)
 
-    _print_decision(decision, json_output, answered_id, answer, owned=owned)
+    _print_decision(decision, json_output, answered_id, answer, owned=owned, commit_warnings=commit_warnings)
 
     if not json_output:
         _print_stalled_wp_interventions(mission_slug, repo_root)
@@ -1215,6 +1223,7 @@ def _print_decision(
     answer: str | None,
     *,
     owned: OwnedCheckout | None = None,
+    commit_warnings: list[str] | None = None,
 ) -> None:
     """Emit the decision. Owned runs (only) also report a stale repository-root copy (FR-007).
 
@@ -1229,6 +1238,8 @@ def _print_decision(
             d["answer"] = answer
         if owned is not None:
             d.update(stale_copy_payload(owned))
+        if commit_warnings:
+            d["warnings"] = commit_warnings
         print(json.dumps(d, indent=2))
     else:
         if answered_id is not None:

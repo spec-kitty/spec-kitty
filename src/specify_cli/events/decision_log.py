@@ -13,6 +13,9 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any
 
@@ -44,9 +47,21 @@ from runtime.next._internal_runtime.significance import (
     TimeoutExpiredPayload,
 )
 
-__all__ = ["DecisionGitLog"]
+__all__ = ["DecisionGitLog", "capture_commit_warnings"]
 
 logger = logging.getLogger(__name__)
+_commit_warnings: ContextVar[list[str] | None] = ContextVar("decision_commit_warnings", default=None)
+
+
+@contextmanager
+def capture_commit_warnings() -> Iterator[list[str]]:
+    """Collect commit failures for one answer without changing logging behavior."""
+    warnings: list[str] = []
+    token = _commit_warnings.set(warnings)
+    try:
+        yield warnings
+    finally:
+        _commit_warnings.reset(token)
 
 
 def _generate_event_id() -> str:
@@ -271,6 +286,7 @@ class DecisionGitLog:
                 capability=GuardCapability.STANDARD,
             )
         except SafeCommitError as exc:
+            self._record_commit_warning()
             _observed = getattr(exc, "observed_head", None)
             logger.warning(
                 "DecisionGitLog: safe_commit failed for mission %s "
@@ -284,6 +300,7 @@ class DecisionGitLog:
                 exc,
             )
         except Exception:
+            self._record_commit_warning()
             logger.warning(
                 "DecisionGitLog: unexpected error in safe_commit for mission %s "
                 "(decisions_file=%s, worktree_root=%s, destination_ref=%s)",
@@ -292,4 +309,12 @@ class DecisionGitLog:
                 self._worktree_root,
                 self._destination_ref,
                 exc_info=True,
+            )
+
+    def _record_commit_warning(self) -> None:
+        warnings = _commit_warnings.get()
+        if warnings is not None:
+            warnings.append(
+                f"Decision log commit failed for mission {self._mission_slug}; "
+                f"{self._decisions_file} may contain uncommitted decision events."
             )
