@@ -174,7 +174,7 @@ def resolve_relative_path_within_root(root: Path, relative_path: str) -> Path:
 
     Shared containment primitive: :meth:`OrgPackConfig.effective_root` uses
     this for ``subdir`` containment, and
-    ``specify_cli.doctrine.pack_validator._check_asset_path_containment``
+    ``charter.offering.packs.pack_validator._check_asset_path_containment``
     reuses it for ASSET sidecar manifest ``path`` containment (FR-009 /
     NFR-005) — a single canonical escape-detection implementation rather than
     a hand-rolled resolve-then-``relative_to`` at each call site.

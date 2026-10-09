@@ -129,6 +129,12 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # ``charter.offering.drg.merge.__all__`` with a live runtime consumer
         # (``specify_cli.drg_writers.registry``), so it is a plain re-export.
         ("bridge_org_edge_to_drg_edge", "charter.offering.drg.merge"),
+        # Added by mission ``charter-pack-cutover-01M491G6`` WP04 (#3732, research
+        # A.3 #7): the charter-pack adapters (``api_source``, ``snapshot``) reach
+        # the offering tier only through this facade once the
+        # ``specify_cli/doctrine`` boundary exemption is deleted. FACADE-ONLY.
+        ("CORE_KIND_PLURALS", "charter.offering.artifact_kinds"),
+        ("resolve_relative_path_within_root", "charter.offering.drg.org_pack_config"),
     ],
     # New door (WP03/T012): mission-template / mission-type / mission-step
     # repository surfaces. All FACADE-ONLY per the WP01 census.
@@ -203,6 +209,30 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
     # ``specify_cli``/``runtime`` -> ``charter.offering.provenance`` import that
     # ``test_runtime_charter_doctrine_boundary.py`` forbids. Same source
     # module, same identity-reexport shape. FACADE-ONLY.
+    # New door (mission ``charter-pack-cutover-01M491G6`` WP04, #3732, FR-010 /
+    # OD-9): the charter pack model and tooling moved from ``specify_cli.doctrine``
+    # to ``charter.offering.packs``; ``specify_cli`` reaches it only through this
+    # facade (research A.3 #8). Offering-side names only. FACADE-ONLY.
+    "charter.packs": [
+        ("RECOGNISED_ARTIFACT_DIRS", "charter.offering.packs.pack_manifest"),
+        ("builtin_manifest_is_fresh", "charter.offering.packs.builtin_manifest"),
+        ("count_snapshot_artifacts", "charter.offering.packs.pack_manifest"),
+        ("generate_builtin_manifest", "charter.offering.packs.builtin_manifest"),
+        ("safe_urlsplit", "charter.offering.packs.pack_manifest"),
+        ("snapshot_sha256", "charter.offering.packs.pack_manifest"),
+        ("source_fingerprint", "charter.offering.packs.pack_manifest"),
+        ("strip_source_credentials", "charter.offering.packs.pack_manifest"),
+        ("write_pack_manifest", "charter.offering.packs.pack_manifest"),
+        ("AssemblyResult", "charter.offering.packs.pack_assembler"),
+        ("assemble_pack", "charter.offering.packs.pack_assembler"),
+        ("pack_document_dict", "charter.offering.packs.pack_assembler"),
+        ("render_assembly_result", "charter.offering.packs.pack_assembler"),
+        ("ValidationIssue", "charter.offering.packs.pack_validator"),
+        ("ValidationResult", "charter.offering.packs.pack_validator"),
+        ("artifact_schema_registry", "charter.offering.packs.pack_validator"),
+        ("render_validation_result", "charter.offering.packs.pack_validator"),
+        ("validate_pack", "charter.offering.packs.pack_validator"),
+    ],
     "charter.provenance": [
         ("is_built_in_pack_path", "charter.offering.provenance"),
         ("to_portable_source_path", "charter.offering.provenance"),

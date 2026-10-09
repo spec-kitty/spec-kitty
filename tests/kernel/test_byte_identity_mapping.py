@@ -421,12 +421,13 @@ REGISTRY: dict[str, RegisteredSite] = {
         producer=now_utc_stamp,
         prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
     ),
-    # doctrine/snapshot.py + doctrine/sources/api_source.py's identically-shaped
+    # charter/offering/packs/pack_manifest.py (moved from doctrine/snapshot.py by
+    # #3732 WP04) + doctrine/sources/api_source.py's identically-shaped
     # retired `_iso_now()` helpers (persisted cache/freshness "fetched_at" /
     # cache "Date" fallback). Prior: `datetime.now(UTC).strftime(
     # "%Y-%m-%dT%H:%M:%SZ")` -> now_utc_stamp() (one representative entry;
     # both modules shared the identical prior expression).
-    "specify_cli.doctrine.snapshot._iso_now#fetched_at": RegisteredSite(
+    "charter.offering.packs.pack_manifest._iso_now#fetched_at": RegisteredSite(
         producer=now_utc_stamp,
         prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
     ),

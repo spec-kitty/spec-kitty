@@ -20,9 +20,9 @@ from pathlib import Path
 import pytest
 
 from charter.offering.artifact_kinds import ArtifactKind
-from specify_cli.doctrine.pack_validator import (
+from charter.offering.packs.pack_validator import (
     _SINGULAR_TO_PLURAL_AUGMENTATION,
-    _artifact_schema_registry,
+    artifact_schema_registry,
     _kind_singular,
     _plural_to_urn_kind,
     validate_pack,
@@ -51,7 +51,7 @@ def test_kind_singular_inverts_every_plural_the_intent_pass_reports(singular: st
 
 
 def test_schema_registry_globs_come_from_the_authority() -> None:
-    for plural, (glob, _model) in _artifact_schema_registry().items():
+    for plural, (glob, _model) in artifact_schema_registry().items():
         assert glob == ArtifactKind.from_plural(plural).glob_pattern, plural
 
 

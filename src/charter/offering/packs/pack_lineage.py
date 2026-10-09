@@ -1,4 +1,4 @@
-"""Pack lineage resolution: a data-only adapter over ``org_extends`` (FR-006, FR-007).
+"""Pack lineage resolution: a data-only adapter over ``extends`` (FR-006, FR-007).
 
 This module resolves two `id`-keyed pack-lineage edges introduced by the
 pack-metadata manifest unification:
@@ -10,14 +10,14 @@ pack-metadata manifest unification:
 
 C-002 / NFR-001 (no parallel resolver)
 ---------------------------------------
-``charter.activation.org_extends.resolve_extends_order`` is the **single** canonical
+``charter.offering.packs.extends.resolve_extends_order`` is the **single** canonical
 resolver for lineage-chain topology (cycle detection, missing-base
 detection, base-first ordering). The live ``extends:`` field feeds it a
 **name-keyed** edge map today (``org_charter.py:517,525``). This module does
 **not** introduce a second walker: :func:`resolve_pack_lineage_order` is a
 data-only ``pack_id -> resolvable key`` adapter that builds a name-keyed
 edge map and delegates the entire walk — including cycle and missing-base
-detection — to :func:`charter.activation.org_extends.resolve_extends_order`. No
+detection — to :func:`charter.offering.packs.extends.resolve_extends_order`. No
 traversal, recursion, or graph algorithm of its own lives in this module.
 
 Lineage authority (two-key period, IC-05/PP-M1): the live ``extends:``
@@ -40,7 +40,7 @@ from __future__ import annotations
 
 from collections.abc import Collection, Mapping
 
-from charter.activation.org_extends import (
+from charter.offering.packs.extends import (
     ExtendsBaseNotFoundError,
     ExtendsCycleError,
     resolve_extends_order,
@@ -57,7 +57,7 @@ __all__ = [
 # Sentinel prefix for a pack_id that has no known resolvable key (name).
 # It is chosen so it can never collide with a real pack name (a NUL byte is
 # not a legal character in an authored `name:` value), which lets the
-# fallback key flow straight into `org_extends.resolve_extends_order` and
+# fallback key flow straight into `extends.resolve_extends_order` and
 # be rejected there as a missing base -- no duplicate validation here.
 _UNRESOLVED_KEY_PREFIX = "\x00unresolved-pack-id:"
 
@@ -65,7 +65,7 @@ _UNRESOLVED_KEY_PREFIX = "\x00unresolved-pack-id:"
 class UnresolvedPackParentError(ValueError):
     """Raised when a ``parent_pack`` edge cannot be resolved (fail-closed).
 
-    Mirrors :class:`charter.activation.org_extends.ExtendsBaseNotFoundError`: a
+    Mirrors :class:`charter.offering.packs.extends.ExtendsBaseNotFoundError`: a
     ``parent_pack`` pointing at a ``pack_id`` with no known resolvable key
     (e.g. a pre-``pack_id``-backfill pack, per IC-05/Q2) is reported here
     rather than silently dropped or treated as a root pack.
@@ -84,15 +84,13 @@ class UnresolvedPackParentError(ValueError):
 class PackLineageCycleError(ValueError):
     """Raised when a ``parent_pack`` chain contains a cycle (fail-closed).
 
-    Mirrors :class:`charter.activation.org_extends.ExtendsCycleError`, reported in
+    Mirrors :class:`charter.offering.packs.extends.ExtendsCycleError`, reported in
     terms of ``pack_id`` rather than the internal resolvable key.
     """
 
     def __init__(self, cycle_path: list[str]) -> None:
         self.cycle_path = list(cycle_path)
-        super().__init__(
-            "Cycle detected in parent_pack chain: " + " → ".join(cycle_path)
-        )
+        super().__init__("Cycle detected in parent_pack chain: " + " → ".join(cycle_path))
 
 
 class UnresolvedDoctrinePackError(ValueError):
@@ -114,10 +112,10 @@ class UnresolvedDoctrinePackError(ValueError):
 
 
 def _resolvable_key(pack_id: str, pack_names: Mapping[str, str]) -> str:
-    """Map a ``pack_id`` to the key ``org_extends`` can walk (its name).
+    """Map a ``pack_id`` to the key ``extends`` can walk (its name).
 
     Falls back to a sentinel-prefixed marker for a ``pack_id`` absent from
-    *pack_names*, so ``org_extends``' own missing-base detection catches it
+    *pack_names*, so ``extends``' own missing-base detection catches it
     when the walk reaches that key -- this adapter performs no traversal or
     validation of its own.
     """
@@ -147,7 +145,7 @@ def resolve_pack_lineage_order(
     *parent_edges* (``pack_id -> parent pack_id | None``) and *pack_names*
     (``pack_id -> resolvable key``, i.e. the pack's ``name``), then
     delegates the entire walk to
-    :func:`charter.activation.org_extends.resolve_extends_order` -- the single
+    :func:`charter.offering.packs.extends.resolve_extends_order` -- the single
     canonical lineage resolver (C-002/NFR-001). No new traversal is
     performed here.
 
@@ -180,9 +178,7 @@ def resolve_pack_lineage_order(
     name_edges: dict[str, str | None] = {}
     for pack_id, parent_id in parent_edges.items():
         key = _resolvable_key(pack_id, pack_names)
-        parent_key = (
-            _resolvable_key(parent_id, pack_names) if parent_id is not None else None
-        )
+        parent_key = _resolvable_key(parent_id, pack_names) if parent_id is not None else None
         name_edges[key] = parent_key
 
     start_key = _resolvable_key(start_pack_id, pack_names)

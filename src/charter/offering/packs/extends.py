@@ -47,9 +47,7 @@ class ExtendsCycleError(ValueError):
 
     def __init__(self, cycle_path: list[str]) -> None:
         self.cycle_path = list(cycle_path)
-        super().__init__(
-            "Cycle detected in extends: chain: " + " → ".join(self.cycle_path)
-        )
+        super().__init__("Cycle detected in extends: chain: " + " → ".join(self.cycle_path))
 
 
 class ExtendsBaseNotFoundError(ValueError):
@@ -63,10 +61,7 @@ class ExtendsBaseNotFoundError(ValueError):
     def __init__(self, missing_base: str, chain: list[str]) -> None:
         self.missing_base = missing_base
         self.chain = list(chain)
-        super().__init__(
-            f"Base layer {missing_base!r} not found. "
-            f"Chain: {' → '.join(self.chain)}"
-        )
+        super().__init__(f"Base layer {missing_base!r} not found. Chain: {' → '.join(self.chain)}")
 
 
 def resolve_extends_order(

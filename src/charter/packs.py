@@ -1,0 +1,69 @@
+"""Charter facade for the charter pack model and tooling.
+
+The public door for ``specify_cli`` to the pack model and tooling that live in
+:mod:`charter.offering.packs` (mission ``charter-pack-cutover-01M491G6``, FR-010 /
+OD-9). Object-identity re-exports only: every name here *is* the offering
+object, so no wrapper, alias or shim can drift from it
+(``tests/architectural/test_charter_facades_reexport_doctrine.py``).
+
+``specify_cli`` modules import these names from here, never from
+``charter.offering.packs.*`` directly, so the runtime -> charter -> offering
+boundary (``tests/architectural/test_runtime_charter_doctrine_boundary.py``)
+holds without growing its lazy-import baseline (NFR-002).
+
+Offering-side names only. ``validate_pack`` and ``assemble_pack`` take their
+org-charter leg as a hook; callers use the org-charter composing entries
+(``validate_pack_with_org_charter`` / ``assemble_pack_with_org_charter``),
+which join this facade once org charter composition lives in
+``charter.activation``.
+"""
+
+from __future__ import annotations
+
+from charter.offering.packs.builtin_manifest import (
+    builtin_manifest_is_fresh,
+    generate_builtin_manifest,
+)
+from charter.offering.packs.pack_assembler import (
+    AssemblyResult,
+    assemble_pack,
+    pack_document_dict,
+    render_assembly_result,
+)
+from charter.offering.packs.pack_manifest import (
+    RECOGNISED_ARTIFACT_DIRS,
+    count_snapshot_artifacts,
+    safe_urlsplit,
+    snapshot_sha256,
+    source_fingerprint,
+    strip_source_credentials,
+    write_pack_manifest,
+)
+from charter.offering.packs.pack_validator import (
+    ValidationIssue,
+    ValidationResult,
+    artifact_schema_registry,
+    render_validation_result,
+    validate_pack,
+)
+
+__all__ = [
+    "RECOGNISED_ARTIFACT_DIRS",
+    "AssemblyResult",
+    "ValidationIssue",
+    "ValidationResult",
+    "artifact_schema_registry",
+    "assemble_pack",
+    "builtin_manifest_is_fresh",
+    "count_snapshot_artifacts",
+    "generate_builtin_manifest",
+    "pack_document_dict",
+    "render_assembly_result",
+    "render_validation_result",
+    "safe_urlsplit",
+    "snapshot_sha256",
+    "source_fingerprint",
+    "strip_source_credentials",
+    "validate_pack",
+    "write_pack_manifest",
+]

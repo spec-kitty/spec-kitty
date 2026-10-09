@@ -1,7 +1,7 @@
 """Deterministic generator for the built-in pack's ``pack-manifest.yaml``.
 
 Enumerates the doctrine artifacts shipped under ``packs/built-in/`` and emits
-the single canonical :class:`~specify_cli.doctrine.pack_manifest.PackManifest`
+the single canonical :class:`~charter.offering.packs.pack_manifest.PackManifest`
 (WP01 / IC-02). It emits **only** ``pack-manifest.yaml`` — never the authored
 ``pack.yaml`` (reserved for WP04) and never a ``pack_version`` field (the
 built-in reads that from the authored descriptor, WP04).
@@ -10,7 +10,7 @@ Enumeration is **file-first** (DRG graph nodes carry no source path): for each
 of the nine artifact kinds that ship a content directory
 (:attr:`ArtifactKind.has_built_in_content_dir`) it globs the kind's files,
 reads each artifact's canonical id, and records a
-:class:`~specify_cli.doctrine.pack_manifest.Constituent`. Because every shipped
+:class:`~charter.offering.packs.pack_manifest.Constituent`. Because every shipped
 DRG artifact node is minted from exactly these files, enumerating the files
 enumerates 100 % of the artifact nodes (SC-002).
 
@@ -29,7 +29,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from charter.activation.synthesizer.manifest import hash_content_bytes
+from charter.offering.packs.hashing import hash_content_bytes
 from charter.offering.artifact_kinds import ArtifactKind
 
 from .pack_manifest import (
@@ -63,10 +63,7 @@ def _read_artifact_id(path: Path, *, id_key: str) -> str:
     data = yaml.load(path.read_text(encoding="utf-8"))
     artifact_id = "" if not isinstance(data, dict) else str(data.get(id_key, "")).strip()
     if not artifact_id:
-        raise ValueError(
-            f"artifact file {path} is missing its {id_key!r} id field; "
-            "cannot enumerate it as a pack constituent (fail-closed, no silent drop)"
-        )
+        raise ValueError(f"artifact file {path} is missing its {id_key!r} id field; cannot enumerate it as a pack constituent (fail-closed, no silent drop)")
     return artifact_id
 
 

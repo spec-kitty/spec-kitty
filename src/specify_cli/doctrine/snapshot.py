@@ -16,14 +16,11 @@ consistency story via ``fetch`` + ``reset --hard``.
 
 from __future__ import annotations
 
-import hashlib
 import hmac
 import shutil
 from dataclasses import replace
-from kernel.clock import now_utc_stamp
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import SplitResult, urlsplit, urlunsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
@@ -31,26 +28,22 @@ if TYPE_CHECKING:
 
 import yaml
 
+from charter.drg import resolve_relative_path_within_root
+from charter.packs import (
+    RECOGNISED_ARTIFACT_DIRS,
+    count_snapshot_artifacts,
+    safe_urlsplit,
+    snapshot_sha256,
+    source_fingerprint,
+    strip_source_credentials,
+    write_pack_manifest,
+)
+
 from .sources.protocol import FetchResult, OrgDoctrineSource
 
 # ``OrgPackConfig`` is imported lazily inside helpers to avoid a circular import
 # at module load time (config.py lives in the same package).
 
-
-# Recognised artifact subdirectories per the pack-layout contract.
-_RECOGNISED_ARTIFACT_DIRS: frozenset[str] = frozenset(
-    {
-        "directives",
-        "tactics",
-        "styleguides",
-        "toolguides",
-        "paradigms",
-        "procedures",
-        "agent_profiles",
-        "mission_step_contracts",
-        "drg",
-    }
-)
 
 # Suffix → artifact-count bucket name for ``pack-manifest.yaml``.
 _ARTIFACT_BUCKETS: dict[str, str] = {
@@ -169,7 +162,7 @@ def write_snapshot(
             errors=[
                 "No artifact directories found in fetched snapshot"
                 f"{location}. Expected at least one of: "
-                + ", ".join(sorted(_RECOGNISED_ARTIFACT_DIRS))
+                + ", ".join(sorted(RECOGNISED_ARTIFACT_DIRS))
             ],
         )
 
@@ -179,7 +172,8 @@ def write_snapshot(
     try:
         write_pack_manifest(
             validate_root,
-            result,
+            pack_version=result.pack_version,
+            etag=result.etag,
             source_url=str(resolved_url or ""),
             source_type=resolved_type,
         )
@@ -297,7 +291,7 @@ def _manifest_matches_source(
     # Queries may select distinct resources or carry credentials. Never persist
     # them, and never reuse a validator when either side used one because a
     # secret-free comparison cannot prove resource identity.
-    parsed_source = _safe_urlsplit(source_url)
+    parsed_source = safe_urlsplit(source_url)
     if (
         parsed_source is None
         or parsed_source.query
@@ -306,10 +300,10 @@ def _manifest_matches_source(
         return False
     if not _snapshot_manifest_is_intact(local_path, subdir, data):
         return False
-    expected_url = _strip_credentials(source_url)
+    expected_url = strip_source_credentials(source_url)
     fingerprint = data.get("source_fingerprint")
     if isinstance(fingerprint, str) and fingerprint:
-        return fingerprint == _source_fingerprint(expected_url)
+        return fingerprint == source_fingerprint(expected_url)
     return data.get("source_url") == expected_url
 
 
@@ -426,7 +420,7 @@ def _finish_unchanged_snapshot(
                 "does not match its recorded integrity digest."
             ],
         )
-    counts = _count_artifacts(manifest_root)
+    counts = count_snapshot_artifacts(manifest_root)
     return FetchResult(
         ok=True,
         artifacts_written=sum(counts.values()),
@@ -446,54 +440,7 @@ def _resolve_snapshot_validate_root(
     """
     if subdir is None:
         return snapshot_dir
-    from charter.offering.drg.org_pack_config import resolve_relative_path_within_root
-
     return resolve_relative_path_within_root(snapshot_dir, subdir)
-
-
-def write_pack_manifest(
-    local_path: Path,
-    result: FetchResult,
-    *,
-    source_url: str,
-    source_type: str,
-) -> None:
-    """Write ``pack-manifest.yaml`` to ``local_path``.
-
-    The manifest is read-only metadata for tooling and humans. Credentials,
-    query parameters, and fragments in ``source_url`` are stripped before
-    persistence.
-    """
-    local_path = Path(local_path)
-    manifest_path = local_path / "pack-manifest.yaml"
-    safe_source_url = _strip_credentials(source_url)
-    from .pack_manifest import (
-        PackManifest,
-        dump_pack_manifest_bytes,
-        finalize_pack_manifest,
-    )
-
-    manifest = finalize_pack_manifest(
-        PackManifest(
-            pack_version=result.pack_version,
-            fetched_at=_iso_now(),
-            source_type=source_type,
-            source_url=safe_source_url,
-            source_fingerprint=_source_fingerprint(safe_source_url),
-            source_uses_query=_source_uses_query(source_url),
-            snapshot_sha256=_snapshot_sha256(local_path),
-            artifact_counts=_manifest_artifact_counts(local_path),
-            etag=result.etag,
-        )
-    )
-    manifest_path.write_bytes(dump_pack_manifest_bytes(manifest))
-
-
-def _manifest_artifact_counts(local_path: Path) -> dict[str, int]:
-    """Resolve manifest counts through the canonical derived-view seam."""
-    from .pack_manifest import resolve_counts
-
-    return resolve_counts(None, _count_artifacts(local_path))
 
 
 # ----------------------------------------------------------------------
@@ -503,97 +450,9 @@ def _has_recognised_artifacts(snapshot_dir: Path) -> bool:
     if not snapshot_dir.exists():
         return False
     return any(
-        entry.is_dir() and entry.name in _RECOGNISED_ARTIFACT_DIRS
+        entry.is_dir() and entry.name in RECOGNISED_ARTIFACT_DIRS
         for entry in snapshot_dir.iterdir()
     )
-
-
-def _count_artifacts(snapshot_dir: Path) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    if not snapshot_dir.exists():
-        return counts
-    for entry in snapshot_dir.iterdir():
-        if not entry.is_dir() or entry.name not in _RECOGNISED_ARTIFACT_DIRS:
-            continue
-        bucket = entry.name if entry.name != "drg" else "drg_fragments"
-        counts[bucket] = sum(1 for _ in entry.rglob("*.yaml"))
-    # FR-014: the sharded built-in layout (mission #2680, WP05) ships DRG
-    # fragments as top-level ``*.graph.yaml`` files rather than under a ``drg/``
-    # directory. Fold them into the same ``drg_fragments`` bucket so a sharded
-    # doctrine tree categorises identically to the monolith / ``drg/``-dir
-    # layouts. Additive: no current snapshot ships top-level fragments.
-    fragment_count = sum(1 for _ in snapshot_dir.glob("*.graph.yaml"))
-    if fragment_count:
-        counts["drg_fragments"] = counts.get("drg_fragments", 0) + fragment_count
-    return counts
-
-
-def _strip_credentials(url: str) -> str:
-    """Return a remote URL safe for durable metadata and comparisons."""
-    if not url:
-        return ""
-    parsed = _safe_urlsplit(url)
-    if parsed is None:
-        return ""
-    if parsed.scheme not in {"http", "https"}:
-        return url
-    hostname = parsed.hostname or ""
-    if ":" in hostname:
-        hostname = f"[{hostname}]"
-    try:
-        port = parsed.port
-    except ValueError:
-        port = None
-    netloc = f"{hostname}:{port}" if port is not None else hostname
-    return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
-
-
-def _safe_urlsplit(url: str) -> SplitResult | None:
-    """Parse one URL without leaking malformed-authority exceptions."""
-    try:
-        return urlsplit(url)
-    except ValueError:
-        return None
-
-
-def _source_uses_query(url: str) -> bool:
-    """Return query presence without raising for malformed source URLs."""
-    parsed = _safe_urlsplit(url)
-    return bool(parsed is not None and parsed.query)
-
-
-def _source_fingerprint(safe_url: str) -> str:
-    """Return a stable non-secret identity for a sanitized source URL."""
-    return hashlib.sha256(  # noqa: TID251 - URL identity fingerprint, not charter freshness
-        safe_url.encode("utf-8")
-    ).hexdigest()
-
-
-def _snapshot_sha256(snapshot_root: Path) -> str:
-    """Hash installed snapshot files, excluding the manifest itself."""
-    digest = hashlib.sha256()  # noqa: TID251 - local snapshot integrity checksum
-    for path in sorted(
-        snapshot_root.rglob("*"),
-        key=lambda candidate: candidate.relative_to(snapshot_root).as_posix(),
-    ):
-        relative = path.relative_to(snapshot_root)
-        if path.is_symlink():
-            raise OSError(f"Snapshot contains unsupported symlink: {relative}")
-        if relative == Path("pack-manifest.yaml"):
-            continue
-        if path.is_dir():
-            continue
-        if not path.is_file():
-            raise OSError(f"Snapshot contains unsupported file type: {relative}")
-        relative_bytes = relative.as_posix().encode("utf-8")
-        digest.update(len(relative_bytes).to_bytes(8, "big"))
-        digest.update(relative_bytes)
-        size = path.stat().st_size
-        digest.update(size.to_bytes(8, "big"))
-        with path.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(64 * 1024), b""):
-                digest.update(chunk)
-    return digest.hexdigest()
 
 
 def _snapshot_manifest_is_intact(
@@ -611,7 +470,7 @@ def _snapshot_manifest_is_intact(
         return False
     try:
         snapshot_root = _resolve_snapshot_validate_root(local_path, subdir)
-        current = _snapshot_sha256(snapshot_root)
+        current = snapshot_sha256(snapshot_root)
     except (OSError, ValueError):
         return False
     return hmac.compare_digest(stored, current)
@@ -629,10 +488,6 @@ def _infer_source_type(source: OrgDoctrineSource) -> str:
     if "api" in cls_name:
         return "api"
     return "unknown"
-
-
-def _iso_now() -> str:
-    return now_utc_stamp()
 
 
 # ----------------------------------------------------------------------
@@ -719,7 +574,7 @@ def fetch_pack(pack: OrgPackConfig, repo_root: Path) -> FetchResult:
         effective = pack.effective_root(repo_root)
         result = FetchResult(
             ok=result.ok,
-            artifacts_written=sum(_count_artifacts(effective).values()),
+            artifacts_written=sum(count_snapshot_artifacts(effective).values()),
             pack_version=result.pack_version,
             errors=result.errors,
             unchanged=result.unchanged,

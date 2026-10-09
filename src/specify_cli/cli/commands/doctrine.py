@@ -31,11 +31,11 @@ Surface area:
   activation state (FR-013 / WP13).
 
 Both ``pack validate`` and ``pack assemble`` are implemented by WP06; their
-heavy lifting lives in :mod:`specify_cli.doctrine.pack_validator` and
-:mod:`specify_cli.doctrine.pack_assembler` so this module only handles
+heavy lifting lives in :mod:`charter.offering.packs.pack_validator` and
+:mod:`charter.offering.packs.pack_assembler` so this module only handles
 argument parsing and exit-code mapping. ``new`` and ``validate`` are owned
 by WP09 (Mission B) and reuse the same schema registry from
-:mod:`specify_cli.doctrine.pack_validator`.
+:mod:`charter.offering.packs.pack_validator`.
 """
 
 from __future__ import annotations
@@ -299,10 +299,7 @@ def regenerate_graph(
         write_reference_graph_with_overlay,
     )
     from charter.drg import DRGValidationError
-    from specify_cli.doctrine.builtin_manifest import (
-        builtin_manifest_is_fresh,
-        generate_builtin_manifest,
-    )
+    from charter.packs import builtin_manifest_is_fresh, generate_builtin_manifest
 
     doctrine_root = _doctrine_root()
 
@@ -420,12 +417,10 @@ def pack_validate(
     Exits 0 when the pack passes validation (advisories do not affect the
     exit code) and 1 when at least one error is reported.
     """
-    from specify_cli.doctrine.pack_validator import (
-        render_validation_result,
-        validate_pack,
-    )
+    from specify_cli.doctrine.org_charter import validate_pack_with_org_charter
+    from charter.packs import render_validation_result
 
-    result = validate_pack(pack_path)
+    result = validate_pack_with_org_charter(pack_path)
     render_validation_result(result, json_output=json_output)
     raise typer.Exit(0 if result.ok else 1)
 
@@ -467,12 +462,10 @@ def pack_assemble(
     Exits 0 on success and 1 when conflicts block the merge or when the
     assembled output fails validation.
     """
-    from specify_cli.doctrine.pack_assembler import (
-        assemble_pack,
-        render_assembly_result,
-    )
+    from specify_cli.doctrine.org_charter import assemble_pack_with_org_charter
+    from charter.packs import render_assembly_result
 
-    result = assemble_pack(
+    result = assemble_pack_with_org_charter(
         input_packs=list(input_packs),
         output_dir=output_path,
         force=force,
@@ -727,9 +720,9 @@ def new(
     # registry in pack_validator is the canonical source of truth.
     from ruamel.yaml import YAML
 
-    from specify_cli.doctrine.pack_validator import _artifact_schema_registry
+    from charter.packs import artifact_schema_registry
 
-    schema_cls = _artifact_schema_registry()[plural][1]
+    schema_cls = artifact_schema_registry()[plural][1]
     parsed = YAML(typ="safe").load(stub_text)
     try:
         schema_cls.model_validate(parsed)
@@ -754,7 +747,7 @@ def new(
 #: Map filename suffix → ``(plural_dir_name, kind_singular)`` for the
 #: ``validate`` command to detect a single file's artifact kind without
 #: requiring the operator to pass it explicitly.  Mirrors the suffixes
-#: declared in :func:`_artifact_schema_registry`.
+#: declared in :func:`artifact_schema_registry`.
 _SUFFIX_TO_KIND: dict[str, tuple[str, str]] = {
     ".directive.yaml": ("directives", "directive"),
     ".tactic.yaml": ("tactics", "tactic"),
@@ -819,7 +812,7 @@ def _validate_single_artifact(
     from ruamel.yaml import YAML
     from ruamel.yaml.error import YAMLError
 
-    from specify_cli.doctrine.pack_validator import _artifact_schema_registry
+    from charter.packs import artifact_schema_registry
 
     detected = _detect_artifact_kind(path)
     if detected is None:
@@ -839,7 +832,7 @@ def _validate_single_artifact(
     lang_err = _check_applies_to_languages(data)
     if lang_err is not None:
         return False, lang_err
-    schema_cls = _artifact_schema_registry()[plural][1]
+    schema_cls = artifact_schema_registry()[plural][1]
     try:
         schema_cls.model_validate(data)
     except Exception as exc:  # noqa: BLE001 — schema errors → operator text
@@ -1108,17 +1101,15 @@ def org_validate(
 ) -> None:
     """Validate an org doctrine pack using schema and DRG checks (FR-006).
 
-    Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
+    Calls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`
     loader.  Prints per-file findings with file paths.  Exits non-zero when
     at least one error is found.
 
     Org fragments use id and plural kind (for example, directives) for nodes.
     Validation uses the runtime loader, which supplies pack provenance fields.
     """
-    from specify_cli.doctrine.pack_validator import (
-        render_validation_result,
-        validate_pack,
-    )
+    from specify_cli.doctrine.org_charter import validate_pack_with_org_charter
+    from charter.packs import render_validation_result
 
     # Written explicitly (not relying on validate_pack's own default) so a
     # future default change cannot silently alter org_validate's behaviour
@@ -1126,7 +1117,7 @@ def org_validate(
     # produces the drg-root-graph-missing shape, so this call was never
     # protected by a carve-out in the first place (operator ruling #2,
     # reviews/plan.ruling.md).
-    result = validate_pack(pack_path, check_drg_root=True)
+    result = validate_pack_with_org_charter(pack_path, check_drg_root=True)
 
     render_validation_result(result, json_output=False)
     raise typer.Exit(0 if result.ok else 1)

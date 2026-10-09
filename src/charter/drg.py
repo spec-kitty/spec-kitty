@@ -72,6 +72,7 @@ from __future__ import annotations
 # charter.offering.artifact_kinds.ArtifactKind`` (mission ``doctrine-public-api-surface``
 # WP03, FR-003 / NFR-002 / contract C1).
 from charter.offering.api import ArtifactKind, slug_for
+from charter.offering.artifact_kinds import CORE_KIND_PLURALS
 from charter.offering.base import DoctrineLayerCollisionWarning
 from charter.offering.drg import (
     DRGLoadError,
@@ -104,6 +105,7 @@ from charter.offering.drg.org_pack_config import (
     resolve_existing_org_roots,
     resolve_org_dirs,
     resolve_org_roots,
+    resolve_relative_path_within_root,
 )
 from charter.offering.drg.org_pack_loader import (
     OrgDRGFragment,
@@ -118,6 +120,7 @@ from charter.offering.drg.project_scan import scan_project_artifacts
 __all__ = [
     "merge_three_layers",
     "ArtifactKind",
+    "CORE_KIND_PLURALS",
     "DRGEdge",
     "DRGGraph",
     "DRGLoadError",
@@ -150,6 +153,7 @@ __all__ = [
     "resolve_existing_org_roots",
     "resolve_org_dirs",
     "resolve_org_roots",
+    "resolve_relative_path_within_root",
     "slug_for",
     "validate_dangling_references",
 ]

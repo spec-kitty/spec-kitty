@@ -34,11 +34,15 @@ Public API
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from collections.abc import Set as AbstractSet
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+import yaml as pyyaml
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from charter.activation.activations import ActivationEntry, _activation_identity_key
 from charter.activation.org_pack_discovery import last_non_empty_token, union_required_tokens
@@ -48,13 +52,15 @@ from charter.activation.kind_vocabulary import (
     resolve_selected_id_to_stem,
 )
 from charter.offering.artifact_kinds import ORG_REQUIRABLE_KIND_FIELDS, ArtifactKind
+from charter.packs import AssemblyResult, ValidationIssue, ValidationResult, assemble_pack, validate_pack
+from kernel.charter_pack_paths import pack_org_charter
+
 
 if TYPE_CHECKING:
     from charter.activation.pack_context import PackContext
 
 __all__ = [
     "GovernancePolicy",
-    "OrgCharterPolicy",
     "MissingDoctrinePackError",
     "OrgCharterCycleError",
     "OrgCharterExtensionError",
@@ -64,6 +70,8 @@ __all__ = [
     "apply_org_charter_pre_fill",
     "apply_org_charter_to_interview",
     "validate_org_required_directive_stems",
+    "validate_pack_with_org_charter",
+    "assemble_pack_with_org_charter",
 ]
 
 
@@ -103,7 +111,7 @@ class GovernancePolicy(BaseModel):
 
     Enforcement is *advisory-only* in this mission — only the literal
     string ``"advisory"`` is honoured today.  Other values parse and
-    surface as advisories (see ``pack_validator._validate_org_charter``).
+    surface as advisories (see :func:`validate_org_charter_file`).
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -423,7 +431,7 @@ def load_org_charter_policy(pack_path: Path) -> OrgCharterPolicy | None:
     :class:`pydantic.ValidationError` (re-raised) when the file exists but
     fails schema validation — callers that want resilience should catch.
     """
-    charter_path = pack_path / "org-charter.yaml"
+    charter_path = pack_org_charter(pack_path)
     if not charter_path.exists():
         return None
     try:
@@ -476,7 +484,7 @@ def _resolve_chain(
 
     Delegates the topology walk (cycle detection, missing-base detection,
     base-first ordering) to the canonical charter-layer resolver
-    :func:`charter.activation.org_extends.resolve_extends_order`. This module no longer
+    :func:`charter.offering.packs.extends.resolve_extends_order`. This module no longer
     maintains its own depth-first walk — per C-005 / R-10 there is a single
     ``extends:`` resolution mechanism, and the charter-layer functions are it
     (FR-008). This loader only maps the resolved order back to the loaded
@@ -506,7 +514,7 @@ def _resolve_chain(
     OrgCharterCycleError
         When a cycle is detected (a pack already in the chain re-appears).
     """
-    from charter.activation.org_extends import (
+    from charter.offering.packs.extends import (
         ExtendsBaseNotFoundError,
         ExtendsCycleError,
         resolve_extends_order,
@@ -926,3 +934,157 @@ def validate_org_required_directive_stems(repo_root: Path) -> None:
             org_roots=resolve_org_root_chain(repo_root),
             layer_roots=resolve_layer_roots(repo_root),
         )
+
+
+# ---------------------------------------------------------------------------
+# Pack tooling org-charter legs (research A.3 #4)
+#
+# ``validate_pack`` and ``assemble_pack`` live in the offering tier and take
+# their org-charter leg as a hook, because org charter composition is an
+# activation concern. The two composing entries below are the doors every
+# caller uses, so no caller can skip the org-charter leg.
+# ---------------------------------------------------------------------------
+
+
+def _load_charter_mapping(path: Path) -> tuple[dict[str, Any] | None, str | None]:
+    """Parse *path* as a YAML mapping. Returns ``(data, error_msg)``."""
+    try:
+        data = _yaml().load(path)
+    except (YAMLError, OSError) as exc:
+        return None, f"YAML parse error: {exc}"
+    if data is None:
+        return None, "empty YAML document"
+    if not isinstance(data, dict):
+        return None, "expected a YAML mapping at top level"
+    return data, None
+
+
+def _org_charter_issue(path: Path, message: str, *, severity: str, artifact_id: str | None = None) -> ValidationIssue:
+    return ValidationIssue(
+        severity=severity,
+        artifact_type="org-charter",
+        artifact_id=artifact_id,
+        file=str(path),
+        message=message,
+    )
+
+
+def validate_org_charter_file(path: Path, pack_directive_ids: AbstractSet[str] = frozenset()) -> list[ValidationIssue]:
+    """Validate one pack's ``org-charter.yaml`` (the ``validate_pack`` org-charter leg).
+
+    A parse or schema failure is an error; a non-advisory governance
+    enforcement and a ``required_directives`` id the pack does not ship
+    (*pack_directive_ids*) are advisories.
+    """
+    data, parse_err = _load_charter_mapping(path)
+    if parse_err is not None or data is None:
+        return [_org_charter_issue(path, parse_err or "empty YAML document", severity="error")]
+    try:
+        policy = OrgCharterPolicy.model_validate(data)
+    except ValidationError as exc:
+        return [_org_charter_issue(path, f"org-charter schema validation failed: {exc.errors()[0].get('msg', exc)}", severity="error")]
+
+    issues: list[ValidationIssue] = []
+    for gp in policy.governance_policies:
+        if str(gp.enforcement) != "advisory":
+            issues.append(
+                _org_charter_issue(
+                    path,
+                    f"governance policy uses non-advisory enforcement {gp.enforcement!r}; only 'advisory' is recognised today",
+                    severity="advisory",
+                    artifact_id=gp.field,
+                )
+            )
+    for required_id in policy.required_directives:
+        if required_id not in pack_directive_ids:
+            issues.append(
+                _org_charter_issue(
+                    path,
+                    f"required_directive {required_id!r} not found in this pack's directives/ (may exist in another pack or in built-in doctrine)",
+                    severity="advisory",
+                    artifact_id=required_id,
+                )
+            )
+    return issues
+
+
+def merge_org_charter_files(paths: Sequence[Path], output_dir: Path) -> None:
+    """Merge input packs' ``org-charter.yaml`` files into ``output_dir`` (the ``assemble_pack`` leg).
+
+    Merge semantics:
+
+    * ``interview_defaults``: dict update (last pack wins on key collision).
+    * ``required_directives``: union, deduplicated, order preserved.
+    * ``governance_policies``: concatenated, deduplicated by ``(field, value)``.
+
+    Unreadable or non-mapping inputs are skipped; a merged payload that fails
+    the schema writes nothing, and the assembled pack's own validation then
+    reports the inputs.
+    """
+    merged = _merge_org_charter_payloads(paths)
+    if merged is None:
+        return
+    pack_org_charter(output_dir).write_text(
+        pyyaml.safe_dump(merged.model_dump(mode="json"), sort_keys=False),
+        encoding="utf-8",
+    )
+
+
+def _merge_org_charter_payloads(paths: Sequence[Path]) -> OrgCharterPolicy | None:
+    interview_defaults: dict[str, Any] = {}
+    required_directives: list[str] = []
+    governance_policies: list[dict[str, Any]] = []
+    schema_version: str | None = None
+
+    for path in paths:
+        data, _err = _load_charter_mapping(path)
+        if data is None:
+            continue
+        schema_version = data.get("schema_version", schema_version)
+        interview_defaults.update(data.get("interview_defaults") or {})
+        for rd in data.get("required_directives") or []:
+            if rd not in required_directives:
+                required_directives.append(rd)
+        governance_policies.extend(gp for gp in data.get("governance_policies") or [] if isinstance(gp, dict))
+
+    seen: set[tuple[Any, Any]] = set()
+    deduped: list[dict[str, Any]] = []
+    for gp in governance_policies:
+        key = (gp.get("field"), gp.get("value"))
+        if key not in seen:
+            seen.add(key)
+            deduped.append(gp)
+
+    payload: dict[str, Any] = {
+        "schema_version": schema_version or "1.0",
+        "interview_defaults": interview_defaults,
+        "required_directives": required_directives,
+        "governance_policies": deduped,
+    }
+    try:
+        return OrgCharterPolicy.model_validate(payload)
+    except ValidationError:
+        return None
+
+
+def validate_pack_with_org_charter(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationResult:
+    """Validate a pack including its org-charter leg (the CLI's validation door)."""
+    return validate_pack(pack_dir, check_drg_root=check_drg_root, org_charter_check=validate_org_charter_file)
+
+
+def assemble_pack_with_org_charter(
+    input_packs: list[Path],
+    output_dir: Path,
+    *,
+    force: bool = False,
+    conflicts_out: Path | None = None,
+) -> AssemblyResult:
+    """Assemble packs including the org-charter merge and validation legs (the CLI's door)."""
+    return assemble_pack(
+        input_packs,
+        output_dir,
+        force=force,
+        conflicts_out=conflicts_out,
+        org_charter_merge=merge_org_charter_files,
+        org_charter_check=validate_org_charter_file,
+    )

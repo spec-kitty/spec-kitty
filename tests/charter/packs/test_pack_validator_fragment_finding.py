@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doctrine.pack_validator import validate_pack
+from charter.offering.packs.pack_validator import validate_pack
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

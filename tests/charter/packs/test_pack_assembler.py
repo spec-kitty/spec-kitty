@@ -1,4 +1,4 @@
-"""Tests for ``specify_cli.doctrine.pack_assembler``."""
+"""Tests for ``charter.offering.packs.pack_assembler``."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doctrine.pack_assembler import (
+from charter.offering.packs.pack_assembler import (
     AssemblyResult,
     assemble_pack,
     render_assembly_result,
@@ -21,6 +21,7 @@ from specify_cli.doctrine.pack_assembler import (
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 def _make_pack(
     root: Path,
@@ -50,9 +51,7 @@ def _make_pack(
     return pack
 
 
-def _add_drg_fragment(
-    pack: Path, name: str, *, source: str, target: str
-) -> None:
+def _add_drg_fragment(pack: Path, name: str, *, source: str, target: str) -> None:
     drg = pack / "drg"
     drg.mkdir(parents=True, exist_ok=True)
     (drg / name).write_text(
@@ -143,21 +142,15 @@ class TestAssemblePack:
 
         assert result.ok is True, result.errors
         assert result.artifacts_written == 1
-        produced = (output / "directives" / "dup-002.directive.yaml").read_text(
-            encoding="utf-8"
-        )
+        produced = (output / "directives" / "dup-002.directive.yaml").read_text(encoding="utf-8")
         assert "BRAVO TITLE" in produced
 
     def test_drg_conflict(self, tmp_path: Path) -> None:
         a = _make_pack(tmp_path, "alpha", directives=["X-001", "X-002"])
         b = _make_pack(tmp_path, "bravo", directives=["Y-001", "Y-002"])
         # Same edge defined in both packs.
-        _add_drg_fragment(
-            a, "010.graph.yaml", source="directive:X-001", target="directive:X-002"
-        )
-        _add_drg_fragment(
-            b, "010.graph.yaml", source="directive:X-001", target="directive:X-002"
-        )
+        _add_drg_fragment(a, "010.graph.yaml", source="directive:X-001", target="directive:X-002")
+        _add_drg_fragment(b, "010.graph.yaml", source="directive:X-001", target="directive:X-002")
         output = tmp_path / "out"
 
         result = assemble_pack([a, b], output)
@@ -166,9 +159,7 @@ class TestAssemblePack:
         drg_conflicts = [c for c in result.conflicts if c.artifact_type == "drg"]
         assert drg_conflicts, result.conflicts
 
-    def test_force_dedup_prunes_duplicate_edges_via_canonical_serializer(
-        self, tmp_path: Path
-    ) -> None:
+    def test_force_dedup_prunes_duplicate_edges_via_canonical_serializer(self, tmp_path: Path) -> None:
         """WP05/T020 (#3075, #2977): the force-dedup re-emit path used to build
         its pruned fragment via raw ``n.model_dump()`` / ``e.model_dump()``,
         bypassing ``model_to_graph_dict`` entirely. That dropped
@@ -180,12 +171,8 @@ class TestAssemblePack:
         a = _make_pack(tmp_path, "alpha", directives=["X-101", "X-102"])
         b = _make_pack(tmp_path, "bravo", directives=["X-101", "X-102"])
         # Same edge defined in both packs -- force=True must keep exactly one.
-        _add_drg_fragment(
-            a, "010.graph.yaml", source="directive:X-101", target="directive:X-102"
-        )
-        _add_drg_fragment(
-            b, "010.graph.yaml", source="directive:X-101", target="directive:X-102"
-        )
+        _add_drg_fragment(a, "010.graph.yaml", source="directive:X-101", target="directive:X-102")
+        _add_drg_fragment(b, "010.graph.yaml", source="directive:X-101", target="directive:X-102")
         output = tmp_path / "out"
 
         result = assemble_pack([a, b], output, force=True)
@@ -199,17 +186,12 @@ class TestAssemblePack:
         # once across both re-emitted fragments -- the pruning behaviour this
         # path exists for.
         edge_block_count = sum(text.count("relation: requires") for text in rendered)
-        assert edge_block_count == 1, (
-            f"expected exactly one surviving duplicate edge, got {edge_block_count}:\n"
-            + "\n---\n".join(rendered)
-        )
+        assert edge_block_count == 1, f"expected exactly one surviving duplicate edge, got {edge_block_count}:\n" + "\n---\n".join(rendered)
         # The canonical serializer withholds `provenance` (FIELDS_WITHHELD_
         # FROM_GRAPH_OUTPUT); the old raw .model_dump() path emitted it as a
         # literal `provenance: null` key on every node/edge.
         assert not any("provenance" in text for text in rendered), (
-            "pruned fragment(s) leaked the withheld `provenance` field -- "
-            "force-dedup re-emit did not route through the canonical "
-            f"document serializer:\n{rendered}"
+            f"pruned fragment(s) leaked the withheld `provenance` field -- force-dedup re-emit did not route through the canonical document serializer:\n{rendered}"
         )
 
     def test_conflicts_out_written(self, tmp_path: Path) -> None:
@@ -218,9 +200,7 @@ class TestAssemblePack:
         output = tmp_path / "out"
         conflicts_out = tmp_path / "conflicts.json"
 
-        result = assemble_pack(
-            [a, b], output, conflicts_out=conflicts_out
-        )
+        result = assemble_pack([a, b], output, conflicts_out=conflicts_out)
 
         assert result.ok is False
         assert conflicts_out.is_file()
@@ -260,9 +240,7 @@ class TestAssemblePack:
         assert result.ok is False
         assert any("not found" in e for e in result.errors)
 
-    def test_force_refuses_to_delete_non_pack_output_dir(
-        self, tmp_path: Path
-    ) -> None:
+    def test_force_refuses_to_delete_non_pack_output_dir(self, tmp_path: Path) -> None:
         pack = _make_pack(tmp_path, "alpha", directives=["SAFE-001"])
         output = tmp_path / "important-data"
         output.mkdir()
@@ -275,9 +253,7 @@ class TestAssemblePack:
         assert "refusing to delete non-pack" in " ".join(result.errors)
         assert marker.read_text(encoding="utf-8") == "keep\n"
 
-    def test_force_refuses_spoofed_minimal_pack_manifest(
-        self, tmp_path: Path
-    ) -> None:
+    def test_force_refuses_spoofed_minimal_pack_manifest(self, tmp_path: Path) -> None:
         pack = _make_pack(tmp_path, "alpha", directives=["SAFE-002"])
         output = tmp_path / "important-data"
         output.mkdir()
@@ -294,9 +270,7 @@ class TestAssemblePack:
         assert "refusing to delete non-pack" in " ".join(result.errors)
         assert marker.read_text(encoding="utf-8") == "keep\n"
 
-    def test_force_recognises_fetched_artifactory_pack_manifest(
-        self, tmp_path: Path
-    ) -> None:
+    def test_force_recognises_fetched_artifactory_pack_manifest(self, tmp_path: Path) -> None:
         pack = _make_pack(tmp_path, "alpha", directives=["NEW-ART-001"])
         output = tmp_path / "fetched-artifactory-pack"
         output.mkdir()
@@ -321,9 +295,7 @@ class TestAssemblePack:
         assert not marker.exists()
         assert (output / "directives" / "new-art-001.directive.yaml").is_file()
 
-    def test_force_allows_replacing_previous_pack_output(
-        self, tmp_path: Path
-    ) -> None:
+    def test_force_allows_replacing_previous_pack_output(self, tmp_path: Path) -> None:
         first = _make_pack(tmp_path, "alpha", directives=["OLD-001"])
         second = _make_pack(tmp_path, "bravo", directives=["NEW-001"])
         output = tmp_path / "out"
@@ -337,9 +309,7 @@ class TestAssemblePack:
         assert not (output / "directives" / "old-001.directive.yaml").exists()
         assert (output / "directives" / "new-001.directive.yaml").exists()
 
-    def test_internal_validate_pack_call_carves_out_drg_root_check(
-        self, tmp_path: Path
-    ) -> None:
+    def test_internal_validate_pack_call_carves_out_drg_root_check(self, tmp_path: Path) -> None:
         """FR-004 / AC-6 (operator ruling #2, ``reviews/plan.ruling.md``):
         ``assemble_pack``'s internal round-trip ``validate_pack(...)`` call
         passes ``check_drg_root=False`` — proven by an actual
@@ -355,19 +325,19 @@ class TestAssemblePack:
         """
         from unittest.mock import patch
 
-        from specify_cli.doctrine.pack_validator import ValidationResult
+        from charter.offering.packs.pack_validator import ValidationResult
 
         pack = _make_pack(tmp_path, "alpha", directives=["V-001"])
         output = tmp_path / "out"
 
         with patch(
-            "specify_cli.doctrine.pack_assembler.validate_pack",
+            "charter.offering.packs.pack_assembler.validate_pack",
             return_value=ValidationResult(ok=True),
         ) as mock_validate:
             result = assemble_pack([pack], output)
 
         assert result.ok is True, result.errors
-        mock_validate.assert_called_once_with(output, check_drg_root=False)
+        mock_validate.assert_called_once_with(output, check_drg_root=False, org_charter_check=None)
 
 
 # ---------------------------------------------------------------------------
@@ -376,9 +346,7 @@ class TestAssemblePack:
 
 
 class TestRenderAssemblyResult:
-    def test_json_output_on_success(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_json_output_on_success(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         pack = _make_pack(tmp_path, "alpha", directives=["A-001"])
         output = tmp_path / "out"
         result = assemble_pack([pack], output)
@@ -392,9 +360,7 @@ class TestRenderAssemblyResult:
         assert payload["ok"] is True
         assert payload["artifacts_written"] == 1
 
-    def test_human_output_on_conflict(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_human_output_on_conflict(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         a = _make_pack(tmp_path, "alpha", directives=["DUP-099"])
         b = _make_pack(tmp_path, "bravo", directives=["DUP-099"])
         output = tmp_path / "out"
@@ -462,9 +428,7 @@ class TestAssembleSanctionUnion:
         assert result.conflicts == []
         assert _read_sanction(output) == [{"urn": "tactic:shared", "reason": "Same."}]
 
-    def test_same_urn_different_reason_is_a_conflict_without_force(
-        self, tmp_path: Path
-    ) -> None:
+    def test_same_urn_different_reason_is_a_conflict_without_force(self, tmp_path: Path) -> None:
         a = _make_pack(tmp_path, "alpha", directives=["A-001"])
         b = _make_pack(tmp_path, "bravo", directives=["B-001"])
         _write_sanction(a, ("tactic:shared", "First."))
@@ -482,9 +446,7 @@ class TestAssembleSanctionUnion:
         reported = json.loads(conflicts_out.read_text(encoding="utf-8"))
         assert [c["artifact_type"] for c in reported] == [_SANCTION_TYPE]
 
-    def test_same_urn_different_reason_last_pack_wins_with_force(
-        self, tmp_path: Path
-    ) -> None:
+    def test_same_urn_different_reason_last_pack_wins_with_force(self, tmp_path: Path) -> None:
         a = _make_pack(tmp_path, "alpha", directives=["A-001"])
         b = _make_pack(tmp_path, "bravo", directives=["B-001"])
         _write_sanction(a, ("tactic:shared", "First."))
@@ -515,9 +477,7 @@ class TestAssembleSanctionUnion:
         assert assemble_pack([a, b], output).ok is True
         assert _read_sanction(output) == [{"urn": "tactic:only", "reason": "Only."}]
 
-    def test_malformed_input_sanction_aborts_before_any_write(
-        self, tmp_path: Path
-    ) -> None:
+    def test_malformed_input_sanction_aborts_before_any_write(self, tmp_path: Path) -> None:
         a = _make_pack(tmp_path, "alpha", directives=["A-001"])
         b = _make_pack(tmp_path, "bravo", directives=["B-001"])
         (b / _SANCTION_FILE).write_text("replaceable_builtins: [oops\n", encoding="utf-8")

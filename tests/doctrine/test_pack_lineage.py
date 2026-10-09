@@ -1,7 +1,7 @@
 """Tests for the data-only pack-lineage adapter (FR-006, FR-007, WP03).
 
-Covers :mod:`specify_cli.doctrine.pack_lineage`: the ``pack_id -> resolvable
-key`` adapter that feeds ``org_extends.resolve_extends_order`` (no second
+Covers :mod:`charter.offering.packs.pack_lineage`: the ``pack_id -> resolvable
+key`` adapter that feeds ``extends.resolve_extends_order`` (no second
 walker, C-002/NFR-001), fail-closed rejection of unresolvable
 ``parent_pack``/``accompanies_doctrine_pack`` edges, and the FR-007 positive
 read-back for ``accompanies_doctrine_pack``.
@@ -18,8 +18,8 @@ import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-from charter.activation.org_extends import resolve_extends_order
-from specify_cli.doctrine.pack_lineage import (
+from charter.offering.packs.extends import resolve_extends_order
+from charter.offering.packs.pack_lineage import (
     PackLineageCycleError,
     UnresolvedDoctrinePackError,
     UnresolvedPackParentError,
@@ -29,7 +29,7 @@ from specify_cli.doctrine.pack_lineage import (
 
 
 class TestResolvePackLineageOrder:
-    """T011: id -> name adapter delegates to org_extends.resolve_extends_order."""
+    """T011: id -> name adapter delegates to extends.resolve_extends_order."""
 
     def test_single_pack_no_parent(self) -> None:
         order = resolve_pack_lineage_order(
@@ -51,7 +51,7 @@ class TestResolvePackLineageOrder:
         order = resolve_pack_lineage_order("id-leaf", parent_edges, pack_names)
         assert order == ["id-root", "id-mid", "id-leaf"]
 
-        # The equivalent name-keyed call through org_extends directly, which
+        # The equivalent name-keyed call through extends directly, which
         # is the live resolution path today (org_charter.py:517,525).
         name_edges = {"root": None, "mid": "root", "leaf": "mid"}
         name_order = resolve_extends_order("leaf", name_edges)

@@ -19,7 +19,6 @@ from charter.activation.synthesizer.manifest import (
     ManifestArtifactEntry,
     SynthesisManifest,
     finalize_manifest,
-    hash_content_bytes,
     load_yaml as load_manifest,
     verify_manifest_hash,
 )
@@ -27,6 +26,7 @@ from charter.activation.synthesizer.path_guard import PathGuard
 from charter.activation.synthesizer.provenance import ProvenanceEntry, provenance_path_for
 from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 from charter.offering.artifact_kinds import slug_for
+from charter.offering.packs.hashing import hash_content_bytes
 from charter.offering.drg.loader import has_graph_files, load_graph_or_dir, merge_layers
 from charter.offering.drg.migration.extractor import graph_document_to_dict
 from charter.offering.drg.models import DRGGraph

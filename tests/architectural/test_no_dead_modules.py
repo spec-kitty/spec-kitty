@@ -459,9 +459,10 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # production callers) is the deferred integration WP, tracked in #3518.
         # These two modules are the not-yet-wired adapters awaiting that WP; the
         # AST ratchet test_pack_lineage_no_parallel_resolver.py + the schema/
-        # identity/counts unit suites exercise them meanwhile.
-        "specify_cli.doctrine.pack_descriptor",
-        "specify_cli.doctrine.pack_lineage",
+        # identity/counts unit suites exercise them meanwhile. Moved from
+        # specify_cli.doctrine by charter-pack-cutover-01M491G6 WP04 (#3732).
+        "charter.offering.packs.pack_descriptor",
+        "charter.offering.packs.pack_lineage",
         # specify_cli.cli.commands.charter._charter_write_root removed
         # (#4785 WP03+WP04): activate.py/deactivate.py (WP03) and
         # generate.py/synthesize.py/resynthesize.py (WP04) now wire

@@ -4,7 +4,7 @@ This module defines the **single canonical** pack-metadata manifest schema that
 replaces the two divergent formats that shipped previously (WP01 / IC-01):
 
 * per-kind ``artifact_counts`` for org / fetched packs
-  (``specify_cli.doctrine.snapshot.write_pack_manifest``), and
+  (:func:`write_pack_manifest`), and
 * the enumerated ``artifacts[]`` list of the charter bundle
   (``charter.activation.synthesizer.manifest.SynthesisManifest``).
 
@@ -18,7 +18,7 @@ Design references:
 * ``kitty-specs/pack-metadata-manifest-unification-01M052PT/data-model.md``
 
 Hashing is delegated to the **single** canonical manifest hasher
-(:func:`charter.activation.synthesizer.manifest.hash_manifest_payload`) — this module
+(:func:`charter.offering.packs.hashing.hash_manifest_payload`) — this module
 never introduces a second SHA-256 implementation (RR-SF2 / T005). The
 ``generated_at`` / ``generated_by`` provenance fields are excluded from both
 the ``manifest_hash`` and the byte-diff assertion so re-generating an unchanged
@@ -27,10 +27,12 @@ pack is byte-identical (NFR-003).
 
 from __future__ import annotations
 
+import hashlib
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
+from urllib.parse import SplitResult, urlsplit, urlunsplit
 
 from pydantic import (
     BaseModel,
@@ -41,9 +43,10 @@ from pydantic import (
 )
 from ruamel.yaml import YAML
 
-from charter.activation.synthesizer.manifest import SynthesisManifest, hash_manifest_payload
-from charter.activation.synthesizer.synthesize_pipeline import canonical_yaml
 from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.packs.hashing import hash_manifest_payload
+from charter.offering.yaml_utils import canonical_yaml
+from kernel.clock import now_utc_stamp
 
 #: Current unified pack-manifest schema version (DIR-018 shape gate).
 SCHEMA_VERSION = "1"
@@ -52,9 +55,7 @@ SCHEMA_VERSION = "1"
 #: assertion. ``manifest_hash`` is excluded because it is the self field;
 #: ``generated_at`` / ``generated_by`` are volatile provenance that must not
 #: perturb a re-generation of otherwise-identical content (NFR-003).
-HASH_EXCLUDED_FIELDS: frozenset[str] = frozenset(
-    {"manifest_hash", "generated_at", "generated_by"}
-)
+HASH_EXCLUDED_FIELDS: frozenset[str] = frozenset({"manifest_hash", "generated_at", "generated_by"})
 
 _FETCHED_PROVENANCE_FIELDS: frozenset[str] = frozenset(
     {
@@ -67,9 +68,7 @@ _FETCHED_PROVENANCE_FIELDS: frozenset[str] = frozenset(
     }
 )
 
-_GENERATED_PACK_SOURCE_TYPES: frozenset[str] = frozenset(
-    {"api", "artifactory", "assemble", "git", "https"}
-)
+_GENERATED_PACK_SOURCE_TYPES: frozenset[str] = frozenset({"api", "artifactory", "assemble", "git", "https"})
 
 
 class Constituent(BaseModel):
@@ -142,18 +141,13 @@ class PackManifest(BaseModel):
     charter: CharterProfile | None = None
 
     @model_serializer(mode="wrap")
-    def _serialize_manifest(
-        self, handler: SerializerFunctionWrapHandler
-    ) -> dict[str, Any]:
+    def _serialize_manifest(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
         """Serialize manifest variants consistently on every Pydantic path."""
         data: dict[str, Any] = handler(self)
         for field_name in _FETCHED_PROVENANCE_FIELDS:
             if data.get(field_name) is not None:
                 continue
-            if (
-                field_name == "pack_version"
-                and self.source_type in _GENERATED_PACK_SOURCE_TYPES
-            ):
+            if field_name == "pack_version" and self.source_type in _GENERATED_PACK_SOURCE_TYPES:
                 continue
             data.pop(field_name, None)
         if self.constituents is None:
@@ -161,14 +155,13 @@ class PackManifest(BaseModel):
         return data
 
     @classmethod
-    def __get_pydantic_json_schema__(
-        cls, core_schema: Any, handler: GetJsonSchemaHandler
-    ) -> dict[str, Any]:
+    def __get_pydantic_json_schema__(cls, core_schema: Any, handler: GetJsonSchemaHandler) -> dict[str, Any]:
         """Keep the declared serialization schema as strict as validation."""
         schema = dict(core_schema)
         if handler.mode == "serialization":
             schema.pop("serialization", None)
         return handler(schema)
+
 
 # ---------------------------------------------------------------------------
 # Determinism + hashing
@@ -194,15 +187,14 @@ def sort_constituents(constituents: Sequence[Constituent]) -> list[Constituent]:
 def compute_pack_manifest_hash(manifest: PackManifest) -> str:
     """Compute ``manifest_hash`` via the single canonical hasher.
 
-    Delegates to :func:`charter.activation.synthesizer.manifest.hash_manifest_payload`
+    Delegates to :func:`charter.offering.packs.hashing.hash_manifest_payload`
     (the one SHA-256 + ``canonical_yaml`` primitive) over every field except
     :data:`HASH_EXCLUDED_FIELDS`. ``mode="json"`` normalizes the
     :class:`ArtifactKind` enum members to their string values so the payload is
     plain data.
     """
     data = _manifest_payload(manifest)
-    # hash_manifest_payload is untyped (Any) upstream; narrow to the str it returns.
-    return str(hash_manifest_payload(data, exclude_keys=HASH_EXCLUDED_FIELDS))
+    return hash_manifest_payload(data, exclude_keys=HASH_EXCLUDED_FIELDS)
 
 
 def finalize_pack_manifest(manifest: PackManifest) -> PackManifest:
@@ -211,15 +203,9 @@ def finalize_pack_manifest(manifest: PackManifest) -> PackManifest:
     Constituents are normalized to canonical ``(kind, id)`` order first so the
     hash and serialized bytes are order-independent of the caller.
     """
-    ordered_constituents = (
-        None
-        if manifest.constituents is None
-        else sort_constituents(manifest.constituents)
-    )
+    ordered_constituents = None if manifest.constituents is None else sort_constituents(manifest.constituents)
     ordered = manifest.model_copy(update={"constituents": ordered_constituents})
-    return ordered.model_copy(
-        update={"manifest_hash": compute_pack_manifest_hash(ordered)}
-    )
+    return ordered.model_copy(update={"manifest_hash": compute_pack_manifest_hash(ordered)})
 
 
 # ---------------------------------------------------------------------------
@@ -234,11 +220,7 @@ def dump_pack_manifest_bytes(manifest: PackManifest) -> bytes:
     single source of truth for YAML serialization) so the bytes are stable
     under identical inputs. Constituents are canonically ordered first.
     """
-    ordered_constituents = (
-        None
-        if manifest.constituents is None
-        else sort_constituents(manifest.constituents)
-    )
+    ordered_constituents = None if manifest.constituents is None else sort_constituents(manifest.constituents)
     ordered = manifest.model_copy(update={"constituents": ordered_constituents})
     serialized: bytes = canonical_yaml(_manifest_payload(ordered))
     return serialized
@@ -269,7 +251,7 @@ def counts_by_kind(constituents: Sequence[Constituent]) -> dict[str, int]:
     built-in enumeration (``builtin_manifest.enumerate_constituents``) *excludes*
     graph-only kinds (``mission_step_contract``, ``template``, ``anti_pattern``)
     and never emits a ``drg_fragments`` bucket, whereas the stored view
-    (``snapshot._count_artifacts``) includes ``mission_step_contracts`` and folds
+    (:func:`count_snapshot_artifacts`) includes ``mission_step_contracts`` and folds
     DRG fragments into ``drg_fragments``. So for a pack carrying those kinds this
     is *not* a silent drop-in — the deferred integration WP must reconcile the two
     enumeration domains **before** flipping any snapshot from stored to derived
@@ -303,49 +285,152 @@ def resolve_counts(
 
 
 # ---------------------------------------------------------------------------
-# Charter absorption (IC-01 / T002)
+# Fetched / assembled pack manifest writer (research A.3 #6)
 # ---------------------------------------------------------------------------
 
+#: Name of the generated manifest file at a pack (or snapshot) root.
+_PACK_MANIFEST_FILENAME = "pack-manifest.yaml"
 
-def absorb_synthesis_manifest(manifest: SynthesisManifest) -> PackManifest:
-    """Absorb a charter ``SynthesisManifest`` into the unified schema (PP-M2).
+#: Recognised artifact subdirectories per the pack-layout contract.
+RECOGNISED_ARTIFACT_DIRS: frozenset[str] = frozenset(
+    {
+        "directives",
+        "tactics",
+        "styleguides",
+        "toolguides",
+        "paradigms",
+        "procedures",
+        "agent_profiles",
+        "mission_step_contracts",
+        "drg",
+    }
+)
 
-    The charter bundle's ``artifacts[]`` become canonical ``constituents[]``
-    (each preserving its ``provenance_path``), and the **entire** charter-only
-    field-set is carried onto a :class:`CharterProfile` so nothing is dropped:
-    ``mission_id``, ``bundle_content_hash``, ``synthesizer_version``,
-    ``run_id``, ``adapter_id``, ``adapter_version``, ``created_at``,
-    ``schema_version`` and the load-bearing ``built_in_only``.
 
-    This is a lossless in-memory bridge. It does **not** change the on-disk
-    ``synthesis-manifest.yaml`` format, so every existing charter-manifest
-    reader (freshness / preflight / lint / bundle / versioning / the rc35
-    migrations) keeps reading the unchanged bytes (T003).
+def write_pack_manifest(
+    local_path: Path,
+    *,
+    pack_version: str | None,
+    etag: str | None,
+    source_url: str,
+    source_type: str,
+) -> None:
+    """Write ``pack-manifest.yaml`` to ``local_path``.
+
+    The manifest is read-only metadata for tooling and humans. Credentials,
+    query parameters, and fragments in ``source_url`` are stripped before
+    persistence. The writer takes primitives only, so the pack model never
+    depends on the fetch adapters that produce them.
     """
-    constituents = [
-        Constituent(
-            kind=ArtifactKind(entry.kind),
-            id=entry.slug,
-            path=entry.path,
-            content_hash=entry.content_hash,
-            provenance_path=entry.provenance_path,
+    local_path = Path(local_path)
+    safe_source_url = strip_source_credentials(source_url)
+    manifest = finalize_pack_manifest(
+        PackManifest(
+            pack_version=pack_version,
+            fetched_at=_iso_now(),
+            source_type=source_type,
+            source_url=safe_source_url,
+            source_fingerprint=source_fingerprint(safe_source_url),
+            source_uses_query=_source_uses_query(source_url),
+            snapshot_sha256=snapshot_sha256(local_path),
+            artifact_counts=resolve_counts(None, count_snapshot_artifacts(local_path)),
+            etag=etag,
         )
-        for entry in manifest.artifacts
-    ]
-    profile = CharterProfile(
-        mission_id=manifest.mission_id,
-        bundle_content_hash=manifest.bundle_content_hash,
-        synthesizer_version=manifest.synthesizer_version,
-        run_id=manifest.run_id,
-        adapter_id=manifest.adapter_id,
-        adapter_version=manifest.adapter_version,
-        created_at=manifest.created_at,
-        schema_version=manifest.schema_version,
-        built_in_only=manifest.built_in_only,
     )
-    return finalize_pack_manifest(
-        PackManifest(constituents=constituents, charter=profile)
-    )
+    (local_path / _PACK_MANIFEST_FILENAME).write_bytes(dump_pack_manifest_bytes(manifest))
+
+
+def count_snapshot_artifacts(snapshot_dir: Path) -> dict[str, int]:
+    """Per-bucket artifact counts of a fetched snapshot (the stored count view)."""
+    counts: dict[str, int] = {}
+    if not snapshot_dir.exists():
+        return counts
+    for entry in snapshot_dir.iterdir():
+        if not entry.is_dir() or entry.name not in RECOGNISED_ARTIFACT_DIRS:
+            continue
+        bucket = entry.name if entry.name != "drg" else "drg_fragments"
+        counts[bucket] = sum(1 for _ in entry.rglob("*.yaml"))
+    # FR-014: the sharded built-in layout (mission #2680, WP05) ships DRG
+    # fragments as top-level ``*.graph.yaml`` files rather than under a ``drg/``
+    # directory. Fold them into the same ``drg_fragments`` bucket so a sharded
+    # doctrine tree categorises identically to the monolith / ``drg/``-dir
+    # layouts. Additive: no current snapshot ships top-level fragments.
+    fragment_count = sum(1 for _ in snapshot_dir.glob("*.graph.yaml"))
+    if fragment_count:
+        counts["drg_fragments"] = counts.get("drg_fragments", 0) + fragment_count
+    return counts
+
+
+def strip_source_credentials(url: str) -> str:
+    """Return a remote URL safe for durable metadata and comparisons."""
+    if not url:
+        return ""
+    parsed = safe_urlsplit(url)
+    if parsed is None:
+        return ""
+    if parsed.scheme not in {"http", "https"}:
+        return url
+    hostname = parsed.hostname or ""
+    if ":" in hostname:
+        hostname = f"[{hostname}]"
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    netloc = f"{hostname}:{port}" if port is not None else hostname
+    return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+
+
+def safe_urlsplit(url: str) -> SplitResult | None:
+    """Parse one URL without leaking malformed-authority exceptions."""
+    try:
+        return urlsplit(url)
+    except ValueError:
+        return None
+
+
+def _source_uses_query(url: str) -> bool:
+    """Return query presence without raising for malformed source URLs."""
+    parsed = safe_urlsplit(url)
+    return bool(parsed is not None and parsed.query)
+
+
+def source_fingerprint(safe_url: str) -> str:
+    """Return a stable non-secret identity for a sanitized source URL."""
+    return hashlib.sha256(  # noqa: TID251 - URL identity fingerprint, not charter freshness
+        safe_url.encode("utf-8")
+    ).hexdigest()
+
+
+def snapshot_sha256(snapshot_root: Path) -> str:
+    """Hash installed snapshot files, excluding the manifest itself."""
+    digest = hashlib.sha256()  # noqa: TID251 - local snapshot integrity checksum
+    for path in sorted(
+        snapshot_root.rglob("*"),
+        key=lambda candidate: candidate.relative_to(snapshot_root).as_posix(),
+    ):
+        relative = path.relative_to(snapshot_root)
+        if path.is_symlink():
+            raise OSError(f"Snapshot contains unsupported symlink: {relative}")
+        if relative == Path(_PACK_MANIFEST_FILENAME):
+            continue
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            raise OSError(f"Snapshot contains unsupported file type: {relative}")
+        relative_bytes = relative.as_posix().encode("utf-8")
+        digest.update(len(relative_bytes).to_bytes(8, "big"))
+        digest.update(relative_bytes)
+        size = path.stat().st_size
+        digest.update(size.to_bytes(8, "big"))
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(64 * 1024), b""):
+                digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _iso_now() -> str:
+    return now_utc_stamp()
 
 
 __all__ = [
@@ -360,6 +445,11 @@ __all__ = [
     "dump_pack_manifest_bytes",
     "load_pack_manifest",
     "counts_by_kind",
-    "resolve_counts",
-    "absorb_synthesis_manifest",
+    "RECOGNISED_ARTIFACT_DIRS",
+    "write_pack_manifest",
+    "count_snapshot_artifacts",
+    "strip_source_credentials",
+    "safe_urlsplit",
+    "source_fingerprint",
+    "snapshot_sha256",
 ]

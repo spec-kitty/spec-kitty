@@ -10,7 +10,7 @@ which holds the manifest schema, constituents, and provenance.
 
 **Not for direct I/O**: this module defines the schema only. Authored
 persistence and identity resolution are handled elsewhere (pack.yaml round-trip,
-backed by the single-authority ``org_extends`` resolver via an id→key adapter).
+backed by the single-authority ``extends`` resolver via an id→key adapter).
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ class PackDescriptor(BaseModel):
         else generated.
     parent_pack : str | None
         ULID of the parent pack, if this pack extends another. Resolved via
-        identity→key adapter feeding ``org_extends.resolve_extends_order``.
+        identity→key adapter feeding ``extends.resolve_extends_order``.
         ``None`` for root packs. An unresolvable ``parent_pack`` (pre-backfill)
         fails closed, never silently degrades.
     accompanies_doctrine_pack : str | None

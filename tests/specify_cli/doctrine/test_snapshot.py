@@ -8,7 +8,8 @@ from pathlib import Path
 
 import yaml
 
-from specify_cli.doctrine.snapshot import fetch_pack, write_pack_manifest, write_snapshot
+from charter.packs import write_pack_manifest
+from specify_cli.doctrine.snapshot import fetch_pack, write_snapshot
 from specify_cli.doctrine.sources.protocol import FetchResult
 
 
@@ -385,12 +386,8 @@ class TestEtagConditionalFetch:
         marker.write_text("preserve\n")
         write_pack_manifest(
             local_path,
-            FetchResult(
-                ok=True,
-                artifacts_written=2,
-                pack_version="v1",
-                etag='"v1"',
-            ),
+            pack_version="v1",
+            etag='"v1"',
             source_url="https://example.com/pack.tar.gz",
             source_type="https",
         )
@@ -473,12 +470,8 @@ class TestEtagConditionalFetch:
         source_b = "https://example.com/pack.tar.gz?artifact=B&signature=two"
         write_pack_manifest(
             local_path,
-            FetchResult(
-                ok=True,
-                artifacts_written=2,
-                pack_version="A",
-                etag='"etag-A"',
-            ),
+            pack_version="A",
+            etag='"etag-A"',
             source_url=source_a,
             source_type="https",
         )
@@ -517,12 +510,8 @@ class TestEtagConditionalFetch:
         source_url = "https://example.com/pack.tar.gz"
         write_pack_manifest(
             local_path,
-            FetchResult(
-                ok=True,
-                artifacts_written=2,
-                pack_version="v1",
-                etag='"v1"',
-            ),
+            pack_version="v1",
+            etag='"v1"',
             source_url=source_url,
             source_type="https",
         )
@@ -547,12 +536,8 @@ class TestEtagConditionalFetch:
         source_url = "https://example.com/pack.tar.gz"
         write_pack_manifest(
             local_path,
-            FetchResult(
-                ok=True,
-                artifacts_written=2,
-                pack_version="v1",
-                etag='"v1"',
-            ),
+            pack_version="v1",
+            etag='"v1"',
             source_url=source_url,
             source_type="https",
         )
@@ -589,12 +574,8 @@ class TestEtagConditionalFetch:
         _populate_valid_pack(local_path)
         write_pack_manifest(
             local_path,
-            FetchResult(
-                ok=True,
-                artifacts_written=2,
-                pack_version="legacy-etag-without-dedicated-field",
-                etag="legacy-etag-without-dedicated-field",
-            ),
+            pack_version="legacy-etag-without-dedicated-field",
+            etag="legacy-etag-without-dedicated-field",
             source_url=("https://artifactory.example.com/artifactory/repo/doctrine-rnd-latest.tar.gz"),
             source_type="artifactory",
         )
@@ -621,12 +602,8 @@ class TestEtagConditionalFetch:
         _populate_valid_pack(local_path)
         write_pack_manifest(
             local_path,
-            FetchResult(
-                ok=True,
-                artifacts_written=2,
-                pack_version="v1",
-                etag='"etag-1"',
-            ),
+            pack_version="v1",
+            etag='"etag-1"',
             source_url="https://example.com/pack.tar.gz",
             source_type="https",
         )
@@ -677,12 +654,8 @@ class TestEtagConditionalFetch:
         _populate_valid_pack(local_path)
         write_pack_manifest(
             local_path,
-            FetchResult(
-                ok=True,
-                artifacts_written=2,
-                pack_version="v1",
-                etag='"abc"',
-            ),
+            pack_version="v1",
+            etag='"abc"',
             source_url="https://example.com/pack.tar.gz",
             source_type="https",
         )
@@ -694,7 +667,7 @@ class TestEtagConditionalFetch:
 
 class TestPackManifest:
     def test_fetched_manifest_round_trips_through_canonical_schema(self, tmp_path: Path) -> None:
-        from specify_cli.doctrine.pack_manifest import (
+        from charter.offering.packs.pack_manifest import (
             load_pack_manifest,
             resolve_counts,
         )
@@ -703,12 +676,8 @@ class TestPackManifest:
         _populate_valid_pack(local_path)
         write_pack_manifest(
             local_path,
-            FetchResult(
-                ok=True,
-                artifacts_written=2,
-                pack_version="release-42",
-                etag='"etag-42"',
-            ),
+            pack_version="release-42",
+            etag='"etag-42"',
             source_url="https://example.com/pack.tar.gz",
             source_type="https",
         )
@@ -739,7 +708,8 @@ class TestPackManifest:
 
         write_pack_manifest(
             local_path,
-            FetchResult(ok=True, artifacts_written=2, pack_version="v1.2.0"),
+            pack_version="v1.2.0",
+            etag=None,
             source_url="https://example.com/pack.tar.gz",
             source_type="https",
         )
@@ -759,7 +729,8 @@ class TestPackManifest:
 
         write_pack_manifest(
             local_path,
-            FetchResult(ok=True, artifacts_written=2, pack_version="v1"),
+            pack_version="v1",
+            etag=None,
             source_url="https://oauth2:secret@example.com/pack.tar.gz",
             source_type="https",
         )
@@ -774,7 +745,8 @@ class TestPackManifest:
 
         write_pack_manifest(
             local_path,
-            FetchResult(ok=True, artifacts_written=2, pack_version="v1"),
+            pack_version="v1",
+            etag=None,
             source_url=("https://oauth2:secret@example.com/pack.tar.gz?X-JFrog-Art-Api=signed-secret#private-fragment"),
             source_type="https",
         )
@@ -790,7 +762,7 @@ class TestPackManifest:
 
         The sharded built-in layout (WP05) ships DRG fragments as top-level
         ``*.graph.yaml`` files rather than under a ``drg/`` directory.
-        ``_count_artifacts`` must fold them into the ``drg_fragments`` bucket so
+        ``count_snapshot_artifacts`` must fold them into the ``drg_fragments`` bucket so
         a sharded doctrine tree categorises identically to the ``drg/``-dir
         layout.
         """
@@ -801,7 +773,8 @@ class TestPackManifest:
 
         write_pack_manifest(
             local_path,
-            FetchResult(ok=True, artifacts_written=4, pack_version="v1"),
+            pack_version="v1",
+            etag=None,
             source_url="https://example.com/pack.tar.gz",
             source_type="https",
         )

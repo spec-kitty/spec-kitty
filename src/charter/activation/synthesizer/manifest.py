@@ -27,6 +27,14 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from ruamel.yaml import YAML
 
 from .errors import ManifestIntegrityError
+from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.packs.hashing import hash_manifest_payload
+from charter.offering.packs.pack_manifest import (
+    CharterProfile,
+    Constituent,
+    PackManifest,
+    finalize_pack_manifest,
+)
 from .synthesize_pipeline import canonical_yaml
 from kernel.charter_pack_paths import KITTIFY_DIRNAME, LEGACY_PROJECT_PACK_DIRNAME, PROJECT_PACK_ROOT
 from kernel.paths import to_posix
@@ -216,35 +224,6 @@ def load_yaml(path: Path) -> SynthesisManifest:
     return manifest
 
 
-def hash_manifest_payload(
-    data: Mapping[str, Any], *, exclude_keys: frozenset[str]
-) -> str:
-    """Single canonical manifest hasher — SHA-256 of ``canonical_yaml(payload)``.
-
-    The **one** manifest-hashing primitive, shared by both the charter
-    ``SynthesisManifest`` (via :func:`compute_manifest_hash`) and the unified
-    ``PackManifest`` (``specify_cli.doctrine.pack_manifest``). Keeping the SHA
-    here — the module's existing designated raw-SHA owner — means no second
-    hasher is ever introduced (RR-SF2 / T005).
-
-    Every key in ``exclude_keys`` is dropped before serialization so callers
-    can omit self / provenance fields (``manifest_hash``, and the volatile
-    ``generated_at`` / ``generated_by`` for the pack manifest) from the digest.
-    """
-    filtered = {k: v for k, v in data.items() if k not in exclude_keys}
-    return hashlib.sha256(canonical_yaml(filtered)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
-
-
-def hash_content_bytes(raw: bytes) -> str:
-    """SHA-256 hex digest of raw artifact bytes (single sanctioned hasher).
-
-    Callers are responsible for any normalization (e.g. LF line-ending
-    normalization for cross-platform-stable ``content_hash`` values) before
-    passing bytes here, so this stays a thin, auditable owner of the raw SHA.
-    """
-    return hashlib.sha256(raw).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
-
-
 def compute_manifest_hash(manifest_or_data: SynthesisManifest | Mapping[str, Any]) -> str:
     """Compute the canonical manifest self-hash.
 
@@ -422,6 +401,52 @@ def verify(manifest: SynthesisManifest, repo_root: Path) -> None:
             )
 
 
+# ---------------------------------------------------------------------------
+# Charter absorption into the unified pack manifest (IC-01 / T002)
+# ---------------------------------------------------------------------------
+
+
+def absorb_synthesis_manifest(manifest: SynthesisManifest) -> PackManifest:
+    """Absorb a charter ``SynthesisManifest`` into the unified schema (PP-M2).
+
+    The charter bundle's ``artifacts[]`` become canonical ``constituents[]``
+    (each preserving its ``provenance_path``), and the **entire** charter-only
+    field-set is carried onto a :class:`CharterProfile` so nothing is dropped:
+    ``mission_id``, ``bundle_content_hash``, ``synthesizer_version``,
+    ``run_id``, ``adapter_id``, ``adapter_version``, ``created_at``,
+    ``schema_version`` and the load-bearing ``built_in_only``.
+
+    This is a lossless in-memory bridge. It does **not** change the on-disk
+    ``synthesis-manifest.yaml`` format, so every existing charter-manifest
+    reader (freshness / preflight / lint / bundle / versioning / the rc35
+    migrations) keeps reading the unchanged bytes (T003).
+    """
+    constituents = [
+        Constituent(
+            kind=ArtifactKind(entry.kind),
+            id=entry.slug,
+            path=entry.path,
+            content_hash=entry.content_hash,
+            provenance_path=entry.provenance_path,
+        )
+        for entry in manifest.artifacts
+    ]
+    profile = CharterProfile(
+        mission_id=manifest.mission_id,
+        bundle_content_hash=manifest.bundle_content_hash,
+        synthesizer_version=manifest.synthesizer_version,
+        run_id=manifest.run_id,
+        adapter_id=manifest.adapter_id,
+        adapter_version=manifest.adapter_version,
+        created_at=manifest.created_at,
+        schema_version=manifest.schema_version,
+        built_in_only=manifest.built_in_only,
+    )
+    return finalize_pack_manifest(
+        PackManifest(constituents=constituents, charter=profile)
+    )
+
+
 __all__ = [
     "ManifestArtifactEntry",
     "SynthesisManifest",
@@ -430,8 +455,7 @@ __all__ = [
     "load_yaml",
     "finalize_manifest",
     "compute_manifest_hash",
-    "hash_manifest_payload",
-    "hash_content_bytes",
     "verify",
     "verify_manifest_hash",
+    "absorb_synthesis_manifest",
 ]

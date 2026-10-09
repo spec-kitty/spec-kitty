@@ -91,7 +91,7 @@ def _read_authored_pack_version(pack_root: Path) -> str | None:
     """Read ``pack_version`` from an authored ``pack.yaml`` sibling, if any.
 
     IC-06 / FR-008 (pack-metadata-manifest-unification-01M052PT, WP04):
-    mirrors :func:`specify_cli.doctrine.pack_assembler._read_authored_pack_version`
+    mirrors :func:`charter.offering.packs.pack_assembler._read_authored_pack_version`
     (duplicated rather than imported to keep this collect-layer module's
     import discipline — collect → model/render/shared, never reaching into
     the assembler — intact). Returns ``None`` when no authored descriptor
