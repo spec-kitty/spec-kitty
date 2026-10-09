@@ -1,0 +1,199 @@
+{
+  "mission_slug": "charter-pack-cutover-01M491G6",
+  "mission_number": "220",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_presets.py tests/acceptance/charter_pack_cutover/test_golden_before.py tests/acceptance/charter_pack_cutover/test_traceability.py tests/acceptance/charter_pack_cutover/test_upgrade_migration.py (@covers FR-001; suite green on issue-3732)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:11:48.509075+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_presets.py::test_fr002_builtin_presets_are_pack_data tests/acceptance/charter_pack_cutover/test_gates_latency_messaging.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:11:54.501103+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_presets.py::test_fr003_default_preset_missing_fails_closed tests/acceptance/charter_pack_cutover/test_presets.py::test_fr003_init_without_activation_equals_default_preset tests/acceptance/charter_pack_cutover/test_presets.py::test_fr003_copied_pack_default_preset_drives_init",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:12:00.442608+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_presets.py::test_fr004_pack_list_shows_packs_presets_and_project tests/acceptance/charter_pack_cutover/test_cli_surface.py tests/acceptance/charter_pack_cutover/test_upgrade_migration.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:12:06.670104+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_cli_surface.py::test_fr005_no_default_yaml_reader_outside_migration_data tests/acceptance/charter_pack_cutover/test_cli_surface.py::test_fr005_registry_modules_not_importable tests/acceptance/charter_pack_cutover/test_promotion.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:12:12.526155+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_cli_surface.py::test_fr006_charter_home_matches_recorded_output tests/acceptance/charter_pack_cutover/test_cli_surface.py::test_fr006_pack_path_takes_a_pack_name tests/acceptance/charter_pack_cutover/test_cli_surface.py::test_fr006_in_repo_callers_use_charter_spellings",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:12:18.216183+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_cli_surface.py::test_fr007_old_spelling_exits_2",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:12:24.176403+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_rename_skills_glossary.py (@covers FR-008) tests/acceptance/charter_pack_cutover/test_upgrade_migration.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:12:30.552842+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_rename_skills_glossary.py (@covers FR-009) tests/acceptance/charter_pack_cutover/test_traceability.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:12:36.556451+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_package_split.py (@covers FR-010)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:12:42.872067+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_cli_surface.py (@covers FR-011)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:12:48.906298+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_upgrade_migration.py::test_fr012* tests/acceptance/charter_pack_cutover/test_traceability.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:12:54.700144+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_rename_skills_glossary.py (@covers FR-013)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:12:59.989567+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_rename_skills_glossary.py (@covers FR-014); #5323 item 2 reachability pins",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:13:05.290029+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_promotion.py (@covers FR-015; effective-set seam, #4400)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:13:11.126209+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_project_pack_root.py tests/acceptance/charter_pack_cutover/test_gates_latency_messaging.py (@covers FR-016; path half #5825)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:13:17.471482+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Verify FR-017 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_cli_surface.py tests/acceptance/charter_pack_cutover/test_gates_latency_messaging.py (@covers FR-017)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:13:23.726819+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Verify FR-018 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_gates_latency_messaging.py tests/acceptance/charter_pack_cutover/test_rename_skills_glossary.py (@covers FR-018; vocabulary gate)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:13:30.590188+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Verify FR-019 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/acceptance/charter_pack_cutover/test_presets.py tests/acceptance/charter_pack_cutover/test_traceability.py (@covers FR-019; preset schema)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-09T08:13:36.505323+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
