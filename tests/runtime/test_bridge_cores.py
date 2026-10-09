@@ -673,7 +673,12 @@ def test_composed_tasks_terminal_guard_reads_bare_prose_before_tasks_dir_ready()
 
 
 def test_cli_native_and_composed_tasks_vocabularies_diverge_for_same_substep() -> None:
-    """The two finalize vocabularies retain distinct WP directory messages."""
+    """The two finalize vocabularies retain distinct WP directory messages.
+
+    Pinning both vocabularies distinctly guards against a future "helpful"
+    unification that would collapse them into one and silently change the
+    guard_failures a mission reports.
+    """
     empty_tasks_dir_status = {"tasks_dir_is_dir": False}
     cli_native = cores.evaluate_guards(_snapshot(status_facts=empty_tasks_dir_status, step_id="tasks_finalize"))
     composed = cores.evaluate_guards(_snapshot(status_facts=empty_tasks_dir_status, step_id="tasks", legacy_step_id="tasks_finalize"))
