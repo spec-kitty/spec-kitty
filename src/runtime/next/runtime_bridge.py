@@ -77,6 +77,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from kernel.atomic import atomic_write
 from kernel.clock import now_utc_iso
 
 from runtime.next._internal_runtime import (
@@ -1108,30 +1109,52 @@ def _dn_rollback_buffered_run_state(
     run_dir: Path,
     pre_state_bytes: bytes | None,
     pre_events_size: int | None,
+    post_state_bytes: bytes | None,
+    post_events_size: int | None,
 ) -> None:
     """Restore state.json / truncate run.events.jsonl to their pre-speculative-
-    advance values after the retrospective gate refuses completion. Mirrors
-    the original inline rollback exactly, including its error-logging-only
-    failure mode — a failed rollback is logged, not itself surfaced as a
-    Decision (the caller has already committed to returning the gate-refused
-    blocked Decision).
+    advance values after the retrospective gate refuses completion -- but ONLY
+    while the run is still exactly at this caller's post-commit state.
+
+    ``post_state_bytes`` / ``post_events_size`` are what this caller's own
+    speculative commit left behind. Under the run-cursor lock the live run is
+    compared with them; if a peer committed in the gap the live run no longer
+    matches, so the rollback is skipped with a warning and the peer's state is
+    left intact (restoring would clobber it). A failed rollback is logged, not
+    itself surfaced as a Decision (the caller has already committed to returning
+    the gate-refused blocked Decision).
 
     The write + truncate run under the run-cursor lock (FR-003): this is a
     fourth run-dir writer and a non-atomic write+truncate, so it must not
     straddle another writer's commit. A lock that cannot be acquired within its
-    bounded wait is logged and the rollback skipped -- consistent with the
-    log-only failure mode."""
+    bounded wait is logged and the rollback skipped. The state.json restore is
+    staged atomically (:func:`kernel.atomic.atomic_write`: unique same-dir temp +
+    replace), never a torn in-place write."""
     if pre_state_bytes is None and pre_events_size is None:
         return
+    state_path = run_dir / STATE_FILE
+    events_path = run_dir / "run.events.jsonl"
     try:
         with run_cursor_lock(run_dir):
+            try:
+                live_state = state_path.read_bytes() if state_path.exists() else None
+                live_events = events_path.stat().st_size if events_path.exists() else 0
+            except OSError as read_exc:
+                logger.error("rollback skipped: cannot read live run state after gate block: %s", read_exc)
+                return
+            if (live_state, live_events) != (post_state_bytes, post_events_size):
+                logger.warning(
+                    "rollback skipped for %s: the run moved past this caller's speculative commit "
+                    "(a concurrent advance landed); leaving the peer's state untouched",
+                    run_dir,
+                )
+                return
             if pre_state_bytes is not None:
                 try:
-                    (run_dir / STATE_FILE).write_bytes(pre_state_bytes)
+                    atomic_write(state_path, pre_state_bytes)
                 except OSError as restore_exc:
                     logger.error("rollback of state.json failed after gate block: %s", restore_exc)
             if pre_events_size is not None:
-                events_path = run_dir / "run.events.jsonl"
                 try:
                     if events_path.exists():
                         with open(events_path, "r+b") as handle:
@@ -1148,6 +1171,7 @@ def _dn_terminal_retrospective_gate(
     buffer: _retrospective_seam._BufferingRuntimeEmitter | None,
     pre_state_bytes: bytes | None,
     pre_events_size: int | None,
+    post_state: tuple[bytes | None, int | None] | None,
 ) -> Decision | None:
     """Run the strict (block-on) retrospective gate for a just-produced
     terminal ``Decision``. On refusal: drop the buffered emit calls (so no
@@ -1177,7 +1201,13 @@ def _dn_terminal_retrospective_gate(
         # restore state.json + truncate run.events.jsonl to pre-call.
         if buffer is not None:
             buffer.discard()
-        _dn_rollback_buffered_run_state(ctx.run_dir, pre_state_bytes, pre_events_size)
+        if post_state is None:
+            # The post-commit state could not be read, so a conditional rollback
+            # cannot prove the run is still ours; leave it rather than risk
+            # clobbering a peer's commit.
+            logger.warning("rollback skipped for %s: post-commit run state unavailable", ctx.run_dir)
+        else:
+            _dn_rollback_buffered_run_state(ctx.run_dir, pre_state_bytes, pre_events_size, *post_state)
         return _mapping._materialize_decision(
             _cores.DecisionEnvelope(
                 kind=DecisionKind.blocked,
@@ -1376,7 +1406,10 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
         return runtime_decision
 
     if block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
-        gate_decision = _dn_terminal_retrospective_gate(ctx, policy_error, buffer, pre_state_bytes, pre_events_size)
+        # Record what OUR speculative commit left behind (same locked read as the
+        # pre-capture) so a refusal rolls back only while the run is still at it.
+        post_state = _dn_capture_pre_speculative_state(ctx.run_dir)
+        gate_decision = _dn_terminal_retrospective_gate(ctx, policy_error, buffer, pre_state_bytes, pre_events_size, post_state)
         if gate_decision is not None:
             return gate_decision
 

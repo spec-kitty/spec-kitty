@@ -902,17 +902,31 @@ def test_rollback_buffered_run_state_restores_bytes_and_truncates_events(tmp_pat
     (run_dir / "state.json").write_bytes(b'{"post": true}')
     (run_dir / "run.events.jsonl").write_bytes(b"event-1\nevent-2\n")
 
-    rb._dn_rollback_buffered_run_state(run_dir, b'{"pre": true}', len(b"event-1\n"))
+    rb._dn_rollback_buffered_run_state(run_dir, b'{"pre": true}', len(b"event-1\n"), b'{"post": true}', len(b"event-1\nevent-2\n"))
 
     assert (run_dir / "state.json").read_bytes() == b'{"pre": true}'
     assert (run_dir / "run.events.jsonl").read_bytes() == b"event-1\n"
+
+
+def test_rollback_buffered_run_state_leaves_a_peer_commit_that_landed_in_the_gap(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    # Our speculative commit left state "post"/2 events; a peer then committed
+    # (state "peer"/3 events) before the gate refused and asked for a rollback.
+    (run_dir / "state.json").write_bytes(b'{"peer": true}')
+    (run_dir / "run.events.jsonl").write_bytes(b"event-1\nevent-2\nevent-3\n")
+
+    rb._dn_rollback_buffered_run_state(run_dir, b'{"pre": true}', len(b"event-1\n"), b'{"post": true}', len(b"event-1\nevent-2\n"))
+
+    assert (run_dir / "state.json").read_bytes() == b'{"peer": true}'
+    assert (run_dir / "run.events.jsonl").read_bytes() == b"event-1\nevent-2\nevent-3\n"
 
 
 def test_rollback_buffered_run_state_is_a_noop_when_nothing_was_captured(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     # No pre-existing files at all; both pre_* values are their "absent" sentinels.
-    rb._dn_rollback_buffered_run_state(run_dir, None, None)
+    rb._dn_rollback_buffered_run_state(run_dir, None, None, None, None)
 
     assert not (run_dir / "state.json").exists()
     assert not (run_dir / "run.events.jsonl").exists()

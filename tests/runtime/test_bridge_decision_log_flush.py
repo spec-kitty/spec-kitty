@@ -332,7 +332,7 @@ def test_strict_policy_refused_terminal_gate_writes_nothing(monkeypatch: pytest.
     assert decision.kind == DecisionKind.blocked
     assert "gate refused" in (decision.reason or "")
     assert h.request_count() == 0, "a refused gate must not write to the decision log"
-    assert rollbacks == [(h.run_dir, b"{}", 0)]
+    assert rollbacks == [(h.run_dir, b"{}", 0, b"{}", 0)]
     assert "emit_mission_run_completed" not in h.inner.calls
     assert h.inner.calls == []
     assert h.plain.calls == []
