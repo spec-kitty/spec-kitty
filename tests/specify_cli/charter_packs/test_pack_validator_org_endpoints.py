@@ -275,6 +275,18 @@ def test_both_intent_shortcut_preserved_but_not_schema_trusted(tmp_path: Path) -
     assert [issue.artifact_id for issue in _dangling(result)] == ["shortcut"]
 
 
+def test_builtin_bare_and_qualified_endpoints_resolve_without_findings(tmp_path: Path) -> None:
+    _write_fragment(
+        tmp_path,
+        [_local_node()],
+        [_edge("local", "acceptance-test-first"), _edge("local", "tactic:acceptance-test-first")],
+    )
+    result = pv.validate_pack(tmp_path)
+    assert result.ok
+    assert _dangling(result) == []
+    assert _external(result) == []
+
+
 @pytest.mark.parametrize("relation", ["requires", "unknown-label"])
 def test_both_sides_and_unknown_prefix_order(tmp_path: Path, relation: str) -> None:
     _write_fragment(tmp_path, [], [_edge("missing-source", "directve:missing", relation)])
