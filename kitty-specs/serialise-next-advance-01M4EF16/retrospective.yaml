@@ -1,0 +1,255 @@
+schema_version: 1
+mission_id: 01M4EF16KVKFGJR9RMK5FR3VQF
+mission_slug: serialise-next-advance-01M4EF16
+mission_number: 223
+friendly_name: Serialise concurrent next advance
+mission_type: software-dev
+target_branch: issue-5854-serialise-next
+created_at: '2026-10-08T21:02:32.948297+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-08T21:02:32.948297+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-003
+  category: doc
+  summary: analysis-report.md present with no recorded findings
+  evidence_refs:
+  - e-008
+  details: An analysis-report.md artifact is present and its frontmatter records zero findings with a resolved verdict —
+    the analysis raised nothing.
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-007
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-007
+- id: h-004
+  category: tooling
+  summary: 'Tracer: [2026-10-08][implement] Landed the adjudicated design, five parts, ATDD red-first.'
+  evidence_refs:
+  - e-009
+  details: "- **[2026-10-08][implement] Landed the adjudicated design, five parts, ATDD red-first.**\n  (1) Expected-step
+    CAS: `AdvancePlan.expected_issued_step` (default `None`),\n  threaded from `plan_advance`; `commit_advance`'s staleness
+    authority widened in\n  one place (`_refuse_stale_plan`) to also refuse when the live on-disk\n  `issued_step_id` != the
+    caller-evaluated step. Bridge threads\n  `ctx.current_step_id` through both `_dn_plan_composition_advance` and\n  `_dn_preresolve_wp_workspace`.\n\
+    \  (2) New `src/runtime/next/run_lock.py` (`run_cursor_lock` /\n  `run_cursor_lock_path`), a `run_index.py`-style dedicated
+    `state.json.lock`\n  sidecar over `kernel.locks.machine_file_lock` (blocking, 10s). NON-reentrant:\n  `fcntl` conflicts
+    across fds even in one process, so the held-lock-blocks probe\n  works same-thread and the inner `_commit_advance` never
+    re-acquires.\n  (3) `_write_snapshot` now stages a UNIQUE `tempfile.mkstemp` temp (fsync →\n  `os.replace`), cleaning
+    it up on a failed publish.\n  (4) T"
+- id: h-007
+  category: tooling
+  summary: 'Tracer: [2026-10-08][implement] Non-owned tests needed contract updates.'
+  evidence_refs:
+  - e-011
+  details: "- **[2026-10-08][implement] Non-owned tests needed contract updates.** FR-006\n  (unique temp) and the new `plan_advance(...,
+    expected_issued_step=)` kwarg broke\n  5 tests outside this WP's owned set (`test_run_state_hardening.py` tmp-name\n \
+    \ pins; `plan_advance` stubs in `test_bridge_decide_next.py` /\n  `test_bridge_decision_log_flush.py`). Updated them to
+    the new contract\n  (WP01 is the sole code lane); disposition: necessary campsite fix, recorded."
+- id: h-006
+  category: tooling
+  summary: 'Tracer: [2026-10-08][research] Acceptance gate = all THREE red-first repros'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-08][research] Acceptance gate = all THREE red-first repros** (#5682\n  composition window, #5854
+    engine double-apply, answer-vs-next) + the inverted pin.\n  Biggest risk is scope under-reach: fixing only `_dn_advance_engine`
+    leaves #5682 and\n  the answer race live.\n\n## WP01 implementation (lane-a)\n\n- **[2026-10-08][implement] Non-reentrant
+    run-cursor lock; lock in the public\n  `commit_advance`, not inside `_commit_advance`.** The expected-step CAS re-read\n\
+    \  MUST be inside the lock for the true-concurrency TOCTOU to close, so the lock\n  wraps `_refuse_stale_plan` + `_commit_advance`
+    in the public `commit_advance`\n  (and `next_step` wraps its own `_commit_advance`); the shared inner\n  `_commit_advance`
+    stays lock-free so there is no nesting and no self-deadlock\n  with a non-reentrant lock. Non-reentrant is deliberate:
+    it lets the\n  deterministic held-lock-blocks probe run in a single thread (separate fds\n  conflict under `fcntl`).\n\
+    - **[2026-10-08][implement] Retrospective capt"
+- id: h-005
+  category: tooling
+  summary: 'Tracer: [2026-10-08][research] Adjudicated design after the architect+implementer squad.'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-08][research] Adjudicated design after the architect+implementer squad.**\n  Lock-scope divergence
+    resolved from source toward the architect lens: a SHORT\n  commit-span per-run-dir lock (`<run_dir>/state.json.lock` via\n\
+    \  `kernel.locks.machine_file_lock`) + a bootstrap-anchored expected-`issued_step_id`\n  CAS threaded into plan/commit
+    — NOT a lock held across the composition executor\n  (that would breach the 10s `_MAX_HOLD_DEFAULT`/NFR-002 ceiling and
+    risk the 60s\n  stale-reclaim). The CAS closes the bootstrap→plan window; the lock only atomizes\n  the commit RMW."
+not_helpful:
+- id: n-004
+  category: tooling
+  summary: 'Tracer: [2026-10-08][implement] Half-by-half proven:'
+  evidence_refs:
+  - e-009
+  details: "- **[2026-10-08][implement] Half-by-half proven:** reverting each of the five\n  parts turns at least one named
+    test red (CAS→cas-refuses; engine-refusal→\n  inverted bridge unit test; answer-guard→provide_decision_answer held-lock;\n\
+    \  lock→commit held-lock + true-concurrency barrier; unique-temp→collision pair)."
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-10-08][implement] `tests/next` conftest cold-start is ~20s.'
+  evidence_refs:
+  - e-011
+  details: "- **[2026-10-08][implement] `tests/next` conftest cold-start is ~20s.** First\n  test in a fresh process pays
+    a one-time discovery cost; warm runs are ~3s. No\n  action; noting for anyone timing a single-test run.\n- **[2026-10-08][implement]
+    Pre-existing mypy debt in `engine.py` (12 call-arg\n  errors on `spec_kitty_events` payloads missing `mission_id`/`mission_slug`).**\n\
+    \  Identical on unmodified main (different line numbers); not introduced by this\n  WP, left untouched. #N/A; disposition:
+    pre-existing, out of scope."
+- id: n-002
+  category: tooling
+  summary: 'Tracer: [2026-10-08][research] Chosen direction (to be validated by the post-spec/post-plan squads):'
+  evidence_refs:
+  - e-009
+  details: "- **[2026-10-08][research] Chosen direction (to be validated by the post-spec/post-plan squads):**\n  (a) thread
+    the bootstrap-evaluated `issued_step_id` into plan+commit and refuse on\n  mismatch, on both paths; (b) hold a per-run-dir
+    `kernel.locks.machine_file_lock`\n  around the read→plan→write span (exemplar: `run_index.py`), covering\n  `provide_decision_answer`,
+    with a unique temp name in `_write_snapshot`;\n  (c) make `_dn_advance_engine` refuse a stale plan with a `blocked` Decision
+    +\n  named reason (like composition's EDGE-003), instead of the `next_step` fallback."
+- id: n-003
+  category: tooling
+  summary: 'Tracer: [2026-10-08][research] Constraint:'
+  evidence_refs:
+  - e-009
+  details: "- **[2026-10-08][research] Constraint:** the runtime layer cannot import\n  `specify_cli` (layer rules), so PR
+    #5890's `mission_write_lock` is not reusable;\n  `kernel.locks` is the only lock door (gated by `test_lock_primitive_ban.py`).\n\
+    \n## WP01 implementation (lane-a)"
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-10-08][research] Engine path refuses + catches `LockAcquireTimeout`'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-08][research] Engine path refuses + catches `LockAcquireTimeout`** (not\n  just `StaleAdvancePlan`);
+    refusal reuses `kind=blocked`+`reason`+exit 1 — no new\n  kind/exit code. Short 4.x ADR to record the run-dir writer model."
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-10-08][research] Fold the `provide_decision_answer` race'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-08][research] Fold the `provide_decision_answer` race** (no issue yet;\n  file one or cover it in
+    the PR). Do NOT fold #5112 (livelock), #5099, #5853, #5855.\n  Residual: a refusing stale path can make loops spin on
+    `blocked` (#5112)."
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-10-08][research] Lock must cover FOUR writers'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-08][research] Lock must cover FOUR writers**, not two: `_commit_advance`,\n  `provide_decision_answer`,
+    the retrospective rollback (`runtime_bridge.py:1111/1121`),\n  and (unique-temp fix only, no lock) run-start `_write_snapshot`.
+    The rollback writer\n  is deleted by the unmerged sibling `issue-5883-*`; on current main it is live, so we\n  cover it,
+    and drop that coverage if the sibling lands first."
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-10-08][research] Lock-ordering caution.'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-08][research] Lock-ordering caution.** `get_or_start_run` already\n  takes the run-index lock during
+    bootstrap; a new per-run-dir lock must not\n  deadlock against it. `STALE_AFTER_S_DEFAULT`=60s vs the ~10s hold ceiling
+    bounds\n  how long an advance may hold the lock (composition dispatch runs executors)."
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-10-08][research] None yet.'
+  evidence_refs:
+  - e-011
+  details: "- **[2026-10-08][research] None yet.** Mission bootstrapped cleanly on\n  `issue-5854-serialise-next` (topology
+    resolved to `coord`). Recording started."
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-10-08][research] Refusal must fit the existing `next` JSON contract.'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-08][research] Refusal must fit the existing `next` JSON contract.**\n  A stale/contended advance
+    should surface as the existing `Decision kind=blocked`\n  + `reason` with no new kind and no new exit code (composition's
+    EDGE-003 shape).\n  If it cannot, that is an owner/ADR decision point."
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-10-08][research] Structural fix over a symptomatic patch.'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-08][research] Structural fix over a symptomatic patch.** The target\n  invariant is: \"Advancing
+    a run is serialised: a stale advance is refused with a\n  named reason, never silently re-planned as success; at most
+    one `next` mutates a\n  run at a time.\" Prefer closing the defect class by construction (a locked,\n  compare-and-swap
+    advance) over patching one path."
+- id: n-001
+  category: tooling
+  summary: 'Tracer: [2026-10-08][research] Two-layer root cause confirmed on main c0a08ad6.'
+  evidence_refs:
+  - e-009
+  details: "- **[2026-10-08][research] Two-layer root cause confirmed on main c0a08ad6.**\n  (1) The advance never records
+    which step its caller evaluated: bootstrap reads\n  `snapshot.issued_step_id` (runtime_bridge.py ~551) but `plan_advance`\n\
+    \  re-reads `state.json` (engine.py:429) and `commit_advance`'s stale check\n  (engine.py:599-627) only covers that *second*
+    read, not the bootstrap→plan\n  window — the #5682 mechanism on both the composition and engine paths.\n  (2) No mutual
+    exclusion covers read→plan→write on a run dir; `_write_snapshot`\n  uses a fixed `state.json.tmp` (engine.py:129-140);
+    `provide_decision_answer`\n  (engine.py:797-873) is a third unlocked writer."
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/serialise-next-advance-01M4EF16/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/serialise-next-advance-01M4EF16/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/serialise-next-advance-01M4EF16/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/serialise-next-advance-01M4EF16/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/serialise-next-advance-01M4EF16/tasks/WP01-serialise-run-cursor-advance.md
+- id: e-006
+  kind: file
+  path: kitty-specs/serialise-next-advance-01M4EF16/tasks/WP02-adr-and-docs.md
+- id: e-007
+  kind: file
+  path: kitty-specs/serialise-next-advance-01M4EF16/status.events.jsonl
+- id: e-008
+  kind: file
+  path: kitty-specs/serialise-next-advance-01M4EF16/analysis-report.md
+- id: e-009
+  kind: file
+  path: kitty-specs/serialise-next-advance-01M4EF16/traces/approach.md
+- id: e-010
+  kind: file
+  path: kitty-specs/serialise-next-advance-01M4EF16/traces/design-decisions.md
+- id: e-011
+  kind: file
+  path: kitty-specs/serialise-next-advance-01M4EF16/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "mission_slug": "serialise-next-advance-01M4EF16",
+  "mission_id": "01M4EF16KVKFGJR9RMK5FR3VQF",
+  "mission_branch": "kitty/mission-serialise-next-advance-01M4EF16",
+  "target_branch": "issue-5854-serialise-next",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/runtime/next/_internal_runtime/engine.py",
+        "src/runtime/next/run_lock.py",
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_engine.py",
+        "tests/next/test_engine_serialisation.py",
+        "tests/next/test_next_concurrency.py",
+        "tests/next/test_runtime_bridge_unit.py",
+        "tests/runtime/test_next_advance_true_concurrency.py",
+        "tests/runtime/test_run_lock.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-08-1-serialise-run-dir-advance.md",
+        "docs/architecture/runtime-loop.md",
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-08T19:48:27.592218+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP02"
+  ],
+  "planning_commit_sha": "3323d07338d6a678180497c0895dcfc512c23a74"
+}

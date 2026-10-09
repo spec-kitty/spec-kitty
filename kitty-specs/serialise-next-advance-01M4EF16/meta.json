@@ -1,0 +1,37 @@
+{
+  "accept_commit": "273839b0615b3f151ebfe0a1523e61c3862a064f",
+  "acceptance_history": [
+    {
+      "accept_commit": "273839b0615b3f151ebfe0a1523e61c3862a064f",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-08T20:58:27.463058+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "42ffc8e88a9ef17c668441fb1b9b6427da6f1620"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-08T20:58:27.463058+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "42ffc8e88a9ef17c668441fb1b9b6427da6f1620",
+  "baseline_merge_commit": "2ff7585dd1b97cc2c7cd11026876c568680abb2a",
+  "contracts": "none",
+  "contracts_rationale": "Runtime concurrency fix: serialises the existing run-cursor read-modify-write and adds an internal compare-and-swap plus a lock sidecar. It defines no new external interface, API, or wire contract, so there is no contracts/ directory to author.",
+  "created_at": "2026-10-08T19:14:53.827874+00:00",
+  "flattened": true,
+  "friendly_name": "Serialise concurrent next advance",
+  "merged_at": "2026-10-08T21:02:00.545914+00:00",
+  "merged_commit": "c86427e1a0cee6e1bb48a4da08c730fcfc791666",
+  "mid8": "01M4EF16",
+  "mission_id": "01M4EF16KVKFGJR9RMK5FR3VQF",
+  "mission_number": 223,
+  "mission_slug": "serialise-next-advance-01M4EF16",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Concurrent spec-kitty next invocations on one run are not serialised (#5854), and two overlapping next --result success calls complete whatever step is issued at the second read (#5682). This mission closes both by recording the caller-evaluated step and refusing a stale advance, and by holding a per-run-dir lock across the read-modify-write of the run cursor.",
+  "purpose_tldr": "Make advancing a mission run serialised: a stale advance is refused with a named reason, never silently re-planned as success; at most one next mutates a run at a time.",
+  "slug": "serialise-next-advance-01M4EF16",
+  "status_phase": "1",
+  "target_branch": "issue-5854-serialise-next",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-08T19:50:39.166010+00:00"
+}
