@@ -16,6 +16,17 @@ from typing import Protocol, TypeVar
 
 from charter.offering.drg.models import DRGEdge, DRGGraph, NodeKind, Relation
 
+__all__ = [
+    "DRGValidationError",
+    "EndpointEdge",
+    "EndpointGraph",
+    "assert_valid",
+    "dangling_endpoints",
+    "duplicate_edge_triples",
+    "validate_dangling_references",
+    "validate_graph",
+]
+
 #: Relations whose *both* endpoints must be ``agent_profile`` nodes. Lineage
 #: (``specializes_from``) and runtime delegation (``delegates_to``) are the two
 #: profile-to-profile relations; an edge of either kind that touches a

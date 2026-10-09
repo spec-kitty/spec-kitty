@@ -8,8 +8,10 @@ Validation performs (in order):
 1. **Directory existence**.
 2. **Per-artifact schema validation** against the relevant Pydantic model.
 3. **ID uniqueness** within each artifact type directory.
-4. **DRG extension validation** when ``drg/`` is present: every URN referenced
-   by a fragment edge must resolve to a node in ``built-in ∪ pack-artifacts``
+4. **DRG extension validation** when ``drg/`` is present: authored org-fragment
+   endpoints bind against built-ins plus schema-trusted identities and explicit
+   declarations in this pack. Unresolved/malformed/ambiguous tokens and absent
+   endpoints are errors. Graph documents retain their legacy registry/snapshots
    and no extension may modify an existing built-in node's ``kind``.
 5. **Intent-aware collision checks** (FR-011..FR-013, mission
    ``charter-ux-and-org-pack-vocabulary-01KSAF14``): consult each pack
@@ -60,10 +62,10 @@ return, and render findings. Their types and direct module access are unchanged.
 from __future__ import annotations
 
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, ValidationError
 from ruamel.yaml import YAML
@@ -89,7 +91,14 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 from charter.offering.artifact_kinds import ArtifactKind
-from charter.drg import EndpointResolutionError, resolve_edge_endpoint
+from charter.drg import (
+    EndpointEdge,
+    EndpointGraph,
+    EndpointResolutionError,
+    OrgDRGFragment,
+    dangling_endpoints,
+    resolve_edge_endpoint,
+)
 from charter.offering.drg.override_policy import (
     PACK_POLICY_FILENAME,
     OverridePolicyError,
@@ -125,7 +134,8 @@ class ValidationIssue:
 
     * ``schema_invalid`` — schema validation error.
     * ``duplicate_id`` — two artifacts share the same ID within a kind.
-    * ``drg_dangling_edge`` — a fragment edge references an unknown URN.
+    * ``drg_dangling_edge`` — an authored endpoint is absent or cannot bind
+      (unresolved, malformed or ambiguous).
     * ``drg_kind_drift`` — a fragment attempts to change a built-in node's kind.
     * ``duplicate_drg_edge`` — same edge declared in two fragments.
     * ``same_id_collision`` — pack ID matches a built-in with no declared intent.
@@ -276,13 +286,14 @@ def _scan_artifact_directory(  # noqa: PLR0913 — small helper kept private to 
     schema_cls: type[BaseModel],
     errors: list[ValidationIssue],
     pack_artifact_urns: set[str],
+    trusted_artifact_urns: set[str],
     pack_artifact_ids_per_type: dict[str, set[str]],
     pack_artifacts_data: dict[str, dict[str, tuple[dict[str, Any], Path]]],
 ) -> None:
     """Walk one artifact-type directory and update the shared collectors.
 
-    Side-effects only: appends to ``errors``, mutates the URN /
-    ID-per-type / raw-data collectors. Extracted from
+    Side-effects only: appends to ``errors``, mutates the legacy URN /
+    ID-per-type / raw-data collectors and a distinct schema-success projection. Extracted from
     :func:`validate_pack` so the entry point stays under ruff's C901 limit.
     """
     seen_ids: dict[str, Path] = {}
@@ -332,7 +343,7 @@ def _scan_artifact_directory(  # noqa: PLR0913 — small helper kept private to 
                     pack_artifact_urns.add(f"{urn_kind}:{artifact_id}")
                 continue
         try:
-            schema_cls.model_validate(data)
+            validated = schema_cls.model_validate(data)
         except ValidationError as exc:
             errors.append(
                 ValidationIssue(
@@ -348,8 +359,11 @@ def _scan_artifact_directory(  # noqa: PLR0913 — small helper kept private to 
                 )
             )
             continue
+        trusted_identity = _validated_artifact_urn(plural, validated)
+        if trusted_identity is not None:
+            trusted_artifact_urns.add(trusted_identity)
         if not isinstance(artifact_id, str) or not artifact_id:
-            # Defensive guard: schema enforces non-empty string ids.
+            # Keep legacy profile id/duplicate/intent collectors unchanged.
             continue
         if artifact_id in seen_ids:
             errors.append(
@@ -417,6 +431,7 @@ def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationR
 
     # Collect all artifact IDs present in this pack (used by DRG and advisory).
     pack_artifact_urns: set[str] = set()
+    trusted_artifact_urns: set[str] = set()
     pack_artifact_ids_per_type: dict[str, set[str]] = {}
     # Capture raw per-artifact YAML data keyed by ``(plural, id) -> (data, file)``
     # so the intent-aware collision pass can inspect ``enhances`` / ``overrides``
@@ -434,6 +449,7 @@ def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationR
             schema_cls=schema_cls,
             errors=errors,
             pack_artifact_urns=pack_artifact_urns,
+            trusted_artifact_urns=trusted_artifact_urns,
             pack_artifact_ids_per_type=pack_artifact_ids_per_type,
             pack_artifacts_data=pack_artifacts_data,
         )
@@ -448,12 +464,17 @@ def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationR
         _check_profile_skipped_diagnostics(pack_dir, already_flagged_files)
     )
 
-    errors.extend(_validate_org_fragment(pack_dir))
+    org_fragment, org_errors = _validate_org_fragment(pack_dir)
+    errors.extend(org_errors)
 
     # DRG validation (only if drg/ exists).
     drg_dir = pack_dir / "drg"
     if drg_dir.is_dir():
-        drg_errors, drg_advisories = _validate_drg(drg_dir, pack_artifact_urns)
+        endpoint_catalog = _load_endpoint_catalog()
+        errors.extend(_validate_authored_endpoints(
+            drg_dir / "fragment.yaml", org_fragment, trusted_artifact_urns, endpoint_catalog
+        ))
+        drg_errors, drg_advisories = _validate_drg(drg_dir, pack_artifact_urns, endpoint_catalog)
         errors.extend(drg_errors)
         advisories.extend(drg_advisories)
 
@@ -484,7 +505,7 @@ def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationR
     built_in_ids_per_kind = _load_built_in_ids_per_kind()
     fragment_intent: FragmentIntent = {}
     if drg_dir.is_dir():
-        fragment_intent = _collect_fragment_edge_intent(drg_dir)
+        fragment_intent = _collect_fragment_edge_intent(drg_dir, org_fragment)
     intent_errors, intent_advisories = _intent_aware_collision_messages(
         pack_artifacts_data,
         built_in_ids_per_kind,
@@ -515,7 +536,7 @@ def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationR
     # single sanction parser so a broken file never ships.
     if pack_sanction_present(pack_dir):
         sanction_errors, sanction_advisories = _validate_pack_sanction(
-            pack_dir, _built_in_node_urns()
+            pack_dir, _built_in_node_urns(), org_fragment
         )
         errors.extend(sanction_errors)
         advisories.extend(sanction_advisories)
@@ -562,7 +583,35 @@ def _plural_to_urn_kind(plural: str) -> str | None:
         return None
 
 
-def _validate_org_fragment(pack_dir: Path) -> list[ValidationIssue]:
+def _validated_artifact_urn(plural: str, validated: BaseModel) -> str | None:
+    """Schema-success projection only; never change the legacy raw-id registry."""
+    from charter.offering.agent_profiles.profile import AgentProfile
+
+    identity = validated.profile_id if isinstance(validated, AgentProfile) else getattr(validated, "id", None)
+    kind = _plural_to_urn_kind(plural)
+    if kind is None or not isinstance(identity, str) or not identity:
+        return None
+    return f"{kind}:{identity}"
+
+
+class _LoadDefault:
+    """Omitted helper input requests loading; explicit None never does."""
+
+
+_LOAD_DEFAULT = _LoadDefault()
+
+
+def _load_optional_fragment(pack_dir: Path) -> OrgDRGFragment | None:
+    """Best-effort default for direct helpers; main validation loads explicitly."""
+    if not (pack_dir / "drg" / "fragment.yaml").exists():
+        return None
+    try:
+        return load_org_pack(pack_name=pack_dir.name, pack_root=pack_dir, layer_index=1)
+    except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, OSError):
+        return None
+
+
+def _validate_org_fragment(pack_dir: Path) -> tuple[OrgDRGFragment | None, list[ValidationIssue]]:
     """Validate the pack's org surfaces through the runtime loading authority.
 
     When ``drg/fragment.yaml`` exists, the whole pack is loaded through
@@ -579,16 +628,17 @@ def _validate_org_fragment(pack_dir: Path) -> list[ValidationIssue]:
     cannot run here: it raises :class:`OrgPackMissingError` for a
     fragment-less pack by contract (FR-004 strict mode), so the check routes
     through the same collector the loader calls — one authority, no second
-    schema table.
+    schema table. Returns the successful fragment alongside findings; all
+    downstream consumers receive this explicit outcome and never reload it.
     """
     fragment = pack_dir / "drg" / "fragment.yaml"
     if fragment.exists():
         try:
-            load_org_pack(pack_name=pack_dir.name, pack_root=pack_dir, layer_index=1)
+            loaded = load_org_pack(pack_name=pack_dir.name, pack_root=pack_dir, layer_index=1)
         except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, OSError) as exc:
-            return [_org_load_finding(exc, fallback_file=fragment)]
-        return []
-    return _validate_org_governance_profiles(pack_dir)
+            return None, [_org_load_finding(exc, fallback_file=fragment)]
+        return loaded, []
+    return None, _validate_org_governance_profiles(pack_dir)
 
 
 def _validate_org_governance_profiles(pack_dir: Path) -> list[ValidationIssue]:
@@ -622,18 +672,20 @@ def _built_in_node_urns() -> frozenset[str]:
         return frozenset()
 
 
-def _pack_node_urns(pack_dir: Path) -> frozenset[str] | None:
+def _pack_node_urns(
+    pack_dir: Path, fragment: OrgDRGFragment | None | _LoadDefault = _LOAD_DEFAULT
+) -> frozenset[str] | None:
     """Return the URNs of the nodes the pack contributes, or ``None`` if unloadable.
 
     Goes through :func:`load_org_pack` (the runtime authority), so nodes minted
     from artifact files count as well as nodes declared in ``drg/fragment.yaml``.
     A load failure is already reported by :func:`_validate_org_fragment`.
+    Omitted input retains direct-helper loading; explicit ``None`` (failed or
+    absent main-path load) prevents a retry. Sanctions use ALL loaded nodes.
     """
-    try:
-        fragment = load_org_pack(
-            pack_name=pack_dir.name, pack_root=pack_dir, layer_index=1
-        )
-    except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, OSError):
+    if isinstance(fragment, _LoadDefault):
+        fragment = _load_optional_fragment(pack_dir)
+    if fragment is None:
         return None
     return frozenset(
         f"{ORG_PLURAL_TO_SINGULAR_KIND.get(node.kind, node.kind)}:{node.id}"
@@ -655,7 +707,8 @@ def _sanction_issue(
 
 
 def _validate_pack_sanction(
-    pack_dir: Path, built_in_urns: frozenset[str]
+    pack_dir: Path, built_in_urns: frozenset[str],
+    fragment: OrgDRGFragment | None | _LoadDefault = _LOAD_DEFAULT,
 ) -> tuple[list[ValidationIssue], list[ValidationIssue]]:
     """Validate ``<pack>/replaceable-builtins.yaml`` (FR-014).
 
@@ -674,7 +727,7 @@ def _validate_pack_sanction(
 
     errors: list[ValidationIssue] = []
     advisories: list[ValidationIssue] = []
-    pack_urns = _pack_node_urns(pack_dir)
+    pack_urns = _pack_node_urns(pack_dir, fragment)
     for entry in policy.entries:
         if sanction_reason_missing(entry.urn, entry.reason):
             errors.append(
@@ -740,9 +793,123 @@ def _org_load_finding(exc: Exception, fallback_file: Path) -> ValidationIssue:
     )
 
 
+@dataclass(frozen=True)
+class _EndpointCatalog:
+    urns: set[str]
+    kinds: dict[str, str]
+
+
+def _load_endpoint_catalog() -> _EndpointCatalog:
+    """One built-in endpoint snapshot shared by both layout checks."""
+    from charter.offering.drg.loader import DRGLoadError, load_built_in_graph
+
+    try:
+        graph = load_built_in_graph()
+    except (ModuleNotFoundError, DRGLoadError, OSError):
+        return _EndpointCatalog(set(), {})
+    return _EndpointCatalog(graph.node_urns(), {node.urn: node.kind.value for node in graph.nodes})
+
+
+_EndpointT = TypeVar("_EndpointT", bound=EndpointEdge)
+
+
+@dataclass(frozen=True)
+class _EndpointView(Generic[_EndpointT]):
+    edges: Sequence[_EndpointT]
+    known: set[str]
+
+    def node_urns(self) -> set[str]:
+        return self.known
+
+
+def _dangling_sides(graph: EndpointGraph[_EndpointT]) -> list[tuple[_EndpointT, str, str]]:
+    """Format-side projection of the shared verdict, preserving edge/role order."""
+    known = graph.node_urns()
+    return [
+        (edge, role, urn)
+        for edge in dangling_endpoints(graph)
+        for role, urn in (("source", edge.source), ("target", edge.target))
+        if urn not in known
+    ]
+
+
+def _org_local_registry(fragment: OrgDRGFragment, trusted: set[str]) -> dict[str, str]:
+    """Preserve loader order/last assignment, but discovery alone confers no trust."""
+    declared = {
+        f"{ORG_PLURAL_TO_SINGULAR_KIND.get(node.kind, node.kind)}:{node.id}"
+        for node in fragment.authored_nodes
+    }
+    local: dict[str, str] = {}
+    represented: set[str] = set()
+    for node in fragment.nodes:
+        urn = f"{ORG_PLURAL_TO_SINGULAR_KIND.get(node.kind, node.kind)}:{node.id}"
+        if urn in declared or urn in trusted:
+            local[node.id] = urn
+            represented.add(urn)
+    for urn in sorted(trusted - represented):
+        local[urn.partition(":")[2]] = urn
+    return local
+
+
+@dataclass(frozen=True)
+class _BoundEdge:
+    source: str
+    target: str
+    raw_source: str
+    raw_target: str
+    source_cause: str | None
+    target_cause: str | None
+
+
+def _bind_endpoint(raw: str, local: Mapping[str, str], builtins: set[str]) -> tuple[str, str | None]:
+    """Preserve raw tokens on refusal; the public resolver owns binding policy."""
+    try:
+        return resolve_edge_endpoint(raw, local, builtins), None
+    except EndpointResolutionError as exc:
+        return raw, exc.conflict_kind
+
+
+def _bind_org_edge(edge: EndpointEdge, local: Mapping[str, str], builtins: set[str]) -> _BoundEdge:
+    """Bind both sides independently, even when the source cannot bind."""
+    source, source_cause = _bind_endpoint(edge.source, local, builtins)
+    target, target_cause = _bind_endpoint(edge.target, local, builtins)
+    return _BoundEdge(source, target, edge.source, edge.target, source_cause, target_cause)
+
+
+def _validate_authored_endpoints(
+    file: Path, fragment: OrgDRGFragment | None, trusted: set[str], catalog: _EndpointCatalog
+) -> list[ValidationIssue]:
+    """Check single-pack authored closure, not runtime assembled completeness.
+
+    Unknown relation labels still have endpoints; projected edges are not
+    authored here. Explicit declarations assert identity, not installed content.
+    """
+    if fragment is None:
+        return []
+    local = _org_local_registry(fragment, trusted)
+    known = catalog.urns | trusted | set(local.values())
+    edges = [_bind_org_edge(edge, local, catalog.urns) for edge in fragment.authored_edges]
+    issues: list[ValidationIssue] = []
+    view: EndpointGraph[_BoundEdge] = _EndpointView(edges, known)
+    sides: list[tuple[_BoundEdge, str, str]] = _dangling_sides(view)
+    for edge, role, _ in sides:
+        raw = edge.raw_source if role == "source" else edge.raw_target
+        cause = edge.source_cause if role == "source" else edge.target_cause
+        detail = f" ({cause}; qualify as <kind>:<id>)" if cause is not None else ""
+        issues.append(ValidationIssue(
+            severity="error", artifact_type="drg", artifact_id=raw, file=str(file),
+            message=(f"dangling DRG edge — {role} endpoint {raw!r}{detail} not in "
+                     "built-in or this pack's declared/schema-trusted identities; "
+                     "correct the endpoint or explicitly declare an intentional sibling identity"),
+            category="drg_dangling_edge",
+        ))
+    return issues
+
+
 def _validate_drg(
     drg_dir: Path,
     pack_artifact_urns: set[str],
+    catalog: _EndpointCatalog | None = None,
 ) -> tuple[list[ValidationIssue], list[ValidationIssue]]:
     """Validate the pack's DRG extension fragments.
 
@@ -761,7 +928,7 @@ def _validate_drg(
     advisories: list[ValidationIssue] = []
 
     try:
-        from charter.offering.drg.loader import DRGLoadError, load_built_in_graph, load_graph
+        from charter.offering.drg.loader import DRGLoadError, load_graph
         from charter.offering.drg.models import DRGGraphSchemaError
     except ModuleNotFoundError:  # pragma: no cover - doctrine package always present
         return errors, advisories
@@ -770,20 +937,10 @@ def _validate_drg(
     if not fragments:
         return errors, advisories
 
-    # Load built-in graph (best-effort) via the canonical seam (WP03, #2680).
-    built_in_urns: set[str] = set()
-    built_in_kinds: dict[str, str] = {}
-    try:
-        built_in_graph = load_built_in_graph()
-        built_in_urns = {n.urn for n in built_in_graph.nodes}
-        built_in_kinds = {n.urn: n.kind.value for n in built_in_graph.nodes}
-    except (ModuleNotFoundError, DRGLoadError, OSError):
-        # Test environments may strip the built-in graph; carry on with an
-        # empty built-in set so dangling-edge detection still operates over
-        # the pack's own URNs.
-        pass
-
-    known_urns = built_in_urns | pack_artifact_urns
+    if catalog is None:
+        catalog = _load_endpoint_catalog()
+    built_in_kinds = catalog.kinds
+    known_urns = catalog.urns | pack_artifact_urns
     seen_edges: dict[tuple[str, str, str], Path] = {}
 
     for fragment in fragments:
@@ -833,23 +990,15 @@ def _validate_drg(
             # Adding new nodes is fine; track them as known URNs.
             known_urns.add(node.urn)
 
-        # Edges: source and target must resolve.
+        # Shared predicate on the CURRENT document snapshot, not future nodes.
+        for _, role, urn in _dangling_sides(_EndpointView(graph.edges, known_urns)):
+            errors.append(ValidationIssue(
+                severity="error", artifact_type="drg", artifact_id=urn, file=str(fragment),
+                message=(f"dangling DRG edge — {role} URN {urn!r} "
+                         "not in built-in or pack artifact set"),
+                category="drg_dangling_edge",
+            ))
         for edge in graph.edges:
-            for role, urn in (("source", edge.source), ("target", edge.target)):
-                if urn not in known_urns:
-                    errors.append(
-                        ValidationIssue(
-                            severity="error",
-                            artifact_type="drg",
-                            artifact_id=urn,
-                            file=str(fragment),
-                            message=(
-                                f"dangling DRG edge — {role} URN {urn!r} "
-                                f"not in built-in or pack artifact set"
-                            ),
-                            category="drg_dangling_edge",
-                        )
-                    )
             key = (edge.source, edge.target, edge.relation.value)
             if key in seen_edges:
                 advisories.append(
@@ -1403,6 +1552,7 @@ def _fold_augmentation_edges(
 
 def _collect_fragment_yaml_edges(
     drg_dir: Path,
+    fragment: OrgDRGFragment | None | _LoadDefault = _LOAD_DEFAULT,
 ) -> list[tuple[str, str, str]] | None:
     """Read ``(source, target, relation)`` triples from ``drg/fragment.yaml``.
 
@@ -1412,21 +1562,18 @@ def _collect_fragment_yaml_edges(
     fails to load returns ``None`` (no edges to fold) because
     ``_validate_org_fragment`` already surfaces the load error as a finding.
     Returns ``None`` (not ``[]``) when no ``fragment.yaml`` exists, so callers
-    can distinguish "nothing to fold" from "empty edges list".
+    can distinguish "nothing to fold" from "empty edges list". An omitted
+    argument loads by default for direct callers; an explicit fragment or
+    ``None`` consumes the main validation outcome without another load.
 
     Endpoints are qualified to ``kind:id`` before they are returned
     (:func:`_qualify_fragment_edge`), so a bare-id endpoint — a documented
     valid spelling the runtime resolver accepts — folds like the qualified
     form instead of being dropped by :func:`_urn_to_plural` (#5494).
     """
-    fragment_yaml = drg_dir / "fragment.yaml"
-    if not fragment_yaml.exists():
-        return None
-    try:
-        fragment = load_org_pack(
-            pack_name=drg_dir.parent.name, pack_root=drg_dir.parent, layer_index=1
-        )
-    except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, OSError):
+    if isinstance(fragment, _LoadDefault):
+        fragment = _load_optional_fragment(drg_dir.parent)
+    if fragment is None:
         return None
     # Mint fragment-local URNs exactly as the runtime bridge does
     # (``merge._bridge_org_node_to_drg_node``: ``<singular_kind>:<id>``).
@@ -1498,6 +1645,7 @@ def _qualify_fragment_edge(
 
 def _collect_fragment_edge_intent(
     drg_dir: Path,
+    org_fragment: OrgDRGFragment | None | _LoadDefault = _LOAD_DEFAULT,
 ) -> FragmentIntent:
     """Read augmentation/lineage intent from DRG fragment edges.
 
@@ -1539,7 +1687,7 @@ def _collect_fragment_edge_intent(
             augmentation_relations,
         )
 
-    org_fragment_edges = _collect_fragment_yaml_edges(drg_dir)
+    org_fragment_edges = _collect_fragment_yaml_edges(drg_dir, org_fragment)
     if org_fragment_edges is not None:
         _fold_augmentation_edges(
             org_fragment_edges,

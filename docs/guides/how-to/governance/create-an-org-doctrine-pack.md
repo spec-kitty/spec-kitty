@@ -2,7 +2,7 @@
 title: How to Create an Org Doctrine Pack
 description: Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack.
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-09'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -205,13 +205,22 @@ edge endpoints, and artifact discovery does not infer scope or reference edges.
 **Write endpoints in full: `<kind>:<id>`.** The kind half must be a real node
 kind (`directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`,
 `agent_profile`, `mission_step_contract`, `mission_type`, `template`, `asset`,
-`action`, `glossary_pack`, `anti_pattern`). A bare id with no kind prefix only
-works if the same fragment declares or infers it, or if it matches a
-built-in artifact — it will **not** find an artifact contributed by another pack,
-because pack-to-pack resolution would make the result depend on the order the
-packs are listed in. Anything that cannot be resolved is refused at merge time
-with an `unresolved_edge_endpoint` conflict naming the token; there is no
-`urn:` prefix form.
+`action`, `glossary_pack`, `anti_pattern`, `skill`). For standalone validation,
+a bare id binds first to an explicit declaration or a schema-valid artifact in
+this pack, then to exactly one built-in node. Local bindings win over built-in
+ambiguity. Discovery alone is not schema proof: an invalid artifact does not
+supply a trusted endpoint. An explicit `nodes:` declaration independently asserts
+graph identity and needs no backing artifact file.
+
+Both `charter org validate` and `doctrine pack validate` check authored sources
+**and** targets in `drg/fragment.yaml`, as well as graph-document edges in
+`drg/*.graph.yaml`. Standalone scope is **built-ins plus this pack only**;
+a qualified sibling-pack endpoint fails closed unless explicitly declared here.
+Unresolved bare or unknown-prefix tokens, malformed known-kind URNs, and ambiguous
+built-in bare ids produce `drg_dangling_edge` errors, naming the file, raw token,
+role, and resolver cause. Qualify ambiguous ids as `<kind>:<id>`; there is no
+`urn:` prefix form. Endpoint checks do not validate unknown relation labels,
+and loader-projected edges are not attributed to the authored fragment.
 
 DRG fragments are **additive only**. They may add new edges and nodes but must not
 remove or modify built-in graph state. An org pack contributes a single
@@ -362,7 +371,7 @@ The validator distinguishes errors from advisories:
 |---|---|
 | Artifact YAML fails schema validation | Error |
 | Duplicate `id` within the pack | Error |
-| Dangling DRG edge (target URN not in merged artifact set) | Error |
+| `drg_dangling_edge`: authored source or target absent/unresolved/malformed/ambiguous in either layout | Error |
 | DRG extension tries to modify or remove a built-in node | Error |
 | `org-charter.yaml` schema violation | Error |
 | `replaceable-builtins.yaml` malformed, or a directive entry without a reason | Error |
@@ -371,8 +380,11 @@ The validator distinguishes errors from advisories:
 | `pack-manifest.yaml` exists and was author-edited | Advisory |
 | `enforcement` value other than `"advisory"` | Advisory |
 
-If validation reports `Dangling DRG edge`, the named URN does not resolve in your pack's
-artifact set. Either add the missing artifact, fix the URN, or remove the edge.
+A `drg_dangling_edge` finding names the fragment file, offending endpoint and
+`source`/`target` role. Correct a typo, ship a schema-valid artifact, or remove a
+stale edge. For an intentional sibling dependency, follow the declaration and
+assembled-runtime verification steps in Troubleshooting below. `charter org validate`
+reports the same findings as the doctrine command; only the latter has `--json`.
 
 ---
 
@@ -624,15 +636,39 @@ the canonical subdirectories exists with valid YAML files.
 
 ### Error: "Dangling DRG edge"
 
-A DRG fragment references a URN that does not resolve in the merged artifact set.
-Either:
+Standalone validation sees built-ins and one pack, not the consumer's assembled
+runtime graph. Locate the named token in the named file and check its role:
 
-- Add the missing artifact to your pack.
-- Fix the URN in the fragment.
-- Remove the offending edge.
+- Correct a typo or remove a stale edge.
+- Ship a schema-valid local artifact; a discovered but schema-invalid file is not
+  proof that the endpoint exists. Fix its separately reported schema error.
+- Qualify an ambiguous bare id as `<kind>:<id>`. A malformed known-kind token
+  carries `malformed_urn`; an unresolved bare id or unknown prefix carries
+  `unresolved_edge_endpoint`.
 
-The validator prints the URN and the fragment file, so locate the offender by grepping
-for the URN.
+For an **intentional sibling-pack dependency**, explicitly declare the sibling's
+graph identity here, using its real id and the correct **plural** kind, and keep
+the edge qualified. For example:
+
+```yaml
+nodes:
+  - id: local-policy
+    kind: directives
+  - id: sibling-logo
+    kind: assets
+edges:
+  - source: directive:local-policy
+    target: asset:sibling-logo
+    relation: requires
+```
+
+This declaration asserts graph identity, not installed content or schema success.
+Do not copy sibling content or invent a local `body_path`. Check declaration
+metadata/identity collisions against the real assembled graph. Configure the
+intended sibling pack in the consumer and run `spec-kitty doctor doctrine` to
+verify that complete runtime context. Doctor retains assembled-graph semantics;
+it **does not bypass** a failing standalone validator or make it pass without
+the explicit declaration.
 
 ### Error: "DRG extension attempts to modify a built-in node"
 
