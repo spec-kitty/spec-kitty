@@ -35,7 +35,7 @@ five", which overstates the unification by one):
   target fell back to ``directive:<id>``, miss → invented kind), and neither
   accepted the URN form the pack's own emitter produces. All four collapse
   into the single ordered precedence in
-  ``charter.offering.drg.merge._resolve_edge_endpoint``.
+  ``charter.offering.drg.merge.resolve_edge_endpoint``.
 * **D4 — a second root cause, a different mechanism, a different module.** A
   hand-restated *node*-kind map, fixed by deriving it beside the universe it
   inverts (``org_pack_loader._derive_plural_to_singular``). Nothing to do with
@@ -734,7 +734,7 @@ class TestOneRelationshipYieldsOneEdge:
 
     The loader structurally cannot fix this on its own: resolving a bare id that
     the fragment does not declare requires the BUILT-IN layer (rule 3 of
-    :func:`_resolve_edge_endpoint`), which the loader never sees. Edge identity
+    :func:`resolve_edge_endpoint`), which the loader never sees. Edge identity
     therefore belongs to the merge, after resolution — one authority, not a
     partial one at load time that looks complete.
     """
@@ -1071,7 +1071,7 @@ class TestOneRelationshipYieldsOneEdge:
 
 
 class TestQualifiedEndpointsAreCheckedOnceEveryLayerIsIn:
-    """:func:`_resolve_edge_endpoint` accepts a fully-qualified endpoint without
+    """:func:`resolve_edge_endpoint` accepts a fully-qualified endpoint without
     proving it exists, on the stated grounds that existence "belongs to the DRG
     validator, not the URN minter". The reasoning is right and the deferral is
     sound — but the control it defers to has to actually run somewhere, and it

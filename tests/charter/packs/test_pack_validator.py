@@ -427,7 +427,7 @@ def _write_fragment_intent(
 
     ``source`` / ``target`` default to the fully-qualified ``tactic:<id>``
     spelling; pass a bare id to exercise the bare-endpoint forms the runtime
-    resolver (``charter.offering.drg.merge._resolve_edge_endpoint``) accepts.
+    resolver (``charter.offering.drg.merge.resolve_edge_endpoint``) accepts.
     ``declare_node`` emits a ``nodes:`` entry for *artifact_id* (kind
     ``tactics``) so a bare endpoint binds fragment-locally (rule 1).
     """
@@ -683,7 +683,7 @@ class TestIntentAwareCollision:
     ) -> None:
         """Bare-id ``drg/fragment.yaml`` endpoints carry intent too (#5494 residual).
 
-        The runtime resolver (``charter.offering.drg.merge._resolve_edge_endpoint``)
+        The runtime resolver (``charter.offering.drg.merge.resolve_edge_endpoint``)
         binds a bare endpoint to a fragment-local node (rule 1) or to a
         unique built-in (rule 3), so these spellings are valid declared
         intent and must suppress ``same_id_collision`` exactly like the

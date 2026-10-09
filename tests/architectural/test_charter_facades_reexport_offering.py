@@ -67,6 +67,11 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # FACADE-ONLY: the one spelling of the core-kind plurals (#5538) that the
         # specify_cli surfaces (org-layer lint, doctor doctrine, API source) read.
         ("CORE_KIND_PLURALS", "charter.offering.artifact_kinds"),
+        ("EndpointResolutionError", "charter.offering.drg.merge"),
+        ("resolve_edge_endpoint", "charter.offering.drg.merge"),
+        ("dangling_endpoints", "charter.offering.drg.validator"),
+        ("EndpointEdge", "charter.offering.drg.validator"),
+        ("EndpointGraph", "charter.offering.drg.validator"),
         ("DRGEdge", "charter.offering.drg.models"),
         ("DRGGraph", "charter.offering.drg.models"),
         ("DRGNode", "charter.offering.drg.models"),

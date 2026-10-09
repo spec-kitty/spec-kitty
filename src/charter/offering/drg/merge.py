@@ -58,6 +58,8 @@ from charter.offering.drg.org_pack_loader import ORG_PLURAL_TO_SINGULAR_KIND, Or
 _ModelT = TypeVar("_ModelT", bound=BaseModel)
 
 __all__ = [
+    "EndpointResolutionError",
+    "resolve_edge_endpoint",
     "OrgDRGConflict",
     "OrgDRGConflictError",
     "UnknownRelationError",
@@ -513,15 +515,12 @@ _EndpointConflictKind = Literal[
 ]
 
 
-class _EndpointResolutionError(Exception):
-    """Internal control-flow signal: an edge endpoint could not be bound.
+class EndpointResolutionError(Exception):
+    """An endpoint cannot bind; carries the runtime cause and authored token.
 
-    Private to this module. :func:`_resolve_edge_endpoint` raises it so its
-    success type stays a plain ``str`` — returning ``(str | None, kind | None)``
-    would force every caller to re-assert a correlation the type system cannot
-    see, and an unreachable "impossible" branch is exactly the inert code this
-    mission removes. :func:`bridge_org_edge_to_drg_edge` converts it into the
-    caller-visible :class:`OrgDRGConflict`; it never escapes the module.
+    :func:`resolve_edge_endpoint` keeps a plain ``str`` success type. Runtime
+    bridges translate this refusal to an :class:`OrgDRGConflict`; standalone
+    authoring validators report it against the authored endpoint instead.
     """
 
     def __init__(self, conflict_kind: _EndpointConflictKind, raw: str) -> None:
@@ -530,7 +529,7 @@ class _EndpointResolutionError(Exception):
         super().__init__(f"cannot resolve DRG edge endpoint {raw!r}: {conflict_kind}")
 
 
-def _resolve_edge_endpoint(
+def resolve_edge_endpoint(
     raw: str,
     node_id_to_urn: Mapping[str, str],
     built_in_urns: Collection[str],
@@ -566,7 +565,9 @@ def _resolve_edge_endpoint(
     merge did not load, so at mint time the question is genuinely unanswerable.
     The check is therefore **deferred, not dropped** — see
     :func:`_dangling_org_endpoints`, which :func:`merge_three_layers` runs once
-    every layer is in.
+    every layer is in. Standalone pack authoring validation instead checks
+    closure against built-ins plus one pack's declared/trusted identities;
+    this does not change runtime forward-reference or severity semantics.
 
     An earlier revision of this docstring named :mod:`charter.offering.drg.validator`
     as the owner and stopped there. The reasoning was right but the control did
@@ -586,7 +587,7 @@ def _resolve_edge_endpoint(
         The canonical URN the endpoint binds to.
 
     Raises:
-        _EndpointResolutionError: when the endpoint binds to nothing, to more
+        EndpointResolutionError: when the endpoint binds to nothing, to more
             than one kind, or is a malformed URN.
     """
     local = node_id_to_urn.get(raw)
@@ -599,7 +600,7 @@ def _resolve_edge_endpoint(
             return raw
         # URN-shaped and a real kind, but unparseable — a typed pack error,
         # not a raw pydantic failure surfacing from DRGEdge construction.
-        raise _EndpointResolutionError("malformed_urn", raw)
+        raise EndpointResolutionError("malformed_urn", raw)
 
     matches = sorted(
         {urn for urn in built_in_urns if ":" in urn and urn.partition(":")[2] == raw}
@@ -607,8 +608,8 @@ def _resolve_edge_endpoint(
     if len(matches) == 1:
         return matches[0]
     if len(matches) > 1:
-        raise _EndpointResolutionError("ambiguous_edge_endpoint", raw)
-    raise _EndpointResolutionError("unresolved_edge_endpoint", raw)
+        raise EndpointResolutionError("ambiguous_edge_endpoint", raw)
+    raise EndpointResolutionError("unresolved_edge_endpoint", raw)
 
 
 def _endpoint_conflict(
@@ -630,7 +631,7 @@ def _endpoint_conflict(
 class _OrgEdgeContribution:
     """One org-contributed edge, kept next to the fragment edge that authored it.
 
-    :func:`_resolve_edge_endpoint` accepts a fully-qualified endpoint verbatim
+    :func:`resolve_edge_endpoint` accepts a fully-qualified endpoint verbatim
     without proving it exists, because a later layer may still supply the node.
     Collecting that deferral needs two things the merged :class:`DRGEdge` alone
     cannot give back: the *authored* fragment edge (so the conflict record can
@@ -655,7 +656,7 @@ class _OrgEdgeCollector:
     This used to be attempted in ``org_pack_loader.load_org_pack``, which
     reconciled the field-projection edges against the fragment-authored ones.
     But it keyed on the RAW, pre-resolution endpoint strings, and once endpoint
-    canonicalisation moved into :func:`_resolve_edge_endpoint` the bare and
+    canonicalisation moved into :func:`resolve_edge_endpoint` the bare and
     qualified spelling of one relationship became two keys resolving to one
     triple — so the merged graph got the edge twice.
 
@@ -785,7 +786,7 @@ def _dangling_org_endpoints(
     """Return ``(source_marker, urn)`` for org endpoints that bind to nothing.
 
     The post-assembly half of the endpoint policy. Only rule 2 of
-    :func:`_resolve_edge_endpoint` (a fully-qualified URN accepted verbatim) can
+    :func:`resolve_edge_endpoint` (a fully-qualified URN accepted verbatim) can
     reach this state — rule 1 binds to a node the fragment itself contributes
     and rule 3 binds to a built-in URN, and both are in *merged_nodes* by
     construction. So this collects the deferral rather than adding a second,
@@ -854,7 +855,7 @@ def bridge_org_edge_to_drg_edge(
 ) -> tuple[DRGEdge | None, OrgDRGConflict | None]:
     """Mint a URN-shaped :class:`DRGEdge` from a fragment-side edge.
 
-    Both endpoints go through :func:`_resolve_edge_endpoint`. An endpoint that
+    Both endpoints go through :func:`resolve_edge_endpoint`. An endpoint that
     cannot be bound yields a typed :class:`OrgDRGConflict` (FR-010) instead of
     the bare ``None`` this function used to return, so the drop is recorded and
     the merge hard-fails with an operator-actionable message.
@@ -877,10 +878,10 @@ def bridge_org_edge_to_drg_edge(
 
     try:
         source_urn, target_urn = (
-            _resolve_edge_endpoint(raw, node_id_to_urn, built_in_urns)
+            resolve_edge_endpoint(raw, node_id_to_urn, built_in_urns)
             for raw in (edge.source, edge.target)
         )
-    except _EndpointResolutionError as exc:
+    except EndpointResolutionError as exc:
         return None, _endpoint_conflict(exc.conflict_kind, exc.raw, edge, source)
 
     drg_edge = DRGEdge(
@@ -1176,7 +1177,7 @@ def merge_three_layers(
     hard-fails, with an ``unresolved_edge_endpoint`` /
     ``ambiguous_edge_endpoint`` / ``malformed_urn`` conflict record naming the
     offending token. Both endpoints obey one resolution policy (see
-    :func:`_resolve_edge_endpoint`): fragment-local bare id, then
+    :func:`resolve_edge_endpoint`): fragment-local bare id, then
     fully-qualified URN, then a bare id matched against an already-merged
     layer by its *declared* kind. The bridge no longer drops an unresolvable
     source in silence and no longer invents a ``directive:`` kind for an
