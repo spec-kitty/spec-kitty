@@ -1,0 +1,239 @@
+{
+  "mission_slug": "mission-writer-followups-01M4CYWW",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Every mission_metadata setter and accept's restamps read-modify-write meta.json under one Mission-lock hold, keyed by the canonical mission_lock_key resolved before the lock.",
+      "proof_type": "automated_test",
+      "evidence": "WP01/WP02 (approved after independent review); red-first then green: tests/specify_cli/test_locked_meta_writers.py, tests/status/test_mission_lock_key.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/specify_cli/test_locked_meta_writers.py, tests/status/test_mission_lock_key.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "agent tasks map-requirements reads refs and writes WP frontmatter inside one Mission-lock hold; two overlapping runs keep both refs (cross-thread overlap test, 5/5).",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (approved after independent review); red-first then green: tests/specify_cli/test_locked_frontmatter_writers.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/specify_cli/test_locked_frontmatter_writers.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "finalize-tasks re-reads/writes WP frontmatter under the Mission lock; the write-scope restore is a per-write compare-and-swap that keeps (and reports) a concurrent writer's change and a foreign delete.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (approved after independent review); red-first then green: tests/specify_cli/test_locked_frontmatter_writers.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/specify_cli/test_locked_frontmatter_writers.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The issue-matrix scaffold's existence check and write run in one Mission-lock hold; a verdict recorded in between is never overwritten.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (approved after independent review); red-first then green: tests/specify_cli/test_matrix_writer_locks.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/specify_cli/test_matrix_writer_locks.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The acceptance-matrix re-read helper, the acceptance verdict guard and the issue-verdict helper lock through mission_write_lock so writers in two worktrees of one Mission exclude each other.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (approved after independent review); red-first then green: tests/specify_cli/test_matrix_writer_locks.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/specify_cli/test_matrix_writer_locks.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Gate Rule 2 treats any non-call reference to a callable passed into a lock region as an escape (incl. Thread(target=)/submit/partial/nested capture); synthetic offender + near-miss + self-mutation proof; empty allowlist.",
+      "proof_type": "automated_test",
+      "evidence": "WP15 (approved after independent review); red-first then green: tests/architectural/test_mission_write_discipline.py (Rule 2). Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/architectural/test_mission_write_discipline.py (Rule 2)), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Gate Rule 3 accepts a lock key only as mission_lock_key(...) and a path only as mission_write_lock_dir(...)/a parameter; a bare .name or a slug subscript is refused; offender + near-miss + self-mutation proof.",
+      "proof_type": "automated_test",
+      "evidence": "WP08 (approved after independent review); red-first then green: tests/architectural/test_mission_write_discipline.py (Rule 3). Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/architectural/test_mission_write_discipline.py (Rule 3)), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Gate Rule 1 flags whole-file rewrites/replaces of status and run logs (incl. src/runtime) via write_text/write_bytes/clobbering open/move/replace; append and fresh-snapshot publish are stated structural non-sinks; the two real-tree hits are fixed, empty allowlist.",
+      "proof_type": "automated_test",
+      "evidence": "WP08 (approved after independent review); red-first then green: tests/architectural/test_mission_write_discipline.py (Rule 1). Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/architectural/test_mission_write_discipline.py (Rule 1)), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "The retrospective/terminal gate runs as the engine's abort-only before_run_completed hook; a refused completion appends no row and rewrites no state and reads as a typed gate refusal; an already-terminal run is not re-gated.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (approved after independent review); red-first then green: tests/runtime/test_terminal_gate_before_completion.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/runtime/test_terminal_gate_before_completion.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "The speculative capture, the run-log/state rollback and the buffering emitter are removed; no runtime code truncates a run log or restores state it cannot prove is its own (grep-clean across src/runtime).",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (approved after independent review); red-first then green: tests/runtime/test_terminal_gate_before_completion.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/runtime/test_terminal_gate_before_completion.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "The stale-plan / no-plan fallback carries the same completion hook, so the gate runs before completion on every path.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (approved after independent review); red-first then green: tests/runtime/test_terminal_gate_before_completion.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/runtime/test_terminal_gate_before_completion.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "The five planning commit builders and the enumerated operator-facing CLI errors say 'mission'; the finalize-tasks CLI subject reads 'for mission'.",
+      "proof_type": "automated_test",
+      "evidence": "WP10 (approved after independent review); red-first then green: tests/specify_cli/test_no_for_feature_operator_text.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/specify_cli/test_no_for_feature_operator_text.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "The finalize drift check accepts both 'Add tasks for mission' and the legacy 'Add tasks for feature' subject; a foreign subject still drifts.",
+      "proof_type": "automated_test",
+      "evidence": "WP10 (approved after independent review); red-first then green: tests/specify_cli/test_no_for_feature_operator_text.py (+ finalize drift test). Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/specify_cli/test_no_for_feature_operator_text.py (+ finalize drift test)), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "An AST scan fails on any 'for feature'/'Feature:' operator string under src/specify_cli across f-string/concat/.format/variable forms; two stated structural exemptions (the LEGACY constant, hosted-only tracker/saas_*).",
+      "proof_type": "automated_test",
+      "evidence": "WP10 (approved after independent review); red-first then green: tests/specify_cli/test_no_for_feature_operator_text.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/specify_cli/test_no_for_feature_operator_text.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "The software-dev tasks and tasks-finalize prompts' report and next-step sections name /spec-kitty.analyze as required before implement and state the staleness rule (section-scoped).",
+      "proof_type": "automated_test",
+      "evidence": "WP09 (approved after independent review); red-first then green: tests/prompts/test_tasks_prompts_name_analyze.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/prompts/test_tasks_prompts_name_analyze.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "The software-dev order is tasks -> analyze -> implement; analyze completes only while the analysis report is current, else re-issues with ANALYSIS_REPORT_MISSING/STALE/CURRENCY_UNAVAILABLE; the currency check is injected (no new runtime->specify_cli import).",
+      "proof_type": "automated_test",
+      "evidence": "WP07 (approved after independent review); red-first then green: tests/runtime/test_analyze_step.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/runtime/test_analyze_step.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "A software-dev run started before this change keeps its frozen order and keeps advancing after the upgrade (query mode loads the run's frozen template); no Mission is stranded on template drift.",
+      "proof_type": "automated_test",
+      "evidence": "WP07 (approved after independent review); red-first then green: tests/runtime/test_analyze_step.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/runtime/test_analyze_step.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "next resolves built-in runtime templates from packs/built-in/missions for every built-in type (same tier order); the src/specify_cli/missions runtime-template copies are retired and the deprecation banner removed; per-type plan preserved apart from the analyze step.",
+      "proof_type": "automated_test",
+      "evidence": "WP06 (approved after independent review); red-first then green: tests/runtime/test_pack_runtime_template_parity.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/runtime/test_pack_runtime_template_parity.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "Gate Rule 4 keeps meta.json / tasks/WP*.md / tasks.md writes inside a lock region or a registered locked helper (structural region recognition), empty allowlist; offender + near-miss (incl. C-007 prompt_metadata) + self-mutation proof.",
+      "proof_type": "automated_test",
+      "evidence": "WP15 (approved after independent review); red-first then green: tests/architectural/test_mission_write_discipline.py (Rule 4). Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/architectural/test_mission_write_discipline.py (Rule 4)), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-020",
+      "description": "Every remaining meta.json / WP-frontmatter read-modify-write (documentation state, finalize recovery, consolidation teardown/baseline/mission-number, mission loader, migration, status lane mirror, mission creation birth write) runs under the Mission lock; Rule 4 passes on the real tree with an empty allowlist.",
+      "proof_type": "automated_test",
+      "evidence": "WP03/WP04 (approved after independent review); red-first then green: tests/specify_cli/test_remaining_meta_writers.py + the gate on the real tree. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/specify_cli/test_remaining_meta_writers.py + the gate on the real tree), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-021",
+      "description": "topic branch (new), Mission and Mission Run (rewritten) and feature branch (alias of topic branch) carry identical definitions across docs/context, the YAML seed, the built-in glossary pack and the generated contextive glossaries; the R9/C11 inconsistencies are fixed.",
+      "proof_type": "automated_test",
+      "evidence": "WP11 (approved after independent review); red-first then green: tests/architectural/test_glossary_pack_parity.py, test_glossary_authority_parity.py, tests/glossary/test_seed_validation.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/architectural/test_glossary_pack_parity.py, test_glossary_authority_parity.py, tests/glossary/test_seed_validation.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-022",
+      "description": "The shipped software-dev mission-step prompts and step definitions describe what the CLI does; a scripted prompt-walk gate finds 0 refused instructions and 0 non-existent references; the provenance ratchet counts only lowered.",
+      "proof_type": "automated_test",
+      "evidence": "WP09/WP16/WP17 (approved after independent review); red-first then green: tests/doctrine/test_software_dev_prompt_walk.py, tests/prompts/test_software_dev_prompt_sections.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/doctrine/test_software_dev_prompt_walk.py, tests/prompts/test_software_dev_prompt_sections.py), the independent per-WP review, and the aggregate pre-PR squad."
+    },
+    {
+      "criterion_id": "FR-023",
+      "description": "Each built-in type's pack mission.yaml is byte-equal to its src copy; the pack mission-runtime.yaml loads and plans the same step sequence/dispatch as the src copy, apart from the software-dev analyze step.",
+      "proof_type": "automated_test",
+      "evidence": "WP14 (approved after independent review); red-first then green: tests/specify_cli/missions/test_pack_mission_config_parity.py. Confirmed by the pre-PR adversarial squad (concurrency, gate/architecture, terminology/docs lenses: all SHIP).",
+      "pass_fail": "pass",
+      "verified_by": "claude-takeover",
+      "verified_at": "2026-10-09T10:29:30+00:00",
+      "notes": "Verified via the approving WP's red-first reproduction and targeted tests (tests/specify_cli/missions/test_pack_mission_config_parity.py), the independent per-WP review, and the aggregate pre-PR squad."
+    }
+  ],
+  "negative_invariants": []
+}
