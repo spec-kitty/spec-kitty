@@ -940,7 +940,7 @@ uv run spec-kitty next --agent researcher-robbie --mission my-docs-project --res
 ```
 
 The mission phases (discover → audit → design → generate → validate → publish) are defined in
-`src/specify_cli/missions/documentation/mission-runtime.yaml` and are the authoritative source
+`packs/built-in/missions/documentation/mission-runtime.yaml` and are the authoritative source
 for step ordering and profile assignments.
 
 ## Try It

@@ -16,9 +16,18 @@ module.exports = {
   //   src/specify_cli/acceptance/__init__.py       "Record acceptance commit for {mission_slug}"
   //   src/specify_cli/cli/commands/accept.py       "Finalize acceptance artifacts for {mission_slug}"
   //   .../agent/mission_record_analysis.py         "Add analysis report for mission {slug}"
+  //
+  // 2026-10-08 (#5885, mission-writer-followups): the planning builders also
+  // emit scaffold, gap-analysis, generator-config and origin-ticket-binding
+  // subjects, and the canonical word moved from "feature" to "mission". Both
+  // words stay accepted for history (C-007: commitlint keeps accepting both):
+  //   src/specify_cli/core/mission_creation_commit.py  "Add scaffold for {word} <slug>"
+  //   src/specify_cli/core/mission_creation_commit.py  "Add origin-ticket binding for {word} <slug>"
+  //   src/specify_cli/cli/commands/agent/mission_setup_plan.py  "Add gap analysis for {word} <slug>"
+  //   src/specify_cli/cli/commands/agent/mission_setup_plan.py  "Update generator config for {word} <slug>"
   ignores: [
     (commit) =>
-      /^(Add|Update) (meta|spec|tasks|plan) for (feature|mission) /.test(
+      /^(Add|Update) (meta|spec|tasks|plan|scaffold|gap analysis|generator config|origin-ticket binding) for (feature|mission) /.test(
         commit
       ),
     (commit) => /^Add analysis report for mission \S/.test(commit),
