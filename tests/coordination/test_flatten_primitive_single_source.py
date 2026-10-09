@@ -21,7 +21,7 @@ mutations and asserts there is EXACTLY ONE such function, and it is the
 primitive. A 5th re-inline anywhere else must red this test immediately.
 
 Detection is AST-based (not textual): the three mutations recognised are
-- ``del meta["coordination_branch"]`` or ``meta.pop("coordination_branch", ...)``
+- ``del meta["coordination_branch"]`` or ``meta.pop(COORDINATION_BRANCH_KEY, ...)``
 - ``meta.pop("topology", ...)`` / ``meta.pop(TOPOLOGY_KEY, ...)`` (the promoted
   public constant, or the raw string literal)
 - ``meta["flattened"] = True`` / ``meta[FLATTENED_KEY] = True``
@@ -46,6 +46,7 @@ _SRC = _REPO_ROOT / "src"
 
 _COORD_BRANCH_LITERAL = "coordination_branch"
 _COORD_BRANCH_CONST_NAME = "_COORDINATION_BRANCH_KEY"
+_COORD_BRANCH_PUBLIC_CONST_NAME = "COORDINATION_BRANCH_KEY"
 _TOPOLOGY_LITERAL = "topology"
 _TOPOLOGY_CONST_NAME = "TOPOLOGY_KEY"
 _FLATTENED_LITERAL = "flattened"
@@ -55,11 +56,11 @@ _EXPECTED_OWNER_REL_PATH = "src/specify_cli/mission_metadata.py"
 _EXPECTED_OWNER_QUALNAME = "flatten_coordination_metadata"
 
 
-def _matches_key(expr: ast.expr | None, *, literal: str, name: str) -> bool:
+def _matches_key(expr: ast.expr | None, *, literal: str, name: str, alternate_name: str | None = None) -> bool:
     """True when *expr* is either the raw string literal or the named constant."""
     if isinstance(expr, ast.Constant) and expr.value == literal:
         return True
-    return isinstance(expr, ast.Name) and expr.id == name
+    return isinstance(expr, ast.Name) and expr.id in (name, alternate_name)
 
 
 def _pop_call_key(call: ast.Call) -> ast.expr | None:
@@ -83,7 +84,8 @@ def _clears_coordination_branch(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> b
         if isinstance(node, ast.Delete):
             for delete_key in _delete_subscript_keys(node):
                 if _matches_key(
-                    delete_key, literal=_COORD_BRANCH_LITERAL, name=_COORD_BRANCH_CONST_NAME
+                    delete_key, literal=_COORD_BRANCH_LITERAL, name=_COORD_BRANCH_CONST_NAME,
+                    alternate_name=_COORD_BRANCH_PUBLIC_CONST_NAME,
                 ):
                     return True
         if (
@@ -93,7 +95,8 @@ def _clears_coordination_branch(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> b
         ):
             pop_key = _pop_call_key(node)
             if _matches_key(
-                pop_key, literal=_COORD_BRANCH_LITERAL, name=_COORD_BRANCH_CONST_NAME
+                pop_key, literal=_COORD_BRANCH_LITERAL, name=_COORD_BRANCH_CONST_NAME,
+                alternate_name=_COORD_BRANCH_PUBLIC_CONST_NAME,
             ):
                 return True
     return False

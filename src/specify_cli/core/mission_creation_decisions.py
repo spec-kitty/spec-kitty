@@ -26,6 +26,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Literal, Protocol
 
 from mission_runtime import MissionTopology
+from specify_cli.meta_keys import PR_BOUND_KEY
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -226,7 +227,7 @@ def meta_flag_patch(
     (#3131 FR-009, #5100 FR-008).
     """
     flags = {
-        "pr_bound": pr_bound,
+        PR_BOUND_KEY: pr_bound,
         "retain_branches": retain_branches,
         "retain_worktrees": retain_worktrees,
         "commit_to_target": commit_to_target,

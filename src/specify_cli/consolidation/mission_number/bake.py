@@ -40,6 +40,7 @@ from specify_cli.consolidation.state import ConsolidationState
 from kernel.atomic import observe_writes, stop_observing_writes
 from kernel.git import run_git, status_entries, tree_entry
 from specify_cli.mission_metadata import load_meta, locked_update_meta
+from specify_cli.meta_keys import MISSION_NUMBER_KEY
 
 __all__ = [
     "assign_next_mission_number",
@@ -299,7 +300,7 @@ def _locked_assign_mission_number(feature_dir: Path, number: int, *, repo_root: 
         if _is_assigned_mission_number(existing) and existing == number:
             return False
         before.append(meta_path.read_bytes())
-        fresh["mission_number"] = number
+        fresh[MISSION_NUMBER_KEY] = number
         wrote = True
         return True
 

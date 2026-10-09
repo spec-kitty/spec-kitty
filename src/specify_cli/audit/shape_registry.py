@@ -22,6 +22,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from specify_cli.mission_metadata import MissionMetaOptional, MissionMetaRequired
+from specify_cli.meta_keys import COORDINATION_KEYS, IDENTITY_KEYS
 
 from .detectors import FORBIDDEN_KEYS, LEGACY_KEYS
 from .models import MissionFinding, Severity
@@ -36,13 +37,9 @@ from .models import MissionFinding, Severity
 #   1. The mission-metadata writer TypedDicts (``MissionMetaRequired`` +
 #      ``MissionMetaOptional`` in ``specify_cli.mission_metadata``) — the single
 #      source of truth for the field set ``write_meta`` persists.
-#   2. The coordination write-path keys, stamped onto ``meta.json`` by the
-#      coordination/flatten primitives (``flatten_coordination_metadata``) and
-#      the branch-strategy ``pr_bound`` write-back — intentionally OUTSIDE the
-#      required/optional writer contract.
-#   3. The canonical identity keys (identity model 083+): ``mission_id`` /
-#      ``mission_number``, minted at ``mission create`` and likewise outside the
-#      writer TypedDicts.
+#   2. The coordination write-path keys from ``specify_cli.meta_keys``, shared
+#      by create, migration and flatten writers.
+#   3. The identity keys from that same module, shared by create and backfill.
 #
 # ``tests/audit/test_shape_registry_writer_parity.py`` asserts the writer keys
 # stay a subset of this set, so the two can never re-drift (NFR-004).
@@ -50,13 +47,11 @@ from .models import MissionFinding, Severity
 
 #: Coordination write-path keys — persisted to ``meta.json`` by the coordination
 #: topology/flatten primitives and the branch-strategy ``pr_bound`` write-back.
-META_COORDINATION_KEYS: frozenset[str] = frozenset(
-    {"coordination_branch", "topology", "flattened", "pr_bound"}
-)
+META_COORDINATION_KEYS: frozenset[str] = COORDINATION_KEYS
 
 #: Canonical identity keys (identity model 083+), minted at mission create and
 #: not part of the ``MissionMeta*`` writer TypedDicts.
-_META_IDENTITY_KEYS: frozenset[str] = frozenset({"mission_id", "mission_number"})
+_META_IDENTITY_KEYS: frozenset[str] = IDENTITY_KEYS
 
 #: Every field the canonical mission-metadata writer persists.
 _META_WRITER_KEYS: frozenset[str] = frozenset(
