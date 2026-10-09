@@ -35,6 +35,7 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from collections.abc import Collection, Iterable, Mapping
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
 from typing import Any, Literal, TypeVar
 
@@ -65,6 +66,7 @@ __all__ = [
     "UnknownRelationError",
     "bridge_org_edge_to_drg_edge",
     "merge_three_layers",
+    "org_local_endpoint_map",
 ]
 
 _logger = logging.getLogger(__name__)
@@ -484,6 +486,44 @@ def _bridge_org_node_to_drg_node(
         )
     drg_node = DRGNode(urn=urn, kind=NodeKind(singular), label=node.title)
     return urn, _tag_source(drg_node, source)
+
+
+def org_local_endpoint_map(
+    fragment: OrgDRGFragment,
+    *,
+    trusted: AbstractSet[str] | None = None,
+) -> dict[str, str]:
+    """Return the bare-id -> URN map an org fragment's own nodes bind (FR-010).
+
+    The single authority for the ``node_id_to_urn`` argument of
+    :func:`resolve_edge_endpoint` / :func:`bridge_org_edge_to_drg_edge`. Nodes
+    that fail the layer rule or cannot mint a valid URN are left out, exactly as
+    the merge leaves them out of the graph. Declaration order is kept and the
+    last node with a given bare id wins.
+
+    ``trusted`` is for standalone authoring validation: when given, a
+    loader-discovered node (one the author did not declare in ``nodes:``) only
+    counts when its URN is in ``trusted``; authored nodes always count. ``None``
+    (the merge) keeps every surviving node.
+
+    The fragment must be the loader's own instance, never copied or
+    re-validated (see :attr:`OrgDRGFragment.authored_nodes`).
+    """
+    source_marker = f"org:{fragment.pack_name}"
+    declared: set[str] | None = None
+    if trusted is not None:
+        declared = {f"{ORG_PLURAL_TO_SINGULAR_KIND.get(n.kind, n.kind)}:{n.id}" for n in fragment.authored_nodes}
+    node_id_to_urn: dict[str, str] = {}
+    for node in fragment.nodes:
+        if _violates_layer_rule(node):
+            continue
+        minted = _bridge_org_node_to_drg_node(node, source_marker)
+        if isinstance(minted, OrgDRGConflict):
+            continue
+        urn = minted[0]
+        if declared is None or urn in declared or urn in (trusted or ()):
+            node_id_to_urn[node.id] = urn
+    return node_id_to_urn
 
 
 def _resolve_relation(relation_value: str, source_marker: str) -> Relation:
@@ -994,14 +1034,12 @@ def _merge_org_fragment(
     source_marker = f"org:{fragment.pack_name}"
     surviving_nodes = _filter_surviving_org_nodes(fragment, conflicts, source_marker)
 
-    node_id_to_urn: dict[str, str] = {}
     for node in surviving_nodes:
         minted = _bridge_org_node_to_drg_node(node, source_marker)
         if isinstance(minted, OrgDRGConflict):
             conflicts.append(minted)
             continue
         urn, drg_node = minted
-        node_id_to_urn[node.id] = urn
         if urn in invariant_urns:
             _resolve_builtin_collision(
                 urn, node, drg_node, merged_nodes, conflicts, source_marker
@@ -1014,6 +1052,7 @@ def _merge_org_fragment(
     # layer — never the running merge state. ``invariant_urns`` is exactly the
     # built-in URN set, so the result does not depend on where this pack sits
     # in the operator's declaration order.
+    node_id_to_urn = org_local_endpoint_map(fragment)
     for edge in fragment.edges:
         drg_edge, conflict = bridge_org_edge_to_drg_edge(
             edge, node_id_to_urn, invariant_urns, source_marker
