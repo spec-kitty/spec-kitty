@@ -93,3 +93,8 @@ Ratified (WP20 review): `OfferingCatalog`, `load_offering_catalog`, `resolve_off
 - `docs/api/batch-api-contract.md` `doctrine_mode` (SaaS wire-payload example): the payload contract is authored upstream (spec-kitty/saas; client-repo inversion ADR 2026-09-06-1) and the CLI-side producer was removed by WP14. WP25 decides: if the doc still describes a live upstream contract, keep the key with a narrow, reasoned FR-018 exemption naming the file; if the section only documents the removed CLI producer, delete or mark it historical. No rename of an upstream-owned wire key from this repo.
 - (WP24) WP01 fixture follow-up (logged, commit 41ac0dbe on lane-x): `packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml` joins the prose slice's exemptions in `tests/fixtures/charter_pack_cutover/retired_identifiers.yaml`. FR-013 requires deprecated-term redirect entries that spell the retired terms; same reason `docs/context/charter.md` is already exempt. WP25's FR-018 gate needs the same file-level exemption (plus the glossary seed's deprecated entries).
 - Public-packs sidecar PR draft persisted at research/sidecar-public-packs-pr-draft.md; the orchestrator opens it after the mission PR merges.
+
+## Orchestrator rulings 2026-10-09 (WP25)
+
+- FR-018 gate exemptions beyond the spec's closed list are limited to the two already ruled: the built-in glossary pack (file-level; FR-013 redirect entries) and the generated docs retrieval index (section-aware; only blocks of historical pages skipped). Both are ratified as consequences of FR-013 and FR-018's own historical-root rule, not widenings.
+- NFR-002 census residue (TICKETED_BASELINE 2 entries, ORPHAN_REACHED_EXCEPTIONS 10) escalated to the owner.
