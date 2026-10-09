@@ -45,6 +45,7 @@ from ruamel.yaml import YAML
 
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.packs.hashing import hash_manifest_payload
+from charter.offering.packs.presets import PresetEntry, enumerate_presets
 from charter.offering.yaml_utils import canonical_yaml
 from kernel.clock import now_utc_stamp
 
@@ -139,6 +140,10 @@ class PackManifest(BaseModel):
     manifest_hash: str | None = None
     constituents: list[Constituent] | None = None
     charter: CharterProfile | None = None
+    presets: list[PresetEntry] | None = None
+    """Activation presets the pack ships (``presets/<name>.yaml``), sorted by
+    name. ``None`` (and absent from the serialized manifest) for a pack without
+    presets, so such a manifest stays byte-identical (FR-019)."""
 
     @model_serializer(mode="wrap")
     def _serialize_manifest(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -152,6 +157,8 @@ class PackManifest(BaseModel):
             data.pop(field_name, None)
         if self.constituents is None:
             data.pop("constituents", None)
+        if self.presets is None:
+            data.pop("presets", None)
         return data
 
     @classmethod
@@ -335,6 +342,7 @@ def write_pack_manifest(
             snapshot_sha256=snapshot_sha256(local_path),
             artifact_counts=resolve_counts(None, count_snapshot_artifacts(local_path)),
             etag=etag,
+            presets=enumerate_presets(local_path) or None,
         )
     )
     (local_path / _PACK_MANIFEST_FILENAME).write_bytes(dump_pack_manifest_bytes(manifest))

@@ -653,14 +653,17 @@ class _EffectivenessCase:
 #: never by hand-counting. The producer/state identities are unchanged
 #: (`missing` remains `missing` — only the number of DISTINCT remediation
 #: commands the state can emit changed, from 1 to 2, per producer).
+#: Re-pinned once more by charter-pack-cutover WP03 (#3732), whose
+#: ``computer.py`` change shifted every row up by 8 lines (525 -> 517,
+#: 531 -> 523, 612 -> 604, 618 -> 610, 723 -> 715, 754 -> 746, 767 -> 759).
 _CASES: tuple[_EffectivenessCase, ...] = (
-    _EffectivenessCase("charter_source", 525, _fixture_charter_source_missing),
-    _EffectivenessCase("charter_source", 531, _fixture_charter_source_missing_f1),
-    _EffectivenessCase("synced_bundle", 612, _fixture_charter_source_missing),
-    _EffectivenessCase("synced_bundle", 618, _fixture_charter_source_missing_f1),
-    _EffectivenessCase("synthesized_drg", 723, _fixture_drg_missing),
-    _EffectivenessCase("synthesized_drg", 754, _fixture_drg_stale_bundle_not_fresh),
-    _EffectivenessCase("synthesized_drg", 767, _fixture_drg_stale_hash_mismatch),
+    _EffectivenessCase("charter_source", 517, _fixture_charter_source_missing),
+    _EffectivenessCase("charter_source", 523, _fixture_charter_source_missing_f1),
+    _EffectivenessCase("synced_bundle", 604, _fixture_charter_source_missing),
+    _EffectivenessCase("synced_bundle", 610, _fixture_charter_source_missing_f1),
+    _EffectivenessCase("synthesized_drg", 715, _fixture_drg_missing),
+    _EffectivenessCase("synthesized_drg", 746, _fixture_drg_stale_bundle_not_fresh),
+    _EffectivenessCase("synthesized_drg", 759, _fixture_drg_stale_hash_mismatch),
 )
 
 

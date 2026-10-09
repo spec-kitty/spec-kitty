@@ -942,6 +942,7 @@ _ORG_PACK_README_STUB = """\
 
 - `org-charter.yaml` — organisation-level governance policy
 - `drg/fragment.yaml` — DRG extension fragment declaring org-tier nodes
+- `presets/` — activation presets (`spec-kitty charter activate --preset <name>`)
 - Additional artifact subdirectories (e.g. `directives/`, `tactics/`) may
   be added alongside the `org-charter.yaml`.
 
@@ -969,7 +970,7 @@ def org_init(
         "--template",
         help=(
             "Local template directory or git URL (HTTPS/SSH; optional #branch). "
-            "When omitted, scaffolds the minimal three-file pack."
+            "When omitted, scaffolds the minimal four-file pack."
         ),
     ),
     org_name: str | None = typer.Option(
@@ -990,11 +991,12 @@ def org_init(
 ) -> None:
     """Scaffold a minimal org pack or render from a template.
 
-    Without ``--template``, creates three files under *pack-path*::
+    Without ``--template``, creates four files under *pack-path*::
 
-        org-charter.yaml   — governance policy stub
-        drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
-        README.md          — authoring quickstart
+        org-charter.yaml     — governance policy stub
+        drg/fragment.yaml    — DRG extension stub (with pydantic_model: frontmatter)
+        presets/starter.yaml — example activation preset
+        README.md            — authoring quickstart
 
     With ``--template``, copies the full template tree (minus ``.templateignore``),
     substitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.
@@ -1015,7 +1017,9 @@ def org_init(
 
 
 def _run_minimal_scaffold(pack_path: Path, *, force: bool) -> None:
-    """Write the legacy three-file org pack skeleton."""
+    """Write the minimal org pack skeleton (charter, fragment, example preset, README)."""
+    from charter.packs import write_example_preset
+
     if pack_path.exists() and not force:
         console.print(
             f"[red]Target directory already exists:[/red] {pack_path}\n"
@@ -1029,11 +1033,13 @@ def _run_minimal_scaffold(pack_path: Path, *, force: bool) -> None:
 
     pack_org_charter(pack_path).write_text(_ORG_CHARTER_STUB, encoding="utf-8")
     fragment_path.write_text(_DRG_FRAGMENT_STUB, encoding="utf-8")
+    preset_path = write_example_preset(pack_path)
     (pack_path / "README.md").write_text(_ORG_PACK_README_STUB, encoding="utf-8")
 
     console.print(f"[green]Org pack scaffolded at:[/green] {pack_path}")
     console.print(f"  {ORG_CHARTER_FILENAME}")
     console.print(f"  {DRG_FRAGMENT.as_posix()}")
+    console.print(f"  {preset_path.relative_to(pack_path).as_posix()}")
     console.print("  README.md")
     console.print(
         f"\nRun [bold]spec-kitty charter org validate {pack_path}[/bold] to confirm."

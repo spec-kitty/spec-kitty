@@ -287,7 +287,6 @@ def test_od6_preset_name_not_persisted(migrated_project: Path) -> None:
 
 @covers("FR-002")
 @pytest.mark.corpus
-@pending_until("WP07", "built-in presets shipped under packs/built-in/presets/")
 def test_fr002_builtin_presets_are_pack_data() -> None:
     default = load_yaml(BUILTIN_PRESETS / "default.yaml")
     minimal = load_yaml(BUILTIN_PRESETS / "minimal.yaml")
@@ -448,7 +447,6 @@ def test_fr019_malformed_preset_cases(case: str, tmp_path: Path) -> None:
 
 @covers("FR-019")
 @pytest.mark.integration
-@pending_until("WP07", "`charter org validate` validates presets")
 def test_fr019_org_validate_validates_presets(tmp_path: Path) -> None:
     good = _pack_with_presets(tmp_path / "good", {"valid": VALID_PRESET})
     assert run_cli(["charter", "org", "validate", str(good)], tmp_path).exit_code == 0
@@ -459,7 +457,6 @@ def test_fr019_org_validate_validates_presets(tmp_path: Path) -> None:
 
 @covers("FR-019")
 @pytest.mark.integration
-@pending_until("WP07", "`charter org init` scaffolds an example preset")
 def test_fr019_org_init_scaffolds_example_preset(tmp_path: Path) -> None:
     result = run_cli(["charter", "org", "init", "scaffold"], tmp_path)
     assert result.exit_code == 0, describe(result)
@@ -471,7 +468,6 @@ def test_fr019_org_init_scaffolds_example_preset(tmp_path: Path) -> None:
 
 @covers("FR-019")
 @pytest.mark.corpus
-@pending_until("WP07", "presets hashed by the pack manifest, not an ArtifactKind")
 def test_fr019_manifest_hashes_presets_not_an_artifact_kind() -> None:
     manifest = (REPO_ROOT / "packs" / "built-in" / "pack-manifest.yaml").read_text(encoding="utf-8")
     assert "presets/default.yaml" in manifest and "presets/minimal.yaml" in manifest

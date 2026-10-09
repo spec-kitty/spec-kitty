@@ -111,7 +111,18 @@ from charter.offering.drg.org_pack_loader import (
     augmentation_plural_kinds,
     load_org_pack,
 )
+from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 from charter.offering.pack_paths import BuiltInContentDirNotAvailable, PackRootNotFound, built_in_dir
+from charter.offering.packs.presets import (
+    ACTIVATED_KINDS_KEY,
+    MISSION_TYPE_ACTIVATIONS_KEY,
+    ActivationPreset,
+    PresetFormatError,
+    kind_gate_omissions,
+    load_preset_file,
+    preset_activation_key,
+    preset_files,
+)
 from kernel.charter_pack_paths import pack_drg_fragment, pack_org_charter
 
 _AUGMENTATION_PLURAL_KINDS: frozenset[str] = augmentation_plural_kinds()
@@ -158,6 +169,12 @@ class ValidationIssue:
     * ``unreadable_file`` — an org-pack file exists but cannot be read
       (``OSError``: permissions, or the path is a directory) — an I/O fault,
       never a masked YAML parse error (#4200).
+    * ``preset_format`` — a ``presets/<name>.yaml`` file is malformed (the
+      message names the field).
+    * ``preset_unresolved_id`` — a preset lists an id the offering does not
+      ship (the message names the file and the id).
+    * ``preset_kind_gate`` — a preset's ``activated_kinds`` omits a kind it
+      lists ids for.
     * ``not_found`` / ``parse_error`` / ``advisory`` — structural categories.
     """
 
@@ -509,6 +526,9 @@ def validate_pack(
         errors.extend(sanction_errors)
         advisories.extend(sanction_advisories)
 
+    # FR-019: activation presets under presets/ (format, id resolution, kind gate).
+    errors.extend(_validate_presets(pack_dir))
+
     # T044: the optional org-charter.yaml leg runs through the caller's hook;
     # without one, an org-charter.yaml is an explicit error, never skipped.
     advisories_or_errors = _check_org_charter(pack_dir, pack_artifact_ids_per_type.get("directives", set()), org_charter_check)
@@ -523,6 +543,89 @@ def validate_pack(
         errors=errors,
         advisories=advisories,
     )
+
+
+# ---------------------------------------------------------------------------
+# Activation presets (FR-019)
+# ---------------------------------------------------------------------------
+
+#: ``artifact_type`` of every preset finding.
+_PRESET_ARTIFACT_TYPE = "preset"
+_MISSION_TYPE_URN_KIND = "mission_type"
+
+
+def _canonical_urn(urn_kind: str, artifact_id: str) -> str:
+    """Return ``<kind>:<id>`` with a directive id in its canonical ``DIRECTIVE_NNN`` form."""
+    if urn_kind == ArtifactKind.DIRECTIVE.value:
+        return f"{urn_kind}:{normalize_directive_id(artifact_id)}"
+    return f"{urn_kind}:{artifact_id}"
+
+
+def _preset_offering_urns(pack_dir: Path) -> frozenset[str]:
+    """Return the URNs a preset id may resolve to: built-in plus the pack's own nodes.
+
+    A pack's ``parent_pack`` ancestors are not consulted: a bare pack directory
+    does not say where its ancestors live, so an id that only an ancestor ships
+    is reported unresolved (recorded decision, WP07 T038).
+    """
+    known = set(_built_in_node_urns()) | set(_pack_node_urns(pack_dir) or frozenset())
+    canonical: set[str] = set()
+    for urn in known:
+        urn_kind, _, artifact_id = urn.partition(":")
+        canonical.add(_canonical_urn(urn_kind, artifact_id))
+    return frozenset(canonical)
+
+
+def _preset_issue(path: Path, message: str, category: str) -> ValidationIssue:
+    return ValidationIssue(
+        severity="error",
+        artifact_type=_PRESET_ARTIFACT_TYPE,
+        artifact_id=path.stem,
+        file=str(path),
+        message=message,
+        category=category,
+    )
+
+
+def _unresolved_preset_ids(preset: ActivationPreset, known_urns: AbstractSet[str]) -> list[tuple[str, str]]:
+    """Return ``(key, id)`` for every id of *preset* outside *known_urns*."""
+    listed: list[tuple[str, str, str]] = [
+        (preset_activation_key(kind), kind.value, artifact_id) for kind in preset.listed_kinds() for artifact_id in preset.activations[preset_activation_key(kind)]
+    ]
+    listed.extend((MISSION_TYPE_ACTIVATIONS_KEY, _MISSION_TYPE_URN_KIND, mission_type) for mission_type in preset.mission_type_activations or ())
+    return [(key, artifact_id) for key, urn_kind, artifact_id in listed if _canonical_urn(urn_kind, artifact_id) not in known_urns]
+
+
+def _validate_presets(pack_dir: Path) -> list[ValidationIssue]:
+    """Validate every preset under ``presets/``: format, id resolution and kind gate.
+
+    A malformed file is one ``preset_format`` error naming the field; an id
+    that resolves neither in the built-in pack nor in this pack is a
+    ``preset_unresolved_id`` error naming the file and the id; an
+    ``activated_kinds`` that leaves out a kind the preset lists ids for is a
+    ``preset_kind_gate`` error naming the missing plurals.
+    """
+    files = preset_files(pack_dir)
+    if not files:
+        return []
+    issues: list[ValidationIssue] = []
+    known_urns: frozenset[str] | None = None
+    for path in files:
+        try:
+            preset = load_preset_file(path)
+        except PresetFormatError as exc:
+            issues.append(_preset_issue(path, f"malformed preset {path.name}: {exc.field}: {exc.detail}", "preset_format"))
+            continue
+        if known_urns is None:
+            known_urns = _preset_offering_urns(pack_dir)
+        for key, artifact_id in _unresolved_preset_ids(preset, known_urns):
+            issues.append(_preset_issue(path, f"preset {path.name}: {key} id {artifact_id!r} does not resolve in the offering", "preset_unresolved_id"))
+        omitted = kind_gate_omissions(preset)
+        if omitted:
+            issues.append(
+                _preset_issue(path, f"preset {path.name}: {ACTIVATED_KINDS_KEY} omits {', '.join(omitted)}, which the preset lists ids for", "preset_kind_gate")
+            )
+    return issues
 
 
 # ---------------------------------------------------------------------------

@@ -1248,9 +1248,6 @@ entries:
 - module: kernel.charter_pack_paths
   name: PRESETS_DIRNAME
   category: category_d_charter_code_topology_relocation_forward_api
-- module: kernel.charter_pack_paths
-  name: pack_presets_dir
-  category: category_d_charter_code_topology_relocation_forward_api
 - module: charter.drg
   name: merge_three_layers
   category: category_e_charter_activation_split_forward_api

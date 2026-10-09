@@ -40,6 +40,8 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from kernel.charter_pack_paths import ORG_CHARTER_FILENAME
+
 __all__ = [
     "RETIRED_PACK_FIELD",
     "RETIRED_PACK_FIELDS",
@@ -62,7 +64,7 @@ _MIGRATION_RUNBOOK = "docs/migrations/charter-pack-cutover.md"
 #: Scope: one ``activations[*]`` entry, in an ``org-charter.yaml`` or the project ``charter.yaml``.
 SCOPE_ACTIVATION_ENTRY = "activation entry"
 #: Scope: the top level of an ``org-charter.yaml``.
-SCOPE_ORG_CHARTER = "org-charter.yaml"
+SCOPE_ORG_CHARTER = ORG_CHARTER_FILENAME
 
 
 @dataclass(frozen=True)

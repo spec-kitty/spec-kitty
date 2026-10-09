@@ -31,6 +31,7 @@ from ruamel.yaml import YAML
 
 from charter.offering.packs.hashing import hash_content_bytes
 from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.packs.presets import enumerate_presets
 
 from .pack_manifest import (
     Constituent,
@@ -113,6 +114,7 @@ def build_builtin_manifest(pack_root: Path) -> PackManifest:
         generated_by=GENERATED_BY,
         source_type="built-in",
         constituents=enumerate_constituents(pack_root),
+        presets=enumerate_presets(pack_root) or None,
     )
     return finalize_pack_manifest(manifest)
 

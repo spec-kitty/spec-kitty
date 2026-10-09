@@ -477,8 +477,12 @@ def _default_preset_mission_types() -> list[str]:
 
 
 def _nfr001_param(name: str) -> object:
-    """``equal`` fixtures already hold at base (the legacy readers still work): unmarked regression guards."""
-    if EXPECTED_RELATION[name] == "equal":
+    """``equal`` fixtures already hold at base (the legacy readers still work): unmarked regression guards.
+
+    ``pre_rc35`` (no activation keys, nothing to migrate) only waited for the built-in
+    ``presets/default.yaml`` its expectation reads; it holds since WP07 ships that file.
+    """
+    if EXPECTED_RELATION[name] in ("equal", "pre_rc35"):
         return pytest.param(name, id=name)
     return pytest.param(name, id=name, marks=pending_until("WP12", "upgrade resets stale state and preserves the effective set"))
 

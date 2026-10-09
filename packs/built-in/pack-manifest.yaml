@@ -1375,7 +1375,14 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 67eede7fd793907e44d1dba6b4e5dc182ef05840d5da67c70a20d4635972165d
+manifest_hash: 67220955e37563b542dc2e73d399d38cc5a8b102f47fdd86aaae60da3467f743
+presets:
+- content_hash: f0e3e26b23029c9073d5d7799d41f5ca8bd35e7a13f370d7e1bf400705552fc7
+  name: default
+  path: presets/default.yaml
+- content_hash: 8e3ec5982a7badadc414ef2045bb45bd4551c59b488cdcb2afcdd55353fd487c
+  name: minimal
+  path: presets/minimal.yaml
 schema_version: '1'
 source_type: built-in
 source_url:
