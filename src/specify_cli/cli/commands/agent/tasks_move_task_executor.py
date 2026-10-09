@@ -399,14 +399,23 @@ def _mt_rollback_subtasks_reset(st: _MoveTaskState, ports: TasksPorts) -> dict[s
     The roster (which task ids belong to this WP) is the authored WP-file
     ``subtasks:`` frontmatter list — static design intent — read through the
     TASKS_INDEX (primary) read dir, never ``Path.cwd()`` (SC-008 / #2647).
-    Returns an empty mapping only for an explicitly authored empty roster.
+    A subtask recorded ``skipped`` keeps that value: it is a deliberate operator
+    decision not to do the work, not completion state that could let the gate
+    pass without work re-done, so a rollback does not revoke it (reset it
+    explicitly with ``mark-status --status pending`` if the decision was wrong).
+
+    Returns an empty mapping only for an explicitly authored empty roster
+    (or a roster whose every subtask is skipped).
     """
     from specify_cli.core.subtask_rows import authored_subtask_roster
+    from specify_cli.status import SubtaskStatus, wp_snapshot_state
 
     handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug, owned=getattr(st, "owned", None))
     feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
     roster = authored_subtask_roster(feature_dir, st.task_id)
-    return dict.fromkeys(roster, Lane.PLANNED)
+    snapshot = wp_snapshot_state(feature_dir, st.task_id)
+    recorded = (snapshot.get("subtasks") or {}) if snapshot is not None else {}
+    return dict.fromkeys((tid for tid in roster if str(recorded.get(tid, "")) != str(SubtaskStatus.SKIPPED)), Lane.PLANNED)
 
 
 def _mt_emit_runtime_state(st: _MoveTaskState, ports: TasksPorts) -> None:

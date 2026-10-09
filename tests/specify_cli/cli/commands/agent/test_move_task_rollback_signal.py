@@ -27,7 +27,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_rollback_subtasks_reset,
 )
 from specify_cli.status import emit_inner_state_changed
-from specify_cli.status.models import Lane, WPInnerStateDelta
+from specify_cli.status.models import Lane, SubtaskStatus, WPInnerStateDelta
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -66,18 +66,20 @@ def _st(tmp_path: Path) -> SimpleNamespace:
 def test_rollback_summary_splits_completed_from_never_started(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A subtask DONE in an earlier cycle is distinguishable from a never-started one."""
     monkeypatch.setenv("GIT_CEILING_DIRECTORIES", str(tmp_path))
-    feature_dir = _seed_feature(tmp_path, ["T001", "T002", "T003"])
+    feature_dir = _seed_feature(tmp_path, ["T001", "T002", "T003", "T004"])
     # T001 was completed in an earlier cycle; T002 was in progress; T003 never
-    # started — the pre-reset snapshot carries that work-state.
+    # started; T004 was deliberately skipped — the pre-reset snapshot carries that
+    # work-state. A skip is an operator decision, so the rollback must not revoke it.
     emit_inner_state_changed(
         feature_dir,
         "WP01",
-        WPInnerStateDelta(subtasks={"T001": Lane.DONE, "T002": Lane.IN_PROGRESS}),
+        WPInnerStateDelta(subtasks={"T001": Lane.DONE, "T002": Lane.IN_PROGRESS, "T004": SubtaskStatus.SKIPPED}),
         actor="test",
         mission_slug=_SLUG,
         repo_root=tmp_path,
     )
     reset = _mt_rollback_subtasks_reset(_st(tmp_path), _ports(feature_dir))
+    assert "T004" not in reset  # the deliberate skip survives the rollback
 
     summary = _mt_build_rollback_summary(_st(tmp_path), _ports(feature_dir), reset)
 
