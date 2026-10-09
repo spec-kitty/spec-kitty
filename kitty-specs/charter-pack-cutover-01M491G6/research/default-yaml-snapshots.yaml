@@ -1,0 +1,1080 @@
+# Frozen snapshot set of every RELEASED default/minimal charter pack (FR-012, B3/B4).
+# Generated 2026-10-06 from all 174 spec-kitty-cli wheels on PyPI (sha256-verified),
+# read with yaml.safe_load only. Companion prose: default-yaml-snapshots.md.
+#
+# Entry fields:
+#   form: original      -> the list exactly as a released file shipped it (versions = releases that shipped it)
+#   form: post_rewrite  -> the list a released file becomes after the later id-rewrite migrations
+#                          (versions = releases whose list rewrites to it; rewrite_via names the rewrite)
+#   also_post_rewrite_of / also_post_rewrite_via -> an original list that is ALSO what older releases rewrite to
+#   ids are sorted; comparison is order-insensitive set equality per key.
+# Rewrites: rtk = m_3_2_6_retire_rtk_search_tooling; rc5 = m_4_0_0rc5_retire_single_owner_doctrine_ids
+#           (successors appended only when the successor's own activated_<kind> list exists; every
+#           released default.yaml carries every key it names, so successors always land).
+source: PyPI spec-kitty-cli wheels
+comparison: per key, order-insensitive set equality; directive ids are stems in every release
+snapshots:
+  default:
+    wheel_paths:
+    - charter/activation/packs/default.yaml
+    - charter/packs/default.yaml
+    released_versions:
+    - 3.2.0rc33
+    - 3.2.0rc34
+    - 3.2.0rc35
+    - 3.2.0rc36
+    - 3.2.0rc37
+    - 3.2.0rc38
+    - 3.2.0rc39
+    - 3.2.0rc40
+    - 3.2.0rc41
+    - 3.2.0rc42
+    - 3.2.0rc43
+    - 3.2.0rc44
+    - 3.2.0rc45
+    - 3.2.0
+    - 3.2.1
+    - 3.2.2
+    - 3.2.3
+    - 3.2.4
+    - 3.2.5
+    - 3.2.6rc1
+    - 3.2.6rc2
+    - 3.2.6
+    - 3.2.6.1
+    - 3.2.6.2
+    - 3.2.7
+    - 4.0.0rc1
+    - 4.0.0rc2
+    - 4.0.0rc3
+    - 4.0.0rc4
+    - 4.0.0rc5
+    keys:
+      activated_agent_profiles:
+      - form: original
+        versions:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        count: 15
+        ids:
+        - architect-alphonso
+        - curator-carla
+        - debugger-debbie
+        - designer-dagmar
+        - frontend-freddy
+        - generic-agent
+        - human-in-charge
+        - implementer-ivan
+        - java-jenny
+        - node-norris
+        - planner-priti
+        - python-pedro
+        - researcher-robbie
+        - retrospective-facilitator
+        - reviewer-renata
+      - form: original
+        versions:
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        - 3.2.6rc1
+        - 3.2.6rc2
+        count: 16
+        ids:
+        - architect-alphonso
+        - curator-carla
+        - debugger-debbie
+        - designer-dagmar
+        - frontend-freddy
+        - generic-agent
+        - human-in-charge
+        - implementer-ivan
+        - java-jenny
+        - node-norris
+        - paula-patterns
+        - planner-priti
+        - python-pedro
+        - researcher-robbie
+        - retrospective-facilitator
+        - reviewer-renata
+      - form: original
+        versions:
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        - 4.0.0rc5
+        count: 18
+        ids:
+        - architect-alphonso
+        - curator-carla
+        - debugger-debbie
+        - designer-dagmar
+        - doctrine-daphne
+        - frontend-freddy
+        - generic-agent
+        - human-in-charge
+        - implementer-ivan
+        - java-jenny
+        - node-norris
+        - paula-patterns
+        - planner-priti
+        - python-pedro
+        - randy-reducer
+        - researcher-robbie
+        - retrospective-facilitator
+        - reviewer-renata
+      activated_directives:
+      - form: original
+        versions:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        - 4.0.0rc5
+        count: 19
+        ids:
+        - 001-architectural-integrity-standard
+        - 003-decision-documentation-requirement
+        - 010-specification-fidelity-requirement
+        - 018-doctrine-versioning-requirement
+        - 024-locality-of-change
+        - 025-boy-scout-rule
+        - 028-search-tool-discipline
+        - 029-agent-commit-signing-policy
+        - 030-test-and-typecheck-quality-gate
+        - 031-context-aware-design
+        - 032-conceptual-alignment
+        - 033-targeted-staging-policy
+        - 034-test-first-development
+        - 035-bulk-edit-occurrence-classification
+        - 036-black-box-integration-testing
+        - 037-living-documentation-sync
+        - 038-structured-prompt-boundary
+        - 039-lynn-cole-engineering-culture
+        - 040-recurring-bug-structural-intervention
+      activated_kinds:
+      - form: original
+        versions:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        - 4.0.0rc5
+        count: 8
+        ids:
+        - agent_profiles
+        - directives
+        - mission_step_contracts
+        - paradigms
+        - procedures
+        - styleguides
+        - tactics
+        - toolguides
+      activated_mission_step_contracts:
+      - form: original
+        versions:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        - 4.0.0rc5
+        count: 17
+        ids:
+        - documentation-accept
+        - documentation-audit
+        - documentation-design
+        - documentation-discover
+        - documentation-generate
+        - documentation-publish
+        - documentation-validate
+        - implement
+        - plan
+        - research-gathering
+        - research-methodology
+        - research-output
+        - research-scoping
+        - research-synthesis
+        - review
+        - specify
+        - tasks
+      activated_paradigms:
+      - form: original
+        versions:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        - 4.0.0rc5
+        count: 8
+        ids:
+        - atomic-design
+        - behaviour-driven-development
+        - brownfield-onboarding
+        - c4-incremental-detail-modeling
+        - deep-module-design
+        - domain-driven-design
+        - specification-by-example
+        - structured-prompt-driven-development
+      activated_procedures:
+      - form: original
+        versions:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        - 4.0.0rc5
+        count: 13
+        ids:
+        - bdd-scenario-lifecycle
+        - disciplined-defect-diagnosis
+        - documentation-gap-prioritization
+        - domain-aware-decision-interview
+        - drill-down-documentation
+        - event-storming-discovery
+        - example-mapping-workshop
+        - issue-triage-state-machine
+        - legacy-codebase-triage
+        - migrate-project-guidance-to-spec-kitty-charter
+        - refactoring
+        - situational-assessment
+        - test-first-bug-fixing
+      activated_styleguides:
+      - form: original
+        versions:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        count: 8
+        ids:
+        - aggregate-design-rules
+        - deployable-skill-authoring
+        - java-conventions
+        - kitty-glossary-writing
+        - mutation-aware-test-design
+        - python-conventions
+        - reasons-canvas-writing
+        - testing-principles
+      - form: original
+        versions:
+        - 4.0.0rc5
+        count: 9
+        ids:
+        - aggregate-design-rules
+        - boring-code-review
+        - deployable-skill-authoring
+        - java-conventions
+        - kitty-glossary-writing
+        - mutation-aware-test-design
+        - python-conventions
+        - reasons-canvas-writing
+        - testing-principles
+        also_post_rewrite_of:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        also_post_rewrite_via:
+        - rc5
+        - rtk+rc5
+      activated_tactics:
+      - form: original
+        versions:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        count: 97
+        ids:
+        - acceptance-test-first
+        - adr-drafting-workflow
+        - adversarial-qa-handoff
+        - aggregate-boundary-design
+        - ammerse-impact-analysis
+        - analysis-extract-before-interpret
+        - anti-corruption-layer
+        - architecture-diagram-review-checklist
+        - atdd-adversarial-acceptance
+        - atomic-design-review-checklist
+        - atomic-state-ownership
+        - autonomous-operation-protocol
+        - avoid-gold-plating
+        - behavior-driven-development
+        - black-box-integration-testing
+        - boring-code-review
+        - bounded-context-canvas-fill
+        - bounded-context-identification
+        - bug-fixing-checklist
+        - c4-zoom-in-architecture-documentation
+        - chain-of-responsibility-rule-pipeline
+        - change-apply-smallest-viable-diff
+        - code-documentation-analysis
+        - code-review-incremental
+        - compositional-stream-boundaries
+        - connascence-analysis
+        - context-boundary-inference
+        - context-mapping-classification
+        - cross-cutting-state-via-store
+        - decision-marker-capture
+        - deepening-opportunity-assessment
+        - dependency-hygiene
+        - development-bdd
+        - documentation-curation-audit
+        - domain-event-capture
+        - easy-to-change
+        - eisenhower-prioritisation
+        - entity-value-object-classification
+        - five-paradigm-parallel-debugging
+        - focused-function-complexity-check
+        - forensic-repository-audit
+        - formalized-constraint-testing
+        - function-over-form-testing
+        - generated-code-stewardship
+        - glossary-curation-interview
+        - input-validation-fail-fast
+        - interface-variation-design
+        - language-driven-design
+        - locality-of-change
+        - mutation-testing-workflow
+        - no-parallel-duplicate-test-runs
+        - occurrence-classification-workflow
+        - premortem-risk-identification
+        - problem-decomposition
+        - quality-gate-verification
+        - reasons-canvas-fill
+        - reasons-canvas-review
+        - refactoring-change-function-declaration
+        - refactoring-combine-functions-into-transform
+        - refactoring-conditional-to-strategy
+        - refactoring-consolidate-conditional-expression
+        - refactoring-encapsulate-record
+        - refactoring-encapsulate-variable
+        - refactoring-extract-class-by-responsibility-split
+        - refactoring-extract-first-order-concept
+        - refactoring-guard-clauses-before-polymorphism
+        - refactoring-inline-temp
+        - refactoring-introduce-null-object
+        - refactoring-move-field
+        - refactoring-move-method
+        - refactoring-replace-magic-number-with-symbolic-constant
+        - refactoring-replace-temp-with-query
+        - refactoring-retry-pattern
+        - refactoring-state-pattern-for-behavior
+        - refactoring-strangler-fig
+        - reference-architectural-patterns
+        - requirements-validation-workflow
+        - reverse-speccing
+        - review-intent-and-risk-first
+        - safe-to-fail-experiment
+        - secure-design-checklist
+        - secure-regex-catastrophic-backtracking
+        - stakeholder-alignment
+        - stopping-conditions
+        - strategic-domain-classification
+        - tdd-red-green-refactor
+        - terminology-extraction-mapping
+        - test-boundaries-by-responsibility
+        - test-minimisation
+        - test-pyramid-progression
+        - test-readability-clarity-check
+        - test-to-system-reconstruction
+        - testing-select-appropriate-level
+        - traceable-decisions
+        - usage-examples-sync
+        - work-package-completion-validation
+        - zombies-tdd
+      - form: original
+        versions:
+        - 4.0.0rc5
+        count: 95
+        ids:
+        - acceptance-test-first
+        - adr-drafting-workflow
+        - adversarial-qa-handoff
+        - aggregate-boundary-design
+        - ammerse-impact-analysis
+        - analysis-extract-before-interpret
+        - anti-corruption-layer
+        - architecture-diagram-review-checklist
+        - atdd-adversarial-acceptance
+        - atomic-design-review-checklist
+        - atomic-state-ownership
+        - autonomous-operation-protocol
+        - avoid-gold-plating
+        - bdd-scenario-formulation
+        - black-box-integration-testing
+        - bounded-context-canvas-fill
+        - bounded-context-identification
+        - c4-zoom-in-architecture-documentation
+        - chain-of-responsibility-rule-pipeline
+        - change-apply-smallest-viable-diff
+        - code-documentation-analysis
+        - code-review-incremental
+        - compositional-stream-boundaries
+        - connascence-analysis
+        - context-boundary-inference
+        - context-mapping-classification
+        - cross-cutting-state-via-store
+        - decision-marker-capture
+        - deepening-opportunity-assessment
+        - dependency-hygiene
+        - development-bdd
+        - documentation-curation-audit
+        - domain-event-capture
+        - easy-to-change
+        - eisenhower-prioritisation
+        - entity-value-object-classification
+        - five-paradigm-parallel-debugging
+        - focused-function-complexity-check
+        - forensic-repository-audit
+        - formalized-constraint-testing
+        - function-over-form-testing
+        - generated-code-stewardship
+        - glossary-curation-interview
+        - input-validation-fail-fast
+        - interface-variation-design
+        - language-driven-design
+        - mutation-testing-workflow
+        - no-parallel-duplicate-test-runs
+        - occurrence-classification-workflow
+        - premortem-risk-identification
+        - problem-decomposition
+        - quality-gate-verification
+        - reasons-canvas-fill
+        - reasons-canvas-review
+        - refactoring-change-function-declaration
+        - refactoring-combine-functions-into-transform
+        - refactoring-conditional-to-strategy
+        - refactoring-consolidate-conditional-expression
+        - refactoring-encapsulate-record
+        - refactoring-encapsulate-variable
+        - refactoring-extract-class-by-responsibility-split
+        - refactoring-extract-first-order-concept
+        - refactoring-guard-clauses-before-polymorphism
+        - refactoring-inline-temp
+        - refactoring-introduce-null-object
+        - refactoring-move-field
+        - refactoring-move-method
+        - refactoring-replace-magic-number-with-symbolic-constant
+        - refactoring-replace-temp-with-query
+        - refactoring-retry-pattern
+        - refactoring-state-pattern-for-behavior
+        - refactoring-strangler-fig
+        - reference-architectural-patterns
+        - requirements-validation-workflow
+        - reverse-speccing
+        - review-intent-and-risk-first
+        - safe-to-fail-experiment
+        - secure-design-checklist
+        - secure-regex-catastrophic-backtracking
+        - stakeholder-alignment
+        - stopping-conditions
+        - strategic-domain-classification
+        - supply-chain-install-safety
+        - tdd-red-green-refactor
+        - terminology-extraction-mapping
+        - test-boundaries-by-responsibility
+        - test-minimisation
+        - test-pyramid-progression
+        - test-readability-clarity-check
+        - test-to-system-reconstruction
+        - testing-select-appropriate-level
+        - traceable-decisions
+        - usage-examples-sync
+        - work-package-completion-validation
+        - zombies-tdd
+      - form: post_rewrite
+        versions:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        rewrite_via:
+        - rc5
+        - rtk+rc5
+        count: 94
+        ids:
+        - acceptance-test-first
+        - adr-drafting-workflow
+        - adversarial-qa-handoff
+        - aggregate-boundary-design
+        - ammerse-impact-analysis
+        - analysis-extract-before-interpret
+        - anti-corruption-layer
+        - architecture-diagram-review-checklist
+        - atdd-adversarial-acceptance
+        - atomic-design-review-checklist
+        - atomic-state-ownership
+        - autonomous-operation-protocol
+        - avoid-gold-plating
+        - bdd-scenario-formulation
+        - black-box-integration-testing
+        - bounded-context-canvas-fill
+        - bounded-context-identification
+        - c4-zoom-in-architecture-documentation
+        - chain-of-responsibility-rule-pipeline
+        - change-apply-smallest-viable-diff
+        - code-documentation-analysis
+        - code-review-incremental
+        - compositional-stream-boundaries
+        - connascence-analysis
+        - context-boundary-inference
+        - context-mapping-classification
+        - cross-cutting-state-via-store
+        - decision-marker-capture
+        - deepening-opportunity-assessment
+        - dependency-hygiene
+        - development-bdd
+        - documentation-curation-audit
+        - domain-event-capture
+        - easy-to-change
+        - eisenhower-prioritisation
+        - entity-value-object-classification
+        - five-paradigm-parallel-debugging
+        - focused-function-complexity-check
+        - forensic-repository-audit
+        - formalized-constraint-testing
+        - function-over-form-testing
+        - generated-code-stewardship
+        - glossary-curation-interview
+        - input-validation-fail-fast
+        - interface-variation-design
+        - language-driven-design
+        - mutation-testing-workflow
+        - no-parallel-duplicate-test-runs
+        - occurrence-classification-workflow
+        - premortem-risk-identification
+        - problem-decomposition
+        - quality-gate-verification
+        - reasons-canvas-fill
+        - reasons-canvas-review
+        - refactoring-change-function-declaration
+        - refactoring-combine-functions-into-transform
+        - refactoring-conditional-to-strategy
+        - refactoring-consolidate-conditional-expression
+        - refactoring-encapsulate-record
+        - refactoring-encapsulate-variable
+        - refactoring-extract-class-by-responsibility-split
+        - refactoring-extract-first-order-concept
+        - refactoring-guard-clauses-before-polymorphism
+        - refactoring-inline-temp
+        - refactoring-introduce-null-object
+        - refactoring-move-field
+        - refactoring-move-method
+        - refactoring-replace-magic-number-with-symbolic-constant
+        - refactoring-replace-temp-with-query
+        - refactoring-retry-pattern
+        - refactoring-state-pattern-for-behavior
+        - refactoring-strangler-fig
+        - reference-architectural-patterns
+        - requirements-validation-workflow
+        - reverse-speccing
+        - review-intent-and-risk-first
+        - safe-to-fail-experiment
+        - secure-design-checklist
+        - secure-regex-catastrophic-backtracking
+        - stakeholder-alignment
+        - stopping-conditions
+        - strategic-domain-classification
+        - tdd-red-green-refactor
+        - terminology-extraction-mapping
+        - test-boundaries-by-responsibility
+        - test-minimisation
+        - test-pyramid-progression
+        - test-readability-clarity-check
+        - test-to-system-reconstruction
+        - testing-select-appropriate-level
+        - traceable-decisions
+        - usage-examples-sync
+        - work-package-completion-validation
+        - zombies-tdd
+      activated_toolguides:
+      - form: original
+        versions:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        count: 10
+        ids:
+        - contextive
+        - efficient-local-tooling
+        - git-agent-commit-signing
+        - maven-review-checks
+        - mermaid-diagramming
+        - plantuml-diagramming
+        - python-mutation-tools
+        - python-review-checks
+        - rtk-search-tooling
+        - typescript-mutation-tools
+      - form: original
+        versions:
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        count: 9
+        ids:
+        - contextive
+        - efficient-local-tooling
+        - git-agent-commit-signing
+        - maven-review-checks
+        - mermaid-diagramming
+        - plantuml-diagramming
+        - python-mutation-tools
+        - python-review-checks
+        - typescript-mutation-tools
+        also_post_rewrite_of:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        also_post_rewrite_via:
+        - rtk
+        - rtk+rc5
+      - form: original
+        versions:
+        - 4.0.0rc5
+        count: 12
+        ids:
+        - contextive
+        - efficient-local-tooling
+        - git-agent-commit-signing
+        - java-supply-chain
+        - javascript-supply-chain
+        - maven-review-checks
+        - mermaid-diagramming
+        - plantuml-diagramming
+        - python-mutation-tools
+        - python-review-checks
+        - python-supply-chain
+        - typescript-mutation-tools
+      mission_type_activations:
+      - form: original
+        versions:
+        - 3.2.0rc33
+        - 3.2.0rc34
+        - 3.2.0rc35
+        - 3.2.0rc36
+        - 3.2.0rc37
+        - 3.2.0rc38
+        - 3.2.0rc39
+        - 3.2.0rc40
+        - 3.2.0rc41
+        - 3.2.0rc42
+        - 3.2.0rc43
+        - 3.2.0rc44
+        - 3.2.0rc45
+        - 3.2.0
+        - 3.2.1
+        - 3.2.2
+        - 3.2.3
+        - 3.2.4
+        - 3.2.5
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        - 4.0.0rc5
+        count: 4
+        ids:
+        - documentation
+        - plan
+        - research
+        - software-dev
+  minimal:
+    wheel_paths:
+    - charter/activation/packs/minimal.yaml
+    - charter/packs/minimal.yaml
+    released_versions:
+    - 3.2.6rc1
+    - 3.2.6rc2
+    - 3.2.6
+    - 3.2.6.1
+    - 3.2.6.2
+    - 3.2.7
+    - 4.0.0rc1
+    - 4.0.0rc2
+    - 4.0.0rc3
+    - 4.0.0rc4
+    - 4.0.0rc5
+    keys:
+      activated_directives:
+      - form: original
+        versions:
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        - 4.0.0rc5
+        count: 5
+        ids:
+        - 001-architectural-integrity-standard
+        - 010-specification-fidelity-requirement
+        - 024-locality-of-change
+        - 028-search-tool-discipline
+        - 030-test-and-typecheck-quality-gate
+      activated_kinds:
+      - form: original
+        versions:
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        - 4.0.0rc5
+        count: 2
+        ids:
+        - directives
+        - tactics
+      activated_tactics:
+      - form: original
+        versions:
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        count: 2
+        ids:
+        - acceptance-test-first
+        - boring-code-review
+      - form: original
+        versions:
+        - 4.0.0rc5
+        count: 1
+        ids:
+        - acceptance-test-first
+        also_post_rewrite_of:
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        also_post_rewrite_via:
+        - rc5
+        - rtk+rc5
+      mission_type_activations:
+      - form: original
+        versions:
+        - 3.2.6rc1
+        - 3.2.6rc2
+        - 3.2.6
+        - 3.2.6.1
+        - 3.2.6.2
+        - 3.2.7
+        - 4.0.0rc1
+        - 4.0.0rc2
+        - 4.0.0rc3
+        - 4.0.0rc4
+        - 4.0.0rc5
+        count: 1
+        ids:
+        - software-dev
