@@ -1083,7 +1083,8 @@ def _dn_capture_pre_speculative_state(
 ) -> tuple[bytes | None, int | None] | None:
     """Capture ``(state.json bytes, run.events.jsonl size)`` before a
     speculative engine advance, so a later retrospective-gate refusal can
-    roll back cleanly. Returns ``None`` on a disk-read failure — the caller
+    roll back cleanly. Returns ``None`` on a disk-read failure or a run-cursor
+    lock that cannot be acquired within its bounded wait — the caller
     must then surface a blocked ``Decision`` rather than advance into a
     state it cannot retract (mirrors the original inline try/except
     exactly)."""
@@ -1095,7 +1096,10 @@ def _dn_capture_pre_speculative_state(
         with run_cursor_lock(run_dir):
             pre_state_bytes = state_path.read_bytes() if state_path.exists() else None
             pre_events_size = events_path.stat().st_size if events_path.exists() else 0
-    except OSError:
+    except (OSError, LockAcquireTimeout):
+        # A busy run cursor (a peer holds the lock past its bounded wait) is the
+        # same "cannot safely snapshot" outcome as a disk-read failure: the
+        # caller surfaces a blocked Decision instead of letting it escape.
         return None
     return pre_state_bytes, pre_events_size
 
