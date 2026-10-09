@@ -466,12 +466,23 @@ class OrgDRGFragment(BaseModel):
 
     @property
     def authored_nodes(self) -> list[_OrgDRGNode]:
-        """Explicit declarations in authored order, excluding file discovery."""
+        """Explicit declarations in authored order, excluding file discovery.
+
+        Discovery is told apart by the node's *subclass* (``_DiscoveredOrgDRGNode``),
+        which a pydantic copy, ``model_validate`` or dump/reload round-trip silently
+        loses: a discovered node would then count as authored (fails open). Call
+        this only on the instance :func:`load_org_pack` returned; never copy or
+        re-validate the fragment first.
+        """
         return [node for node in self.nodes if not isinstance(node, _DiscoveredOrgDRGNode)]
 
     @property
     def authored_edges(self) -> list[_OrgDRGEdge]:
-        """Authored edges in order, excluding artifact/governance projections."""
+        """Authored edges in order, excluding artifact/governance projections.
+
+        Projections are told apart by the edge's *subclass* (``_ProjectedOrgDRGEdge``);
+        the same copy/re-validation caveat as :attr:`authored_nodes` applies.
+        """
         return [edge for edge in self.edges if not isinstance(edge, _ProjectedOrgDRGEdge)]
 
 
