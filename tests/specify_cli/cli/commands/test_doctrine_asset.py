@@ -175,7 +175,7 @@ def test_asset_list_empty_prints_message_and_exits_zero(tmp_path: Path, monkeypa
 
     result = runner.invoke(charter_app, ["pack", "asset", "list"], catch_exceptions=False)
     assert result.exit_code == 0, result.output
-    assert "No doctrine assets found." in result.output
+    assert "No charter pack assets found." in result.output
 
 
 def test_asset_path_escape_exits_nonzero_naming_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

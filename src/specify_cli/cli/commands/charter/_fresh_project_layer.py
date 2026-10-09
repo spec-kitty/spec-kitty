@@ -168,7 +168,7 @@ def _planned_fresh_project_layer_deletes(repo_root: Path) -> list[str]:
 def _synthesize_project_layer(repo_root: Path, *, dry_run: bool) -> dict[str, Any] | None:
     """Preserve a direct-written corpus before considering the empty seed path.
 
-    Absence of generated inputs says nothing about the project doctrine tree.
+    Absence of generated inputs says nothing about the project layer.
     Registration owns its graph, provenance and manifest; synthesis only stamps
     the current bundle hash and records that this corpus was preserved.
     """

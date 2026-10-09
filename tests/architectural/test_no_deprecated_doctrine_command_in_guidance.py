@@ -155,6 +155,22 @@ def test_gate_does_not_flag_content_sense_or_c004_names(text: str) -> None:
     assert _offenders(text) == []
 
 
+#: Container-sense wording the cutover renamed ("doctrine tree" -> charter pack tree). "doctrine
+#: artifacts" stays legal: it is the content sense, see the parametrized control above.
+_CONTAINER_SENSE = re.compile(r"\bdoctrine (?:assets|tree|missions)\b", re.IGNORECASE)
+
+
+def test_cli_help_does_not_call_the_pack_container_doctrine() -> None:
+    commands = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands"
+    violations = [
+        f"{path.relative_to(_REPO_ROOT).as_posix()}:{lineno}  {match.group(0)}"
+        for path in sorted(commands.rglob("*.py"))
+        for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1)
+        for match in _CONTAINER_SENSE.finditer(line)
+    ]
+    assert not violations, "name the charter pack / charter offering, not 'doctrine', in CLI help:\n  " + "\n  ".join(violations)
+
+
 @pytest.mark.parametrize("name", _REMOVED)
 def test_removed_list_matches_the_cli(name: str) -> None:
     """Positive control: every name in the closed list is an unknown command today."""

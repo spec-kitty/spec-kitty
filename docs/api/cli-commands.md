@@ -425,7 +425,7 @@ _Charter management commands_
 │                    begins.                                                   │
 │ bundle             Charter bundle validation commands.                       │
 │ mission-type       Mission type commands (activated types only).             │
-│ list               List activated doctrine artifacts by kind.                │
+│ list               List activated charter artifacts by kind.                 │
 │ pack               Charter pack management commands.                         │
 │ org                Manage org Charter Pack authoring (init, validate).       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -708,10 +708,10 @@ _Charter bundle validation commands._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --mission-type                               TEXT  Mission type for          │
 │                                                    template-set defaults     │
-│ --template-set                               TEXT  Override doctrine         │
+│ --template-set                               TEXT  Override charter offering │
 │                                                    template set (must exist  │
-│                                                    in packaged doctrine      │
-│                                                    missions)                 │
+│                                                    in packaged charter       │
+│                                                    offering missions)        │
 │ --from-interview      --no-from-interview          Load interview answers if │
 │                                                    present                   │
 │                                                    [default: from-interview] │
@@ -772,12 +772,12 @@ _Charter bundle validation commands._
 
 ## spec-kitty charter list
 
-_List activated doctrine artifacts by kind._
+_List activated charter artifacts by kind._
 
 ```
  Usage: spec-kitty charter list [OPTIONS] COMMAND [ARGS]...
 
- List activated doctrine artifacts by kind.
+ List activated charter artifacts by kind.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --show-available            Also show available-but-not-activated artifacts. │
@@ -913,7 +913,7 @@ _Manage org Charter Pack authoring (init, validate)._
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    pack_path      PATH  Destination directory for the scaffold or rendered │
-│                           doctrine tree.                                     │
+│                           charter pack tree.                                 │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
@@ -978,8 +978,8 @@ _Charter pack management commands._
 │                   distributable.                                             │
 │ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
 │                   (FR-009).                                                  │
-│ asset             Resolve shipped and overlay doctrine assets (no install —  │
-│                   C-002).                                                    │
+│ asset             Resolve shipped and overlay charter pack assets (no        │
+│                   install — C-002).                                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1015,18 +1015,18 @@ _Charter pack management commands._
 
 ## spec-kitty charter pack asset
 
-_Resolve shipped and overlay doctrine assets (no install — C-002)._
+_Resolve shipped and overlay charter pack assets (no install — C-002)._
 
 ```
  Usage: spec-kitty charter pack asset [OPTIONS] COMMAND [ARGS]...
 
- Resolve shipped and overlay doctrine assets (no install — C-002).
+ Resolve shipped and overlay charter pack assets (no install — C-002).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list  List all resolvable doctrine assets and their source tiers.            │
+│ list  List all resolvable charter pack assets and their source tiers.        │
 │ path  Resolve an asset identifier to a filesystem path (fail-closed on       │
 │       miss).                                                                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1037,7 +1037,7 @@ _Resolve shipped and overlay doctrine assets (no install — C-002)._
 ```
  Usage: spec-kitty charter pack asset list [OPTIONS]
 
- List all resolvable doctrine assets and their source tiers.
+ List all resolvable charter pack assets and their source tiers.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Emit machine-readable JSON instead of rich text.           │
@@ -3762,7 +3762,7 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --pack             PATH  Root directory of the target pack to migrate (org   │
 │                          pack or any directory shaped like the built-in      │
-│                          doctrine tree).                                     │
+│                          charter pack tree).                                 │
 │                          [default: .]                                        │
 │ --dry-run                Report planned rewrites without writing any files.  │
 │                          The JSON shape is identical to a live run.          │

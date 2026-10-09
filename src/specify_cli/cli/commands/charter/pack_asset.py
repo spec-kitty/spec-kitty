@@ -1,7 +1,7 @@
 """``spec-kitty charter pack asset`` — the operator surface over ASSET resolution.
 
 WP05 (``doctrine-delivery-reachability``). Two read-only commands let an
-operator see and resolve shipped/overlay doctrine assets, reading exclusively
+operator see and resolve shipped/overlay charter pack assets, reading exclusively
 through :class:`charter.offering.service.CharterOfferingService` ``.assets`` (the WP04
 :class:`~charter.offering.assets.repository.AssetRepository`):
 
@@ -44,7 +44,7 @@ _UNRESOLVABLE = "<unresolvable: path escapes root>"
 
 asset_app = typer.Typer(
     name="asset",
-    help="Resolve shipped and overlay doctrine assets (no install — C-002).",
+    help="Resolve shipped and overlay charter pack assets (no install — C-002).",
     no_args_is_help=True,
 )
 
@@ -127,7 +127,7 @@ def _resolved_path_str(repo: AssetRepository, asset_id: str) -> str:
 def asset_list(
     json_output: bool = typer.Option(False, "--json", help=_JSON_OPTION_HELP),
 ) -> None:
-    """List all resolvable doctrine assets and their source tiers."""
+    """List all resolvable charter pack assets and their source tiers."""
     repo = _build_asset_repository()
     rows = [
         {
@@ -143,7 +143,7 @@ def asset_list(
         return
 
     if not rows:
-        console.print("[yellow]No doctrine assets found.[/yellow]")
+        console.print("[yellow]No charter pack assets found.[/yellow]")
         raise typer.Exit(0)
 
     table = Table(show_header=True, header_style="bold")
