@@ -21,6 +21,56 @@ from charter.activation.synthesizer.artifact_naming import artifact_filename, ex
 from charter.activation.synthesizer.write_pipeline import _is_generic_scoped
 
 
+def test_manifest_version_only_run_preserves_committed_bytes(tmp_path: Path) -> None:
+    """A new CLI/adapter release must not restamp unchanged synthesized content."""
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH, SynthesisManifest, finalize_manifest
+    from charter.activation.synthesizer.path_guard import PathGuard
+    from charter.activation.synthesizer.write_pipeline import _write_manifest_file
+
+    guard = PathGuard(tmp_path, extra_allowed_prefixes=[tmp_path])
+    original = finalize_manifest(SynthesisManifest(
+        created_at="2026-01-01T00:00:00+00:00", run_id="first",
+        adapter_id="fixture", adapter_version="1.0.0", synthesizer_version="3.2.6",
+        manifest_hash="0" * 64, bundle_content_hash="sha256:" + "a" * 64,
+    ))
+    _write_manifest_file(guard, tmp_path, original)
+    path = tmp_path / MANIFEST_PATH
+    before = path.read_bytes()
+
+    upgraded = finalize_manifest(original.model_copy(update={
+        "created_at": "2026-01-02T00:00:00+00:00", "run_id": "second",
+        "adapter_version": "1.1.0", "synthesizer_version": "3.2.7",
+    }))
+    persisted = _write_manifest_file(guard, tmp_path, upgraded)
+
+    assert path.read_bytes() == before
+    assert persisted.synthesizer_version == original.synthesizer_version
+    assert persisted.adapter_version == original.adapter_version
+
+
+def test_manifest_content_change_never_downgrades_synthesizer(tmp_path: Path) -> None:
+    from charter.activation.synthesizer.manifest import MANIFEST_PATH, SynthesisManifest, finalize_manifest, load_yaml, verify_manifest_hash
+    from charter.activation.synthesizer.path_guard import PathGuard
+    from charter.activation.synthesizer.write_pipeline import _write_manifest_file
+
+    guard = PathGuard(tmp_path, extra_allowed_prefixes=[tmp_path])
+    original = finalize_manifest(SynthesisManifest(
+        created_at="2026-01-01T00:00:00+00:00", run_id="first",
+        adapter_id="fixture", adapter_version="1.0.0", synthesizer_version="3.2.7",
+        manifest_hash="0" * 64, bundle_content_hash="sha256:" + "a" * 64,
+    ))
+    _write_manifest_file(guard, tmp_path, original)
+    changed = finalize_manifest(original.model_copy(update={
+        "run_id": "second", "synthesizer_version": "3.2.6",
+        "bundle_content_hash": "sha256:" + "b" * 64,
+    }))
+    written = _write_manifest_file(guard, tmp_path, changed)
+
+    assert written.bundle_content_hash == changed.bundle_content_hash
+    assert written.synthesizer_version == "3.2.7"
+    verify_manifest_hash(load_yaml(tmp_path / MANIFEST_PATH))
+
+
 # ---------------------------------------------------------------------------
 # Test fixture helpers — inline staged directories (T038)
 # ---------------------------------------------------------------------------

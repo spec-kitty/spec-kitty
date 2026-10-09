@@ -35,6 +35,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
+from packaging.version import InvalidVersion, Version
+
 from kernel.atomic import substantively_equal as _substantively_equal_core
 from kernel.clock import now_utc_iso
 from kernel.charter_pack_paths import (
@@ -238,7 +240,7 @@ _VOLATILE_PROVENANCE_FIELDS: frozenset[str] = frozenset(
 # Synthesis manifest fields that change on every run regardless of content.
 # ``manifest_hash`` is derived from the others, so it is volatile too.
 _VOLATILE_MANIFEST_FIELDS: frozenset[str] = frozenset(
-    {"created_at", "run_id", "synthesizer_version", "manifest_hash"}
+    {"created_at", "run_id", "adapter_version", "synthesizer_version", "manifest_hash"}
 )
 
 # Project graph overlay fields that change when the graph is regenerated even
@@ -661,12 +663,13 @@ def _write_manifest_file(
 ) -> SynthesisManifest:
     """Write the manifest-last commit marker, no-op-stably (step 4 write).
 
-    The manifest stamps volatile fields (created_at, run_id,
+    The manifest stamps volatile fields (created_at, run_id, adapter_version,
     synthesizer_version, manifest_hash) on every run. Skip the rewrite when
     the manifest is unchanged modulo those fields. A substantive change
     (artifact set, hashes, adapter identity) still alters the comparison and
     triggers a rewrite, so the on-disk manifest can never go stale relative
-    to the artifacts.
+    to the artifacts. A content-changing run from an older CLI keeps the
+    recorded synthesizer version and recomputes the manifest self-hash.
 
     Returns the manifest callers should observe: the freshly written one, or
     — when the write was skipped — the prior on-disk manifest (preserving its
@@ -676,10 +679,21 @@ def _write_manifest_file(
     manifest_path = repo_root / MANIFEST_PATH
     guard.mkdir(manifest_path.parent, caller="write_pipeline.promote[mkdir-manifest]")
     new_manifest_bytes = canonical_yaml(manifest.model_dump(mode="python"))
-    if not _substantively_equal(new_manifest_bytes, manifest_path, _VOLATILE_MANIFEST_FIELDS):
-        dump_manifest(manifest, manifest_path, guard)
-        return manifest
-    return load_manifest(manifest_path)
+    if _substantively_equal(new_manifest_bytes, manifest_path, _VOLATILE_MANIFEST_FIELDS):
+        return load_manifest(manifest_path)
+
+    if manifest_path.exists():
+        previous = load_manifest(manifest_path)
+        try:
+            older = Version(manifest.synthesizer_version) < Version(previous.synthesizer_version)
+        except InvalidVersion:
+            older = False
+        if older:
+            manifest = finalize_manifest(
+                manifest.model_copy(update={"synthesizer_version": previous.synthesizer_version})
+            )
+    dump_manifest(manifest, manifest_path, guard)
+    return manifest
 
 
 def promote(

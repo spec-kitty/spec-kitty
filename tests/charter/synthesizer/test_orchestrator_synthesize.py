@@ -364,8 +364,9 @@ class TestNoOpStableSynthesis:
         minimal_drg_snapshot: dict,
         adapter: FixtureAdapter,
         tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Synthesize, capture bytes, re-synthesize an unchanged pack → no churn.
+        """Two runs across a CLI version bump leave unchanged charter files clean.
 
         A second governed run carries a different ``run_id`` (as every real
         invocation does) but identical semantic inputs. The committed provenance
@@ -374,6 +375,14 @@ class TestNoOpStableSynthesis:
         """
         from charter.activation.synthesizer.manifest import MANIFEST_PATH
 
+        monkeypatch.setattr(
+            "charter.activation.synthesizer.write_pipeline._get_synthesizer_version",
+            lambda: "3.2.6",
+        )
+        monkeypatch.setattr(
+            "charter.activation.synthesizer.synthesize_pipeline._get_synthesizer_version",
+            lambda: "3.2.6",
+        )
         req_a = self._request_with_run_id(
             "01AAAAAAAAAAAAAAAAAAAAAAAAA",
             full_interview_snapshot,
@@ -388,6 +397,14 @@ class TestNoOpStableSynthesis:
         before = {p.name: p.read_bytes() for p in sorted(prov_dir.glob("*.yaml"))}
         before["__manifest__"] = manifest_file.read_bytes()
 
+        monkeypatch.setattr(
+            "charter.activation.synthesizer.write_pipeline._get_synthesizer_version",
+            lambda: "3.2.7",
+        )
+        monkeypatch.setattr(
+            "charter.activation.synthesizer.synthesize_pipeline._get_synthesizer_version",
+            lambda: "3.2.7",
+        )
         req_b = self._request_with_run_id(
             "01BBBBBBBBBBBBBBBBBBBBBBBBB",
             full_interview_snapshot,
