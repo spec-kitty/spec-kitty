@@ -1327,8 +1327,11 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
         return runtime_decision
 
     # The advance landed (the abort-only ``before_run_completed`` gate did not
-    # raise): replay the buffered emits into the decision-log wrap in original
-    # order so decision events are durably recorded (ADR 2026-09-06-2 (c)).
+    # raise): replay the buffered emits into the decision-log wrap (ADR
+    # 2026-09-06-2 (c)). This is a best-effort replay that runs AFTER the engine
+    # released the run-cursor lock, so it is not atomic with the advance: a crash
+    # between the engine write and this flush loses the buffered events, and
+    # concurrent advances can interleave their replays out of order.
     buffer.flush(ctx.emitter_for_engine)
 
     # Run the best-effort, non-blocking post-completion capture once, on the
