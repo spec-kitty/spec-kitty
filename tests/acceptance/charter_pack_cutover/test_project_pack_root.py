@@ -37,7 +37,6 @@ def load_module_by_path(path: Path, name: str) -> ModuleType:
 
 
 @covers("FR-016", "C-007")
-@pending_until("WP02", "kernel.charter_pack_paths is the single path authority")
 def test_fr016_kernel_module_is_single_authority(tmp_path: Path) -> None:
     paths = importlib.import_module("kernel.charter_pack_paths")
     assert paths.PROJECT_PACK_DIRNAME == "charter-packs"
@@ -47,7 +46,6 @@ def test_fr016_kernel_module_is_single_authority(tmp_path: Path) -> None:
 
 
 @covers("FR-016")
-@pending_until("WP02", "layer-root discovery resolves the project pack root")
 def test_fr016_layer_roots_project_is_pack_root(migrated_project: Path) -> None:
     layer_roots = importlib.import_module("charter.activation.layer_roots")
     roots = layer_roots.resolve_layer_roots(migrated_project)
@@ -65,7 +63,6 @@ def _project_directive_listed(project: Path) -> bool:
 
 @covers("FR-016", "US2-1")
 @pytest.mark.integration
-@pending_until("WP02", "a project artifact under .kittify/charter-packs/ is listed")
 def test_fr016_migrated_fixture_project_artifact_is_listed(migrated_project: Path) -> None:
     assert _project_directive_listed(migrated_project)
     # Control: once the file is gone the artifact is no longer listed.

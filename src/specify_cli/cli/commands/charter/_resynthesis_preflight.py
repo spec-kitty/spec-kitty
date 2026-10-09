@@ -18,7 +18,7 @@ from charter.activation.synthesizer.errors import ProjectDRGValidationError
 from charter.drg import load_built_in_graph
 from charter.drg import DRGGraph
 from specify_cli.cli.commands.charter._common import _interview_path
-from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots, resolve_org_root_chain
+from charter.activation.layer_roots import resolve_layer_roots, resolve_org_root_chain
 from specify_cli.cli.commands.charter.generate import _is_inside_git_worktree, _load_interview_for_generate
 
 

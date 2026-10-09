@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import typer
+from kernel.charter_pack_paths import resolve_project_pack_read_root
 from specify_cli.cli.console import console
 from rich.table import Table
 
@@ -72,7 +73,7 @@ def _profile_catalog(
     """Return merged doctrine + legacy invocation profiles.
 
     ``.kittify/profiles`` remains the live invocation registry for ask/router
-    flows, while ``.kittify/doctrine/agent_profiles`` is the charter doctrine
+    flows, while ``.kittify/charter-packs/agent_profiles`` is the charter doctrine
     surface. The profile CLI must not hide either source.
     """
     from charter.profiles import AgentProfileRepository
@@ -102,7 +103,7 @@ def _profile_catalog(
     # Overlay charter doctrine project/org profiles that the legacy invocation
     # registry cannot see. The doctrine inner repository is read UNGATED so the
     # catalog view shows every layer; activation state is annotated separately.
-    project_doctrine_profiles = repo_root / _KITTIFY_DIR / "doctrine" / "agent_profiles"
+    project_doctrine_profiles = resolve_project_pack_read_root(repo_root, quiet=True) / "agent_profiles"
     from charter.drg import resolve_org_roots
 
     org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]

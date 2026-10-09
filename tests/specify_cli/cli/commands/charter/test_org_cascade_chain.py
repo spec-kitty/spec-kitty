@@ -1,13 +1,13 @@
 """WP02 (mission ``cascade-org-inert-01M07E9P``): org-roots threading into the
 three ``load_validated_graph`` cascade call sites (``activate.py``:226/317,
-``deactivate.py``:139) plus ``_layer_roots.py``'s ID-mapping chain widening.
+``deactivate.py``:139) plus ``charter.activation.layer_roots``'s ID-mapping chain widening.
 
 The defect this WP fixes (FR-001, NFR-001/002, C-001/002): before this WP,
 ``charter activate/deactivate --cascade`` walked the merged DRG with **no org
 roots at all**, so a ``requires``/``suggests`` edge that lived in (or targeted)
 an org pack was invisible to the cascade engine — dependent org-pack artifacts
 were silently neither activated nor reported as skipped. Separately,
-``_layer_roots.resolve_layer_roots`` only ever registered the FIRST org root
+``charter.activation.layer_roots.resolve_layer_roots`` only ever registered the FIRST org root
 into its single-value ``roots["org"]`` slot, so even once the DRG walk saw
 pack 2..N, the DRG-bare-ID -> config-stem-ID mapping (``_cascade_shared.py``'s
 ``drg_urn_to_config_id``, consolidated there from ``activate.py``'s
@@ -37,7 +37,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.cli.commands.charter import activate as activate_mod
 from specify_cli.cli.commands.charter import _cascade_shared as cascade_shared_mod
-from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
+from charter.activation.layer_roots import resolve_layer_roots
 
 runner = CliRunner()
 

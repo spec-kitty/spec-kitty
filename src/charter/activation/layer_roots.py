@@ -1,25 +1,36 @@
-"""Resolve doctrine layer roots for charter CLI commands."""
+"""Resolve the org and project charter pack layer roots for a repository.
+
+Layer-root discovery belongs in ``charter`` (C-007): the resolved paths are
+handed to lower charter layers as data (C-008). ``roots["project"]`` is the
+**project pack root** (``.kittify/charter-packs/``, resolved through
+:mod:`kernel.charter_pack_paths`), so consumers join kind directories straight
+onto it.
+"""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+from charter.offering.drg.org_pack_config import resolve_existing_org_roots, resolve_org_roots
+from kernel.charter_pack_paths import resolve_project_pack_read_root
+
 __all__ = ["resolve_layer_roots", "resolve_org_root_chain"]
 
 
 def resolve_layer_roots(repo_root: Path) -> dict[str, Path]:
-    """Resolve org/project doctrine roots for *repo_root*.
+    """Resolve the org and project charter pack roots for *repo_root*.
 
-    Root resolution lives in ``specify_cli`` and the resolved paths are handed
-    to lower charter/doctrine layers as data (C-008).
+    ``roots["project"]`` is the project pack root, present only when it is a
+    directory. It reads through
+    :func:`kernel.charter_pack_paths.resolve_project_pack_read_root` (quietly),
+    so a project that still has the retired ``.kittify/doctrine/`` tree is read
+    from there until the migration moves it.
     """
-    from charter.drg import resolve_org_roots
-
     roots: dict[str, Path] = {}
 
-    project_root = repo_root / ".kittify"
-    if (project_root / "doctrine").is_dir():
-        roots["project"] = project_root
+    project = resolve_project_pack_read_root(repo_root, quiet=True)
+    if project.is_dir():
+        roots["project"] = project
 
     # FR-013: register the first resolved org pack root regardless of whether it
     # nests a ``doctrine/`` subdir. Runtime resolves org packs from the *flat*
@@ -37,7 +48,7 @@ def resolve_layer_roots(repo_root: Path) -> dict[str, Path]:
 
 
 def resolve_org_root_chain(repo_root: Path) -> list[Path]:
-    """Return the full, declaration-ordered chain of existing org doctrine roots.
+    """Return the full, declaration-ordered chain of existing org charter pack roots.
 
     WP02 (mission ``cascade-org-inert-01M07E9P``) T008 — the ID-mapping half of
     the cascade-org-inert fix. ``resolve_layer_roots``'s ``roots["org"]`` key
@@ -71,15 +82,8 @@ def resolve_org_root_chain(repo_root: Path) -> list[Path]:
     primitive #3525 introduced for ``load_validated_graph``'s ``org_roots``
     threading), kept here rather than imported separately by both
     ``activate.py`` and ``deactivate.py`` so the two CLI commands share one
-    resolution -- matching this module's existing role as the layer-root
-    resolution seam for the charter CLI commands.
+    resolution -- matching this module's role as the layer-root resolution
+    seam for the charter pack layers.
     """
-    # Reached through the `charter.drg` proxy, never `doctrine.*` directly:
-    # a lazy, function-body import is NOT exempt from the runtime->charter->
-    # doctrine boundary (tests/architectural/
-    # test_runtime_charter_doctrine_boundary.py). `charter.drg` re-exports this
-    # primitive for exactly this purpose, and the module-level TYPE_CHECKING
-    # import above already uses the same door.
-    from charter.drg import resolve_existing_org_roots
-
-    return resolve_existing_org_roots(repo_root)
+    chain: list[Path] = resolve_existing_org_roots(repo_root)
+    return chain

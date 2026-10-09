@@ -290,9 +290,13 @@ def _org_scan_dirs(kind: ArtifactKind, org_roots: list[Path] | None) -> list[tup
 
 
 def _layer_candidate_dir(kind: ArtifactKind, layer: str, root: Path) -> Path:
-    """Return the candidate doctrine dir for *kind* within a single *layer*."""
+    """Return the candidate doctrine dir for *kind* within a single *layer*.
+
+    The project *root* is the project pack root (``.kittify/charter-packs/``),
+    so kind directories join straight onto it.
+    """
     if layer == "project":
-        project_dir: Path = root / "doctrine" / PROJECT_KIND_DIRS.get(kind, kind.plural)
+        project_dir: Path = root / PROJECT_KIND_DIRS.get(kind, kind.plural)
         return project_dir
     layer_dir: Path = root / "doctrine" / kind.plural / layer
     return layer_dir

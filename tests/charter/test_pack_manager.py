@@ -603,15 +603,17 @@ class TestResolveLayerCandidateMissionTypeLayers:
         assert candidate == tmp_path / "mission_types"
 
     def test_project_layer_resolves_to_kittify_missions_mission_types(self, tmp_path: Path) -> None:
-        """``root`` for the project layer is already ``repo_root / ".kittify"``
-        (see ``specify_cli.cli.commands.charter._layer_roots.resolve_layer_roots``),
-        so the resolved directory is ``.kittify/missions/mission_types`` -- a flat
+        """``root`` for the project layer is the project pack root
+        ``repo_root / ".kittify" / "charter-packs"`` (see
+        ``charter.activation.layer_roots.resolve_layer_roots``); the roster sits
+        outside the pack, at ``.kittify/missions/mission_types`` -- a flat
         sibling of, not nested inside, ``.kittify/missions/<mission_name>/``.
         """
         from charter.activation.pack_manager import _resolve_layer_candidate
 
-        candidate = _resolve_layer_candidate("project", tmp_path, None, "missions/mission_types", layered=False)
-        assert candidate == tmp_path / "missions" / "mission_types"
+        kittify = tmp_path / ".kittify"
+        candidate = _resolve_layer_candidate("project", kittify / "charter-packs", None, "missions/mission_types", layered=False)
+        assert candidate == kittify / "missions" / "mission_types"
 
     def test_built_in_layer_branch_is_unaffected(self, tmp_path: Path) -> None:
         """The pre-existing built-in-layer branch for ``kind is None`` must be
@@ -654,7 +656,7 @@ class TestMissionTypeProjectLayerResolves:
         kittify = project_root / ".kittify"
         _write_mission_type(kittify / "missions" / "mission_types", "qa")
 
-        result = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify})
+        result = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
 
         assert "qa" in result
 
@@ -662,7 +664,7 @@ class TestMissionTypeProjectLayerResolves:
         kittify = project_root / ".kittify"
         _write_mission_type(kittify / "missions" / "mission_types", "qa")
 
-        detailed = manager.list_available_detailed(ctx, kind="mission-type", layer_roots={"project": kittify})
+        detailed = manager.list_available_detailed(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
 
         qa_entries = [entry for entry in detailed if entry.artifact_id == "qa"]
         assert [entry.layer for entry in qa_entries] == ["project"]
@@ -676,7 +678,7 @@ class TestMissionTypeProjectLayerResolves:
         """
         kittify = project_root / ".kittify"
 
-        result = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify})
+        result = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
 
         assert "software-dev" in result  # built-in layer unaffected
         assert "qa" not in result
@@ -692,7 +694,7 @@ class TestMissionTypeLayerPrecedenceOrder:
         project_kittify = tmp_path / "proj" / ".kittify"
         _write_mission_type(project_kittify / "missions" / "mission_types", "qa")
 
-        dirs = manager._scan_layer_dirs("mission-type", layer_roots={"org": org_root, "project": project_kittify})
+        dirs = manager._scan_layer_dirs("mission-type", layer_roots={"org": org_root, "project": project_kittify / "charter-packs"})
 
         layers = [layer for layer, _dir in dirs]
         assert layers == ["built-in", "org", "project"]
@@ -731,7 +733,7 @@ class TestMissionTypeProjectLayerNonCollision:
 
         # 1. The charter layer resolves "qa" as a mission-type roster entry
         #    -- never "some-mission-instance" or the bare filename "mission".
-        available = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify})
+        available = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
         assert "qa" in available
         assert "some-mission-instance" not in available
         assert "mission" not in available
@@ -777,7 +779,7 @@ class TestMissionTypeProjectLayerNonCollision:
         nested_dir.mkdir(parents=True)
         (nested_dir / "governance-profile.yaml").write_text("id: governance-profile\n", encoding="utf-8")
 
-        available = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify})
+        available = manager.list_available(ctx, kind="mission-type", layer_roots={"project": kittify / "charter-packs"})
 
         assert "qa" in available
         assert "governance-profile" not in available

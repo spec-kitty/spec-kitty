@@ -44,7 +44,7 @@ from charter.offering.drg.loader import DRGLoadError as DRGLoadError  # re-expor
 from charter.offering.drg.loader import has_graph_files, load_graph_or_dir, merge_layers
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode
 from charter.offering.drg.validator import dangling_endpoints, duplicate_edge_triples
-from kernel.doctrine_root import LEGACY_DOCTRINE_DIRNAME, resolve_doctrine_read_root
+from kernel.charter_pack_paths import LEGACY_PROJECT_PACK_DIRNAME, resolve_project_pack_read_root
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -72,7 +72,7 @@ __all__ = [
 #: ``charter-code-topology-01M152G1`` S4): a plain grep for the contiguous
 #: string ``.kittify/doctrine`` would miss every f-string call site here.
 #: Call sites now compose the "doctrine" segment from the single shared
-#: ``kernel.doctrine_root.LEGACY_DOCTRINE_DIRNAME`` source instead of a bare
+#: ``kernel.charter_pack_paths.LEGACY_PROJECT_PACK_DIRNAME`` source instead of a bare
 #: re-spelled literal, closing that gap without changing the resolved path
 #: (manifest-bookkeeping write paths, lines below, are unchanged -- M3 moves
 #: the data and cuts writes over to the canonical root).
@@ -312,7 +312,7 @@ def rewrite_manifest(
         yaml_bytes = canonical_yaml(body)
         content_hash = hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
-        rel_content = f"{_DOCTRINE_DIRNAME}/{LEGACY_DOCTRINE_DIRNAME}/{doctrine_kind_subdir(kind)}/{filename}"
+        rel_content = f"{_DOCTRINE_DIRNAME}/{LEGACY_PROJECT_PACK_DIRNAME}/{doctrine_kind_subdir(kind)}/{filename}"
         rel_prov = f"{_DOCTRINE_DIRNAME}/charter/provenance/{kind}-{slug}.yaml"
 
         new_entries_by_key[(kind, slug)] = ManifestArtifactEntry(
@@ -609,7 +609,7 @@ def reconcile_synthesis(
     # legacy `.kittify/doctrine` (warn-once) otherwise. The manifest
     # bookkeeping paths above (`rel_content`/`rel_prov`) stay pointed at the
     # legacy root -- M3 cuts writes over once the data itself has moved.
-    doctrine_dir = resolve_doctrine_read_root(repo_root)
+    doctrine_dir = resolve_project_pack_read_root(repo_root)
     existing_overlay = _load_existing_overlay(doctrine_dir)
     merged_overlay = (
         fresh_overlay

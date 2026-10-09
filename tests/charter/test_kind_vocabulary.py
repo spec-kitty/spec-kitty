@@ -194,7 +194,7 @@ def test_project_layer_resolver_ignores_legacy_plural_directory(tmp_path: Path) 
             ArtifactKind.DIRECTIVE,
             "950-project-rule",
             doctrine_root=doctrine_root,
-            layer_roots={"project": project_root},
+            layer_roots={"project": project_root / "doctrine"},
         )
         == "directive:DIRECTIVE_950"
     )
@@ -203,13 +203,13 @@ def test_project_layer_resolver_ignores_legacy_plural_directory(tmp_path: Path) 
             ArtifactKind.DIRECTIVE,
             "951-legacy-project-rule",
             doctrine_root=doctrine_root,
-            layer_roots={"project": project_root},
+            layer_roots={"project": project_root / "doctrine"},
         )
     with pytest.raises(UnknownArtifactIdError):
         resolve_config_id(
             "directive:DIRECTIVE_951",
             doctrine_root=doctrine_root,
-            layer_roots={"project": project_root},
+            layer_roots={"project": project_root / "doctrine"},
         )
 
 

@@ -375,15 +375,14 @@ ORG_MISSION_TYPES_SUBDIR = "mission_types"
 #: record, not an import-by-analogy of the sibling's path.
 PROJECT_MISSION_TYPES_RELATIVE: tuple[str, ...] = (".kittify", "missions", "mission_types")
 
-#: Project-layer layout relative to the ``.kittify`` project root -- the tail
-#: of :data:`PROJECT_MISSION_TYPES_RELATIVE` past its leading ``.kittify``
-#: segment. Derived, never edited independently: consumers whose supplied base
-#: is already the ``.kittify`` root (``charter.activation.pack_manager``, whose
-#: ``layer_roots["project"]`` value is ``repo_root / ".kittify"`` per
-#: ``specify_cli.cli.commands.charter._layer_roots.resolve_layer_roots``) join
-#: this instead of slicing the repo-root-relative tuple at their own call
-#: site (#3427) -- the base-point reconciliation lives here, beside the
-#: authority it derives from.
+#: Project-layer layout relative to the ``.kittify`` directory -- the tail of
+#: :data:`PROJECT_MISSION_TYPES_RELATIVE` past its leading ``.kittify``
+#: segment. Derived, never edited independently: consumers whose base is the
+#: ``.kittify`` directory (``charter.activation.pack_manager``, which derives
+#: it from the project pack root ``layer_roots["project"]`` handed out by
+#: ``charter.activation.layer_roots.resolve_layer_roots``) join this instead of
+#: slicing the repo-root-relative tuple at their own call site (#3427) -- the
+#: base-point reconciliation lives here, beside the authority it derives from.
 PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT: tuple[str, ...] = PROJECT_MISSION_TYPES_RELATIVE[1:]
 
 

@@ -728,7 +728,7 @@ def test_legacy_template_stays_red_and_prints_actionable_hint(tmp_path: Path) ->
     assert f"- urn: {_BUILT_IN_DIRECTIVE_URN}" in output
     assert f"reason: {_LEGACY_REASON}" in output
     assert "cp " not in output
-    assert "> .kittify/doctrine/replaceable-builtins.yaml" not in output
+    assert "> .kittify/charter-packs/replaceable-builtins.yaml" not in output
 
 
 def test_malformed_legacy_template_gives_no_hint_and_no_error(tmp_path: Path) -> None:
@@ -756,7 +756,7 @@ def test_generic_hint_names_both_remedies(tmp_path: Path) -> None:
 
     _, output = _run_doctrine_human(tmp_path)
 
-    assert ".kittify/doctrine/replaceable-builtins.yaml" in output
+    assert ".kittify/charter-packs/replaceable-builtins.yaml" in output
     assert "pack-root" in output or "pack root" in output
 
 
@@ -838,7 +838,7 @@ def test_unsanctioned_human_block_characterisation(tmp_path: Path) -> None:
     assert "Unsanctioned built-in override(s) — 1 not allowlisted" in output
     assert f"{_BUILT_IN_DIRECTIVE_URN} (directive)" in output
     assert (
-        "Add the URN to .kittify/doctrine/replaceable-builtins.yaml (with a reason for directives), have the overriding pack "
+        "Add the URN to .kittify/charter-packs/replaceable-builtins.yaml (with a reason for directives), have the overriding pack "
         "ship it in its pack-root replaceable-builtins.yaml, or remove the org override."
     ) in output
     assert "Only org-tier overrides are adjudicated; project-tier (.kittify/doctrine/) overrides are intentionally ungoverned (FR-012)." in output

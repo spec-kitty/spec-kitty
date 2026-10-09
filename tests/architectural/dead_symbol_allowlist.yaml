@@ -299,28 +299,31 @@ categories:
       retired.'
     requires_issue: false
   category_d_charter_code_topology_relocation_forward_api:
-    rationale: 'D. charter-code-topology-01M152G1 doctrine->charter.offering relocation forward API (#3664).
-      Three symbols surfaced by the src/doctrine/ -> src/charter/offering/ package relocation (mission
+    rationale: 'D. charter-code-topology-01M152G1 doctrine->charter.offering relocation forward API (#3664), plus the charter-pack-cutover-01M491G6 kernel path authority (#3732).
+      Symbols surfaced by the src/doctrine/ -> src/charter/offering/ package relocation (mission
       ``charter-code-topology-01M152G1``, PR #3664). (A fourth casualty of the same relocation, ``charter.activation.pack_context::
       normalize_activation_identifier``, was NOT a new entry here -- it already had a Category C allowlist
       row above (historical: under the pre-#5346 ``(bare_name, body_hash)`` scheme, the relocation changed
       that row''s body_hash, so the row was re-pinned in place rather than duplicated; under the current
       ``(module, name)`` identity this class of churn no longer applies).) None of
-      the three below is dead: each is exported by design for a consumer outside this specific cross-file
+      the symbols below is dead: each is exported by design for a consumer outside this specific cross-file
       caller graph, verified before allow-listing (never a blanket suppression): * ``charter.offering.drg.org_pack_config::LegacyOrgPackDoctrineKeyWarning``
       -- raised internally by the module''s own legacy-key compat warn-once helper (same module, so invisible
       to the cross-file caller graph), same shape as the established ``charter.activation.sync::LegacyGovernanceKeyWarning``
       / ``specify_cli.tracker.config::LegacyTrackerOwnershipKeyWarning`` precedent above: public by design
       so a consumer can filter/assert on the specific warning class. Asserted on via ``pytest.warns(...)``
       in ``tests/runtime/test_bridge_io.py``, ``tests/runtime/test_resolver_unit.py``, and ``tests/unit/mission_loader/test_command.py``.
-      * ``kernel.doctrine_root::CANONICAL_DOCTRINE_DIRNAME`` -- the CR-07 canonical per-project doctrine-artifact
-      dirname (``"charter-packs"``, replacing legacy ``.kittify/doctrine/``). The module''s own docstring
-      is explicit that this is M2 (read-side dual-root resolver) groundwork only: "M3 performs the actual
-      on-disk data move and flips write call sites over; nothing in this module writes or moves any file."
-      No write call site exists yet anywhere in ``src/`` (grepped: zero hits for the literal ``"charter-packs"``
-      outside this module) -- genuinely forward API for the not-yet-landed M3 cutover, not a dropped caller.
-      * ``kernel.doctrine_root::LegacyDoctrineRootWarning`` -- same "legacy compat warn-once, same-module
-      raise, public for external filtering" shape as ``LegacyOrgPackDoctrineKeyWarning`` above.'
+      * ``kernel.charter_pack_paths`` (mission ``charter-pack-cutover-01M491G6`` WP02, #3732, FR-016 /
+      C-007), the single authority for the project charter pack root and the pack-relative paths. WP02
+      cuts the READ side over; its API is binding for the later WPs of the same mission, which add the
+      callers: ``project_pack_root`` / ``project_pack_path`` / ``PROJECT_GRAPH_FILENAME`` (WP03 flips
+      the writers), ``DRG_DIRNAME`` / ``DRG_FRAGMENT`` / ``pack_drg_fragment`` / ``ORG_CHARTER_FILENAME``
+      / ``pack_org_charter`` (WP03''s path-authority gate forces the B.2 literal spellers onto them),
+      ``PRESETS_DIRNAME`` / ``pack_presets_dir`` (the presets WPs, FR-001 to FR-004). Forward API, not
+      dropped callers; each entry is removed when its caller lands.
+      * ``kernel.charter_pack_paths::LegacyDoctrineRootWarning`` -- the "legacy compat warn-once, same-module
+      raise, public for external filtering" shape of ``LegacyOrgPackDoctrineKeyWarning`` above; deleted
+      with the legacy read fallback by WP14 (FR-011).'
     requires_issue: false
   category_e_charter_activation_split_forward_api:
     rationale: 'E. charter-activation-split forward API (#806). EXPERIMENTAL deliberately retains its
@@ -1233,11 +1236,38 @@ entries:
 - module: charter.offering.drg.org_pack_config
   name: LegacyOrgPackDoctrineKeyWarning
   category: category_d_charter_code_topology_relocation_forward_api
-- module: kernel.doctrine_root
-  name: CANONICAL_DOCTRINE_DIRNAME
+- module: kernel.charter_pack_paths
+  name: DRG_DIRNAME
   category: category_d_charter_code_topology_relocation_forward_api
-- module: kernel.doctrine_root
+- module: kernel.charter_pack_paths
+  name: DRG_FRAGMENT
+  category: category_d_charter_code_topology_relocation_forward_api
+- module: kernel.charter_pack_paths
   name: LegacyDoctrineRootWarning
+  category: category_d_charter_code_topology_relocation_forward_api
+- module: kernel.charter_pack_paths
+  name: ORG_CHARTER_FILENAME
+  category: category_d_charter_code_topology_relocation_forward_api
+- module: kernel.charter_pack_paths
+  name: PRESETS_DIRNAME
+  category: category_d_charter_code_topology_relocation_forward_api
+- module: kernel.charter_pack_paths
+  name: PROJECT_GRAPH_FILENAME
+  category: category_d_charter_code_topology_relocation_forward_api
+- module: kernel.charter_pack_paths
+  name: pack_drg_fragment
+  category: category_d_charter_code_topology_relocation_forward_api
+- module: kernel.charter_pack_paths
+  name: pack_org_charter
+  category: category_d_charter_code_topology_relocation_forward_api
+- module: kernel.charter_pack_paths
+  name: pack_presets_dir
+  category: category_d_charter_code_topology_relocation_forward_api
+- module: kernel.charter_pack_paths
+  name: project_pack_path
+  category: category_d_charter_code_topology_relocation_forward_api
+- module: kernel.charter_pack_paths
+  name: project_pack_root
   category: category_d_charter_code_topology_relocation_forward_api
 - module: charter.drg
   name: merge_three_layers

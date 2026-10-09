@@ -55,7 +55,7 @@ from specify_cli.cli.commands.charter.activate import (
     resolve_write_root_or_exit,
     validate_pack_config,
 )
-from specify_cli.cli.commands.charter._layer_roots import (
+from charter.activation.layer_roots import (
     resolve_layer_roots,
     resolve_org_root_chain,
 )
@@ -92,7 +92,7 @@ def _source_urn(
     ``org_roots`` (T008/T010, mission ``cascade-org-inert-01M07E9P``): the
     full declaration-ordered org-pack chain, additive to ``layer_roots``'s
     single-pack-only ``roots["org"]`` — see
-    ``specify_cli.cli.commands.charter._layer_roots.resolve_org_root_chain``.
+    ``charter.activation.layer_roots.resolve_org_root_chain``.
     """
     try:
         kind_enum = ArtifactKind.from_operator_token(kind)
