@@ -6,12 +6,12 @@ Why this module exists
 ----------------------
 Advancing a run is a read-modify-write on ``<run_dir>/state.json``: the engine
 re-reads the snapshot, validates it against the plan, appends the lifecycle
-events and atomically replaces the snapshot. Three (on current main, four)
-writers perform that sequence -- :func:`engine._commit_advance` via
-``commit_advance`` / ``next_step``, :func:`engine.provide_decision_answer`, and
-the retrospective-gate rollback in ``runtime_bridge`` -- and nothing serialised
-them, so two overlapping ``next`` invocations could both pass the stale check,
-both append events, and let the last ``state.json`` write win (the #5854
+events and atomically replaces the snapshot. The writers are
+:func:`engine._commit_advance` (via ``commit_advance`` and ``next_step``),
+:func:`engine.provide_decision_answer`, and the retrospective-gate capture and
+rollback in ``runtime_bridge``. Nothing serialised them, so two overlapping
+``next`` invocations could both pass the stale check, both append events, and
+let the last ``state.json`` write win (the #5854
 true-concurrency TOCTOU).
 
 This module provides the one lock resource that closes that class by
@@ -47,11 +47,6 @@ from pathlib import Path
 
 from kernel.locks import SyncMachineFileLock, machine_file_lock
 
-# ``run_cursor_lock`` is the module's exported surface (an external src caller:
-# ``engine.commit_advance``/``next_step``). ``run_cursor_lock_path`` is an internal
-# helper it calls (intra-module reference) and that tests import directly; it is
-# intentionally NOT in ``__all__`` so the #470 dead-symbol gate does not require a
-# cross-module caller for it.
 __all__ = [
     "run_cursor_lock",
 ]
@@ -65,7 +60,7 @@ _LOCK_SUFFIX = ".lock"
 _LOCK_TIMEOUT_S = 10.0
 
 
-def run_cursor_lock_path(run_dir: Path) -> Path:
+def _run_cursor_lock_path(run_dir: Path) -> Path:
     """A DEDICATED lock-only sidecar beside ``state.json`` (never the payload — G1)."""
     return run_dir / (_STATE_FILENAME + _LOCK_SUFFIX)
 
@@ -78,4 +73,4 @@ def run_cursor_lock(run_dir: Path) -> SyncMachineFileLock:
     raises :class:`kernel.locks.LockAcquireTimeout`, which the caller maps to a
     ``blocked`` Decision.
     """
-    return machine_file_lock(run_cursor_lock_path(run_dir), blocking=True, timeout_s=_LOCK_TIMEOUT_S)
+    return machine_file_lock(_run_cursor_lock_path(run_dir), blocking=True, timeout_s=_LOCK_TIMEOUT_S)
