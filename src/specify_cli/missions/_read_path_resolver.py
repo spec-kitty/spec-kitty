@@ -308,6 +308,11 @@ def probe_coord_state(
     An existing real worktree with a supplied branch must have that branch
     checked out; otherwise it raises ``CoordinationWorkspaceBranchMismatch``.
     The absent-root, branch-supplied path uses ``git rev-parse``.
+
+    Raises:
+        CoordinationWorkspaceBranchMismatch: a materialized coordination worktree
+            exists but does not have ``coordination_branch`` checked out (another
+            branch, or a detached HEAD).
     """
     if not mid8:
         return CoordState.NONE

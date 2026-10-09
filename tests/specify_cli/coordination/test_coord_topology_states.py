@@ -168,7 +168,17 @@ def test_unmaterialized_resolves_primary_never_deleted(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_materialized_coord_on_wrong_branch_refuses_reads_and_surface(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("leave_branch", "actual_fragment"),
+    [
+        (("checkout", "-q", "-b", "other-branch"), "other-branch"),
+        (("checkout", "-q", "--detach"), "detached or unreadable HEAD"),
+    ],
+    ids=["other-branch", "detached"],
+)
+def test_materialized_coord_on_wrong_branch_refuses_reads_and_surface(
+    tmp_path: Path, leave_branch: tuple[str, ...], actual_fragment: str
+) -> None:
     _init_repo(tmp_path)
     _write_meta(
         tmp_path,
@@ -190,15 +200,17 @@ def test_materialized_coord_on_wrong_branch_refuses_reads_and_surface(tmp_path: 
         resolve_status_surface_with_anchor(tmp_path, SLUG_WITH_MID8).surface_path.parent
         == coord_root / "kitty-specs" / SLUG_WITH_MID8
     )
-    _git(coord_root, "switch", "-q", "-c", "other-branch")
+    _git(coord_root, *leave_branch)
 
     with pytest.raises(CoordinationWorkspaceBranchMismatch) as read_exc:
         resolve_handle_to_read_path(tmp_path, SLUG_WITH_MID8, require_exists=True)
+    assert read_exc.value.error_code == "COORDINATION_WORKTREE_BRANCH_MISMATCH"
     assert read_exc.value.expected_ref == COORD_BRANCH
-    assert "other-branch" in read_exc.value.actual_ref
+    assert actual_fragment in read_exc.value.actual_ref
 
-    with pytest.raises(CoordinationWorkspaceBranchMismatch):
+    with pytest.raises(CoordinationWorkspaceBranchMismatch) as surface_exc:
         resolve_status_surface_with_anchor(tmp_path, SLUG_WITH_MID8)
+    assert surface_exc.value.error_code == "COORDINATION_WORKTREE_BRANCH_MISMATCH"
     with pytest.raises(CoordinationWorkspaceBranchMismatch):
         resolve_status_surface_with_anchor(tmp_path, SLUG_WITH_MID8, for_write=True)
 
