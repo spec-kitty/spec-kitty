@@ -3,7 +3,7 @@
 This module defines the runtime surface for the *activation registry* —
 the operator-authored block in `governance.yaml` that pairs an
 ``activation_context`` (mission_type + action) with a specific
-``(doctrine_pack_id, artifact_id, artifact_kind)`` triple to fetch.
+``(charter_pack_id, artifact_id, artifact_kind)`` triple to fetch.
 
 Canonical vocabulary
 --------------------
@@ -51,7 +51,7 @@ from __future__ import annotations
 
 import json
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from charter.offering.artifact_kinds import (
     CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR,
@@ -59,6 +59,7 @@ from charter.offering.artifact_kinds import (
     ArtifactKind,
 )
 from charter.offering.missions.mission_type_repository import builtin_mission_type_id_set
+from charter.offering.packs.retired_fields import SCOPE_ACTIVATION_ENTRY, reject_retired_fields
 
 __all__ = [
     "ActivationEntry",
@@ -199,7 +200,7 @@ class ActivationEntry(BaseModel):
           - activation_context:
               mission_type: software-dev   # optional, defaults to wildcard
               action: implement            # optional, defaults to wildcard
-            doctrine_pack_id: very-serious-developers
+            charter_pack_id: very-serious-developers
             artifact_id: caveman-comments
             artifact_kind: styleguides     # optional disambiguator
 
@@ -209,14 +210,31 @@ class ActivationEntry(BaseModel):
     explicit wildcard tokens ``any`` / ``generic`` — both forms match every
     concrete value. This keeps operator-authored entries terse while still
     allowing the explicit wildcard for clarity.
+
+    Retired field
+    -------------
+    ``charter_pack_id`` replaced an earlier field name (#3732, OD-1). An entry
+    that still carries the retired name is rejected with ``RETIRED_PACK_FIELD``
+    naming the replacement (the table lives in
+    ``charter.offering.packs.retired_fields``, scope
+    ``SCOPE_ACTIVATION_ENTRY``), for both the project
+    ``charter.yaml`` and an ``org-charter.yaml``; there is no alias (C-001).
     """
 
     model_config = ConfigDict(extra="forbid")
 
     activation_context: dict[str, str]
-    doctrine_pack_id: str
+    charter_pack_id: str
     artifact_id: str
     artifact_kind: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_retired_fields(cls, data: object) -> object:
+        # Located by scope only: the loader that read the file relocates the
+        # error to its path (``raise_retired_field_at``).
+        reject_retired_fields(data, scope=SCOPE_ACTIVATION_ENTRY, path=None)
+        return data
 
     @field_validator("activation_context")
     @classmethod
@@ -271,7 +289,7 @@ def _activation_identity_key(entry: ActivationEntry) -> tuple[str, str, str, str
     """Return the dedup identity key for an :class:`ActivationEntry`.
 
     Per data-model.md §5, the identity tuple for activation de-dup is
-    ``(activation_context, doctrine_pack_id, artifact_id, artifact_kind)``.
+    ``(activation_context, charter_pack_id, artifact_id, artifact_kind)``.
     ``activation_context`` is itself a ``dict[str, str]`` — we serialise
     it with sorted keys so structurally equal contexts produce identical
     hash keys regardless of insertion order.
@@ -287,7 +305,7 @@ def _activation_identity_key(entry: ActivationEntry) -> tuple[str, str, str, str
     """
     return (
         json.dumps(entry.activation_context, sort_keys=True),
-        entry.doctrine_pack_id,
+        entry.charter_pack_id,
         entry.artifact_id,
         entry.artifact_kind or "",
     )

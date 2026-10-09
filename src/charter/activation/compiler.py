@@ -678,7 +678,7 @@ def provision_mission_type_activations(repo_root: Path) -> bool:
 
     Raises
     ------
-    CharterPackConfigError
+    ActiveCharterConfigError
         When the shipped default pack declares no ``mission_type_activations``
         set (a broken install) — fail-closed rather than seeding an empty,
         equally-unusable list. Raised by the shared seed-read helper

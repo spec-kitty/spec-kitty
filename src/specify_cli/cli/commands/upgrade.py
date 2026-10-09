@@ -446,7 +446,7 @@ def _provision_missing_mission_type_activations(project_path: Path, *, dry_run: 
 
     Fold for PR #3246 (mission ``resolution-activation-foundation-01KZ9FKG``,
     WP04): removing the config-absent implicit "all four built-ins" backfill
-    made mission creation fail closed (``CharterPackConfigError``) whenever
+    made mission creation fail closed (``ActiveCharterConfigError``) whenever
     the project's activation authority lacks ``mission_type_activations``.
     Fresh ``spec-kitty init`` got a provisioner
     (:func:`specify_cli.provisioning.default_charter.provision_default_mission_type_activations`)
@@ -496,11 +496,11 @@ def _provision_missing_mission_type_activations(project_path: Path, *, dry_run: 
         return []
 
     from charter.activation.compiler import provision_mission_type_activations
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
 
     try:
         provision_mission_type_activations(project_path)
-    except CharterPackConfigError as exc:
+    except ActiveCharterConfigError as exc:
         return [exc.body]
     return []
 
@@ -527,7 +527,7 @@ def _mission_type_activation_provisioning_pending(project_path: Path) -> bool:
     breaking authored-empty preview parity for pointer projects.
 
     A dangling/unreadable ``charter:`` pointer makes the resolver fail-loud
-    with ``CharterPackConfigError`` (INV-5) — the correct contract for the
+    with ``ActiveCharterConfigError`` (INV-5) — the correct contract for the
     REAL write (there is nowhere safe to seed). This PREVIEW predicate keeps
     a defined, non-crashing contract instead: it reports ``True`` (pending)
     rather than letting the exception propagate through the dry-run surface,
@@ -540,13 +540,13 @@ def _mission_type_activation_provisioning_pending(project_path: Path) -> bool:
     Returns:
         True if the seed would create the key on a real run, else False.
     """
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
 
     try:
         from charter.activation.pack_manager import resolve_activation_write_target
 
         _target_path, data, _save = resolve_activation_write_target(project_path)
-    except CharterPackConfigError:
+    except ActiveCharterConfigError:
         return True
     except Exception:  # noqa: BLE001 — unreadable/malformed config: do not claim a pending seed
         return False
@@ -1026,20 +1026,20 @@ def _preparation_error_text(exc: Exception) -> str:
     A charter-pack config error carries only its code in ``str(exc)``; the explanation
     (what is wrong and how to fix it) is its ``body``.
     """
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
 
-    return exc.body or str(exc) if isinstance(exc, CharterPackConfigError) else str(exc)
+    return exc.body or str(exc) if isinstance(exc, ActiveCharterConfigError) else str(exc)
 
 
 def _prepare_finalizer_repairs(project_path: Path, ctx: _FinalizerRenderContext) -> tuple[str, ...]:
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
     from specify_cli.upgrade.assessment import prepare_upgrade_repairs
     from specify_cli.tool_surface.operations import ApplyConsent
     from specify_cli.core.agent_config import AgentConfigError
 
     try:
         ctx.prepared_repairs = prepare_upgrade_repairs(project_path, consent=ApplyConsent(automatic=True))
-    except (OSError, ValueError, AgentConfigError, CharterPackConfigError) as exc:
+    except (OSError, ValueError, AgentConfigError, ActiveCharterConfigError) as exc:
         return (_preparation_error_text(exc),)
     return ()
 
@@ -1057,7 +1057,7 @@ def _finalizer_repair_preflight(prepared: PreparedUpgradeRepairs | None, errors:
 
 def _supporting_repair_preview(project_path: Path) -> tuple[str, bool]:
     """Describe canonical retained effects without entering any write boundary."""
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
     from specify_cli.core.agent_config import AgentConfigError
     from specify_cli.tool_surface.operations import ApplyConsent
     from specify_cli.upgrade.assessment import prepare_upgrade_repairs
@@ -1069,7 +1069,7 @@ def _supporting_repair_preview(project_path: Path) -> tuple[str, bool]:
             detail = "; ".join(d.message for d in prepared.diagnostics if d.severity == "error")
             return f"Supporting repair preview incomplete: {detail[:350] or 'Required owner assessment incomplete'}. {hint}", True
         effects = prepared.effects
-    except (OSError, ValueError, AgentConfigError, CharterPackConfigError) as exc:
+    except (OSError, ValueError, AgentConfigError, ActiveCharterConfigError) as exc:
         return f"Supporting repair preview incomplete: {_preparation_error_text(exc)[:350]}. {hint}", True
     preserved = sum(d.state == "consent_required" for owner in prepared.owners for d in owner.dispositions)
     if not effects and not preserved:

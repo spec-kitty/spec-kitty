@@ -584,7 +584,7 @@ Governing ADR: [`docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`](d
 
 ### Activation Engine (`charter.activation.activation_engine`)
 
-Plan/commit seam: `plan_activation()` validates (non-mutating); `commit_plan()` writes config only after plan succeeds. Never mutates config on validation failure (NFR-003). `CharterPackConfigError` → fail-closed. (Companion seam: `plan_deactivation()` / `promote_activations()`.)
+Plan/commit seam: `plan_activation()` validates (non-mutating); `commit_plan()` writes config only after plan succeeds. Never mutates config on validation failure (NFR-003). `ActiveCharterConfigError` → fail-closed. (Companion seam: `plan_deactivation()` / `promote_activations()`.)
 
 ```python
 plan = plan_activation(kind="directive", artifact_id="010-...", pack_context=ctx)

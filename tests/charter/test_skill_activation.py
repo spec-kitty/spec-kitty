@@ -19,7 +19,7 @@ from charter.activation.drg_activation import _SINGULAR_TO_PER_KIND_FIELD
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.org_pack_discovery import read_org_required_ids, read_org_skill_namespace
 from charter.activation.pack_context import PackContext, _absent_key_default
-from charter.activation.pack_manager import CharterPackManager
+from charter.activation.pack_manager import ActiveCharterManager
 from charter.activation.skill_preparation import SkillPreparationError
 from charter.offering.artifact_kinds import ArtifactKind
 from specify_cli.cli.commands.charter import charter_app
@@ -206,7 +206,7 @@ def test_deactivate_skill_removes_only_that_skill(project: Path) -> None:
 
 def test_deactivate_skill_from_absent_key_is_refused_with_guidance(project: Path) -> None:
     with pytest.raises(NoActivationRestrictionsError) as excinfo:
-        CharterPackManager().deactivate(ProjectContext(repo_root=project), "skill", "required-one")
+        ActiveCharterManager().deactivate(ProjectContext(repo_root=project), "skill", "required-one")
     message = str(excinfo.value)
     assert "spec-kitty charter activate skill <id>" in message
     assert "spec-kitty upgrade" not in message
@@ -229,7 +229,7 @@ def test_activating_a_skill_leaves_other_kinds_untouched(project: Path) -> None:
 
 
 def test_merge_defaults_keeps_an_absent_skills_key_absent(project: Path) -> None:
-    result = CharterPackManager().merge_defaults(ProjectContext(repo_root=project))
+    result = ActiveCharterManager().merge_defaults(ProjectContext(repo_root=project))
 
     assert "skill" not in result.kinds_written
     assert _activated(project, "activated_skills") is None
@@ -239,7 +239,7 @@ def test_merge_defaults_keeps_an_absent_skills_key_absent(project: Path) -> None
 
 def test_merge_defaults_preserves_an_explicit_skills_key(project: Path) -> None:
     support.write_config(project, project / "pack", extra="activated_skills: [z]\n")
-    CharterPackManager().merge_defaults(ProjectContext(repo_root=project))
+    ActiveCharterManager().merge_defaults(ProjectContext(repo_root=project))
     assert _activated(project, "activated_skills") == ["z"]
 
 

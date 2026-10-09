@@ -203,7 +203,7 @@ class TestActivationBlockSeam:
     def _entry(pack: str, artifact: str, mission_type: str = "software-dev") -> ActivationEntry:
         return ActivationEntry(
             activation_context={"mission_type": mission_type, "action": "implement"},
-            doctrine_pack_id=pack,
+            charter_pack_id=pack,
             artifact_id=artifact,
         )
 

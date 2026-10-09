@@ -135,11 +135,11 @@ def _resolve_create_governance(governance_root: Path, mission: str | None) -> _G
         existing_mission_types,
         resolve_mission_type_context,
     )
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
     from specify_cli.runtime.resolver import resolve_configured_template
 
     if not existing_mission_types(governance_root):
-        raise CharterPackConfigError(
+        raise ActiveCharterConfigError(
             "This project has no activated mission types, so a mission cannot "
             "be created. A mission requires at least one activated mission "
             "type. Provision the project's charter: run `spec-kitty init` "

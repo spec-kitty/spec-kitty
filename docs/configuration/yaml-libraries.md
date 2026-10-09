@@ -51,7 +51,7 @@ PyYAML's `yaml.safe_load` is a single-call read with no write path. It is approp
 | `src/specify_cli/frontmatter.py` | 16–18 | `from ruamel.yaml import YAML, CommentedMap` | `FrontmatterManager` — read and write WP frontmatter files in place (rule 1: always use ruamel.yaml; rule 4: preserve comments) |
 | `src/charter/offering/yaml_utils.py` | 21 | `from ruamel.yaml import YAML` | `canonical_yaml()` — deterministic sorted-key serializer for hashing; uses ruamel for consistent output |
 | `src/charter/offering/drg/loader.py` | 12–13 | `from ruamel.yaml import YAML, YAMLError` | Doctrine relationship graph (DRG) loader — round-trip parse |
-| `src/charter/activation/pack_manager.py` | 453–454 | `YAML(); yaml.preserve_quotes = True` | `_load_config()` / `_save_config()` — read + write `.kittify/config.yaml` in `CharterPackManager` |
+| `src/charter/activation/pack_manager.py` | 453–454 | `YAML(); yaml.preserve_quotes = True` | `_load_config()` / `_save_config()` — read + write `.kittify/config.yaml` in `ActiveCharterManager` |
 | `src/specify_cli/review/artifacts.py` | 20 | `from ruamel.yaml import YAML` | Review artifact serialization — preserve existing frontmatter style |
 
 ### 2.2 PyYAML `safe_load` sites (read-only)

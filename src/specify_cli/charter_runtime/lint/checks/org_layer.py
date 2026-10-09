@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from charter.drg import ArtifactKind
+from charter.offering.packs.retired_fields import RETIRED_PACK_FIELD, RetiredPackFieldError
 from specify_cli.charter_runtime.lint.findings import LintFinding
 
 KITTIFY_DIR_NAME = ".kittify"
@@ -106,7 +107,7 @@ class OrgCharterDeviationChecker:
         # this same commit removes from ``generate.py``. ``charter`` is
         # first-party and ships in the same wheel, so there is no legitimate
         # "not yet available" case to tolerate here; call it directly and let
-        # ``charter.activation.pack_context.CharterPackConfigError`` (raised by
+        # ``charter.activation.pack_context.ActiveCharterConfigError`` (raised by
         # ``PackContext.from_config`` inside ``ProjectContext.from_repo``)
         # propagate rather than silently falling back to an unfiltered scan.
         from charter.activation.invocation_context import ProjectContext  # noqa: PLC0415
@@ -115,6 +116,9 @@ class OrgCharterDeviationChecker:
 
         try:
             policies = load_org_charter_policies(repo_root, pack_context=_pack_ctx)
+        except RetiredPackFieldError as exc:
+            # #3732: never drop a pack with a retired field in silence.
+            return [_retired_pack_field_finding(exc)]
         except Exception:  # noqa: BLE001
             return []
         governance_policies = list(getattr(policies, "governance_policies", []) or [])
@@ -155,6 +159,18 @@ class OrgCharterDeviationChecker:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _retired_pack_field_finding(exc: RetiredPackFieldError) -> LintFinding:
+    """A ``high`` finding for an org pack whose ``org-charter.yaml`` carries a retired field."""
+    return LintFinding(
+        category="org_layer",
+        type="retired_pack_field",
+        id=f"{exc.file}:{exc.field}",
+        severity="high",
+        message=f"{RETIRED_PACK_FIELD}: {exc}",
+        remediation_hint=f"Rename '{exc.field}' to '{exc.replacement}' in {exc.file}.",
+    )
 
 
 def _resolve_override_scan_services(repo_root: Path) -> tuple[Any, Any] | None:

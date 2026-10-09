@@ -199,7 +199,7 @@ class TestDeactivateNoneState:
     def test_none_state_exits_one_with_upgrade_guidance(self, empty_project_root: Path) -> None:
         """Deactivating from None-state exits 1 with rendered upgrade guidance (WP12/T054).
 
-        WP09 replaced the legacy ``sys.exit(1)`` in ``CharterPackManager.deactivate``
+        WP09 replaced the legacy ``sys.exit(1)`` in ``ActiveCharterManager.deactivate``
         with the engine's typed ``NoActivationRestrictionsError`` (carrying the
         "run upgrade first" guidance). WP12 now **catches** that error in the CLI and
         renders it as a clean exit-1 with guidance (no propagated exception) — the

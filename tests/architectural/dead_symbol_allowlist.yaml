@@ -325,6 +325,13 @@ categories:
       raise, public for external filtering" shape of ``LegacyOrgPackDoctrineKeyWarning`` above; deleted
       with the legacy read fallback by WP14 (FR-011).'
     requires_issue: false
+  category_c_charter_pack_cutover_retired_fields:
+    rationale: 'C. charter-pack-cutover retired-field table (#3732, WP17). ``RETIRED_PACK_FIELDS``
+      and ``RetiredField`` are the typed table behind ``RETIRED_PACK_FIELD`` (contracts/errors.md);
+      src callers reach them through ``reject_retired_fields`` / ``retired_field_errors``. WP13 (same
+      mission) wires the table directly when it adds the ``accompanies_doctrine_pack`` row (a new
+      ``pack.yaml`` top-level scope) and the pack.yaml descriptor check; burns down then.'
+    requires_issue: false
   category_e_charter_activation_split_forward_api:
     rationale: 'E. charter-activation-split forward API (#806). EXPERIMENTAL deliberately retains its
       replay semantics, so these restored upstream helpers are public but currently unwired. TODO(triage):
@@ -1250,6 +1257,12 @@ entries:
 - module: charter.drg
   name: merge_three_layers
   category: category_e_charter_activation_split_forward_api
+- module: charter.offering.packs.retired_fields
+  name: RETIRED_PACK_FIELDS
+  category: category_c_charter_pack_cutover_retired_fields
+- module: charter.offering.packs.retired_fields
+  name: RetiredField
+  category: category_c_charter_pack_cutover_retired_fields
 - module: specify_cli.core.env
   name: MOMENT_HANDLER_DISABLE_ENV_VARS
   category: category_c_team_kitty_launch_defaults_3980
@@ -1521,7 +1534,7 @@ widened_grandfathered_470:
   - module: specify_cli.tool_surface.profiles.projection
     name: LAYER_PROJECT
   - module: specify_cli.tool_surface.providers.managed_skills
-    name: doctrine_skill_entries
+    name: charter_skill_entries
   - module: specify_cli.tool_surface.service
     name: lint_docs_directory
   - module: specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env

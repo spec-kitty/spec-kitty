@@ -19,7 +19,7 @@ suite pins:
 * a malformed/absent default pack fails closed on BOTH write paths, each
   still surfacing its own historical exception type
   (``DefaultCharterPackMissingError`` for ``specify_cli``,
-  ``CharterPackConfigError`` for ``charter.activation.compiler``).
+  ``ActiveCharterConfigError`` for ``charter.activation.compiler``).
 
 Write-side behaviour (which config file, additive-only, idempotence,
 authored-``[]``-preserved) is unchanged and already covered by
@@ -38,7 +38,7 @@ from ruamel.yaml import YAML
 import charter.activation.default_pack as default_pack_module
 from charter.activation.compiler import provision_mission_type_activations
 from charter.activation.default_pack import load_default_mission_type_activations
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 from specify_cli.provisioning import default_charter
 from specify_cli.provisioning.default_charter import (
     DefaultCharterPackMissingError,
@@ -90,7 +90,7 @@ def test_both_provisioners_seed_identical_set_from_real_default_pack(
 def test_shared_helper_fails_closed_on_missing_default_pack(tmp_path: Path) -> None:
     missing_root = tmp_path / "no-such-charter-pkg"
 
-    with pytest.raises(CharterPackConfigError):
+    with pytest.raises(ActiveCharterConfigError):
         load_default_mission_type_activations(pack_path=missing_root / "default.yaml")
 
 
@@ -100,7 +100,7 @@ def test_shared_helper_fails_closed_on_pack_without_mission_type_key(
     broken_pack = tmp_path / "broken-default.yaml"
     broken_pack.write_text("activated_kinds: []\n", encoding="utf-8")
 
-    with pytest.raises(CharterPackConfigError):
+    with pytest.raises(ActiveCharterConfigError):
         load_default_mission_type_activations(pack_path=broken_pack)
 
 
@@ -117,7 +117,7 @@ def test_shared_helper_fails_closed_on_authored_empty_list_in_shipped_pack(
     empty_pack = tmp_path / "empty-default.yaml"
     empty_pack.write_text("mission_type_activations: []\n", encoding="utf-8")
 
-    with pytest.raises(CharterPackConfigError):
+    with pytest.raises(ActiveCharterConfigError):
         load_default_mission_type_activations(pack_path=empty_pack)
 
 
@@ -136,7 +136,7 @@ def test_charter_generate_path_fails_closed_on_broken_default_pack(
     kittify.mkdir(parents=True)
     (kittify / "config.yaml").write_text("vcs:\n  type: git\n", encoding="utf-8")
 
-    with pytest.raises(CharterPackConfigError):
+    with pytest.raises(ActiveCharterConfigError):
         provision_mission_type_activations(project)
 
     # Fail-closed means untouched: no partial/garbage key written.

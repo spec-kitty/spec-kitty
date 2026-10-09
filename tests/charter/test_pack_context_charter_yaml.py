@@ -26,7 +26,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.activation.pack_context import CharterPackConfigError, PackContext
+from charter.activation.pack_context import ActiveCharterConfigError, PackContext
 
 
 pytestmark = [pytest.mark.fast]
@@ -203,7 +203,7 @@ def test_dangling_charter_pointer_raises(tmp_path: Path) -> None:
     _write_config(tmp_path, _POINTER_CONFIG)
     # Deliberately do NOT create .kittify/charter/charter.yaml.
 
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+    with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID"):
         PackContext.from_config(tmp_path)
 
 
@@ -213,7 +213,7 @@ def test_malformed_charter_yaml_raises(tmp_path: Path) -> None:
     _write_config(tmp_path, _POINTER_CONFIG)
     _write_charter_yaml(tmp_path, "activated_directives: [unterminated\n")
 
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+    with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID"):
         PackContext.from_config(tmp_path)
 
 
@@ -223,7 +223,7 @@ def test_non_mapping_charter_yaml_root_raises(tmp_path: Path) -> None:
     _write_config(tmp_path, _POINTER_CONFIG)
     _write_charter_yaml(tmp_path, "- not\n- a\n- mapping\n")
 
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+    with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID"):
         PackContext.from_config(tmp_path)
 
 
@@ -232,7 +232,7 @@ def test_malformed_activation_value_in_charter_yaml_raises(tmp_path: Path) -> No
     _write_config(tmp_path, _POINTER_CONFIG)
     _write_charter_yaml(tmp_path, "activated_directives: not-a-list\n")
 
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+    with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID"):
         PackContext.from_config(tmp_path)
 
 
@@ -248,7 +248,7 @@ def test_no_config_yaml_at_all_returns_empty_mission_types(tmp_path: Path) -> No
 
     Historically (pre-WP04) this scenario fell back to the built-in default
     pack for ``activated_mission_types``; an intermediate WP04 iteration made
-    it a construction ``CharterPackConfigError``. The final WP04
+    it a construction ``ActiveCharterConfigError``. The final WP04
     re-architecture made construction TOTAL: an absent ``mission_type_
     activations`` reads as ``frozenset()`` (never the all-four backfill,
     never a raise), because ``PackContext`` sits on dozens of read / compose
@@ -348,7 +348,7 @@ def test_from_config_with_inline_charter_mapping_uses_legacy_read(
 ) -> None:
     """``charter:`` present as an inline mapping (not a string pointer) must be
     treated as the legacy/un-migrated state: activation is read from the
-    top-level config.yaml keys, and no CHARTER_PACK_CONFIG_INVALID is raised
+    top-level config.yaml keys, and no ACTIVE_CHARTER_CONFIG_INVALID is raised
     for the mapping value (regression guard for #2850)."""
     content = """\
 vcs:

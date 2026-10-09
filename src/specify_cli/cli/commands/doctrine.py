@@ -902,7 +902,7 @@ def validate(
 #: carries the schema_version sentinel and a TODO org_name as a
 #: quickstart hint.
 _ORG_CHARTER_STUB = """\
-schema_version: "1"
+schema_version: "2"
 org_name: TODO replace with your organisation name
 required_directives: []
 required_tactics: []

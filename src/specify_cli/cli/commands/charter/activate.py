@@ -14,9 +14,9 @@ WP11 scoped cascade engine into the CLI surface:
   :func:`charter.activation.cascade.referenced_but_not_cascaded` so the operator is warned
   about referenced-but-skipped artifacts (FR-013).
 * In-scope cascade targets (:func:`charter.activation.cascade.cascade_activation_targets`)
-  are activated through the same :class:`~charter.activation.pack_manager.CharterPackManager`
+  are activated through the same :class:`~charter.activation.pack_manager.ActiveCharterManager`
   seam as the direct activation, and rendered per kind (FR-014).
-* :class:`charter.activation.pack_context.CharterPackConfigError` is caught and surfaced as
+* :class:`charter.activation.pack_context.ActiveCharterConfigError` is caught and surfaced as
   a clean exit-1 with its diagnostic code + remediation, before any mutation
   (FR-035 fail-closed, C1.5).
 """
@@ -47,8 +47,8 @@ from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from charter.activation.pack_context import CharterPackConfigError, PackContext
-from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.pack_context import ActiveCharterConfigError, PackContext
+from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from charter.activation.project_registration import (
     commit_project_registration,
     plan_project_registration,
@@ -100,10 +100,10 @@ CASCADE_ZERO_ACTIVATABLE_TARGETS_MESSAGE = (
 
 
 
-def render_pack_config_error(exc: CharterPackConfigError, console: Console) -> None:
-    """Render a :class:`CharterPackConfigError` as fail-closed CLI guidance (FR-035).
+def render_pack_config_error(exc: ActiveCharterConfigError, console: Console) -> None:
+    """Render a :class:`ActiveCharterConfigError` as fail-closed CLI guidance (FR-035).
 
-    Surfaces the stable ``CHARTER_PACK_CONFIG_INVALID`` diagnostic code plus the
+    Surfaces the stable ``ACTIVE_CHARTER_CONFIG_INVALID`` diagnostic code plus the
     error body (which already carries the remediation hint). Shared by the
     activate and deactivate commands so both fail closed identically.
     """
@@ -113,7 +113,7 @@ def render_pack_config_error(exc: CharterPackConfigError, console: Console) -> N
 def validate_pack_config(repo_root: Path) -> None:
     """Load the project pack context to fail closed on invalid config (FR-035).
 
-    :meth:`PackContext.from_config` raises :class:`CharterPackConfigError` when
+    :meth:`PackContext.from_config` raises :class:`ActiveCharterConfigError` when
     ``.kittify/config.yaml`` has an invalid charter-pack shape. Calling it here
     — *before* any mutation — gives that previously dead-ended error type a live
     external caller and guarantees no write happens on a malformed config (C1.5).
@@ -223,7 +223,7 @@ def _validate_mission_type_activatable(kind: str, artifact_id: str, repo_root: P
 
 
 def _activate_cascade_target(
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
     ctx_project: ProjectContext,
     kind_token: str,
     config_id: str,
@@ -232,7 +232,7 @@ def _activate_cascade_target(
 ) -> None:
     """Activate one cascade target, trying each org root in the chain in turn.
 
-    T009 (mission ``cascade-org-inert-01M07E9P``): :meth:`CharterPackManager.activate`
+    T009 (mission ``cascade-org-inert-01M07E9P``): :meth:`ActiveCharterManager.activate`
     validates artifact availability through its own ``layer_roots["org"]``
     single-``Path`` slot (``charter/pack_manager.py`` -- not owned by this WP;
     its ``dict[str, Path]`` contract is load-bearing for ``charter list
@@ -243,7 +243,7 @@ def _activate_cascade_target(
     only ever sees pack 1 through ``layer_roots``. This substitutes each
     candidate org root from the chain, in declaration order, for
     ``layer_roots["org"]`` and retries, so a chain artifact still activates
-    without widening ``CharterPackManager.activate``'s signature. When
+    without widening ``ActiveCharterManager.activate``'s signature. When
     ``org_roots`` is empty/``None`` (no org packs, or none in the chain),
     exactly one attempt is made with the original *layer_roots* -- byte-for-
     byte the pre-T008 call shape (FR-001 AC4 no-org-pack regression).
@@ -284,7 +284,7 @@ def _activate_cascade_target(
 
 
 def _render_cascade_activation(
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
     ctx_project: ProjectContext,
     source_urn: str,
     scope: CascadeScope,
@@ -848,7 +848,7 @@ def activate_cmd(
     # FR-035 fail-closed: reject invalid pack config before any mutation (C1.5).
     try:
         validate_pack_config(repo_root)
-    except CharterPackConfigError as exc:
+    except ActiveCharterConfigError as exc:
         render_pack_config_error(exc, console)
         raise typer.Exit(1) from exc
 
@@ -885,7 +885,7 @@ def activate_cmd(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
-    manager = CharterPackManager()
+    manager = ActiveCharterManager()
     try:
         registration = plan_project_registration(repo_root)
         if resynthesize:

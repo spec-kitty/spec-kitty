@@ -26,7 +26,7 @@ import pytest
 
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.mission_type_profiles import resolve_action_sequence_layer
-from charter.activation.pack_manager import CharterPackManager, _resolve_layer_candidate
+from charter.activation.pack_manager import ActiveCharterManager, _resolve_layer_candidate
 from charter.offering.missions.mission_type_repository import (
     ORG_MISSION_TYPES_SUBDIR,
     PROJECT_MISSION_TYPES_RELATIVE,
@@ -106,7 +106,7 @@ class TestMissionTypePathLayoutSingleAuthority:
         project_pack_root = repo / ".kittify" / "charter-packs"
         candidate = _resolve_layer_candidate("project", project_pack_root, None, "missions/mission_types", layered=False)
         assert candidate == authority_dir
-        detailed = CharterPackManager().list_available_detailed(
+        detailed = ActiveCharterManager().list_available_detailed(
             ProjectContext(repo_root=repo),
             kind="mission-type",
             layer_roots={"project": project_pack_root},
@@ -133,7 +133,7 @@ class TestMissionTypePathLayoutSingleAuthority:
 
         candidate = _resolve_layer_candidate("org", org_root, None, "missions/mission_types", layered=False)
         assert candidate == authority_dir
-        detailed = CharterPackManager().list_available_detailed(
+        detailed = ActiveCharterManager().list_available_detailed(
             ProjectContext(repo_root=org_root),
             kind="mission-type",
             layer_roots={"org": org_root},

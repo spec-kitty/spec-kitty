@@ -389,7 +389,7 @@ charter_path_literals:
   token: "if not charter_path . exists ( ) :"
   rationale: "Paired with the :48 _CHARTER_FILENAME constant declaration -- ensure_charter_bundle_fresh reads charter.md's presence to decide whether to auto-refresh extracted artifacts; charter.yaml remains the C-001 presence/config authority elsewhere in this module (_load_charter_yaml_section)."
 - file: src/charter/activation/pack_manager.py
-  qualname: CharterPackManager.merge_defaults
+  qualname: ActiveCharterManager.merge_defaults
   line: 849
   literal: "charter.md"
   clause: "b"

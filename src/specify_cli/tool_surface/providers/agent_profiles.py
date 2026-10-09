@@ -27,7 +27,7 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 from kernel.charter_pack_paths import resolve_project_pack_read_root
 from ruamel.yaml.error import YAMLError
 
@@ -114,7 +114,7 @@ def agent_profile_definition() -> SurfaceDefinition:
 def _build_projector(project_root: Path) -> ProfileProjector:
     try:
         return ProfileProjector.from_project(project_root)
-    except (CharterPackConfigError, YAMLError, TypeError, KeyError) as exc:
+    except (ActiveCharterConfigError, YAMLError, TypeError, KeyError) as exc:
         raise ValueError(f"Invalid required profile inputs: {exc}") from exc
 
 
@@ -194,7 +194,7 @@ class AgentProfilesProvider:
             if before != _input_states(roots) or observe_node(manifest_path_for(inputs.root.path)) != manifest_before:
                 raise ValueError("Profile inputs changed during preparation")
             return assessment
-        except (OSError, ValueError, TypeError, KeyError, AgentConfigError, CharterPackConfigError, YAMLError) as exc:
+        except (OSError, ValueError, TypeError, KeyError, AgentConfigError, ActiveCharterConfigError, YAMLError) as exc:
             return OwnerAssessment(
                 PROVIDER_KEY,
                 inputs.root,

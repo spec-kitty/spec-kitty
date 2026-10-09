@@ -174,7 +174,7 @@ class TestCharterListAllMalformedYamlBoundary:
     """``charter list --all --show-available`` (charter/list_cmd.py) -- sibling.
 
     Reaches ``scan_mission_types_dir`` via
-    ``CharterPackManager.list_available_detailed``'s dedicated mission-type
+    ``ActiveCharterManager.list_available_detailed``'s dedicated mission-type
     branch (PR-CONTRACT-002), not ``resolve_layered_roster`` -- the same
     underlying loud-fail primitive, a different direct caller.
     """

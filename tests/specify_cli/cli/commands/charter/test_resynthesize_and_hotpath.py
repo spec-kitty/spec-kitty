@@ -46,7 +46,7 @@ from typer.testing import CliRunner
 
 from charter.activation.activation_engine import promote_activations
 from charter.activation.invocation_context import ProjectContext
-from charter.activation.pack_manager import CharterPackManager
+from charter.activation.pack_manager import ActiveCharterManager
 from specify_cli.charter_runtime.freshness import compute_freshness
 from specify_cli.cli.commands.charter import charter_app
 
@@ -528,7 +528,7 @@ def test_promote_activations_migration_path_triggers_no_synthesis(
 
 # ---------------------------------------------------------------------------
 # Sanity: writer-agnostic activation is not accidentally required for the
-# flag to exist -- CharterPackManager itself is untouched (C-001 sanity via
+# flag to exist -- ActiveCharterManager itself is untouched (C-001 sanity via
 # direct exercise, complementing the AST-level guard other WPs already run).
 # ---------------------------------------------------------------------------
 
@@ -536,5 +536,5 @@ def test_promote_activations_migration_path_triggers_no_synthesis(
 def test_merge_defaults_writer_unaffected_by_resynthesize_flag(tmp_path: Path) -> None:
     """The ``merge_defaults`` bypass writer still works with the flag machinery present."""
     _seed_synthesized_repo(tmp_path, ref_entries=[])
-    result = CharterPackManager().merge_defaults(_ctx(tmp_path))
+    result = ActiveCharterManager().merge_defaults(_ctx(tmp_path))
     assert result.kinds_written  # sanity: the bypass writer still works unmodified

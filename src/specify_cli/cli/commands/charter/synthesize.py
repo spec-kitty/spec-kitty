@@ -687,7 +687,7 @@ def charter_synthesize(  # noqa: C901
         # Contract (kernel.errors): CLI/UI layers catch this base type to render
         # the diagnostic uniformly. Surface both the code AND the informative
         # `.body` instead of swallowing it into "Unexpected error: <code>"
-        # (#2850 follow-up — the CHARTER_PACK_CONFIG_INVALID body was invisible).
+        # (#2850 follow-up — the ACTIVE_CHARTER_CONFIG_INVALID body was invisible).
         detail = f"{e.code}: {e.body}" if e.body else e.code
         if json_output:
             print(

@@ -453,7 +453,7 @@ class TestSynthesizeErrorPaths:
         assert LINKED_WORKTREE_REFUSAL not in " ".join(result.output.split())
 
     def test_pack_config_error_surfaces_diagnostic_body(self, tmp_path: Path, charter_cwd_isolation: Callable[..., Path]) -> None:
-        """CHARTER_PACK_CONFIG_INVALID body reaches the operator, not just the code (#2850).
+        """ACTIVE_CHARTER_CONFIG_INVALID body reaches the operator, not just the code (#2850).
 
         Regression for the diagnostic-quality gap the issue flagged: a
         ``KittyInternalConsistencyError`` must be caught specifically (per
@@ -465,7 +465,7 @@ class TestSynthesizeErrorPaths:
         config = tmp_path / ".kittify" / "config.yaml"
         config.parent.mkdir(parents=True, exist_ok=True)
         # A STRING charter: pointer to a non-existent charter.yaml triggers a
-        # fail-loud CharterPackConfigError whose body names the bad pointer.
+        # fail-loud ActiveCharterConfigError whose body names the bad pointer.
         config.write_text("charter: does-not-exist/charter.yaml\n", encoding="utf-8")
 
         charter_cwd_isolation()

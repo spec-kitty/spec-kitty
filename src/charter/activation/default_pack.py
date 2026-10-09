@@ -42,7 +42,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 
 __all__ = [
     "load_default_mission_type_activations",
@@ -140,14 +140,14 @@ def load_default_mission_type_activations(pack_path: Path | None = None) -> list
             shipped ``src/charter/activation/packs/default.yaml``.
 
     Raises:
-        CharterPackConfigError: the resolved pack file does not declare a
+        ActiveCharterConfigError: the resolved pack file does not declare a
             non-empty ``mission_type_activations`` list.
     """
     resolved_path = pack_path if pack_path is not None else _default_pack_yaml_path(None)
     raw = _load_raw_pack_mapping(resolved_path)
     activations = raw.get(_MISSION_TYPE_ACTIVATIONS_KEY)
     if not isinstance(activations, list) or not activations:
-        raise CharterPackConfigError(
+        raise ActiveCharterConfigError(
             f"{resolved_path} does not declare a non-empty "
             f"'{_MISSION_TYPE_ACTIVATIONS_KEY}' list. Cannot provision "
             "mission-type activations. This indicates a broken spec-kitty "

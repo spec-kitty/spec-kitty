@@ -12,7 +12,7 @@ import pytest
 
 from ._requirements import REMOVED_SKILL_IDS, REPO_ROOT, RETIRED_EXTRA_SKILL_IDS, is_living_path
 from ._support import covers, describe, git_init_commit, load_yaml, output_of, pending_until, read_json_output, run_cli
-from .legacy_fixtures import EDITED_SKILL, project_from_template, write_doctrine_pack, write_text, write_yaml
+from .legacy_fixtures import MISSION_TYPES, EDITED_SKILL, finish, project_from_template, write_doctrine_pack, write_text, write_yaml
 from .test_package_split import _python_names
 
 SKILLS_ROOT = REPO_ROOT / "src" / "charter" / "offering" / "skills"
@@ -110,7 +110,6 @@ def _src_bindings(names: tuple[str, ...], root: Path) -> list[str]:
 
 
 @covers("FR-009")
-@pending_until("WP17", "ActiveCharterManager / ActiveCharterConfigError, no alias")
 def test_fr009_three_names_no_alias(tmp_path: Path) -> None:
     (tmp_path / "planted.py").write_text("CharterPackManager = object\n", encoding="utf-8")
     assert _src_bindings(OLD_CLASS_NAMES, tmp_path), "self-test: a planted alias is found"
@@ -125,7 +124,6 @@ def test_fr009_three_names_no_alias(tmp_path: Path) -> None:
 @covers("FR-009")
 @pytest.mark.integration
 @pytest.mark.git_repo
-@pending_until("WP17", "ACTIVE_CHARTER_CONFIG_INVALID on the --json surface")
 def test_fr009_json_error_code(tmp_path: Path) -> None:
     project = project_from_template("two_org_packs", tmp_path / "p")
     (project / ".kittify" / "config.yaml").write_text("charter_packs: [unclosed\n", encoding="utf-8")
@@ -138,7 +136,6 @@ def test_fr009_json_error_code(tmp_path: Path) -> None:
 
 @covers("FR-009")
 @pytest.mark.integration
-@pending_until("WP17", "ToolSurfaceKind.CHARTER_SKILL and `--kind charter-skill`")
 def test_fr009_tool_surface_kind(tmp_path: Path) -> None:
     enums = importlib.import_module("specify_cli.tool_surface.enums")
     assert enums.ToolSurfaceKind.CHARTER_SKILL.value == "charter_skill"
@@ -154,7 +151,6 @@ def test_fr009_tool_surface_kind(tmp_path: Path) -> None:
 
 @covers("US3-4", "OD-1")
 @pytest.mark.integration
-@pending_until("WP17", "`charter org validate` rejects doctrine_pack_id naming charter_pack_id")
 def test_us3_4_doctrine_pack_id_rejected_in_org_charter(tmp_path: Path) -> None:
     entry = {"activation_context": {"mission_type": "software-dev"}, "artifact_id": "acceptance-test-first", "artifact_kind": "tactics"}
     base = load_yaml(write_doctrine_pack(tmp_path / "scaffold") / "org-charter.yaml")
@@ -167,6 +163,38 @@ def test_us3_4_doctrine_pack_id_rejected_in_org_charter(tmp_path: Path) -> None:
     refused = run_cli(["charter", "org", "validate", str(bad)], tmp_path)
     assert refused.exit_code != 0, describe(refused)
     assert "doctrine_pack_id" in output_of(refused) and "charter_pack_id" in output_of(refused), describe(refused)
+
+
+def _project_with_org_activation(project: Path, pack_field: str) -> Path:
+    entry = {"activation_context": {"mission_type": "software-dev"}, "artifact_id": "acceptance-test-first", "artifact_kind": "tactics"}
+    pack = write_doctrine_pack(project / "orgpack")
+    base = load_yaml(pack / "org-charter.yaml")
+    write_yaml(pack / "org-charter.yaml", {**base, "schema_version": "2", "activations": [{**entry, pack_field: "built-in"}]})
+    return finish(project, {"charter_packs": {"org": {"packs": [{"name": "acme", "local_path": "orgpack"}]}}, "mission_type_activations": MISSION_TYPES})
+
+
+@covers("US3-4", "OD-1")
+@pytest.mark.integration
+def test_us3_4_doctrine_pack_id_rejected_on_load(tmp_path: Path) -> None:
+    """Loading an org pack that carries the retired field exits 1 naming code, file, field and replacement."""
+    good = _project_with_org_activation(tmp_path / "good", "charter_pack_id")
+    ok = run_cli(["charter", "context", "--action", "implement", "--json"], good)
+    assert ok.exit_code == 0, describe(ok)
+    assert read_json_output(ok)["org_charter"]["present"] is True, describe(ok)
+    bad = _project_with_org_activation(tmp_path / "bad", "doctrine_pack_id")
+    org_charter = str(bad / "orgpack" / "org-charter.yaml")
+    refused = run_cli(["charter", "context", "--action", "implement", "--json"], bad)
+    assert refused.exit_code == 1, describe(refused)
+    payload = read_json_output(refused)
+    assert payload["code"] == "RETIRED_PACK_FIELD", describe(refused)
+    assert org_charter in payload["error"] and "doctrine_pack_id" in payload["error"] and "charter_pack_id" in payload["error"], describe(refused)
+    text = run_cli(["charter", "generate", "--no-from-interview"], bad)
+    assert text.exit_code == 1, describe(text)
+    flat = " ".join(output_of(text).split())
+    assert "Error (RETIRED_PACK_FIELD):" in flat and "docs/migrations/charter-pack-cutover.md" in flat, describe(text)
+    assert "doctrine_pack_id" in flat and "charter_pack_id" in flat and "org-charter.yaml" in flat, describe(text)
+    lint = run_cli(["charter", "lint"], bad)
+    assert "retired_pack_field" in output_of(lint) and "RETIRED_PACK_FIELD" in output_of(lint), describe(lint)
 
 
 @covers("OD-5", "C-005")

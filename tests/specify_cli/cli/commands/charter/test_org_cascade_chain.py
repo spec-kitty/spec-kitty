@@ -13,7 +13,7 @@ pack 2..N, the DRG-bare-ID -> config-stem-ID mapping (``_cascade_shared.py``'s
 ``drg_urn_to_config_id``, consolidated there from ``activate.py``'s
 ``_drg_id_to_config_id`` by issue #3772)
 still only consulted pack 1 -- an org-pack-2..N cascade target would resolve to
-its raw DRG ID (unresolvable by ``CharterPackManager.activate``) instead of its
+its raw DRG ID (unresolvable by ``ActiveCharterManager.activate``) instead of its
 real config stem.
 
 Covers T011 (red-first single-pack + two-pack chain), T012 (non-vacuity: the
@@ -687,7 +687,7 @@ class TestFragmentYamlEdgeCascades:
 
 
 class _FakeManagerMultiFail:
-    """Stand-in for ``CharterPackManager`` whose ``.activate`` raises a
+    """Stand-in for ``ActiveCharterManager`` whose ``.activate`` raises a
     distinct, caller-supplied ``ValueError`` on each successive call --
     one per org-root candidate ``_activate_cascade_target`` tries."""
 

@@ -2,7 +2,7 @@
 
 This module makes "validation provably precedes the single config write" a
 *structural* property instead of an implementation detail. The previous
-``CharterPackManager.activate`` body (``pack_manager.py``) interleaved
+``ActiveCharterManager.activate`` body (``pack_manager.py``) interleaved
 validation, default-pack materialization, list mutation, and the single
 ``_save_config`` write. That made the NFR-003 invariant ("config bytes
 unchanged after any activation failure") true only by careful ordering and

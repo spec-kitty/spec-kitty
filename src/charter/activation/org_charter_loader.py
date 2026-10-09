@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from charter.activation.org_charter import load_org_charter_policy
+from charter.offering.packs.retired_fields import RetiredPackFieldError
 from kernel.charter_pack_paths import pack_org_charter
 
 _EMPTY_BLOCK: dict[str, Any] = {"present": False, "packs": []}
@@ -41,6 +42,10 @@ def load_org_charter_json_block(org_roots: list[Path] | None) -> dict[str, Any]:
 
     * ``org_roots`` is empty or ``None``;
     * none of the configured packs ship an ``org-charter.yaml``.
+
+    A pack whose ``org-charter.yaml`` carries a retired field raises
+    :class:`~charter.offering.packs.retired_fields.RetiredPackFieldError`;
+    any other unreadable policy is skipped.
     """
     if not org_roots:
         return dict(_EMPTY_BLOCK)
@@ -54,6 +59,9 @@ def load_org_charter_json_block(org_roots: list[Path] | None) -> dict[str, Any]:
             continue
         try:
             policy = load_org_charter_policy(org_root)
+        except RetiredPackFieldError:
+            # Fail closed (#3732): a retired field is never summarised away.
+            raise
         except Exception:  # noqa: BLE001, S112 — best-effort summary; continue with next pack
             continue
         if policy is None:

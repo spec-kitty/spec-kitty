@@ -203,7 +203,7 @@ def resolve_accompanying_doctrine_pack(
     """Resolve a charter pack's ``accompanies_doctrine_pack`` binding (FR-007).
 
     A pack-level charter-pack -> doctrine-pack binding, replacing reliance
-    on per-activation ``doctrine_pack_id``. Fail-closed: a *set* target
+    on per-activation ``charter_pack_id``. Fail-closed: a *set* target
     that is not present in *known_pack_ids* raises
     :class:`UnresolvedDoctrinePackError` rather than resolving to ``None``
     or an inert binding.

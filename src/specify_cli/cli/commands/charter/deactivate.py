@@ -17,7 +17,7 @@ safe cascade engine on the removal side:
 * :class:`charter.activation.activation_engine.NoActivationRestrictionsError` (raised by
   the WP10 engine for a None-state kind) is caught and surfaced as a clean
   exit-1 with the upgrade guidance.
-* :class:`charter.activation.pack_context.CharterPackConfigError` is caught and surfaced as
+* :class:`charter.activation.pack_context.ActiveCharterConfigError` is caught and surfaced as
   fail-closed guidance before any mutation (FR-035, C1.5).
 """
 
@@ -38,8 +38,8 @@ from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from charter.activation.pack_context import CharterPackConfigError
-from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.pack_context import ActiveCharterConfigError
+from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from charter.activation.kind_vocabulary import ArtifactKind, MissionTypeNotAnArtifactKind
 
 from specify_cli.cli.commands.charter._cascade_shared import (
@@ -111,7 +111,7 @@ def _source_urn(
 
 
 def _active_urns(
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
     ctx_project: ProjectContext,
     layer_roots: dict[str, Path] | None,
     org_roots: list[Path] | None = None,
@@ -155,7 +155,7 @@ def _active_urns(
 
 
 def _render_cascade_deactivation(
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
     ctx_project: ProjectContext,
     target_urn: str,
     scope: CascadeScope,
@@ -292,13 +292,13 @@ def deactivate_cmd(
     # FR-035 fail-closed: reject invalid pack config before any mutation (C1.5).
     try:
         validate_pack_config(repo_root)
-    except CharterPackConfigError as exc:
+    except ActiveCharterConfigError as exc:
         render_pack_config_error(exc, console)
         raise typer.Exit(1) from exc
 
     ctx_project = ProjectContext(repo_root=repo_root)
     layer_roots = resolve_layer_roots(repo_root)
-    manager = CharterPackManager()
+    manager = ActiveCharterManager()
 
     try:
         result = manager.deactivate(

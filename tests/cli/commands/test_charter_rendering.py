@@ -428,7 +428,7 @@ def test_activation_stanza_include_command_is_registered_cli_surface(
         [
             ActivationEntry(
                 activation_context={"action": "write_comment"},
-                doctrine_pack_id="project",
+                charter_pack_id="project",
                 artifact_id="caveman-comments",
                 artifact_kind="styleguide",
             )

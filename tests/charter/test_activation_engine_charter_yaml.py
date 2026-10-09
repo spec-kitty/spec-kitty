@@ -4,7 +4,7 @@ Covers the write seam after activation moves from ``.kittify/config.yaml``
 into ``charter.yaml``:
 
 * :func:`charter.activation.pack_manager.resolve_activation_write_target` — the shared
-  pointer-resolution primitive used by ``CharterPackManager.activate`` /
+  pointer-resolution primitive used by ``ActiveCharterManager.activate`` /
   ``deactivate`` / ``merge_defaults`` and by the two other activation
   writers (``specify_cli.cli.commands.charter.interview``,
   ``charter.activation.org_charter``).
@@ -12,7 +12,7 @@ into ``charter.yaml``:
   target, preserving the OTHER sections (``governance``/``catalog``/
   ``directives``/``metadata``) byte-for-byte (data-model.md Landmine 3 /
   INV-9 — the #2772 clobber, one level down, on a tracked file).
-* ``CharterPackManager.activate`` / ``deactivate`` / ``merge_defaults``
+* ``ActiveCharterManager.activate`` / ``deactivate`` / ``merge_defaults``
   end-to-end against a migrated project (a ``charter:`` pointer resolves to
   a real ``charter.yaml``).
 
@@ -31,8 +31,8 @@ import yaml as pyyaml
 
 from charter.activation.activation_engine import ActivationPlan, commit_plan
 from charter.activation.invocation_context import ProjectContext
-from charter.activation.pack_context import CharterPackConfigError
-from charter.activation.pack_manager import CharterPackManager, resolve_activation_write_target
+from charter.activation.pack_context import ActiveCharterConfigError
+from charter.activation.pack_manager import ActiveCharterManager, resolve_activation_write_target
 
 pytestmark = pytest.mark.unit
 
@@ -151,7 +151,7 @@ class TestResolveActivationWriteTargetMigrated:
         )
         # charter.yaml deliberately not created.
 
-        with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+        with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID"):
             resolve_activation_write_target(tmp_path)
 
 
@@ -209,11 +209,11 @@ class TestCommitPlanChartersYamlSectionPreservation:
 
 
 # ---------------------------------------------------------------------------
-# CharterPackManager end-to-end against a migrated project
+# ActiveCharterManager end-to-end against a migrated project
 #
 # NOTE: these tests build ``ProjectContext(repo_root=tmp_path)`` via the bare
 # dataclass constructor rather than ``ProjectContext.from_repo(tmp_path)``.
-# ``CharterPackManager.activate``/``deactivate``/``list_activated``/
+# ``ActiveCharterManager.activate``/``deactivate``/``list_activated``/
 # ``merge_defaults`` only ever call ``ctx.require_repo_root()`` -- they never
 # touch ``ctx.pack_context`` -- whereas ``from_repo`` eagerly resolves
 # ``PackContext.from_config()``, which now hard-fails (WP04, C-A1) when
@@ -225,13 +225,13 @@ class TestCommitPlanChartersYamlSectionPreservation:
 
 
 @pytest.fixture()
-def manager() -> CharterPackManager:
-    return CharterPackManager()
+def manager() -> ActiveCharterManager:
+    return ActiveCharterManager()
 
 
 class TestActivateAgainstMigratedProject:
     def test_activate_writes_into_charter_yaml_not_config_yaml(
-        self, manager: CharterPackManager, tmp_path: Path
+        self, manager: ActiveCharterManager, tmp_path: Path
     ) -> None:
         _migrated_project(tmp_path)
         ctx = ProjectContext(repo_root=tmp_path)
@@ -250,7 +250,7 @@ class TestActivateAgainstMigratedProject:
         assert "activated_directives" not in config_data
 
     def test_activate_preserves_governance_section(
-        self, manager: CharterPackManager, tmp_path: Path
+        self, manager: ActiveCharterManager, tmp_path: Path
     ) -> None:
         _migrated_project(tmp_path)
         ctx = ProjectContext(repo_root=tmp_path)
@@ -266,7 +266,7 @@ class TestActivateAgainstMigratedProject:
 
 class TestDeactivateAgainstMigratedProject:
     def test_deactivate_removes_from_charter_yaml(
-        self, manager: CharterPackManager, tmp_path: Path
+        self, manager: ActiveCharterManager, tmp_path: Path
     ) -> None:
         _migrated_project(tmp_path)
         ctx = ProjectContext(repo_root=tmp_path)
@@ -283,7 +283,7 @@ class TestDeactivateAgainstMigratedProject:
 
 class TestListActivatedAgainstMigratedProject:
     def test_list_activated_reads_from_charter_yaml(
-        self, manager: CharterPackManager, tmp_path: Path
+        self, manager: ActiveCharterManager, tmp_path: Path
     ) -> None:
         _migrated_project(tmp_path)
         ctx = ProjectContext(repo_root=tmp_path)
@@ -295,7 +295,7 @@ class TestListActivatedAgainstMigratedProject:
 
 class TestMergeDefaultsAgainstMigratedProject:
     def test_merge_defaults_seeds_absent_keys_into_charter_yaml_single_write(
-        self, manager: CharterPackManager, tmp_path: Path
+        self, manager: ActiveCharterManager, tmp_path: Path
     ) -> None:
         _migrated_project(tmp_path)
         ctx = ProjectContext(repo_root=tmp_path)

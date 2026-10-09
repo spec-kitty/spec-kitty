@@ -9,6 +9,8 @@ from typing import Any
 
 import typer
 
+from charter.offering.packs.retired_fields import RetiredPackFieldError
+
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
@@ -389,6 +391,17 @@ def _structured_error_fields(error: Exception) -> dict[str, Any] | None:
     return None
 
 
+def _error_code(error: Exception) -> str | None:
+    """The ``contracts/errors.md`` code *error* carries, if it is a coded error.
+
+    A retired pack field (#3732) names ``RETIRED_PACK_FIELD`` so the text line
+    reads ``Error (RETIRED_PACK_FIELD): <file>: field ...``.
+    """
+    if isinstance(error, RetiredPackFieldError):
+        return error.code
+    return None
+
+
 @charter_app.command()
 def generate(
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults"),
@@ -624,7 +637,7 @@ def generate(
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except (FileExistsError, TaskCliError, ValueError, RuntimeError) as e:
-        _emit_error(console, json_output=json_output, message=str(e), extra=_structured_error_fields(e))
+        _emit_error(console, json_output=json_output, message=str(e), extra=_structured_error_fields(e), code=_error_code(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
         _emit_error(console, json_output=json_output, message=str(e), unexpected=True)

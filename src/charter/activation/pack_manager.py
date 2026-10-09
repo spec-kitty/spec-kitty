@@ -1,6 +1,6 @@
 """Charter pack activation manager (FR-001, FR-002, FR-026, FR-027).
 
-Provides ``CharterPackManager`` — the single interface for activating and
+Provides ``ActiveCharterManager`` — the single interface for activating and
 deactivating doctrine artifacts in a project's ``.kittify/config.yaml`` and for
 discovering which artifacts are *available* across the built-in, org-pack, and
 project doctrine layers.
@@ -90,7 +90,7 @@ from charter.activation.charter_yaml_io import (
     yaml_documents_equal,
     update_charter_yaml_section,
 )
-from charter.activation.pack_context import CharterPackConfigError, resolve_charter_yaml_pointer
+from charter.activation.pack_context import ActiveCharterConfigError, resolve_charter_yaml_pointer
 from charter.offering.missions.mission_type_repository import (
     ORG_MISSION_TYPES_SUBDIR,
     PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT,
@@ -113,7 +113,7 @@ __all__ = [
     "ACTIVATION_YAML_KEYS",
     "ActivationResult",
     "AvailableArtifact",
-    "CharterPackManager",
+    "ActiveCharterManager",
     "MergeResult",
     "YAML_KEY_MAP",
     "resolve_activation_write_target",
@@ -232,7 +232,7 @@ def _scan_layout_for(kind: ArtifactKind | None) -> tuple[str, str, bool]:
     (``packs/built-in/missions/``), **not** ``_SRC_ROOT`` — mission
     ``doctrine-consumer-surface-missions-extraction-01KZ6G6H`` (FR-005)
     relocated ``missions/``'s data subdirectories there; see
-    :meth:`CharterPackManager._scan_layer_dirs`'s flat-kind branch, the one
+    :meth:`ActiveCharterManager._scan_layer_dirs`'s flat-kind branch, the one
     place this distinction actually matters for resolution.
 
     Templates (FR-025) are intentionally **not** handled here; ``template`` is
@@ -292,7 +292,7 @@ def _resolve_layer_candidate(
     """Resolve the scan directory for one ``(layer, root)`` pair.
 
     Returns ``None`` when the ``(layer, kind, layered)`` combination has no
-    known directory layout — :meth:`CharterPackManager._scan_layer_dirs`
+    known directory layout — :meth:`ActiveCharterManager._scan_layer_dirs`
     then skips that layer for this kind (mirrors the pre-extraction
     ``else: continue`` branch).
     """
@@ -423,7 +423,7 @@ logger = logging.getLogger(__name__)
 
 
 def _chain_complete_available(
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
     ctx: ProjectContext,
     kind: str,
     repo_root: Path,
@@ -473,7 +473,7 @@ def _effective_ids_for_kind(repo_root: Path, kind: str) -> tuple[str, ...]:
     #4253's fix materializes this set when a kind's activation key is absent
     (the unrestricted state), instead of the narrower default pack. #4399's
     squad round showed why it must come from the RESOLVER rather than from
-    :meth:`CharterPackManager.list_available`:
+    :meth:`ActiveCharterManager.list_available`:
 
     * ``list_available`` is handed the CLI's ``layer_roots`` map, which
       deliberately truncates the declared org chain to pack #1 (a documented
@@ -619,7 +619,7 @@ def _save_charter_yaml_activation(charter_path: Path, data: dict[str, Any]) -> N
     ``"activation"`` pseudo-section — so unrelated sections are structurally
     preserved rather than conventionally preserved (Landmine 3 / INV-9).
 
-    Safe to call once per changed key (``CharterPackManager.activate`` /
+    Safe to call once per changed key (``ActiveCharterManager.activate`` /
     ``deactivate``) or once for a batch of keys (``merge_defaults``,
     ``charter.activation.activation_engine.promote_activations``): only the keys
     actually present in ``data`` are written, and re-writing an unchanged
@@ -635,7 +635,7 @@ def resolve_activation_write_target(
 ) -> tuple[Path, dict[str, Any], Callable[[Path, dict[str, Any]], None]]:
     """Resolve the ``(path, loaded document, save)`` triple for activation writes.
 
-    Shared by :class:`CharterPackManager` and the two other activation
+    Shared by :class:`ActiveCharterManager` and the two other activation
     writers (``specify_cli.cli.commands.charter.interview`` and
     ``charter.activation.org_charter``) so pointer resolution has exactly
     one implementation on the write side — mirroring
@@ -650,7 +650,7 @@ def resolve_activation_write_target(
 
     Present pointer -> migrated project: the target is the pointed-at
     ``charter.yaml``; a dangling/unreadable pointer is a fail-loud
-    :class:`~charter.activation.pack_context.CharterPackConfigError` (INV-5, re-homed
+    :class:`~charter.activation.pack_context.ActiveCharterConfigError` (INV-5, re-homed
     #2530) rather than a silent fallback to the legacy config-embedded keys.
     Writes route through :func:`_save_charter_yaml_activation`, touching
     only the flat activation keys (INV-9).
@@ -663,7 +663,7 @@ def resolve_activation_write_target(
         return config_path, config_data, functools.partial(_save_config, yaml=yaml_inst)
 
     if not charter_path.exists():
-        raise CharterPackConfigError(
+        raise ActiveCharterConfigError(
             f".kittify/config.yaml 'charter:' pointer names {charter_path}, "
             f"which does not exist.\nRemediation: run the charter-bundle "
             f"migration (`spec-kitty upgrade`) to (re)generate it, or fix "
@@ -671,7 +671,7 @@ def resolve_activation_write_target(
         )
     charter_data = load_charter_yaml(charter_path)
     if not isinstance(charter_data, dict):
-        raise CharterPackConfigError(f"{charter_path} root must be a mapping.")
+        raise ActiveCharterConfigError(f"{charter_path} root must be a mapping.")
     return charter_path, charter_data, _save_charter_yaml_activation
 
 
@@ -709,11 +709,11 @@ def _load_default_pack() -> dict[str, list[str]]:
 
 
 # ---------------------------------------------------------------------------
-# CharterPackManager
+# ActiveCharterManager
 # ---------------------------------------------------------------------------
 
 
-class CharterPackManager:
+class ActiveCharterManager:
     """Manages activation/deactivation and availability of doctrine artifacts.
 
     All mutating methods read from and write to ``.kittify/config.yaml`` using

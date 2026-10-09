@@ -610,7 +610,7 @@ class TestContextJsonOrgCharter:
 class TestOrgCharterPolicyModel:
     def test_empty_policy_is_valid(self) -> None:
         policy = OrgCharterPolicy()
-        assert policy.schema_version == 1
+        assert policy.schema_version == 2  # bumped by #3732 (charter_pack_id)
         assert policy.extends is None
         assert policy.org_name is None
         assert policy.interview_defaults == {}
@@ -761,15 +761,25 @@ class TestMergeChain:
 
     def test_schema_version_mismatch_raises(self) -> None:
         chain = [
-            _policy(schema_version=1, required_directives=["a"]),
-            _policy(schema_version=2, required_directives=["b"]),
+            _policy(schema_version=2, required_directives=["a"]),
+            _policy(schema_version=3, required_directives=["b"]),
         ]
         with pytest.raises(ValueError, match="schema_version mismatch"):
             _merge_chain(chain)
 
+    def test_schema_versions_1_and_2_share_a_chain(self) -> None:
+        """#3732: version 2 only adds the retired-field rejection, so 1 and 2 may mix."""
+        chain = [
+            _policy(schema_version=1, required_directives=["a"]),
+            _policy(schema_version=2, required_directives=["b"]),
+        ]
+        merged = _merge_chain(chain)
+        assert merged.schema_version == 2
+        assert merged.required_directives == ["a", "b"]
+
     def test_empty_chain_returns_default_policy(self) -> None:
         merged = _merge_chain([])
-        assert merged.schema_version == 1
+        assert merged.schema_version == 2
         assert merged.required_directives == []
 
     def test_org_name_last_non_empty_wins(self) -> None:
@@ -790,7 +800,7 @@ class TestFoldPolicies:
     """
 
     def test_empty_returns_default_policy(self) -> None:
-        assert _fold_policies([]).schema_version == 1
+        assert _fold_policies([]).schema_version == 2
 
     def test_strict_matching_versions_carry_version(self) -> None:
         merged = _fold_policies(
@@ -802,7 +812,7 @@ class TestFoldPolicies:
     def test_strict_mismatch_raises(self) -> None:
         with pytest.raises(ValueError, match="schema_version mismatch"):
             _fold_policies(
-                [_policy(schema_version=1), _policy(schema_version=2)],
+                [_policy(schema_version=1), _policy(schema_version=3)],
                 strict_schema_version=True,
             )
 
@@ -1078,14 +1088,14 @@ class TestLoadOrgCharterPoliciesWithPackContext:
         _write_org_charter(
             base,
             """
-            schema_version: 1
+            schema_version: 2
             """,
         )
         overlay = tmp_path / "overlay"
         _write_org_charter(
             overlay,
             """
-            schema_version: 2
+            schema_version: 3
             extends: "base"
             """,
         )

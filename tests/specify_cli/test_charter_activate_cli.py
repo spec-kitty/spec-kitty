@@ -7,7 +7,7 @@ activation engine and the WP11 scoped cascade engine through the CLI surface:
   kinds activate only those kinds; ``--cascade all`` activates every referenced
   kind; absence emits a no-cascade warning (FR-013/014, Contract C3.3).
 * T054 — invalid pack config fails closed: a clean exit-1 with the
-  ``CHARTER_PACK_CONFIG_INVALID`` code and no mutation (FR-035, C1.5).
+  ``ACTIVE_CHARTER_CONFIG_INVALID`` code and no mutation (FR-035, C1.5).
 * T056 — the dead ``charter_activate_app`` / ``charter_deactivate_app`` exports
   are gone; the callbacks are the live exports and the commands stay registered.
 * T058 — cascade + no-cascade rendering, malformed-config fail-closed.
@@ -319,7 +319,7 @@ class TestFailClosedConfig:
         before = (malformed_project / ".kittify" / "config.yaml").read_bytes()
         result = _activate(malformed_project, "directive", "001-architectural-integrity-standard")
         assert result.exit_code == 1
-        assert "CHARTER_PACK_CONFIG_INVALID" in result.output
+        assert "ACTIVE_CHARTER_CONFIG_INVALID" in result.output
         # No mutation: config bytes unchanged.
         after = (malformed_project / ".kittify" / "config.yaml").read_bytes()
         assert before == after
@@ -328,7 +328,7 @@ class TestFailClosedConfig:
         before = (malformed_project / ".kittify" / "config.yaml").read_bytes()
         result = _deactivate(malformed_project, "directive", "001-architectural-integrity-standard")
         assert result.exit_code == 1
-        assert "CHARTER_PACK_CONFIG_INVALID" in result.output
+        assert "ACTIVE_CHARTER_CONFIG_INVALID" in result.output
         after = (malformed_project / ".kittify" / "config.yaml").read_bytes()
         assert before == after
 

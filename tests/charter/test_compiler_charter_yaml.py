@@ -263,7 +263,7 @@ def test_invalid_authored_activation_is_preserved(tmp_path: Path, body: str, poi
 @pytest.mark.parametrize("seed_body", [None, "[broken", "{}", "mission_type_activations: []\n", "mission_type_activations: scalar\n"])
 def test_invalid_seed_is_not_empty_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, seed_body: str | None) -> None:
     from charter.activation import compiler, default_pack
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
 
     config = tmp_path / "project/.kittify/config.yaml"
     config.parent.mkdir(parents=True)
@@ -273,7 +273,7 @@ def test_invalid_seed_is_not_empty_success(tmp_path: Path, monkeypatch: pytest.M
         seed.write_text(seed_body, encoding="utf-8")
     monkeypatch.setattr(default_pack, "_default_pack_yaml_path", lambda _root: seed)
     before = snapshot({"sandbox": tmp_path})
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID") as caught:
+    with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID") as caught:
         compiler.prepare_mission_type_activations(config.parent.parent)
     assert "non-empty" in caught.value.body
     assert_unchanged(before, snapshot({"sandbox": tmp_path}))

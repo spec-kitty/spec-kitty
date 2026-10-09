@@ -29,7 +29,7 @@ from charter.activation.invocation_context import ProjectContext
 from charter.activation.pack_manager import (
     YAML_KEY_MAP,
     AvailableArtifact,
-    CharterPackManager,
+    ActiveCharterManager,
     _resolve_layer_candidate,
 )
 from charter.offering.artifact_kinds import CHARTER_KIND_TOKENS, ArtifactKind
@@ -55,7 +55,7 @@ def ctx(project_root: Path) -> ProjectContext:
     """ProjectContext built from the minimal project root.
 
     Uses the direct constructor rather than ``ProjectContext.from_repo`` --
-    ``CharterPackManager`` only ever calls ``ctx.require_repo_root()``
+    ``ActiveCharterManager`` only ever calls ``ctx.require_repo_root()``
     (``pack_context`` is never read), and ``from_repo`` eagerly resolves
     ``PackContext.from_config()``, which now hard-fails (WP04, C-A1) when
     ``mission_type_activations`` is absent from config.yaml. These tests
@@ -67,8 +67,8 @@ def ctx(project_root: Path) -> ProjectContext:
 
 
 @pytest.fixture()
-def manager() -> CharterPackManager:
-    return CharterPackManager()
+def manager() -> ActiveCharterManager:
+    return ActiveCharterManager()
 
 
 def _write_directive(dir_path: Path, stem: str, declared_id: str) -> None:
@@ -136,12 +136,12 @@ class TestKindTableParity:
 
 
 class TestListAvailableBuiltIn:
-    def test_returns_frozenset_for_directive(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
+    def test_returns_frozenset_for_directive(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
         result = manager.list_available(ctx, kind="directive")
         assert isinstance(result, frozenset)
         assert len(result) > 0
 
-    def test_returns_config_stem_not_declared_id(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
+    def test_returns_config_stem_not_declared_id(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
         """Built-in directives surface their config-stem ID (e.g.
         ``001-architectural-integrity-standard``), not the URN ``id:``
         (``DIRECTIVE_001``)."""
@@ -149,11 +149,11 @@ class TestListAvailableBuiltIn:
         assert "001-architectural-integrity-standard" in result
         assert "DIRECTIVE_001" not in result
 
-    def test_unknown_kind_raises_value_error(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
+    def test_unknown_kind_raises_value_error(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
         with pytest.raises(ValueError, match="Unknown activation kind"):
             manager.list_available(ctx, kind="bogus-kind")
 
-    def test_detailed_annotates_built_in_layer(self, manager: CharterPackManager, ctx: ProjectContext) -> None:
+    def test_detailed_annotates_built_in_layer(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
         detailed = manager.list_available_detailed(ctx, kind="directive")
         assert detailed
         assert all(isinstance(e, AvailableArtifact) for e in detailed)
@@ -161,7 +161,7 @@ class TestListAvailableBuiltIn:
 
 
 class TestListAvailableAcrossLayers:
-    def test_includes_org_and_project_layers(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
+    def test_includes_org_and_project_layers(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
         """FR-026: org + project doctrine roots (passed as data) are scanned."""
         org_root = tmp_path / "org-doctrine"
         project_root = tmp_path / "project-doctrine"
@@ -182,7 +182,7 @@ class TestListAvailableAcrossLayers:
         assert "001-architectural-integrity-standard" in result
 
     def test_project_layer_ignores_legacy_plural_directory(
-        self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path
+        self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path
     ) -> None:
         """Project layer scans the singular runtime layout, not plural pack dirs."""
         project_root = tmp_path / "project-doctrine"
@@ -204,7 +204,7 @@ class TestListAvailableAcrossLayers:
         assert "950-project-rule" in result
         assert "951-legacy-project-rule" not in result
 
-    def test_detailed_carries_layer_per_artifact(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
+    def test_detailed_carries_layer_per_artifact(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
         org_root = tmp_path / "org-doctrine"
         _write_directive(org_root / "doctrine" / "directives" / "org", "900-org-rule", "DIRECTIVE_900")
 
@@ -215,7 +215,7 @@ class TestListAvailableAcrossLayers:
         assert by_id["900-org-rule"] == "org"
         assert by_id["001-architectural-integrity-standard"] == "built-in"
 
-    def test_layer_roots_default_is_built_in_only(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
+    def test_layer_roots_default_is_built_in_only(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
         """Omitting layer_roots scans built-in only (backward compatible)."""
         org_root = tmp_path / "org-doctrine"
         _write_directive(org_root / "doctrine" / "directives" / "org", "900-org-rule", "DIRECTIVE_900")
@@ -224,7 +224,7 @@ class TestListAvailableAcrossLayers:
 
 
 class TestListAvailableIdAware:
-    def test_skips_files_without_declared_id(self, manager: CharterPackManager, ctx: ProjectContext, tmp_path: Path) -> None:
+    def test_skips_files_without_declared_id(self, manager: ActiveCharterManager, ctx: ProjectContext, tmp_path: Path) -> None:
         """R-011-D: a file with no ``id:`` field is not a catalog artifact."""
         org_root = tmp_path / "org-doctrine"
         good_dir = org_root / "doctrine" / "directives" / "org"
@@ -250,7 +250,7 @@ class TestListAvailableIdAware:
 
 class TestActivationDelegation:
     def test_activate_materializes_the_effective_set_and_persists(
-        self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
+        self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path
     ) -> None:
         """#4253: materialization preserves what was effective, not default.yaml.
 
@@ -268,7 +268,7 @@ class TestActivationDelegation:
 
     def test_activate_accepts_org_layer_artifact(
         self,
-        manager: CharterPackManager,
+        manager: ActiveCharterManager,
         ctx: ProjectContext,
         project_root: Path,
         tmp_path: Path,
@@ -292,7 +292,7 @@ class TestActivationDelegation:
         assert "900-org-rule" in data["activated_directives"]
 
     def test_activate_unknown_id_raises_typed_error_no_write(
-        self, manager: CharterPackManager, ctx: ProjectContext, project_root: Path
+        self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path
     ) -> None:
         config = project_root / ".kittify" / "config.yaml"
         before = config.read_text(encoding="utf-8")
@@ -302,7 +302,7 @@ class TestActivationDelegation:
         assert config.read_text(encoding="utf-8") == before
 
     def test_deactivate_removes_via_engine(
-        self, manager: CharterPackManager, project_root: Path
+        self, manager: ActiveCharterManager, project_root: Path
     ) -> None:
         config = project_root / ".kittify" / "config.yaml"
         config.write_text(
@@ -315,7 +315,7 @@ class TestActivationDelegation:
         assert data["activated_directives"] == ["keep-me"]
 
     def test_deactivate_none_state_raises_typed_error_not_sysexit(
-        self, manager: CharterPackManager, ctx: ProjectContext
+        self, manager: ActiveCharterManager, ctx: ProjectContext
     ) -> None:
         """T042: no sys.exit — the engine raises NoActivationRestrictionsError."""
         with pytest.raises(NoActivationRestrictionsError):

@@ -144,7 +144,7 @@ def _package_inputs() -> dict[str, dict[str, str | None]]:
 
 def _resolved_template_paths(root: Path, feature_dir: Path) -> list[Path]:
     from charter.activation.mission_type_profiles import resolve_mission_type_context
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
     from specify_cli.runtime.resolver import ResolutionTier, resolve_configured_template
 
     metadata = _mapping(feature_dir / "meta.json")
@@ -153,7 +153,7 @@ def _resolved_template_paths(root: Path, feature_dir: Path) -> list[Path]:
         return []
     try:
         context = resolve_mission_type_context(root, mission_type=mission_type)
-    except CharterPackConfigError as exc:
+    except ActiveCharterConfigError as exc:
         raise MaterialInputError("Configured charter activation is invalid") from exc
     paths = []
     for kind in context.template_set or {}:

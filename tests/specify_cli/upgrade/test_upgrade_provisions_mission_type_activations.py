@@ -2,7 +2,7 @@
 ``mission_type_activations`` key for pre-rc39 (rc36-rc38) projects.
 
 PR #3246 removed the implicit "all four built-ins" backfill and made mission
-creation fail closed (``CharterPackConfigError``) whenever a project's
+creation fail closed (``ActiveCharterConfigError``) whenever a project's
 ``.kittify/config.yaml`` lacks ``mission_type_activations``. Fresh
 ``spec-kitty init`` got a provisioner
 (:func:`specify_cli.provisioning.default_charter.provision_default_mission_type_activations`),
@@ -46,7 +46,7 @@ failing closed even after a "successful" upgrade. These additional tests:
   pending for a deliberate empty list); and
 * pin the dangling/unreadable ``charter:`` pointer contract: the preview
   predicate must not crash (``resolve_activation_write_target`` raises
-  ``CharterPackConfigError`` in that case) — it reports a stable, honest
+  ``ActiveCharterConfigError`` in that case) — it reports a stable, honest
   "pending" signal instead of silently swallowing the broken pointer.
 """
 
@@ -65,7 +65,7 @@ from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from charter.activation.mission_type_profiles import existing_mission_types
-from charter.activation.pack_context import CharterPackConfigError, PackContext
+from charter.activation.pack_context import ActiveCharterConfigError, PackContext
 from specify_cli.cli.commands.upgrade import (
     _mission_type_activation_provisioning_pending,
     _provision_missing_mission_type_activations,
@@ -204,7 +204,7 @@ def _run_upgrade(args: list[str], cwd: Path) -> Result:
 
 
 def test_stranded_project_fails_closed_at_the_create_gate(tmp_path: Path) -> None:
-    """A config-absent-key project blocks mission creation with CharterPackConfigError."""
+    """A config-absent-key project blocks mission creation with ActiveCharterConfigError."""
     project = tmp_path / "stranded"
     project.mkdir()
     _write_stranded_project(project)
@@ -212,7 +212,7 @@ def test_stranded_project_fails_closed_at_the_create_gate(tmp_path: Path) -> Non
 
     assert existing_mission_types(project) == []
 
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID") as exc:
+    with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID") as exc:
         create_mission_core(project, "stranded-mission", allow_worktree_context=True)
     assert "spec-kitty upgrade" in exc.value.body
 
@@ -295,7 +295,7 @@ def test_upgrade_preserves_authored_empty_activation_list(tmp_path: Path, monkey
     # Still blocked -- an authored empty list is unchanged (C-008), so the
     # create-gate must still fail closed exactly as before the upgrade.
     assert existing_mission_types(project) == []
-    with pytest.raises(CharterPackConfigError):
+    with pytest.raises(ActiveCharterConfigError):
         create_mission_core(project, "still-empty-mission", allow_worktree_context=True)
 
 
@@ -378,7 +378,7 @@ def test_upgrade_preserves_authored_empty_pointer_activation_and_previews_not_pe
 def test_pending_predicate_is_non_crashing_for_dangling_pointer(tmp_path: Path) -> None:
     """A dangling ``charter:`` pointer must not crash the dry-run preview (C-WP01).
 
-    ``resolve_activation_write_target`` fail-loud raises ``CharterPackConfigError``
+    ``resolve_activation_write_target`` fail-loud raises ``ActiveCharterConfigError``
     for this exact shape (INV-5) -- the *real* write path is meant to propagate
     that. But the *preview* predicate must absorb it into a defined,
     non-crashing signal instead: not an unhandled raise, and not a silent
@@ -417,13 +417,13 @@ def test_provision_helper_surfaces_missing_default_pack_as_error(tmp_path: Path,
     ``charter.activation.compiler.provision_mission_type_activations``, whose seed-read
     is ``charter.activation.default_pack.load_default_mission_type_activations`` (module-
     level import into ``charter.activation.compiler``'s namespace) -- the same fail-closed
-    ``CharterPackConfigError`` seam :func:`_provision_missing_mission_type_activations`
-    now catches (using ``.body``, since ``CharterPackConfigError.__str__`` is
+    ``ActiveCharterConfigError`` seam :func:`_provision_missing_mission_type_activations`
+    now catches (using ``.body``, since ``ActiveCharterConfigError.__str__`` is
     just its error code, not the message).
     """
 
     def _raise_missing(*args: object, **kwargs: object) -> list[str]:
-        raise CharterPackConfigError("shipped default.yaml declares no mission_type_activations list")
+        raise ActiveCharterConfigError("shipped default.yaml declares no mission_type_activations list")
 
     monkeypatch.setattr("charter.activation.compiler.load_default_mission_type_activations", _raise_missing)
 

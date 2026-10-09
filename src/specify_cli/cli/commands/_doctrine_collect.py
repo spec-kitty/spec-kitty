@@ -1109,6 +1109,7 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
         OrgPackEnvVarUnsetError,
         OrgPackSubdirEscapeError,
     )
+    from charter.offering.packs.retired_fields import RetiredPackFieldError
 
     org_required: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
     try:
@@ -1130,7 +1131,7 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
         policy = load_org_charter_policies(repo_root, pack_context=_pack_ctx)
         for kind in _SELECTION_KIND_PLURALS:
             org_required[kind] = list(getattr(policy, f"required_{kind}", []) or [])
-    except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError) as exc:
+    except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError, RetiredPackFieldError) as exc:
         logger.warning("org-charter policy load failed for selection diagnostics: %s", exc)
     except Exception:  # noqa: BLE001 — diagnostics must never crash on missing/invalid org
         pass

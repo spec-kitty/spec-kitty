@@ -48,7 +48,7 @@ from typing import Any
 from ruamel.yaml import YAML
 
 from charter.activation.default_pack import load_default_mission_type_activations
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 from specify_cli.charter_pack_registry import (
     merge_pack_into_config,
     resolve_builtin_pack_path,
@@ -101,7 +101,7 @@ def _load_default_pack_activations() -> list[Any]:
             (broken install) or does not declare a non-empty
             ``mission_type_activations`` list. Kept as this module's own
             historical exception type (rather than the shared helper's
-            ``CharterPackConfigError``) so existing ``specify_cli`` callers
+            ``ActiveCharterConfigError``) so existing ``specify_cli`` callers
             and tests are undisturbed.
     """
     try:
@@ -116,7 +116,7 @@ def _load_default_pack_activations() -> list[Any]:
 
     try:
         return load_default_mission_type_activations(pack_path=default_pack_path)
-    except CharterPackConfigError as exc:
+    except ActiveCharterConfigError as exc:
         raise DefaultCharterPackMissingError(
             f"{default_pack_path} does not declare a non-empty "
             f"'{_MISSION_TYPE_ACTIVATIONS_KEY}' list. Cannot provision this "

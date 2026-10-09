@@ -54,7 +54,7 @@ def resolve_org_root_chain(repo_root: Path) -> list[Path]:
     the cascade-org-inert fix. ``resolve_layer_roots``'s ``roots["org"]`` key
     deliberately stays single-``Path`` (pack #1 only, unchanged): it is a
     load-bearing back-compat contract for
-    :meth:`charter.activation.pack_manager.CharterPackManager.list_available_detailed`
+    :meth:`charter.activation.pack_manager.ActiveCharterManager.list_available_detailed`
     (``charter list --all-layers`` — verified by
     ``test_org_cascade_chain.py::TestListAllLayersBackCompat``) and every other
     consumer typed ``layer_roots: dict[str, Path] | None``

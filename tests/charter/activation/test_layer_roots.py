@@ -8,7 +8,7 @@ import pytest
 
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.layer_roots import resolve_layer_roots, resolve_org_root_chain
-from charter.activation.pack_manager import CharterPackManager
+from charter.activation.pack_manager import ActiveCharterManager
 from charter.offering.missions.mission_type_repository import (
     PROJECT_MISSION_TYPES_RELATIVE,
     resolve_layered_mission_types,
@@ -93,7 +93,7 @@ class TestProjectMissionTypesWithMigratedLayout:
         roster.mkdir(parents=True)
         (roster / "probe-type.yaml").write_text("schema_version: 1\nid: probe-type\ndisplay_name: Probe Type\n", encoding="utf-8")
 
-        detailed = CharterPackManager().list_available_detailed(
+        detailed = ActiveCharterManager().list_available_detailed(
             ProjectContext(repo_root=repo),
             kind="mission-type",
             layer_roots=resolve_layer_roots(repo),
@@ -105,7 +105,7 @@ class TestProjectMissionTypesWithMigratedLayout:
         repo = tmp_path / "repo"
         (repo / ".kittify" / "charter-packs").mkdir(parents=True)
 
-        detailed = CharterPackManager().list_available_detailed(
+        detailed = ActiveCharterManager().list_available_detailed(
             ProjectContext(repo_root=repo),
             kind="mission-type",
             layer_roots=resolve_layer_roots(repo),

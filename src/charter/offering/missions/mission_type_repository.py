@@ -451,7 +451,7 @@ def scan_mission_types_dir(
     Public (PR-CONTRACT-002, pre-merge squad, mission
     up-mission-type-seam-01KZY1JB): the single-directory scan primitive
     :func:`resolve_layered_mission_types` itself uses, one layer at a time.
-    ``charter.activation.pack_manager.CharterPackManager.list_available_detailed``'s
+    ``charter.activation.pack_manager.ActiveCharterManager.list_available_detailed``'s
     ``kind is None`` (mission-type) branch also calls this directly (one
     call per ``(layer, scan_dir)`` pair, mirroring its own per-layer entry
     shape) so that the pre-activation availability catalog loud-fails on the

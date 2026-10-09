@@ -26,7 +26,7 @@ from typer.testing import CliRunner
 from charter.activation.default_pack import load_default_pack_activation_ids
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.pack_context import PackContext
-from charter.activation.pack_manager import CharterPackManager
+from charter.activation.pack_manager import ActiveCharterManager
 from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.integration]
@@ -55,7 +55,7 @@ def _available(project_root: Path, kind: str) -> set[str]:
     """What the resolver exposes while the kind is unrestricted — i.e. exactly
     what was effective before the first activation, which is the oracle these
     tests measure preservation against."""
-    return set(CharterPackManager().list_available(ProjectContext.from_repo(project_root), kind))
+    return set(ActiveCharterManager().list_available(ProjectContext.from_repo(project_root), kind))
 
 
 def _outside_default(yaml_key: str, ids: set[str]) -> set[str]:

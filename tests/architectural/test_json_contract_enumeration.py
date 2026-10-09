@@ -315,7 +315,7 @@ DEFERRED: dict[str, tuple[tuple[str, ...], str, str]] = {
     "charter pack consistency-check": (
         (),
         "badconfig",
-        "charter/pack.py:37; empty stdout; unhandled CharterPackConfigError; Follow-up: #4664",
+        "charter/pack.py:37; empty stdout; unhandled ActiveCharterConfigError; Follow-up: #4664",
     ),
     "charter preflight": (
         (),
