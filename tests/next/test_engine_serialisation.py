@@ -157,6 +157,27 @@ def test_commit_advance_blocks_while_the_run_cursor_lock_is_held(tmp_path: Path,
 
 
 @pytest.mark.regression
+def test_next_step_plans_under_the_run_cursor_lock(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``next_step`` must PLAN inside the lock, not only commit: a caller that
+    plans from the cursor before acquiring the lock can plan from the same state
+    as a peer and both commit (#5854). With the lock held, the call times out
+    without ever reading the cursor to plan, and writes nothing."""
+    monkeypatch.setattr(run_lock, "_LOCK_TIMEOUT_S", 0.3)
+    run_ref = _start(tmp_path, _TWO_STEPS)
+    assert next_step(run_ref, agent_id="a").step_id == "s1"
+    planned: list[str] = []
+    real_plan = _engine.plan_advance
+    monkeypatch.setattr(_engine, "plan_advance", lambda *a, **kw: planned.append("x") or real_plan(*a, **kw))
+
+    with run_lock.run_cursor_lock(Path(run_ref.run_dir)), pytest.raises(LockAcquireTimeout):
+        next_step(run_ref, agent_id="a")
+    assert planned == [], "next_step planned before taking the run-cursor lock"
+    assert _issued(run_ref) == "s1"
+
+    assert next_step(run_ref, agent_id="a").step_id == "s2"
+
+
+@pytest.mark.regression
 def test_provide_decision_answer_blocks_while_the_run_cursor_lock_is_held(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``provide_decision_answer`` takes the same lock (FR-004): held -> timeout;
     free -> the answer is recorded."""

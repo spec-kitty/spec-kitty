@@ -609,13 +609,16 @@ def next_step(
     caller override takes precedence. Plan (:func:`plan_advance`) then commit
     (:func:`_commit_advance`) -- the two halves share one plan.
     """
-    plan = plan_advance(run_ref, agent_id, result, policy_snapshot=policy_snapshot, actor_context=actor_context)
-    # Serialise the cursor write under the per-run-dir lock (FR-003): the
-    # commit's append + snapshot replace is the critical section, acquired just
-    # before it and released after. ``_commit_advance`` itself stays lock-free
-    # so the public ``commit_advance`` (which holds the lock around its own
-    # re-read + CAS) does not re-acquire and self-contend.
+    # Plan AND commit under ONE per-run-dir lock hold (FR-003): the plan reads
+    # the cursor and the commit rewrites it, so planning outside the lock would
+    # let two callers both plan from the same state and both commit (#5854).
+    # Holding the lock across both halves makes the plan trivially fresh, so no
+    # separate staleness check is needed here -- ``_refuse_stale_plan`` stays the
+    # one authority for callers (``commit_advance``) whose plan predates the lock.
+    # The lock is non-reentrant: ``plan_advance`` and ``_commit_advance`` never
+    # acquire it themselves.
     with run_cursor_lock(Path(run_ref.run_dir)):
+        plan = plan_advance(run_ref, agent_id, result, policy_snapshot=policy_snapshot, actor_context=actor_context)
         _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter())
     return plan.decision
 
