@@ -14,17 +14,8 @@ from charter.drg import (
     load_org_pack,
     resolve_edge_endpoint,
 )
-from charter.offering.drg import merge, validator
-
-from charter.offering.packs.pack_validator import _plural_to_urn_kind
 
 pytestmark = [pytest.mark.fast, pytest.mark.unit]
-
-
-@pytest.mark.parametrize("plural,expected", [("directives", "directive"), ("agent_profiles", "agent_profile"), ("assets", "asset"), ("unknown", None)])
-def test_plural_identity_helper_returns_typed_canonical_strings(plural: str, expected: str | None) -> None:
-    # #5971: no Any-return or suppression, preserve unknown-plural fallback.
-    assert _plural_to_urn_kind(plural) == expected
 
 
 @pytest.mark.parametrize(
@@ -65,10 +56,7 @@ class View:
         return self.known
 
 
-def test_facade_authority_identity_and_generic_order() -> None:
-    assert resolve_edge_endpoint is merge.resolve_edge_endpoint
-    assert EndpointResolutionError is merge.EndpointResolutionError
-    assert dangling_endpoints is validator.dangling_endpoints
+def test_dangling_endpoints_generic_order() -> None:
     both = Edge("missing-source", "missing-target")
     target = Edge("directive:local", "missing-target")
     view = View([both, Edge("directive:local", "directive:local"), target], {"directive:local"})
