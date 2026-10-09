@@ -23,9 +23,11 @@ function so a later work package adds a step with a two-line wiring edit:
    pointed ``charter.yaml`` and a standalone ``governance.yaml``),
    ``tracker.doctrine`` and the interview answers' top-level ``doctrine:``;
 5. ``doctrine_pack_id`` -> ``charter_pack_id`` in project activation entries;
-6. [WP12] stale-list, kind-gate and ``[]`` resets, on the first application
-   only (:meth:`CharterPackCutoverMigration.is_first_application`);
-7. [WP12] installed removed skills;
+6. stale-list, kind-gate and ``[]`` resets (``_charter_pack_cutover_resets``),
+   on the first application only
+   (:meth:`CharterPackCutoverMigration.is_first_application`);
+7. installed copies of removed skills (``_charter_pack_cutover_skills``):
+   proven copies removed, edited copies kept in place and reported;
 8. record: the report (``_charter_pack_cutover_report``) becomes the
    ``MigrationResult``.
 
@@ -57,7 +59,7 @@ import json
 import os
 import re
 from collections.abc import Callable, Iterator, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from io import StringIO
 from pathlib import Path
 from typing import Any
@@ -90,6 +92,8 @@ from specify_cli.tool_surface.operations import OwnershipProof
 from ..metadata import ProjectMetadata
 from ..registry import MigrationRegistry
 from ._charter_pack_cutover_report import CutoverReport
+from ._charter_pack_cutover_resets import apply_resets, plan_resets
+from ._charter_pack_cutover_skills import remove_skill_copies
 from .base import BaseMigration, MigrationResult, MigrationStateUnreadableError
 
 __all__ = ["CharterPackCutoverMigration"]
@@ -780,17 +784,51 @@ def _rewrite_activation_pack_ids(run: _Run) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Step 6: stale lists, kind gates and [] (first application only)
+# --------------------------------------------------------------------------- #
+
+
+def _is_first_application(project_path: Path) -> bool:
+    """True while ``metadata.yaml`` does not record the cutover as applied (unreadable: never recorded)."""
+    try:
+        metadata = ProjectMetadata.load(project_path / KITTIFY_DIRNAME)
+    except Exception:  # unreadable metadata: treat the migration as never recorded
+        return True
+    return metadata is None or not metadata.has_migration(MIGRATION_ID)
+
+
+def _merge_report(report: CutoverReport, fragment: CutoverReport) -> None:
+    for item in fields(CutoverReport):
+        getattr(report, item.name).extend(getattr(fragment, item.name))
+
+
+def _reset_activation_lists(run: _Run) -> None:
+    if _is_first_application(run.project):
+        _merge_report(run.report, apply_resets(run.project, plan_resets(run.project), dry_run=run.dry_run))
+
+
+# --------------------------------------------------------------------------- #
+# Step 7: installed copies of removed skills
+# --------------------------------------------------------------------------- #
+
+
+def _remove_retired_skill_copies(run: _Run) -> None:
+    _merge_report(run.report, remove_skill_copies(run.project, dry_run=run.dry_run))
+
+
+# --------------------------------------------------------------------------- #
 # The migration
 # --------------------------------------------------------------------------- #
 
 #: ``apply()`` steps in contract order; a step that records an error stops the run.
-#: WP12 inserts its reset and skills steps after the pack-id rewrite.
 _STEPS: tuple[Callable[[_Run], None], ...] = (
     _preflight,
     _move_project_root,
     _rewrite_path_references,
     _rewrite_config_keys,
     _rewrite_activation_pack_ids,
+    _reset_activation_lists,
+    _remove_retired_skill_copies,
 )
 
 #: The dry run :meth:`CharterPackCutoverMigration.structural_detect` uses to confirm a retired config key.
@@ -861,11 +899,7 @@ class CharterPackCutoverMigration(BaseMigration):
         The WP12 resets run only then, so a structural re-run never resets a
         deliberate post-cutover ``activated_<kind>: []`` again.
         """
-        try:
-            metadata = ProjectMetadata.load(project_path / KITTIFY_DIRNAME)
-        except Exception:  # unreadable metadata: treat the migration as never recorded
-            return True
-        return metadata is None or not metadata.has_migration(self.migration_id)
+        return _is_first_application(project_path)
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Always applicable; the collision preflight runs inside ``apply()`` so a dry run reports it."""

@@ -42,6 +42,7 @@ from kernel.charter_pack_paths import pack_presets_dir, project_pack_root
 
 __all__ = [
     "ACTIVATED_KINDS_KEY",
+    "DEFAULT_PRESET_NAME",
     "MISSION_TYPE_ACTIVATIONS_KEY",
     "ActivationPreset",
     "OfferingPack",
@@ -60,6 +61,10 @@ __all__ = [
     "render_example_preset",
     "write_example_preset",
 ]
+
+#: The built-in pack's preset that seeds ``mission_type_activations`` and that
+#: ``charter activate --preset`` compares a customised list against (FR-003).
+DEFAULT_PRESET_NAME = "default"
 
 #: Kinds whose activation key a preset may not carry: each has its own absence
 #: contract (``skill`` is ``effective_when_absent == "required"``; glossary packs

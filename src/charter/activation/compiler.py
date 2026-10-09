@@ -51,7 +51,7 @@ from charter.activation.schemas import (
     GovernanceConfig,
 )
 from charter.offering.pack_paths import built_in_dir, built_in_root
-from charter.offering.packs.presets import PresetFormatError, PresetNotFoundError, load_preset
+from charter.offering.packs.presets import DEFAULT_PRESET_NAME, PresetFormatError, PresetNotFoundError, load_preset
 from charter.offering.provenance import to_portable_source_path
 
 logger = logging.getLogger(__name__)
@@ -620,10 +620,6 @@ class _PreparedMissionTypeActivations:
         return apply_yaml_write(self.write)
 
 
-#: The built-in pack's preset that seeds ``mission_type_activations`` (FR-003).
-_DEFAULT_PRESET_NAME = "default"
-
-
 class DefaultPresetMissingError(KittyInternalConsistencyError):
     """The built-in pack's ``default`` preset cannot seed ``mission_type_activations``.
 
@@ -644,7 +640,7 @@ class DefaultPresetMissingError(KittyInternalConsistencyError):
 
 def _default_preset_path() -> Path:
     """The built-in pack's ``default`` preset file (whether or not it exists)."""
-    return pack_presets_dir(built_in_root()) / f"{_DEFAULT_PRESET_NAME}.yaml"
+    return pack_presets_dir(built_in_root()) / f"{DEFAULT_PRESET_NAME}.yaml"
 
 
 def default_preset_mission_types() -> list[str]:
@@ -662,7 +658,7 @@ def default_preset_mission_types() -> list[str]:
     """
     path = _default_preset_path()
     try:
-        preset = load_preset(built_in_root(), _DEFAULT_PRESET_NAME)
+        preset = load_preset(built_in_root(), DEFAULT_PRESET_NAME)
     except PresetNotFoundError as exc:
         raise DefaultPresetMissingError(path, "does not exist") from exc
     except PresetFormatError as exc:

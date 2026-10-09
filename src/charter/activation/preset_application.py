@@ -81,6 +81,7 @@ from charter.offering.drg.validator import DRGValidationError
 from charter.offering.pack_paths import built_in_root
 from charter.offering.packs.presets import (
     ACTIVATED_KINDS_KEY,
+    DEFAULT_PRESET_NAME,
     MISSION_TYPE_ACTIVATIONS_KEY,
     ActivationPreset,
     OfferingPack,
@@ -105,7 +106,6 @@ __all__ = [
 #: mission-type ledger.
 GOVERNED_KEYS: tuple[str, ...] = (*preset_activation_keys(), ACTIVATED_KINDS_KEY, MISSION_TYPE_ACTIVATIONS_KEY)
 
-_DEFAULT_PRESET_NAME = "default"
 #: ``reasons`` key naming the org pack registry when it cannot be read.
 _ORG_PACKS_KEY = "charter_packs.org.packs"
 _RACE_PREFIX = "precondition_changed"
@@ -480,7 +480,7 @@ def _target_state(preset: ActivationPreset, required: Mapping[str, list[str]]) -
 def _default_values() -> dict[str, _Value]:
     """What the built-in ``default`` preset leaves for the keys it could govern."""
     try:
-        default = load_preset(built_in_root(), _DEFAULT_PRESET_NAME)
+        default = load_preset(built_in_root(), DEFAULT_PRESET_NAME)
     except PresetNotFoundError:
         return {}
     mission_types = default.mission_type_activations

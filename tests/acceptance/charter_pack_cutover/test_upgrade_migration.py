@@ -39,7 +39,7 @@ from click.testing import Result
 
 from ._effective_set import ALL_BUILTIN, builtin_inventory, effective_set, expand
 from ._requirements import REPO_ROOT
-from ._support import active_charter, covers, describe, git, git_init_commit, load_yaml, pending_until, read_json_output, run_cli, tree_digest
+from ._support import active_charter, covers, describe, git, git_init_commit, load_yaml, output_of, pending_until, read_json_output, run_cli, tree_digest
 from .legacy_fixtures import (
     COLLISION_PATH,
     EDITED_SKILL,
@@ -357,7 +357,7 @@ _STALE_PARAMS = [*STALE_FIXTURES, "stale_in_pointed_charter_yaml", "mixed_stale_
 
 
 @covers("FR-012", "US2-2", "INV:Stale activation lists", "INV:Stale kind gate")
-@pytest.mark.parametrize("name", [pytest.param(n, marks=pending_until("WP12", "stale snapshot lists reset")) for n in _STALE_PARAMS])
+@pytest.mark.parametrize("name", _STALE_PARAMS)
 def test_fr012_stale_list_reset(name: str, tmp_path: Path) -> None:
     project, outcome, payload = first_upgrade(name, tmp_path)
     stale = _stale_keys(outcome.pristine, STALE_KEYS_KEPT.get(name, ()))
@@ -369,7 +369,6 @@ def test_fr012_stale_list_reset(name: str, tmp_path: Path) -> None:
 
 
 @covers("FR-012", "US2-3", "INV:Customised lists, `minimal`-equal lists", "EC:Stale list plus one customisation", "EC:Lists mixing default ids with other ids")
-@pending_until("WP12", "near-miss and customised lists kept and reported")
 def test_fr012_near_miss_and_customised_kept_and_reported(tmp_path: Path) -> None:
     for name, key in (("near_miss_stale", "activated_tactics"), ("customised_lists", "activated_directives")):
         project, outcome, payload = first_upgrade(name, tmp_path)
@@ -381,7 +380,6 @@ def test_fr012_near_miss_and_customised_kept_and_reported(tmp_path: Path) -> Non
 
 
 @covers("FR-012", "INV:Released `minimal` kind gate", "EC:List equal to the `minimal` preset", "DM-01M497F0NAQARAK3JZFVWF1SD0")
-@pending_until("WP12", "the released minimal kind gate is removed and reported")
 def test_fr012_minimal_kind_gate_removed_lists_reported(tmp_path: Path) -> None:
     project, outcome, payload = first_upgrade("minimal_equal", tmp_path)
     before = active_charter(outcome.pristine)
@@ -394,7 +392,6 @@ def test_fr012_minimal_kind_gate_removed_lists_reported(tmp_path: Path) -> None:
 
 
 @covers("FR-012", "INV:Normalizer empty lists", "EC:Deliberate `[]` for a kind", "DM-01M497EW60HNWWJQCXDFA99R0H")
-@pending_until("WP12", "normalizer [] lists reset and reported with the key to restore")
 def test_fr012_normalizer_empty_lists_reset_and_reported(tmp_path: Path) -> None:
     project, _, payload = first_upgrade("normalizer_empty_lists", tmp_path)
     after = active_charter(project)
@@ -419,18 +416,28 @@ def test_fr012_installed_removed_skills(tmp_path: Path) -> None:
 
 
 @covers("FR-012")
-@pending_until("WP12", "dry run reports the same lines and writes nothing")
 def test_fr012_dry_run_parity(tmp_path: Path) -> None:
+    """The human ``upgrade --dry-run`` summary previews every change line the real ``--json`` run reports.
+
+    ``upgrade --dry-run --json`` emits the frozen compat-planner contract (no
+    ``migration_reports``), so the dry run is read through its human summary.
+    """
     dry_project = build("stale_d5_original", tmp_path / "dry")
     real_project = build("stale_d5_original", tmp_path / "real")
     before = tree_digest(dry_project)
-    _, dry = upgrade(dry_project, "--dry-run")
+    dry = run_cli(["upgrade", "--yes", "--no-worktrees", "--dry-run"], dry_project)
+    assert dry.exit_code == 0, describe(dry)
     assert tree_digest(dry_project) == before
     _, real = upgrade(real_project)
-    dry_report, real_report = cutover_report(dry), cutover_report(real)
-    assert dry_report["reset"], "control: the fixture has something to reset"
-    assert {k: len(v) for k, v in dry_report.items()} == {k: len(v) for k, v in real_report.items()}
-    assert dry_report["reset"] == real_report["reset"]
+    real_report = cutover_report(real)
+    assert real_report["reset"], "control: the fixture has something to reset"
+    preview = " ".join(output_of(dry).split())
+    for key, verb in (("moved", "Would move"), ("rewritten", "Would rewrite"), ("reset", "Would reset"), ("skills_removed", "Would remove skill")):
+        for line in real_report[key]:
+            assert f"{verb} {line}" in preview, (key, line, preview)
+        assert preview.count(f"{verb} ") == len(real_report[key]), (key, preview)
+    kept = sum(len(real_report[key]) for key in ("kept_for_review", "matches_minimal", "skills_kept"))
+    assert preview.count("Would keep") == kept, preview
 
 
 # --------------------------------------------------------------------------------------
@@ -476,19 +483,8 @@ def _default_preset_mission_types() -> list[str]:
     return sorted(data["mission_type_activations"])
 
 
-def _nfr001_param(name: str) -> object:
-    """``equal`` fixtures already hold at base (the legacy readers still work): unmarked regression guards.
-
-    ``pre_rc35`` (no activation keys, nothing to migrate) only waited for the built-in
-    ``presets/default.yaml`` its expectation reads; it holds since WP07 ships that file.
-    """
-    if EXPECTED_RELATION[name] in ("equal", "pre_rc35"):
-        return pytest.param(name, id=name)
-    return pytest.param(name, id=name, marks=pending_until("WP12", "upgrade resets stale state and preserves the effective set"))
-
-
 @covers("NFR-001", "SC-002", "US2-1")
-@pytest.mark.parametrize("name", [_nfr001_param(n) for n in NFR001_FIXTURES])
+@pytest.mark.parametrize("name", NFR001_FIXTURES)
 def test_nfr001_effective_set_preserved(name: str, tmp_path: Path) -> None:
     record = _golden(name)["effective"]
     project, outcome, payload = first_upgrade(name, tmp_path)
@@ -526,28 +522,8 @@ def _assert_charter_list_agrees(project: Path, record: dict[str, Any]) -> None:
 CUTOVER_NOT_APPLICABLE = frozenset({"two_org_packs", "pre_rc35"})
 
 
-#: NFR-001 fixtures that carry no reset row (stale list, kind gate, ``[]``): their second upgrade is
-#: a 0-byte no-op once WP11's keys, root and path rows land, so they are not pending WP12.
-NFR004_GREEN_AT_WP11 = frozenset(
-    {
-        "legacy_keys_only",
-        "single_pack_legacy_form",
-        "organisation_packs",
-        "legacy_directory_only",
-        "governance_doctrine_in_charter_yaml",
-        "two_org_packs",
-        "pre_rc35",
-        "synthesized_with_provenance",
-        "project_pack_skills",
-    }
-)
-
-
 @covers("NFR-004", "US2-4")
-@pytest.mark.parametrize(
-    "name",
-    [pytest.param(n, marks=() if n in NFR004_GREEN_AT_WP11 else pending_until("WP12", "a second upgrade changes 0 bytes")) for n in NFR001_FIXTURES],
-)
+@pytest.mark.parametrize("name", NFR001_FIXTURES)
 def test_nfr004_second_upgrade_changes_zero_bytes(name: str, tmp_path: Path) -> None:
     project, first, first_payload = first_upgrade(name, tmp_path)
     before = tree_digest(first.pristine)
@@ -564,7 +540,6 @@ def test_nfr004_second_upgrade_changes_zero_bytes(name: str, tmp_path: Path) -> 
 
 
 @covers("US2-6", "NFR-001")
-@pending_until("WP12", "a pre-rc35 project upgrades with zero errors to the default preset")
 def test_us2_6_pre_rc35_upgrade_has_zero_errors(tmp_path: Path) -> None:
     project = build("pre_rc35", tmp_path)
     result, payload = upgrade(project)

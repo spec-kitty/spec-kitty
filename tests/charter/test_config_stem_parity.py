@@ -194,8 +194,14 @@ def test_spot_check_one_activated_entry_per_other_kind_round_trips(
     """
     config = _load_config(repo_root)
     stems = config.get(config_key)
+    if stems is None:
+        # The key is absent here (the kind is unrestricted, e.g. after the #3732
+        # cutover reset a stale released list): spot-check a shipped artifact.
+        from charter.offering.pack_paths import built_in_root
+
+        stems = sorted(path.name.split(".")[0] for path in (built_in_root() / kind.plural).glob(kind.glob_pattern))
     assert isinstance(stems, list)
-    assert stems, f"expected config.{config_key} to be non-empty"
+    assert stems, f"expected config.{config_key} (or the built-in {kind.plural}) to be non-empty"
     stem = str(stems[0])
 
     urn = resolve_artifact_urn(kind, stem, doctrine_root=doctrine_root)

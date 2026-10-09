@@ -781,6 +781,9 @@ _ROUTED_MODULES: frozenset[str] = frozenset(
         # #3732: the charter-pack cutover moves .kittify/doctrine/** file by file and
         # removes each source (and the emptied root) through guard_destructive_removal.
         "upgrade/migrations/m_4_0_0rc6_charter_pack_cutover.py",
+        # #3732 (WP12): the cutover's skills step removes installed copies of removed
+        # skills through guard_destructive_removal (manifest or frozen-hash proof).
+        "upgrade/migrations/_charter_pack_cutover_skills.py",
     }
 )
 

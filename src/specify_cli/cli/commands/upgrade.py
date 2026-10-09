@@ -926,6 +926,24 @@ def _render_no_op_tail(outcome: UpgradeOutcome, *, auto_commit_paths: list[str],
     _print_commit_line(outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted)
 
 
+def _print_migration_summaries(result: UpgradeResult) -> None:
+    """Print the per-item change lines of every migration that reports a JSON summary.
+
+    A migration that carries a structured report puts it in ``changes_made[0]``
+    (decoded for ``--json`` as ``migration_reports``) and one human line per
+    change after it; those lines are printed under the migration id. Kept and
+    review lines are migration warnings and print in the Warnings section.
+    """
+    for migration_id, migration_result in result.migration_results.items():
+        changes = migration_result.changes_made
+        try:
+            structured = bool(changes) and isinstance(json.loads(changes[0]), dict)
+        except (TypeError, ValueError):
+            structured = False
+        if structured:
+            _print_upgrade_section(f"[cyan]{escape(migration_id)}:[/cyan]", changes[1:], "  [cyan]•[/cyan] ")
+
+
 def _render_outcome_tail(
     outcome: UpgradeOutcome,
     *,
@@ -948,6 +966,7 @@ def _render_outcome_tail(
     if outcome.kind is UpgradeOutcomeKind.NO_OP:
         _render_no_op_tail(outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted)
         return
+    _print_migration_summaries(outcome.result)
     _print_upgrade_section(_WARNINGS_HEADER, outcome.warnings(), "  [yellow]![/yellow] ")
     _print_upgrade_section(_ERRORS_HEADER, outcome.errors(), "  [red]✗[/red] ")
     _print_upgrade_section(_MANUAL_REVIEW_HEADER, manual_review_paths, "  [yellow]![/yellow] ")
@@ -1063,6 +1082,11 @@ def _finalizer_repair_preflight(prepared: PreparedUpgradeRepairs | None, errors:
         yield errors + tuple(d.message for d in diagnostics)
 
 
+def _clause(text: str) -> str:
+    """*text* without its closing period, so a caller can end the sentence once."""
+    return text.rstrip().rstrip(".")
+
+
 def _supporting_repair_preview(project_path: Path) -> tuple[str, bool]:
     """Describe canonical retained effects without entering any write boundary."""
     from charter.activation.compiler import DefaultPresetMissingError
@@ -1076,10 +1100,10 @@ def _supporting_repair_preview(project_path: Path) -> tuple[str, bool]:
         prepared = prepare_upgrade_repairs(project_path, consent=ApplyConsent())
         if not prepared.complete:
             detail = "; ".join(d.message for d in prepared.diagnostics if d.severity == "error")
-            return f"Supporting repair preview incomplete: {detail[:350] or 'Required owner assessment incomplete'}. {hint}", True
+            return f"Supporting repair preview incomplete: {_clause(detail[:350]) or 'Required owner assessment incomplete'}. {hint}", True
         effects = prepared.effects
     except (OSError, ValueError, AgentConfigError, ActiveCharterConfigError, DefaultPresetMissingError) as exc:
-        return f"Supporting repair preview incomplete: {_preparation_error_text(exc)[:350]}. {hint}", True
+        return f"Supporting repair preview incomplete: {_clause(_preparation_error_text(exc)[:350])}. {hint}", True
     preserved = sum(d.state == "consent_required" for owner in prepared.owners for d in owner.dispositions)
     if not effects and not preserved:
         return "", False
