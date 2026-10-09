@@ -16,8 +16,10 @@ and (b) ``facade.SYMBOL is charter.offering.SYMBOL`` (object identity).
 
 from __future__ import annotations
 
+import functools
 import importlib
 import pathlib
+import types
 
 import pytest
 
@@ -66,6 +68,9 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("DRGGraph", "charter.offering.drg.models"),
         ("DRGNode", "charter.offering.drg.models"),
         ("NodeKind", "charter.offering.drg.models"),
+        # Tabled by #3732 WP25 when the inverse gate started keying on charter.offering.
+        ("scan_project_artifacts", "charter.offering.drg.project_scan"),
+        ("slug_for", "charter.offering.artifact_kinds"),
         ("Relation", "charter.offering.drg.models"),
         ("load_graph", "charter.offering.drg"),
         ("merge_layers", "charter.offering.drg"),
@@ -238,6 +243,20 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("artifact_schema_registry", "charter.offering.packs.pack_validator"),
         ("render_validation_result", "charter.offering.packs.pack_validator"),
         ("validate_pack", "charter.offering.packs.pack_validator"),
+        # Presets and offering packs (FR-019), and the retired-field refusal (#3732);
+        # tabled by WP25 when the inverse gate started keying on charter.offering.
+        ("ActivationPreset", "charter.offering.packs.presets"),
+        ("OfferingPack", "charter.offering.packs.presets"),
+        ("PresetFormatError", "charter.offering.packs.presets"),
+        ("PresetNotFoundError", "charter.offering.packs.presets"),
+        ("discover_presets", "charter.offering.packs.presets"),
+        ("list_offering_packs", "charter.offering.packs.presets"),
+        ("load_preset", "charter.offering.packs.presets"),
+        ("load_preset_file", "charter.offering.packs.presets"),
+        ("preset_activation_keys", "charter.offering.packs.presets"),
+        ("render_example_preset", "charter.offering.packs.presets"),
+        ("write_example_preset", "charter.offering.packs.presets"),
+        ("RetiredPackFieldError", "charter.offering.packs.retired_fields"),
     ],
     "charter.provenance": [
         ("is_built_in_pack_path", "charter.offering.provenance"),
@@ -280,13 +299,15 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
     ],
 }
 
-#: Top-level packages whose re-exports through a charter ``__all__`` MUST carry an
-#: identity contract: ``doctrine`` (the migrated surface) plus the external
-#: shared-contract packages (per the Shared Package Boundary). A charter-local
-#: definition (``__module__`` under ``charter``) is not a re-export; a stdlib
-#: value instance such as a ``pathlib.Path`` constant is not one either — both are
-#: correctly excluded by keying on these origins rather than on "not charter".
-_IDENTITY_REQUIRED_ORIGINS = frozenset({"doctrine", "spec_kitty_events", "spec_kitty_tracker"})
+#: Module prefixes whose re-exports through a charter ``__all__`` MUST carry an
+#: identity contract: ``charter.offering`` (the offering surface the facades proxy)
+#: plus the external shared-contract packages (per the Shared Package Boundary). A
+#: charter-local definition (any other ``charter.*`` module) is not a re-export; a
+#: stdlib value instance such as a ``pathlib.Path`` constant is not one either —
+#: both are correctly excluded by keying on these origins rather than on "not
+#: charter". (Until #3732 WP25 this keyed on the top-level package ``doctrine``,
+#: which no longer exists, so no offering re-export was ever checked.)
+_IDENTITY_REQUIRED_ORIGINS = frozenset({"charter.offering", "spec_kitty_events", "spec_kitty_tracker"})
 
 _CHARTER_SRC = pathlib.Path(__file__).resolve().parents[2] / "src" / "charter"
 
@@ -346,6 +367,41 @@ def test_facade_all_lists_every_reexport(facade_module: str) -> None:
     assert not missing, f"{facade_module}.__all__ is missing contract symbols: {sorted(missing)}. Add them to __all__ or update the contract table."
 
 
+def _requires_identity(origin: str) -> bool:
+    return any(origin == prefix or origin.startswith(f"{prefix}.") for prefix in _IDENTITY_REQUIRED_ORIGINS)
+
+
+def _untabled_reexports(facade: types.ModuleType, covered: set[str]) -> list[tuple[str, str]]:
+    """``(name, origin)`` for every ``__all__`` symbol that needs an identity contract and has none."""
+    untabled: list[tuple[str, str]] = []
+    for name in getattr(facade, "__all__", None) or []:
+        origin = getattr(getattr(facade, name, None), "__module__", None)
+        if origin and _requires_identity(origin) and name not in covered:
+            untabled.append((name, origin))
+    return untabled
+
+
+def test_planted_non_identical_offering_reexport_is_reported() -> None:
+    """Self-test: a wrapper of a ``charter.offering`` function advertised in ``__all__`` is reported.
+
+    ``functools.wraps`` copies ``__module__``, so the wrapper looks like a re-export of
+    ``charter.offering.artifact_kinds`` while not being the same object. A charter-local
+    definition next to it is not reported.
+    """
+    from charter.offering import artifact_kinds
+
+    def local() -> None:
+        """A charter-local definition."""
+
+    planted = types.ModuleType("charter.planted_facade")
+    wrapper = functools.wraps(artifact_kinds.slug_for)(lambda *a, **k: artifact_kinds.slug_for(*a, **k))
+    local.__module__ = planted.__name__
+    vars(planted).update(slug_for=wrapper, local=local, __all__=["slug_for", "local"])
+    assert wrapper is not artifact_kinds.slug_for
+    assert _untabled_reexports(planted, set()) == [("slug_for", "charter.offering.artifact_kinds")]
+    assert _untabled_reexports(planted, {"slug_for"}) == []
+
+
 @pytest.mark.parametrize("facade_module", _charter_modules())
 def test_facade_all_reexports_are_tabled(facade_module: str) -> None:
     """Reverse of :func:`test_facade_all_lists_every_reexport`, enforced repo-wide:
@@ -368,11 +424,7 @@ def test_facade_all_reexports_are_tabled(facade_module: str) -> None:
     """
     facade = importlib.import_module(facade_module)
     covered = {symbol for symbol, _ in _FACADE_TABLE.get(facade_module, [])}
-    untabled: list[tuple[str, str]] = []
-    for name in getattr(facade, "__all__", None) or []:
-        origin = getattr(getattr(facade, name, None), "__module__", None)
-        if origin and origin.split(".")[0] in _IDENTITY_REQUIRED_ORIGINS and name not in covered:
-            untabled.append((name, origin))
+    untabled = _untabled_reexports(facade, covered)
     assert not untabled, (
         f"{facade_module}.__all__ advertises re-exported symbols with no "
         f"identity contract (public but UNCHECKED): {sorted(untabled)}. Add each "
