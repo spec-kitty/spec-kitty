@@ -781,7 +781,8 @@
       "last_transition_at": "2026-10-09T00:05:19.199092+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Glossary (6 terms, 4 retired, seed/pack deprecations, ADR 2026-08-22-2 citations repointed), CHANGELOG Breaking Before/After (10 'Charter pack cutover:' entries, 38 rows), runbook docs/migrations/charter-pack-cutover.md, superseded banners, migrations index. Acceptance 315 passed/0 failed/0 xpassed. Needs ratification: glossary-pack exemption in the FR-010 prose fixture (41ac0dbe). Sidecar PR draft in scratchpad wp24-sidecar-pr-draft.md."
+        "Glossary (6 terms, 4 retired, seed/pack deprecations, ADR 2026-08-22-2 citations repointed), CHANGELOG Breaking Before/After (10 'Charter pack cutover:' entries, 38 rows), runbook docs/migrations/charter-pack-cutover.md, superseded banners, migrations index. Acceptance 315 passed/0 failed/0 xpassed. Needs ratification: glossary-pack exemption in the FR-010 prose fixture (41ac0dbe). Sidecar PR draft in scratchpad wp24-sidecar-pr-draft.md.",
+        "Review cycle 1 approved (reviewer-renata). Red-first verified (5 failed at bc449d92), green at lane HEAD: acceptance 315 passed/1 skipped/38 xfailed/0 failed/0 xpassed. CHANGELOG Unreleased only (no released-section or version change); Before/After covers every contracts/cli.md row, every contracts/errors.md code, 13->7 skill map, config keys/dirs, descriptor fields, carry-over Python renames; >=20 claims verified against CLI/code. Only 'Charter pack cutover:' entries spell FR-018 tokens (scripted check, 86 entries). Runbook accurate vs migration/gate code; banners only on 2 superseded runbooks; ADR untouched; parity gate change is data update (non-vacuity re-proven by planted mismatch). Fixture exemption 41ac0dbe ratified. docs-lint 0 errors, ruff clean, test-fast 2281 passed. Non-blocking notes in report."
       ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
