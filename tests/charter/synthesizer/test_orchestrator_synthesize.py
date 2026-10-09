@@ -376,10 +376,6 @@ class TestNoOpStableSynthesis:
         from charter.activation.synthesizer.manifest import MANIFEST_PATH
 
         monkeypatch.setattr(
-            "charter.activation.synthesizer.write_pipeline._get_synthesizer_version",
-            lambda: "3.2.6",
-        )
-        monkeypatch.setattr(
             "charter.activation.synthesizer.synthesize_pipeline._get_synthesizer_version",
             lambda: "3.2.6",
         )
@@ -397,10 +393,6 @@ class TestNoOpStableSynthesis:
         before = {p.name: p.read_bytes() for p in sorted(prov_dir.glob("*.yaml"))}
         before["__manifest__"] = manifest_file.read_bytes()
 
-        monkeypatch.setattr(
-            "charter.activation.synthesizer.write_pipeline._get_synthesizer_version",
-            lambda: "3.2.7",
-        )
         monkeypatch.setattr(
             "charter.activation.synthesizer.synthesize_pipeline._get_synthesizer_version",
             lambda: "3.2.7",
