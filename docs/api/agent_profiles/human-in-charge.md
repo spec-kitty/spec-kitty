@@ -10,7 +10,7 @@ related:
 
 # Human in Charge — Agent Profile
 
-This is not an AI persona. It is a routing sentinel marking a work package for direct human execution; no agent context is injected. Nothing in the codebase blocks resolving or loading this profile-id the way it would any other, but doing so is a no-op: doctrine-layers, directives, and the initialization-declaration are all empty, so there is no persona voice or context for `ad-hoc-profile-load` to apply.
+This is not an AI persona. It is a routing sentinel marking a work package for direct human execution; no agent context is injected. Nothing in the codebase blocks resolving or loading this profile-id the way it would any other, but doing so is a no-op: doctrine-layers, directives, and the initialization-declaration are all empty, so there is no persona voice or context for `spk-charter-profile-load` to apply.
 
 ## What it signals
 
@@ -29,4 +29,4 @@ When a work package carries the `human-in-charge` profile-id, that WP requires d
 ## See also
 
 - [Agent Profiles index](index.md)
-- [spk-doctrine-profile-load](../skills/spk-doctrine-profile-load.md) — how profile loading works for the 16 real personas this sentinel is excluded from
+- [spk-charter-profile-load](../skills/spk-charter-profile-load.md) — how profile loading works for the 16 real personas this sentinel is excluded from

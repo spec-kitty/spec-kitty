@@ -28,7 +28,7 @@ history:
 
 ## ⚡ Do This First: Load Agent Profile
 
-Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the frontmatter (or any user-defined profile), and behave according to its guidance before parsing the rest of this prompt.
+Use the `/spk-charter-profile-load` skill to load the agent profile specified in the frontmatter (or any user-defined profile), and behave according to its guidance before parsing the rest of this prompt.
 
 - **Profile**: `{{agent_profile}}`
 - **Role**: `{{role}}`

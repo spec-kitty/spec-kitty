@@ -61,7 +61,7 @@ Cascade's workflow-discovery rules may evolve. If `/spec-kitty.*` does not autoc
 - **Profile not loading.**
   In Cascade chat, run:
   ```
-  /ad-hoc-profile-load researcher-robbie
+  /spk-charter-profile-load researcher-robbie
   ```
   Use the profile id from the work-package frontmatter.
 

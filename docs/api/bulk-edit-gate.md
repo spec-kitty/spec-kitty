@@ -13,7 +13,7 @@ WP workspace.
 
 This document is the **schema reference** for that file. For a tour of the
 workflow and the human-side decisions, see the
-`spec-kitty-bulk-edit-classification` skill.
+`spk-practice-bulk-edit` skill.
 
 ## Required schema
 
@@ -135,12 +135,12 @@ per-mission exception with rationale captured in `plan.md`.
 Each failure prints a structured error starting with
 `Bulk Edit Gate: BLOCKED:` (planning gate) or
 `Bulk Edit Review: Diff Compliance:` (post-implementation gate). The triggering message also activates the
-`spec-kitty-bulk-edit-classification` skill, which walks the agent through
+`spk-practice-bulk-edit` skill, which walks the agent through
 remediation.
 
 ## See also
 
-- The skill `spec-kitty-bulk-edit-classification` (loaded automatically when
+- The skill `spk-practice-bulk-edit` (loaded automatically when
   `meta.json` declares `change_mode: bulk_edit`).
 - Existing missions that exercised this gate:
   `kitty-specs/charter-ux-and-org-pack-vocabulary-01KSAF14/occurrence_map.yaml`,

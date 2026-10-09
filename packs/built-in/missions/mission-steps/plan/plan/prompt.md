@@ -76,7 +76,7 @@ structure and a set of decisions, not a build.
 ## Visual Communication (recommended)
 
 Apply the visual doctrine when decomposition, dependencies, sequencing,
-decision paths, or handoffs are clearer visually. Load `spk-doctrine-show-me`
+decision paths, or handoffs are clearer visually. Load `spk-practice-show-me`
 and add the smallest useful diagram. Prefer Mermaid inline; use PlantUML only
 when its richer layout or DSL materially helps. Keep tables and decisions
 authoritative, and skip diagrams that merely decorate the plan.

@@ -14,8 +14,10 @@ when its ownership is proven, either
   source held and each one hashes to :data:`SHIPPED_SKILL_HASHES`.
 
 Anything else (an edited copy, an extra file, a symlink) stays in place and is
-reported (``skills_kept``, ``preserved_paths``). A removed copy's entries are
-dropped from ``.kittify/skills-manifest.json`` so no orphan entry remains. A
+reported once (``skills_kept``, ``preserved_paths``). A removed copy's entries are
+dropped from ``.kittify/skills-manifest.json`` so no orphan entry remains, and so
+are a kept copy's (owner ruling A, US4): the kept copy becomes user-owned, so the
+upgrade finalizer never offers to overwrite it and later upgrades exit 0. A
 name the installed CLI still ships is left alone (the upgrade finalizer would
 reinstall it); every name is live once its source is deleted (FR-008).
 
@@ -32,7 +34,7 @@ manifested copy of it is removed.
 from __future__ import annotations
 
 import os
-from collections.abc import Iterator, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -249,6 +251,7 @@ def _drop_manifest_entries(project: Path, removed: list[str]) -> None:
 
 
 def _remove_one(project: Path, copy: SkillCopy, report: CutoverReport, *, dry_run: bool) -> bool:
+    """Remove or keep *copy*; ``True`` once it is settled (removed or kept), ``False`` on an error."""
     rel = copy.rel(project)
     try:
         verdict = guard_destructive_removal(copy.path, project, prover=_prover(copy.name), is_tree=True, dry_run=dry_run)
@@ -258,24 +261,25 @@ def _remove_one(project: Path, copy: SkillCopy, report: CutoverReport, *, dry_ru
     if verdict.owned:
         report.skills_removed.append(f"{rel} ({copy.name}; {verdict.reason})")
         return True
-    report.skills_kept.append(f"{rel} ({copy.name}; edited or not a shipped copy, left in place; remove it by hand once you no longer need it)")
+    report.skills_kept.append(
+        f"{rel} ({copy.name}; edited or not a shipped copy, left in place and no longer managed by spec-kitty; remove it by hand once you no longer need it)"
+    )
     report.preserved_paths.append(rel)
-    return False
-
-
-def _iter_removed(project: Path, copies: list[SkillCopy], report: CutoverReport, *, dry_run: bool) -> Iterator[str]:
-    for copy in copies:
-        if _remove_one(project, copy, report, dry_run=dry_run):
-            yield copy.rel(project)
+    return True
 
 
 def remove_skill_copies(project_path: Path, *, dry_run: bool) -> CutoverReport:
-    """Remove every proven copy of a removed skill (unless *dry_run*); keep and report the rest."""
+    """Remove every proven copy of a removed skill (unless *dry_run*); keep and report the rest.
+
+    Every settled copy, removed or kept, leaves the skills manifest: a removed
+    one so no orphan entry remains, a kept one so it becomes user-owned. A copy
+    whose removal failed keeps its entries, so the next upgrade can still prove it.
+    """
     report = CutoverReport()
-    removed = list(_iter_removed(project_path, find_removed_skill_copies(project_path), report, dry_run=dry_run))
-    if removed and not dry_run:
+    settled = [copy.rel(project_path) for copy in find_removed_skill_copies(project_path) if _remove_one(project_path, copy, report, dry_run=dry_run)]
+    if settled and not dry_run:
         try:
-            _drop_manifest_entries(project_path, removed)
+            _drop_manifest_entries(project_path, settled)
         except (OSError, ValueError) as exc:
             report.errors.append(f".kittify/skills-manifest.json could not be updated ({exc}); run `spec-kitty upgrade` again")
     return report

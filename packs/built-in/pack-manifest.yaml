@@ -15,7 +15,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/comms-cleo.agent.yaml
   provenance_path:
-- content_hash: 5b389532a6646522f3d1bafb07f232fb6e39f43488d56e0f4be691e525cf9093
+- content_hash: e12b8469266434d833978274b10b1b0bea34f96282553a5d3fd9c6145e363088
   id: curator-carla
   kind: agent_profile
   path: agent_profiles/curator-carla.agent.yaml
@@ -35,7 +35,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/diagram-daisy.agent.yaml
   provenance_path:
-- content_hash: 6c1779acaa8c11438846a30f347bb636dae1a4521bf1297b038e3349ad3f54d9
+- content_hash: 9121635d67c58fa61e91d590ecb9bd8153d1511999529d9459f617ad64abe5db
   id: doctrine-daphne
   kind: agent_profile
   path: agent_profiles/doctrine-daphne.agent.yaml
@@ -245,7 +245,7 @@ constituents:
   kind: directive
   path: directives/037-living-documentation-sync.directive.yaml
   provenance_path:
-- content_hash: 0d7be36a01f17777b84571b8c2ed4b923fae2744b4f01e2bdabd8f97aba1a5f3
+- content_hash: a546065db18b56e178a6b39eb5de7a8e1cd6557c29fd7840c788f6fc0985192b
   id: DIRECTIVE_038
   kind: directive
   path: directives/038-structured-prompt-boundary.directive.yaml
@@ -350,7 +350,7 @@ constituents:
   kind: directive
   path: directives/use-mutation-testing-to-validate-test-quality.directive.yaml
   provenance_path:
-- content_hash: 3393b50f8f6e4f6f0275f349dda035e6c31ffae4145a896c360e225569c01478
+- content_hash: db0e8901130fcacf7cef396a7f460a4f3a1de2ae2736644880c3aa044ef11bae
   id: spec-kitty-core
   kind: glossary_pack
   path: glossary_packs/spec-kitty-core.glossary-pack.yaml
@@ -450,7 +450,7 @@ constituents:
   kind: procedure
   path: procedures/documentation-gap-prioritization.procedure.yaml
   provenance_path:
-- content_hash: cb24097415fe7e4eb57b7516cdd644d7b98b898fbdb14ad1c3b7c2e9a10d29f1
+- content_hash: beb958b8d63e04a2244500965a7ca4c343bf5d6ac7412c0e1f5878cf3d8d0f32
   id: domain-aware-decision-interview
   kind: procedure
   path: procedures/domain-aware-decision-interview.procedure.yaml
@@ -490,7 +490,7 @@ constituents:
   kind: procedure
   path: procedures/meeting-minutes-pipeline.procedure.yaml
   provenance_path:
-- content_hash: 05a6216dd93bae06f6cc59d89f4e262246b3a543cb04b4ca98ec29f9657ae0fc
+- content_hash: e92220a83ac1855ceafca2e7772002957cd23795937d58e4b8963550d86e68ba
   id: migrate-project-guidance-to-spec-kitty-charter
   kind: procedure
   path: procedures/migrate-project-guidance-to-spec-kitty-charter.procedure.yaml
@@ -505,7 +505,7 @@ constituents:
   kind: procedure
   path: procedures/mission-wrap-up-sequence.procedure.yaml
   provenance_path:
-- content_hash: c3abf9d84634b30c3ffb52db3185446f82fc7df98344756c200cd8075260c289
+- content_hash: cec9acbd64c618ce09d1a4faf2df85ee91ed7a7051f52b618de1a2ec8c59f31f
   id: onboard-external-agent-to-pack
   kind: procedure
   path: procedures/onboard-external-agent-to-pack.procedure.yaml
@@ -665,7 +665,7 @@ constituents:
   kind: styleguide
   path: styleguides/tiered-standards.styleguide.yaml
   provenance_path:
-- content_hash: 293e9480138f64a2e87cc03859ac64e13777701ebf14630d194726ff42c1b7fc
+- content_hash: 77546fb3eae3fc2e150eecd1d1f8091d6f4152014e368f027d34c9fe69577e90
   id: acceptance-criteria-non-vacuity
   kind: tactic
   path: tactics/testing/acceptance-criteria-non-vacuity.tactic.yaml
@@ -1131,7 +1131,7 @@ constituents:
   kind: tactic
   path: tactics/review-intent-and-risk-first.tactic.yaml
   provenance_path:
-- content_hash: 6926cf665f37b9f9a073929110dfe177ae40cbe532fd87ddc2d629908c0a794f
+- content_hash: 32fed4c06d1521d287cedd8304315d9d85a9d9a4e33cc9294689fa23db2ca18b
   id: reviewer-implementer-role-separation
   kind: tactic
   path: tactics/reviewer-implementer-role-separation.tactic.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty charter pack regenerate-graph
-manifest_hash: 03e839a5a015862f4d59d09c11c7e12e553127bc1920206166c2e6d746459b69
+manifest_hash: 1a45954075aca4f5e9e9761d1f9ceb3cf519cf4add2625c9276d3ca82b0ad20e
 presets:
 - content_hash: f0e3e26b23029c9073d5d7799d41f5ca8bd35e7a13f370d7e1bf400705552fc7
   name: default

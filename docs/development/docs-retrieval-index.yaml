@@ -4498,7 +4498,8 @@ pages:
     - {slug: "spk-gate", text: "spk-gate-*", level: 2}
     - {slug: "spk-admin", text: "spk-admin-*", level: 2}
     - {slug: "spk-team", text: "spk-team-*", level: 2}
-    - {slug: "spk-doctrine", text: "spk-doctrine-*", level: 2}
+    - {slug: "spk-charter", text: "spk-charter-*", level: 2}
+    - {slug: "spk-practice", text: "spk-practice-*", level: 2}
     - {slug: "spk-integrate", text: "spk-integrate-*", level: 2}
     - {slug: "spk-meta", text: "spk-meta-*", level: 2}
     - {slug: "legacy-detailed-workflow-skills", text: "Legacy / Detailed Workflow Skills", level: 2}
@@ -4513,8 +4514,8 @@ pages:
     - {slug: "flow", text: "Flow", level: 2}
     - {slug: "what-it-does-not-do", text: "What it does not do", level: 2}
     - {slug: "legacy-alias", text: "Legacy alias", level: 2}
-  - path: "docs/api/skills/spk-doctrine-profile-load.md"
-    title: "spk-doctrine-profile-load"
+  - path: "docs/api/skills/spk-charter-profile-load.md"
+    title: "spk-charter-profile-load"
     divio_type: "none"
     abstract: "Load a Spec Kitty agent profile on demand for interactive sessions, outside the mission runtime loop."
     anchors:
@@ -4523,7 +4524,7 @@ pages:
     - {slug: "trigger-phrase", text: "Trigger phrase", level: 2}
     - {slug: "flow", text: "Flow", level: 2}
     - {slug: "what-it-does-not-do", text: "What it does not do", level: 2}
-    - {slug: "legacy-alias", text: "Legacy alias", level: 2}
+    - {slug: "detailed-mechanics", text: "Detailed mechanics", level: 2}
   - path: "docs/api/skills/spk-gate-mission-review.md"
     title: "Skill: spk-gate-mission-review"
     divio_type: "none"

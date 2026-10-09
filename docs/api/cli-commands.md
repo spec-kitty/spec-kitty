@@ -457,7 +457,7 @@ _Charter management commands_
 │ new                Scaffold a stub doctrine artifact YAML (FR-016).          │
 │ validate           Validate project-layer doctrine artifacts against their   │
 │                    schemas (FR-017).                                         │
-│ fetch              Fetch org doctrine pack(s) from their configured remote   │
+│ fetch              Fetch org Charter Pack(s) from their configured remote    │
 │                    sources.                                                  │
 │ interview          Capture charter interview answers for later generation.   │
 │ generate           Generate charter bundle from interview answers + doctrine │
@@ -478,8 +478,7 @@ _Charter management commands_
 │ mission-type       Mission type commands (activated types only).             │
 │ list               List activated doctrine artifacts by kind.                │
 │ pack               Charter pack management commands.                         │
-│ org                Manage org-layer doctrine pack authoring (init,           │
-│                    validate).                                                │
+│ org                Manage org Charter Pack authoring (init, validate).       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -723,7 +722,7 @@ _Charter bundle validation commands._
 ```
  Usage: spec-kitty charter fetch [OPTIONS]
 
- Fetch org doctrine pack(s) from their configured remote sources.
+ Fetch org Charter Pack(s) from their configured remote sources.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --pack             TEXT  Fetch only the named pack (default: fetch all       │
@@ -916,7 +915,7 @@ _Mission type commands (activated types only)._
 │                             [required]                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
+│ --pack          PATH  Scaffold inside a Charter Pack directory instead of    │
 │                       the project layer. When omitted, the stub lands under  │
 │                       .kittify/charter-packs/.                               │
 │ --help  -h            Show this message and exit.                            │
@@ -925,20 +924,19 @@ _Mission type commands (activated types only)._
 
 ## spec-kitty charter org
 
-_Manage org-layer doctrine pack authoring (init, validate)._
+_Manage org Charter Pack authoring (init, validate)._
 
 ```
  Usage: spec-kitty charter org [OPTIONS] COMMAND [ARGS]...
 
- Manage org-layer doctrine pack authoring (init, validate).
+ Manage org Charter Pack authoring (init, validate).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ init      Scaffold a minimal org pack or render from a template.             │
-│ validate  Validate an org doctrine pack using schema and DRG checks          │
-│           (FR-006).                                                          │
+│ validate  Validate an org Charter Pack using schema and DRG checks (FR-006). │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -989,7 +987,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 ```
  Usage: spec-kitty charter org validate [OPTIONS] PACK_PATH
 
- Validate an org doctrine pack using schema and DRG checks (FR-006).
+ Validate an org Charter Pack using schema and DRG checks (FR-006).
 
  Calls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`
  loader.  Prints per-file findings with file paths.  Exits non-zero when
@@ -999,7 +997,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
  Validation uses the runtime loader, which supplies pack provenance fields.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the org doctrine pack directory to         │
+│ *    pack_path      PATH  Path to the org Charter Pack directory to          │
 │                           validate.                                          │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1025,9 +1023,9 @@ _Charter pack management commands._
 │                   each ships (FR-004).                                       │
 │ path              Print a pack's root, or with --preset the preset file      │
 │                   (FR-006).                                                  │
-│ validate          Validate a doctrine pack against schema and DRG            │
+│ validate          Validate a Charter Pack against schema and DRG             │
 │                   constraints.                                               │
-│ assemble          Assemble multiple doctrine packs into a single             │
+│ assemble          Assemble multiple Charter Packs into a single              │
 │                   distributable.                                             │
 │ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
 │                   (FR-009).                                                  │
@@ -1041,7 +1039,7 @@ _Charter pack management commands._
 ```
  Usage: spec-kitty charter pack assemble [OPTIONS] OUTPUT_PATH INPUT_PACKS...
 
- Assemble multiple doctrine packs into a single distributable.
+ Assemble multiple Charter Packs into a single distributable.
 
  Exits 0 on success and 1 when conflicts block the merge or when the
  assembled output fails validation.
@@ -1194,13 +1192,13 @@ _Resolve shipped and overlay doctrine assets (no install — C-002)._
 ```
  Usage: spec-kitty charter pack validate [OPTIONS] PACK_PATH
 
- Validate a doctrine pack against schema and DRG constraints.
+ Validate a Charter Pack against schema and DRG constraints.
 
  Exits 0 when the pack passes validation (advisories do not affect the
  exit code) and 1 when at least one error is reported.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the doctrine pack directory to validate.   │
+│ *    pack_path      PATH  Path to the Charter Pack directory to validate.    │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
@@ -1327,7 +1325,7 @@ _Resolve shipped and overlay doctrine assets (no install — C-002)._
  DRG + doctrine, and writes all artifacts to ``.kittify/charter-packs/``.
 
  Doctrine generation is performed by the LLM harness (Claude Code, Codex,
- Cursor, etc.) via the spec-kitty-charter-doctrine skill. This command
+ Cursor, etc.) via the spk-charter-governance skill. This command
  validates and promotes the artifacts the agent has written.
 
  Fresh-project behavior (issue #839 / WP06 T031-T033)
@@ -1337,8 +1335,8 @@ _Resolve shipped and overlay doctrine assets (no install — C-002)._
  command short-circuits the adapter pipeline and materializes the
  **minimal artifact set** the runtime requires:
 
- 1. ``.kittify/charter-packs/`` — directory marker. ``DoctrineService``'s
-    project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
+ 1. ``.kittify/charter-packs/`` — directory marker. The project-root
+    resolver (``charter.activation._project_root_candidates``) is a
     presence-only check; an empty directory is a valid project layer.
  2. ``.kittify/charter-packs/PROVENANCE.md`` — human-readable record of the
     fresh-project seed path, citing #839.
@@ -2641,356 +2639,6 @@ _Project health diagnostics_
 │ --fix             Remove husks that are NOT registered in `git worktree      │
 │                   list` (registered worktrees are never removed)             │
 │ --json            Machine-readable JSON output                               │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine asset
-
-_Resolve shipped and overlay doctrine assets (no install — C-002)._
-
-```
- Usage: spec-kitty doctrine asset [OPTIONS] COMMAND [ARGS]...
-
- Resolve shipped and overlay doctrine assets (no install — C-002).
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list  List all resolvable doctrine assets and their source tiers.            │
-│ path  Resolve an asset identifier to a filesystem path (fail-closed on       │
-│       miss).                                                                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine asset list
-
-```
- Usage: spec-kitty doctrine asset list [OPTIONS]
-
- List all resolvable doctrine assets and their source tiers.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Emit machine-readable JSON instead of rich text.           │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine asset path
-
-```
- Usage: spec-kitty doctrine asset path [OPTIONS] ASSET_ID
-
- Resolve an asset identifier to a filesystem path (fail-closed on miss).
-
- Exits ``0`` and prints the path on success. An unknown id or a containment
- refusal exits non-zero with the offending id named (A-7 / NFR-006).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    asset_id      TEXT  Identifier of the asset to resolve (see `charter    │
-│                          pack asset list`).                                  │
-│                          [required]                                          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Emit machine-readable JSON instead of rich text.           │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine fetch
-
-```
- Usage: spec-kitty doctrine fetch [OPTIONS]
-
- Fetch org doctrine pack(s) from their configured remote sources.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack             TEXT  Fetch only the named pack (default: fetch all       │
-│                          configured packs).                                  │
-│ --dry-run                Show what would be fetched without contacting any   │
-│                          remote.                                             │
-│ --help     -h            Show this message and exit.                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine mission-type
-
-_Mission type commands._
-
-```
- Usage: spec-kitty doctrine mission-type [OPTIONS] COMMAND [ARGS]...
-
- Mission type commands.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list  List all mission types in the doctrine layer (FR-013).                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine mission-type list
-
-```
- Usage: spec-kitty doctrine mission-type list [OPTIONS]
-
- List all mission types in the doctrine layer (FR-013).
-
- Enumerates built-in, org, and project mission types regardless of
- activation state.  The DRG resolution chain applies: built-in →
- org → project.  An org type with the same id shadows the built-in
- type; a project type shadows the org type.
-
- Use ``spec-kitty charter mission-type list`` to see only types that
- are currently activated for this project.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output as JSON.                                            │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine new
-
-```
- Usage: spec-kitty doctrine new [OPTIONS] KIND ID
-
- Scaffold a stub doctrine artifact YAML (FR-016).
-
- The scaffolder pre-fills the canonical schema's required fields with
- ``TODO …`` placeholders so the file passes ``charter validate`` on
- first emit.  Refuses to overwrite an existing file.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    kind             TEXT  Artifact kind (singular): one of agent_profile,  │
-│                             asset, directive, mission_step_contract,         │
-│                             paradigm, procedure, styleguide, tactic,         │
-│                             toolguide.                                       │
-│                             [required]                                       │
-│ *    artifact_id      ID    Artifact identifier (kebab-case for most kinds;  │
-│                             SCREAMING_SNAKE for directives).                 │
-│                             [required]                                       │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
-│                       the project layer. When omitted, the stub lands under  │
-│                       .kittify/charter-packs/.                               │
-│ --help  -h            Show this message and exit.                            │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine org
-
-_Manage org-layer doctrine pack authoring (init, validate)._
-
-```
- Usage: spec-kitty doctrine org [OPTIONS] COMMAND [ARGS]...
-
- Manage org-layer doctrine pack authoring (init, validate).
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ init      Scaffold a minimal org pack or render from a template.             │
-│ validate  Validate an org doctrine pack using schema and DRG checks          │
-│           (FR-006).                                                          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine org init
-
-```
- Usage: spec-kitty doctrine org init [OPTIONS] PACK_PATH
-
- Scaffold a minimal org pack or render from a template.
-
- Without ``--template``, creates four files under *pack-path*::
-
-     org-charter.yaml     — governance policy stub
-     drg/fragment.yaml    — DRG extension stub (with pydantic_model:
- frontmatter)
-     presets/starter.yaml — example activation preset
-     README.md            — authoring quickstart
-
- With ``--template``, copies the full template tree (minus
- ``.templateignore``),
- substitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under
- *pack-path*.
-
- Refuses to overwrite an existing directory unless ``--force`` is passed.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Destination directory for the scaffold or rendered │
-│                           doctrine tree.                                     │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force                     Overwrite an existing pack directory.            │
-│ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
-│                             optional #branch). When omitted, scaffolds the   │
-│                             minimal four-file pack.                          │
-│ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
-│                             (required with --template).                      │
-│ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
-│                             Distinct from PACK_PATH.                         │
-│ --branch              TEXT  Git ref when --template is a git URL (may also   │
-│                             be encoded in TEMPLATE).                         │
-│ --help        -h            Show this message and exit.                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine org validate
-
-```
- Usage: spec-kitty doctrine org validate [OPTIONS] PACK_PATH
-
- Validate an org doctrine pack using schema and DRG checks (FR-006).
-
- Calls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`
- loader.  Prints per-file findings with file paths.  Exits non-zero when
- at least one error is found.
-
- Org fragments use id and plural kind (for example, directives) for nodes.
- Validation uses the runtime loader, which supplies pack provenance fields.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the org doctrine pack directory to         │
-│                           validate.                                          │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine pack
-
-_Validate or assemble doctrine packs._
-
-```
- Usage: spec-kitty doctrine pack [OPTIONS] COMMAND [ARGS]...
-
- Validate or assemble doctrine packs.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ validate  Validate a doctrine pack against schema and DRG constraints.       │
-│ assemble  Assemble multiple doctrine packs into a single distributable.      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine pack assemble
-
-```
- Usage: spec-kitty doctrine pack assemble [OPTIONS] OUTPUT_PATH INPUT_PACKS...
-
- Assemble multiple doctrine packs into a single distributable.
-
- Exits 0 on success and 1 when conflicts block the merge or when the
- assembled output fails validation.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    output_path      PATH            Output directory for the assembled     │
-│                                       distributable pack.                    │
-│                                       [required]                             │
-│ *    input_packs      INPUT_PACKS...  One or more input pack directories to  │
-│                                       assemble.                              │
-│                                       [required]                             │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --conflicts-out          PATH  Write the conflict report to this path        │
-│                                (JSON).                                       │
-│ --force                        Resolve artifact-id conflicts by              │
-│                                last-pack-wins and drop duplicate DRG edges   │
-│                                silently.                                     │
-│ --json                         Emit machine-readable JSON instead of rich    │
-│                                text.                                         │
-│ --help           -h            Show this message and exit.                   │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine pack validate
-
-```
- Usage: spec-kitty doctrine pack validate [OPTIONS] PACK_PATH
-
- Validate a doctrine pack against schema and DRG constraints.
-
- Exits 0 when the pack passes validation (advisories do not affect the
- exit code) and 1 when at least one error is reported.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the doctrine pack directory to validate.   │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Emit machine-readable JSON instead of rich text.           │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine regenerate-graph
-
-```
- Usage: spec-kitty doctrine regenerate-graph [OPTIONS]
-
- Regenerate the shipped DRG graph source deterministically (FR-009).
-
- Composes the DRG extractor + calibrator into per-populated-node-kind
- ``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;
- relocated from ``src/charter/offering/`` by the pack flatten),
- retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
- on unchanged inputs yields byte-identical fragments. With ``--check`` the
- command never writes: it regenerates into a temp directory and compares the
- fragment set against the committed source, exiting non-zero when stale — the
- operator-facing twin of the freshness gate.
-
- Both the write path and ``--check`` merge in the enumerable hand-authored
- overlay (:mod:`charter.offering.drg.migration.hand_authored_overlay`) — the
- ``in_tension_with``/``reconciles_tension``/``rejects`` edges and
- ``anti_pattern`` nodes hand-authored directly in the graph fragments
- (mission doctrine-tension-edges-01KY1WPC). The extractor has no
- frontmatter mechanism that could ever mint these, so a bare pure
- regeneration would (a) silently drop them from the committed source on
- write, and (b) always report "stale" under ``--check`` even when nothing
- is actually stale.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --check            Do not write; regenerate into a temp directory and        │
-│                    compare the per-kind graph fragments against the          │
-│                    committed packs/built-in source. Exit 1 when stale        │
-│                    (operator-runnable freshness gate). Exit 0 when fresh.    │
-│ --json             Emit machine-readable JSON instead of rich text.          │
-│ --help   -h        Show this message and exit.                               │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctrine validate
-
-```
- Usage: spec-kitty doctrine validate [OPTIONS] PATH
-
- Validate project-layer doctrine artifacts against their schemas (FR-017).
-
- When *path* is a single file, validates that file.  When *path* is a
- directory, walks the tree for ``*.yaml`` files whose filename suffix
- matches a canonical artifact kind and validates each one.
-
- Exit code: ``0`` if every artifact validates; ``1`` if any artifact
- fails.  A per-file error report is printed for failures.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    path      PATH  Artifact YAML file or a directory containing            │
-│                      project-layer doctrine artifacts (recurses into         │
-│                      per-kind subdirectories).                               │
-│                      [required]                                              │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
