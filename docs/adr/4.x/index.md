@@ -63,3 +63,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-06 | [evidence gates check origin freshness before they trust local evidence](2026-10-06-3-evidence-gates-check-origin-freshness.md) |
 | 2026-10-07 | [governed planning application seam and status integration](2026-10-07-2-governed-planning-application-seam.md) |
 | 2026-10-07 | [a work package leaves review or approval only through a verdict or a noted force](2026-10-07-3-review-lane-exit-requires-verdict-or-forced-note.md) |
+| 2026-10-08 | [advancing a mission run is serialised by a per-run-dir lock and a caller-step compare-and-swap](2026-10-08-1-serialise-run-dir-advance.md) |

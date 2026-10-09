@@ -3614,6 +3614,15 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/4.x/2026-10-08-1-serialise-run-dir-advance.md"
+    title: "ADR: advancing a mission run is serialised by a per-run-dir lock and a caller-step compare-and-swap"
+    divio_type: "none"
+    abstract: "Concurrent `spec-kitty next` on one run is serialised: a stale advance is refused with a named `blocked` reason, never silently re-planned as success, and at most one writer mutates a run cursor at a time."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -5551,6 +5560,7 @@ pages:
     anchors:
     - {slug: "what-is-spec-kitty-next", text: "What Is `spec-kitty next`?", level: 2}
     - {slug: "when-to-use-the-runtime-loop", text: "When to Use the Runtime Loop", level: 2}
+    - {slug: "concurrent-advances-are-serialised", text: "Concurrent advances are serialised", level: 3}
     - {slug: "query-mode-vs-advancing-mode", text: "Query Mode vs Advancing Mode", level: 2}
     - {slug: "what-the-runtime-consumes-a-single-resolved-mission-type", text: "What the Runtime Consumes: a Single Resolved Mission Type", level: 2}
     - {slug: "the-four-advancing-decisions", text: "The Four Advancing Decisions", level: 2}
