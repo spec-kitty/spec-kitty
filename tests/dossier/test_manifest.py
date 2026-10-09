@@ -410,15 +410,18 @@ class TestManifestIntegration:
         assert len(research) > 0
         assert research[0].path_pattern == "research.md"
 
-    def test_software_dev_tasks_outline_requires_tasks_artifact(self):
-        """software-dev manifest requires tasks.md at the tasks-outline step."""
+    def test_software_dev_tasks_outline_requires_wps_manifest(self):
+        """software-dev manifest requires the wps.yaml manifest at the
+        tasks-outline step (#2642): the outline step now produces the staged
+        work-package manifest `wps.yaml`, not `tasks.md` (which moved to the
+        tasks-finalize step)."""
         manifest = ManifestRegistry.load_manifest("software-dev")
         assert manifest is not None
         specs = ManifestRegistry.get_required_artifacts(manifest, "tasks_outline")
-        tasks = [s for s in specs if s.artifact_key == "output.tasks.list"]
+        tasks = [s for s in specs if s.artifact_key == "output.tasks.index"]
         assert len(tasks) > 0
         assert tasks[0].blocking is True
-        assert tasks[0].path_pattern == "tasks.md"
+        assert tasks[0].path_pattern == "wps.yaml"
 
     def test_research_manifest_scoping_step_requires_spec(self):
         """research manifest requires spec.md at scoping step."""
@@ -1085,7 +1088,7 @@ class TestManifestReconciliation:
 
         outline_specs = ManifestRegistry.get_required_artifacts(manifest, "tasks_outline")
         assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in outline_specs] == [
-            ("output.tasks.list", ArtifactClassEnum.OUTPUT, "tasks.md", True),
+            ("output.tasks.index", ArtifactClassEnum.OUTPUT, "wps.yaml", True),
         ]
 
         packages_specs = ManifestRegistry.get_required_artifacts(manifest, "tasks_packages")
@@ -1093,9 +1096,13 @@ class TestManifestReconciliation:
             ("output.tasks.per_wp", ArtifactClassEnum.OUTPUT, "tasks/WP*.md", True),
         ]
 
+        # tasks_finalize now carries BOTH the WP-glob entry AND tasks.md, in
+        # that YAML order (#2642): tasks.md is produced/checked at finalize,
+        # not at the outline step.
         finalize_specs = ManifestRegistry.get_required_artifacts(manifest, "tasks_finalize")
         assert [(s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in finalize_specs] == [
             ("output.tasks.per_wp", ArtifactClassEnum.OUTPUT, "tasks/WP*.md", True),
+            ("output.tasks.list", ArtifactClassEnum.OUTPUT, "tasks.md", True),
         ]
 
     def test_software_dev_manifest_implement_has_no_filesystem_requirement(self):

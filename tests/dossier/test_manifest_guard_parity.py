@@ -186,27 +186,44 @@ class TestGuardCommentParity:
             f"explanatory comment: {unexplained}"
         )
 
-    def test_software_dev_tasks_packages_and_finalize_path_pattern_is_wp_glob(self):
+    def test_software_dev_tasks_packages_and_finalize_require_wp_glob(self):
         """Dedicated, narrower check on top of the step-key-presence check
-        above (per T020 step 2): the literal `path_pattern` string for
-        `tasks_packages`/`tasks_finalize` must be exactly `"tasks/WP*.md"`,
-        not merely "some pattern present" -- a future regression to the
-        broader `tasks/*.md` pattern (which the guard's
-        `tasks_dir.glob("WP*.md")` call does not actually match, per
+        above (per T020 step 2): the literal `path_pattern` string for the
+        WP-glob entry on both `tasks_packages` and `tasks_finalize` must be
+        exactly `"tasks/WP*.md"`, not merely "some pattern present" -- a
+        future regression to the broader `tasks/*.md` pattern (which the
+        guard's `tasks_dir.glob("WP*.md")` call does not actually match, per
         FR-007/AS5) is caught structurally here, not only by manual review.
+
+        `tasks_packages` carries exactly that one WP-glob entry.
+        `tasks_finalize` carries it PLUS `tasks.md` (output.tasks.list) since
+        #2642 moved the tasks.md requirement off the outline step onto
+        finalize, so this pins finalize's full two-entry collection in YAML
+        order.
         """
         manifest = ManifestRegistry.load_manifest("software-dev")
         assert manifest is not None
-        for step_id in ("tasks_packages", "tasks_finalize"):
-            specs = manifest.required_by_step[step_id]
-            # Pins the whole collection -- exactly one spec, with the exact
-            # WP-glob path_pattern -- so both a stray extra/removed spec and
-            # a regression to the broader `tasks/*.md` pattern fail here.
-            assert [
-                (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in specs
-            ] == [
-                ("output.tasks.per_wp", ArtifactClassEnum.OUTPUT, "tasks/WP*.md", True),
-            ], f"{step_id}'s required spec must be exactly the WP-glob output.tasks.per_wp entry"
+
+        # Pins the whole collection -- exactly one spec, with the exact
+        # WP-glob path_pattern -- so both a stray extra/removed spec and
+        # a regression to the broader `tasks/*.md` pattern fail here.
+        packages_specs = manifest.required_by_step["tasks_packages"]
+        assert [
+            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in packages_specs
+        ] == [
+            ("output.tasks.per_wp", ArtifactClassEnum.OUTPUT, "tasks/WP*.md", True),
+        ], "tasks_packages's required spec must be exactly the WP-glob output.tasks.per_wp entry"
+
+        # finalize keeps the WP-glob entry first (same regression guard) and
+        # adds the tasks.md entry; a regression to the broader `tasks/*.md`
+        # pattern, a dropped tasks.md entry, or a stray extra spec all fail.
+        finalize_specs = manifest.required_by_step["tasks_finalize"]
+        assert [
+            (s.artifact_key, s.artifact_class, s.path_pattern, s.blocking) for s in finalize_specs
+        ] == [
+            ("output.tasks.per_wp", ArtifactClassEnum.OUTPUT, "tasks/WP*.md", True),
+            ("output.tasks.list", ArtifactClassEnum.OUTPUT, "tasks.md", True),
+        ], "tasks_finalize must require the WP-glob entry AND the tasks.md (output.tasks.list) entry"
 
 
 class TestManifestVersionStability:
