@@ -12,6 +12,7 @@ Covers:
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -29,6 +30,7 @@ import pytest
 
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.events.decision_log import DecisionGitLog
+from mission_runtime import CommitTarget
 from runtime.next._internal_runtime.events import NullEmitter
 from runtime.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
@@ -250,6 +252,56 @@ class TestNoPII:
 # ---------------------------------------------------------------------------
 
 class TestSafeCommitFailureSwallowed:
+    def test_refused_pre_commit_hook_reports_uncommitted_answer(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """A real hook refusal leaves the answer on disk and visible in JSON mode."""
+        from specify_cli.events.decision_log import capture_commit_warnings
+        from specify_cli.cli.commands import next_cmd
+
+        def git(*args: str) -> str:
+            return subprocess.run(
+                ["git", *args], cwd=tmp_path, check=True, capture_output=True, text=True
+            ).stdout.strip()
+
+        git("init", "-b", "kitty/mission-my-mission")
+        git("config", "user.name", "Test")
+        git("config", "user.email", "test@example.com")
+        (tmp_path / "README.md").write_text("initial\n", encoding="utf-8")
+        git("add", "README.md")
+        git("commit", "-m", "initial")
+        hook = tmp_path / ".git" / "hooks" / "pre-commit"
+        hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+        hook.chmod(0o755)
+        before = git("rev-parse", "HEAD")
+        log = DecisionGitLog(
+            repo_root=tmp_path,
+            worktree_root=tmp_path,
+            destination_ref="kitty/mission-my-mission",
+            mission_slug="my-mission",
+            mission_dir=tmp_path / "kitty-specs" / "my-mission",
+            inner=NullEmitter(),
+            target=CommitTarget(ref="kitty/mission-my-mission"),
+        )
+
+        with capture_commit_warnings() as warnings:
+            log.emit_decision_input_answered(_answered_payload())
+
+        assert git("rev-parse", "HEAD") == before
+        assert _read_lines(_decisions_file(tmp_path))[0]["event_type"] == "DecisionInputAnswered"
+        assert len(warnings) == 1
+        assert "commit failed" in warnings[0]
+        assert "uncommitted" in warnings[0]
+
+        class DecisionForOutput:
+            def to_dict(self) -> dict[str, str]:
+                return {"kind": "terminal"}
+
+        next_cmd._print_decision(DecisionForOutput(), True, "dec-001", "A", commit_warnings=warnings)
+        output = capsys.readouterr()
+        assert output.err == ""
+        assert json.loads(output.out)["warnings"] == warnings
+
     def test_protected_branch_refused_does_not_reraise(self, tmp_path: Path) -> None:
         from specify_cli.git.commit_helpers import ProtectedBranchRefused
 
