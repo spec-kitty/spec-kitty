@@ -1,6 +1,8 @@
 {
+  "accept_commit": "cd5d7c86b8e405c2f2e36f55905e15c3d7d3aa92",
   "acceptance_history": [
     {
+      "accept_commit": "cd5d7c86b8e405c2f2e36f55905e15c3d7d3aa92",
       "acceptance_mode": "pr",
       "accepted_at": "2026-10-09T17:21:56.572991+00:00",
       "accepted_by": "pi/gpt-6.1-sol",
@@ -22,6 +24,7 @@
   "purpose_context": "Org pack authors run charter org validate or doctrine pack validate before publishing. Today an edge in drg/fragment.yaml that points at a missing asset or directive passes with zero errors, so a broken reference reaches consumers. This mission makes both commands report it, with the same rules the sharded layout already uses.",
   "purpose_tldr": "Pack validation fails closed on dangling edges in the canonical drg/fragment.yaml org-pack layout (#5833).",
   "slug": "pack-fragment-validation-01M4GC4B",
+  "status_phase": "1",
   "target_branch": "issue-5833-pack-fragment-validation",
   "topology": "single_branch"
 }
