@@ -18,29 +18,44 @@ import pytest
 
 from charter.activation.synthesizer.errors import NeutralityGateViolation
 from charter.activation.synthesizer.artifact_naming import artifact_filename, extract_directive_number
-from charter.activation.synthesizer.write_pipeline import _is_generic_scoped
+from charter.activation.synthesizer.manifest import (
+    MANIFEST_PATH,
+    SynthesisManifest,
+    finalize_manifest,
+    load_yaml,
+    verify_manifest_hash,
+)
+from charter.activation.synthesizer.path_guard import PathGuard
+from charter.activation.synthesizer.write_pipeline import _is_generic_scoped, _write_manifest_file
 
 
-def test_manifest_version_only_run_preserves_committed_bytes(tmp_path: Path) -> None:
-    """A new CLI/adapter release must not restamp unchanged synthesized content."""
-    from charter.activation.synthesizer.manifest import MANIFEST_PATH, SynthesisManifest, finalize_manifest
-    from charter.activation.synthesizer.path_guard import PathGuard
-    from charter.activation.synthesizer.write_pipeline import _write_manifest_file
+def _manifest(**overrides: str) -> SynthesisManifest:
+    fields = {
+        "created_at": "2026-01-01T00:00:00+00:00", "run_id": "first",
+        "adapter_id": "fixture", "adapter_version": "1.0.0", "synthesizer_version": "3.2.6",
+        "manifest_hash": "0" * 64, "bundle_content_hash": "sha256:" + "a" * 64,
+    }
+    return finalize_manifest(SynthesisManifest(**{**fields, **overrides}))
 
+
+@pytest.mark.parametrize(
+    "bump",
+    [
+        {"synthesizer_version": "3.2.7"},
+        {"adapter_version": "1.1.0"},
+        {"synthesizer_version": "3.2.7", "adapter_version": "1.1.0"},
+    ],
+    ids=["cli-only", "adapter-only", "both"],
+)
+def test_manifest_version_only_run_preserves_committed_bytes(tmp_path: Path, bump: dict[str, str]) -> None:
+    """A new CLI/adapter release must not restamp unchanged synthesized content (#5089)."""
     guard = PathGuard(tmp_path, extra_allowed_prefixes=[tmp_path])
-    original = finalize_manifest(SynthesisManifest(
-        created_at="2026-01-01T00:00:00+00:00", run_id="first",
-        adapter_id="fixture", adapter_version="1.0.0", synthesizer_version="3.2.6",
-        manifest_hash="0" * 64, bundle_content_hash="sha256:" + "a" * 64,
-    ))
+    original = _manifest()
     _write_manifest_file(guard, tmp_path, original)
     path = tmp_path / MANIFEST_PATH
     before = path.read_bytes()
 
-    upgraded = finalize_manifest(original.model_copy(update={
-        "created_at": "2026-01-02T00:00:00+00:00", "run_id": "second",
-        "adapter_version": "1.1.0", "synthesizer_version": "3.2.7",
-    }))
+    upgraded = _manifest(created_at="2026-01-02T00:00:00+00:00", run_id="second", **bump)
     persisted = _write_manifest_file(guard, tmp_path, upgraded)
 
     assert path.read_bytes() == before
@@ -48,27 +63,26 @@ def test_manifest_version_only_run_preserves_committed_bytes(tmp_path: Path) -> 
     assert persisted.adapter_version == original.adapter_version
 
 
-def test_manifest_content_change_never_downgrades_synthesizer(tmp_path: Path) -> None:
-    from charter.activation.synthesizer.manifest import MANIFEST_PATH, SynthesisManifest, finalize_manifest, load_yaml, verify_manifest_hash
-    from charter.activation.synthesizer.path_guard import PathGuard
-    from charter.activation.synthesizer.write_pipeline import _write_manifest_file
-
+@pytest.mark.parametrize("existing", ["valid-newer", "corrupt"])
+def test_manifest_content_change_records_version_that_ran(tmp_path: Path, existing: str) -> None:
+    """A content-changing run records the versions that ran and self-verifies,
+    even over a newer-versioned or unparseable committed manifest."""
     guard = PathGuard(tmp_path, extra_allowed_prefixes=[tmp_path])
-    original = finalize_manifest(SynthesisManifest(
-        created_at="2026-01-01T00:00:00+00:00", run_id="first",
-        adapter_id="fixture", adapter_version="1.0.0", synthesizer_version="3.2.7",
-        manifest_hash="0" * 64, bundle_content_hash="sha256:" + "a" * 64,
-    ))
-    _write_manifest_file(guard, tmp_path, original)
-    changed = finalize_manifest(original.model_copy(update={
-        "run_id": "second", "synthesizer_version": "3.2.6",
-        "bundle_content_hash": "sha256:" + "b" * 64,
-    }))
+    path = tmp_path / MANIFEST_PATH
+    if existing == "valid-newer":
+        _write_manifest_file(guard, tmp_path, _manifest(synthesizer_version="3.2.7"))
+    else:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("{not: valid: yaml: [", encoding="utf-8")
+
+    changed = _manifest(run_id="second", bundle_content_hash="sha256:" + "b" * 64)
     written = _write_manifest_file(guard, tmp_path, changed)
 
+    assert written.synthesizer_version == "3.2.6"
     assert written.bundle_content_hash == changed.bundle_content_hash
-    assert written.synthesizer_version == "3.2.7"
-    verify_manifest_hash(load_yaml(tmp_path / MANIFEST_PATH))
+    on_disk = load_yaml(path)
+    assert on_disk.synthesizer_version == "3.2.6"
+    verify_manifest_hash(on_disk)
 
 
 # ---------------------------------------------------------------------------
