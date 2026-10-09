@@ -1,7 +1,7 @@
 {
   "rows": {
-    "#5833": {
-      "evidence_ref": "Claimed: https://github.com/spec-kitty/spec-kitty/issues/5833#issuecomment-6081381285 (assignee stijn-dejongh)",
+    "#1868": {
+      "evidence_ref": "spec.md Dependencies: parent tracking issue is context only; no work owed by WP01.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,11 +9,59 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5484": {
+      "evidence_ref": "Existing persisted-absolute-path family, context only: canonical review_result.feedback_path remains immutable diagnostic metadata alongside portable review-cycle URI. A lifecycle persistence/migration redesign is outside this endpoint WP; explicit publication hygiene exception disclosed, no QA issue state changed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5494": {
+      "evidence_ref": "spec.md C-004 and Non-Goals: existing bare-target augmentation fallback preserved, not a new fix; unchanged compatibility tests passed in independent 346-test audit.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5827": {
+      "evidence_ref": "spec.md Dependencies: previously merged sharded-layout work is a dependency/context reference; no separate work owed here; sharded preservation independently verified.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5833": {
+      "evidence_ref": "Independent reviewer-renata approval event 01M4GSND8N0586JS03BDBBAZ5C at source c58eed61636cc31285b989a3d7a6c724ca733926; 346 focused tests, 270 gates, 142/142 changed-source statements covered, both internal-pack commands clean; RED 12 failed/2 passed independently witnessed.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
       "wp": "WP01"
     },
-    "#5971": {
-      "evidence_ref": "Baseline strict mypy failure reproduced on 2912dfcb54923787374afa0e52f80a964d588dc5; reported and claimed in https://github.com/spec-kitty/spec-kitty/issues/5971; narrow touched-helper typing fix in WP01 after committed RED.",
+    "#5962": {
+      "evidence_ref": "spec.md C-003 and Non-Goals: overlapping draft path migration expressly excluded; WP01 does not perform the rename or move.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +69,19 @@
       "scope": null,
       "source_file": null,
       "title": null,
-      "verdict": "in-mission",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5971": {
+      "evidence_ref": "Narrow _plural_to_urn_kind typed-string repair plus known/unknown tests; independent strict mypy passed 9 files including reconciliation; baseline report #5971 and enabler da5b882cbf3008f8d1df3525fad53ba7134a9377.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
       "wp": "WP01"
     }
   },
