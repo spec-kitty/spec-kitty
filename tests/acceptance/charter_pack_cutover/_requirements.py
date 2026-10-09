@@ -25,7 +25,6 @@ MISSION_SLUG = "charter-pack-cutover-01M491G6"
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MISSION_DIR = REPO_ROOT / "kitty-specs" / MISSION_SLUG
 SPEC_PATH = MISSION_DIR / "spec.md"
-TASKS_PATH = MISSION_DIR / "tasks.md"
 
 # --------------------------------------------------------------------------------------
 # Id grammar (``covers(...)`` validates every id against it)
