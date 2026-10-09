@@ -483,7 +483,7 @@ def validate_pack(
     drg_dir = pack_dir / "drg"
     if drg_dir.is_dir():
         endpoint_catalog = _load_endpoint_catalog()
-        errors.extend(_validate_authored_endpoints(drg_dir / "fragment.yaml", org_fragment, trusted_artifact_urns, endpoint_catalog))
+        errors.extend(_validate_authored_endpoints(pack_drg_fragment(pack_dir), org_fragment, trusted_artifact_urns, endpoint_catalog))
         drg_errors, drg_advisories = _validate_drg(drg_dir, pack_artifact_urns, endpoint_catalog)
         errors.extend(drg_errors)
         advisories.extend(drg_advisories)
