@@ -415,10 +415,17 @@ class TestBodyNotesNoLane:
         )
         assert result.exit_code == 0, f"CLI error: {result.output}"
 
-        content = wp_file.read_text(encoding="utf-8")
-        assert "lane=" not in content, f"Body note should not contain 'lane=' but got:\n{content}"
-        # Verify note text is present
-        assert "Implementation progressing" in content
+        # #2334 end state (ii): the note is recorded as an event-log annotation,
+        # not a WP-body markdown Activity Log entry. It must still carry no
+        # ``lane=`` token.
+        from specify_cli.status import read_event_stream
+
+        notes = [annotation.delta.note or "" for annotation in read_event_stream(feature_dir).annotations if annotation.wp_id == "WP01"]
+        assert notes, "add_history must record a note annotation in the event log"
+        assert all("lane=" not in note for note in notes), f"note should not contain 'lane=' but got: {notes!r}"
+        assert any("Implementation progressing" in note for note in notes)
+        # The WP prompt body is not mutated by add-history.
+        assert "Implementation progressing" not in wp_file.read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------

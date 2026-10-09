@@ -101,8 +101,6 @@ from specify_cli.git.protection_policy import ProtectionPolicy
 # ``feature_status_lock`` (D7 ×23) — the relocated ``_mt_execute`` (WP05) and
 # ``_ms_apply_updates`` (WP08) route it via ``_tasks.<attr>``.
 from specify_cli.status import feature_status_lock as feature_status_lock
-from specify_cli.status import locked_rewrite_text
-from specify_cli.missions._read_path_resolver import mission_write_lock_dir
 # ``get_auto_commit_default`` (D7 ×7) — the relocated ``_mt_resolve_targets``
 # (WP05) and ``_ms_resolve_context`` (WP08) route it via ``_tasks.<attr>``.
 from specify_cli.core.agent_config import get_auto_commit_default as get_auto_commit_default
@@ -120,8 +118,6 @@ from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 # ``locate_work_package`` (D7 ×16) keeps an explicit ``as`` re-export: the
 # relocated move_task family routes it via ``_tasks.<attr>`` (WP05).
 from specify_cli.task_utils import (
-    append_activity_log,
-    build_document,
     extract_scalar,
     locate_work_package as locate_work_package,
     split_frontmatter,
@@ -1174,7 +1170,8 @@ def add_history(
         # WorkPackage.agent/.shell_pid seam -- which routes unconditionally
         # through reconstruct_wp_view (the snapshot is the sole authority) --
         # rather than a bare extract_scalar, so this reader never bypasses the
-        # snapshot-authority seam (#2093).
+        # snapshot-authority seam (#2093). The note itself is recorded in the
+        # status event log, never a markdown Activity Log (#2334, end state (ii)).
         timestamp = now_utc_stamp()
         agent_name = agent or wp.agent or "unknown"
         shell_pid_val = shell_pid or wp.shell_pid or ""
@@ -1182,20 +1179,36 @@ def add_history(
         shell_part = f"shell_pid={shell_pid_val} – " if shell_pid_val else ""
         history_entry = f"- {timestamp} – {agent_name} – {shell_part}{note}"
 
-        # #5820: the read of record is the locked primitive's, so a note a
-        # concurrent writer appended after ``locate_work_package`` is kept.
-        def _append(current: str | None) -> str:
-            if current is None:
-                raise FileNotFoundError(f"{wp.path} vanished before the history note was written")
-            front, body, padding = split_frontmatter(current.removeprefix("\ufeff"))
-            return build_document(front, append_activity_log(body, history_entry), padding)
+        # #2334 end state (ii), operator ruling 2026-10-09: the WP prompt file's
+        # ``## Activity Log`` markdown section is retired in favour of the status
+        # event log. Record the note as an off-axis ``InnerStateChanged`` ``note``
+        # annotation -- the SAME canonical surface the orchestrator-api
+        # ``append_history`` and ``move-task --note`` writers use -- instead of
+        # mutating the WP prompt body. One writer, one surface: no cwd-sensitive
+        # markdown copy to drift across worktrees (#2334).
+        from specify_cli.status import WPInnerStateDelta
+        from specify_cli.status import emit_inner_state_changed
 
-        # Lock on the canonical Mission directory name (the coordination worktree's on a coord
-        # Mission), the file ``status.emit`` takes; the primary tasks dir above only keys the layout guard.
-        locked_rewrite_text(
-            wp.path,
-            _append,
-            feature_dir=mission_write_lock_dir(_ah_main_repo_root, mission_slug),
+        # Resolve the STATUS write surface through the single write-location
+        # accessor (``write_dir``), never the read resolver and never
+        # ``Path.cwd()`` (C-003 / #2647, FR-014) -- the SAME accessor move-task's
+        # ``feature_write_dir`` uses. On a coordination-routed mission this is the
+        # coordination surface (materialized/seeded as needed, so a note added in
+        # the create-window still lands on the authoritative coord surface under
+        # the coord lock key); on lanes / single_branch it is the PRIMARY dir.
+        # The annotation is emitted PLAIN and UNCOMMITTED: the note is written to
+        # ``status.events.jsonl`` and materialized under the per-Mission status
+        # lock, and the caller commits status in its own flow (the retired
+        # markdown write was likewise uncommitted). A commit-durable emit would
+        # refuse a lanes / single_branch mission targeting a protected branch,
+        # which mints no coordination worktree to redirect bookkeeping into.
+        status_feature_dir = placement_seam(_ah_main_repo_root, mission_slug).write_dir(MissionArtifactKind.STATUS_STATE).path
+        emit_inner_state_changed(
+            status_feature_dir,
+            task_id,
+            WPInnerStateDelta(note=history_entry),
+            actor=agent_name,
+            mission_slug=mission_slug,
             repo_root=_ah_main_repo_root,
         )
 
@@ -1417,9 +1430,9 @@ def validate_workflow(
         if wp_id and not wp.path.name.startswith(wp_id):
             warnings.append(f"Work package ID '{wp_id}' doesn't match filename '{wp.path.name}'")
 
-        # Check for activity log
-        if "## Activity Log" not in wp.body:
-            warnings.append("Missing Activity Log section")
+        # The WP progress/history surface is the status event log
+        # (status.events.jsonl), not a ``## Activity Log`` markdown section in
+        # the prompt body (#2334, end state (ii)); no section-presence check.
 
         # Determine validity
         is_valid = len(errors) == 0

@@ -42,15 +42,15 @@ If no profile is specified, run `spec-kitty agent profile list` and select the b
 
 **Read this first if you are implementing this task!**
 
-- **Has review feedback?**: Check the `review_ref` field in the event log (via `spec-kitty agent tasks status` or the Activity Log below).
+- **Has review feedback?**: Check the `review_ref` field in the event log (via `spec-kitty agent tasks status`).
 - **You must address all feedback** before your work is complete. Feedback items are your implementation TODO list.
-- **Report progress**: As you address each feedback item, update the Activity Log explaining what you changed.
+- **Report progress**: As you address each feedback item, record what you changed with `spec-kitty agent tasks add-history <WPID> --note "..."` (stored in the status event log).
 
 ---
 
 ## Review Feedback
 
-*[If this WP was returned from review, the reviewer feedback reference appears in the Activity Log below or in the status event log.]*
+*[If this WP was returned from review, the reviewer feedback reference appears in the status event log.]*
 
 ---
 
@@ -111,52 +111,15 @@ Use language identifiers in code blocks: ````python`,````bash`
 - Key acceptance checkpoints for `/spec-kitty.review`.
 - Any context reviewers should revisit before approving.
 
-## Activity Log
+## Progress & Status
 
-> **CRITICAL**: Activity log entries MUST be in chronological order (oldest first, newest last).
+Progress, history, and status all live in the status event log
+(`status.events.jsonl`) — never in this prompt file. Do **not** hand-edit a
+history section here.
 
-### How to Add Activity Log Entries
-
-**When adding an entry**:
-
-1. Scroll to the bottom of this Activity Log section
-2. **APPEND the new entry at the END** (do NOT prepend or insert in middle)
-3. Use exact format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – <action>`
-4. Timestamp MUST be current time in UTC (check with `date -u "+%Y-%m-%dT%H:%M:%SZ"`)
-5. Agent ID should identify who made the change (claude-sonnet-4-5, codex, etc.)
-
-**Format**:
-
-```
-- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <brief action description>
-```
-
-**Example (correct chronological order)**:
-
-```
-- 2026-01-12T10:00:00Z – system – Prompt created
-- 2026-01-12T10:30:00Z – claude – Started implementation
-- 2026-01-12T11:00:00Z – codex – Implementation complete, ready for review
-- 2026-01-12T11:30:00Z – claude – Review passed, all tests passing  ← LATEST (at bottom)
-```
-
-**Common mistakes (DO NOT DO THIS)**:
-
-- Adding new entry at the top (breaks chronological order)
-- Using future timestamps (causes acceptance validation to fail)
-- Inserting in middle instead of appending to end
-
-**Why this matters**: The acceptance system reads the LAST activity log entry as the current state. If entries are out of order, acceptance will fail even when the work is complete.
-
-**Initial entry**:
-
-- {{TIMESTAMP}} – system – Prompt created.
-
----
-
-### Updating Status
-
-Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task <WPID> --to <status>` to change WP status.
+- **Record a progress note**: `spec-kitty agent tasks add-history <WPID> --note "<what you did>"`
+- **Change WP status**: `spec-kitty agent tasks move-task <WPID> --to <status>`
+- **View history and status**: `spec-kitty agent tasks status`
 
 ### Optional Phase Subdirectories
 

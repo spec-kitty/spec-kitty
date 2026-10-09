@@ -174,12 +174,10 @@ class SinkPair:
 
 #: Extendable registry. Each sink is called at exactly one site, under a lock.
 SINK_PAIRS: tuple[SinkPair, ...] = (
-    SinkPair(
-        sink="append_activity_log",
-        read="locate_work_package",
-        path=_TASKS,
-        rationale="add-history: the append runs inside the locked_rewrite_text transform, whose read is the primitive's",
-    ),
+    # add-history no longer writes a WP-file markdown Activity Log: it records the
+    # note as an InnerStateChanged annotation in status.events.jsonl (#2334, end
+    # state (ii)), so it is a status-event emitter (its own status-lock
+    # discipline), not a locked Mission-file writer registered here.
     SinkPair(
         sink="_append_entry",
         read="_read_current_coord_content",
@@ -1373,17 +1371,6 @@ class _Mutation(ast.NodeTransformer):
         self.changed = 0
 
 
-class _InlineTransform(_Mutation):
-    """``locked_rewrite_text(path, f, ...)`` -> ``f(None)``: the lock is stripped, the sink body is kept."""
-
-    def visit_Call(self, node: ast.Call) -> ast.AST:
-        self.generic_visit(node)
-        if _call_name(node.func) == _TRANSFORM_PRIMITIVE and len(node.args) > 1:
-            self.changed += 1
-            return ast.copy_location(ast.Call(func=node.args[1], args=[ast.Constant(None)], keywords=[]), node)
-        return node
-
-
 class _StripLockWith(_Mutation):
     """``with <lock>: body`` -> ``body``: the same code, unlocked."""
 
@@ -1415,11 +1402,6 @@ def _mutate(rel: str, transformer: _Mutation) -> ast.AST:
     assert transformer.changed, f"mutation did not apply to {rel}; the self-mutation test would be vacuous"
     assert isinstance(tree, ast.AST)
     return tree
-
-
-def test_self_mutation_add_history_without_the_primitive_is_flagged() -> None:
-    mutated = _mutate(_TASKS, _InlineTransform())
-    assert any("append_activity_log" in why for _, why in find_sink_findings(mutated, _TASKS))
 
 
 def test_self_mutation_tracer_without_the_lock_is_flagged() -> None:
