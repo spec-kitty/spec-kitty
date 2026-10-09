@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-09T08:14:48.935832+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "c80eaf9f8ae8f0278ab88da27ce42ca80e90d0f2"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-09T08:14:48.935832+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "c80eaf9f8ae8f0278ab88da27ce42ca80e90d0f2",
   "baseline_merge_commit": "876b178206d13c745f0287e3577923af328b7c24",
   "change_mode": "bulk_edit",
   "coordination_branch": "kitty/mission-charter-pack-cutover-01M491G6",
