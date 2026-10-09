@@ -294,9 +294,7 @@ class TestAnswerDecisionPreconditions:
         feature_dir.mkdir(parents=True)
         monkeypatch.setattr("mission_runtime.resolve_action_context", lambda *a, **k: SimpleNamespace(feature_dir=str(feature_dir)))
         monkeypatch.setattr("runtime.next.runtime_bridge_query.get_mission_type", lambda _d: "software-dev")
-        monkeypatch.setattr(
-            "runtime.next.runtime_bridge_query._io_seam.get_or_start_run", lambda *a, **k: SimpleNamespace(run_dir=str(tmp_path))
-        )
+        monkeypatch.setattr("runtime.next.runtime_bridge_query._io_seam.get_or_start_run", lambda *a, **k: SimpleNamespace(run_dir=str(tmp_path)))
         monkeypatch.setattr("runtime.next.runtime_bridge_query.runtime_emitter_for_mission", lambda **k: object())
         monkeypatch.setattr("runtime.next.runtime_bridge_query.seed_runtime_emitter", lambda *a, **k: None)
         monkeypatch.setattr("runtime.next.runtime_bridge_query._decision_log._wrap_with_decision_git_log", lambda e, *a, **k: e)
