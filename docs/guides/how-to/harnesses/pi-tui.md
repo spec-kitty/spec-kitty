@@ -79,7 +79,7 @@ If Pi does not expose the command in your installed version, the artifacts remai
   Expected — Pi is a skill host, not a slash-command host for Spec Kitty. Use `/skill:spec-kitty.<command>` and confirm `.agents/skills/spec-kitty.*/SKILL.md` exists.
 
 - **Profile not loading.**
-  The `/ad-hoc-profile-load` workflow assumes a slash-command host. If your Pi build does not expose equivalent profile loading, use the helper from your other configured harness and reuse the same `kitty-specs/<mission>/` tree.
+  The `/spk-charter-profile-load` workflow assumes a slash-command host. If your Pi build does not expose equivalent profile loading, use the helper from your other configured harness and reuse the same `kitty-specs/<mission>/` tree.
 
 ## Where to learn more about Pi TUI
 

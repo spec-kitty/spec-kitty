@@ -126,7 +126,7 @@ spec-kitty charter context --action plan --json
 ## Visual Communication (recommended)
 
 Apply the visual doctrine for non-trivial architecture, data/control flow,
-boundaries, migrations, or risky interactions. Load `spk-doctrine-show-me` and
+boundaries, migrations, or risky interactions. Load `spk-practice-show-me` and
 use the smallest diagram
 that materially reduces prose. Prefer Mermaid in Markdown; use PlantUML when
 richer layout, mature C4 support, or its DSL earns the added rendering cost.
@@ -251,7 +251,7 @@ Planning requirements (scale to complexity):
 
 If this mission is marked `change_mode: bulk_edit` in `meta.json` — or if the
 spec describes renaming the same string (identifier, path, key, label, term)
-across many files — load the `spec-kitty-bulk-edit-classification` skill and
+across many files — load the `spk-practice-bulk-edit` skill and
 follow it. You will produce `kitty-specs/<mission>/occurrence_map.yaml`
 alongside the other planning artifacts. Every one of the 8 standard categories
 (code_symbols, import_paths, filesystem_paths, serialized_keys, cli_commands,

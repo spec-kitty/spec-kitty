@@ -42,8 +42,9 @@ the smallest useful workflow.
 - Multi-mission or multi-repo program: use `spk-run-program-orchestrate`.
 - Review or approval work: use `spk-run-review-wp`, then `spk-gate-accept`.
 - Team, SaaS, tracker, or sync concern: use `spk-team-sync` or `spk-team-tracker`.
-- Doctrine or governance concern: use the `spk-doctrine-*` family.
-- Visual explanation or diagram request: use `spk-doctrine-show-me`.
+- Charter or governance concern: use the `spk-charter-*` family.
+- Engineering practice (bulk edit, visuals, code reduction): use the `spk-practice-*` family.
+- Visual explanation or diagram request: use `spk-practice-show-me`.
 - Unsure which skill applies: use `spk-meta-skill-map`.
 
 ## Agent Behavior

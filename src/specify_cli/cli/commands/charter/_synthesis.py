@@ -184,7 +184,7 @@ def _build_synthesis_request(
             f"Unknown adapter '{adapter_name}'. "
             "Supported adapters are '--adapter generated' and '--adapter fixture'. "
             "Doctrine generation is performed by the LLM harness (Claude Code, Codex, "
-            "Cursor, etc.) via the spec-kitty-charter-doctrine skill. "
+            "Cursor, etc.) via the spk-charter-governance skill. "
             "spec-kitty never calls an LLM itself."
         )
 

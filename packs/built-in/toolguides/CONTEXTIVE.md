@@ -208,4 +208,4 @@ with two spaces before the newline.
 - Documentation: https://docs.contextive.tech/community
 - Defining terminology: https://docs.contextive.tech/community/guides/defining-terminology/
 - Setting up glossaries: https://docs.contextive.tech/community/guides/setting-up-glossaries/
-- Spec Kitty glossary skill: see `spec-kitty-glossary-context` skill
+- Spec Kitty glossary skill: see `spk-charter-glossary` skill

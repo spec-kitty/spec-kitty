@@ -251,18 +251,18 @@ def test_code_example_links_would_false_red_without_their_discriminator() -> Non
     # Relocated (mission relocate-builtin-doctrine-packs-01KYT87F): the toolguide
     # markdown moved to the flattened ``packs/built-in/toolguides/`` home; the
     # SKILL.md stays under ``src/charter/offering/skills/`` (skills did not move).
-    # ``spk-doctrine-show-me`` carries byte-pinned portable copies of both
+    # ``spk-practice-show-me`` carries byte-pinned portable copies of both
     # guides, so their fenced link examples intentionally appear twice.
     assert excluded == [
         ("packs/built-in/toolguides/MERMAID_DIAGRAMMING.md", "diagram.svg"),
         ("packs/built-in/toolguides/PLANTUML_DIAGRAMMING.md", "diagram.svg"),
-        ("src/charter/offering/skills/spec-kitty-spdd-reasons/SKILL.md", "../spec.md#x"),
+        ("src/charter/offering/skills/spk-charter-spdd-reasons/references/reasons-canvas-workflow.md", "../spec.md#x"),
         (
-            "src/charter/offering/skills/spk-doctrine-show-me/assets/MERMAID_DIAGRAMMING.md",
+            "src/charter/offering/skills/spk-practice-show-me/assets/MERMAID_DIAGRAMMING.md",
             "diagram.svg",
         ),
         (
-            "src/charter/offering/skills/spk-doctrine-show-me/assets/PLANTUML_DIAGRAMMING.md",
+            "src/charter/offering/skills/spk-practice-show-me/assets/PLANTUML_DIAGRAMMING.md",
             "diagram.svg",
         ),
     ], f"C1's effect set moved: {excluded}"

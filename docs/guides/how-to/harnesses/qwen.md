@@ -59,7 +59,7 @@ Inside Qwen Code, slash commands are invoked as:
 - **Profile not loading.**
   Run inside Qwen Code:
   ```
-  /ad-hoc-profile-load researcher-robbie
+  /spk-charter-profile-load researcher-robbie
   ```
   Use the profile id from the work-package frontmatter.
 

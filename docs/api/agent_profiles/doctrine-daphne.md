@@ -58,7 +58,7 @@ a profile directly. Instead:
   rules into doctrine") and `spec-kitty dispatch` routes the request to this profile
   automatically.
 - **Ask for it by name**: if your harness supports ad-hoc profile loading, request Doctrine
-  Daphne explicitly by id (`doctrine-daphne`) — see the `ad-hoc-profile-load` skill for the
+  Daphne explicitly by id (`doctrine-daphne`) — see the `spk-charter-profile-load` skill for the
   mechanic.
 
 ## See also

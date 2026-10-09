@@ -1131,7 +1131,7 @@ constituents:
   kind: tactic
   path: tactics/review-intent-and-risk-first.tactic.yaml
   provenance_path:
-- content_hash: 6926cf665f37b9f9a073929110dfe177ae40cbe532fd87ddc2d629908c0a794f
+- content_hash: 32fed4c06d1521d287cedd8304315d9d85a9d9a4e33cc9294689fa23db2ca18b
   id: reviewer-implementer-role-separation
   kind: tactic
   path: tactics/reviewer-implementer-role-separation.tactic.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 67220955e37563b542dc2e73d399d38cc5a8b102f47fdd86aaae60da3467f743
+manifest_hash: 7dbfe9f2dfe2f47004ce724b7c6f437a80bd78c5ce3295dced0c9b120b151bb8
 presets:
 - content_hash: f0e3e26b23029c9073d5d7799d41f5ca8bd35e7a13f370d7e1bf400705552fc7
   name: default

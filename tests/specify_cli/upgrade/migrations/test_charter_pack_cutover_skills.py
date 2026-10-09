@@ -163,6 +163,35 @@ def test_edited_copy_is_kept_in_place_and_reported(tmp_path: Path, change: str) 
     assert report.preserved_paths == [".claude/skills/spk-doctrine-show-me"]
 
 
+def test_kept_copy_is_released_from_the_skills_manifest(tmp_path: Path) -> None:
+    """Owner ruling A (US4): the kept copy becomes user-owned, so the finalizer never nags about it."""
+    _config(tmp_path, ["claude"])
+    copy = _install(tmp_path, ".claude/skills", "spk-doctrine-show-me")
+    other = tmp_path / ".claude" / "skills" / "spk-run-next" / "SKILL.md"
+    other.parent.mkdir(parents=True)
+    other.write_text("a skill that stays\n", encoding="utf-8")
+    _manifest(tmp_path, [*(("spk-doctrine-show-me", "claude", copy / rel) for rel in SYNTHETIC_TREE), ("spk-run-next", "claude", other)])
+    (copy / "SKILL.md").write_text("mine\n", encoding="utf-8")
+    report = remove_skill_copies(tmp_path, dry_run=False)
+    assert (copy / "SKILL.md").read_text(encoding="utf-8") == "mine\n"
+    assert _manifest_paths(tmp_path) == [".claude/skills/spk-run-next/SKILL.md"]
+    (line,) = report.skills_kept
+    assert "no longer managed by spec-kitty" in line
+    assert report.errors == []
+
+
+def test_dry_run_keeps_the_manifest_entries_of_a_kept_copy(tmp_path: Path) -> None:
+    _config(tmp_path, ["claude"])
+    copy = _install(tmp_path, ".claude/skills", "spk-doctrine-show-me")
+    _manifest(tmp_path, [("spk-doctrine-show-me", "claude", copy / rel) for rel in SYNTHETIC_TREE])
+    (copy / "SKILL.md").write_text("mine\n", encoding="utf-8")
+    manifest_before = (tmp_path / MANIFEST).read_bytes()
+    report = remove_skill_copies(tmp_path, dry_run=True)
+    assert (tmp_path / MANIFEST).read_bytes() == manifest_before
+    (line,) = report.skills_kept
+    assert "no longer managed by spec-kitty" in line
+
+
 def test_symlinked_copy_is_kept(tmp_path: Path) -> None:
     _config(tmp_path, ["claude"])
     real = _install(tmp_path, "elsewhere", "spk-doctrine-charter")
@@ -222,6 +251,21 @@ def test_removal_failure_is_a_report_error(tmp_path: Path, monkeypatch: pytest.M
     monkeypatch.setattr(f"{_MODULE}.guard_destructive_removal", refuse)
     report = remove_skill_copies(tmp_path, dry_run=False)
     assert report.errors == [".claude/skills/spk-doctrine-charter could not be removed (locked); close any program holding it, then run `spec-kitty upgrade` again"]
+
+
+def test_failed_removal_keeps_its_manifest_entries(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A copy that could not be removed stays managed, so the next upgrade can still prove it."""
+    _config(tmp_path, ["claude"])
+    copy = _install(tmp_path, ".claude/skills", "spk-doctrine-charter")
+    _manifest(tmp_path, [("spk-doctrine-charter", "claude", copy / rel) for rel in SYNTHETIC_TREE])
+    manifest_before = (tmp_path / MANIFEST).read_bytes()
+
+    def refuse(*_args: object, **_kwargs: object) -> object:
+        raise PermissionError("locked")
+
+    monkeypatch.setattr(f"{_MODULE}.guard_destructive_removal", refuse)
+    report = remove_skill_copies(tmp_path, dry_run=False)
+    assert report.errors and (tmp_path / MANIFEST).read_bytes() == manifest_before
 
 
 def test_manifest_update_failure_is_a_report_error(tmp_path: Path) -> None:
