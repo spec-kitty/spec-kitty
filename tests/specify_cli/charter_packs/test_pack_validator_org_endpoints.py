@@ -97,8 +97,6 @@ def _pack(root: Path, source: str, target: str) -> Path:
 @pytest.mark.parametrize(
     "source,target,token,role,cause",
     [
-        ("directive:missing", "local", "directive:missing", "source", None),
-        ("local", "asset:missing", "asset:missing", "target", None),
         ("missing", "local", "missing", "source", "unresolved_edge_endpoint"),
         ("local", "missing", "missing", "target", "unresolved_edge_endpoint"),
         ("local", "directive:", "directive:", "target", "malformed_urn"),
@@ -194,6 +192,10 @@ def _dangling(result: pv.ValidationResult) -> list[pv.ValidationIssue]:
     return [issue for issue in result.errors if issue.category == "drg_dangling_edge"]
 
 
+def _external(result: pv.ValidationResult) -> list[pv.ValidationIssue]:
+    return [issue for issue in result.advisories if issue.category == "drg_external_endpoint"]
+
+
 @pytest.mark.parametrize(
     "kind,plural,suffix,data",
     [
@@ -249,7 +251,8 @@ def test_same_scan_file_trust_twins(tmp_path: Path, kind: str, plural: str, suff
         assert result.ok, result.errors
     else:
         assert any(issue.file == str(file) and issue.category == "schema_invalid" for issue in result.errors), result.errors
-        assert [(issue.file, issue.artifact_id) for issue in _dangling(result)] == [(str(fragment), token)]
+        unbound = _external(result) if qualified else _dangling(result)
+        assert [(issue.file, issue.artifact_id) for issue in unbound] == [(str(fragment), token)]
 
 
 def test_declaration_independent_of_invalid_asset_and_skill_schema(tmp_path: Path) -> None:
@@ -319,14 +322,12 @@ def test_shared_id_bare_last_winner_control(tmp_path: Path, kinds: tuple[str, st
 
 
 def test_builtin_bare_and_qualified_controls_and_deterministic_json(tmp_path: Path) -> None:
-    _write_fragment(
-        tmp_path, [_local_node()], [_edge("local", "acceptance-test-first"), _edge("local", "tactic:acceptance-test-first"), _edge("local", "directive:missing")]
-    )
+    _write_fragment(tmp_path, [_local_node()], [_edge("local", "acceptance-test-first"), _edge("local", "tactic:acceptance-test-first"), _edge("local", "missing")])
     results = [CliRunner().invoke(charter_app, ["pack", "validate", str(tmp_path), "--json"]) for _ in range(2)]
     assert all(result.exit_code == 1 for result in results)
     assert results[0].stdout == results[1].stdout
     payload = json.loads(results[0].stdout)
-    assert [row["artifact_id"] for row in payload["errors"]] == ["directive:missing"]
+    assert [row["artifact_id"] for row in payload["errors"]] == ["missing"]
 
 
 def test_all_three_consumers_load_once_and_sanctions_keep_discovery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -336,7 +337,7 @@ def test_all_three_consumers_load_once_and_sanctions_keep_discovery(tmp_path: Pa
     # Invalid schema, yet loader discovery still contributes this built-in node
     # to sanction analysis, which is deliberately not the trust projection.
     (tmp_path / "directives" / "invalid.directive.yaml").write_text("id: DIRECTIVE_003\n", encoding="utf-8")
-    _write_fragment(tmp_path, [_local_node()], [_edge("local", "ORG_POLICY"), _edge("local", "directive:missing", "enhances")])
+    _write_fragment(tmp_path, [_local_node()], [_edge("local", "ORG_POLICY"), _edge("local", "missing", "enhances")])
     (tmp_path / "replaceable-builtins.yaml").write_text(
         "replaceable_builtins:\n  - {urn: 'directive:DIRECTIVE_003', reason: Explicit replacement}\n", encoding="utf-8"
     )
@@ -349,7 +350,7 @@ def test_all_three_consumers_load_once_and_sanctions_keep_discovery(tmp_path: Pa
     monkeypatch.setattr(pv, "load_org_pack", counted)
     result = pv.validate_pack(tmp_path)
     assert len(calls) == 1
-    assert [issue.artifact_id for issue in _dangling(result)] == ["directive:missing"]
+    assert [issue.artifact_id for issue in _dangling(result)] == ["missing"]
     assert any(issue.category == "unknown_target" for issue in result.errors)
     assert not any(issue.category == "pack_sanction" for issue in result.advisories + result.errors)
 
@@ -374,7 +375,7 @@ def test_failed_load_one_attempt_without_derived_noise(tmp_path: Path, monkeypat
 
 @pytest.mark.parametrize("valid", [False, True])
 def test_governance_fault_attributes_sibling_and_valid_twin_runs_endpoints(tmp_path: Path, valid: bool) -> None:
-    fragment = _write_fragment(tmp_path, [_local_node()], [_edge("local", "asset:missing")])
+    fragment = _write_fragment(tmp_path, [_local_node()], [_edge("local", "missing")])
     profile = tmp_path / "mission_types" / "software-dev" / "governance-profile.yaml"
     profile.parent.mkdir(parents=True)
     profile.write_text("selected_directives: " + ("[DIRECTIVE_003]" if valid else "not-a-list"), encoding="utf-8")
@@ -423,8 +424,8 @@ def test_unavailable_builtins_still_checks_local_closure(tmp_path: Path, monkeyp
         raise loader.DRGLoadError("unavailable")
 
     monkeypatch.setattr(loader, "load_built_in_graph", unavailable)
-    _write_fragment(tmp_path, [_local_node()], [_edge("local", "directive:local"), _edge("local", "directive:missing")])
-    assert [issue.artifact_id for issue in _dangling(pv.validate_pack(tmp_path))] == ["directive:missing"]
+    _write_fragment(tmp_path, [_local_node()], [_edge("local", "directive:local"), _edge("local", "missing")])
+    assert [issue.artifact_id for issue in _dangling(pv.validate_pack(tmp_path))] == ["missing"]
 
 
 def test_identity_helper_defensive_branches() -> None:
@@ -454,13 +455,21 @@ def test_org_node_urn_normalization(kind: str, urn: str) -> None:
     assert pv._org_node_urn(kind, "SHARED") == urn
 
 
-def test_intentional_sibling_standalone_red_complete_runtime_resolves(tmp_path: Path) -> None:
+def test_qualified_sibling_endpoint_is_advisory_and_resolves_at_runtime(tmp_path: Path) -> None:
     pack = tmp_path / "primary-pack"
     sibling = tmp_path / "sibling-pack"
-    _write_fragment(pack, [_local_node()], [_edge("directive:local", "asset:sibling-logo")])
-    _write_fragment(sibling, [{"id": "sibling-logo", "kind": "assets"}], [])
+    _write_fragment(pack, [_local_node()], [_edge("directive:local", "asset:sibling-logo"), _edge("tactic:sibling-tactic", "local"), _edge("local", "bare-typo")])
+    _write_fragment(sibling, [{"id": "sibling-logo", "kind": "assets"}, {"id": "sibling-tactic", "kind": "tactics"}], [])
     standalone = pv.validate_pack(pack)
-    assert [issue.artifact_id for issue in _dangling(standalone)] == ["asset:sibling-logo"]
+    # Qualified sibling references are advisories; an unresolved bare id stays an error.
+    assert [(issue.artifact_id, issue.severity) for issue in _external(standalone)] == [("asset:sibling-logo", "advisory"), ("tactic:sibling-tactic", "advisory")]
+    assert all("doctor charter-packs" in issue.message for issue in _external(standalone))
+    assert [issue.artifact_id for issue in _dangling(standalone)] == ["bare-typo"]
+    (pack / "drg" / "fragment.yaml").write_text(
+        yaml.safe_dump({"nodes": [_local_node()], "edges": [_edge("directive:local", "asset:sibling-logo"), _edge("tactic:sibling-tactic", "local")]}),
+        encoding="utf-8",
+    )
+    assert pv.validate_pack(pack).ok
     repo = tmp_path / "consumer"
     config = repo / ".kittify" / "config.yaml"
     config.parent.mkdir(parents=True)
@@ -516,11 +525,11 @@ def test_coexisting_shapes_cannot_cross_rescue_and_share_catalog(tmp_path: Path,
     result = pv.validate_pack(tmp_path)
     assert len(calls) == 1
     assert [(issue.file, issue.artifact_id) for issue in _dangling(result)] == [
-        (str(fragment), "asset:graph-only"),
         (str(graph), "asset:org-only"),
     ]
+    assert [(issue.file, issue.artifact_id) for issue in _external(result)] == [(str(fragment), "asset:graph-only")]
     assert any(issue.category == "drg_root_graph_missing" for issue in result.errors)
-    assert _dangling(result)[1].message == "dangling DRG edge — target URN 'asset:org-only' not in built-in or pack artifact set"
+    assert _dangling(result)[0].message == "dangling DRG edge — target URN 'asset:org-only' not in built-in or pack artifact set"
 
 
 def test_sharded_snapshot_order_duplicate_and_kind_drift_unchanged(tmp_path: Path) -> None:
@@ -556,8 +565,10 @@ def test_generated_augmentation_edges_never_acquire_fragment_findings(tmp_path: 
 def test_authored_augmentation_preserves_unknown_target_fallback(tmp_path: Path, qualified: bool) -> None:
     _write_fragment(tmp_path, [_local_node()], [_edge("local", "directive:missing" if qualified else "missing", "enhances")])
     result = pv.validate_pack(tmp_path)
-    assert [issue.category for issue in result.errors] == ["drg_dangling_edge", "unknown_target"]
-    assert "unresolved_edge_endpoint" in result.errors[0].message if not qualified else "directive:missing" in result.errors[0].message
+    assert [issue.category for issue in result.errors] == (["unknown_target"] if qualified else ["drg_dangling_edge", "unknown_target"])
+    assert [issue.artifact_id for issue in _external(result)] == (["directive:missing"] if qualified else [])
+    if not qualified:
+        assert "unresolved_edge_endpoint" in result.errors[0].message
 
 
 def test_direct_graph_helper_omission_loads_default_catalog(tmp_path: Path) -> None:

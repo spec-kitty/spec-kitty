@@ -44,7 +44,8 @@ Validation performs (in order):
    an ``org_charter_unchecked`` error, never a silent skip.
 
 Issue ``category`` values surfaced via ``ValidationIssue.category``:
-``schema_invalid``, ``duplicate_id``, ``drg_dangling_edge``, ``drg_kind_drift``,
+``schema_invalid``, ``duplicate_id``, ``drg_dangling_edge``,
+``drg_external_endpoint``, ``drg_kind_drift``,
 ``duplicate_drg_edge``, ``same_id_collision``, ``unknown_target``,
 ``intent_conflict``, ``asset_path_escape``, ``asset_mime_invalid``,
 ``profile_skipped``, ``org_pack_missing``, ``unreadable_file``,
@@ -136,6 +137,7 @@ from charter.offering.packs.presets import (
 )
 from kernel.charter_pack_paths import pack_drg_fragment, pack_org_charter
 
+EXTERNAL_ENDPOINT_CATEGORY = "drg_external_endpoint"
 _AUGMENTATION_PLURAL_KINDS: frozenset[str] = augmentation_plural_kinds()
 FragmentIntent = dict[str, dict[str, tuple[dict[str, str], Path]]]
 
@@ -156,6 +158,9 @@ class ValidationIssue:
     * ``duplicate_id`` — two artifacts share the same ID within a kind.
     * ``drg_dangling_edge`` — an authored endpoint is absent or cannot bind
       (unresolved, malformed or ambiguous).
+    * ``drg_external_endpoint`` — advisory: a valid qualified ``<kind>:<id>``
+      endpoint that is neither built-in nor declared in this pack; it may live
+      in a sibling org pack (check with ``spec-kitty doctor charter-packs``).
     * ``drg_kind_drift`` — a fragment attempts to change a built-in node's kind.
     * ``duplicate_drg_edge`` — same edge declared in two fragments.
     * ``same_id_collision`` — pack ID matches a built-in with no declared intent.
@@ -483,7 +488,9 @@ def validate_pack(
     drg_dir = pack_dir / "drg"
     if drg_dir.is_dir():
         endpoint_catalog = _load_endpoint_catalog()
-        errors.extend(_validate_authored_endpoints(pack_drg_fragment(pack_dir), org_fragment, trusted_artifact_urns, endpoint_catalog))
+        authored_errors, authored_advisories = _validate_authored_endpoints(pack_drg_fragment(pack_dir), org_fragment, trusted_artifact_urns, endpoint_catalog)
+        errors.extend(authored_errors)
+        advisories.extend(authored_advisories)
         drg_errors, drg_advisories = _validate_drg(drg_dir, pack_artifact_urns, endpoint_catalog)
         errors.extend(drg_errors)
         advisories.extend(drg_advisories)
@@ -1002,39 +1009,67 @@ def _bind_org_edge(edge: EndpointEdge, local: Mapping[str, str], builtins: set[s
     return _BoundEdge(source, target, edge.source, edge.target, source_cause, target_cause)
 
 
-def _validate_authored_endpoints(file: Path, fragment: OrgDRGFragment | None, trusted: set[str], catalog: _EndpointCatalog) -> list[ValidationIssue]:
+def _validate_authored_endpoints(
+    file: Path,
+    fragment: OrgDRGFragment | None,
+    trusted: set[str],
+    catalog: _EndpointCatalog,
+) -> tuple[list[ValidationIssue], list[ValidationIssue]]:
     """Check single-pack authored closure, not runtime assembled completeness.
+
+    Returns ``(errors, advisories)``. A valid qualified ``<kind>:<id>`` endpoint
+    that is neither declared here nor built-in may live in a sibling org pack,
+    which the runtime merge resolves; it is an advisory
+    (``drg_external_endpoint``). Every other unbound endpoint (bare id that
+    resolves nowhere, malformed token, unknown kind, ambiguous binding) is a
+    ``drg_dangling_edge`` error.
 
     Unknown relation labels still have endpoints; projected edges are not
     authored here. Explicit declarations assert identity, not installed content.
     """
     if fragment is None:
-        return []
+        return [], []
     local, declared = _org_local_registry(fragment, trusted)
     known = catalog.urns | trusted | declared
     edges = [_bind_org_edge(edge, local, catalog.urns) for edge in fragment.authored_edges]
-    issues: list[ValidationIssue] = []
+    errors: list[ValidationIssue] = []
+    advisories: list[ValidationIssue] = []
     view: EndpointGraph[_BoundEdge] = _EndpointView(edges, known)
     sides: list[tuple[_BoundEdge, str, str]] = _dangling_sides(view)
     for edge, role, _ in sides:
         raw = edge.raw_source if role == "source" else edge.raw_target
         cause = edge.source_cause if role == "source" else edge.target_cause
-        detail = f" ({cause}; qualify as <kind>:<id>)" if cause is not None else ""
-        issues.append(
+        if cause is None:
+            advisories.append(
+                ValidationIssue(
+                    severity="advisory",
+                    artifact_type="drg",
+                    artifact_id=raw,
+                    file=str(file),
+                    message=(
+                        f"external DRG endpoint — {role} endpoint {raw!r} is neither built-in nor "
+                        "declared in this pack; it may live in a sibling org pack. Configure both "
+                        "packs and run `spec-kitty doctor charter-packs` to check the assembled closure"
+                    ),
+                    category=EXTERNAL_ENDPOINT_CATEGORY,
+                )
+            )
+            continue
+        errors.append(
             ValidationIssue(
                 severity="error",
                 artifact_type="drg",
                 artifact_id=raw,
                 file=str(file),
                 message=(
-                    f"dangling DRG edge — {role} endpoint {raw!r}{detail} not in "
-                    "built-in or this pack's declared/schema-trusted identities; "
-                    "correct the endpoint or explicitly declare an intentional sibling identity"
+                    f"dangling DRG edge — {role} endpoint {raw!r} ({cause}; qualify as <kind>:<id>) "
+                    "cannot bind to a built-in or to this pack's declared/schema-trusted identities; "
+                    "correct the endpoint"
                 ),
                 category="drg_dangling_edge",
             )
         )
-    return issues
+    return errors, advisories
 
 
 def _validate_drg(

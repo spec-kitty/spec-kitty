@@ -218,8 +218,11 @@ artifact file; it does not prove schema validity.
 Both `charter org validate` and `charter pack validate` check authored sources
 **and** targets in `drg/fragment.yaml`, as well as graph-document edges in
 `drg/*.graph.yaml`. Standalone scope is **built-ins plus this pack only**;
-a qualified sibling-pack endpoint fails closed unless explicitly declared here.
-Every `drg_dangling_edge` finding names the file, endpoint and source/target role.
+a valid qualified `<kind>:<id>` endpoint that is neither built-in nor declared here
+is reported as a `drg_external_endpoint` advisory (it may live in a sibling pack),
+not an error.
+Every `drg_dangling_edge` finding names the file, endpoint and source/target role;
+an unresolved bare id, malformed token, unknown kind or ambiguous id stays an error.
 Canonical binding refusals for unresolved bare or unknown-prefix tokens,
 malformed known-kind URNs, and ambiguous built-in bare ids additionally carry
 the resolver cause. An absent syntactically valid qualified URN has no resolver
@@ -377,8 +380,9 @@ The validator distinguishes errors from advisories:
 |---|---|
 | Artifact YAML fails schema validation | Error |
 | Duplicate `id` within the pack | Error |
-| `drg_dangling_edge`: source or target URN absent from the layout's known identities (canonical fragments and graph documents) | Error |
-| `drg_dangling_edge`: unresolved/unknown-prefix, malformed or ambiguous endpoint binding (canonical fragments only) | Error |
+| `drg_dangling_edge`: graph-document source or target URN absent from the layout's known identities | Error |
+| `drg_dangling_edge`: unresolved bare id, unknown-prefix, malformed or ambiguous endpoint binding (canonical fragments) | Error |
+| `drg_external_endpoint`: valid qualified `<kind>:<id>` endpoint in `drg/fragment.yaml` that is neither built-in nor declared here (may live in a sibling pack) | Advisory |
 | DRG extension tries to modify or remove a built-in node | Error |
 | `org-charter.yaml` schema violation | Error |
 | `replaceable-builtins.yaml` malformed, or a directive entry without a reason | Error |
@@ -389,11 +393,11 @@ The validator distinguishes errors from advisories:
 
 A `drg_dangling_edge` finding always names the file, offending endpoint and
 `source`/`target` role; canonical binding refusals additionally name the resolver
-cause where applicable. Absent qualified URNs have no resolver cause, and graph
+cause where applicable. Graph
 documents keep their legacy URN/schema behavior. Correct a typo, supply an
 artifact successfully validated by the supported existing schema scan, or remove
-a stale edge. For an intentional sibling dependency, follow the declaration and
-assembled-runtime verification steps in Troubleshooting below. `charter org validate`
+a stale edge. For an intentional sibling dependency, reference it by its qualified
+URN and verify the assembled closure as described in Troubleshooting below. `charter org validate`
 reports the same findings as `charter pack validate`; only the latter has `--json`.
 
 ---
@@ -648,8 +652,8 @@ the canonical subdirectories exists with valid YAML files.
 
 Standalone validation sees built-ins and one pack, not the consumer's assembled
 runtime graph. Every finding names the file, endpoint and role. Canonical binding
-refusals additionally carry a resolver cause where applicable; an absent qualified
-URN has no such cause. Graph-document URN wording and schema parsing are unchanged.
+refusals additionally carry a resolver cause where applicable; a graph-document
+URN has none. Graph-document URN wording and schema parsing are unchanged.
 
 - Correct a typo or remove a stale edge.
 - Supply a local artifact successfully validated by the supported existing schema
@@ -661,29 +665,14 @@ URN has no such cause. Graph-document URN wording and schema parsing are unchang
   known-kind token carries `malformed_urn`; an unresolved bare id or unknown prefix
   carries `unresolved_edge_endpoint`.
 
-For an **intentional sibling-pack dependency**, explicitly declare the sibling's
-graph identity here, using its real id and the correct **plural** kind, and keep
-the edge qualified. For example:
-
-```yaml
-nodes:
-  - id: local-policy
-    kind: directives
-  - id: sibling-logo
-    kind: assets
-edges:
-  - source: directive:local-policy
-    target: asset:sibling-logo
-    relation: requires
-```
-
-This declaration asserts graph identity, not installed content or schema success.
-Do not copy sibling content or invent a local `body_path`. Check declaration
-metadata/identity collisions against the real assembled graph. Configure the
-intended sibling pack in the consumer and run `spec-kitty doctor charter-packs` to
-verify that complete runtime context. Doctor retains assembled-graph semantics;
-it **does not bypass** a failing standalone validator or make it pass without
-the explicit declaration.
+For an **intentional sibling-pack dependency**, reference the sibling's node by
+its qualified URN (for example `asset:sibling-logo`). Standalone validation
+reports it as a `drg_external_endpoint` advisory, not an error. Do **not**
+declare the sibling's identity in your own pack: when both packs are loaded,
+a second declaration of the same asset or template id raises a duplicate-id
+error at runtime and can shadow the sibling's real node for other kinds. Instead,
+configure both packs in the consumer and run `spec-kitty doctor charter-packs` to
+check the assembled closure.
 
 ### Error: "DRG extension attempts to modify a built-in node"
 
