@@ -142,7 +142,7 @@ def _stub_composition_plan(monkeypatch: pytest.MonkeyPatch) -> list[tuple[Any, .
     test can assert the stub ran."""
     calls: list[tuple[Any, ...]] = []
 
-    def _plan(run_ref: Any, agent: Any, result: Any) -> SimpleNamespace:
+    def _plan(run_ref: Any, agent: Any, result: Any, *, expected_issued_step: Any = None) -> SimpleNamespace:
         calls.append((run_ref, agent, result))
         return SimpleNamespace(decision=NextDecision(kind="terminal", run_id="run-042", mission_key="042-mission"))
 

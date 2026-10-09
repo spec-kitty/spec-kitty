@@ -266,7 +266,7 @@ def test_composition_dispatch_decision_required_reaches_decision_log(monkeypatch
     monkeypatch.setattr(rb._composition, "_dispatch_via_composition", lambda **kwargs: [])
     planned: list[tuple[Any, ...]] = []
 
-    def _plan(run_ref: Any, agent: Any, result: Any) -> SimpleNamespace:
+    def _plan(run_ref: Any, agent: Any, result: Any, *, expected_issued_step: Any = None) -> SimpleNamespace:
         planned.append((run_ref, agent, result))
         return SimpleNamespace(decision=SimpleNamespace(kind="terminal", step_id=None))
 

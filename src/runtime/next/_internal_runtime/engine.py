@@ -6,10 +6,12 @@
 # public-API inventory.
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
 import re
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Literal, cast
@@ -19,6 +21,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict
 
 from kernel.clock import now_utc, now_utc_iso
+from runtime.next.run_lock import run_cursor_lock
 from runtime.next._internal_runtime.discovery import DiscoveryContext, discover_missions, load_mission_template
 from spec_kitty_events.mission_next import (
     DecisionInputAnsweredPayload,
@@ -127,17 +130,26 @@ def _read_snapshot(run_dir: Path) -> MissionRunSnapshot:
 
 
 def _write_snapshot(run_dir: Path, snapshot: MissionRunSnapshot) -> None:
-    # FR-015: stage the cursor in a same-directory tmp file (same filesystem),
-    # fsync, then publish with os.replace (atomic on POSIX and NTFS) -- the
-    # ``reducer.materialize`` shape. A crash at any point leaves either the
-    # previous complete state.json or the new one, never a torn file.
+    # FR-015/FR-006: stage the cursor in a UNIQUE same-directory tmp file (same
+    # filesystem), fsync, then publish with os.replace (atomic on POSIX and
+    # NTFS) -- the ``reducer.materialize`` shape. The staging name is unique
+    # (``mkstemp``) so two writers to one run_dir never collide on the staging
+    # path and lose/corrupt a write (the fixed ``state.json.tmp`` footgun); a
+    # crash at any point leaves either the previous complete state.json or the
+    # new one, never a torn file.
     target = run_dir / "state.json"
-    tmp = run_dir / "state.json.tmp"
-    with open(tmp, "w", encoding="utf-8") as handle:
-        json.dump(snapshot.model_dump(mode="json"), handle, indent=2, sort_keys=True, default=str)
-        handle.flush()
-        os.fsync(handle.fileno())
-    os.replace(tmp, target)
+    fd, tmp_name = tempfile.mkstemp(dir=run_dir, prefix="state.json.", suffix=".tmp")
+    tmp = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(snapshot.model_dump(mode="json"), handle, indent=2, sort_keys=True, default=str)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(tmp, target)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            tmp.unlink()
+        raise
 
 
 def _freeze_template(run_dir: Path, template: MissionTemplate, template_path: str) -> str:
@@ -272,6 +284,13 @@ class AdvancePlan(BaseModel):
     result: ResultType
     completed_step_id: str | None
     significance: SignificanceEvaluatedPayload | None = None
+    # The step id the CALLER evaluated before this advance was planned (the
+    # bridge's bootstrap ``issued_step_id``). ``commit_advance`` refuses the
+    # plan when the live on-disk ``issued_step_id`` no longer equals it -- the
+    # expected-step compare-and-swap that closes the bootstrap->plan window
+    # (#5682). ``None`` (the default) preserves the pre-existing contract for
+    # callers that do not supply it.
+    expected_issued_step: str | None = None
 
 
 def apply_result(snapshot: MissionRunSnapshot, result: ResultType) -> tuple[MissionRunSnapshot, str | None]:
@@ -413,6 +432,8 @@ def plan_advance(
     result: ResultType = "success",
     policy_snapshot: MissionPolicySnapshot | None = None,
     actor_context: dict[str, Any] | None = None,
+    *,
+    expected_issued_step: str | None = None,
 ) -> AdvancePlan:
     """Compute what ``next_step`` will issue -- WITHOUT persisting or emitting.
 
@@ -453,6 +474,7 @@ def plan_advance(
         result=result,
         completed_step_id=completed_step_id,
         significance=significance,
+        expected_issued_step=expected_issued_step,
     )
 
 
@@ -588,7 +610,13 @@ def next_step(
     (:func:`_commit_advance`) -- the two halves share one plan.
     """
     plan = plan_advance(run_ref, agent_id, result, policy_snapshot=policy_snapshot, actor_context=actor_context)
-    _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter())
+    # Serialise the cursor write under the per-run-dir lock (FR-003): the
+    # commit's append + snapshot replace is the critical section, acquired just
+    # before it and released after. ``_commit_advance`` itself stays lock-free
+    # so the public ``commit_advance`` (which holds the lock around its own
+    # re-read + CAS) does not re-acquire and self-contend.
+    with run_cursor_lock(Path(run_ref.run_dir)):
+        _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter())
     return plan.decision
 
 
@@ -610,21 +638,55 @@ def commit_advance(
     workspace before anything is persisted) and commits THAT plan -- the
     engine does not plan a second time. The plan is refused with
     :class:`StaleAdvancePlan`, writing nothing, when the run's persisted state
-    is no longer the state it was planned from: committing it would overwrite
-    newer progress. The check detects a run that moved between plan and
-    commit; it does not serialise two writers committing at the same moment
-    (#5854).
+    is no longer the state it was planned from (or no longer carries the step
+    the caller evaluated at bootstrap, ``plan.expected_issued_step``):
+    committing it would overwrite newer progress or complete a step this caller
+    never ran (#5682). Two overlapping committers are additionally serialised by
+    the per-run-dir lock below, so neither the plan→commit window nor the
+    commit→commit window can let two writers both pass and both append (#5854).
 
     ``before_run_completed`` is an abort-only guard called on the transition
     into terminal, after the stale-plan check and before anything is appended
     or emitted; if it raises, the error propagates and nothing was written (no
     event, no emission, no ``state.json``), so an abort leaves the run exactly
     as it was.
+
+    The whole re-read -> validate -> append -> write is serialised under the
+    per-run-dir cursor lock (FR-003): the re-read, both staleness checks, and
+    :func:`_commit_advance`'s writes all happen under one held lock, so two
+    overlapping advances cannot both pass the check and both append (#5854). A
+    contended lock that cannot be acquired within the bounded wait raises
+    :class:`kernel.locks.LockAcquireTimeout`, which the caller maps to a
+    ``blocked`` Decision.
     """
-    if _read_snapshot(Path(run_ref.run_dir)) != plan.source:
-        raise StaleAdvancePlan(f"Run '{plan.source.run_id}' changed after the advance was planned; plan again.")
-    _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter(), before_run_completed=before_run_completed)
+    run_dir = Path(run_ref.run_dir)
+    with run_cursor_lock(run_dir):
+        _refuse_stale_plan(run_dir, plan)
+        _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter(), before_run_completed=before_run_completed)
     return plan.decision
+
+
+def _refuse_stale_plan(run_dir: Path, plan: AdvancePlan) -> None:
+    """Refuse a plan the run moved past -- the ONE staleness authority, with a
+    widened window (#5682). Call inside the run-cursor lock.
+
+    Two coverings, same :class:`StaleAdvancePlan` authority:
+
+    * ``live != plan.source`` -- the run changed between plan and commit (the
+      pre-existing plan->commit check).
+    * ``live.issued_step_id != plan.expected_issued_step`` (when the caller
+      supplied an expected step) -- the run's issued step is no longer the one
+      the caller evaluated at bootstrap, so a peer landed in the bootstrap->plan
+      window; committing would complete a step this caller never ran.
+    """
+    live = _read_snapshot(run_dir)
+    if live != plan.source:
+        raise StaleAdvancePlan(f"Run '{plan.source.run_id}' changed after the advance was planned; plan again.")
+    if plan.expected_issued_step is not None and live.issued_step_id != plan.expected_issued_step:
+        raise StaleAdvancePlan(
+            f"Run '{plan.source.run_id}' issued step changed since it was evaluated "
+            f"(expected {plan.expected_issued_step!r}, found {live.issued_step_id!r}); plan again."
+        )
 
 
 _AUDIT_PREFIX = "audit:"
@@ -807,9 +869,25 @@ def provide_decision_answer(
     For audit decisions (audit:X), approves or rejects the audit checkpoint:
       - "approve": adds audit_step_id to completed_steps; run continues.
       - "reject": sets blocked_reason; run is permanently blocked.
+
+    The whole read -> mutate -> append -> write is serialised under the
+    per-run-dir cursor lock (FR-004): this is a third unlocked ``state.json``
+    writer with no CAS of its own, which a ``next --answer`` could otherwise
+    race against a ``next`` advance.
     """
-    emitter = emitter or NullEmitter()
     run_dir = Path(run_ref.run_dir)
+    with run_cursor_lock(run_dir):
+        _apply_decision_answer(run_dir, decision_id, answer, actor, emitter or NullEmitter())
+
+
+def _apply_decision_answer(
+    run_dir: Path,
+    decision_id: str,
+    answer: str,
+    actor: ActorIdentity,
+    emitter: RuntimeEventEmitter,
+) -> None:
+    """The decision-answer read-modify-write body, run under the run-cursor lock."""
     snapshot = _read_snapshot(run_dir)
 
     pending = dict(snapshot.pending_decisions)

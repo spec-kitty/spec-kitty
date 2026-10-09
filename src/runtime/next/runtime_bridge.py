@@ -126,6 +126,8 @@ from runtime.next.decision import (
     _state_to_action,
 )
 from runtime.next._internal_runtime.events import RuntimeEventEmitter, runtime_emitter_for_mission, seed_runtime_emitter
+from runtime.next.run_lock import run_cursor_lock
+from kernel.locks import LockAcquireTimeout
 from mission_runtime import ActionContextError, OwnedCheckout, OwnedRefusalCode
 
 logger = logging.getLogger(__name__)
@@ -958,7 +960,7 @@ def _dn_plan_composition_advance(ctx: DecideNextContext, composed_action: str) -
     propagates unwrapped, and because nothing has been written the run stays
     untouched."""
     try:
-        plan = _engine_adapter.plan_advance(ctx.run_ref, ctx.agent, "success")
+        plan = _engine_adapter.plan_advance(ctx.run_ref, ctx.agent, "success", expected_issued_step=ctx.current_step_id)
     except Exception as exc:  # noqa: BLE001 — EDGE-003: a planning failure is a structured blocked Decision
         return _advance_failed_decision(ctx, composed_action, exc)
     wp_resolution = _resolve_planned_wp_workspace(
@@ -1087,9 +1089,12 @@ def _dn_capture_pre_speculative_state(
     exactly)."""
     state_path = run_dir / STATE_FILE
     events_path = run_dir / "run.events.jsonl"
+    # Capture under the run-cursor lock (FR-003): the pre-speculative snapshot
+    # read must not straddle another writer's commit.
     try:
-        pre_state_bytes = state_path.read_bytes() if state_path.exists() else None
-        pre_events_size = events_path.stat().st_size if events_path.exists() else 0
+        with run_cursor_lock(run_dir):
+            pre_state_bytes = state_path.read_bytes() if state_path.exists() else None
+            pre_events_size = events_path.stat().st_size if events_path.exists() else 0
     except OSError:
         return None
     return pre_state_bytes, pre_events_size
@@ -1105,26 +1110,32 @@ def _dn_rollback_buffered_run_state(
     the original inline rollback exactly, including its error-logging-only
     failure mode — a failed rollback is logged, not itself surfaced as a
     Decision (the caller has already committed to returning the gate-refused
-    blocked Decision)."""
-    if pre_state_bytes is not None:
-        try:
-            (run_dir / STATE_FILE).write_bytes(pre_state_bytes)
-        except OSError as restore_exc:
-            logger.error(
-                "rollback of state.json failed after gate block: %s",
-                restore_exc,
-            )
-    if pre_events_size is not None:
-        events_path = run_dir / "run.events.jsonl"
-        try:
-            if events_path.exists():
-                with open(events_path, "r+b") as handle:
-                    handle.truncate(pre_events_size)
-        except OSError as restore_exc:
-            logger.error(
-                "rollback of run.events.jsonl failed after gate block: %s",
-                restore_exc,
-            )
+    blocked Decision).
+
+    The write + truncate run under the run-cursor lock (FR-003): this is a
+    fourth run-dir writer and a non-atomic write+truncate, so it must not
+    straddle another writer's commit. A lock that cannot be acquired within its
+    bounded wait is logged and the rollback skipped -- consistent with the
+    log-only failure mode."""
+    if pre_state_bytes is None and pre_events_size is None:
+        return
+    try:
+        with run_cursor_lock(run_dir):
+            if pre_state_bytes is not None:
+                try:
+                    (run_dir / STATE_FILE).write_bytes(pre_state_bytes)
+                except OSError as restore_exc:
+                    logger.error("rollback of state.json failed after gate block: %s", restore_exc)
+            if pre_events_size is not None:
+                events_path = run_dir / "run.events.jsonl"
+                try:
+                    if events_path.exists():
+                        with open(events_path, "r+b") as handle:
+                            handle.truncate(pre_events_size)
+                except OSError as restore_exc:
+                    logger.error("rollback of run.events.jsonl failed after gate block: %s", restore_exc)
+    except LockAcquireTimeout as lock_exc:
+        logger.error("rollback skipped: could not acquire run-cursor lock: %s", lock_exc)
 
 
 def _dn_terminal_retrospective_gate(
@@ -1216,7 +1227,7 @@ def _dn_preresolve_wp_workspace(ctx: DecideNextContext) -> tuple[Any, _mapping._
     resolution)``; ``(None, None)`` when no plan can be previewed. The plan is
     then COMMITTED by :func:`_dn_advance_engine` -- the engine plans once."""
     try:
-        plan = _engine_adapter.plan_advance(ctx.run_ref, ctx.agent, ctx.result)
+        plan = _engine_adapter.plan_advance(ctx.run_ref, ctx.agent, ctx.result, expected_issued_step=ctx.current_step_id)
     except _engine_adapter.PLAN_UNAVAILABLE_ERRORS:
         logger.debug("advance preview unavailable for %s; advancing without pre-resolution", ctx.mission_slug, exc_info=True)
         return None, None
@@ -1231,21 +1242,48 @@ def _dn_preresolve_wp_workspace(ctx: DecideNextContext) -> tuple[Any, _mapping._
     return plan, resolution
 
 
-def _dn_advance_engine(ctx: DecideNextContext, plan: Any, engine_emitter: Any) -> NextDecision:
-    """Persist the advance: commit the previewed ``plan`` when there is one
-    (no second planning), else -- or when the run moved past the plan
-    (:class:`StaleAdvancePlan`) -- the engine's own ``next_step``.
+def _engine_advance_refused_decision(ctx: DecideNextContext, exc: Exception) -> Decision:
+    """EDGE-003 ``blocked`` Decision for an engine-path advance the run cursor
+    would not accept: a stale plan (:class:`StaleAdvancePlan`, a peer advanced
+    the run since this caller evaluated its step, #5682) or a contended
+    run-cursor lock (:class:`LockAcquireTimeout`). Mirrors the composition
+    path's refusal shape -- a named reason, never a silent re-apply of
+    ``success`` through ``next_step`` (#5854)."""
+    logger.debug("engine-path advance refused for %s: %s", ctx.mission_slug, type(exc).__name__, exc_info=True)
+    return _mapping._materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.blocked,
+            agent=ctx.agent,
+            mission_slug=ctx.mission_slug,
+            mission=ctx.mission_type,
+            mission_state=ctx.current_step_id or "unknown",
+            timestamp=ctx.now,
+            reason=(f"Run cursor advanced concurrently; refusing to re-apply a stale result: {type(exc).__name__}: {exc}"),
+            progress=ctx.progress,
+            origin=ctx.origin,
+            run_id=ctx.run_ref.run_id,
+            step_id=ctx.current_step_id,
+        )
+    )
 
-    The engine path re-plans a stale advance through ``next_step``, which
-    re-applies ``success`` and so can complete a step this caller never ran,
-    while the composition path refuses it with a ``blocked`` Decision; making
-    the engine path refuse too is tracked in #5854."""
-    if plan is not None:
-        try:
-            return _engine_adapter.commit_advance(ctx.run_ref, plan, ctx.agent, engine_emitter)
-        except _engine_adapter.StaleAdvancePlan:
-            logger.debug("advance plan for %s is stale; re-planning through next_step", ctx.mission_slug, exc_info=True)
-    return runtime_next_step(ctx.run_ref, agent_id=ctx.agent, result=ctx.result, emitter=engine_emitter)
+
+def _dn_advance_engine(ctx: DecideNextContext, plan: Any, engine_emitter: Any) -> NextDecision | Decision:
+    """Persist the advance by committing the previewed ``plan`` (the engine
+    plans once; no second planning).
+
+    When the run moved past the plan (:class:`StaleAdvancePlan`) -- a peer
+    advanced it since this caller evaluated its step -- or the run-cursor lock
+    cannot be acquired within its bounded wait (:class:`LockAcquireTimeout`),
+    the advance is REFUSED with a ``blocked`` Decision and a named reason
+    (#5854), exactly as the composition path does. It is never re-planned
+    through ``next_step``: re-applying ``success`` could complete a step this
+    caller never ran."""
+    if plan is None:
+        return runtime_next_step(ctx.run_ref, agent_id=ctx.agent, result=ctx.result, emitter=engine_emitter)
+    try:
+        return _engine_adapter.commit_advance(ctx.run_ref, plan, ctx.agent, engine_emitter)
+    except (_engine_adapter.StaleAdvancePlan, LockAcquireTimeout) as exc:
+        return _engine_advance_refused_decision(ctx, exc)
 
 
 def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
@@ -1320,6 +1358,14 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
                 origin=ctx.origin,
             )
         )
+
+    # The engine path refused a stale / lock-contended advance: it already
+    # returned the mapped ``blocked`` Decision (#5854). Drop any buffered
+    # events and surface it directly -- it is not a NextDecision to re-map.
+    if isinstance(runtime_decision, Decision):
+        if buffer is not None:
+            buffer.discard()
+        return runtime_decision
 
     if block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
         gate_decision = _dn_terminal_retrospective_gate(ctx, policy_error, buffer, pre_state_bytes, pre_events_size)

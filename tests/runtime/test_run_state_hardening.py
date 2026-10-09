@@ -322,7 +322,10 @@ def test_write_snapshot_crash_window_keeps_previous_cursor(tmp_path: Path, monke
         _write_snapshot(run_dir, _snapshot("r1", issued_step_id="step-2"))
 
     assert (run_dir / "state.json").read_bytes() == previous, "cursor was torn or overwritten mid-write"
-    assert any(p.name.endswith(".tmp") for p in run_dir.iterdir()), "no staged tmp file left for recovery"
+    # FR-006: the staging tmp now has a UNIQUE name, so a failed publish cleans
+    # it up (an un-recoverable-by-convention orphan would otherwise accumulate
+    # across crashes); state.json still holds the previous complete cursor.
+    assert not any(p.name.endswith(".tmp") for p in run_dir.iterdir()), "a failed publish must not leave an orphan staging tmp"
 
     monkeypatch.setattr(os, "replace", real_replace)
     _write_snapshot(run_dir, _snapshot("r1", issued_step_id="step-2"))
@@ -333,7 +336,9 @@ def test_write_snapshot_crash_window_keeps_previous_cursor(tmp_path: Path, monke
 
 def test_write_snapshot_stages_tmp_in_the_run_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """R13 (Windows): the staging file must live next to the target so the
-    publish is a same-filesystem rename."""
+    publish is a same-filesystem rename. FR-006: the staging name is UNIQUE
+    (``state.json.<rand>.tmp``), never a fixed ``state.json.tmp``, so two
+    writers to one run dir cannot collide on the staging path."""
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     seen: list[tuple[str, str]] = []
@@ -346,7 +351,12 @@ def test_write_snapshot_stages_tmp_in_the_run_directory(tmp_path: Path, monkeypa
     monkeypatch.setattr(os, "replace", _spy)
     _write_snapshot(run_dir, _snapshot("r1", issued_step_id=None))
 
-    assert seen == [(str(run_dir / "state.json.tmp"), str(run_dir / "state.json"))]
+    assert len(seen) == 1
+    src, dst = seen[0]
+    assert dst == str(run_dir / "state.json")
+    staged = Path(src)
+    assert staged.parent == run_dir and staged.name.startswith("state.json.") and staged.name.endswith(".tmp")
+    assert staged.name != "state.json.tmp", "FR-006: the staging name must be unique, not the fixed footgun name"
 
 
 def test_append_event_journal_lines_are_whole_even_when_fsync_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
