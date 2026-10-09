@@ -226,7 +226,6 @@ def _median_seconds(argv: list[str], project: Path, check: Callable[[Any], None]
 
 @covers("NFR-003")
 @pytest.mark.timing
-@pending_until("WP08", "`activate --preset` and `pack list` within 1.5x `charter list`")
 def test_nfr003_preset_and_pack_list_latency(tmp_path: Path) -> None:
     project = project_from_template("two_org_packs", tmp_path / "p")
 

@@ -735,9 +735,6 @@ entries:
   name: GovernancePolicy
   category: category_b_grandfathered_legacy
 - module: charter.activation.org_charter
-  name: REQUIRED_KIND_FIELDS
-  category: category_b_grandfathered_legacy
-- module: charter.activation.org_charter
   name: apply_org_charter_pre_fill
   category: category_b_grandfathered_legacy
 - module: charter.offering.packs.pack_assembler

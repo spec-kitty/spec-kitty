@@ -1,10 +1,13 @@
-"""spec-kitty charter pack — charter pack management commands (FR-011).
+"""spec-kitty charter pack — charter pack commands.
 
-``list`` / ``path`` / ``apply`` (#3064 follow-up) are the on-demand pack CLI
-for the built-in charter packs shipped at ``src/charter/packs/`` (``default``
-and ``minimal``). The pack -> ``config.yaml`` merge logic is shared with the
-``3.2.0rc35_default_charter_pack`` upgrade migration via
-``specify_cli.charter_pack_registry`` — see that module's docstring.
+``list`` / ``path`` read the project's offering (FR-004 / FR-006): one row per
+pack (the built-in pack, each declared org pack, and the ``project`` layer)
+with the activation presets it ships (``presets/<name>.yaml``), resolved through
+:func:`charter.packs.list_offering_packs`. A preset is applied with
+``spec-kitty charter activate [--pack <pack>] --preset <preset>``.
+
+``apply`` is the retired preset path over ``specify_cli.charter_pack_registry``
+and is kept unchanged until its removal (#3732 WP13).
 """
 
 from __future__ import annotations
@@ -13,17 +16,21 @@ import json
 from pathlib import Path
 
 import typer
+from rich.markup import escape
+from rich.table import Table
 from ruamel.yaml import YAML
 from specify_cli.cli.console import console
 
 from charter.activation.invocation_context import ProjectContext
+from charter.activation.preset_application import PresetApplicationError, find_offering_pack, load_pack_preset
+from charter.packs import OfferingPack, PresetFormatError, discover_presets, list_offering_packs
 from specify_cli.charter_pack_registry import (
-    BUILTIN_PACKS,
     UnknownPackError,
     load_pack_yaml,
     merge_pack_into_config,
     resolve_builtin_pack_path,
 )
+from specify_cli.cli.commands.charter._coded_errors import render_coded_error, render_preset_format_error
 
 __all__ = ["charter_pack_app"]
 
@@ -66,51 +73,63 @@ def consistency_check_cmd(
     raise typer.Exit(0 if report.coherent else 1)
 
 
+#: Name of the project layer's row (spec Key Entities: it ships no presets).
+_PROJECT_PACK = "project"
+_KITTIFY_DIRNAME = ".kittify"
+
+
+def _pack_rows(repo_root: Path) -> list[dict[str, object]]:
+    """One row per offering pack with its presets.
+
+    The ``project`` row is listed only inside a project (``.kittify/``
+    present): outside one there is no project layer to report.
+    """
+    rows: list[dict[str, object]] = []
+    in_project = (repo_root / _KITTIFY_DIRNAME).is_dir()
+    for pack in list_offering_packs(repo_root):
+        if pack.name == _PROJECT_PACK and pack.tier == _PROJECT_PACK and not in_project:
+            continue
+        rows.append({"name": pack.name, "tier": pack.tier, "root": str(pack.root), "presets": _preset_rows(pack)})
+    return rows
+
+
+def _preset_rows(pack: OfferingPack) -> list[dict[str, str]]:
+    if not pack.ships_presets or not pack.root.is_dir():
+        return []
+    return [{"name": preset.name, "description": preset.description, "path": str(preset.source)} for preset in discover_presets(pack.root)]
+
+
 @charter_pack_app.command("list")
 def list_cmd(
     json_output: bool = typer.Option(False, "--json", help="Output as JSON."),
+    repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
-    """List the built-in charter packs shipped with spec-kitty (#3064)."""
+    """List the packs of the project's offering and the presets each ships (FR-004)."""
     try:
-        packs = [
-            {
-                "name": name,
-                "path": str(resolve_builtin_pack_path(name)),
-                "description": description,
-            }
-            for name, description in sorted(BUILTIN_PACKS.items())
-        ]
-    except FileNotFoundError as exc:
-        if json_output:
-            typer.echo(json.dumps({"error": str(exc)}))
-        else:
-            console.print(f"[red]Error:[/red] {exc}")
+        rows = _pack_rows(repo_root.resolve())
+    except PresetFormatError as exc:
+        render_preset_format_error(exc, json_output=json_output)
         raise typer.Exit(1) from exc
     if json_output:
-        typer.echo(json.dumps({"packs": packs}, indent=2))
+        console.emit_json({"packs": rows})
         return
-
-    console.print("[bold]Built-in charter packs:[/bold]")
-    for pack in packs:
-        console.print(f"  [cyan]{pack['name']}[/cyan] — {pack['description']}")
-    console.print(
-        "\n[dim]Resolve a path with `spec-kitty charter pack path <name>`, "
-        "apply one with `spec-kitty charter pack apply <name>`.[/dim]"
-    )
+    table = Table(title="Charter packs")
+    table.add_column("Pack")
+    table.add_column("Tier")
+    table.add_column("Presets")
+    for row in rows:
+        presets = row["presets"]
+        names = ", ".join(preset["name"] for preset in presets) if isinstance(presets, list) else ""
+        table.add_row(escape(str(row["name"])), str(row["tier"]), escape(names) or "—")
+    console.print(table)
+    console.print("\n[dim]Apply a preset with `spec-kitty charter activate [--pack <pack>] --preset <preset>`.[/dim]")
 
 
 def _resolve_pack_path_or_exit(name: str, *, json_output: bool) -> Path:
-    """Resolve a built-in pack name or exit(1) with a consistent error report.
+    """Resolve a retired built-in pack name for ``apply_cmd`` or exit(1).
 
-    Shared by ``path_cmd`` and ``apply_cmd`` (T012 campsite) — both used to
-    carry an IDENTICAL ``try: resolve_builtin_pack_path(name) except
-    (UnknownPackError, FileNotFoundError)`` block. ``list_cmd`` is
-    deliberately NOT routed through this helper: it resolves EVERY built-in
-    pack in a list comprehension and only ever sees ``FileNotFoundError``
-    (there is no single ``name`` argument for ``UnknownPackError`` to be
-    raised about there) — forcing it through a helper shaped for a
-    single-name lookup would make it catch an exception class it can never
-    hit.
+    Only ``apply_cmd`` uses it (``list``/``path`` read the offering since
+    #3732 WP08); it goes with ``apply`` in WP13.
     """
     try:
         # `specify_cli.*` imports are `follow_imports = "skip"` under mypy
@@ -261,19 +280,32 @@ def _apply_compile_bridge(
 
 @charter_pack_app.command("path")
 def path_cmd(
-    name: str = typer.Argument(..., help="Built-in pack name (e.g. 'default', 'minimal')."),
+    pack: str = typer.Argument(..., help="Pack name (built-in, an org pack name, or project)."),
+    preset: str | None = typer.Option(None, "--preset", help="Print this preset's file instead of the pack root."),
     json_output: bool = typer.Option(False, "--json", help="Output as JSON."),
+    repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
-    """Resolve a built-in charter pack name to its shipped filesystem path (#3064).
+    """Print a pack's root, or with --preset the preset file (FR-006).
 
-    Fails closed (exit 1) on an unknown pack name, naming it and the valid set.
+    Fails closed (exit 1) with PACK_NOT_FOUND or PRESET_NOT_FOUND, listing the
+    valid names.
     """
-    resolved = _resolve_pack_path_or_exit(name, json_output=json_output)
-
+    try:
+        offering_pack = find_offering_pack(repo_root.resolve(), pack)
+        path = offering_pack.root if preset is None else load_pack_preset(offering_pack, preset).source
+    except PresetApplicationError as exc:
+        render_coded_error(exc.code, str(exc), details=exc.detail_lines(), payload=exc.payload(), json_output=json_output)
+        raise typer.Exit(1) from exc
+    except PresetFormatError as exc:
+        render_preset_format_error(exc, json_output=json_output)
+        raise typer.Exit(1) from exc
     if json_output:
-        typer.echo(json.dumps({"name": name, "path": str(resolved)}))
+        payload: dict[str, str] = {"pack": offering_pack.name, "path": str(path)}
+        if preset is not None:
+            payload["preset"] = preset
+        console.emit_json(payload)
     else:
-        typer.echo(str(resolved))
+        typer.echo(str(path))
 
 
 @charter_pack_app.command("apply")

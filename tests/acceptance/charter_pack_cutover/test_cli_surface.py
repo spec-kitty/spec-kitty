@@ -164,7 +164,6 @@ def test_fr006_charter_home_matches_recorded_output(leaf: Leaf, tmp_path: Path) 
 
 @covers("FR-006", "FR-004")
 @pytest.mark.integration
-@pending_until("WP08", "`charter pack path` takes a pack name")
 def test_fr006_pack_path_takes_a_pack_name(tmp_path: Path) -> None:
     project = project_from_template("two_org_packs", tmp_path / "p")
     result = run_cli(["charter", "pack", "path", "built-in", "--json"], project)

@@ -174,6 +174,7 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
     "agent tasks validate-workflow": (("missing",), 1, "outside"),
     "agent tracer-append": (("--mission", "missing", "--category", "missing", "--entry", "missing", "--actor", "missing"), 1, "outside"),
     "auth doctor": ((), 1, "outside"),
+    "charter activate": (("--preset", "missing"), 1, "outside"),
     "charter bundle validate": ((), 2, "outside"),
     "charter context": ((), 1, "outside"),
     "charter generate": ((), 1, "outside"),
@@ -217,7 +218,7 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
 # G0 clarification: total/read-only result commands exercise real result arms.
 # Do not invent a domain error or label them nonparseable merely for lacking one.
 TOTAL_RESULT_EVIDENCE: dict[str, str] = {
-    "charter pack list": "charter/pack.py:69; fixed built-in pack catalog; no modeled domain-error arm",
+    "charter pack list": "charter/pack.py:103; offering pack listing (built-in, org packs); zero org packs is a result",
     "doctor channel": "_channel_doctor.py:63; total environment-channel report; no modeled error arm",
     "doctrine asset list": "_doctrine_asset.py:125; read-only catalog enumeration; empty catalog is a result",
     "moments drain status": "moments.py:273; effective drain/ledger posture snapshot; no external operation",

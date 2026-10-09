@@ -422,7 +422,7 @@
    "deprecated": false,
    "commands": {
     "activate": {
-     "help": "Activate a doctrine artifact by kind and ID (FR-004), with optional cascade.",
+     "help": "Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's preset.\n\nTwo forms:\n\n  spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE]\n\n  spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]\n\nA preset replaces every activation key it governs: keys it lists are\nwritten (plus the org's required ids), keys it leaves out are removed.\nA change to a customised key is refused without --force.",
      "hidden": false,
      "deprecated": false
     },
@@ -531,12 +531,12 @@
        "deprecated": false
       },
       "list": {
-       "help": "List the built-in charter packs shipped with spec-kitty (#3064).",
+       "help": "List the packs of the project's offering and the presets each ships (FR-004).",
        "hidden": false,
        "deprecated": false
       },
       "path": {
-       "help": "Resolve a built-in charter pack name to its shipped filesystem path (#3064).\n\nFails closed (exit 1) on an unknown pack name, naming it and the valid set.",
+       "help": "Print a pack's root, or with --preset the preset file (FR-006).\n\nFails closed (exit 1) with PACK_NOT_FOUND or PRESET_NOT_FOUND, listing the\nvalid names.",
        "hidden": false,
        "deprecated": false
       },
@@ -553,7 +553,7 @@
      "deprecated": false,
      "commands": {
       "init": {
-       "help": "Scaffold a minimal org pack or render from a template.\n\nWithout ``--template``, creates three files under *pack-path*::\n\n    org-charter.yaml   — governance policy stub\n    drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)\n    README.md          — authoring quickstart\n\nWith ``--template``, copies the full template tree (minus ``.templateignore``),\nsubstitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
+       "help": "Scaffold a minimal org pack or render from a template.\n\nWithout ``--template``, creates four files under *pack-path*::\n\n    org-charter.yaml     — governance policy stub\n    drg/fragment.yaml    — DRG extension stub (with pydantic_model: frontmatter)\n    presets/starter.yaml — example activation preset\n    README.md            — authoring quickstart\n\nWith ``--template``, copies the full template tree (minus ``.templateignore``),\nsubstitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
        "hidden": false,
        "deprecated": false
       },
@@ -810,7 +810,7 @@
      "deprecated": false,
      "commands": {
       "init": {
-       "help": "Scaffold a minimal org pack or render from a template.\n\nWithout ``--template``, creates three files under *pack-path*::\n\n    org-charter.yaml   — governance policy stub\n    drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)\n    README.md          — authoring quickstart\n\nWith ``--template``, copies the full template tree (minus ``.templateignore``),\nsubstitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
+       "help": "Scaffold a minimal org pack or render from a template.\n\nWithout ``--template``, creates four files under *pack-path*::\n\n    org-charter.yaml     — governance policy stub\n    drg/fragment.yaml    — DRG extension stub (with pydantic_model: frontmatter)\n    presets/starter.yaml — example activation preset\n    README.md            — authoring quickstart\n\nWith ``--template``, copies the full template tree (minus ``.templateignore``),\nsubstitutes ``{{ORG_NAME}}`` / ``{{LOCAL_PATH}}``, and writes under *pack-path*.\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
        "hidden": false,
        "deprecated": false
       },

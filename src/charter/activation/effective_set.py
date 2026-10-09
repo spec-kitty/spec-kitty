@@ -60,7 +60,7 @@ from charter.activation.invocation_context import ProjectContext
 from charter.activation.layer_roots import resolve_layer_roots
 from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from charter.offering.artifact_kinds import MISSION_TYPE_TOKEN, ArtifactKind
-from charter.offering.drg.org_pack_config import load_pack_registry, resolve_org_roots
+from charter.offering.drg.org_pack_config import require_declared_org_roots, resolve_org_roots
 from charter.offering.pack_paths import built_in_dir
 from kernel.charter_pack_paths import resolve_project_pack_read_root
 
@@ -97,14 +97,9 @@ def _token_for(yaml_key: str) -> str:
 def _declared_org_roots(repo_root: Path) -> tuple[Path, ...]:
     """Every declared org pack root, in declaration order; a missing one is unresolvable."""
     try:
-        packs = load_pack_registry(repo_root, quiet=True, strict=True).packs
-        roots = tuple(pack.effective_root(repo_root) for pack in packs)
+        return tuple(require_declared_org_roots(repo_root))
     except ValueError as exc:
-        raise _UnresolvableError(f"the org pack registry cannot be read: {exc}") from exc
-    for root in roots:
-        if not root.is_dir():
-            raise _UnresolvableError(f"declared org pack root {root} is not a directory")
-    return roots
+        raise _UnresolvableError(str(exc)) from exc
 
 
 def _load_offering(repo_root: Path, *, with_service: bool) -> _Offering:

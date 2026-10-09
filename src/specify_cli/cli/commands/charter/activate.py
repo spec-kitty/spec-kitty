@@ -27,8 +27,11 @@ import contextlib
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
 
+import click
 import typer
+from click.core import ParameterSource
 from rich.console import Console
+from rich.markup import escape
 from specify_cli.cli.console import console
 
 from charter.activation.cascade import (
@@ -49,6 +52,13 @@ from charter.activation.kind_vocabulary import (
 )
 from charter.activation.pack_context import ActiveCharterConfigError, PackContext
 from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
+from charter.activation.preset_application import (
+    PresetApplicationError,
+    PresetPlan,
+    apply_preset_plan,
+    plan_preset_application,
+)
+from charter.packs import PresetFormatError
 from charter.activation.project_registration import (
     commit_project_registration,
     plan_project_registration,
@@ -58,6 +68,7 @@ from specify_cli.cli.commands.charter._cascade_shared import (
     drg_urn_to_config_id,
     render_kind_filtered_line,
 )
+from specify_cli.cli.commands.charter._coded_errors import render_coded_error, render_preset_format_error
 from specify_cli.cli.commands.charter._charter_write_root import (
     CharterWriteRootError,
     resolve_charter_write_root,
@@ -671,7 +682,10 @@ def resolve_write_root_or_exit(repo_root: Path) -> Path:
     body under the complexity ceiling (Sonar S3776 / ruff C901).
     """
     try:
-        return resolve_charter_write_root(repo_root)
+        # Resolve first: the kernel git-topology probes are ``lru_cache``d on the
+        # path they receive, so the relative default ``Path(".")`` would return
+        # the checkout of the first in-process call after a ``chdir``.
+        return resolve_charter_write_root(repo_root.resolve())
     except CharterWriteRootError as exc:
         # Catch the BASE class (not just LinkedWorktreeCharterWriteError): the
         # only subclass raised today is the linked-worktree case, so this is
@@ -794,6 +808,95 @@ def reproject_pack_skills(repo_root: Path, kind: str) -> None:
         console.print(f"[yellow]Skill file preserved[/yellow]: {path} ({reason})")
 
 
+#: The pack ``--preset`` reads when ``--pack`` is not given.
+DEFAULT_PRESET_PACK = "built-in"
+
+#: Code of a ``--preset --json`` run whose preset was written but whose
+#: post-write resynthesis failed. Provisional name pending the owner's ruling.
+_RESYNTHESIS_FAILED = "RESYNTHESIS_FAILED"
+
+_PRESET_ONLY_OPTIONS: tuple[tuple[str, str], ...] = (("pack", "--pack"), ("force", "--force"), ("json_output", "--json"))
+
+
+def _check_preset_flags(ctx: typer.Context, *, preset: str | None, positional: bool, cascade: str | None) -> None:
+    """Enforce the ``--preset`` flag rules through Click's usage path (exit 2, before any I/O)."""
+    if preset is not None:
+        if positional:
+            raise click.UsageError("--preset cannot be combined with a positional KIND ARTIFACT_ID.", ctx=ctx)
+        if cascade is not None:
+            raise click.UsageError("--cascade cannot be combined with --preset (presets do not cascade).", ctx=ctx)
+        return
+    given = [flag for name, flag in _PRESET_ONLY_OPTIONS if ctx.get_parameter_source(name) is not ParameterSource.DEFAULT]
+    if given:
+        raise click.UsageError(f"{', '.join(given)} only apply with --preset.", ctx=ctx)
+
+
+def _render_preset_plan(plan: PresetPlan) -> None:
+    if plan.is_noop:
+        console.print(f"Preset '{escape(plan.preset)}' of pack '{escape(plan.pack)}' is already in force in {plan.target_file}; nothing changed.")
+        return
+    console.print(f"[green]Applied preset[/green] '{escape(plan.preset)}' of pack '{escape(plan.pack)}' to {plan.target_file}")
+    for key, ids in plan.written.items():
+        console.print(f"  [green]Wrote[/green] {key}: {escape(', '.join(ids)) or '(none)'}")
+    for key in plan.removed:
+        console.print(f"  [yellow]Removed[/yellow] {key} (unrestricted)")
+
+
+def _preset_payload(plan: PresetPlan) -> dict[str, object]:
+    """The ``--json`` shape of an applied preset (contracts/cli.md)."""
+    return {"pack": plan.pack, "preset": plan.preset, "written": plan.written, "removed": plan.removed, "target_file": str(plan.target_file)}
+
+
+def _plan_and_apply_preset(repo_root: Path, pack: str, preset: str, *, force: bool, json_output: bool) -> PresetPlan:
+    """Validate the config, plan and apply the preset; render a refusal and exit(1) on failure."""
+    try:
+        validate_pack_config(repo_root)
+        plan = plan_preset_application(repo_root, pack, preset)
+        apply_preset_plan(repo_root, plan, force=force)
+    except PresetApplicationError as exc:
+        render_coded_error(exc.code, str(exc), details=exc.detail_lines(), payload=exc.payload(), json_output=json_output)
+        raise typer.Exit(1) from exc
+    except ActiveCharterConfigError as exc:
+        render_coded_error(exc.code, exc.body, json_output=json_output)
+        raise typer.Exit(1) from exc
+    except PresetFormatError as exc:
+        render_preset_format_error(exc, json_output=json_output)
+        raise typer.Exit(1) from exc
+    return plan
+
+
+def _activate_preset(repo_root: Path, pack: str, preset: str, *, force: bool, json_output: bool, compile_catalog: bool, resynthesize: bool) -> None:
+    """``charter activate --preset``: apply a pack's preset with replace semantics (FR-001).
+
+    Order: write-root resolution (fails closed from a linked worktree) ->
+    pack-config validation -> the pure plan -> refusal without ``--force``
+    when a customised key would change -> one write -> the same catalog
+    refresh the positional path finishes with. Presets never govern skills, so
+    no pack-skill re-projection runs. ``--resynthesize`` runs the full
+    resynthesis after the write only: the positional path's read-only
+    preflight is per ``(kind, id)`` and has no whole-preset form.
+    """
+    repo_root = resolve_write_root_or_exit(repo_root)
+    plan = _plan_and_apply_preset(repo_root, pack, preset, force=force, json_output=json_output)
+    if not json_output:
+        _render_preset_plan(plan)
+        recompile_or_notify(repo_root, resynthesize=resynthesize, compile_catalog=compile_catalog)
+        return
+    try:
+        with console.capture():
+            recompile_or_notify(repo_root, resynthesize=resynthesize, compile_catalog=compile_catalog)
+    except typer.Exit as exc:
+        if exc.exit_code == 0:
+            raise
+        message = (
+            f"preset {plan.preset!r} of pack {plan.pack!r} was applied to {plan.target_file}, "
+            f"but the resynthesis failed (exit {exc.exit_code}); re-run `spec-kitty charter synthesize`."
+        )
+        render_coded_error(_RESYNTHESIS_FAILED, message, payload=_preset_payload(plan), json_output=True)
+        raise typer.Exit(1) from exc
+    console.emit_json(_preset_payload(plan))
+
+
 def activate_cmd(
     ctx: typer.Context,
     kind: str | None = typer.Argument(None, help="Activation kind (e.g. directive, agent-profile)."),
@@ -817,10 +920,41 @@ def activate_cmd(
         "--compile/--no-compile",
         help=NO_COMPILE_HELP,
     ),
+    preset: str | None = typer.Option(
+        None,
+        "--preset",
+        help="Apply this activation preset of the pack with replace semantics instead of activating one artifact.",
+    ),
+    pack: str = typer.Option(
+        DEFAULT_PRESET_PACK,
+        "--pack",
+        help="Pack whose preset --preset applies (built-in, an org pack name). Only with --preset.",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Apply the preset even when it changes a customised activation key. Only with --preset.",
+    ),
+    json_output: bool = typer.Option(False, "--json", help="Output the applied preset as JSON. Only with --preset."),
     repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
-    """Activate a doctrine artifact by kind and ID (FR-004), with optional cascade."""
+    """Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's preset.
+
+    Two forms:
+
+      spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE]
+
+      spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]
+
+    A preset replaces every activation key it governs: keys it lists are
+    written (plus the org's required ids), keys it leaves out are removed.
+    A change to a customised key is refused without --force.
+    """
     if ctx.invoked_subcommand is not None:
+        return
+    _check_preset_flags(ctx, preset=preset, positional=kind is not None or artifact_id is not None, cascade=cascade)
+    if preset is not None:
+        _activate_preset(repo_root, pack, preset, force=force, json_output=json_output, compile_catalog=compile_catalog, resynthesize=resynthesize)
         return
     if kind is None or artifact_id is None:
         console.print(ctx.get_help())

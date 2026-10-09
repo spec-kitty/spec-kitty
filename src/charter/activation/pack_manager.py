@@ -64,7 +64,7 @@ from __future__ import annotations
 
 import functools
 import logging
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -171,7 +171,17 @@ YAML_KEY_MAP: dict[str, str] = {token: _yaml_key_for_token(token) for token in C
 #: ``charter_yaml_io._activation_keys`` /
 #: ``m_unify_charter_activation_finalize._activation_keys``). Guarded by
 #: ``tests/charter/test_activation_vocabulary_setequal.py``.
-ACTIVATION_YAML_KEYS: tuple[str, ...] = ("activated_kinds", *YAML_KEY_MAP.values())
+#:
+#: Charter-activatable kinds that have no operator token (today only
+#: ``anti_pattern``: charter-activatable per ``ArtifactKind.activatable``, #5409,
+#: but excluded from :data:`CHARTER_KIND_TOKENS` because it has no standalone
+#: artifact file) are appended, derived from the enum, so the single writer
+#: (:func:`prepare_activation_write`) can set and remove ``activated_anti_patterns``
+#: when ``charter activate --preset`` applies a preset that governs it (#3732).
+_TOKENLESS_ACTIVATION_KEYS: tuple[str, ...] = tuple(
+    f"activated_{kind.plural}" for kind in ArtifactKind if kind.activatable and f"activated_{kind.plural}" not in YAML_KEY_MAP.values()
+)
+ACTIVATION_YAML_KEYS: tuple[str, ...] = ("activated_kinds", *YAML_KEY_MAP.values(), *_TOKENLESS_ACTIVATION_KEYS)
 
 
 #: Layer segments scanned for artifact availability (FR-026), in precedence
@@ -613,11 +623,21 @@ def resolve_activation_write_target(
     return charter_path, charter_data, _save_charter_yaml_activation
 
 
-def prepare_activation_write(repo_root: Path, values: dict[str, Any]) -> PreparedYamlWrite:
-    """Prepare the canonical activation target, retaining config/pointer identity."""
-    unknown = set(values) - set(ACTIVATION_YAML_KEYS)
+def prepare_activation_write(repo_root: Path, values: dict[str, Any], *, remove: Iterable[str] = ()) -> PreparedYamlWrite:
+    """Prepare the canonical activation target, retaining config/pointer identity.
+
+    *values* are written; the keys named in *remove* are deleted (an absent key
+    is a no-op). Both name keys of :data:`ACTIVATION_YAML_KEYS`; a key in both is
+    a ``ValueError``. This is the single activation writer for both targets
+    (``config.yaml`` and a pointed ``charter.yaml``).
+    """
+    removals = tuple(dict.fromkeys(remove))
+    unknown = (set(values) | set(removals)) - set(ACTIVATION_YAML_KEYS)
     if unknown:
         raise ValueError(f"Unknown activation key(s): {sorted(unknown)}")
+    overlap = sorted(set(values) & set(removals))
+    if overlap:
+        raise ValueError(f"Activation key(s) both written and removed: {overlap}")
     config = repo_root / _KITTIFY_DIRNAME / _CONFIG_FILENAME
     inputs = tuple(observe_yaml_input(path) for path in (*reversed(config.parents), config))
     target, data, _save = resolve_activation_write_target(repo_root)
@@ -625,12 +645,14 @@ def prepare_activation_write(repo_root: Path, values: dict[str, Any]) -> Prepare
     if before.content is not None and not yaml_documents_equal(YAML().load(before.content) or {}, data):
         raise ValueError(f"precondition_changed: {target}")
     if target != config:
-        section = prepare_charter_yaml_section(target, "activation", values)
+        section = prepare_charter_yaml_section(target, "activation", values, remove=removals)
         desired = section.desired_bytes
     else:
         for key, value in values.items():
             if key not in data or data[key] != value:
                 data[key] = value
+        for key in removals:
+            data.pop(key, None)
         desired = render_yaml_document(before.content, data, YAML())
     return prepare_yaml_write(target, desired, section="activation", inputs=inputs + (before,))
 

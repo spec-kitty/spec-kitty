@@ -76,7 +76,6 @@ def activate_preset(project: Path, *extra: str) -> Any:
 
 @covers("FR-001", "US1-1", "SC-001")
 @pytest.mark.integration
-@pending_until("WP08", "`charter activate --preset` applies a preset")
 def test_fr001_activate_minimal_preset_writes_governed_keys(migrated_project: Path) -> None:
     expected = preset_governed(BUILTIN_PRESETS / "minimal.yaml")
     before = active_charter(migrated_project)
@@ -90,7 +89,6 @@ def test_fr001_activate_minimal_preset_writes_governed_keys(migrated_project: Pa
 
 @covers("FR-001", "FR-002", "US1-2", "SC-001")
 @pytest.mark.integration
-@pending_until("WP08", "`--preset default` removes every governed key")
 def test_fr001_default_preset_removes_every_governed_key(tmp_path: Path, copied_builtin_pack: Path) -> None:
     project = project_from_template("migrated", tmp_path / "p", build_migrated_project)
     first = activate_preset(project, "--preset", "minimal")
@@ -114,7 +112,6 @@ def test_fr001_default_preset_removes_every_governed_key(tmp_path: Path, copied_
 
 @covers("FR-001", "FR-002")
 @pytest.mark.integration
-@pending_until("WP08", "the preset reader honours preset data")
 def test_fr001_fixture_preset_listing_one_id_writes_that_id(tmp_path: Path, copied_builtin_pack: Path) -> None:
     preset = copied_builtin_pack / "presets" / "default.yaml"
     data = preset_governed(preset)
@@ -147,7 +144,6 @@ def _org_preset_project(project: Path) -> Path:
 
 @covers("FR-001", "FR-004", "US1-3", "EC:Preset id resolution")
 @pytest.mark.integration
-@pending_until("WP08", "org-pack presets unioned with required_<kind>")
 def test_fr001_org_pack_preset_unioned_with_required(tmp_path: Path) -> None:
     project = _org_preset_project(tmp_path / "p")
     result = activate_preset(project, "--pack", ORG_PACK_NAME, "--preset", "team")
@@ -160,7 +156,6 @@ def test_fr001_org_pack_preset_unioned_with_required(tmp_path: Path) -> None:
 
 @covers("FR-001", "US1-4")
 @pytest.mark.integration
-@pending_until("WP08", "unknown preset refused with the pack's presets listed")
 def test_fr001_unknown_preset_names_pack_and_lists_presets(migrated_project: Path) -> None:
     before = tree_digest(migrated_project)
     result = activate_preset(migrated_project, "--preset", "does-not-exist")
@@ -175,7 +170,6 @@ def test_fr001_unknown_preset_names_pack_and_lists_presets(migrated_project: Pat
 
 @covers("FR-001", "EC:Preset id resolution")
 @pytest.mark.integration
-@pending_until("WP08", "an unresolvable preset id fails and writes nothing")
 def test_fr001_unresolvable_preset_id_writes_nothing(tmp_path: Path, copied_builtin_pack: Path) -> None:
     write_yaml(copied_builtin_pack / "presets" / "ghost.yaml", {"name": "ghost", "description": "x", "activated_tactics": ["no-such-tactic-anywhere"]})
     project = project_from_template("migrated", tmp_path / "p", build_migrated_project)
@@ -189,7 +183,6 @@ def test_fr001_unresolvable_preset_id_writes_nothing(tmp_path: Path, copied_buil
 
 @covers("FR-001", "US1-5", "OD-6")
 @pytest.mark.integration
-@pending_until("WP08", "customised lists refused without --force")
 def test_fr001_customised_list_refused_without_force(tmp_path: Path) -> None:
     project = project_from_template("migrated", tmp_path / "p", build_migrated_project)
     config = load_yaml(project / ".kittify" / "config.yaml")
@@ -257,14 +250,13 @@ _SHAPES = {"activate": _shape_activate, "pack_list": _shape_pack_list, "pack_pat
 
 @covers("FR-001", "FR-004")
 @pytest.mark.integration
-@pytest.mark.parametrize("shape", [pytest.param(k, marks=pending_until("WP08", "contracts/cli.md --json shapes")) for k in _SHAPES])
+@pytest.mark.parametrize("shape", list(_SHAPES))
 def test_fr001_json_shapes(shape: str, two_org_packs: Path) -> None:
     _SHAPES[shape](two_org_packs)
 
 
 @covers("OD-6", "FR-001")
 @pytest.mark.integration
-@pending_until("WP08", "the preset name is never persisted")
 def test_od6_preset_name_not_persisted(migrated_project: Path) -> None:
     config_path = migrated_project / ".kittify" / "config.yaml"
     keys_before = set(load_yaml(config_path))
@@ -300,7 +292,6 @@ def test_fr002_builtin_presets_are_pack_data() -> None:
 
 @covers("FR-002")
 @pytest.mark.integration
-@pending_until("WP08", "activation reads the preset file")
 def test_fr002_deleting_preset_file_fails_activation(tmp_path: Path, copied_builtin_pack: Path) -> None:
     project = project_from_template("migrated", tmp_path / "p", build_migrated_project)
     assert activate_preset(project, "--preset", "minimal").exit_code == 0  # control: the intact copy works
@@ -324,7 +315,6 @@ def _init(parent: Path, name: str) -> Path:
 
 @covers("FR-003", "SC-001")
 @pytest.mark.integration
-@pending_until("WP09", "init leaves the project as --preset default would")
 def test_fr003_init_without_activation_equals_default_preset(tmp_path: Path) -> None:
     initialised = _init(tmp_path, "plain")
     second = _init(tmp_path, "preset")
@@ -365,7 +355,6 @@ def test_fr003_copied_pack_default_preset_drives_init(tmp_path: Path, copied_bui
 
 @covers("FR-004", "US3-3", "EC:Pack without presets")
 @pytest.mark.integration
-@pending_until("WP08", "`charter pack list` lists packs with their presets")
 def test_fr004_pack_list_shows_packs_presets_and_project(tmp_path: Path) -> None:
     project = _org_preset_project(tmp_path / "p")
     result = run_cli(["charter", "pack", "list", "--json"], project)
