@@ -2,14 +2,13 @@
 title: Environment Variables Reference
 description: Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, and test configuration.
 doc_status: active
-updated: '2026-10-07'
+updated: '2026-10-08'
 related:
 - docs/api/cli-commands.md
 - docs/api/configuration.md
 - docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
 - docs/adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md
 - docs/context/team-kitty.md
-- docs/adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md
 ---
 # Environment Variables Reference
 
@@ -42,7 +41,7 @@ spec-kitty verify-setup
 
 ### SPEC_KITTY_PACKS_ROOT
 
-Override the root directory the CLI resolves built-in doctrine packs from.
+Override the root directory the CLI resolves the built-in Charter Pack from.
 
 **Purpose**: Committed governance files (`charter.yaml`'s catalog,
 `agent_profiles_manifest.json`) store built-in pack paths as the portable token
@@ -84,10 +83,9 @@ spec-kitty init my-project --ai claude
 
 Not read directly by Spec Kitty — this is the conventional variable name used
 in org-pack `local_path` indirection examples (see
-[Create an Org Doctrine Pack](../guides/how-to/governance/create-an-org-doctrine-pack.md)). Any
+[Create an Org Charter Pack](../guides/how-to/governance/create-an-org-doctrine-pack.md)). Any
 environment variable name works; `${VAR}`/`$VAR` tokens in
-`doctrine.org.packs[].local_path` (and the legacy `organisation_packs[].path`)
-are expanded at pack-resolution time, not stored expanded on disk.
+`charter_packs.org.packs[].local_path` are expanded at pack-resolution time, not stored expanded on disk.
 
 **Purpose**: Let each operator/machine point a shared, portable
 `.kittify/config.yaml` at a machine-local org-pack checkout without editing
@@ -99,7 +97,7 @@ export SPEC_KITTY_PACK_HOME=/opt/acme-doctrine
 ```
 ```yaml
 # .kittify/config.yaml
-doctrine:
+charter_packs:
   org:
     packs:
       - name: acme
@@ -148,51 +146,7 @@ spec-kitty merge
 
 ---
 
-### SPEC_KITTY_ORIGIN_CHECK
-
-Default for `--origin-check` on the evidence gates (`spec-kitty consolidate`,
-`spec-kitty accept` and `orchestrator-api accept-mission` / `consolidate-mission`), and the
-only opt-out for `spec-kitty agent action review`, which has no flag but honors this variable.
-Before it trusts a branch, each gate asks the branch's remote for its current tip and refuses when
-your clone is behind it, diverged from it, cannot reach it or cannot compare with it (`ORIGIN_STATUS_STALE`,
-`ORIGIN_LANE_STALE`, `ORIGIN_UNREACHABLE`, `ORIGIN_COMPARE_FAILED`). See
-[ADR: evidence gates check origin freshness](../adr/4.x/2026-10-06-3-evidence-gates-check-origin-freshness.md).
-
-**Values**: `enforce` (default), `warn` or `off`. `off` contacts no remote at all and prints one
-warning that origin was not checked and stale evidence is accepted; it is for an offline machine
-or a remote you cannot reach, and it accepts the risk this check exists to remove: a rejection
-a teammate pushed, or a lane they fixed, goes unseen and can land as done. `agent action review`
-honors `off` through this variable only: it keeps the last-known lane and warns. `warn` turns every one of those refusals into a
-printed warning that names the verdict and where the setting came from (`flag` or
-`environment`), and the gate continues with your last-known view. An unrecognized value enforces
-and prints a warning. `agent action review` never refuses on an unreachable remote; it always
-warns. With `warn`, review also keeps a diverged lane and warns instead of refusing
-`ORIGIN_LANE_DIVERGED`.
-
-**Precedence**: the `--origin-check` flag (where the command has one), then this variable, then `enforce`.
-
-**Not affected**: a project with no remote, or a branch that was never pushed, passes silently in
-either mode, and `consolidate --dry-run` runs no check.
-
-**Risk in a committed `.kitty.env`**: this variable can be set in the repository tier
-(`.kittify/.kitty.env`). If that file is committed, every clone inherits `warn` and the check stops
-protecting your teammates; the warning names `environment` as its source so the choice is visible.
-Set it in your own shell or home-tier file, not in a committed one.
-
-**Example**:
-```bash
-export SPEC_KITTY_ORIGIN_CHECK=warn
-spec-kitty consolidate
-```
-
----
-
 ## Hosted Auth and Sync
-
-> **Status (2026-10-06):** Team Kitty is no longer actively supported
-> ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)).
-> The hosted and auth variables in this section describe code that still ships but is off by default; do not build
-> toward it unless the operator asks for hosted work.
 
 !!! warning "A shell `export` of either variable is machine-global"
 
@@ -612,26 +566,6 @@ export CODEX_HOME="/path/to/legacy/codex-home"
 
 ---
 
-## Internal Variables (Set by Spec Kitty)
-
-### SPEC_KITTY_META_MERGE_TWO_WAY
-
-Internal switch that `spec-kitty consolidate` sets on its mission-to-target merge. Never export it.
-
-**Purpose**: The `meta.json` merge driver (`merge-driver-meta`) normally compares each key
-against the merge base, so a teammate's unrelated edit cannot revert a change such as
-`mission close --discard`. The mission-to-target merge behind `consolidate` (squash or
-merge strategy) has no usable ancestry after a reopen, so its merge base is stale; with this variable set to `1` the driver ignores the base and
-applies the older two-way rule. `consolidate` sets it on that one merge
-subprocess only, and it strips an exported value from every other git operation it runs
-(the steps that bring lane work into the Mission branch, and auto-rebases).
-
-**Do not set this yourself.** An exported value is stripped from Spec Kitty's own merges, but
-it would make a plain `git pull` or `git merge` in that shell two-way and bring back the
-silent discard revert (#5460).
-
----
-
 ## Test-Only Variables
 
 The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_MODE`, `SPEC_KITTY_CLI_VERSION`, and `SPEC_KITTY_AUTORETRY`. Those are intentionally omitted from day-to-day operator guidance because they exist for tests, CI fixtures, or internal retry harnesses rather than normal end-user workflows.
@@ -648,7 +582,6 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPECIFY_TEMPLATE_REPO` | Use a custom remote template repo | `org/templates` |
 | `SPEC_KITTY_NON_INTERACTIVE` | Disable prompts | `1` |
 | `SPEC_KITTY_WORKTREE_REMOVAL_DELAY` | Delay worktree cleanup | `10` |
-| `SPEC_KITTY_ORIGIN_CHECK` | Default for `--origin-check` on the evidence gates, and the only opt-out for `agent action review`: `enforce` (default) or `warn` | `warn` |
 | `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt out of hosted sync/auth flows (on by default) | `0` |
 | `SPEC_KITTY_SAAS_URL` | Configures the hosted endpoint; no built-in default | `https://spec-kitty-dev.example.internal` |
 | `SPEC_KITTY_SYNC_DISABLE` | Process-wide kill switch for sync-adjacent work | `1` |
@@ -665,7 +598,6 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPECIFY_REPO_ROOT` | Override repo-root discovery | `/path/to/repo` |
 | `SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION` | **Inert** — `--feature` alias removed; no warnings emitted | N/A |
 | `SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION` | Silence deprecated mission-type warnings | `1` |
-| `SPEC_KITTY_META_MERGE_TWO_WAY` | Internal: set by `consolidate` on its mission-to-target merge; never export it | Set by Spec Kitty (`1`) |
 | `CODEX_HOME` | Legacy Codex CLI prompt-home override | Legacy only; current Codex skills live under `.agents/skills/` |
 
 ---

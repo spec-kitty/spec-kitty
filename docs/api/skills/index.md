@@ -2,7 +2,7 @@
 title: Skills
 description: Catalog of Spec Kitty's operator-facing skills — the spk-* public hierarchy, their legacy spec-kitty-* aliases, and which skills have a deep reference page.
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-08-10'
 type: reference
 audience: docs/context/audience/internal/lead-developer.md
 related:
@@ -10,7 +10,7 @@ related:
 - docs/api/skills/spk-run-implement-review.md
 - docs/api/skills/spk-run-next.md
 - docs/api/skills/spk-gate-mission-review.md
-- docs/api/skills/spk-doctrine-profile-load.md
+- docs/api/skills/spk-charter-profile-load.md
 - docs/api/skills/spk-admin-setup-doctor.md
 - docs/api/skills/spk-meta-skill-map.md
 - docs/api/index.md
@@ -83,16 +83,31 @@ re-listing it here.
 | `spk-admin-upgrade` | Upgrade and migrations | — | — |
 | `spk-admin-git-workflow` | Git and worktree workflows | `spec-kitty-git-workflow` | — |
 
-## spk-doctrine-*
+## spk-team-*
 
 | Skill ID | Purpose | Legacy Alias | Deep Page |
 |---|---|---|---|
-| `spk-doctrine-charter` | Charter workflows | `spec-kitty-charter-doctrine` | — |
-| `spk-doctrine-glossary` | Terminology | `spec-kitty-glossary-context` | — |
-| `spk-doctrine-spdd-reasons` | REASONS Canvas | `spec-kitty-spdd-reasons` | — |
-| `spk-doctrine-profile-load` | Agent profiles | `ad-hoc-profile-load` | [spk-doctrine-profile-load](spk-doctrine-profile-load.md) |
-| `spk-doctrine-semantic-compression` | Semantic compression | — | — |
-| `spk-doctrine-bulk-edit` | Bulk-edit classification | `spec-kitty-bulk-edit-classification` | — |
+| `spk-team-auth` | Auth and accounts | — | — |
+| `spk-team-sync` | Hosted/team sync | — | — |
+| `spk-team-tracker` | Tracker workflows | — | — |
+| `spk-team-connectors` | Connector integrations | — | — |
+
+## spk-charter-*
+
+| Skill ID | Purpose | Legacy Alias | Deep Page |
+|---|---|---|---|
+| `spk-charter-governance` | Charter workflows | — | — |
+| `spk-charter-glossary` | Terminology | — | — |
+| `spk-charter-spdd-reasons` | REASONS Canvas | — | — |
+| `spk-charter-profile-load` | Agent profiles | — | [spk-charter-profile-load](spk-charter-profile-load.md) |
+
+## spk-practice-*
+
+| Skill ID | Purpose | Legacy Alias | Deep Page |
+|---|---|---|---|
+| `spk-practice-bulk-edit` | Bulk-edit classification | — | — |
+| `spk-practice-semantic-compression` | Semantic compression | — | — |
+| `spk-practice-show-me` | Compact visuals, diagrams, and TUI status rendering | — | — |
 
 ## spk-integrate-*
 

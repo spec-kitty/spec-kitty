@@ -2,7 +2,7 @@
 title: "spk-meta-skill-map"
 description: "Reference for the spk-meta-skill-map skill: discovering the spk-* skill hierarchy, naming convention, and legacy aliases."
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-07-21'
 related:
   - docs/api/skills/index.md
 ---
@@ -29,8 +29,10 @@ equivalent.
 Skills follow `spk-<family>-<action-or-topic>`. Families: `spk-start-*`
 (onboarding), `spk-mission-*` (authoring mission artifacts), `spk-run-*`
 (runtime advancement/orchestration), `spk-gate-*` (accept/merge/review/
-retrospective), `spk-admin-*` (setup/config/upgrade), `spk-doctrine-*`
-(charter/glossary/SPDD/profiles/bulk-edit), `spk-integrate-*` (external
+retrospective), `spk-admin-*` (setup/config/upgrade),
+`spk-team-*` (auth/sync/tracker/connectors), `spk-charter-*`
+(charter governance/glossary/SPDD/profiles), `spk-practice-*`
+(bulk-edit/visuals/semantic compression), `spk-integrate-*` (external
 APIs/CI), and `spk-meta-*` (skill discovery and authoring, this skill's own
 family).
 

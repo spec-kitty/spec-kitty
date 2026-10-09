@@ -2,7 +2,7 @@
 title: Read-side placement-seam classification ledger
 description: "Per-site verdicts (migrate-fail-loud / stay-lenient / sanction-infra) for every production call site that bypasses PlacementSeam.read_dir(kind)."
 doc_status: active
-updated: '2026-10-07'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/system-architect.md
 type: reference
 related:
@@ -585,8 +585,8 @@ only; scope statement repeated in the WP body). They are recorded here as
 against a concrete list rather than staring at an undifferentiated red:
 
 ```text
+runtime/next/runtime_bridge.py :: _mission_routes_through_coordination
 runtime/next/runtime_bridge.py :: _dn_bootstrap
-runtime/next/runtime_bridge_decision_log.py :: _mission_routes_through_coordination
 runtime/next/runtime_bridge_identity.py :: _primary_runtime_feature_dir
 specify_cli/acceptance/__init__.py :: _primary_anchor_feature_dir
 specify_cli/agent_tasks_ports.py :: RealFsReader.primary_anchor_dir
@@ -809,7 +809,7 @@ consumed this row) · `rationale`.
 | `context/resolver.py` | `resolve_planning_read_dir` | 2 (:222, :252) | kind-aware | migrate-fail-loud | `WORK_PACKAGE_TASK` (:222 — single anchor also used for the immediately-following `meta.json` read; both `WORK_PACKAGE_TASK` and `PRIMARY_METADATA` are PRIMARY-partition and resolve to the identical dir, so this is a documented single-kind anchor, not a multi-kind split candidate); `LANE_STATE` (:252) | WP07 | `MissionContext` construction; both already kind-annotated. |
 | `core/stale_detection.py` | `resolve_planning_read_dir` | 1 (:446) | kind-aware | migrate-fail-loud | `WORK_PACKAGE_TASK` | WP07 | Already wrapped in a broad `except Exception: return None` at the call site, independent of the seam's own fail-loud behavior. |
 | `core/worktree_topology.py` | `resolve_planning_read_dir` | 1 (:145) | kind-aware | migrate-fail-loud | `LANE_STATE` | WP07 | Co-resolves identity + `lanes.json` + dependency graph from one PRIMARY anchor; documented single-kind anchor (all three are PRIMARY-partition). |
-| `doctrine_synthesizer/apply.py` | `resolve_planning_read_dir` | 1 (:167) | kind-aware | migrate-fail-loud | `STATUS_STATE` | WP07 | Per-kind apply logic's STATUS surface read; a genuine functional (not diagnostic) read — fail-loud-appropriate. |
+| `charter_pack_synthesizer/apply.py` | `resolve_planning_read_dir` | 1 (:167) | kind-aware | migrate-fail-loud | `STATUS_STATE` | WP07 | Per-kind apply logic's STATUS surface read; a genuine functional (not diagnostic) read — fail-loud-appropriate. |
 | `manifest.py` | `candidate_feature_dir_for_mission` | 1 (:272) | kind-blind | **stay-lenient** (ambiguous — reviewer confirm) | n/a | WP07 | The `worktree_path` (not `repo_root`) is passed as the resolver's first arg — a deliberate "what artifacts physically exist in THIS worktree" probe, compared against the sibling `artifacts_in_main` leg (already migrated to `placement_seam(self.repo_root, feature).read_dir(PRIMARY_METADATA)` per the adjacent comment). Structurally incompatible with the seam's `repo_root`+topology contract; migrating would collapse the main-vs-worktree drift comparison this diagnostic exists to make. |
 | `mission_loader/command.py` | `candidate_feature_dir_for_mission` | 1 (:157) | kind-blind | migrate-fail-loud | `PRIMARY_METADATA` | WP07 | Feeds `_ensure_feature_metadata(feature_dir, ...)` — a `meta.json`-adjacent read. |
 | `missions/plan/plan_interview.py` | `resolve_planning_read_dir` | 1 (:66) | kind-aware | migrate-fail-loud | `PRIMARY_METADATA` | WP07 | `mission_id` read for the plan interview; already kind-annotated. |

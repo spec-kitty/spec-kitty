@@ -38,7 +38,7 @@ Because she dispatches five parallel sub-agents, she's an expensive profile by d
 Inside Claude Code, Codex, or another configured harness, you don't run a CLI command to attach this profile to your session. Instead:
 
 - **Let routing pick it**: describe what you need in natural language (for example, "this same bug keeps coming back, investigate the root cause") and `spec-kitty dispatch` routes the request to the matching profile automatically.
-- **Ask for it by name**: if your harness supports ad-hoc profile loading, request Debugger Debbie explicitly — see the `ad-hoc-profile-load` skill for the mechanic.
+- **Ask for it by name**: if your harness supports ad-hoc profile loading, request Debugger Debbie explicitly — see the `spk-charter-profile-load` skill for the mechanic.
 
 ## See also
 

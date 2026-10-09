@@ -2,7 +2,7 @@
 title: CLI Command Reference
 description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
 doc_status: active
-updated: '2026-10-07'
+updated: '2026-10-05'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
@@ -96,18 +96,6 @@ record is the 2026-10-01 amendment of
   by `decision_id` instead of conflicting. Projects initialised earlier get the driver from the
   upgrade migration `m_4_0_0rc5_decision_index_merge_driver`; run `spec-kitty upgrade`. Git runs
   the driver itself during a merge; it is an internal command you never invoke by hand.
-- **`meta.json` merge driver (`merge-driver-meta`) is base-aware.** For an ordinary `git merge`
-  or `git pull` the driver compares each key against the merge base: a key changed, removed or
-  added on one side only survives from that side, so a teammate's unrelated edit no longer
-  reverts `mission close --discard`. Keys written together (the `coordination_branch` /
-  `topology` / `flattened` flatten triple, the `merged_*` block and the acceptance stamps)
-  move as one unit. Only a genuine both-sides conflict keeps the older precedence: the
-  acceptance stamps, `mission_number`, `status` and the `merged_*` block follow the target
-  side, every other key the Mission side. An empty `meta.json` on either side of such a merge
-  is refused by name and nothing is written. `spec-kitty consolidate`'s mission-to-target
-  merge (squash or merge strategy) has no usable ancestry after a reopen, so it keeps the two-way rule through the internal
-  `SPEC_KITTY_META_MERGE_TWO_WAY` variable (see
-  [environment variables](environment-variables.md#spec_kitty_meta_merge_two_way)).
 
 ## `spec-kitty consolidate`: exit codes and refusal codes
 
@@ -129,14 +117,8 @@ Stable codes that appear in the output. Match on the code, not on the surroundin
 | `APPROVAL_STAMP_NOT_ON_LANE` | An approval stamp names a commit that is not on the lane (the lane was rewritten after review approved it). Exit code `1`, before any branch moves. | Move the work package back for review and approve it again. Not overridable. |
 | `APPROVED_CONTENT_MISSING` | The reconciliation gate found that an approved code lane's own net change to a path is not on the target, while the target left that path alone since the lane was cut and no later approved lane superseded it. The run FAILs and rolls back. Typical cause: the staged deletions of a lagging worktree were committed before a `--resume`. | Restore the change on the mission branch (for example revert the commit that recorded the deletions), then re-run. Not overridable. |
 | `CANCELED_REACHABLE_VIA_DEPENDENCY` | Content of a fully-canceled dependency lane reached an approved lane, is still live there and is on the target. The run FAILs and rolls back. Content that every carrying lane fully superseded is not counted. | Undo the change on the carrying lane through a surviving WP's governed work, then re-run. Not overridable: `--attest-canceled-superseded` never lifts it. |
-| `ORIGIN_COMPARE_FAILED` | The remote answered, but git could not compare the local branch with its fetched tip here (a shallow-clone boundary or a damaged ref). The message carries the git error. Exit code `1`, before any branch moves. `agent action review` only warns. | `git fetch --unshallow <remote>` (or repair the ref), then re-run. `--origin-check warn` turns it into a warning; `off` skips the check. |
 | `COORD_MOVED_AFTER_LANDING` | Exit code `75`, see above. The message ends with `Error code: COORD_MOVED_AFTER_LANDING.` | Coordination branch: review the late commit(s) with the `git log` command in the message, then run `spec-kitty consolidate --resume`, which lands them on the target and finishes the teardown. Mission branch without a coordination topology: land the commit(s) and delete the branch yourself. |
 | `LANE_MOVED_AFTER_APPROVAL` | A code lane holds a content commit made after review approved it (or after an `--attest-approved-reviewed` attestation). Exit code `1`, before any branch moves; also checked again at the reconciliation gate. | Move the work package back for review so the new content is reviewed, approve it again, re-run. The message names the late commits and the command to move each work package of the lane back; see a commit with `git show <sha>`. No attestation lifts it: `--attest-approved-reviewed` and `--attest-canceled-superseded` never do. On a lane that mixes an approved and a canceled work package, `--attest-canceled-superseded` still exempts lane commits up to its own lane head from the closed-world refusal, but the commit still needs its work package approved again. Nothing a canceled work package does covers a commit: no commit of its own, no status move of a work package that stays canceled, no attestation. Forcing a canceled work package into `approved` is a forced approval, which stamps the lane at its current tip; the bound is as strong as the review model (issue #5721). If a canceled work package committed on the lane after the approval, also when that work was reverted, the approved work package needs a new approval. When both refusals apply, the first message names both under `This Mission also has:`. |
-| `ORIGIN_LANE_DIVERGED` | `agent action review` only (`consolidate` reports a diverged lane as `ORIGIN_LANE_STALE`). The reviewed lane has commits origin lacks and origin has commits the lane lacks. Refused before any lock or status change. | Merge origin's lane in (`git -C <lane worktree> merge <remote>/<lane>`), or, if your lane is the truth, merge or rebase it onto `<remote>/<lane>` first, then push. Only `SPEC_KITTY_ORIGIN_CHECK=warn` lifts it (review has no flag): the last-known lane is kept and a warning printed. |
-| `ORIGIN_LANE_STALE` | `consolidate` found an approved lane branch behind origin, diverged from it, or missing locally. Exit code `1`, before any branch moves and before the approval-stamp check. | Behind: `git fetch <remote> <lane>`, then `git -C <lane worktree> merge --ff-only <remote>/<lane>` (`git branch -f` only when no checkout holds the lane). Missing: `git branch <lane> <remote>/<lane>`. Diverged: merge origin's lane in, or rebase it, then push; never `git branch -f`, which would drop your commits. Re-run. `--origin-check warn` turns it into a warning; `off` skips the check. |
-| `ORIGIN_REMOTE_AMBIGUOUS` | The repository lists remotes but none owns the branch: no `branch.<name>.remote`, not exactly one remote and no `origin`. The check cannot tell which remote to ask. Exit code `1`, before any branch moves. A repository with no remote at all passes without contacting anything. | Name the owner: `git config branch.<name>.remote <remote>`, then re-run. `--origin-check warn` turns it into a warning (review warns always). |
-| `ORIGIN_STATUS_STALE` | The Mission's status evidence branch is behind origin (or diverged from it) in the commits that change this Mission's `status.events.jsonl`, or is missing locally. A teammate's pushed rejection would otherwise land as done. Exit code `1`, before any branch moves. | Run the `git pull` (or `git fetch <remote> <branch>:<branch>`) the message prints, then re-run; with a consolidation record present the message says to run `spec-kitty consolidate --abort` first. `--origin-check warn` turns it into a warning; `off` skips the check. |
-| `ORIGIN_UNREACHABLE` | The remote that owns a branch did not answer in this invocation: it timed out (5 s for the listing, 15 s for the fetch) or the transport failed. Exit code `1`, before any branch moves. `agent action review` only warns. | A timeout may only mean slow: retry. Otherwise check network access and credentials for the remote. To go on without asking origin, `--origin-check warn` (checks, still continues) or `off` (`SPEC_KITTY_ORIGIN_CHECK=off`: contacts nothing and accepts stale evidence, so a pushed rejection can land as done). |
 | `RELEASE_BRANCH_INVALID` | `--release-branch` without `--abort` or without `--release-reason`, naming a branch that is not the record's target, mission or coordination branch (a lane branch or an unknown name), or naming a branch that does not resolve to a commit. Exit code `2`; nothing changed. | Correct the flags and re-run `spec-kitty consolidate --abort`. |
 | `UNEXPLAINED_BRANCH_MOVE` | A re-run or `--resume` found a target, mission or coordination branch of an unfinished record at a commit the record cannot explain: neither its restore target nor a commit this run recorded or saved as its next move (for example a run killed right after it moved the branch). Refused before anything moves; the record is kept. Exit code `1`. Not raised while the target still sits at a verified landing. | Inspect `git log <restore-target>..<live>`. If the commits should not stay, move the branch yourself. To keep them, `spec-kitty consolidate --abort --release-branch <branch> --release-reason "<why>"`; a release keeps every listed commit. See [troubleshooting](../guides/how-to/recovery/troubleshoot-merge.md#a-branch-moved-without-a-record). |
 | `PROJECTION_TEARDOWN_ABORTED` | The same race caught earlier: the coordination branch moved before anything was torn down, so the coordination worktree, branch and marker all survive. Exit code `1`. | Re-run `spec-kitty consolidate --resume`. |
@@ -191,112 +173,162 @@ Stable codes that appear in the output. Match on the code, not on the surroundin
  Validate mission readiness before merging to main.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission                                        TEXT  Mission slug to       │
-│                                                        accept                │
-│ --mode                                           TEXT  Acceptance mode:      │
-│                                                        auto, pr, local, or   │
-│                                                        checklist             │
-│                                                        [default: auto]       │
-│ --actor                                          TEXT  Name to record as the │
-│                                                        acceptance actor      │
-│ --test                                           TEXT  Validation command    │
-│                                                        executed (repeatable) │
-│ --json                                                 Emit JSON instead of  │
-│                                                        formatted text        │
-│ --lenient                                              Skip strict metadata  │
-│                                                        validation and        │
-│                                                        downgrade missing     │
-│                                                        path-convention       │
-│                                                        checks to warnings    │
-│ --no-commit                                            Report acceptance     │
-│                                                        readiness without     │
-│                                                        writing metadata or   │
-│                                                        status changes        │
-│ --diagnose                                             Diagnose acceptance   │
-│                                                        blockers without      │
-│                                                        writing metadata or   │
-│                                                        matrix artifacts      │
-│ --allow-fail                                           Return checklist even │
-│                                                        when issues remain    │
-│ --normalize-encoding      --no-normalize-enc…          Repair                │
-│                                                        acceptance-artifact   │
-│                                                        encoding              │
-│                                                        (Windows-1252/Latin-1 │
-│                                                        -> UTF-8) before      │
-│                                                        validating.           │
-│                                                        [default:             │
-│                                                        no-normalize-encodin… │
-│ --owned-checkout                                 PATH  Run against an owned  │
-│                                                        checkout: a linked    │
-│                                                        checkout that owns    │
-│                                                        this mission. Refuses │
-│                                                        the repository root   │
-│                                                        checkout, lane        │
-│                                                        worktrees and         │
-│                                                        coordination          │
-│                                                        worktrees.            │
-│ --merge-commit                                   SHA   With --mode pr:       │
-│                                                        record this PR merge  │
-│                                                        commit as the         │
-│                                                        mission's post-merge  │
-│                                                        review baseline. The  │
-│                                                        commit is verified    │
-│                                                        against git before    │
-│                                                        anything is written — │
-│                                                        it must carry         │
-│                                                        kitty-specs/<slug>/m… │
-│                                                        its first parent must │
-│                                                        not, and it must have │
-│                                                        landed on the target  │
-│                                                        branch. Every landing │
-│                                                        shape additionally    │
-│                                                        needs                 │
-│                                                        --attest-first-landi… │
-│ --target-branch                                  TEXT  With --merge-commit:  │
-│                                                        the branch the PR     │
-│                                                        merged into (the PR's │
-│                                                        base branch).         │
-│                                                        Defaults to the       │
-│                                                        mission's declared    │
-│                                                        target_branch, else   │
-│                                                        the repository's      │
-│                                                        primary branch.       │
-│ --attest-first-land…                                   With --merge-commit:  │
-│                                                        attest that the       │
-│                                                        supplied commit's     │
-│                                                        first parent is the   │
-│                                                        pre-landing target    │
-│                                                        tip — for a           │
-│                                                        two-parent merge      │
-│                                                        commit, that the      │
-│                                                        merge was performed   │
-│                                                        ON the target branch  │
-│                                                        (an internal merge    │
-│                                                        fast-forwarded onto   │
-│                                                        the target is         │
-│                                                        graph-identical, and  │
-│                                                        its first parent is   │
-│                                                        an implementation     │
-│                                                        commit); for a        │
-│                                                        single-parent landing │
-│                                                        (squash or            │
-│                                                        corpus-first stack),  │
-│                                                        that it was the first │
-│                                                        commit of the         │
-│                                                        landing. Required for │
-│                                                        every landing shape:  │
-│                                                        git cannot prove      │
-│                                                        either, and a wrong   │
-│                                                        anchor silently       │
-│                                                        under-scans the       │
-│                                                        dead-code gate. The   │
-│                                                        attestation is        │
-│                                                        recorded in           │
-│                                                        pr_merge_evidence,    │
-│                                                        never presented as a  │
-│                                                        git proof.            │
-│ --help                -h                               Show this message and │
-│                                                        exit.                 │
+│ --mission                                 TEXT              Mission slug to  │
+│                                                             accept           │
+│ --mode                                    TEXT              Acceptance mode: │
+│                                                             auto, pr, local, │
+│                                                             or checklist     │
+│                                                             [default: auto]  │
+│ --actor                                   TEXT              Name to record   │
+│                                                             as the           │
+│                                                             acceptance actor │
+│ --test                                    TEXT              Validation       │
+│                                                             command executed │
+│                                                             (repeatable)     │
+│ --json                                                      Emit JSON        │
+│                                                             instead of       │
+│                                                             formatted text   │
+│ --lenient                                                   Skip strict      │
+│                                                             metadata         │
+│                                                             validation and   │
+│                                                             downgrade        │
+│                                                             missing          │
+│                                                             path-convention  │
+│                                                             checks to        │
+│                                                             warnings         │
+│ --no-commit                                                 Report           │
+│                                                             acceptance       │
+│                                                             readiness        │
+│                                                             without writing  │
+│                                                             metadata or      │
+│                                                             status changes   │
+│ --diagnose                                                  Diagnose         │
+│                                                             acceptance       │
+│                                                             blockers without │
+│                                                             writing metadata │
+│                                                             or matrix        │
+│                                                             artifacts        │
+│ --allow-fail                                                Return checklist │
+│                                                             even when issues │
+│                                                             remain           │
+│ --normalize-enco…      --no-normalize…                      Repair           │
+│                                                             acceptance-arti… │
+│                                                             encoding         │
+│                                                             (Windows-1252/L… │
+│                                                             -> UTF-8) before │
+│                                                             validating.      │
+│                                                             [default:        │
+│                                                             no-normalize-en… │
+│ --owned-checkout                          PATH              Run against an   │
+│                                                             owned checkout:  │
+│                                                             a linked         │
+│                                                             checkout that    │
+│                                                             owns this        │
+│                                                             mission. Refuses │
+│                                                             the repository   │
+│                                                             root checkout,   │
+│                                                             lane worktrees   │
+│                                                             and coordination │
+│                                                             worktrees.       │
+│ --origin-check                            [enforce|warn|of  Refuse (enforce, │
+│                                           f]                the default) or  │
+│                                                             only warn (warn) │
+│                                                             when the         │
+│                                                             mission's status │
+│                                                             evidence is      │
+│                                                             behind or        │
+│                                                             unreachable on   │
+│                                                             its remote; off  │
+│                                                             contacts nothing │
+│                                                             and accepts      │
+│                                                             stale evidence.  │
+│                                                             Overrides        │
+│                                                             SPEC_KITTY_ORIG… │
+│                                                             --no-commit and  │
+│                                                             --diagnose       │
+│                                                             always warn.     │
+│ --merge-commit                            SHA               With --mode pr:  │
+│                                                             record this PR   │
+│                                                             merge commit as  │
+│                                                             the mission's    │
+│                                                             post-merge       │
+│                                                             review baseline. │
+│                                                             The commit is    │
+│                                                             verified against │
+│                                                             git before       │
+│                                                             anything is      │
+│                                                             written — it     │
+│                                                             must carry       │
+│                                                             kitty-specs/<sl… │
+│                                                             its first parent │
+│                                                             must not, and it │
+│                                                             must have landed │
+│                                                             on the target    │
+│                                                             branch. Every    │
+│                                                             landing shape    │
+│                                                             additionally     │
+│                                                             needs            │
+│                                                             --attest-first-… │
+│ --target-branch                           TEXT              With             │
+│                                                             --merge-commit:  │
+│                                                             the branch the   │
+│                                                             PR merged into   │
+│                                                             (the PR's base   │
+│                                                             branch).         │
+│                                                             Defaults to the  │
+│                                                             mission's        │
+│                                                             declared         │
+│                                                             target_branch,   │
+│                                                             else the         │
+│                                                             repository's     │
+│                                                             primary branch.  │
+│ --attest-first-l…                                           With             │
+│                                                             --merge-commit:  │
+│                                                             attest that the  │
+│                                                             supplied         │
+│                                                             commit's first   │
+│                                                             parent is the    │
+│                                                             pre-landing      │
+│                                                             target tip — for │
+│                                                             a two-parent     │
+│                                                             merge commit,    │
+│                                                             that the merge   │
+│                                                             was performed ON │
+│                                                             the target       │
+│                                                             branch (an       │
+│                                                             internal merge   │
+│                                                             fast-forwarded   │
+│                                                             onto the target  │
+│                                                             is               │
+│                                                             graph-identical, │
+│                                                             and its first    │
+│                                                             parent is an     │
+│                                                             implementation   │
+│                                                             commit); for a   │
+│                                                             single-parent    │
+│                                                             landing (squash  │
+│                                                             or corpus-first  │
+│                                                             stack), that it  │
+│                                                             was the first    │
+│                                                             commit of the    │
+│                                                             landing.         │
+│                                                             Required for     │
+│                                                             every landing    │
+│                                                             shape: git       │
+│                                                             cannot prove     │
+│                                                             either, and a    │
+│                                                             wrong anchor     │
+│                                                             silently         │
+│                                                             under-scans the  │
+│                                                             dead-code gate.  │
+│                                                             The attestation  │
+│                                                             is recorded in   │
+│                                                             pr_merge_eviden… │
+│                                                             never presented  │
+│                                                             as a git proof.  │
+│ --help             -h                                       Show this        │
+│                                                             message and      │
+│                                                             exit.            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -365,32 +397,37 @@ _Charter management commands_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ activate      Activate a doctrine artifact by kind and ID (FR-004), with     │
-│               optional cascade.                                              │
-│ deactivate    Deactivate a doctrine artifact by kind and ID (FR-005), with   │
-│               optional cascade.                                              │
-│ new           Scaffold a stub doctrine artifact YAML (FR-016).               │
-│ validate      Validate project-layer doctrine artifacts against their        │
-│               schemas (FR-017).                                              │
-│ fetch         Fetch org doctrine pack(s) from their configured remote        │
-│               sources.                                                       │
-│ interview     Capture charter interview answers for later generation.        │
-│ generate      Generate charter bundle from interview answers + doctrine      │
-│               references.                                                    │
-│ context       Render charter context for a specific workflow action.         │
-│ sync          No-op kept for compatibility; there is nothing to sync.        │
-│ status        Display charter sync status plus synthesis/operator state.     │
-│ synthesize    Validate and promote agent-generated project-local doctrine    │
-│               artifacts.                                                     │
-│ resynthesize  Regenerate a bounded set of project-local doctrine artifacts   │
-│               (partial resynthesis).                                         │
-│ lint          Detect decay in charter artifacts via graph-native checks.     │
-│ preflight     Verify charter-derived state before a governed session begins. │
-│ bundle        Charter bundle validation commands.                            │
-│ mission-type  Mission type commands (activated types only).                  │
-│ list          List activated doctrine artifacts by kind.                     │
-│ pack          Charter pack management commands.                              │
-│ org           Manage org-layer doctrine pack authoring (init, validate).     │
+│ activate           Activate a doctrine artifact by kind and ID (FR-004), or  │
+│                    apply a pack's preset.                                    │
+│ deactivate         Deactivate a doctrine artifact by kind and ID (FR-005),   │
+│                    with optional cascade.                                    │
+│ consistency-check  Check the active charter for coherence against the        │
+│                    offering (FR-011).                                        │
+│ new                Scaffold a stub doctrine artifact YAML (FR-016).          │
+│ validate           Validate project-layer doctrine artifacts against their   │
+│                    schemas (FR-017).                                         │
+│ fetch              Fetch org Charter Pack(s) from their configured remote    │
+│                    sources.                                                  │
+│ interview          Capture charter interview answers for later generation.   │
+│ generate           Generate charter bundle from interview answers + doctrine │
+│                    references.                                               │
+│ context            Render charter context for a specific workflow action.    │
+│ sync               No-op kept for compatibility; there is nothing to sync.   │
+│ status             Display charter sync status plus synthesis/operator       │
+│                    state.                                                    │
+│ synthesize         Validate and promote agent-generated project-local        │
+│                    doctrine artifacts.                                       │
+│ resynthesize       Regenerate a bounded set of project-local doctrine        │
+│                    artifacts (partial resynthesis).                          │
+│ lint               Detect decay in charter artifacts via graph-native        │
+│                    checks.                                                   │
+│ preflight          Verify charter-derived state before a governed session    │
+│                    begins.                                                   │
+│ bundle             Charter bundle validation commands.                       │
+│ mission-type       Mission type commands (activated types only).             │
+│ list               List activated doctrine artifacts by kind.                │
+│ pack               Charter pack management commands.                         │
+│ org                Manage org Charter Pack authoring (init, validate).       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -399,7 +436,18 @@ _Charter management commands_
 ```
  Usage: spec-kitty charter activate [OPTIONS] [KIND] [ARTIFACT_ID]
 
- Activate a doctrine artifact by kind and ID (FR-004), with optional cascade.
+ Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's
+ preset.
+
+ Two forms:
+
+   spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE]
+
+   spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]
+
+ A preset replaces every activation key it governs: keys it lists are
+ written (plus the org's required ids), keys it leaves out are removed.
+ A change to a customised key is refused without --force.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │   kind             [KIND]         Activation kind (e.g. directive,           │
@@ -447,6 +495,21 @@ _Charter management commands_
 │                                                `charter activate             │
 │                                                --resynthesize`.              │
 │                                                [default: compile]            │
+│ --preset                                 TEXT  Apply this activation preset  │
+│                                                of the pack with replace      │
+│                                                semantics instead of          │
+│                                                activating one artifact.      │
+│ --pack                                   TEXT  Pack whose preset --preset    │
+│                                                applies (built-in, an org     │
+│                                                pack name). Only with         │
+│                                                --preset.                     │
+│                                                [default: built-in]           │
+│ --force                                        Apply the preset even when it │
+│                                                changes a customised          │
+│                                                activation key. Only with     │
+│                                                --preset.                     │
+│ --json                                         Output the applied preset as  │
+│                                                JSON. Only with --preset.     │
 │ --help          -h                             Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -478,6 +541,19 @@ _Charter bundle validation commands._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Emit structured JSON to stdout instead of a human-readable │
 │                   report.                                                    │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter consistency-check
+
+```
+ Usage: spec-kitty charter consistency-check [OPTIONS]
+
+ Check the active charter for coherence against the offering (FR-011).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Output as JSON.                                            │
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -595,7 +671,7 @@ _Charter bundle validation commands._
 ```
  Usage: spec-kitty charter fetch [OPTIONS]
 
- Fetch org doctrine pack(s) from their configured remote sources.
+ Fetch org Charter Pack(s) from their configured remote sources.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --pack             TEXT  Fetch only the named pack (default: fetch all       │
@@ -748,10 +824,9 @@ _Mission type commands (activated types only)._
  By default, returns only mission types that are explicitly activated in
  this project's charter. Pass ``--include-inactive`` to also see every
  type registered in the built-in/org/project layers regardless of
- activation state -- the deprecated ``spec-kitty doctrine mission-type
- list`` group covered this before CR-02; this flag is its canonical
- replacement, not a straight alias (activation state still distinguishes
- the two row classes -- see ACTION SEQUENCE below).
+ activation state (it replaced the removed doctrine-group listing; it is
+ not a straight alias: activation state still distinguishes the two row
+ classes -- see ACTION SEQUENCE below).
 
  Output columns (table): ID, SOURCE, DISPLAY NAME, ACTION SEQUENCE. A
  non-activated ``--include-inactive`` row shows ``(not activated)`` in
@@ -762,10 +837,7 @@ _Mission type commands (activated types only)._
 │ --json                        Output as JSON.                                │
 │ --include-inactive            Also list mission types registered in the      │
 │                               built-in/org/project layers but NOT activated  │
-│                               for this project (activation-blind). The       │
-│                               canonical replacement for `spec-kitty doctrine │
-│                               mission-type list` (CR-02, mission             │
-│                               charter-code-topology-01M152G1 S4).            │
+│                               for this project (activation-blind).           │
 │ --help              -h        Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -792,29 +864,28 @@ _Mission type commands (activated types only)._
 │                             [required]                                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
+│ --pack          PATH  Scaffold inside a Charter Pack directory instead of    │
 │                       the project layer. When omitted, the stub lands under  │
-│                       .kittify/doctrine/.                                    │
+│                       .kittify/charter-packs/.                               │
 │ --help  -h            Show this message and exit.                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty charter org
 
-_Manage org-layer doctrine pack authoring (init, validate)._
+_Manage org Charter Pack authoring (init, validate)._
 
 ```
  Usage: spec-kitty charter org [OPTIONS] COMMAND [ARGS]...
 
- Manage org-layer doctrine pack authoring (init, validate).
+ Manage org Charter Pack authoring (init, validate).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ init      Scaffold a minimal org pack or render from a template.             │
-│ validate  Validate an org doctrine pack using schema and DRG checks          │
-│           (FR-006).                                                          │
+│ validate  Validate an org Charter Pack using schema and DRG checks (FR-006). │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -825,11 +896,13 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 
  Scaffold a minimal org pack or render from a template.
 
- Without ``--template``, creates three files under *pack-path*::
+ Without ``--template``, creates four files under *pack-path*::
 
-     org-charter.yaml   — governance policy stub
-     drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
-     README.md          — authoring quickstart
+     org-charter.yaml     — governance policy stub
+     drg/fragment.yaml    — DRG extension stub (with pydantic_model:
+ frontmatter)
+     presets/starter.yaml — example activation preset
+     README.md            — authoring quickstart
 
  With ``--template``, copies the full template tree (minus
  ``.templateignore``),
@@ -847,7 +920,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 │ --force                     Overwrite an existing pack directory.            │
 │ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
 │                             optional #branch). When omitted, scaffolds the   │
-│                             minimal three-file pack.                         │
+│                             minimal four-file pack.                          │
 │ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
 │                             (required with --template).                      │
 │ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
@@ -863,9 +936,9 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 ```
  Usage: spec-kitty charter org validate [OPTIONS] PACK_PATH
 
- Validate an org doctrine pack using schema and DRG checks (FR-006).
+ Validate an org Charter Pack using schema and DRG checks (FR-006).
 
- Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
+ Calls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`
  loader.  Prints per-file findings with file paths.  Exits non-zero when
  at least one error is found.
 
@@ -873,7 +946,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
  Validation uses the runtime loader, which supplies pack provenance fields.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    pack_path      PATH  Path to the org doctrine pack directory to         │
+│ *    pack_path      PATH  Path to the org Charter Pack directory to          │
 │                           validate.                                          │
 │                           [required]                                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -895,67 +968,100 @@ _Charter pack management commands._
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ consistency-check  Run consistency check against activated doctrine          │
-│                    artifacts (FR-011).                                       │
-│ list               List the built-in charter packs shipped with spec-kitty   │
-│                    (#3064).                                                  │
-│ path               Resolve a built-in charter pack name to its shipped       │
-│                    filesystem path (#3064).                                  │
-│ apply              Apply a built-in charter pack's activation keys into      │
-│                    .kittify/config.yaml (#3064).                             │
+│ list              List the packs of the project's offering and the presets   │
+│                   each ships (FR-004).                                       │
+│ path              Print a pack's root, or with --preset the preset file      │
+│                   (FR-006).                                                  │
+│ validate          Validate a Charter Pack against schema and DRG             │
+│                   constraints.                                               │
+│ assemble          Assemble multiple Charter Packs into a single              │
+│                   distributable.                                             │
+│ regenerate-graph  Regenerate the shipped DRG graph source deterministically  │
+│                   (FR-009).                                                  │
+│ asset             Resolve shipped and overlay doctrine assets (no install —  │
+│                   C-002).                                                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty charter pack apply
+## spec-kitty charter pack assemble
 
 ```
- Usage: spec-kitty charter pack apply [OPTIONS] NAME
+ Usage: spec-kitty charter pack assemble [OPTIONS] OUTPUT_PATH INPUT_PACKS...
 
- Apply a built-in charter pack's activation keys into .kittify/config.yaml
- (#3064).
+ Assemble multiple Charter Packs into a single distributable.
 
- User Customization Preservation: by default this is an additive merge —
- a ``config.yaml`` key the pack declares is only written when it is
- currently absent. An already-present key (even an empty list a user
- explicitly authored) is left untouched unless ``--force`` is passed, in
- which case every key the pack declares is overwritten.
-
- Pass ``--compile`` to also chain the existing compile seam
- (``spec-kitty charter generate --no-from-interview``) so
- ``.kittify/charter/charter.yaml`` is produced in the same step. That
- flag requires a git repository (inherited from ``generate``); the
- default merge (no ``--compile``) stays a pure, git-agnostic additive
- merge (C-004).
+ Exits 0 on success and 1 when conflicts block the merge or when the
+ assembled output fails validation.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    name      TEXT  Built-in pack name to apply (e.g. 'default',            │
-│                      'minimal').                                             │
-│                      [required]                                              │
+│ *    output_path      PATH            Output directory for the assembled     │
+│                                       distributable pack.                    │
+│                                       [required]                             │
+│ *    input_packs      INPUT_PACKS...  One or more input pack directories to  │
+│                                       assemble.                              │
+│                                       [required]                             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force              Overwrite activation keys already present in            │
-│                      config.yaml (default: leave them untouched).            │
-│ --compile            Also compile the merged activation into                 │
-│                      .kittify/charter/charter.yaml by chaining the existing  │
-│                      `spec-kitty charter generate --no-from-interview` seam  │
-│                      (no new compiler is introduced). Requires a git         │
-│                      repository -- inherits `charter generate`'s             │
-│                      git-worktree requirement. The default merge (without    │
-│                      this flag) stays git-agnostic.                          │
-│ --json               Output as JSON.                                         │
-│ --help     -h        Show this message and exit.                             │
+│ --conflicts-out          PATH  Write the conflict report to this path        │
+│                                (JSON).                                       │
+│ --force                        Resolve artifact-id conflicts by              │
+│                                last-pack-wins and drop duplicate DRG edges   │
+│                                silently.                                     │
+│ --json                         Emit machine-readable JSON instead of rich    │
+│                                text.                                         │
+│ --help           -h            Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty charter pack consistency-check
+## spec-kitty charter pack asset
+
+_Resolve shipped and overlay doctrine assets (no install — C-002)._
 
 ```
- Usage: spec-kitty charter pack consistency-check [OPTIONS]
+ Usage: spec-kitty charter pack asset [OPTIONS] COMMAND [ARGS]...
 
- Run consistency check against activated doctrine artifacts (FR-011).
+ Resolve shipped and overlay doctrine assets (no install — C-002).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output as JSON.                                            │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list  List all resolvable doctrine assets and their source tiers.            │
+│ path  Resolve an asset identifier to a filesystem path (fail-closed on       │
+│       miss).                                                                 │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack asset list
+
+```
+ Usage: spec-kitty charter pack asset list [OPTIONS]
+
+ List all resolvable doctrine assets and their source tiers.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit machine-readable JSON instead of rich text.           │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack asset path
+
+```
+ Usage: spec-kitty charter pack asset path [OPTIONS] ASSET_ID
+
+ Resolve an asset identifier to a filesystem path (fail-closed on miss).
+
+ Exits ``0`` and prints the path on success. An unknown id or a containment
+ refusal exits non-zero with the offending id named (A-7 / NFR-006).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    asset_id      TEXT  Identifier of the asset to resolve (see `charter    │
+│                          pack asset list`).                                  │
+│                          [required]                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit machine-readable JSON instead of rich text.           │
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -965,7 +1071,7 @@ _Charter pack management commands._
 ```
  Usage: spec-kitty charter pack list [OPTIONS]
 
- List the built-in charter packs shipped with spec-kitty (#3064).
+ List the packs of the project's offering and the presets each ships (FR-004).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output as JSON.                                            │
@@ -976,18 +1082,76 @@ _Charter pack management commands._
 ## spec-kitty charter pack path
 
 ```
- Usage: spec-kitty charter pack path [OPTIONS] NAME
+ Usage: spec-kitty charter pack path [OPTIONS] PACK
 
- Resolve a built-in charter pack name to its shipped filesystem path (#3064).
+ Print a pack's root, or with --preset the preset file (FR-006).
 
- Fails closed (exit 1) on an unknown pack name, naming it and the valid set.
+ Fails closed (exit 1) with PACK_NOT_FOUND or PRESET_NOT_FOUND, listing the
+ valid names.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    name      TEXT  Built-in pack name (e.g. 'default', 'minimal').         │
+│ *    pack      TEXT  Pack name (built-in, an org pack name, or project).     │
 │                      [required]                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output as JSON.                                            │
+│ --preset          TEXT  Print this preset's file instead of the pack root.   │
+│ --json                  Output as JSON.                                      │
+│ --help    -h            Show this message and exit.                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack regenerate-graph
+
+```
+ Usage: spec-kitty charter pack regenerate-graph [OPTIONS]
+
+ Regenerate the shipped DRG graph source deterministically (FR-009).
+
+ Composes the DRG extractor + calibrator into per-populated-node-kind
+ ``packs/built-in/*.graph.yaml`` fragments (sharded per mission #2680 WP05;
+ relocated from ``src/charter/offering/`` by the pack flatten),
+ retiring the legacy ``graph.yaml`` monolith in the same write. Running twice
+ on unchanged inputs yields byte-identical fragments. With ``--check`` the
+ command never writes: it regenerates into a temp directory and compares the
+ fragment set against the committed source, exiting non-zero when stale — the
+ operator-facing twin of the freshness gate.
+
+ Both the write path and ``--check`` merge in the enumerable hand-authored
+ overlay (:mod:`charter.offering.drg.migration.hand_authored_overlay`) — the
+ ``in_tension_with``/``reconciles_tension``/``rejects`` edges and
+ ``anti_pattern`` nodes hand-authored directly in the graph fragments
+ (mission doctrine-tension-edges-01KY1WPC). The extractor has no
+ frontmatter mechanism that could ever mint these, so a bare pure
+ regeneration would (a) silently drop them from the committed source on
+ write, and (b) always report "stale" under ``--check`` even when nothing
+ is actually stale.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --check            Do not write; regenerate into a temp directory and        │
+│                    compare the per-kind graph fragments against the          │
+│                    committed packs/built-in source. Exit 1 when stale        │
+│                    (operator-runnable freshness gate). Exit 0 when fresh.    │
+│ --json             Emit machine-readable JSON instead of rich text.          │
+│ --help   -h        Show this message and exit.                               │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty charter pack validate
+
+```
+ Usage: spec-kitty charter pack validate [OPTIONS] PACK_PATH
+
+ Validate a Charter Pack against schema and DRG constraints.
+
+ Exits 0 when the pack passes validation (advisories do not affect the
+ exit code) and 1 when at least one error is reported.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    pack_path      PATH  Path to the Charter Pack directory to validate.    │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit machine-readable JSON instead of rich text.           │
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -1107,10 +1271,10 @@ _Charter pack management commands._
  Validate and promote agent-generated project-local doctrine artifacts.
 
  Reads the charter interview answers, resolves synthesis targets from the
- DRG + doctrine, and writes all artifacts to ``.kittify/doctrine/``.
+ DRG + doctrine, and writes all artifacts to ``.kittify/charter-packs/``.
 
  Doctrine generation is performed by the LLM harness (Claude Code, Codex,
- Cursor, etc.) via the spec-kitty-charter-doctrine skill. This command
+ Cursor, etc.) via the spk-charter-governance skill. This command
  validates and promotes the artifacts the agent has written.
 
  Fresh-project behavior (issue #839 / WP06 T031-T033)
@@ -1120,10 +1284,10 @@ _Charter pack management commands._
  command short-circuits the adapter pipeline and materializes the
  **minimal artifact set** the runtime requires:
 
- 1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s
-    project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
+ 1. ``.kittify/charter-packs/`` — directory marker. The project-root
+    resolver (``charter.activation._project_root_candidates``) is a
     presence-only check; an empty directory is a valid project layer.
- 2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
+ 2. ``.kittify/charter-packs/PROVENANCE.md`` — human-readable record of the
     fresh-project seed path, citing #839.
 
  The runtime falls back to the built-in doctrine (``packs/built-in/``) for
@@ -1460,6 +1624,27 @@ _Charter pack management commands._
 │                                                            report (required  │
 │                                                            with              │
 │                                                            --release-branch… │
+│ --origin-check                            [enforce|warn|o  Origin freshness  │
+│                                           ff]              check before      │
+│                                                            anything lands:   │
+│                                                            enforce (the      │
+│                                                            default) refuses  │
+│                                                            when the remote's │
+│                                                            status log or an  │
+│                                                            approved lane     │
+│                                                            branch of this    │
+│                                                            Mission is ahead  │
+│                                                            of this clone, or │
+│                                                            the remote cannot │
+│                                                            be reached; warn  │
+│                                                            reports the same  │
+│                                                            findings and      │
+│                                                            continues; off    │
+│                                                            contacts nothing  │
+│                                                            and accepts stale │
+│                                                            evidence.         │
+│                                                            Overrides         │
+│                                                            SPEC_KITTY_ORIGI… │
 │ --help             -h                                      Show this message │
 │                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -1740,7 +1925,7 @@ _Project health diagnostics_
 │                         ones closed as abandoned.                            │
 │ mission-state           Audit, repair, or TeamSpace-validate mission-state   │
 │                         shapes.                                              │
-│ doctrine                Check org doctrine snapshot status and list          │
+│ charter-packs           Check org charter pack snapshot status and list      │
 │                         installed pack artifacts.                            │
 │ coordination            Run the WP04 #1348 coordination + sparse-checkout    │
 │                         health checks.                                       │
@@ -1797,6 +1982,45 @@ _Project health diagnostics_
  Examples:
      spec-kitty doctor channel
      spec-kitty doctor channel --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Machine-readable JSON output                               │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor charter-packs
+
+```
+ Usage: spec-kitty doctor charter-packs [OPTIONS]
+
+ Check org charter pack snapshot status and list installed pack artifacts.
+
+ Exit code reflects health (WP01, operator directive: loud over hidden): the
+ command exits **1 when the report is unhealthy** and 0 only when healthy
+ (``report.healthy`` drives the code on every output path). A clear RC=1 with
+ a surfaced error is preferred over an RC=0 that hides a defect.  It
+ enumerates each configured org pack (from ``.kittify/config.yaml``), prints
+ its on-disk version (``git describe`` for git-managed packs, otherwise the
+ ``pack-manifest.yaml`` ``pack_version``), per-artifact YAML counts, and
+ ``org-charter.yaml`` policy status when present.
+
+ Override governance (FR-010 / FR-012): when org packs are configured, any
+ ``org:``-provenance override of a built-in DRG node that is NOT sanctioned
+ by ``.kittify/charter-packs/replaceable-builtins.yaml`` or by the overriding
+ pack's own pack-root ``replaceable-builtins.yaml`` is reported as an
+ ``unsanctioned_overrides`` finding and flips the report unhealthy (RC=1).
+ A pack sanction applies only to overrides that same pack contributes, and
+ the consumer file can withdraw it with ``revoked_pack_sanctions``. Sanctioned
+ overrides and their source are listed as ``sanctioned_overrides``.
+ Project-tier (``.kittify/charter-packs/``) overrides of built-ins are
+ intentionally **ungoverned** — the project layer is the trusted operator tier
+ and is not gated by the consumer-facing allowlist; only org-tier overrides
+ are adjudicated.
+
+ Examples:
+     spec-kitty doctor charter-packs
+     spec-kitty doctor charter-packs --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Machine-readable JSON output                               │
@@ -1990,45 +2214,6 @@ _Project health diagnostics_
 │    --repair                 Rebuild decisions/index.json from the event log  │
 │                             (run offline; not against live decision traffic) │
 │    --help     -h            Show this message and exit.                      │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctor doctrine
-
-```
- Usage: spec-kitty doctor doctrine [OPTIONS]
-
- Check org doctrine snapshot status and list installed pack artifacts.
-
- Exit code reflects health (WP01, operator directive: loud over hidden): the
- command exits **1 when the report is unhealthy** and 0 only when healthy
- (``report.healthy`` drives the code on every output path). A clear RC=1 with
- a surfaced error is preferred over an RC=0 that hides a defect.  It
- enumerates each configured org pack (from ``.kittify/config.yaml``), prints
- its on-disk version (``git describe`` for git-managed packs, otherwise the
- ``pack-manifest.yaml`` ``pack_version``), per-artifact YAML counts, and
- ``org-charter.yaml`` policy status when present.
-
- Override governance (FR-010 / FR-012): when org packs are configured, any
- ``org:``-provenance override of a built-in DRG node that is NOT sanctioned
- by ``.kittify/doctrine/replaceable-builtins.yaml`` or by the overriding
- pack's own pack-root ``replaceable-builtins.yaml`` is reported as an
- ``unsanctioned_overrides`` finding and flips the report unhealthy (RC=1).
- A pack sanction applies only to overrides that same pack contributes, and
- the consumer file can withdraw it with ``revoked_pack_sanctions``. Sanctioned
- overrides and their source are listed as ``sanctioned_overrides``.
- Project-tier (``.kittify/doctrine/``) overrides of built-ins are
- intentionally **ungoverned** — project doctrine is the trusted operator tier
- and is not gated by the consumer-facing allowlist; only org-tier overrides
- are adjudicated.
-
- Examples:
-     spec-kitty doctor doctrine
-     spec-kitty doctor doctrine --json
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Machine-readable JSON output                               │
-│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3761,8 +3946,8 @@ _Inspect mission types for this project._
 
  Returns only mission types that are explicitly activated in this
  project's charter (activation-filtered).  For all doctrine-layer
- types regardless of activation, use
- ``spec-kitty charter mission-type list --include-inactive``.
+ types regardless of activation, use ``spec-kitty charter mission-type list
+ --include-inactive``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output as JSON.                                            │
@@ -4039,8 +4224,8 @@ _Inspect mission types for this project._
 
  Returns only mission types that are explicitly activated in this
  project's charter (activation-filtered).  For all doctrine-layer
- types regardless of activation, use
- ``spec-kitty charter mission-type list --include-inactive``.
+ types regardless of activation, use ``spec-kitty charter mission-type list
+ --include-inactive``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output as JSON.                                            │
@@ -4335,9 +4520,18 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Accept a mission after all WPs are approved or done.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission          TEXT  Mission slug [required]                          │
-│ *  --actor            TEXT  Actor identity [required]                        │
-│    --help     -h            Show this message and exit.                      │
+│ *  --mission               TEXT                Mission slug [required]       │
+│ *  --actor                 TEXT                Actor identity [required]     │
+│    --origin-check          [enforce|warn|off]  Refuse (enforce, the default) │
+│                                                or only warn (warn) when the  │
+│                                                mission's status evidence or  │
+│                                                approved lanes are behind or  │
+│                                                unreachable on their remote;  │
+│                                                off contacts nothing and      │
+│                                                accepts stale evidence.       │
+│                                                Overrides                     │
+│                                                SPEC_KITTY_ORIGIN_CHECK.      │
+│    --help          -h                          Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4490,13 +4684,25 @@ _Machine-contract API for external orchestrators (JSON-first)_
  Consolidate a lane-based mission into target.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --mission           TEXT  Mission slug [required]                         │
-│    --target            TEXT  Target branch to merge into (auto-detected from │
-│                              meta.json)                                      │
-│    --strategy          TEXT  Merge strategy: merge, squash, or rebase        │
-│                              [default: merge]                                │
-│    --push                    Push target branch after merge                  │
-│    --help      -h            Show this message and exit.                     │
+│ *  --mission               TEXT                Mission slug [required]       │
+│    --target                TEXT                Target branch to merge into   │
+│                                                (auto-detected from           │
+│                                                meta.json)                    │
+│    --strategy              TEXT                Merge strategy: merge,        │
+│                                                squash, or rebase             │
+│                                                [default: merge]              │
+│    --push                                      Push target branch after      │
+│                                                merge                         │
+│    --origin-check          [enforce|warn|off]  Refuse (enforce, the default) │
+│                                                or only warn (warn) when the  │
+│                                                mission's status evidence or  │
+│                                                approved lanes are behind or  │
+│                                                unreachable on their remote;  │
+│                                                off contacts nothing and      │
+│                                                accepts stale evidence.       │
+│                                                Overrides                     │
+│                                                SPEC_KITTY_ORIGIN_CHECK.      │
+│    --help          -h                          Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4889,7 +5095,9 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │ *  --to                                  TEXT  Target lane [required]        │
 │ *  --actor                               TEXT  Actor identity [required]     │
 │    --note                                TEXT  Reason/note for the           │
-│                                                transition                    │
+│                                                transition (required with     │
+│                                                --force out of in_review or   │
+│                                                approved)                     │
 │    --policy                              TEXT  Policy metadata JSON          │
 │                                                (required for run-affecting   │
 │                                                lanes)                        │
@@ -5813,7 +6021,9 @@ _Tracker synchronization commands_
 │ --project                     Restrict to current-project compat +           │
 │                               migrations (FR-015)                            │
 │ --yes           -y            Non-interactive confirmation; alias for        │
-│                               --force (FR-017).                              │
+│                               --force (FR-017). Upgrade never runs the       │
+│                               mission-state repair; use `spec-kitty doctor   │
+│                               mission-state --fix`.                          │
 │ --no-nag                      Suppress upgrade-nag output explicitly         │
 │ --help                        Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯

@@ -388,7 +388,8 @@ a live same-key prior mission (#4033), or a retry whose scaffold is
 byte-identical to what is already committed — surfaced as the typed
 `MissionAlreadyExistsError` signal), `MISSION_CREATE_FAILED`
 (any other creation failure with no more specific `error_code`; a typed
-upstream code such as `CharterPackConfigError` is passed through verbatim
+upstream code such as `ACTIVE_CHARTER_CONFIG_INVALID` (raised as
+`ActiveCharterConfigError`) is passed through verbatim
 instead). Classification consumes only the delegate's typed `error_code`,
 never its message prose (#3861).
 

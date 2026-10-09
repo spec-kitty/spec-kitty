@@ -1,12 +1,16 @@
 ---
 title: 'Migration: Relocate Built-In Doctrine to packs/built-in'
 description: 'Migration for the built-in doctrine relocation: content moved from src/doctrine into a top-level packs/built-in/ pack root, resolved through a shared pack-root seam.'
-doc_status: active
-updated: '2026-07-30'
+doc_status: superseded
+updated: '2026-10-08'
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # Migration: Relocate Built-In Doctrine to `packs/built-in`
+
+> **Superseded; kept as a historical record.** The charter-pack cutover (#3732) replaced the layout
+> and commands this page describes, and Spec Kitty no longer reads them. The current path is
+> [Charter pack cutover](charter-pack-cutover.md).
 
 **Mission**: `relocate-builtin-doctrine-packs-01KYT87F`
 **Audience**: downstream org/project doctrine-pack authors, and anyone whose code or docs referenced the built-in doctrine artefacts by their old `src/doctrine/` paths.

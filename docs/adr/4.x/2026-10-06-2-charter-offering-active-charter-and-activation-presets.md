@@ -49,8 +49,6 @@ The charter has two sides, matching the existing package split `src/charter/offe
 
 ### 2. Applying a preset is an activation
 
-This section and section 4 describe the target CLI of the #3732 mission. `charter activate` has no `--pack` or `--preset` option yet.
-
 ```
 spec-kitty charter activate --pack <pack> --preset <preset>
 ```
@@ -130,4 +128,21 @@ Earlier renames kept the old names working for backwards compatibility. The resu
 
 ## Execution
 
-The rename runs as the #3732 governed mission. Its occurrence map is the classification ledger from the 2026-10-06 run (posted on #3732); this ADR is the naming contract the map binds to. The glossary (`docs/context/charter.md`) still defines **Pack Default Charter** and the guard that "active" never describes bundle state; those entries change in that mission, together with the code, not ahead of it.
+The rename runs as the #3732 governed mission. Its occurrence map is the classification ledger from the 2026-10-06 run (posted on #3732); this ADR is the naming contract the map binds to.
+
+## Amendment 2026-10-06: rulings from the mission specification
+
+The #3732 mission specification (`kitty-specs/charter-pack-cutover-01M491G6/spec.md`) surfaced ten further questions after its adversarial review. The deciders ruled on them the same day:
+
+1. **`doctrine_pack_id` is renamed to `charter_pack_id`.** The upgrade migration rewrites project state; the `org-charter.yaml` schema version is bumped and validation names the field to change in an org pack.
+2. **Packs that still carry `accompanies_doctrine_pack` are rejected** with an error naming the field to delete. The public-packs sidecar repository receives a pull request. A validation message that names a replacement is not a compatibility layer.
+3. **A removed command fails with the plain unknown-command error.** No hint, stub or hidden group; the changelog and the migration runbook carry the message.
+4. **The `organisation_packs` legacy key is removed** and migrated with the other legacy keys.
+5. **Compatibility residue unrelated to the doctrine vocabulary** (for example the `charter sync` no-op) is out of scope and tracked separately.
+6. **Applying a preset over customised activation lists is refused without `--force`**, with the per-key difference printed. The applied preset name is not persisted.
+7. **§5 is narrowed for this mission:** only the older skills that back the renamed `spk-*` skills (`spec-kitty-charter-doctrine`, `spec-kitty-glossary-context`, `spec-kitty-bulk-edit-classification`, `spec-kitty-spdd-reasons`, `ad-hoc-profile-load`) are folded and deleted. The rest of the `spec-kitty-*` layer follows in a separate mission.
+8. **`charter pack consistency-check` becomes `spec-kitty charter consistency-check`**, not `charter check`, to stay clear of `validate`, `lint` and `bundle validate`.
+9. **`src/specify_cli/doctrine/` is split by meaning, not renamed.** It holds code only (no charter content). Pack model and tooling (descriptor, manifest, built-in manifest, lineage, validator, assembler) move to `src/charter/offering/packs/`; org charter composition (`org_charter`, `org_charter_loader`, `config`) moves to `src/charter/activation/`; the fetch and scaffold adapters (`sources/`, `snapshot`, `template_render/`) move to `src/specify_cli/charter_packs/`. Layer-root and org-chain resolution moves into `charter`, and the architectural boundary exemption for the old package is deleted rather than carried over.
+10. **The cutover ships as one mission and one pull request**, because a cutover without compatibility layers cannot ship half.
+
+The "Neutral" consequence above ("the `src/specify_cli/doctrine/` module path ... renamed as internal refactors") is superseded by ruling 9.
