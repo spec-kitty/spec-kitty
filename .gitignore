@@ -209,7 +209,7 @@ pytest-of-*/
 .spec-kitty/
 # Clone-local runtime-state root for isolated dev environments (Shadow Clones).
 # Populated when SPEC_KITTY_HOME points here — see
-# docs/development/isolated_dev_environments.md. Never commit machine state.
+# docs/development/getting-started/isolated-dev-environments.md. Never commit machine state.
 .spec-kitty-home/
 .agent/
 

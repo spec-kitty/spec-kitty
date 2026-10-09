@@ -56,10 +56,18 @@ with `.spec-kitty`), and it redirects both resolvers the codebase relies on —
   clone-local `.venv` and a clone-local state root take over; outside, nothing
   changed.
 
-A Git worktree (including one under `.worktrees/`) can use the same isolation:
-create its own `.venv`, then activate from inside that worktree. If its older
-branch lacks the helper, source the helper from a checkout that has it by
-absolute path. It still binds the current worktree.
+A Git worktree can use the same isolation: create its own `.venv`, then
+activate from inside that worktree. If its older branch lacks the helper,
+source the helper from a checkout that has it by absolute path — it still
+binds the current worktree.
+
+> Do not activate inside a spec-kitty-managed worktree under `.worktrees/` (a
+> lane, coord, or mission tree). The runtime creates and force-removes those
+> itself during `consolidate` and `context cleanup`; because the clone-local
+> `.spec-kitty-home/` and `.venv/` are git-ignored, teardown deletes them along
+> with the worktree and leaves your shell pointing at a `SPEC_KITTY_HOME` and a
+> `spec-kitty` CLI that no longer exist. Use a worktree you create yourself,
+> outside `.worktrees/`.
 
 The rest of this guide keeps those two intact at the same time: the global CLI
 stays the default everywhere, and each Shadow Clone overrides it only for the
