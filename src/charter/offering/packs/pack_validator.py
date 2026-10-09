@@ -45,7 +45,7 @@ Validation performs (in order):
 
 Issue ``category`` values surfaced via ``ValidationIssue.category``:
 ``schema_invalid``, ``duplicate_id``, ``drg_dangling_edge``,
-``drg_external_endpoint``, ``drg_kind_drift``,
+``drg_external_endpoint``, ``drg_builtin_unavailable``, ``drg_kind_drift``,
 ``duplicate_drg_edge``, ``same_id_collision``, ``unknown_target``,
 ``intent_conflict``, ``asset_path_escape``, ``asset_mime_invalid``,
 ``profile_skipped``, ``org_pack_missing``, ``unreadable_file``,
@@ -159,6 +159,8 @@ class ValidationIssue:
     * ``duplicate_id`` — two artifacts share the same ID within a kind.
     * ``drg_dangling_edge`` — an authored endpoint is absent or cannot bind
       (unresolved, malformed or ambiguous).
+    * ``drg_builtin_unavailable`` — the built-in DRG could not be loaded, so the
+      DRG endpoint checks were skipped (one finding, naming the cause).
     * ``drg_external_endpoint`` — advisory: a valid qualified ``<kind>:<id>``
       endpoint that is neither built-in nor declared in this pack; it may live
       in a sibling org pack (check with ``spec-kitty doctor charter-packs``).
@@ -488,13 +490,17 @@ def validate_pack(
     # DRG validation (only if drg/ exists).
     drg_dir = pack_dir / "drg"
     if drg_dir.is_dir():
-        endpoint_catalog = _load_endpoint_catalog()
-        authored_errors, authored_advisories = _validate_authored_endpoints(pack_drg_fragment(pack_dir), org_fragment, trusted_artifact_urns, endpoint_catalog)
-        errors.extend(authored_errors)
-        advisories.extend(authored_advisories)
-        drg_errors, drg_advisories = _validate_drg(drg_dir, pack_artifact_urns, endpoint_catalog)
-        errors.extend(drg_errors)
-        advisories.extend(drg_advisories)
+        try:
+            endpoint_catalog = _load_endpoint_catalog()
+        except _BuiltInGraphUnavailableError as exc:
+            errors.append(_builtin_unavailable_issue(drg_dir, exc))
+        else:
+            authored_errors, authored_advisories = _validate_authored_endpoints(pack_drg_fragment(pack_dir), org_fragment, trusted_artifact_urns, endpoint_catalog)
+            errors.extend(authored_errors)
+            advisories.extend(authored_advisories)
+            drg_errors, drg_advisories = _validate_drg(drg_dir, pack_artifact_urns, endpoint_catalog)
+            errors.extend(drg_errors)
+            advisories.extend(drg_advisories)
 
     # FR-004: warn when DRG content lives only under drg/*.graph.yaml with
     # no pack-root graph — the shape the runtime never reads. Additive and
@@ -933,14 +939,22 @@ class _EndpointCatalog:
     kinds: dict[str, str]
 
 
+class _BuiltInGraphUnavailableError(Exception):
+    """The built-in DRG could not be loaded, so endpoint closure cannot be judged."""
+
+
 def _load_endpoint_catalog() -> _EndpointCatalog:
-    """One built-in endpoint snapshot shared by both layout checks."""
+    """One built-in endpoint snapshot shared by both layout checks.
+
+    Raises :class:`_BuiltInGraphUnavailableError` rather than returning an empty
+    catalog: with no built-ins every built-in reference would read as a typo.
+    """
     from charter.offering.drg.loader import DRGLoadError, load_built_in_graph
 
     try:
         graph = load_built_in_graph()
-    except (ModuleNotFoundError, DRGLoadError, OSError):
-        return _EndpointCatalog(set(), {})
+    except (ModuleNotFoundError, DRGLoadError, OSError) as exc:
+        raise _BuiltInGraphUnavailableError(f"{type(exc).__name__}: {exc}") from exc
     return _EndpointCatalog(graph.node_urns(), {node.urn: node.kind.value for node in graph.nodes})
 
 
@@ -1005,6 +1019,17 @@ def _bind_org_edge(edge: EndpointEdge, local: Mapping[str, str], builtins: set[s
     source, source_cause = _bind_endpoint(edge.source, local, builtins)
     target, target_cause = _bind_endpoint(edge.target, local, builtins)
     return _BoundEdge(source, target, edge.source, edge.target, source_cause, target_cause)
+
+
+def _builtin_unavailable_issue(drg_dir: Path, exc: Exception) -> ValidationIssue:
+    return ValidationIssue(
+        severity="error",
+        artifact_type="drg",
+        artifact_id=None,
+        file=str(drg_dir),
+        message=f"built-in DRG unavailable ({exc}); DRG endpoint checks were skipped",
+        category="drg_builtin_unavailable",
+    )
 
 
 def _validate_authored_endpoints(

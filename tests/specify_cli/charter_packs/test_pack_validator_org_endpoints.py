@@ -62,6 +62,7 @@ Original separately committed mandatory ATDD RED d0a48f3f remains unchanged.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +72,8 @@ from typer.testing import CliRunner
 
 from charter.drg import DRGGraph, DRGNode, NodeKind, OrgDRGFragment, load_org_pack
 from pydantic import BaseModel
+from charter.offering.drg import loader as drg_loader
+from charter.offering.drg.loader import DRGLoadError
 from charter.offering.packs import pack_validator as pv
 from specify_cli.cli.commands._charter_pack_collect import _collect_org_layer_data
 from specify_cli.cli.commands.charter import app as charter_app
@@ -417,15 +420,18 @@ def test_omitted_default_differs_from_explicit_absent_helper_input(tmp_path: Pat
     assert pv._pack_node_urns(tmp_path, None) is None
 
 
-def test_unavailable_builtins_still_checks_local_closure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from charter.offering.drg import loader
-
+@pytest.mark.parametrize("fault", [lambda: DRGLoadError("unavailable"), lambda: OSError(2, "gone")], ids=["drg-load-error", "os-error"])
+def test_unavailable_builtins_is_one_finding_not_dangling_noise(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fault: Callable[[], Exception]) -> None:
     def unavailable() -> DRGGraph:
-        raise loader.DRGLoadError("unavailable")
+        raise fault()
 
-    monkeypatch.setattr(loader, "load_built_in_graph", unavailable)
-    _write_fragment(tmp_path, [_local_node()], [_edge("local", "directive:local"), _edge("local", "missing")])
-    assert [issue.artifact_id for issue in _dangling(pv.validate_pack(tmp_path))] == ["missing"]
+    monkeypatch.setattr(drg_loader, "load_built_in_graph", unavailable)
+    # Built-in references would all read as typos if the empty graph were trusted.
+    _write_fragment(tmp_path, [_local_node()], [_edge("local", "acceptance-test-first"), _edge("local", "directive:DIRECTIVE_003"), _edge("local", "missing")])
+    result = pv.validate_pack(tmp_path)
+    assert [(issue.category, issue.severity) for issue in result.errors] == [("drg_builtin_unavailable", "error")]
+    assert "unavailable" in result.errors[0].message or "gone" in result.errors[0].message
+    assert _dangling(result) == [] and _external(result) == []
 
 
 def test_identity_helper_defensive_branches() -> None:
