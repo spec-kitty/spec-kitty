@@ -572,7 +572,11 @@ def _live_keys() -> set[CharterPathKey]:
 # m_3_2_6_retire_rtk_search_tooling.py's module-level `_CHARTER_RELATIVE_PATH`
 # literal is gone (rebuilt on the shared _retired_activation.py engine, which
 # imports `charter.bundle.CHARTER_YAML` instead of re-spelling the literal).
-CHARTER_PATH_LITERAL_FLOOR = 49
+# DRAINED: 49 -> 45 (charter-pack-cutover #3732, WP10). The live census sat at
+# 47 before WP10 (inside FLOOR_MARGIN); the neutralised
+# m_3_2_0rc35_default_charter_pack.py lost its two DefaultCharterPackMigration.apply
+# charter.md sites (allow-list entries removed in the same change).
+CHARTER_PATH_LITERAL_FLOOR = 45
 FLOOR_MARGIN = 2
 
 

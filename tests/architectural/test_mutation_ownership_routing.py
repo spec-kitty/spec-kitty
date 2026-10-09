@@ -653,7 +653,7 @@ _ALLOWLIST: dict[CensusKey, str] = {
         op="Path.unlink",
         op_ordinal=0,
     ): ("already-content-guarded exemplar (data-model do-not-change): removes a stale prompt command under a content check while restoring the package prompts."),
-    # --- m_3_1_1 (7): overwrite-guarded renames + empty-only rmdir ---------
+    # --- m_3_1_1 (6): overwrite-guarded renames + empty-only rmdir ---------
     CensusKey(
         rel="src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py",
         qualname="CharterRenameMigration._normalize_layouts",
@@ -699,13 +699,6 @@ _ALLOWLIST: dict[CensusKey, str] = {
         op="shutil.move",
         op_ordinal=0,
     ): ("relocation: renames a per-agent spec-kitty.constitution.md command to spec-kitty.charter.md (move)."),
-    CensusKey(
-        rel="src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py",
-        qualname="CharterRenameMigration._rename_agent_artifacts",
-        token_line="shutil . move ( str ( old_skill ) , str ( new_skill ) )",
-        op="shutil.move",
-        op_ordinal=0,
-    ): ("relocation: renames a per-agent constitution-doctrine skill dir to charter-doctrine (move)."),
     # --- m_3_1_2 (2): already-guarded exemplar + empty-only rmdir ----------
     CensusKey(
         rel="src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py",
