@@ -75,9 +75,8 @@ import dataclasses
 import logging
 import re
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from kernel.atomic import atomic_write
 from kernel.clock import now_utc_iso
 
 from runtime.next._internal_runtime import (
@@ -119,6 +118,7 @@ from specify_cli.mission import get_mission_type
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 from specify_cli.status import CanonicalStatusNotFoundError
 from runtime.next.decision import (
+    AnalysisCurrency,
     Decision,
     DecisionKind,
     _build_prompt_or_error,
@@ -127,9 +127,11 @@ from runtime.next.decision import (
     _state_to_action,
 )
 from runtime.next._internal_runtime.events import RuntimeEventEmitter, runtime_emitter_for_mission, seed_runtime_emitter
-from runtime.next.run_lock import run_cursor_lock
 from kernel.locks import LockAcquireTimeout
 from mission_runtime import ActionContextError, OwnedCheckout, OwnedRefusalCode
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -229,9 +231,6 @@ def _is_sibling_registry_entry_in_flight(output: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-STATE_FILE = "state.json"
-
-
 def _check_cli_guards(
     step_id: str,
     feature_dir: Path,
@@ -239,6 +238,7 @@ def _check_cli_guards(
     mission_family: str | None = None,
     repo_root: Path | None = None,
     owned: OwnedCheckout | None = None,
+    analysis_currency: AnalysisCurrency | None = None,
 ) -> list[str]:
     """Evaluate the CLI guards for ``step_id`` and return the failures.
 
@@ -258,15 +258,21 @@ def _check_cli_guards(
     ``None`` (built-in tree only — today's exact behavior for every existing
     caller that does not yet pass a real ``repo_root``).
 
+    ``analysis_currency`` (WP07) is the injected analysis-report check; it is
+    read only for the software-dev ``analyze`` step.
+
     Returns list of failure descriptions; empty list means all guards pass.
     """
     mission_family = mission_family if mission_family is not None else get_mission_type(feature_dir)
+    # Forwarded only when injected: no step but ``analyze`` reads it.
+    injected: dict[str, AnalysisCurrency] = {} if analysis_currency is None else {"analysis_currency": analysis_currency}
     snapshot = _io_seam.gather_artifact_presence(
         feature_dir,
         mission_family=mission_family,
         step_id=step_id,
         repo_root=repo_root,
         owned=owned,
+        **injected,
     )
     if step_id in ("implement", "review"):
         # Intentionally NOT anchored (no repo_root=/mission_slug= forwarded), even
@@ -369,6 +375,10 @@ class DecideNextContext:
     # ownership fact, when this call runs under an owned checkout. ``None``
     # for every non-owned mission — the historical, byte-identical path.
     owned: OwnedCheckout | None = None
+    # WP07 (FR-016): the injected analysis-currency check. The bridge calls it
+    # only on the ``analyze`` step and in the finalized-board override that
+    # would hand out ``implement``; ``None`` there fails closed.
+    analysis_currency: AnalysisCurrency | None = None
 
 
 def _owned_coordination_unavailable_decision(agent: str, mission_slug: str, mission_type: str, now: str, exc: BaseException) -> Decision:
@@ -637,6 +647,12 @@ def _dn_finalized_board_override(ctx: DecideNextContext) -> Decision | None:
         return None
     board = _mapping._resolve_wp_board_action(mission_slug=ctx.mission_slug, repo_root=ctx.repo_root, owned=ctx.owned)
     if board.action is not None and board.board_step is not None:
+        # B3: the board hands out implement as if the DAG had walked through
+        # analyze; check the analysis report first, like the analyze step does.
+        if board.action == _mapping._STEP_IMPLEMENT and ctx.mission_type == MISSION_TYPE_SOFTWARE_DEV:
+            analysis_failures = _cores.evaluate_analysis_currency(_io_seam.gather_analysis_currency(ctx.analysis_currency))
+            if analysis_failures:
+                return _dn_reissue_step_decision(ctx, _cores.ANALYZE_STEP_ID, analysis_failures)
         return _mapping._build_wp_iteration_decision(
             board.board_step,
             ctx.agent,
@@ -666,6 +682,68 @@ def _dn_finalized_board_override(ctx: DecideNextContext) -> Decision | None:
             )
         )
     return None
+
+
+def _dn_reissue_step_decision(ctx: DecideNextContext, step_id: str, guard_failures: list[str]) -> Decision:
+    """Re-issue ``step_id`` as a ``kind=step`` decision carrying ``guard_failures``.
+
+    Shared by the non-WP guard refusal in ``_dn_dependency_gate`` and the
+    finalized-board override's analysis refusal (B3). An analyze-step refusal
+    carries its typed ``error_code``; a prompt-resolution error code wins over
+    it (B5), and the decision then degrades to ``blocked`` as before.
+    """
+    action, wp_id, workspace_path = _state_to_action(
+        step_id,
+        ctx.mission_slug,
+        ctx.feature_dir,
+        ctx.repo_root,
+        ctx.mission_type,
+        owned=ctx.owned,
+    )
+    prompt_file: str | None = None
+    prompt_error: str | None = None
+    prompt_error_code: str | None = None
+    if action:
+        prompt_file, prompt_error, prompt_error_code = _build_prompt_or_error(
+            action,
+            ctx.feature_dir,
+            ctx.mission_slug,
+            wp_id,
+            ctx.agent,
+            ctx.repo_root,
+            ctx.mission_type,
+            owned=ctx.owned,
+        )
+    else:
+        prompt_error = f"no action mapped for step '{step_id}'; cannot resolve prompt"
+    # WP06 (FR-006/FR-013) / WP07 (FR-011): step_or_blocked never
+    # issues kind=step with an unresolvable prompt_file — it falls
+    # back to kind=blocked using this pre-computed reason (matches
+    # the original "prompt_file is None" branch's literal exactly;
+    # the "resolved-but-vanished-by-construction-time" race uses the
+    # core's own hard-coded literal — see DecisionEnvelope's
+    # docstring for why that is safe to share across sites).
+    return _mapping._materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.step,
+            agent=ctx.agent,
+            mission_slug=ctx.mission_slug,
+            mission=ctx.mission_type,
+            mission_state=step_id,
+            timestamp=ctx.now,
+            reason=prompt_error or "prompt_file_not_resolvable",
+            action=action,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            prompt_file=prompt_file,
+            progress=ctx.progress,
+            origin=ctx.origin,
+            run_id=ctx.run_ref.run_id,
+            step_id=step_id,
+            error_code=prompt_error_code or _cores.analysis_error_code(guard_failures),
+        ),
+        guard_failures,
+    )
 
 
 def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
@@ -809,60 +887,10 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
             mission_family=mission_type,
             repo_root=repo_root,
             owned=owned,
+            analysis_currency=ctx.analysis_currency,
         )
         if guard_failures:
-            action, wp_id, workspace_path = _state_to_action(
-                current_step_id,
-                mission_slug,
-                feature_dir,
-                repo_root,
-                mission_type,
-                owned=owned,
-            )
-            prompt_file: str | None = None
-            prompt_error: str | None = None
-            prompt_error_code: str | None = None
-            if action:
-                prompt_file, prompt_error, prompt_error_code = _build_prompt_or_error(
-                    action,
-                    feature_dir,
-                    mission_slug,
-                    wp_id,
-                    agent,
-                    repo_root,
-                    mission_type,
-                    owned=owned,
-                )
-            else:
-                prompt_error = f"no action mapped for step '{current_step_id}'; cannot resolve prompt"
-            # WP06 (FR-006/FR-013) / WP07 (FR-011): step_or_blocked never
-            # issues kind=step with an unresolvable prompt_file — it falls
-            # back to kind=blocked using this pre-computed reason (matches
-            # the original "prompt_file is None" branch's literal exactly;
-            # the "resolved-but-vanished-by-construction-time" race uses the
-            # core's own hard-coded literal — see DecisionEnvelope's
-            # docstring for why that is safe to share across sites).
-            return _mapping._materialize_decision(
-                _cores.DecisionEnvelope(
-                    kind=DecisionKind.step,
-                    agent=agent,
-                    mission_slug=mission_slug,
-                    mission=mission_type,
-                    mission_state=current_step_id,
-                    timestamp=now,
-                    reason=prompt_error or "prompt_file_not_resolvable",
-                    action=action,
-                    wp_id=wp_id,
-                    workspace_path=workspace_path,
-                    prompt_file=prompt_file,
-                    progress=progress,
-                    origin=origin,
-                    run_id=run_ref.run_id,
-                    step_id=current_step_id,
-                    error_code=prompt_error_code,
-                ),
-                guard_failures,
-            )
+            return _dn_reissue_step_decision(ctx, current_step_id, guard_failures)
 
     return None
 
@@ -1057,6 +1085,13 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
         if isinstance(planned, Decision):
             return planned
         plan, wp_resolution = planned
+        # Commit the composition advance through the decision-log-wrapped engine
+        # emitter (``ctx.emitter_for_engine``) so a ``DecisionInputRequested`` it
+        # raises is durably recorded (ADR 2026-09-06-2 (c)). An abort-only
+        # retrospective-gate refusal (B6) reads exactly as on the legacy path;
+        # any other advancement-helper failure surfaces as the EDGE-003
+        # ``blocked`` Decision (the legacy DAG dispatch handler is never entered
+        # as a fallback).
         try:
             return _engine_adapter.advance_run_state_after_composition(
                 run_ref=ctx.run_ref,
@@ -1073,155 +1108,34 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
                 plan=plan,
                 wp_resolution=wp_resolution,
             )
+        except _retrospective_seam.RetrospectiveGateRefused as refusal:
+            return _retrospective_gate_refused_decision(ctx, refusal)
         except Exception as exc:  # noqa: BLE001 — EDGE-003: any advancement-helper failure surfaces as a blocked Decision
             return _advance_failed_decision(ctx, composed_action, exc)
 
     return None
 
 
-def _dn_capture_pre_speculative_state(
-    run_dir: Path,
-) -> tuple[bytes | None, int | None] | None:
-    """Capture ``(state.json bytes, run.events.jsonl size)`` before a
-    speculative engine advance, so a later retrospective-gate refusal can
-    roll back cleanly. Returns ``None`` on a disk-read failure or a run-cursor
-    lock that cannot be acquired within its bounded wait — the caller
-    must then surface a blocked ``Decision`` rather than advance into a
-    state it cannot retract (mirrors the original inline try/except
-    exactly)."""
-    state_path = run_dir / STATE_FILE
-    events_path = run_dir / "run.events.jsonl"
-    # Capture under the run-cursor lock (FR-003): the pre-speculative snapshot
-    # read must not straddle another writer's commit.
-    try:
-        with run_cursor_lock(run_dir):
-            pre_state_bytes = state_path.read_bytes() if state_path.exists() else None
-            pre_events_size = events_path.stat().st_size if events_path.exists() else 0
-    except (OSError, LockAcquireTimeout):
-        # A busy run cursor (a peer holds the lock past its bounded wait) is the
-        # same "cannot safely snapshot" outcome as a disk-read failure: the
-        # caller surfaces a blocked Decision instead of letting it escape.
-        return None
-    return pre_state_bytes, pre_events_size
-
-
-def _dn_rollback_buffered_run_state(
-    run_dir: Path,
-    pre_state_bytes: bytes | None,
-    pre_events_size: int | None,
-    post_state_bytes: bytes | None,
-    post_events_size: int | None,
-) -> None:
-    """Restore state.json / truncate run.events.jsonl to their pre-speculative-
-    advance values after the retrospective gate refuses completion -- but ONLY
-    while the run is still exactly at this caller's post-commit state.
-
-    ``post_state_bytes`` / ``post_events_size`` are what this caller's own
-    speculative commit left behind. Under the run-cursor lock the live run is
-    compared with them; if a peer committed in the gap the live run no longer
-    matches, so the rollback is skipped with a warning and the peer's state is
-    left intact (restoring would clobber it). A failed rollback is logged, not
-    itself surfaced as a Decision (the caller has already committed to returning
-    the gate-refused blocked Decision).
-
-    The write + truncate run under the run-cursor lock (FR-003): this is a
-    fourth run-dir writer and a non-atomic write+truncate, so it must not
-    straddle another writer's commit. A lock that cannot be acquired within its
-    bounded wait is logged and the rollback skipped. The state.json restore is
-    staged atomically (:func:`kernel.atomic.atomic_write`: unique same-dir temp +
-    replace), never a torn in-place write."""
-    if pre_state_bytes is None and pre_events_size is None:
-        return
-    state_path = run_dir / STATE_FILE
-    events_path = run_dir / "run.events.jsonl"
-    try:
-        with run_cursor_lock(run_dir):
-            try:
-                live_state = state_path.read_bytes() if state_path.exists() else None
-                live_events = events_path.stat().st_size if events_path.exists() else 0
-            except OSError as read_exc:
-                logger.error("rollback skipped: cannot read live run state after gate block: %s", read_exc)
-                return
-            if (live_state, live_events) != (post_state_bytes, post_events_size):
-                logger.warning(
-                    "rollback skipped for %s: the run moved past this caller's speculative commit "
-                    "(a concurrent advance landed); leaving the peer's state untouched",
-                    run_dir,
-                )
-                return
-            if pre_state_bytes is not None:
-                try:
-                    atomic_write(state_path, pre_state_bytes)
-                except OSError as restore_exc:
-                    logger.error("rollback of state.json failed after gate block: %s", restore_exc)
-            if pre_events_size is not None:
-                try:
-                    if events_path.exists():
-                        with open(events_path, "r+b") as handle:
-                            handle.truncate(pre_events_size)
-                except OSError as restore_exc:
-                    logger.error("rollback of run.events.jsonl failed after gate block: %s", restore_exc)
-    except LockAcquireTimeout as lock_exc:
-        logger.error("rollback skipped: could not acquire run-cursor lock: %s", lock_exc)
-
-
-def _dn_terminal_retrospective_gate(
-    ctx: DecideNextContext,
-    policy_error: Exception | None,
-    buffer: _retrospective_seam._BufferingRuntimeEmitter | None,
-    pre_state_bytes: bytes | None,
-    pre_events_size: int | None,
-    post_state: tuple[bytes | None, int | None] | None,
-) -> Decision | None:
-    """Run the strict (block-on) retrospective gate for a just-produced
-    terminal ``Decision``. On refusal: drop the buffered emit calls (so no
-    ``MissionRunCompleted`` ever reaches the real emitter), roll back
-    state.json/run.events.jsonl, and return the blocked ``Decision``. On
-    success (gate passes, or was never entered because ``policy_error`` is
-    ``None`` and capture raises nothing) returns ``None`` so the caller
-    proceeds to flush the buffer. Split out of ``_dn_decision_materialize``
-    to keep that phase's own complexity down — pure orchestration plumbing
-    local to this phase, not a re-extraction of WP04's retrospective seam.
-    """
-    mission_id = _retrospective_seam._resolve_mission_id_for_terminus(ctx.feature_dir)
-    config_root = ctx.owned.owned_root if ctx.owned is not None else ctx.repo_root
-    try:
-        if policy_error is not None:
-            raise policy_error
-        _retrospective_seam._run_retrospective_learning_capture(
-            mission_id=mission_id,
+def _retrospective_gate_refused_decision(ctx: DecideNextContext, refusal: _retrospective_seam.RetrospectiveGateRefused) -> Decision:
+    """The one ``blocked`` Decision of a refused terminal advance, on the legacy
+    and the composition path alike. ``guard_failures`` is the gate's
+    ``code: detail`` when the refusal carries a gate decision. The engine's
+    ``before_run_completed`` guard raised before anything was written, so the
+    run is exactly as other writers left it."""
+    return _mapping._materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.blocked,
+            agent=ctx.agent,
             mission_slug=ctx.mission_slug,
-            feature_dir=ctx.feature_dir,
-            repo_root=config_root,
-            block_on_failure=True,
-        )
-    except Exception as exc:
-        # Gate refused. Drop the buffered emit calls (so no
-        # MissionRunCompleted ever reaches the real emitter) and
-        # restore state.json + truncate run.events.jsonl to pre-call.
-        if buffer is not None:
-            buffer.discard()
-        if post_state is None:
-            # The post-commit state could not be read, so a conditional rollback
-            # cannot prove the run is still ours; leave it rather than risk
-            # clobbering a peer's commit.
-            logger.warning("rollback skipped for %s: post-commit run state unavailable", ctx.run_dir)
-        else:
-            _dn_rollback_buffered_run_state(ctx.run_dir, pre_state_bytes, pre_events_size, *post_state)
-        return _mapping._materialize_decision(
-            _cores.DecisionEnvelope(
-                kind=DecisionKind.blocked,
-                agent=ctx.agent,
-                mission_slug=ctx.mission_slug,
-                mission=ctx.mission_type,
-                mission_state=ctx.current_step_id or "unknown",
-                timestamp=ctx.now,
-                reason=f"Retrospective gate refused completion: {exc}",
-                progress=ctx.progress,
-                origin=ctx.origin,
-            )
-        )
-    return None
+            mission=ctx.mission_type,
+            mission_state=ctx.current_step_id or "unknown",
+            timestamp=ctx.now,
+            reason=f"Retrospective gate refused completion: {refusal.cause}",
+            progress=ctx.progress,
+            origin=ctx.origin,
+        ),
+        list(refusal.guard_failures),
+    )
 
 
 def _resolve_planned_wp_workspace(
@@ -1305,21 +1219,39 @@ def _engine_advance_refused_decision(ctx: DecideNextContext, exc: Exception) -> 
     )
 
 
-def _dn_advance_engine(ctx: DecideNextContext, plan: Any, engine_emitter: Any) -> NextDecision | Decision:
+def _dn_advance_engine(
+    ctx: DecideNextContext,
+    plan: Any,
+    engine_emitter: Any,
+    before_run_completed: Callable[[], None] | None = None,
+) -> NextDecision | Decision:
     """Persist the advance by committing the previewed ``plan`` (the engine
-    plans once; no second planning).
+    plans once; no second planning), else the engine's own ``next_step``.
+
+    ``before_run_completed`` (the abort-only retrospective gate, #5884/FR-010)
+    goes to whichever commit runs, so the gate runs -- under the engine's
+    run-cursor lock -- before anything is appended on every terminal path
+    (FR-009/FR-011, including the no-plan fallback). A refusal raises
+    :class:`RetrospectiveGateRefused`, which propagates past this function
+    untouched; nothing was written, so no capture, buffer or rollback exists.
 
     When the run moved past the plan (:class:`StaleAdvancePlan`) -- a peer
-    advanced it since this caller evaluated its step -- or the run-cursor lock
-    cannot be acquired within its bounded wait (:class:`LockAcquireTimeout`),
-    the advance is REFUSED with a ``blocked`` Decision and a named reason
-    (#5854), exactly as the composition path does. It is never re-planned
-    through ``next_step``: re-applying ``success`` could complete a step this
-    caller never ran."""
+    advanced it since this caller evaluated its step (#5682) -- or the
+    run-cursor lock cannot be acquired within its bounded wait
+    (:class:`LockAcquireTimeout`, a busy run), the advance is REFUSED with a
+    ``blocked`` Decision and a named reason (#5854), exactly as the composition
+    path does. It is never re-planned through ``next_step``: re-applying
+    ``success`` could complete a step this caller never ran."""
     if plan is None:
-        return runtime_next_step(ctx.run_ref, agent_id=ctx.agent, result=ctx.result, emitter=engine_emitter)
+        return runtime_next_step(
+            ctx.run_ref,
+            agent_id=ctx.agent,
+            result=ctx.result,
+            emitter=engine_emitter,
+            before_run_completed=before_run_completed,
+        )
     try:
-        return _engine_adapter.commit_advance(ctx.run_ref, plan, ctx.agent, engine_emitter)
+        return _engine_adapter.commit_advance(ctx.run_ref, plan, ctx.agent, engine_emitter, before_run_completed=before_run_completed)
     except (_engine_adapter.StaleAdvancePlan, LockAcquireTimeout) as exc:
         return _engine_advance_refused_decision(ctx, exc)
 
@@ -1330,59 +1262,48 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
     through WP07's Decision-builder. Always returns a ``Decision`` (never
     ``None``): this is the chain's terminal phase.
 
-    Strict retrospective policy remains a pre-completion gate. The default
-    post-completion policy is best-effort and must not buffer or roll back
-    MissionRunCompleted; it runs after terminal events have flushed.
+    The retrospective gate is the engine's abort-only ``before_run_completed``
+    guard, passed to whichever commit runs (FR-009, FR-011): a refusal raises
+    before anything is appended to ``run.events.jsonl`` or ``state.json``, so
+    nothing is captured, buffered or rolled back. The default post-completion
+    policy is best-effort and runs after the commit, once, on the transition
+    into terminal only.
     """
     # Root discipline (FR-009): retrospective policy is a P-local governance
     # read for an owned mission.
     config_root = ctx.owned.owned_root if ctx.owned is not None else ctx.repo_root
-    policy, _source_map, policy_error = _retrospective_seam._resolve_retrospective_policy_for_runtime(config_root)
-    retrospective_enabled = bool(getattr(policy, "enabled", False))
-    block_on_retrospective = _retrospective_seam._retrospective_blocks_completion(policy)
+    terminal_retrospective = _engine_adapter.TerminalRetrospective(
+        config_root=config_root,
+        mission_slug=ctx.mission_slug,
+        feature_dir=ctx.feature_dir,
+    )
 
     # T061 step 3: resolve a WP-iteration step's workspace BEFORE anything is
     # persisted; a failure propagates here with the run directory untouched.
     preview_plan, preresolved = _dn_preresolve_wp_workspace(ctx)
     preview_step_id = preview_plan.decision.step_id if preview_plan is not None else None
 
-    pre_state_bytes: bytes | None = None
-    pre_events_size: int | None = None
-    # Use the DecisionGitLog-wrapped emitter as the engine's emitter so that
-    # decision events are durably committed to the coordination branch.
-    engine_emitter: Any = ctx.emitter_for_engine
-    buffer: _retrospective_seam._BufferingRuntimeEmitter | None = None
-
-    if block_on_retrospective:
-        captured = _dn_capture_pre_speculative_state(ctx.run_dir)
-        if captured is None:
-            # If we cannot capture pre-state we cannot guarantee a clean
-            # rollback. Surface this as a blocked Decision rather than
-            # advancing into a state we cannot retract.
-            return _mapping._materialize_decision(
-                _cores.DecisionEnvelope(
-                    kind=DecisionKind.blocked,
-                    agent=ctx.agent,
-                    mission_slug=ctx.mission_slug,
-                    mission=ctx.mission_type,
-                    mission_state=ctx.current_step_id or "unknown",
-                    timestamp=ctx.now,
-                    reason=("Cannot read run state.json / run.events.jsonl before speculative engine advance; refusing to advance"),
-                    progress=ctx.progress,
-                    origin=ctx.origin,
-                )
-            )
-        pre_state_bytes, pre_events_size = captured
-        buffer = _retrospective_seam._BufferingRuntimeEmitter()
-        engine_emitter = buffer
-
-    # Advance via runtime
+    # Decision-log emitter disposition (ADR 2026-09-06-2 (c)): the engine emits
+    # into a buffer during the advance and we replay it into the
+    # DecisionGitLog-wrapped ``ctx.emitter_for_engine`` only once the advance has
+    # returned and the abort-only ``before_run_completed`` gate has passed, so
+    # decision events are durably committed to the coordination branch in
+    # original order. The buffer performs NO file capture/truncation/rollback
+    # (FR-009/FR-010/FR-011): the gate raises before the completion write, and a
+    # refused or engine-rejected advance discards the buffer, flushing nothing.
+    buffer = _retrospective_seam._BufferingRuntimeEmitter()
     try:
-        runtime_decision = _dn_advance_engine(ctx, preview_plan, engine_emitter)
+        runtime_decision = _dn_advance_engine(
+            ctx,
+            preview_plan,
+            buffer,
+            terminal_retrospective.before_run_completed,
+        )
+    except _retrospective_seam.RetrospectiveGateRefused as refusal:
+        buffer.discard()
+        return _retrospective_gate_refused_decision(ctx, refusal)
     except Exception as exc:
-        # Engine raised: discard any buffered events; nothing left to flush.
-        if buffer is not None:
-            buffer.discard()
+        buffer.discard()
         return _mapping._materialize_decision(
             _cores.DecisionEnvelope(
                 kind=DecisionKind.blocked,
@@ -1397,38 +1318,24 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
             )
         )
 
-    # The engine path refused a stale / lock-contended advance: it already
-    # returned the mapped ``blocked`` Decision (#5854). Drop any buffered
-    # events and surface it directly -- it is not a NextDecision to re-map.
+    # The engine path refused a stale / lock-contended advance (#5854): it
+    # already returned the mapped ``blocked`` Decision. Discard the buffered
+    # emits and surface it directly -- it is not a ``NextDecision`` to re-map,
+    # and no completion occurred so the after-completion capture must not run.
     if isinstance(runtime_decision, Decision):
-        if buffer is not None:
-            buffer.discard()
+        buffer.discard()
         return runtime_decision
 
-    if block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
-        # Record what OUR speculative commit left behind (same locked read as the
-        # pre-capture) so a refusal rolls back only while the run is still at it.
-        post_state = _dn_capture_pre_speculative_state(ctx.run_dir)
-        gate_decision = _dn_terminal_retrospective_gate(ctx, policy_error, buffer, pre_state_bytes, pre_events_size, post_state)
-        if gate_decision is not None:
-            return gate_decision
+    # The advance landed (the abort-only ``before_run_completed`` gate did not
+    # raise): replay the buffered emits into the decision-log wrap in original
+    # order so decision events are durably recorded (ADR 2026-09-06-2 (c)).
+    buffer.flush(ctx.emitter_for_engine)
 
-    # Gate either passed (terminal allow) or never ran (non-terminal /
-    # not opted in): flush any buffered emit calls into the decision-log-
-    # wrapped engine emitter so decision events are durably recorded and
-    # observers receive them in original order (ADR 2026-09-06-2 (c)).
-    if buffer is not None:
-        buffer.flush(ctx.emitter_for_engine)
-
-    if retrospective_enabled and not block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
-        mission_id = _retrospective_seam._resolve_mission_id_for_terminus(ctx.feature_dir)
-        _retrospective_seam._run_retrospective_learning_capture(
-            mission_id=mission_id,
-            mission_slug=ctx.mission_slug,
-            feature_dir=ctx.feature_dir,
-            repo_root=config_root,
-            block_on_failure=False,
-        )
+    # Run the best-effort, non-blocking post-completion capture once, on the
+    # transition into terminal only. ``after_run_completed`` self-guards on
+    # whether the terminal guard was reached, so it is a no-op on a
+    # non-terminal advance.
+    terminal_retrospective.after_run_completed()
 
     return _mapping._map_runtime_decision(
         runtime_decision,
@@ -1454,6 +1361,7 @@ def decide_next_via_runtime(
     repo_root: Path,
     *,
     owned: OwnedCheckout | None = None,
+    analysis_currency: AnalysisCurrency | None = None,
 ) -> Decision:
     """Main entry point replacing old decide_next().
 
@@ -1499,6 +1407,8 @@ def decide_next_via_runtime(
     if early_decision is not None:
         return early_decision
     assert ctx is not None  # _dn_bootstrap always pairs a ctx with None (or vice versa)
+    if analysis_currency is not None:
+        ctx = dataclasses.replace(ctx, analysis_currency=analysis_currency)
 
     for phase in (_dn_finalized_board_override, _dn_dependency_gate, _dn_composition_dispatch, _dn_decision_materialize):
         decision = phase(ctx)

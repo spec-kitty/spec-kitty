@@ -68,7 +68,6 @@ REMOVED: dict[str, tuple[str, ...]] = {
     ),
     "engine": ("_advance_run_state_after_composition",),
     "retrospective": (
-        "_BufferingRuntimeEmitter",
         "_rich_hic_prompt",
         "_resolve_mission_id_for_terminus",
         "_build_retrospective_facilitator_callback",
@@ -172,8 +171,11 @@ REMOVED: dict[str, tuple[str, ...]] = {
 _SEAMS = tuple(REMOVED)
 #: 36 names retired by #2561 plus 56 moved by #2560 (decision_mapping 27,
 #: decision_log 4, query 13, guards 9, identity 1, and the two artifact file
-#: names, which cores owns once and guards reads from it).
-_EXPECTED_TOTAL = 92
+#: names, which cores owns once and guards reads from it), less
+#: ``_BufferingRuntimeEmitter``, which is a live seam-owned class on
+#: ``runtime_bridge_retrospective`` (the decision-log emitter replay, ADR
+#: 2026-09-06-2 (c)) rather than a retired bridge name, so it is not a row here.
+_EXPECTED_TOTAL = 91
 
 # Floor and uniqueness: a shrinking or duplicated table must not make the gate vacuous.
 _ALL_REMOVED = [_n for _names_ in REMOVED.values() for _n in _names_]
@@ -555,9 +557,9 @@ def test_scan_indirect_ignores_names_the_bridge_still_owns() -> None:
 
 
 def test_scan_name_loads_flags_a_stale_annotation() -> None:
-    source = "from __future__ import annotations\n\ndef f(buffer: _BufferingRuntimeEmitter) -> None: ...\n"
-    assert scan_name_loads(source, ("_BufferingRuntimeEmitter",)) != []
-    assert scan_name_loads("_BufferingRuntimeEmitter = 1\n", ("_BufferingRuntimeEmitter",)) == []
+    source = "from __future__ import annotations\n\ndef f(rich: _rich_hic_prompt) -> None: ...\n"
+    assert scan_name_loads(source, ("_rich_hic_prompt",)) != []
+    assert scan_name_loads("_rich_hic_prompt = 1\n", ("_rich_hic_prompt",)) == []
 
 
 def test_scan_bare_calls_flags_a_bare_io_call_only() -> None:

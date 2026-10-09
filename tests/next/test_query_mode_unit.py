@@ -93,7 +93,10 @@ class TestQueryModeDoesNotAdvance:
             )
 
         assert result.exit_code == 0
-        mock_query.assert_called_once_with(None, "069-test", tmp_path)
+        mock_query.assert_called_once()
+        args, kwargs = mock_query.call_args
+        assert args == (None, "069-test", tmp_path)
+        assert callable(kwargs["analysis_currency"])  # WP07: query mode previews analyze while the report is not current
 
     def test_result_success_still_requires_agent(self, tmp_path: Path) -> None:
         with (

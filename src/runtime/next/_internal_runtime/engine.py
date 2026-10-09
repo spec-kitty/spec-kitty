@@ -601,6 +601,8 @@ def next_step(
     actor_context: dict[str, Any] | None = None,
     context: DiscoveryContext | None = None,  # noqa: ARG001
     emitter: RuntimeEventEmitter | None = None,
+    *,
+    before_run_completed: Callable[[], None] | None = None,
 ) -> NextDecision:
     """Advance current issued step and compute the next deterministic decision.
 
@@ -608,6 +610,10 @@ def next_step(
     path for drift detection. Uses persisted policy_snapshot from run state;
     caller override takes precedence. Plan (:func:`plan_advance`) then commit
     (:func:`_commit_advance`) -- the two halves share one plan.
+
+    ``before_run_completed`` is the same abort-only guard :func:`commit_advance`
+    takes: called on the transition into terminal, before anything is appended
+    or emitted; if it raises, nothing was written.
     """
     # Plan AND commit under ONE per-run-dir lock hold (FR-003): the plan reads
     # the cursor and the commit rewrites it, so planning outside the lock would
@@ -616,10 +622,12 @@ def next_step(
     # separate staleness check is needed here -- ``_refuse_stale_plan`` stays the
     # one authority for callers (``commit_advance``) whose plan predates the lock.
     # The lock is non-reentrant: ``plan_advance`` and ``_commit_advance`` never
-    # acquire it themselves.
+    # acquire it themselves. ``before_run_completed`` (the abort-only retrospective
+    # gate, #5884/FR-010) runs inside ``_commit_advance`` -- i.e. under the lock,
+    # before completion is appended or emitted; if it raises nothing was written.
     with run_cursor_lock(Path(run_ref.run_dir)):
         plan = plan_advance(run_ref, agent_id, result, policy_snapshot=policy_snapshot, actor_context=actor_context)
-        _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter())
+        _commit_advance(run_ref, plan, agent_id, emitter or NullEmitter(), before_run_completed=before_run_completed)
     return plan.decision
 
 

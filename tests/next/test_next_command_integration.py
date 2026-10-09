@@ -22,6 +22,7 @@ import pytest
 
 from tests._factories import provision_test_charter
 from tests.lane_test_utils import write_single_lane_manifest
+from tests.runtime._next_mission_scaffold import analysis_is_current
 
 pytestmark = pytest.mark.git_repo
 
@@ -246,6 +247,7 @@ def _advance_runtime_to_step(
         "specify",
         "plan",
         "tasks",
+        "analyze",
         "implement",
         "review",
         "accept",
@@ -553,7 +555,7 @@ class TestNextCommandKnownBlockedMissions:
             patch(
                 "runtime.next.runtime_bridge_guards._should_advance_wp_step",
                 side_effect=CanonicalStatusNotFoundError(
-                    "Canonical status not found for feature '042-test-feature'. "
+                    "Canonical status not found for mission '042-test-feature'. "
                     "Run 'spec-kitty agent mission finalize-tasks --mission "
                     "042-test-feature' to bootstrap the event log."
                 ),
@@ -617,6 +619,37 @@ class TestNextCommandCLI:
         assert "stale runtime notice" not in result.output
         data = json.loads(result.stdout)
         assert data["mission_slug"] == "042-test-feature"
+
+    def test_next_honours_an_edited_pack_runtime_template(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """FR-018: ``spec-kitty next`` plans from the pack runtime template.
+
+        A copied pack root (``SPEC_KITTY_PACKS_ROOT``) whose software-dev runtime
+        template gains a new first step is honoured by the CLI entry; the old
+        built-in tier read ``specify_cli/missions`` and ignored it.
+        """
+        import shutil
+
+        import yaml
+
+        pack_copy = tmp_path / "packs-copy"
+        shutil.copytree(Path(__file__).resolve().parents[2] / "packs", pack_copy)
+        template_path = pack_copy / "built-in" / "missions" / "software-dev" / "mission-runtime.yaml"
+        raw = yaml.safe_load(template_path.read_text(encoding="utf-8"))
+        marker_step = {"id": "zz_pack_marker", "title": "Marker", "description": "Edited in the pack copy"}
+        raw["steps"][0]["depends_on"] = ["zz_pack_marker"]
+        raw["steps"].insert(0, marker_step)
+        template_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+        monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(pack_copy))
+
+        repo_root = _scaffold_project(tmp_path)
+        _write_command_templates(repo_root, ["zz_pack_marker"])
+        monkeypatch.chdir(repo_root)
+
+        result = runner.invoke(cli_app, ["next", "--mission", "042-test-feature", "--json"])
+
+        assert result.exit_code == 0, result.output
+        preview = json.loads(result.stdout)["preview_step"]
+        assert "zz_pack_marker" in json.dumps(preview)
 
     def test_invalid_result_flag(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Invalid --result value causes exit code 1."""
@@ -1097,7 +1130,7 @@ class TestAtomicTaskTransitions:
 
         seen_steps = []
         for _i in range(40):
-            decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
+            decision = decide_next("test-agent", "042-test-feature", "success", repo_root, analysis_currency=analysis_is_current)
             if decision.kind == "terminal":
                 break
             if decision.step_id and decision.step_id not in seen_steps:
@@ -1110,5 +1143,6 @@ class TestAtomicTaskTransitions:
 
         plan_idx = seen_steps.index("plan")
         tasks_idx = seen_steps.index("tasks")
+        analyze_idx = seen_steps.index("analyze")
         implement_idx = seen_steps.index("implement")
-        assert plan_idx < tasks_idx < implement_idx, f"Steps out of order: {seen_steps}"
+        assert plan_idx < tasks_idx < analyze_idx < implement_idx, f"Steps out of order: {seen_steps}"

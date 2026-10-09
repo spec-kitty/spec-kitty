@@ -44,7 +44,8 @@ from runtime.next import runtime_bridge_io as _io_seam
 from runtime.next._internal_runtime import provide_decision_answer as runtime_provide_decision_answer
 from runtime.next._internal_runtime.events import runtime_emitter_for_mission, seed_runtime_emitter
 from runtime.next._internal_runtime.schema import ActorIdentity, MissionRuntimeError, load_mission_template_file
-from runtime.next.decision import Decision, DecisionKind, _compute_wp_progress
+from runtime.next.decision import AnalysisCurrency, Decision, DecisionKind, _compute_wp_progress
+from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
 
 
@@ -96,6 +97,37 @@ class MissionNotFoundError(Exception):
         super().__init__(f"Mission not found: '{handle}'")
 
 
+def _build_analysis_refusal_query_decision(
+    *,
+    analysis_failures: list[str],
+    agent: str | None,
+    mission_slug: str,
+    mission_type: str,
+    now: str,
+    progress: dict[str, Any] | None,
+    emitted_run_id: str | None,
+) -> Decision:
+    """B3, query mode: the finalized board implies ``implement`` but the analysis
+    report is not current, so the preview is ``analyze`` with the typed code and
+    one guard failure per stale input."""
+    return _mapping._materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.query,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=_cores.ANALYZE_STEP_ID,
+            timestamp=now,
+            reason=None,
+            progress=progress,
+            run_id=emitted_run_id,
+            preview_step=_cores.ANALYZE_STEP_ID,
+            error_code=_cores.analysis_error_code(analysis_failures),
+        ),
+        analysis_failures,
+    )
+
+
 def _build_finalized_override_query_decision(
     *,
     agent: str | None,
@@ -107,7 +139,20 @@ def _build_finalized_override_query_decision(
     repo_root: Path,
     finalized_override: str,
     owned: OwnedCheckout | None = None,
+    analysis_currency: AnalysisCurrency | None = None,
 ) -> Decision:
+    if finalized_override == "implement" and mission_type == MISSION_TYPE_SOFTWARE_DEV:
+        analysis_failures = _cores.evaluate_analysis_currency(_io_seam.gather_analysis_currency(analysis_currency))
+        if analysis_failures:
+            return _build_analysis_refusal_query_decision(
+                analysis_failures=analysis_failures,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission_type=mission_type,
+                now=now,
+                progress=progress,
+                emitted_run_id=emitted_run_id,
+            )
     override_wp_id: str | None = None
     if finalized_override == "done":
         mission_state = "done"
@@ -273,6 +318,7 @@ def query_current_state(
     repo_root: Path,
     *,
     owned: OwnedCheckout | None = None,
+    analysis_currency: AnalysisCurrency | None = None,
 ) -> Decision:
     """Return current mission state without advancing the DAG.
 
@@ -293,6 +339,8 @@ def query_current_state(
         agent: Agent name (for Decision construction only).
         mission_slug: Mission slug (e.g. '069-planning-pipeline-integrity').
         repo_root: Repository root path.
+        analysis_currency: The injected analysis-report check (WP07, B3); read only
+            when the finalized board would preview ``implement``.
     """
     now = now_utc_iso()
     merged_short_circuit = _mapping._merged_mission_short_circuit(
@@ -384,6 +432,7 @@ def query_current_state(
             repo_root=repo_root,
             owned=owned,
             emitted_run_id=emitted_run_id,
+            analysis_currency=analysis_currency,
         )
     finally:
         if ephemeral_run_store is not None:
@@ -443,17 +492,18 @@ def _query_read_runtime_plan(
                 repo_root,
             )
             snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
-            template_path = Path(run_ref.run_dir) / "mission_template_frozen.yaml"
-            template = load_mission_template_file(template_path)
+            live_template_path = Path(run_ref.run_dir) / "mission_template_frozen.yaml"
         else:
             snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
-            template_path = Path(snapshot.template_path)
-            template = load_mission_template_file(template_path)
+            # The recorded live path feeds only the drift check; it may be gone
+            # (a moved or deleted built-in copy) without breaking the run (B1).
+            live_template_path = Path(snapshot.template_path)  # planner skips drift when it is gone
+        template = load_mission_template_file(Path(run_ref.run_dir) / "mission_template_frozen.yaml")
         runtime_decision = _engine_adapter.plan_next(
             snapshot,
             template,
             snapshot.policy_snapshot,
-            live_template_path=template_path,
+            live_template_path=live_template_path,
         )
     except QueryModeValidationError:
         raise
@@ -476,6 +526,7 @@ def _query_dispatch_decision(
     repo_root: Path,
     owned: OwnedCheckout | None,
     emitted_run_id: str | None,
+    analysis_currency: AnalysisCurrency | None = None,
 ) -> Decision:
     """Campsite extraction (T058) of ``query_current_state``'s
     finalized-override / initial / decision-required / runtime branch
@@ -496,6 +547,7 @@ def _query_dispatch_decision(
             repo_root=repo_root,
             finalized_override=finalized_override,
             owned=owned,
+            analysis_currency=analysis_currency,
         )
 
     if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:

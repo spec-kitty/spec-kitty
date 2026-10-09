@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -29,71 +30,39 @@ from runtime.next import runtime_bridge_retrospective as retro
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
-# 1a. _BufferingRuntimeEmitter
+# 1a. RetrospectiveGateRefused / _gate_guard_failures
 # ---------------------------------------------------------------------------
 
 
-def test_buffering_runtime_emitter_records_and_flushes_in_order() -> None:
-    buffer = retro._BufferingRuntimeEmitter()
-    assert buffer.call_count() == 0
+class _Blocked(Exception):
+    """Stands in for ``MissionCompletionBlocked``: carries a ``decision``."""
 
-    p1, p2 = object(), object()
-    buffer.emit_mission_run_started(p1)
-    buffer.emit_next_step_issued(p2)
-    buffer.seed_from_snapshot(object())  # pass-through, never buffered
-    assert buffer.call_count() == 2
-
-    class _Target:
-        def __init__(self) -> None:
-            self.seen: list[tuple[str, Any]] = []
-
-        def emit_mission_run_started(self, payload: Any) -> None:
-            self.seen.append(("emit_mission_run_started", payload))
-
-        def emit_next_step_issued(self, payload: Any) -> None:
-            self.seen.append(("emit_next_step_issued", payload))
-
-    target = _Target()
-    buffer.flush(target)
-    assert target.seen == [("emit_mission_run_started", p1), ("emit_next_step_issued", p2)]
-    assert buffer.call_count() == 0  # cleared after flush
-
-    # Re-flush is a no-op (single one-shot replay).
-    target2 = _Target()
-    buffer.flush(target2)
-    assert target2.seen == []
+    def __init__(self, decision: Any) -> None:
+        super().__init__("blocked")
+        self.decision = decision
 
 
-def test_buffering_runtime_emitter_discard_drops_without_replay() -> None:
-    buffer = retro._BufferingRuntimeEmitter()
-    buffer.emit_mission_run_completed(object())
-    assert buffer.call_count() == 1
-    buffer.discard()
-    assert buffer.call_count() == 0
-
-    class _Target:
-        def __init__(self) -> None:
-            self.called = False
-
-        def emit_mission_run_completed(self, payload: Any) -> None:
-            self.called = True
-
-    target = _Target()
-    buffer.flush(target)  # already flushed (discard sets the flag) -> no-op
-    assert target.called is False
+def _reason(**fields: str) -> SimpleNamespace:
+    return SimpleNamespace(reason=SimpleNamespace(**fields))
 
 
-def test_buffering_runtime_emitter_flush_skips_unknown_target_methods() -> None:
-    buffer = retro._BufferingRuntimeEmitter()
-    buffer.emit_significance_evaluated(object())
-    buffer.emit_decision_timeout_expired(object())
+def test_gate_refusal_reads_code_and_detail_from_a_gate_decision() -> None:
+    cause = _Blocked(_reason(code="no_record", detail="no retrospective record"))
 
-    class _BareTarget:
-        pass
+    refusal = retro.RetrospectiveGateRefused(cause)
 
-    # Target lacks both emit_* methods -- flush must not raise.
-    buffer.flush(_BareTarget())
-    assert buffer.call_count() == 0
+    assert refusal.cause is cause
+    assert refusal.guard_failures == ["no_record: no retrospective record"]
+    assert str(refusal) == "blocked"
+
+
+@pytest.mark.parametrize("cause", [RuntimeError("no decision attribute"), _Blocked(_reason())])
+def test_gate_refusal_without_a_gate_decision_has_no_guard_failures(cause: Exception) -> None:
+    assert retro.RetrospectiveGateRefused(cause).guard_failures == []
+
+
+def test_gate_refusal_with_a_gate_decision_missing_its_detail_keeps_the_code() -> None:
+    assert retro.RetrospectiveGateRefused(_Blocked(_reason(code="no_record"))).guard_failures == ["no_record: "]
 
 
 # ---------------------------------------------------------------------------
