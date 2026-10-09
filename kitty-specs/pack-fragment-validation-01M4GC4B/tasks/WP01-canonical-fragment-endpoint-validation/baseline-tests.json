@@ -1,0 +1,13 @@
+{
+  "wp_id": "WP01",
+  "captured_at": "2026-10-09T14:17:26Z",
+  "base_branch": "issue-5833-pack-fragment-validation",
+  "base_commit": "5d294abd1a9b9b94e616b7b1bd26f196d380a71b",
+  "test_runner": "custom",
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml"
+}
