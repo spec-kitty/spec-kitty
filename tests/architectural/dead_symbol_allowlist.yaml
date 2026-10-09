@@ -165,7 +165,7 @@ categories:
     requires_issue: false
   category_c_wp_in_flight_charter_yaml_io_write_helper:
     rationale: 'C. consolidate-charter-bundle WP01 shared write-helper vocabulary. ``charter.activation.charter_yaml_io.update_charter_yaml_section``
-      (the INV-9 single writer all three charter.yaml mutators -- activation_engine.commit_plan, pack_manager.merge_defaults,
+      (the INV-9 single writer the charter.yaml mutators -- activation_engine.commit_plan and
       compiler.write_compiled_charter -- route through) IS wired with a live src/ caller. ``OWNED_SECTIONS``
       (the public vocabulary of section names callers may name) and ``UnknownCharterYamlSectionError``
       (the typed error the helper raises for an unrecognised section) are the module''s public *contract*
@@ -980,9 +980,6 @@ entries:
   category: category_c_wp_in_flight_unified_mission_step
 - module: charter.activation.pack_manager
   name: ActivationResult
-  category: category_c_wp_in_flight_charter_activation
-- module: charter.activation.pack_manager
-  name: MergeResult
   category: category_c_wp_in_flight_charter_activation
 - module: specify_cli.charter_activate
   name: AffectedMission

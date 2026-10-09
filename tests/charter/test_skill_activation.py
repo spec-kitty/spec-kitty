@@ -212,35 +212,19 @@ def test_deactivate_skill_from_absent_key_is_refused_with_guidance(project: Path
     assert "spec-kitty upgrade" not in message
 
 
-def test_absent_key_remedy_for_all_kinds_still_points_at_upgrade() -> None:
-    assert "spec-kitty upgrade" in str(NoActivationRestrictionsError("tactic"))
-    assert "spec-kitty upgrade" in str(NoActivationRestrictionsError("not-a-kind"))
+def test_absent_key_remedy_for_all_kinds_points_at_one_activation_not_upgrade() -> None:
+    """``spec-kitty upgrade`` never seeds an absent key, so that remedy would loop (#4400)."""
+    for kind in ("tactic", "not-a-kind"):
+        message = str(NoActivationRestrictionsError(kind))
+        assert f"spec-kitty charter activate {kind} <id>" in message
+        assert "spec-kitty upgrade" not in message
+    assert "org-required" not in str(NoActivationRestrictionsError("tactic"))
 
 
 def test_activating_a_skill_leaves_other_kinds_untouched(project: Path) -> None:
     _activate(project, "skill", "x")
     assert _activated(project, "activated_tactics") is None
     assert _activated(project, "activated_procedures") is None
-
-
-# ---------------------------------------------------------------------------
-# merge_defaults must not write the skills key (reviewer-mandated)
-# ---------------------------------------------------------------------------
-
-
-def test_merge_defaults_keeps_an_absent_skills_key_absent(project: Path) -> None:
-    result = ActiveCharterManager().merge_defaults(ProjectContext(repo_root=project))
-
-    assert "skill" not in result.kinds_written
-    assert _activated(project, "activated_skills") is None
-    assert _activated(project, "activated_directives") is not None
-    assert _skill_ids_in_force(project) == {"required-one"}
-
-
-def test_merge_defaults_preserves_an_explicit_skills_key(project: Path) -> None:
-    support.write_config(project, project / "pack", extra="activated_skills: [z]\n")
-    ActiveCharterManager().merge_defaults(ProjectContext(repo_root=project))
-    assert _activated(project, "activated_skills") == ["z"]
 
 
 # ---------------------------------------------------------------------------

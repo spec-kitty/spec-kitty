@@ -23,7 +23,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.activation.compiler import provision_mission_type_activations
-from charter.activation.default_pack import load_default_pack_activation_ids
+from charter.activation.default_pack import load_default_mission_type_activations
 from charter.activation.pack_context import PackContext
 
 
@@ -68,7 +68,7 @@ def _load(path: Path) -> dict:
 
 
 def _builtin_mission_types() -> list[str]:
-    return list(load_default_pack_activation_ids()["mission_type_activations"])
+    return load_default_mission_type_activations()
 
 
 def test_provision_emits_builtin_set_into_pointer_charter(tmp_path: Path) -> None:

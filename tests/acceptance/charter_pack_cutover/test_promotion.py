@@ -20,7 +20,7 @@ from click.testing import Result
 
 from ._effective_set import builtin_inventory, effective_set, expand
 from ._requirements import REPO_ROOT
-from ._support import active_charter, covers, describe, load_yaml, output_of, pending_until, run_cli
+from ._support import active_charter, covers, describe, load_yaml, output_of, run_cli
 from .legacy_fixtures import (
     ORG2_DIRECTIVE_ID,
     ORG2_DIRECTIVE_STEM,
@@ -180,7 +180,7 @@ def _assert_caller_ran(caller: str, result: Result) -> None:
 
 
 @covers("FR-015", "US5-1")
-@pytest.mark.parametrize("caller", [pytest.param(c, id=c, marks=pending_until("WP06", f"{c} promotes from the effective set")) for c in CALLERS])
+@pytest.mark.parametrize("caller", list(CALLERS))
 def test_fr015_promotion_preserves_effective_set(caller: str, tmp_path: Path, charter_cwd_isolation: Callable[..., Path], monkeypatch: pytest.MonkeyPatch) -> None:
     project = _fixture(tmp_path)
     charter_cwd_isolation(project)
@@ -200,7 +200,6 @@ def test_fr015_promotion_preserves_effective_set(caller: str, tmp_path: Path, ch
 
 
 @covers("FR-015", "US5-2")
-@pending_until("WP06", "unresolvable promotion leaves the key absent and reports it")
 def test_fr015_unresolvable_set_leaves_key_absent_and_reports(tmp_path: Path) -> None:
     healthy = _fixture(tmp_path / "healthy")
     assert _interview(healthy).exit_code == 0
@@ -215,7 +214,6 @@ def test_fr015_unresolvable_set_leaves_key_absent_and_reports(tmp_path: Path) ->
 
 
 @covers("FR-015", "C-007")
-@pending_until("WP06", "one public effective-set seam used by the four callers")
 def test_fr015_effective_set_seam_is_public() -> None:
     seam = importlib.import_module("charter.activation.effective_set")
     public = [name for name, value in vars(seam).items() if callable(value) and not name.startswith("_") and getattr(value, "__module__", "") == seam.__name__]
@@ -228,7 +226,6 @@ def test_fr015_effective_set_seam_is_public() -> None:
 
 
 @covers("C-007")
-@pending_until("WP06", "the interview stops importing from a migration module")
 def test_c007_interview_does_not_import_a_migration_module() -> None:
     tree = ast.parse((REPO_ROOT / "src/specify_cli/cli/commands/charter/interview.py").read_text(encoding="utf-8"))
     modules = [node.module or "" for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)]
@@ -237,7 +234,6 @@ def test_c007_interview_does_not_import_a_migration_module() -> None:
 
 
 @covers("FR-005")
-@pending_until("WP06", "merge_defaults and _load_default_pack removed")
 def test_fr005_merge_defaults_removed() -> None:
     pack_manager = importlib.import_module("charter.activation.pack_manager")
     assert hasattr(pack_manager, "YAML_KEY_MAP"), "control: the real module"

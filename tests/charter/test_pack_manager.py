@@ -4,10 +4,9 @@ Covers:
 - ``YAML_KEY_MAP``: entry count, mission-type outlier, value naming conventions
 - ``activate()``: None-state materialisation, existing-set append, no-duplicate,
   comment preservation, invalid-kind ValueError
-- ``deactivate()``: None-state exit-1 with upgrade guidance, remove from list,
+- ``deactivate()``: None-state exit-1 with activate-first guidance, remove from list,
   warn-when-absent, invalid-kind ValueError
 - ``list_activated()``: None-state returns None per kind, populated returns frozenset
-- ``merge_defaults()``: writes absent keys, preserves present keys, backup on charter
 - Mission-type layer scan (WP05, T011/T012 -- FR-003/FR-005/NFR-002): org/project
   layer resolution for the flat ``mission-type`` kind, built-in->org->project
   precedence order, the missing-project-directory edge case, and the
@@ -338,13 +337,13 @@ class TestDeactivateNoneState:
         """deactivate() on a None-state kind raises the typed engine error.
 
         WP09/T042: the legacy ``sys.exit(1)`` is gone — the activation engine
-        raises NoActivationRestrictionsError (carrying the "run upgrade first"
+        raises NoActivationRestrictionsError (carrying the "activate one first"
         guidance) for the CLI (WP12) to surface, so the engine/manager never
         touch process state.
         """
         from charter.activation.activation_engine import NoActivationRestrictionsError
 
-        with pytest.raises(NoActivationRestrictionsError, match="spec-kitty upgrade"):
+        with pytest.raises(NoActivationRestrictionsError, match="Activate one first"):
             manager.deactivate(ctx, kind="directive", artifact_id="something")
 
 
@@ -420,92 +419,6 @@ class TestListActivated:
         result = manager.list_activated(ctx)
         assert result["tactic"] is None
         assert result["paradigm"] is None
-
-
-# ---------------------------------------------------------------------------
-# TestMergeDefaults
-# ---------------------------------------------------------------------------
-
-
-class TestMergeDefaults:
-    def test_writes_absent_keys(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
-        result = manager.merge_defaults(ctx)
-        assert len(result.kinds_written) == 10  # every kind but the opt-in skill kind
-        config = project_root / ".kittify" / "config.yaml"
-        data = yaml.safe_load(config.read_text())
-        for yaml_key in YAML_KEY_MAP.values():
-            if yaml_key == "activated_skills":
-                continue  # default-in-force: an absent skills key stays absent
-            assert yaml_key in data, f"Missing key after merge_defaults: {yaml_key}"
-        assert "activated_skills" not in data
-        assert "skill" not in result.kinds_written
-
-    def test_does_not_overwrite_present_keys(self, manager: ActiveCharterManager, project_root: Path) -> None:
-        config = project_root / ".kittify" / "config.yaml"
-        config.write_text(
-            "activated_directives:\n  - only-mine\n",
-            encoding="utf-8",
-        )
-        ctx = ProjectContext(repo_root=project_root)
-        result = manager.merge_defaults(ctx)
-        data = yaml.safe_load(config.read_text())
-        # existing directive key must not be overwritten
-        assert data["activated_directives"] == ["only-mine"]
-        # the other 9 absent kinds (all but directive and the opt-in skill kind) are written
-        assert "directive" not in result.kinds_written
-        assert len(result.kinds_written) == 9
-
-    def test_creates_backup_when_charter_exists(self, manager: ActiveCharterManager, ctx: ProjectContext, project_root: Path) -> None:
-        charter_dir = project_root / ".kittify" / "charter"
-        charter_dir.mkdir(parents=True)
-        charter_file = charter_dir / "charter.md"
-        charter_file.write_text("# My Charter\n", encoding="utf-8")
-
-        result = manager.merge_defaults(ctx)
-        assert result.backup_path is not None
-        assert result.backup_path.exists()
-        assert result.backup_path.read_text() == "# My Charter\n"
-        assert result.backup_path.parent.name == "backups"
-
-    def test_no_backup_when_no_charter(self, manager: ActiveCharterManager, ctx: ProjectContext) -> None:
-        result = manager.merge_defaults(ctx)
-        assert result.backup_path is None
-
-    def test_backup_filename_matches_pre_migration_golden_bytes(
-        self,
-        manager: ActiveCharterManager,
-        ctx: ProjectContext,
-        project_root: Path,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """SC-004 persisted-artifact golden (kernel-clock-single-door WP07).
-
-        Captured from the PRE-migration tree (before ``pack_manager.py``
-        routed onto the door): under a frozen instant of
-        ``2026-11-02T14:15:16.654321+00:00``, the raw
-        ``datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")`` call this method
-        used to make produced the literal backup filename
-        ``charter-20261102T141516Z.md``. This test freezes the door's
-        ``DEFAULT_CLOCK`` (the seam the migrated call now reads through via
-        ``now_utc_compact_stamp()``) to that exact instant and asserts the
-        backup filename this WP's migrated code produces is byte-identical
-        to that pre-migration golden -- proving the swap-to-producer changed
-        no on-disk bytes.
-        """
-        import kernel.clock as clock_module
-        from kernel.clock import UTC, FrozenClock, datetime as door_datetime
-
-        fixed = door_datetime(2026, 11, 2, 14, 15, 16, 654321, tzinfo=UTC)
-        monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=fixed))
-
-        charter_dir = project_root / ".kittify" / "charter"
-        charter_dir.mkdir(parents=True)
-        (charter_dir / "charter.md").write_text("# My Charter\n", encoding="utf-8")
-
-        result = manager.merge_defaults(ctx)
-
-        assert result.backup_path is not None
-        assert result.backup_path.name == "charter-20261102T141516Z.md"
 
 
 # ---------------------------------------------------------------------------

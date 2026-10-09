@@ -1,27 +1,12 @@
-"""Shared loader for the shipped default charter pack's activation ID lists.
+"""Fail-closed loader for the shipped default pack's ``mission_type_activations``.
 
-Two ``specify_cli`` consumers both need the real built-in ``activated_<kind>``
-id sets from ``src/charter/activation/packs/default.yaml``, as the ``default_ids``
-argument to :func:`charter.activation.activation_engine.promote_activations` (the WP06
-absent-key LAND-BLOCKER safety: promoting into a previously-absent
-``activated_<kind>`` config key must materialize every built-in id first,
-never write a bare restrictive list):
+The per-kind ``activated_<kind>`` lists of ``default.yaml`` are no longer read
+here: what an absent key means is answered by the one public effective-set seam,
+:mod:`charter.activation.effective_set` (FR-015, #4400), never by a shipped id
+list. What remains is the mission-type provisioning seed below, until WP09
+replaces it with the ``default`` preset and removes this module.
 
-- :func:`charter.activation.org_charter._promote_org_required_to_config`
-  (org-required-artefact promotion)
-- :class:`specify_cli.upgrade.migrations.m_unify_charter_activation.UnifyCharterActivationMigration`
-  (answers-only-selection promotion)
-
-Both landed in the same PR with independent, near-identical readers of the
-same file (squad finding #2530). This module is the single canonical loader
-both now import — the ``charter`` layer is the correct home because
-``org_charter.py`` (specify_cli) and the migration (also specify_cli) are
-peers with no dependency relationship to each other, and both are permitted
-to import from ``charter`` (specify_cli sits above charter in the layer
-chain: kernel <- doctrine <- charter <- glossary/runtime <- specify_cli).
-
-A THIRD, distinct seam lives here too:
-:func:`load_default_mission_type_activations`. It is the single fail-closed
+The remaining seam, :func:`load_default_mission_type_activations`, is the single fail-closed
 seed-READ for ``mission_type_activations`` consumed by both
 ``specify_cli.provisioning.default_charter.provision_default_mission_type_activations``
 (``spec-kitty init``/``upgrade``) and
@@ -46,7 +31,6 @@ from charter.activation.pack_context import ActiveCharterConfigError
 
 __all__ = [
     "load_default_mission_type_activations",
-    "load_default_pack_activation_ids",
 ]
 
 #: The single ``mission_type_activations`` key name, shared by both
@@ -67,10 +51,8 @@ def _default_pack_yaml_path(charter_pkg_root: Path | None) -> Path:
 def _load_raw_pack_mapping(pack_path: Path) -> dict[str, Any]:
     """Load *pack_path* as a YAML mapping, degrading to ``{}`` on any failure.
 
-    Shared by both :func:`load_default_pack_activation_ids` (fail-open — an
-    empty mapping is a valid "nothing here" answer for its callers) and
-    :func:`load_default_mission_type_activations` (fail-closed — an empty
-    mapping there means "cannot provision", so it raises instead).
+    :func:`load_default_mission_type_activations` treats an empty mapping as
+    "cannot provision" and raises (fail closed).
     """
     if not pack_path.exists():
         return {}
@@ -85,32 +67,6 @@ def _load_raw_pack_mapping(pack_path: Path) -> dict[str, Any]:
     return raw
 
 
-def load_default_pack_activation_ids(
-    charter_pkg_root: Path | None = None,
-) -> dict[str, list[str]]:
-    """Load the shipped default-pack's ``activated_<kind>`` id lists.
-
-    Reads ``<charter_pkg_root>/packs/default.yaml`` (defaults to
-    ``src/charter/activation/packs/default.yaml``, the pack shipped with spec-kitty) and
-    returns every top-level list-valued key verbatim — already in
-    ``activated_<kind>`` form (``config.yaml``'s own key naming), so callers
-    select only the keys they need via ``dict.get``.
-
-    Returns ``{}`` when the file is absent, unreadable, empty, malformed
-    YAML, or not a mapping — callers must treat an empty dict as "no real
-    built-in default available" and must NOT silently synthesize one (see
-    the WP06 absent-key LAND-BLOCKER note in
-    :func:`charter.activation.activation_engine.promote_activations`).
-
-    Args:
-        charter_pkg_root: Optional override for the ``charter`` package root
-            (primarily for tests exercising a synthetic pack directory).
-            Defaults to this module's own directory.
-    """
-    raw = _load_raw_pack_mapping(_default_pack_yaml_path(charter_pkg_root))
-    return {key: list(value) for key, value in raw.items() if isinstance(value, list)}
-
-
 def load_default_mission_type_activations(pack_path: Path | None = None) -> list[str]:
     """Return the authored ``mission_type_activations`` list, failing closed.
 
@@ -122,9 +78,7 @@ def load_default_mission_type_activations(pack_path: Path | None = None) -> list
     same shipped ``default.yaml`` (squad-found maintainability defect: they
     previously read it through two independent stacks).
 
-    Unlike :func:`load_default_pack_activation_ids` (fail-open, ``{}`` on any
-    problem — several other callers rely on that), this helper is
-    deliberately fail-closed: a missing file, unreadable/malformed YAML, a
+    This helper is deliberately fail-closed: a missing file, unreadable/malformed YAML, a
     non-list value, or an authored-but-empty list all raise. An authored
     empty ``mission_type_activations: []`` in the *shipped* default pack is
     itself a broken-install signal, not a legitimate "no mission types" pack

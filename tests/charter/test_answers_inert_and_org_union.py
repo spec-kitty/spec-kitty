@@ -33,6 +33,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.activation.compiler import compile_charter
+from charter.activation.effective_set import resolve_effective_sets
 from charter.activation.interview import CharterInterview, default_interview
 from charter.activation.pack_context import PackContext
 from charter.offering.service import DoctrineService
@@ -44,7 +45,6 @@ from charter.activation.org_charter import (
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_PACK_PATH = REPO_ROOT / "src" / "charter" / "activation" / "packs" / "default.yaml"
 
 
 def _safe_yaml() -> YAML:
@@ -207,9 +207,9 @@ class TestOrgRequiredPromotedIntoConfig:
     def test_promotion_into_absent_config_key_preserves_builtins(self, tmp_path: Path) -> None:
         """LAND-BLOCKER guard (WP06): promoting ``required_directives`` into a
         previously-absent ``activated_directives`` key must NOT write a bare
-        ``[org-required-directive]`` list -- it must materialize every
-        built-in directive first (the real shipped default pack), preserving
-        the absent-key "all built-ins active" three-state contract
+        ``[org-required-directive]`` list -- it must materialize the
+        effective set first (FR-015, #4400), preserving the absent-key
+        "everything effective" three-state contract
         :meth:`charter.activation.pack_context.PackContext.from_config` depends on.
         """
         pack = tmp_path / "pack"
@@ -234,18 +234,15 @@ class TestOrgRequiredPromotedIntoConfig:
             [("pack", pack)],
             preseed={"mission_type_activations": ["software-dev"]},
         )
+        effective = resolve_effective_sets(consumer, ["activated_directives"])["activated_directives"]
+        assert effective.resolved and len(effective.ids) >= 15, "fixture assumption: a real directive set is effective"
 
         apply_org_charter_to_interview(_Interview(), consumer)
 
         written = _read_config_yaml(consumer).get("activated_directives")
         assert written is not None, "promotion into an absent key must materialize a list, not leave it absent"
 
-        # Real built-in directive ids, loaded independently of the production
-        # code under test, straight from the shipped pack -- this assertion
-        # does not just restate the implementation.
-        default_pack_raw = _safe_yaml().load(DEFAULT_PACK_PATH.read_text(encoding="utf-8"))
-        builtin_directives = list(default_pack_raw["activated_directives"])
-        assert len(builtin_directives) >= 15, "fixture assumption: the shipped default pack ships a real directive set"
+        builtin_directives = sorted(effective.ids)
 
         assert set(builtin_directives).issubset(set(written)), (
             "promoting an org-required directive into an absent config key must "
@@ -253,7 +250,7 @@ class TestOrgRequiredPromotedIntoConfig:
             "disable the project's baseline governance"
         )
         assert "org-required-directive" in written
-        assert len(written) == len(builtin_directives) + 1, "the committed list must be exactly the built-ins plus the promoted id -- never a bare restrictive list"
+        assert len(written) == len(builtin_directives) + 1, "the committed list must be the effective set plus the promoted id, never a bare list"
 
         ctx = PackContext.from_config(consumer)
         assert ctx.activated_directives is not None

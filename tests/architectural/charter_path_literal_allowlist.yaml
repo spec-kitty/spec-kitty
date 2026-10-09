@@ -62,7 +62,11 @@
 # `_CHARTER_RELATIVE_PATH` literal is gone (the module now imports
 # `charter.bundle.CHARTER_YAML` instead), so the site is genuinely gone from
 # the census, not relocated. FLOOR lowered in the gate to match.
-charter_path_literal_baseline: 49
+# DRAINED 2026-10-07 (mission charter-pack-cutover-01M491G6 WP06, #4400): 49 -> 47.
+# ActiveCharterManager.merge_defaults (and the pack_manager _CHARTER_FILENAME
+# constant only it used) were deleted, so both pack_manager.py sites are gone
+# from the census, not relocated.
+charter_path_literal_baseline: 47
 
 charter_path_literals:
 - file: src/charter/activation/compiler.py
@@ -86,13 +90,6 @@ charter_path_literals:
   clause: "a"
   token: "pointer ="
   rationale: "Serialized config-pointer FALLBACK string persisted into config.yaml when the bundle resolves outside repo_root; the on-disk config format must stay a stable literal string, not a Path constant."
-- file: src/charter/activation/pack_manager.py
-  qualname: <module>
-  line: 168
-  literal: "charter.md"
-  clause: "a"
-  token: "_CHARTER_FILENAME ="
-  rationale: "Pack-layer segment-name constant: pack_manager composes layer directories from its own segment names and by C-008 knows only segment names, not the repo-root bundle path that CHARTER_YAML/CHARTER_MD encode."
 - file: src/charter/activation/schemas.py
   qualname: ExtractionMetadata
   line: 272
@@ -388,13 +385,6 @@ charter_path_literals:
   clause: "b"
   token: "if not charter_path . exists ( ) :"
   rationale: "Paired with the :48 _CHARTER_FILENAME constant declaration -- ensure_charter_bundle_fresh reads charter.md's presence to decide whether to auto-refresh extracted artifacts; charter.yaml remains the C-001 presence/config authority elsewhere in this module (_load_charter_yaml_section)."
-- file: src/charter/activation/pack_manager.py
-  qualname: ActiveCharterManager.merge_defaults
-  line: 849
-  literal: "charter.md"
-  clause: "b"
-  token: "if charter_md_path . exists ( ) :"
-  rationale: "Paired with the :168 _CHARTER_FILENAME constant declaration -- merge_defaults probes charter.md only to decide whether to back it up before writing activation defaults; the write target itself is resolved via resolve_activation_write_target against charter.yaml/config.yaml, never charter.md."
 - file: src/specify_cli/charter_runtime/preflight/runner.py
   qualname: _is_legacy_charter_bundle
   line: 281
