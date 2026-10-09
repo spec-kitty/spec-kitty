@@ -64,7 +64,7 @@ _AUTHORED_FILENAMES = frozenset({"pack.yaml", "pack.md"})
 # ``constituents``/``schema_version``/``manifest_hash`` leaking in would be a
 # split-boundary violation) and no fewer.
 _PACK_DESCRIPTOR_FIELDS = frozenset(
-    {"pack_id", "pack_version", "parent_pack", "accompanies_doctrine_pack", "name"}
+    {"pack_id", "pack_version", "parent_pack", "name"}
 )
 
 
@@ -88,10 +88,8 @@ def test_authored_pack_yaml_exists_and_is_shaped_as_a_pack_descriptor() -> None:
     assert isinstance(pack_version, str) and pack_version, "pack_version must be authored (non-empty)"
 
     # The built-in pack is the root of every lineage chain (no built-in-of-a-
-    # built-in), and does not itself accompany a doctrine pack (that field is
-    # only meaningful for charter/synthesized packs).
+    # built-in).
     assert data["parent_pack"] is None
-    assert data["accompanies_doctrine_pack"] is None
     assert data["name"] == "built-in"
 
 

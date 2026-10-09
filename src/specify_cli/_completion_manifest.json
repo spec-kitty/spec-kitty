@@ -539,11 +539,6 @@
        "help": "Print a pack's root, or with --preset the preset file (FR-006).\n\nFails closed (exit 1) with PACK_NOT_FOUND or PRESET_NOT_FOUND, listing the\nvalid names.",
        "hidden": false,
        "deprecated": false
-      },
-      "apply": {
-       "help": "Apply a built-in charter pack's activation keys into .kittify/config.yaml (#3064).\n\nUser Customization Preservation: by default this is an additive merge —\na ``config.yaml`` key the pack declares is only written when it is\ncurrently absent. An already-present key (even an empty list a user\nexplicitly authored) is left untouched unless ``--force`` is passed, in\nwhich case every key the pack declares is overwritten.\n\nPass ``--compile`` to also chain the existing compile seam\n(``spec-kitty charter generate --no-from-interview``) so\n``.kittify/charter/charter.yaml`` is produced in the same step. That\nflag requires a git repository (inherited from ``generate``); the\ndefault merge (no ``--compile``) stays a pure, git-agnostic additive\nmerge (C-004).",
-       "hidden": false,
-       "deprecated": false
       }
      }
     },

@@ -7,8 +7,10 @@ the shipped pack:
 
 1. every retired ``(kind, stem)`` no longer resolves in built-in doctrine
    (the fail-closed compile path raises ``UnknownArtifactIdError`` for it);
-2. every successor resolves, and the shipped ``default.yaml`` activates the
-   successors of the retired ids the default pack used to activate;
+2. every successor resolves, and the built-in ``default`` preset keeps the
+   successors of the retired ids the old default pack used to activate
+   effective (it lists none of the retired ids; a kind it does not list is
+   unrestricted, and a kind it lists carries the successors);
 3. a fixture consumer project that activates EVERY retired id compiles its
    activation roots after the migration's ``apply``, with each successor
    activated -- and fails to compile before it (the negative control).
@@ -32,7 +34,7 @@ from specify_cli.upgrade.migrations.m_4_0_0rc5_retire_single_owner_doctrine_ids 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_PACK = _REPO_ROOT / "src/charter/activation/packs/default.yaml"
+_DEFAULT_PRESET = _REPO_ROOT / "packs/built-in/presets/default.yaml"
 
 #: The retired ids the default pack used to activate (the other retired ids were
 #: never in the default pack). Each must be a real ``RETIREMENTS`` row: the
@@ -98,12 +100,14 @@ def test_successor_resolves(tmp_path: Path, kind_key: str, stem: str) -> None:
 
 
 @pytest.mark.parametrize("row_key", _DEFAULT_PACK_RETIRED, ids=lambda k: f"{k[0]}:{k[1]}")
-def test_default_pack_swaps_retired_id_for_successors(row_key: tuple[str, str]) -> None:
+def test_default_preset_keeps_successors_effective(row_key: tuple[str, str]) -> None:
     retirement = _ROWS[row_key]
-    pack = YAML(typ="safe").load(_DEFAULT_PACK.read_text(encoding="utf-8"))
-    assert retirement.stem not in (pack.get(retirement.kind_key) or [])
+    preset = YAML(typ="safe").load(_DEFAULT_PRESET.read_text(encoding="utf-8"))
+    assert retirement.stem not in (preset.get(retirement.kind_key) or [])
     for kind_key, stem in retirement.successors:
-        assert stem in (pack.get(kind_key) or []), f"{stem} missing from default.yaml {kind_key}"
+        # An absent key leaves the kind unrestricted, so the successor is effective.
+        if kind_key in preset:
+            assert stem in (preset.get(kind_key) or []), f"{stem} missing from the default preset's {kind_key}"
 
 
 def _all_retired_activation() -> dict[str, list[str]]:

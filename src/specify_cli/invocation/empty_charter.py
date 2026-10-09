@@ -29,7 +29,7 @@ toolguides, procedures, paradigms, styleguides, mission-step-contracts,
 glossary-packs) that the pre-#3104 composite predicate weighed -- none of
 them make ``ActionRouter.route()`` able to resolve a profile it otherwise
 couldn't, so keeping them in the predicate only produced the #3104 defect
-(``charter pack apply`` writes activation keys with no bundle and no profile
+(applying a preset writes activation keys with no bundle and no profile
 activation, which used to flip the net off and hand back a bare
 ``ROUTER_NO_MATCH`` -- worse than the fully empty case it was supposed to
 guard). Folds #3118 (previously two config loads: ``charter_activated_urns``

@@ -106,8 +106,8 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #:
 #: 2026-07-31 (mission charter-delivery-finish-context-degod, #3064, post-merge
 #: follow-up): WP03's ``asset:common-charter-scaffold-minimal`` doctrine asset was
-#: relocated to first-class charter-pack status (``src/charter/activation/packs/minimal.yaml``,
-#: applied via ``spec-kitty charter pack apply minimal``) — it is structurally a
+#: relocated to first-class charter-pack status (today the built-in ``minimal`` preset,
+#: applied via ``spec-kitty charter activate --preset minimal``) — it is structurally a
 #: charter pack, not a generic doctrine asset. The asset node is gone from the DRG,
 #: reverting the ceiling **22 -> 21**. Full narrative in ``drg-orphan-residual.md``.
 #:

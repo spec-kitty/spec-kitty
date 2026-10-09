@@ -43,20 +43,17 @@ class TestPackDescriptorModel:
         """Create a PackDescriptor with all fields set."""
         pack_id = str(ULID())
         parent_id = str(ULID())
-        doctrine_id = str(ULID())
 
         descriptor = PackDescriptor(
             pack_id=pack_id,
             pack_version="1.0.0",
             parent_pack=parent_id,
-            accompanies_doctrine_pack=doctrine_id,
             name="my-pack",
         )
 
         assert descriptor.pack_id == pack_id
         assert descriptor.pack_version == "1.0.0"
         assert descriptor.parent_pack == parent_id
-        assert descriptor.accompanies_doctrine_pack == doctrine_id
         assert descriptor.name == "my-pack"
 
     def test_pack_descriptor_minimal(self) -> None:
@@ -72,7 +69,6 @@ class TestPackDescriptorModel:
         assert descriptor.pack_id == pack_id
         assert descriptor.pack_version == "1.0.0"
         assert descriptor.parent_pack is None
-        assert descriptor.accompanies_doctrine_pack is None
         assert descriptor.name == "minimal-pack"
 
     def test_pack_descriptor_frozen(self) -> None:

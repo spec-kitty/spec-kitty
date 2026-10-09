@@ -181,7 +181,6 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
     "charter interview": ((), 1, "outside"),
     "charter lint": ((), 1, "outside"),
     "charter list": ((), 1, "badconfig"),
-    "charter pack apply": (("missing",), 1, "outside"),
     "charter pack list": ((), 0, "total"),
     "charter pack path": (("missing",), 1, "outside"),
     "charter resynthesize": ((), 1, "outside"),

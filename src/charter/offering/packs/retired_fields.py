@@ -22,10 +22,13 @@ exactly one model validator that enforces it:
   the project ``charter.yaml``, so a row in this scope binds both files.
 * :data:`SCOPE_ORG_CHARTER` -- the top level of an ``org-charter.yaml``, enforced
   by ``OrgCharterPolicy``.
+* :data:`SCOPE_PACK_DESCRIPTOR` -- the top level of a pack's authored
+  ``pack.yaml``, enforced by ``PackDescriptor`` (read through
+  ``load_pack_descriptor``).
 
 Adding a row in one of these scopes is the whole change for a new retired field.
-A new scope (for example the top level of ``pack.yaml``) also needs the loader of
-that file to call :func:`reject_retired_fields` with it.
+A new scope also needs the model of that file to call
+:func:`reject_retired_fields` with it.
 
 This module is the only source of the ``RETIRED_PACK_FIELD`` code string. It
 lives in the offering tier and imports nothing from ``charter.activation``.
@@ -49,6 +52,7 @@ __all__ = [
     "RetiredPackFieldError",
     "SCOPE_ACTIVATION_ENTRY",
     "SCOPE_ORG_CHARTER",
+    "SCOPE_PACK_DESCRIPTOR",
     "raise_retired_field_at",
     "reject_retired_fields",
     "retired_field_errors",
@@ -65,6 +69,8 @@ _MIGRATION_RUNBOOK = "docs/migrations/charter-pack-cutover.md"
 SCOPE_ACTIVATION_ENTRY = "activation entry"
 #: Scope: the top level of an ``org-charter.yaml``.
 SCOPE_ORG_CHARTER = ORG_CHARTER_FILENAME
+#: Scope: the top level of a pack's authored ``pack.yaml`` descriptor.
+SCOPE_PACK_DESCRIPTOR = "pack.yaml"
 
 
 @dataclass(frozen=True)
@@ -77,7 +83,14 @@ class RetiredField:
 
 
 #: Every retired pack field. Adding a row in an enforced scope is the whole change.
-RETIRED_PACK_FIELDS: tuple[RetiredField, ...] = (RetiredField(scope=SCOPE_ACTIVATION_ENTRY, field="doctrine_pack_id", replacement="charter_pack_id"),)
+RETIRED_PACK_FIELDS: tuple[RetiredField, ...] = (
+    RetiredField(scope=SCOPE_ACTIVATION_ENTRY, field="doctrine_pack_id", replacement="charter_pack_id"),
+    RetiredField(
+        scope=SCOPE_PACK_DESCRIPTOR,
+        field="accompanies_doctrine_pack",
+        replacement="delete the field; presets ship inside the pack (presets/<name>.yaml)",
+    ),
+)
 
 
 def _retired_field_message(location: str, field: str, replacement: str) -> str:

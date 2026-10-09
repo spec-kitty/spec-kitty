@@ -11,7 +11,7 @@ compact (d=1) and bootstrap (d=2) depths.
 Two activation profiles are pinned:
 
 * ``default-pack`` -- a project whose ``.kittify/config.yaml`` is the shipped
-  ``src/charter/activation/packs/default.yaml``;
+  built-in ``default`` preset (``packs/built-in/presets/default.yaml``);
 * ``unfiltered`` -- no activation filter (``pack_context=None``), i.e. every
   built-in artifact admitted, which is where the DRG edges themselves are
   measured.
@@ -47,7 +47,7 @@ from charter.offering.drg.models import Relation
 pytestmark = [pytest.mark.doctrine]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_DEFAULT_PACK = _REPO_ROOT / "src/charter/activation/packs/default.yaml"
+_DEFAULT_PACK = _REPO_ROOT / "packs/built-in/presets/default.yaml"
 
 _SQUAD = "procedure:adversarial-squad-deployment"
 

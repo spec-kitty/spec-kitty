@@ -517,8 +517,7 @@ def recompile_catalog(repo_root: Path) -> list[str]:
     `activate_cmd` and `deactivate_cmd` (FR-001/FR-002) unless `--no-compile`
     is passed.
 
-    Modeled EXACTLY on `pack.py`'s `_compile_bundle_after_merge` (the
-    `charter pack apply --compile` seam) -- the same
+    Uses the same
     `_load_interview_for_generate(..., from_interview=False, ...)` ->
     `compile_charter` -> `write_compiled_charter` call chain `charter
     generate --no-from-interview` itself uses (single compiler authority,
