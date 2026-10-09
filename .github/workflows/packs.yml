@@ -3,7 +3,7 @@
 # Mission ci-pipeline-reinstatement, WP14 (FR-011).
 #
 # Independent from the code CI (ci-router.yml / ci-quality.yml): those
-# workflows exclude packs/** and tests/doctrine/** from every CODE shard (the
+# workflows exclude packs/** and tests/charter_offering/** from every CODE shard (the
 # `corpus` group in ci-router.yml is explicitly a non-code, data shard — see
 # that file's "Non-code shards" comment) so a packs-only PR never pays for a
 # code shard and a src-only PR never pays for packs work. This file is the
@@ -130,7 +130,7 @@ jobs:
           filters: |
             built_in:
               - 'packs/built-in/**'
-              - 'tests/doctrine/**'
+              - 'tests/charter_offering/**'
               - 'tests/architectural/test_pack_manifest_no_author_edit.py'
               - 'tests/specify_cli/regression/_twelve_agent_baseline/**'
               - 'tests/specify_cli/skills/__snapshots__/**'
@@ -222,11 +222,11 @@ jobs:
           python-version: '3.12'
       - run: |
           uv sync --frozen --all-extras
-          uv run --frozen spec-kitty doctrine regenerate-graph --check
+          uv run --frozen spec-kitty charter pack regenerate-graph --check
       - name: Surface remediation command on drift
         if: failure()
         run: |
-          echo "::error::packs/built-in DRG fragments are stale. Run: spec-kitty doctrine regenerate-graph (then commit the diff)."
+          echo "::error::packs/built-in DRG fragments are stale. Run: spec-kitty charter pack regenerate-graph (then commit the diff)."
 
   built-in-pack-manifest:
     name: built-in / pack-manifest freshness + authored-only guard
@@ -281,7 +281,7 @@ jobs:
           # other blocking per-PR home run BLOCKING in the router's
           # `tests (corpus-blocking)` job (D-13/D-22) and are deselected here (its
           # six selections are among the --deselect entries below) so nothing runs twice.
-          uv run --frozen pytest -m "corpus and not windows_ci" -n 4 --dist loadfile --deselect tests/architectural/test_pack_manifest_no_author_edit.py --deselect tests/contract/test_breaking_check.py --deselect tests/contract/test_bundle.py --deselect tests/contract/test_citation_check.py --deselect tests/contract/test_client_smoke.py --deselect tests/contract/test_codeowners_check.py --deselect tests/contract/test_contract_resolver.py --deselect tests/contract/test_enum_pin_check.py --deselect tests/contract/test_event_mapping_check.py --deselect tests/contract/test_example_check.py --deselect tests/contract/test_example_round_trip.py --deselect tests/contract/test_fixture_builder.py --deselect tests/contract/test_gradle_pin_check.py --deselect tests/contract/test_install_tools.py --deselect tests/contract/test_layout_check.py --deselect tests/contract/test_leak_patterns.py --deselect tests/contract/test_leak_scan.py --deselect tests/contract/test_lint_ruleset.py --deselect tests/contract/test_mission_status_artifacts.py --deselect tests/contract/test_mission_status_contract_1_1.py --deselect tests/contract/test_mission_status_detail.py --deselect tests/contract/test_mission_status_drift.py --deselect tests/contract/test_mission_status_examples.py --deselect tests/contract/test_mission_status_ops.py --deselect tests/contract/test_mission_status_payloads.py --deselect tests/contract/test_mission_status_project.py --deselect tests/contract/test_mission_status_reality.py --deselect tests/contract/test_no_pytest_scan.py --deselect tests/contract/test_provisional_check.py --deselect tests/contract/test_release_check.py --deselect tests/contract/test_resolver_parity.py --deselect tests/contract/test_run_negative_cases.py --deselect tests/contract/test_schema_formats.py --deselect tests/contract/test_structure_check.py --deselect tests/contract/test_tamper_check.py --deselect tests/contract/test_verify_pins.py --deselect tests/integration/test_mission_review_contract_gate.py --deselect tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py --deselect tests/doctrine/test_shipped_profiles.py::TestShippedProfilesPerformance --cov=charter.offering --cov-report=term-missing
+          uv run --frozen pytest -m "corpus and not windows_ci" -n 4 --dist loadfile --deselect tests/architectural/test_pack_manifest_no_author_edit.py --deselect tests/acceptance/charter_pack_cutover/test_cli_surface.py --deselect tests/acceptance/charter_pack_cutover/test_gates_latency_messaging.py --deselect tests/acceptance/charter_pack_cutover/test_package_split.py --deselect tests/acceptance/charter_pack_cutover/test_presets.py --deselect tests/acceptance/charter_pack_cutover/test_project_pack_root.py --deselect tests/acceptance/charter_pack_cutover/test_rename_skills_glossary.py --deselect tests/acceptance/charter_pack_cutover/test_traceability.py --deselect tests/contract/test_breaking_check.py --deselect tests/contract/test_bundle.py --deselect tests/contract/test_citation_check.py --deselect tests/contract/test_client_smoke.py --deselect tests/contract/test_codeowners_check.py --deselect tests/contract/test_contract_resolver.py --deselect tests/contract/test_enum_pin_check.py --deselect tests/contract/test_event_mapping_check.py --deselect tests/contract/test_example_check.py --deselect tests/contract/test_example_round_trip.py --deselect tests/contract/test_fixture_builder.py --deselect tests/contract/test_gradle_pin_check.py --deselect tests/contract/test_install_tools.py --deselect tests/contract/test_layout_check.py --deselect tests/contract/test_leak_patterns.py --deselect tests/contract/test_leak_scan.py --deselect tests/contract/test_lint_ruleset.py --deselect tests/contract/test_mission_status_artifacts.py --deselect tests/contract/test_mission_status_contract_1_1.py --deselect tests/contract/test_mission_status_detail.py --deselect tests/contract/test_mission_status_drift.py --deselect tests/contract/test_mission_status_examples.py --deselect tests/contract/test_mission_status_ops.py --deselect tests/contract/test_mission_status_payloads.py --deselect tests/contract/test_mission_status_project.py --deselect tests/contract/test_mission_status_reality.py --deselect tests/contract/test_no_pytest_scan.py --deselect tests/contract/test_provisional_check.py --deselect tests/contract/test_release_check.py --deselect tests/contract/test_resolver_parity.py --deselect tests/contract/test_run_negative_cases.py --deselect tests/contract/test_schema_formats.py --deselect tests/contract/test_structure_check.py --deselect tests/contract/test_tamper_check.py --deselect tests/contract/test_verify_pins.py --deselect tests/integration/test_mission_review_contract_gate.py --deselect tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py --deselect tests/charter_offering/test_shipped_profiles.py::TestShippedProfilesPerformance --cov=charter.offering --cov-report=term-missing
       - name: Advisory corpus failure notice
         if: failure()
         run: |

@@ -82,7 +82,7 @@ def _call_has_create_true(call: ast.Call) -> bool:
     ``unittest.mock.patch(..., create=True)`` is the documented mechanism for
     patching a target that does not (yet, or any more) exist -- the target
     string is intentionally exempt from existence validation in that case. See
-    ``tests/charter/test_action_doctrine_bundle_activation.py``'s WP02 comment
+    ``tests/charter/test_action_governance_bundle_activation.py``'s WP02 comment
     for a real example: the patched attribute was deliberately removed by the
     same change the test asserts on, and ``create=True`` keeps the test
     collectible (and correct) on both sides of that removal.

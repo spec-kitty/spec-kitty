@@ -90,11 +90,11 @@
     },
     "charter": {
       "run_id": "recapture-charter-durations-20261007T045707Z",
-      "command": "python scripts/ci/capture_shard_timings.py --module charter --run-id recapture-charter-durations-20261007T045707Z --write  # pytest tests/charter tests/doctrine -m not performance and not stress -p no:randomly -q",
+      "command": "python scripts/ci/capture_shard_timings.py --module charter --run-id recapture-charter-durations-20261007T045707Z --write  # pytest tests/charter tests/charter_offering -m not performance and not stress -p no:randomly -q",
       "captured_at": "2026-10-07T05:19:05.194477+00:00",
       "test_dirs": [
         "tests/charter",
-        "tests/doctrine"
+        "tests/charter_offering"
       ],
       "selection": "not performance and not stress",
       "unique_tests_measured": 7259,
@@ -103,7 +103,7 @@
     },
     "core_misc": {
       "run_id": "recapture-core_misc-durations-20261009T055325Z",
-      "command": "python scripts/ci/capture_shard_timings.py --module core_misc --run-id recapture-core_misc-durations-20261009T055325Z --write  # pytest tests/core tests/specify_cli/core tests/coordination tests/specify_cli/coordination tests/decisions tests/doctrine_synthesizer tests/specify_cli/tool_surface tests/specify_cli/asset_preservation tests/zeitgeist_client tests/calibration tests/specify_cli/config tests/specify_cli/live_work tests/specify_cli/tasks_authoring tests/specify_cli/bootstrap tests/specify_cli/workspace tests/specify_cli/design tests/specify_cli/git_commit_scope -m not performance and not stress -p no:randomly -q",
+      "command": "python scripts/ci/capture_shard_timings.py --module core_misc --run-id recapture-core_misc-durations-20261009T055325Z --write  # pytest tests/core tests/specify_cli/core tests/coordination tests/specify_cli/coordination tests/decisions tests/charter_pack_synthesizer tests/specify_cli/tool_surface tests/specify_cli/asset_preservation tests/zeitgeist_client tests/calibration tests/specify_cli/config tests/specify_cli/live_work tests/specify_cli/tasks_authoring tests/specify_cli/bootstrap tests/specify_cli/workspace tests/specify_cli/design tests/specify_cli/git_commit_scope -m not performance and not stress -p no:randomly -q",
       "captured_at": "2026-10-09T06:04:49.184685+00:00",
       "test_dirs": [
         "tests/core",
@@ -111,7 +111,7 @@
         "tests/coordination",
         "tests/specify_cli/coordination",
         "tests/decisions",
-        "tests/doctrine_synthesizer",
+        "tests/charter_pack_synthesizer",
         "tests/specify_cli/tool_surface",
         "tests/specify_cli/asset_preservation",
         "tests/zeitgeist_client",
@@ -33133,12 +33133,13 @@
       "tests/architectural/test_built_in_location_authority.py": 5.04,
       "tests/architectural/test_builtin_override_policy.py": 0.24,
       "tests/architectural/test_builtin_pack_provenance_ratchet.py": 0.48,
-      "tests/architectural/test_charter_facades_reexport_doctrine.py": 14.52,
+      "tests/architectural/test_charter_facades_reexport_offering.py": 14.52,
       "tests/architectural/test_charter_no_specify_cli_import.py": 0.36,
       "tests/architectural/test_charter_offering_does_not_import_activation.py": 0.84,
+      "tests/architectural/test_charter_pack_path_authority.py": 2.51,
       "tests/architectural/test_charter_path_literal_authority.py": 17.72,
       "tests/architectural/test_charter_sole_door_agent_profile_repository.py": 0.72,
-      "tests/architectural/test_charter_sole_door_doctrine_service.py": 0.96,
+      "tests/architectural/test_charter_sole_door_offering_service.py": 0.96,
       "tests/architectural/test_charter_sole_door_hardcoded_paths.py": 8.13,
       "tests/architectural/test_charter_sole_door_inner_reacharound.py": 25.14,
       "tests/architectural/test_charter_sole_door_resolver_imports.py": 5.15,
@@ -33168,8 +33169,8 @@
       "tests/architectural/test_destructive_op_routing.py": 10.84,
       "tests/architectural/test_docs_cli_reference_parity.py": 2.69,
       "tests/architectural/test_doctrine_census.py": 102.56,
-      "tests/architectural/test_doctrine_missions_stale_path_sweep.py": 0.12,
-      "tests/architectural/test_doctrine_public_surface.py": 0.72,
+      "tests/architectural/test_offering_missions_stale_path_sweep.py": 0.12,
+      "tests/architectural/test_charter_offering_public_surface.py": 0.72,
       "tests/architectural/test_doctrine_regenerate_graph_roundtrip.py": 7.5,
       "tests/architectural/test_dossier_emitter_positional_guard.py": 4.42,
       "tests/architectural/test_drg_writer_discovery.py": 8.95,
@@ -33213,7 +33214,7 @@
       "tests/architectural/test_issue_named_test_census.py": 1.08,
       "tests/architectural/test_json_contract_enumeration.py": 30.7,
       "tests/architectural/test_kernel_env_expand_no_upward_import.py": 0.36,
-      "tests/architectural/test_kernel_no_doctrine_import.py": 0.72,
+      "tests/architectural/test_kernel_no_charter_offering_import.py": 0.72,
       "tests/architectural/test_lane_allocation_single_seam.py": 0.72,
       "tests/architectural/test_ledger_floor.py": 1.44,
       "tests/architectural/test_lifted_cli_accept_birth_cutover.py": 0.24,
@@ -33312,6 +33313,7 @@
       "tests/architectural/test_remediation_effectiveness.py": 61.78,
       "tests/architectural/test_requirement_id_grammar_single_source.py": 20.76,
       "tests/architectural/test_resume_non_reemission_guard.py": 0.6,
+      "tests/architectural/test_retired_charter_vocabulary.py": 2.51,
       "tests/architectural/test_retirement_scrub.py": 1.08,
       "tests/architectural/test_review_claim_no_frontmatter.py": 0.6,
       "tests/architectural/test_ruff_format_enforcement.py": 1.25,
@@ -33439,9 +33441,9 @@
       "window": "2026-09-30T05:32Z..2026-10-01T04:41Z",
       "workers": 2,
       "selection": "not performance and not stress and not timing",
-      "files_measured": 238,
+      "files_measured": 240,
       "captured_at": "2026-10-01T14:13:31.454159+00:00",
-      "known_drift": "post-census #5503 (D-37): test_no_dead_symbols.py rewritten after the window; test_dead_symbol_allowlist_{loader,contract}.py post-census (formula-only seed; contract measured ~30 s local single-file; WP13's file-end cache_clear() finalizer on _real_tree_inputs removes M11's cross-file cache hit, ~30 s more on that worker); test_refresh_dead_symbol_hashes.py deleted; mission files added after the census are formula-only seeds (test_gate_os_tier.py, test_battery_partition_proof.py, test_battery_partition_proof_collect.py -- whose one slow collect-only test costs ~6 s but is seeded ~0.2 s)",
+      "known_drift": "post-census #5503 (D-37): test_no_dead_symbols.py rewritten after the window; test_dead_symbol_allowlist_{loader,contract}.py post-census (formula-only seed; contract measured ~30 s local single-file; WP13's file-end cache_clear() finalizer on _real_tree_inputs removes M11's cross-file cache hit, ~30 s more on that worker); test_refresh_dead_symbol_hashes.py deleted; mission files added after the census are formula-only seeds (test_gate_os_tier.py, test_battery_partition_proof.py, test_battery_partition_proof_collect.py -- whose one slow collect-only test costs ~6 s but is seeded ~0.2 s); #3732 charter-pack cutover (post-census): five doctrine->charter/offering renames carry their pre-rename measured durations verbatim to the renamed key (test_charter_facades_reexport_offering.py 14.52, test_charter_sole_door_offering_service.py 0.96, test_offering_missions_stale_path_sweep.py 0.12, test_charter_offering_public_surface.py 0.72, test_kernel_no_charter_offering_import.py 0.72); two net-new gate files are median seeds (test_charter_pack_path_authority.py, test_retired_charter_vocabulary.py, 2.51 s each)",
       "superseded_by": "scripts/ci/capture_shard_timings.py --suite architectural --from-junit (D-29)"
     }
   }
