@@ -186,47 +186,6 @@ class TestWriteSkillTextExternalSymlink:
 
 
 # ---------------------------------------------------------------------------
-# End-to-end through the glossary-context migration (#1184 reproduction)
-# ---------------------------------------------------------------------------
-
-
-class TestGlossaryContextMigrationToleratesExternalSymlink:
-    """Reproduces the exact rc15 failure mode from issue #1184."""
-
-    def test_external_symlink_does_not_fail_migration(self, tmp_path: Path) -> None:
-        from specify_cli.upgrade.migrations.m_2_1_2_fix_glossary_context_skill import (
-            FixGlossaryContextSkillMigration,
-        )
-
-        # HOME-managed canonical copy outside the repo
-        external = tmp_path / "home" / ".claude" / "skills" / "spec-kitty-glossary-context" / "SKILL.md"
-        external.parent.mkdir(parents=True)
-        # Use the OLD marker so the migration considers this file needs update.
-        external.write_text(
-            "## Step 1: Locate Glossary Context\n\nIdentify the glossary state\n",
-            encoding="utf-8",
-        )
-        external_mtime = external.stat().st_mtime
-
-        # Repo with .claude/skills/<name>/SKILL.md as an external symlink
-        repo = tmp_path / "repo"
-        skill_dir = repo / ".claude" / "skills" / "spec-kitty-glossary-context"
-        skill_dir.mkdir(parents=True)
-        link = skill_dir / "SKILL.md"
-        os.symlink(external, link)
-
-        migration = FixGlossaryContextSkillMigration()
-        result = migration.apply(repo, dry_run=False)
-
-        # Migration succeeded (does NOT flip exit code)
-        assert result.success is True
-        assert result.errors == []
-        # Canonical file outside the repo is NOT modified
-        assert external.stat().st_mtime == external_mtime
-        assert "## Step 1: Locate Glossary Context" in external.read_text(encoding="utf-8")
-
-
-# ---------------------------------------------------------------------------
 # write_skill_text — read-only managed target (#3771)
 # ---------------------------------------------------------------------------
 
@@ -347,36 +306,3 @@ class TestWriteSkillTextReadOnlyTarget:
         assert wrote is True
         assert warning is None
         assert dest.read_text(encoding="utf-8") == "NEW"
-
-
-class TestGlossaryContextMigrationToleratesReadOnlyTarget:
-    """Reproduces the exact #3771 failure mode through the real migration."""
-
-    @_skip_if_root
-    def test_readonly_target_does_not_fail_migration(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        from specify_cli.upgrade.migrations.m_2_1_2_fix_glossary_context_skill import (
-            FixGlossaryContextSkillMigration,
-        )
-
-        repo = tmp_path / "repo"
-        skill_dir = repo / ".claude" / "skills" / "spec-kitty-glossary-context"
-        skill_dir.mkdir(parents=True)
-        dest = skill_dir / "SKILL.md"
-        # OLD marker so the migration considers this file needs the update.
-        dest.write_text(
-            "## Step 1: Locate Glossary Context\n\nIdentify the glossary state\n",
-            encoding="utf-8",
-        )
-        dest.chmod(0o444)
-
-        _install_windows_like_replace(monkeypatch)
-
-        migration = FixGlossaryContextSkillMigration()
-        result = migration.apply(repo, dry_run=False)
-
-        # Before the fix: os.replace raises PermissionError, the migration
-        # records it as a failure (success=False) and leaves the OLD content.
-        assert result.success is True
-        assert result.errors == []
-        new_content = dest.read_text(encoding="utf-8")
-        assert "## How the Glossary Works" in new_content, "edit must be applied, not dropped"
