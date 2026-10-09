@@ -90,8 +90,12 @@ ALLOWED_OUT_OF_STORE_WRITE_SITES: Mapping[tuple[str, str, str], int] = MappingPr
         # Mission write primitive, ``status.mission_write``, below.)
         # Checkout materializations (not appends): write bytes git already
         # holds for the log into a worktree so materialize() can read them
-        # (sparse-checkout hydration from the index).
-        ("specify_cli.lanes.auto_rebase", "write_text", "events_path"): 1,
+        # (sparse-checkout hydration from the index). mission-writer-followups
+        # WP08 (#5883) changed this create-if-missing from ``write_text`` to an
+        # exclusive ``open(events_path, "x")`` so a concurrent writer's log is
+        # never clobbered (the mission-write-discipline gate's non-clobber rule);
+        # the key's kind is now ``open``.
+        ("specify_cli.lanes.auto_rebase", "open", "events_path"): 1,
         # Legacy whole-log rebuild migration (writer census family 9, WP07):
         # rewrites a reconciled log atomically (tmp + ``os.replace``) with
         # the read -> reconcile -> rewrite under ONE acquisition of the
@@ -153,6 +157,32 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         # concurrent-mission-writers WP01 (#5819): the Mission write primitive
         # (``mission_write_lock``) is the one door non-status writers take.
         "specify_cli.status.mission_write",
+        # mission-writer-followups WP02 (#5883): every ``meta.json`` read-modify-write
+        # (``locked_update_meta``, the setters, the CAS ``restore_meta_text``) takes the
+        # Mission write lock; it appends no event-log row.
+        "specify_cli.mission_metadata",
+        # mission-writer-followups WP03 (#5883): the remaining ``meta.json`` read-modify-writes
+        # (documentation state, the migrations and the upgrade helper) hold the Mission write
+        # lock around a whole-file replace; none appends an event-log row.
+        "specify_cli.doc_analysis.doc_state",
+        "specify_cli.migration.backfill_identity",
+        "specify_cli.migration.mission_state",
+        "specify_cli.migration.runtime_state_cutover",
+        "specify_cli.upgrade.feature_meta",
+        # mission-writer-followups WP04 (#5883): the work-package frontmatter, finalize and matrix
+        # writers hold the Mission write lock around their read-modify-write
+        # (``locked_update_frontmatter``, the finalize flush and write-scope restore,
+        # map-requirements, the issue-matrix scaffold, ``validate-tasks`` repair and the 2.0.6
+        # sweep); none appends an event-log row.
+        "specify_cli.frontmatter",
+        "specify_cli.cli.commands.agent.tasks_map_requirements",
+        "specify_cli.cli.commands.agent.mission_finalize_bootstrap",
+        "specify_cli.cli.commands.agent.mission_finalize_commit",
+        "specify_cli.tasks.issue_matrix",
+        "specify_cli.task_metadata_validation",
+        # mission-loader: the custom-mission meta.json writer holds the Mission write lock; it appends no event-log row.
+        "specify_cli.mission_loader.command",
+        "specify_cli.upgrade.migrations.m_2_0_6_consistency_sweep",
         # concurrent-mission-writers WP03 (#5468, #5796): ``implement`` holds the
         # Mission write lock from the claim emit through the claim commit, and
         # ``ensure_vcs_locked`` runs its meta.json read-modify-write under it.
@@ -230,6 +260,20 @@ EXPECTED_LOCK_COMPOSITION_SITES: frozenset[str] = frozenset(
         # appends nothing itself: the writers inside the window re-enter the
         # lock; this is a holder, not a fourth emit shell.
         "specify_cli.cli.commands.agent.finalize_status_surface",
+        # mission-writer-followups WP08 (#5883): the consolidation bookkeeping
+        # projection's coord->target status-log read-modify-write now runs under
+        # the Mission write lock (``mission_write_lock``), fixing the unlocked
+        # RMW. It composes the lock but is not a store append shell: the merged
+        # bytes are written through the projection's own whole-file replace
+        # (already pinned in EXPECTED_UNRESOLVED_EVENT_NAMED_WRITE_SITES), not an
+        # event-log append primitive.
+        "specify_cli.consolidation.bookkeeping_projection",
+        # mission-writer-followups WP15 (#5883): the Mission-creation birth write
+        # (``_write_create_meta``) holds the Mission write lock
+        # (``mission_write_lock(feature_dir, fallback_to_dir_name=True)`` because
+        # ``meta.json`` does not exist yet) around the initial meta + documentation
+        # -state write; it appends no event-log row.
+        "specify_cli.core.mission_creation_meta",
     }
 )
 
@@ -764,9 +808,9 @@ def test_writes_gate_is_not_vacuous(case: str, source: str, kind: str, tree_scan
 #: function in the SAME module, which is exactly what a per-key count must catch.
 _LEDGERED_SHAPES: tuple[tuple[str, str, tuple[str, str, str]], ...] = (
     (
-        "write-text-checkout-materialization",
-        'def {name}(d):\n    events_path = d / "status.events.jsonl"\n    events_path.write_text("")\n',
-        ("specify_cli.lanes.auto_rebase", "write_text", "events_path"),
+        "open-exclusive-checkout-materialization",
+        'def {name}(d):\n    events_path = d / "status.events.jsonl"\n    with open(events_path, "x", encoding="utf-8") as handle:\n        handle.write("")\n',
+        ("specify_cli.lanes.auto_rebase", "open", "events_path"),
     ),
     (
         "os-replace-rewrite",

@@ -177,8 +177,6 @@ _RUNTIME_ROOT = _SRC / "runtime"
 
 _RUNTIME_ALLOWED_SPECIFY_CLI: frozenset[str] = frozenset(
     {
-        "",  # bare ``import specify_cli`` in next/runtime_bridge_io.py: resolve the
-             # legacy missions package root via specify_cli.__file__ (2 edges).
         "bulk_edit",
         "coordination",
         "core",
@@ -1097,7 +1095,12 @@ class TestRuntimeSpecifyCliLedger:
         statement: str,
         expected_modules: set[str],
     ) -> None:
-        """Root functions and attributes retain the bare-root exception."""
+        """Root members stay distinct from subpackages, and the bare root has no ledger entry (WP06).
+
+        ``from specify_cli import core as c`` is an edge to ``specify_cli.core`` (ledgered); a bare
+        ``import specify_cli`` or a root attribute is an edge to the root, which the runtime
+        no longer imports, so the ledger refuses it.
+        """
         runtime = tmp_path / "runtime"
         runtime.mkdir()
         package = tmp_path / "specify_cli"
@@ -1109,7 +1112,7 @@ class TestRuntimeSpecifyCliLedger:
         monkeypatch.setattr(sys.modules[__name__], "_SRC", tmp_path)
         imports = _collect_specify_cli_imports(runtime)
         assert {module for _, module in imports} == expected_modules
-        assert not _out_of_ledger_specify_cli_imports(imports, _RUNTIME_ALLOWED_SPECIFY_CLI)
+        assert {edge.split(" imports ")[1] for edge in _out_of_ledger_specify_cli_imports(imports, _RUNTIME_ALLOWED_SPECIFY_CLI)} == {"specify_cli"}
 
     def test_runtime_specify_cli_imports_within_ledger(self) -> None:
         """Every runtime -> specify_cli edge must be in the named ledger.

@@ -122,30 +122,28 @@ missions/mission-steps/software-dev/charter/prompt.md:
 missions/mission-steps/software-dev/implement/guidelines.md:
   repo_paths: 1
 missions/mission-steps/software-dev/implement/prompt.md:
-  repo_paths: 3
+  repo_paths: 2
 missions/mission-steps/software-dev/plan/prompt.md:
-  repo_paths: 6
+  repo_paths: 5
   provenance: 2
 missions/mission-steps/software-dev/research/prompt.md:
   repo_paths: 1
 missions/mission-steps/software-dev/review/prompt.md:
   repo_paths: 1
 missions/mission-steps/software-dev/specify/prompt.md:
-  repo_paths: 5
+  repo_paths: 4
   provenance: 3
 missions/mission-steps/software-dev/tasks/guidelines.md:
   repo_paths: 2
 missions/mission-steps/software-dev/tasks/prompt.md:
   repo_paths: 9
-  provenance: 57
-missions/mission-steps/software-dev/tasks-finalize/prompt.md:
-  repo_paths: 2
+  provenance: 29
 missions/mission-steps/software-dev/tasks-outline/prompt.md:
   repo_paths: 4
   provenance: 18
 missions/mission-steps/software-dev/tasks-packages/prompt.md:
   repo_paths: 5
-  provenance: 12
+  provenance: 10
 missions/plan/actions/plan/index.yaml:
   provenance: 2
 missions/plan/actions/research/index.yaml:
@@ -171,13 +169,8 @@ missions/research/templates/task-prompt-template.md:
 missions/research/templates/tasks-template.md:
   repo_paths: 1
   provenance: 13
-missions/software-dev/expected-artifacts.yaml:
-  repo_paths: 1
 missions/software-dev/governance-profile.yaml:
   repo_paths: 1
-  provenance: 1
-missions/software-dev/mission-runtime.yaml:
-  provenance: 1
 missions/software-dev/templates/plan-template.md:
   repo_paths: 2
 missions/software-dev/templates/spec-template.md:

@@ -190,6 +190,9 @@ _SEAM_ALLOWED_READ_PATH_RESOLVER_NAMES: frozenset[str] = frozenset(
         "resolve_handle_to_read_path",
         "MissionSelectorAmbiguous",
         "resolve_partition_read_dir",
+        # mission-writer-followups (WP13/WP04): resolves only the directory whose name keys the Mission
+        # write lock (a read-only lookup, no read or write path is composed from it).
+        "mission_write_lock_dir",
     }
 )
 

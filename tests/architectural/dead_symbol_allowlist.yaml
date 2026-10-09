@@ -1469,13 +1469,7 @@ widened_grandfathered_470:
   - module: specify_cli.mission
     name: validate_deliverables_path
   - module: specify_cli.mission_metadata
-    name: clear_coordination_metadata
-  - module: specify_cli.mission_metadata
     name: get_change_mode
-  - module: specify_cli.mission_metadata
-    name: set_change_mode
-  - module: specify_cli.mission_metadata
-    name: set_purpose_summary
   - module: specify_cli.missions._archive
     name: is_mission_archived
   - module: specify_cli.missions._read_path_resolver
