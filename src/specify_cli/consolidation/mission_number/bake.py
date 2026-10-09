@@ -39,6 +39,7 @@ from specify_cli.consolidation.mission_number import is_assigned_mission_number
 from specify_cli.consolidation.state import ConsolidationState
 from kernel.git import run_git, status_entries, tree_entry
 from specify_cli.mission_metadata import load_meta, write_meta
+from specify_cli.meta_keys import MISSION_NUMBER_KEY
 
 __all__ = [
     "assign_next_mission_number",
@@ -430,7 +431,7 @@ def _bake_mission_number_on_primary_tree(
         return False
 
     original = primary_meta_path.read_bytes()
-    meta_data["mission_number"] = next_number
+    meta_data[MISSION_NUMBER_KEY] = next_number
     write_meta(primary_meta_path.parent, meta_data, validate=False)
 
     from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping
@@ -589,7 +590,7 @@ def _write_mission_number_to_branch(
             # see the executor-side NOTE on this function's docstring.
             return False
 
-        meta_data["mission_number"] = next_number
+        meta_data[MISSION_NUMBER_KEY] = next_number
         # Route all meta.json mutations through the canonical writer API.
         # validate=False preserves merge-time tolerance for legacy/partial mission
         # metadata while still enforcing atomic writes + standard format.
@@ -821,7 +822,7 @@ def _assign_planning_only_mission_number_if_needed(
     # this is a ``route-unwrapped`` census site, so swallowing corruption here
     # would silently overwrite an unreadable meta.json with a one-key dict.
     meta = load_meta_fail_closed(feature_dir) or {}
-    meta["mission_number"] = next_number
+    meta[MISSION_NUMBER_KEY] = next_number
     write_meta(feature_dir, meta, validate=False)
     return next_number
 
@@ -861,7 +862,7 @@ def _bake_mission_number_onto_target_tree(
             f"cannot record mission_number={number}: the target meta.json is missing at "
             f"{target_feature_dir / 'meta.json'}; refusing to fabricate a stub meta.json on the target."
         )
-    meta["mission_number"] = number
+    meta[MISSION_NUMBER_KEY] = number
     write_meta(target_feature_dir, meta, validate=False)
     return target_feature_dir / "meta.json"
 
