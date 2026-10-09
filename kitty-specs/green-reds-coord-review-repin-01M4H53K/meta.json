@@ -1,0 +1,49 @@
+{
+  "accept_commit": "94bf3b5dc52e1d2465c408118678bf8460387a16",
+  "acceptance_history": [
+    {
+      "accept_commit": "662fe733692369ec1cf63d4f1b9628df697c48fd",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-09T20:50:49.531527+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "8d4aa79a707a5723db44af2e946ab8030dd08b0a"
+    },
+    {
+      "accept_commit": "6cc7d6d8731c135ae0aad1a763dac7c449f999e3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-09T20:51:07.277035+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "418baded2de556b94467a1ede843b01672797d3d"
+    },
+    {
+      "accept_commit": "94bf3b5dc52e1d2465c408118678bf8460387a16",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-09T20:51:24.698392+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "e61e58118c87b6669f37b71440d509f78790dcda"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-09T20:51:24.698392+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "e61e58118c87b6669f37b71440d509f78790dcda",
+  "baseline_merge_commit": "ef53a43352136daf21d281a1832ac2536523d9cb",
+  "created_at": "2026-10-09T20:19:10.388534+00:00",
+  "flattened": false,
+  "friendly_name": "M11 S1: Green the reds — coord review honest-receipt re-pin",
+  "merged_at": "2026-10-09T20:54:24.374060+00:00",
+  "merged_commit": "bbea3fa740cf2463071d4f6cc2a8959935172fe1",
+  "mid8": "01M4H53K",
+  "mission_id": "01M4H53KHHGVQS8HXHCE861NM4",
+  "mission_number": 224,
+  "mission_slug": "green-reds-coord-review-repin-01M4H53K",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances M11 S1: Green the reds — coord review honest-receipt re-pin on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Re-pin the stale coord review characterization test (#5928/#5948) to the honest-receipt [ok] behavior",
+  "slug": "green-reds-coord-review-repin-01M4H53K",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-09T20:23:01.308961+00:00"
+}
