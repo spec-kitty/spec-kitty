@@ -1,20 +1,20 @@
 {
-  "event_count": 209,
-  "last_event_id": "01M4EZN0PZ5TSCMZZJ4D3V7YET",
-  "materialized_at": "2026-10-09T00:05:19.199092+00:00",
+  "event_count": 210,
+  "last_event_id": "01M4EZT3TW6T42MXQ18HH4NT72",
+  "materialized_at": "2026-10-09T00:08:06.236874+00:00",
   "mission_number": "",
   "mission_slug": "charter-pack-cutover-01M491G6",
   "mission_type": "",
   "schema_version": 2,
   "summary": {
-    "approved": 23,
+    "approved": 24,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 1
   },
   "work_packages": {
@@ -749,18 +749,23 @@
     "WP23": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M4EXEHMM7TG20GMXB4A9FH53",
-      "last_transition_at": "2026-10-08T23:26:50.004395+00:00",
+      "lane": "approved",
+      "last_event_id": "01M4EZT3TW6T42MXQ18HH4NT72",
+      "last_transition_at": "2026-10-09T00:08:06.236874+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "tests/doctrine -> tests/charter_offering via git mv (325 files, 3955 collected before/after, 3941 passed/14 skipped); rosters (ci-module-registry, packs/ci-router/ci-nightly, shard timings, interpreter roster, corpus registry, timing invariant, ruff.toml, pyproject format-exclude sorted, count unchanged) in the move commit; AGENTS/CLAUDE test policy; tier-sense identifiers and 2 file names renamed; doctrine marker kept (pytest.ini description reworded). Acceptance 311p/1s/42xf/0f/0xp; gates+importers 1090p/1f (pre-existing glossary anchor red at base); make test-fast 2281p; ruff clean. Activity log: scratchpad/wp23-activity-log.md"
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP23:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 11851,
       "shell_pid_created_at": "1791501998.79",
