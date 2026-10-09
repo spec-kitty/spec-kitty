@@ -59,6 +59,13 @@ other's data:
      ...)``: the first argument's shape is checked. A bare ``.name`` string, a
      subscript, or a ``slug``-named value is refused (a Mission *directory*, a
      ``mission_write_lock_dir(...)`` result, or a parameter is accepted).
+   * **One-frame limit (known, pinned as a strict ``xfail`` in the rule-3 offender
+     table):** a bare parameter is trusted as canonical and its callers are not
+     followed, so ``def helper(root, slug_key): feature_status_lock(root, slug_key)``
+     passes even when a caller hands it a non-canonical key (same for a
+     ``mission_write_lock`` path parameter). Following callers would need
+     cross-module call resolution (the real tree's parameter keys are passed in
+     from other modules), which is disproportionate here.
 4. **``meta.json`` / work-package / ``tasks.md`` writes stay inside the lock
    (FR-019, A5, D5).** The sinks are ``write_meta``, ``restore_meta_text``,
    ``write_frontmatter`` and ``update_fields`` (the last two only when a path
@@ -1243,6 +1250,10 @@ _KEY_OFFENDERS = {
     "bare name module level": "feature_status_lock(root, mission_dir_name)",
     "subscript key": "feature_status_lock(root, meta['mission_slug'])",
     "name from non-factory": "def f():\n    key = compute_key(d)\n    feature_status_lock(root, key)\n",
+    "laundered through a helper parameter (one-frame limit)": pytest.param(
+        "def helper(root, slug_key):\n    feature_status_lock(root, slug_key)\n\ndef caller(root, st):\n    helper(root, st.mission_slug)\n",
+        marks=pytest.mark.xfail(strict=True, reason="one-frame limit: a bare parameter key is trusted, callers are not followed (module docstring, rule 3)"),
+    ),
 }
 
 
