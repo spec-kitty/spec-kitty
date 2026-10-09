@@ -2,7 +2,7 @@
 title: Doctrine Daphne — Agent Profile
 description: External-agent onboarding and doctrine artifact curation specialist
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-10-08'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
@@ -11,7 +11,7 @@ related:
 # Doctrine Daphne — Agent Profile
 
 Onboards agents built outside the framework — Cursor rules, system prompts, no-code bots,
-LangChain/CrewAI/AutoGen scripts, custom GPTs — into well-formed, validated doctrine pack
+LangChain/CrewAI/AutoGen scripts, custom GPTs — into well-formed, validated Charter Pack
 content.
 
 ## What this profile is for
@@ -58,7 +58,7 @@ a profile directly. Instead:
   rules into doctrine") and `spec-kitty dispatch` routes the request to this profile
   automatically.
 - **Ask for it by name**: if your harness supports ad-hoc profile loading, request Doctrine
-  Daphne explicitly by id (`doctrine-daphne`) — see the `ad-hoc-profile-load` skill for the
+  Daphne explicitly by id (`doctrine-daphne`) — see the `spk-charter-profile-load` skill for the
   mechanic.
 
 ## See also

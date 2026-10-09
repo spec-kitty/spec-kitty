@@ -2,7 +2,7 @@
 title: Implementation Mapping (living)
 description: 'Living implementation mapping (C4 level 4): where each architecture concept lives in the source tree today. A derived view of the enforced module map.'
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/00_landscape/README.md
@@ -16,7 +16,7 @@ related:
 | Status | Living (derived view; the enforced pair wins on conflict) |
 | Date | 2026-03-04 |
 | Last Updated | 2026-09-30 |
-| Scope | Maps C4 architecture views and doctrine stack to current codebase |
+| Scope | Maps C4 architecture views and charter offering stack to current codebase |
 | Parent | [System Landscape](../00_landscape/README.md) |
 | Related ADRs | `2026-03-25-1-glossary-type-ownership` |
 
@@ -27,7 +27,7 @@ actual codebase. This document answers: "Where does each architectural concept
 live in the source tree today?"
 
 This is **not** a code inventory — it maps domain responsibilities to modules,
-explains the doctrine stack layer model, and identifies where the current
+explains the charter offering stack layer model, and identifies where the current
 implementation aligns with or diverges from the target architecture.
 
 > **Current package boundaries** — Package inventory is defined by
@@ -55,9 +55,9 @@ modules within a single-process CLI application. The main ones map as follows.
 | **Event Store** | `src/specify_cli/status/` | `specify_cli` | JSONL event logs (`store.py`), reducer (`reducer.py`), WP frontmatter, `meta.json`. Filesystem-only today. |
 | **Orchestration** | `src/specify_cli/orchestrator_api/`, `consolidation/`, `post_merge/`, `lanes/`, `workspace/`, `tracker/` | `specify_cli` | Lifecycle engine, worktree management, lane consolidation, tracker projection. (The former local `sync/` transport was retired in the convergence; tracker projection now flows from `status/emit.py`.) |
 | **Dashboard** | None in the CLI (the former `specify_cli.dashboard` package was removed, #5530) | external | The container now lives outside the CLI. Interim read path: `spec-kitty agent tasks status` and `orchestrator-api mission-state`. Replacement UIs, in their own repository, will consume the planned Mission Status Read API (#5528; [ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md), proposed). |
-| **Agent Tool Connectors** | `packs/built-in/missions/mission-steps/*/*/prompt.md` (source) → deployed as `.claude/`, `.codex/`, `.amazonq/`, etc. | `charter` (offering source), `specify_cli` (deployment) | Current connector is a rendered markdown prompt template. One "adapter" per agent. Source templates live under `packs/built-in/missions/`; doctrine code lives at `src/charter/offering/`. |
+| **Agent Tool Connectors** | `packs/built-in/missions/mission-steps/*/*/prompt.md` (source) → deployed as `.claude/`, `.codex/`, `.amazonq/`, etc. | `charter` (offering source), `specify_cli` (deployment) | Current connector is a rendered markdown prompt template. One "adapter" per agent. Source templates live under `packs/built-in/missions/`; charter offering code lives at `src/charter/offering/`. |
 | **Skills Installer** | `src/specify_cli/skills/` | `specify_cli` | Deployment bridge introduced in mission 055. `SkillRegistry` discovers canonical skills from `src/charter/offering/skills/`; `ManagedSkillManifest` tracks installed files by hash for drift detection; `installer.py` and `verifier.py` deploy skills into agent directories alongside command templates during `spec-kitty init`. |
-| **Doctrine** | doctrine code at `src/charter/offering/` (models/repository/validation per kind, `drg/`, `artifact_kinds.py`, `schemas/`) + `src/charter/offering/skills/` (canonical skill packs); pack content at `packs/built-in/` | `charter` (the former standalone `doctrine` package was absorbed here in the convergence) | JSON Schema validation, Pydantic models, repository pattern. Skill packs deployed from `src/charter/offering/skills/`. |
+| **Charter Offering** | offering code at `src/charter/offering/` (models/repository/validation per kind, `drg/`, `artifact_kinds.py`, `schemas/`) + `src/charter/offering/skills/` (canonical skill packs); pack content at `packs/built-in/` | `charter` (the former standalone `doctrine` package was absorbed here in the convergence) | JSON Schema validation, Pydantic models, repository pattern. Skill packs deployed from `src/charter/offering/skills/`. |
 | **Charter** | `src/charter/` | `charter` (standalone package) | Interview flow, compiler, action context resolver with depth semantics and action index intersection. Produces `.kittify/charter/` bundles. Context bootstrap injects governance at every execution boundary. |
 
 ### Key structural observation
@@ -69,8 +69,8 @@ documented layer chain is
 **`kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`**:
 
 - `kernel` — zero-dependency shared primitives; the true root layer
-- `charter` — governance/doctrine authority (`charter.offering` holds the
-  doctrine code); depends only on `kernel`
+- `charter` — governance authority (`charter.offering` holds the
+  charter offering code); depends only on `kernel`
 - `glossary` — terminology / semantic-integrity pipeline + DRG glossary
   bridge, in `src/glossary/`
 - `runtime` — canonical mission control loop, in
@@ -154,7 +154,7 @@ User runs: spec-kitty implement WP01
   → src/specify_cli/status/emit.py (Event Store write — lifecycle event)
 ```
 
-### Loop C: Governance (User → Charter → Doctrine)
+### Loop C: Governance (User → Charter → Charter Offering)
 
 ```
 User runs: spec-kitty charter interview / generate
@@ -162,18 +162,18 @@ User runs: spec-kitty charter interview / generate
   → src/charter/activation/interview.py (Charter interview)
   → src/charter/activation/compiler.py (Charter compiler)
   → src/charter/activation/reference_resolver.py (transitive DFS: directive → tactic → styleguide/toolguide)
-  → src/charter/offering/service.py → per-artifact repositories (Doctrine read)
+  → src/charter/offering/service.py → per-artifact repositories (charter offering read)
   → .kittify/charter/ (compiled governance bundle)
 ```
 
-### Loop C': action context bootstrap (Agent → Charter → Doctrine)
+### Loop C': action context bootstrap (Agent → Charter → Charter Offering)
 
 ```
 Agent calls: spec-kitty charter context --action implement
   → src/charter/activation/context.py (Action Context Resolver)
   → Load action index: packs/built-in/missions/software-dev/actions/implement/index.yaml
   → Two-stage intersection: action index ∩ project selections (references.yaml)
-  → src/charter/offering/service.py (DoctrineService) → fetch directive/tactic content by depth
+  → src/charter/offering/service.py (CharterOfferingService) → fetch directive/tactic content by depth
   → Load action guidelines: packs/built-in/missions/mission-steps/software-dev/implement/guidelines.md
   → Render CharterContextResult (governance text injected into agent prompt)
   → Persist context-state.json (first-load tracking for depth semantics)
@@ -227,17 +227,17 @@ Orchestration lifecycle event triggers:
 | **WP Lifecycle Engine** | `status/transitions.py` | 16-pair transition matrix, guard conditions |
 | **Target-Line Router** | `mission_runtime/lifecycle_phase.py`, `core/` | Phase resolution, target branch routing |
 | **Tracker Connector Gateway** | `tracker/` | External tracker API adapters (the former `sync/` runtime coordinator was retired in the convergence) |
-| **Doctrine Catalog Loader** | `src/charter/offering/service.py` | `DoctrineService` — lazy aggregation facade |
+| **Charter Offering Loader** | `src/charter/offering/service.py` | `CharterOfferingService` — lazy aggregation facade |
 | **Schema Validation Gate** | `src/charter/offering/*/validation.py`, `src/charter/offering/schemas/` | JSON Schema + Pydantic validation |
 | **Glossary Hook Coordinator** | `src/charter/offering/missions/glossary_hook.py`, `src/glossary/` | Glossary checks during mission execution |
 | **Charter Interview Flow** | `charter/activation/interview.py` | Guided Q&A for governance capture |
-| **Charter Compiler** | `charter/activation/compiler.py` | Doctrine→charter bundle compilation |
+| **Charter Compiler** | `charter/activation/compiler.py` | Charter offering→charter bundle compilation |
 | **`Action Context Resolver`** | `charter/activation/context.py`, `charter/activation/resolver.py`, `charter/activation/reference_resolver.py` | Action-scoped governance context with depth semantics (1=compact, 2=bootstrap, 3=extended) and two-stage intersection (action index ∩ project selections) |
 | **Action Index** | `packs/built-in/missions/*/actions/*/index.yaml` | Per-action directive/tactic/styleguide/toolguide selection — loaded by `src/charter/offering/missions/action_index.py` |
 | **Execution Dispatch** | `packs/built-in/missions/mission-steps/<mission_type>/<step_id>/prompt.md` | Prompt rendering for agent dispatch (source relocated from `specify_cli/missions/` in mission 054; content now ships from `packs/built-in/`, not `src/charter/offering/`) |
 | **Agent Adapters** | `.claude/`, `.codex/`, `.amazonq/`, etc. | Per-agent command templates (12 agents) |
 | **Path Resolver** | `src/kernel/paths.py` | `get_kittify_home()`, `get_package_asset_root()` — zero-dependency path resolution shared across all packages (moved from `specify_cli.runtime.home` in WP09, 2026-03-25; re-export shim at `specify_cli/runtime/home.py` preserves backward compatibility). **Dependency note (Windows):** `kernel` is stdlib-only on Linux/macOS. On Windows, `platformdirs` is imported lazily in `kernel/paths.py` for platform-appropriate home directory resolution. This is the only sanctioned third-party import in `kernel/`. |
-| **Glossary Runner Registry** | `src/kernel/glossary_runner.py` | `GlossaryRunnerProtocol`, `register()`, `get_runner()` — plugin registry allowing `doctrine` to register its runner without creating a `specify_cli` import dependency. Resolves DIV-5 (docs/adr/2.x/2026-03-25-1-glossary-type-ownership.md). |
+| **Glossary Runner Registry** | `src/kernel/glossary_runner.py` | `GlossaryRunnerProtocol`, `register()`, `get_runner()` — plugin registry allowing `charter.offering` to register its runner without creating a `specify_cli` import dependency. Resolves DIV-5 (docs/adr/2.x/2026-03-25-1-glossary-type-ownership.md). |
 
 ### Tiered Template Resolution Pipeline
 
@@ -249,7 +249,7 @@ and returns the first file that exists:
 |---|---|---|---|
 | 1 | **Project Override** | `.kittify/overrides/{templates,command-templates}/{name}` | Highest precedence. User's explicit project-level override. |
 | 2 | **Legacy** (deprecated) | `.kittify/{templates,command-templates}/{name}` | Pre-migration project files. Emits deprecation warning or one-time "run `spec-kitty migrate`" nudge. Will be removed in next major version. |
-| 3 | **Org** | `<org_root>/missions/{mission}/{templates,command-templates}/{name}` | Org-provided doctrine pack roots, checked in declaration order. No-op when no org packs are configured. |
+| 3 | **Org** | `<org_root>/missions/{mission}/{templates,command-templates}/{name}` | Org Charter Pack roots, checked in declaration order. No-op when no org packs are configured. |
 | 4 | **Global Mission-Specific** | `~/.kittify/missions/{mission}/{templates,command-templates}/{name}` | User-global, scoped to a specific mission type. Populated by `spec-kitty migrate` / `ensure_runtime`. |
 | 5 | **Global Non-Mission** | `~/.kittify/{templates,command-templates}/{name}` | User-global, cross-mission. |
 | 6 | **Package Default** | `packs/built-in/missions/{mission}/{templates,command-templates}/{name}` | Lowest precedence. Bundled pack content (resolved through the `charter.offering` chain). Resolved via `kernel.paths.get_package_asset_root()`. |
@@ -261,9 +261,9 @@ and returns the first file that exists:
 
 ---
 
-## Doctrine Stack: Layer Model
+## Charter Offering Stack: Layer Model
 
-The Doctrine container is organized as a layered knowledge stack. Each layer
+The Charter Offering container is organized as a layered knowledge stack. Each layer
 serves a distinct governance purpose, and the reference directions between
 layers are strictly defined.
 
@@ -300,7 +300,7 @@ Cross-artifact tension/rejection is expressed as first-class DRG edges
 
 **DAG constraint:** Tactic-to-tactic references must form a directed acyclic
 graph. Cycles are detected by `test_tactic_reference_graph_has_no_cycles` in
-`tests/doctrine/test_directive_consistency.py`.
+`tests/charter_offering/test_directive_consistency.py`.
 
 **Tension/rejection semantics:** the DRG relations `in_tension_with` (symmetric,
 non-transitive — e.g. Directive 024 Locality of Change vs. Directive 025 Boy
@@ -337,7 +337,7 @@ Cross-cutting infrastructure used by all artifact subpackages:
 | Module | Purpose |
 |---|---|
 | `schema_utils.py` | `SchemaUtilities.load_schema(name)` — single cached schema loader replacing six near-identical per-type functions |
-| `exceptions.py` | `DoctrineArtifactLoadError` — fail-open signal for corrupt/unreadable artifact files; `DoctrineResolutionCycleError` — raised when a cycle is detected in the reference graph |
+| `exceptions.py` | `ArtifactLoadError` — fail-open signal for corrupt/unreadable artifact files; `ArtifactResolutionCycleError` — raised when a cycle is detected in the reference graph |
 
 **Why shared utilities matter:** Before `shared/`, each `validation.py` duplicated identical schema-loading logic (importlib.resources lookup + filesystem fallback + LRU cache). The `shared/` module eliminates that duplication and provides a single place to evolve the loading strategy.
 
@@ -347,15 +347,14 @@ Cross-cutting infrastructure used by all artifact subpackages:
    (resolved through the `charter.offering` chain). These are the defaults that
    come with Spec Kitty.
 2. **Project artifacts** live in the user's project under the canonical
-   `.kittify/charter-packs/` tree (e.g., `.kittify/charter-packs/directives/`);
-   the legacy `.kittify/doctrine/` location is still read as a fallback until
-   the M3 on-disk data move lands (`src/kernel/doctrine_root.py`,
-   `resolve_doctrine_read_root`, CR-07). Project artifacts can override
+   `.kittify/charter-packs/` tree (e.g., `.kittify/charter-packs/directives/`),
+   resolved through `src/kernel/charter_pack_paths.py`; there is no legacy read
+   fallback (`spec-kitty upgrade` moves a retired tree). Project artifacts can override
    shipped artifacts via field-level merge or add entirely new ones. (`.kittify/charter/`
    is a distinct tree — the compiled Charter Bundle output, not the
    project-layer artifact source.)
 
-The `DoctrineService` (`src/charter/offering/service.py`) is the aggregation facade —
+The `CharterOfferingService` (`src/charter/offering/service.py`) is the aggregation facade —
 it lazily instantiates all per-type repositories and is the single entry point
 for all consumers (Charter compiler, Connectors, Kitty-core).
 
@@ -374,14 +373,14 @@ Each artifact type has a corresponding JSON Schema file in
 | `agent-profile.schema.yaml` | Agent Profile artifacts (capabilities, constraints) |
 | `mission.schema.yaml` | Mission template definition |
 
-Validation is enforced in tests (`tests/doctrine/`) and through the
+Validation is enforced in tests (`tests/charter_offering/`) and through the
 Schema Validation Gate component. Schemas use `additionalProperties: false`
 on paradigm and tactic types, meaning any new field requires both a schema
 update and a valid fixture update.
 
 ---
 
-## Doctrine Stack: As-Is vs. Vision
+## Charter Offering Stack: As-Is vs. Vision
 
 ### What exists and works today
 
@@ -390,14 +389,14 @@ update and a valid fixture update.
 | All 7 artifact types with Pydantic models, repositories, validation | ✅ Complete | `src/charter/offering/*/models.py`, `repository.py`, `validation.py` |
 | JSON Schema validation for all types | ✅ Complete | `src/charter/offering/schemas/*.schema.yaml` |
 | Two-source loading (shipped + project override) | ✅ Complete | `repository.py` field-level merge on each type |
-| Cross-artifact references (`tactic_refs`, `references[]`) | ✅ Complete | Wired with test coverage across `tests/doctrine/` (185 test files, 3,017 collected tests as of 2026-09-07 — this figure grows over time, not a ceiling) |
+| Cross-artifact references (`tactic_refs`, `references[]`) | ✅ Complete | Wired with test coverage across `tests/charter_offering/` (185 test files, 3,017 collected tests as of 2026-09-07 — this figure grows over time, not a ceiling) |
 | Tension/rejection modeling (`in_tension_with`/`reconciles_tension`/`rejects` DRG edges) | ✅ Complete | Hand-authored edges in `packs/built-in/*.graph.yaml`; validated via `assert_valid` |
-| DAG cycle detection — shipped artifacts | ✅ Complete | `test_tactic_reference_graph_has_no_cycles` in `tests/doctrine/test_directive_consistency.py` |
-| Cycle detection at resolution boundary | 🟡 Partial | Moved into the DRG validator: `src/charter/offering/drg/validator.py` rejects `requires` cycles (`_validate_requires_cycles`) and `specializes_from` lineage cycles at load time. The former `reference_resolver._Walker` boundary check is gone, and `DoctrineResolutionCycleError` is defined (`offering/shared/exceptions.py`, covered by `tests/doctrine/shared/test_exceptions.py`) but no longer raised anywhere in `src/`. |
+| DAG cycle detection — shipped artifacts | ✅ Complete | `test_tactic_reference_graph_has_no_cycles` in `tests/charter_offering/test_directive_consistency.py` |
+| Cycle detection at resolution boundary | 🟡 Partial | Moved into the DRG validator: `src/charter/offering/drg/validator.py` rejects `requires` cycles (`_validate_requires_cycles`) and `specializes_from` lineage cycles at load time. The former `reference_resolver._Walker` boundary check is gone, and `ArtifactResolutionCycleError` is defined (`offering/shared/exceptions.py`, covered by `tests/charter_offering/shared/test_exceptions.py`) but no longer raised anywhere in `src/`. |
 | Shared schema loading (`SchemaUtilities`) | ✅ Complete | `src/charter/offering/shared/schema_utils.py`; replaces 6 duplicated per-type loaders |
-| Domain exceptions (`DoctrineArtifactLoadError`, `DoctrineResolutionCycleError`) | ✅ Complete | `src/charter/offering/shared/exceptions.py` |
-| `DoctrineService` aggregation facade | ✅ Complete | `src/charter/offering/service.py` |
-| Charter compiler consumes Doctrine | ✅ Complete | `src/charter/activation/compiler.py` |
+| Domain exceptions (`ArtifactLoadError`, `ArtifactResolutionCycleError`) | ✅ Complete | `src/charter/offering/shared/exceptions.py` |
+| `CharterOfferingService` aggregation facade | ✅ Complete | `src/charter/offering/service.py` |
+| Charter compiler consumes the charter offering | ✅ Complete | `src/charter/activation/compiler.py` |
 | Command templates as connector implementation | ✅ Complete | 12-agent template system via migrations |
 | Transitive reference resolution (directive → tactic → styleguide/toolguide) | ✅ Complete | `src/charter/activation/reference_resolver.py` (mission 054) |
 | Action-scoped governance injection with depth semantics | ✅ Complete | `src/charter/activation/context.py` + `packs/built-in/missions/*/actions/*/index.yaml` (mission 054) |

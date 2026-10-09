@@ -2,7 +2,7 @@
 title: Create a doctrine artifact
 description: A concrete, followable walkthrough for authoring a new doctrine artifact end to end — file location, schema, activation, and the loose-contract asset kind.
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -25,10 +25,10 @@ page. Two kinds need a different recipe. A **pack skill** has its own page:
 shipped blob, not an activatable artifact) has a short recipe at the end:
 [Author an asset](#author-an-asset-a-shipped-blob).
 
-This guide covers **project-tier** artifacts — the fast, self-serve path for one project's own
+This guide covers **project-layer** artifacts — the fast, self-serve path for one project's own
 doctrine. If you are building a shareable **org pack** (doctrine distributed across multiple
 projects), the file layout differs; see
-[Understanding the Org Doctrine Layer](../../architecture/org-doctrine-layer.md) after finishing
+[Understanding the Org Layer of the Charter Offering](../../architecture/org-doctrine-layer.md) after finishing
 this guide.
 
 ## Prerequisites
@@ -39,24 +39,24 @@ this guide.
 
 ## Step 1: Pick a kind and its project directory
 
-Every kind has its own directory under `.kittify/doctrine/`, its own file suffix, and its own
-schema. Project-tier directories use singular names for four kinds and plural names for the
+Every kind has its own directory under `.kittify/charter-packs/`, its own file suffix, and its own
+schema. Project-layer directories use singular names for four kinds and plural names for the
 rest — this is a real, code-verified asymmetry, not a typo. The mapping has a single canonical
-home: `PROJECT_KIND_DIRS` in `src/charter/offering/artifact_kinds.py` (the lowest doctrine layer, imported
-downward by charter and the CLI — there is no second copy to drift). The table below is that
+home: `PROJECT_KIND_DIRS` in `src/charter/offering/artifact_kinds.py` (the charter offering package, imported
+by the activation layer and the CLI — there is no second copy to drift). The table below is that
 mapping:
 
 | Kind | Project directory | File suffix | Schema | ID field |
 |---|---|---|---|---|
-| `directive` | `.kittify/doctrine/directive/` | `.directive.yaml` | `directive.schema.yaml` | `id` |
-| `tactic` | `.kittify/doctrine/tactic/` | `.tactic.yaml` | `tactic.schema.yaml` | `id` |
-| `styleguide` | `.kittify/doctrine/styleguide/` | `.styleguide.yaml` | `styleguide.schema.yaml` | `id` |
-| `procedure` | `.kittify/doctrine/procedure/` | `.procedure.yaml` | `procedure.schema.yaml` | `id` |
-| `toolguide` | `.kittify/doctrine/toolguides/` | `.toolguide.yaml` | `toolguide.schema.yaml` | `id` |
-| `paradigm` | `.kittify/doctrine/paradigms/` | `.paradigm.yaml` | `paradigm.schema.yaml` | `id` |
-| `agent_profile` | `.kittify/doctrine/agent_profiles/` | `.agent.yaml` | `agent-profile.schema.yaml` | `profile-id` |
-| `mission_step_contract` | `.kittify/doctrine/mission_step_contracts/` | `.step-contract.yaml` | (Pydantic model, no standalone JSON Schema file) | `id` |
-| `skill` | `.kittify/doctrine/skills/` | `.skill.yaml` | `skill.schema.yaml` | `id` |
+| `directive` | `.kittify/charter-packs/directive/` | `.directive.yaml` | `directive.schema.yaml` | `id` |
+| `tactic` | `.kittify/charter-packs/tactic/` | `.tactic.yaml` | `tactic.schema.yaml` | `id` |
+| `styleguide` | `.kittify/charter-packs/styleguide/` | `.styleguide.yaml` | `styleguide.schema.yaml` | `id` |
+| `procedure` | `.kittify/charter-packs/procedure/` | `.procedure.yaml` | `procedure.schema.yaml` | `id` |
+| `toolguide` | `.kittify/charter-packs/toolguides/` | `.toolguide.yaml` | `toolguide.schema.yaml` | `id` |
+| `paradigm` | `.kittify/charter-packs/paradigms/` | `.paradigm.yaml` | `paradigm.schema.yaml` | `id` |
+| `agent_profile` | `.kittify/charter-packs/agent_profiles/` | `.agent.yaml` | `agent-profile.schema.yaml` | `profile-id` |
+| `mission_step_contract` | `.kittify/charter-packs/mission_step_contracts/` | `.step-contract.yaml` | (Pydantic model, no standalone JSON Schema file) | `id` |
+| `skill` | `.kittify/charter-packs/skills/` | `.skill.yaml` | `skill.schema.yaml` | `id` |
 
 The `skill` kind does not follow Steps 2–6 below: it needs a `skill_namespace`, a body file, and
 it projects files into each tool's skill root. Follow [Create and activate a pack
@@ -66,7 +66,7 @@ Schemas live under `src/charter/offering/schemas/`. If you are working from a pr
 required fields is to copy a real built-in file of that kind and edit it — every built-in
 artifact under `packs/built-in/<kind-plural>/` is already schema-valid.
 
-This walkthrough creates a **tactic**, so the target directory is `.kittify/doctrine/tactic/`.
+This walkthrough creates a **tactic**, so the target directory is `.kittify/charter-packs/tactic/`.
 
 ## Step 2: Choose an ID
 
@@ -77,7 +77,7 @@ pick something you'll type again: `example-driven-api-design`, not `Tactic For A
 
 ## Step 3: Write the artifact file
 
-Create `.kittify/doctrine/tactic/example-driven-api-design.tactic.yaml`. A tactic's schema
+Create `.kittify/charter-packs/tactic/example-driven-api-design.tactic.yaml`. A tactic's schema
 (`src/charter/offering/schemas/tactic.schema.yaml`) requires `id`, `schema_version`, `name`, and at
 least one step (each step requires at least a `title`):
 
@@ -123,7 +123,7 @@ For a different kind, swap the required fields per the table in Step 1 — for e
 
 ## Step 4: Confirm the artifact is discovered
 
-Project-tier doctrine is read directly off disk — no separate "import" step. Confirm your new
+The project layer is read directly off disk — no separate "import" step. Confirm your new
 file is found and parses:
 
 ```bash
@@ -132,7 +132,7 @@ spec-kitty charter list --show-available
 
 Your new tactic should appear as an available-but-not-yet-activated ID under the `tactic` row.
 If it does not appear, re-check the filename suffix (`.tactic.yaml`, not `.yaml`) and the
-directory (`.kittify/doctrine/tactic/`, singular).
+directory (`.kittify/charter-packs/tactic/`, singular).
 
 ## Step 5: Activate it
 
@@ -182,7 +182,7 @@ spec-kitty charter context --action specify --json
 If `charter status` reports the bundle as stale, run `spec-kitty charter synthesize` (dry-run
 first) to promote it — see
 [How to Synthesize and Maintain Doctrine](../../guides/how-to/governance/synthesize-doctrine.md) for the full
-synthesis workflow. If something looks wrong at any step, `spec-kitty doctor doctrine` and
+synthesis workflow. If something looks wrong at any step, `spec-kitty doctor charter-packs` and
 [Troubleshooting Charter Failures](../../guides/how-to/governance/troubleshoot-charter.md) are the first places to
 check.
 
@@ -214,7 +214,7 @@ spec-kitty charter deactivate tactic example-driven-api-design
 ```
 
 Deactivating removes the ID from `activated_tactics`; it does not delete the file. Delete
-`.kittify/doctrine/tactic/example-driven-api-design.tactic.yaml` directly if you want the
+`.kittify/charter-packs/tactic/example-driven-api-design.tactic.yaml` directly if you want the
 artifact gone entirely.
 
 ## Author an asset (a shipped blob)
@@ -232,18 +232,18 @@ This recipe is executable against a fresh project — copy it verbatim.
 
 ### Step A: place the blob
 
-The project-tier asset directory is `.kittify/doctrine/assets/` (from the single canonical
+The project-layer asset directory is `.kittify/charter-packs/assets/` (from the single canonical
 `PROJECT_KIND_DIRS` mapping). Put the blob there. For a worked example, a shared release checklist:
 
 ```bash
-mkdir -p .kittify/doctrine/assets
-printf '# Release checklist\n- [ ] Tests green\n' > .kittify/doctrine/assets/team-release-checklist.md
+mkdir -p .kittify/charter-packs/assets
+printf '# Release checklist\n- [ ] Tests green\n' > .kittify/charter-packs/assets/team-release-checklist.md
 ```
 
 ### Step B: write the sidecar manifest
 
 Alongside the blob, create a manifest named `<blob>.asset.yaml` — here
-`.kittify/doctrine/assets/team-release-checklist.md.asset.yaml`. The manifest is the validated
+`.kittify/charter-packs/assets/team-release-checklist.md.asset.yaml`. The manifest is the validated
 surface; it requires `id`, `mime`, and `path`, with an optional `title`:
 
 ```yaml
@@ -253,7 +253,7 @@ path: team-release-checklist.md
 title: Team release checklist
 ```
 
-Field rules (`doctrine.assets.models.AssetManifest`, enforced by the pack validator):
+Field rules (`charter.offering.assets.models.AssetManifest`, enforced by the pack validator):
 
 - `id` — a stable identifier, unique per pack per kind. This is what you resolve by.
 - `mime` — `type/subtype` form (e.g. `text/markdown`, `image/png`); when the extension implies a
@@ -270,15 +270,15 @@ step. Confirm the asset is discoverable and resolves to your blob:
 
 ```bash
 # List every resolvable asset and its source tier (built-in / org / project)
-spec-kitty doctrine asset list
+spec-kitty charter pack asset list
 
 # Resolve one identifier to a filesystem path (exit 0 on success;
 # an unknown id exits non-zero and names the id)
-spec-kitty doctrine asset path team-release-checklist
+spec-kitty charter pack asset path team-release-checklist
 ```
 
 The `path` command prints the absolute path to your blob and exits `0`. Downstream code (a mission
-step, a hook, a shipped lint) consumes the asset by calling `spec-kitty doctrine asset path <id>`
+step, a hook, a shipped lint) consumes the asset by calling `spec-kitty charter pack asset path <id>`
 and reading the file at the returned path — never by hard-coding a source-tree path. A more
 specific tier wins: a project or org asset of the same `id` shadows the built-in, and the shadow is
 reported by `asset list`.
@@ -295,7 +295,7 @@ There is nothing to undo — no activation entry was written. Delete the blob an
 - [Doctrine relationships](../../architecture/doctrine-relationships.md) — the full DRG relation
   reference, including the tension vocabulary (`in_tension_with`, `reconciles_tension`,
   `rejects`) that supersedes the retired `opposed_by` field.
-- [Understanding the Org Doctrine Layer](../../architecture/org-doctrine-layer.md) — how to package
+- [Understanding the Org Layer of the Charter Offering](../../architecture/org-doctrine-layer.md) — how to package
   and share doctrine artifacts across multiple projects instead of authoring them project-local.
 - [How to Synthesize and Maintain Doctrine](../../guides/how-to/governance/synthesize-doctrine.md) — the broader
   synthesis/resynthesis maintenance workflow this guide's Step 6 hands off to.

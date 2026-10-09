@@ -1,12 +1,12 @@
 ---
-title: "spk-doctrine-profile-load"
+title: "spk-charter-profile-load"
 description: "Load a Spec Kitty agent profile on demand for interactive sessions, outside the mission runtime loop."
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-10-08'
 related: [docs/api/skills/index.md]
 ---
 
-# spk-doctrine-profile-load
+# spk-charter-profile-load
 
 ## What it does
 
@@ -33,7 +33,7 @@ reference](../agent_profiles/index.md) for the full profile catalog).
 
 1. Identify the requested profile and any active mission context.
 2. Load only that profile's initialization declaration and relevant
-   boundaries — not the full doctrine catalog.
+   boundaries — not the full charter offering.
 3. Apply the role for the current session or routed task.
 4. Return to the runtime-next skill for mission advancement.
 
@@ -43,8 +43,8 @@ It does not create new profiles (use the charter synthesize workflow or edit
 the profile YAML directly) and it does not drive mission advancement — that's
 `spk-run-next`'s job.
 
-## Legacy alias
+## Detailed mechanics
 
 For the detailed step-by-step mechanics (profile resolution, boundary
-checks, doctrine pull, handoff conventions), see `ad-hoc-profile-load`, which
-this skill treats as its detailed reference implementation.
+checks, doctrine pull, handoff conventions), read the skill's
+`references/profile-load-mechanics.md`.

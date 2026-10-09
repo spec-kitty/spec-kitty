@@ -57,7 +57,7 @@ for the same commit — a second measurement of the same tests, discarded.
 ### The internal gate's critical-path allowlist
 
 The enforced internal gate restricts itself (`diff-cover ... --include`) to these
-paths — the kernel, doctrine, charter, status, merge, and mission-runtime
+paths — the kernel, charter, status, merge, and mission-runtime
 surfaces where a coverage miss is highest-risk:
 
 ```
@@ -72,8 +72,9 @@ src/mission_runtime/*
 
 That is roughly **247 Python files** — a strict subset of the **~969 tracked
 `.py` files** SonarCloud scores across the whole `src/` tree (SonarCloud indexes
-**1305 files** in total under `src/`, spanning all seven top-level packages:
-`specify_cli`, `doctrine`, `charter`, `runtime`, `glossary`, `kernel`,
+**1305 files** in total under `src/`, spanning the top-level packages of that
+measurement: `specify_cli`, the former `doctrine` (since absorbed into
+`charter.offering`), `charter`, `runtime`, `glossary`, `kernel`,
 `mission_runtime`).
 
 ### Remedy: `git mv` into a critical-path dir needs `fast`-marked coverage

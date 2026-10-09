@@ -2,7 +2,7 @@
 title: Containers (living)
 description: 'Living containers view (C4 level 2): current logical containers and the planned charter read-service transition.'
 doc_status: active
-updated: '2026-10-03'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/01_context/README.md
@@ -45,7 +45,7 @@ flowchart TB
 
     subgraph Governance["Governance Module"]
       charter["Charter Engine — activation, cascade, extends"]
-      doctrine["Doctrine Catalog + DRG"]
+      doctrine["Charter Offering + DRG"]
       glossary["Glossary Corpus"]
     end
 
@@ -164,7 +164,7 @@ reads enter the same application and domain policies.
 | CLI Command Surface | Interactive and scripted command entry point | Validates command intent and routes to the Op tier and bounded modules |
 | Op Tier | Standalone dispatch invocations and the pre/post-mission lifecycle | Opens an Op under resolved governance context, does the work, closes the Op with the real outcome |
 | Charter Engine | Charter interview, activation, cascade, and `org-charter.yaml` `extends:` resolution | Produces governance constraints (the active charter/doctrine policy) consumed by the Op tier and missions |
-| Doctrine Catalog + DRG | Typed governance/mission assets and the Doctrine Relationship Graph | Loads/validates doctrine resources; resolves profile lineage via DRG edges |
+| Charter Offering + DRG | Typed governance/mission assets and the Doctrine Relationship Graph | Loads/validates doctrine resources; resolves profile lineage via DRG edges |
 | Glossary Corpus | Canonical terminology surface | Supplies terms and guards terminology drift |
 | Mission + WP lifecycle | Mission and work-package lifecycle precedence | Owns lifecycle sequencing; delegates execution-state resolution to `mission_runtime` |
 | `status/` OHS facade | Canonical lifecycle and event semantics | **Sole** status authority — no module outside Mission Management imports `status` internals |
@@ -195,7 +195,7 @@ reads enter the same application and domain policies.
 
 | Domain (bounded module) | Primary Containers | Secondary Containers |
 |---|---|---|
-| Governance | Charter Engine, Doctrine Catalog + DRG, Glossary Corpus | CLI Command Surface, Op Tier |
+| Governance | Charter Engine, Charter Offering + DRG, Glossary Corpus | CLI Command Surface, Op Tier |
 | Mission Management | Mission + WP lifecycle, `status/` OHS facade, Planning artifacts | CLI Command Surface, Zeitgeist moment publisher |
 | Execution / Runtime | `mission_runtime`, `resolve_placement_only`, `resolve_status_surface_with_anchor`, Workspace lifecycle | Mission + WP lifecycle |
 | Shared Kernel | `CommitTarget(ref, kind)`, `commit_guard.evaluate` + `GuardCapability` | — |

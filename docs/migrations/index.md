@@ -2,13 +2,14 @@
 title: Migrations
 description: 'Migration hub for upgrading Spec Kitty projects to 3.2: current migration paths, historical cutover runbooks, and the migration/shim ruleset with its registry.'
 doc_status: active
-updated: '2026-10-03'
+updated: '2026-10-08'
 related:
 - docs/context/index.md
 - docs/changelog/index.md
 - docs/migrations/migration-and-shim-rules.md
 - docs/migrations/2-1-main-cutover-checklist.md
 - docs/migrations/charter-ownership-consolidation.md
+- docs/migrations/charter-pack-cutover.md
 - docs/migrations/backfill-wp-status.md
 - docs/migrations/cross-repo-e2e-gate.md
 - docs/migrations/doctrine-local-overlay-to-org-layer.md
@@ -17,6 +18,7 @@ related:
 - docs/migrations/legacy-to-coordination.md
 - docs/migrations/mission-id-canonical-identity.md
 - docs/migrations/mission-type-flag-deprecation.md
+- docs/migrations/relocate-builtin-doctrine-packs.md
 - docs/migrations/retrospective-events-upstream.md
 - docs/migrations/shared-package-boundary-cutover.md
 - docs/migrations/teamspace-mission-state-920-closeout.md
@@ -40,8 +42,8 @@ Use these pages when an existing project, script, or operator habit predates the
 
 ## Current 3.2 migrations
 
+- [Charter pack cutover](charter-pack-cutover.md) — run `spec-kitty upgrade` once; renamed commands, skills, config keys and the `LEGACY_CHARTER_STATE` error.
 - [Migrating from 2.x / early 3.x](from-charter-2x.md)
-- [Doctrine local overlay to org layer](doctrine-local-overlay-to-org-layer.md)
 - [Mission ID canonical identity](mission-id-canonical-identity.md)
 - [Repair a Mission whose status snapshot misses work packages](backfill-wp-status.md) — `spec-kitty migrate backfill-wp-status`.
 - [Legacy topology to the coordination model](legacy-to-coordination.md)
@@ -70,3 +72,5 @@ These pages are preserved for older cutovers, closeouts, and engineering context
 - [Cross-repo E2E gate](cross-repo-e2e-gate.md)
 - [Retrospective events upstream](retrospective-events-upstream.md)
 - [Shared package boundary cutover](shared-package-boundary-cutover.md)
+- [Doctrine local overlay to org layer](doctrine-local-overlay-to-org-layer.md) — superseded by the charter pack cutover.
+- [Relocate built-in doctrine to packs/built-in](relocate-builtin-doctrine-packs.md) — superseded by the charter pack cutover.

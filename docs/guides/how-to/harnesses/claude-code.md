@@ -63,7 +63,7 @@ The command name is the filename stem under `.claude/commands/`. Arguments after
 - **Profile not loading (researcher / reviewer roles do not adopt).**
   Inside Claude Code, run:
   ```
-  /ad-hoc-profile-load researcher-robbie
+  /spk-charter-profile-load researcher-robbie
   ```
   Replace the profile id with the one named in the work-package frontmatter (`agent_profile:`).
 

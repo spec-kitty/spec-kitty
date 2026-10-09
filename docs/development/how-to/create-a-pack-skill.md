@@ -2,7 +2,7 @@
 title: Create and activate a pack skill
 description: Author a pack skill, set its namespace, activate it into each configured tool's project skill root, and keep it healthy with doctor skills and upgrade.
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -57,9 +57,9 @@ namespace to render under` and names the config key to set.
 
 ## Step 2: Write the skill
 
-Create two files in `.kittify/doctrine/skills/`.
+Create two files in `.kittify/charter-packs/skills/`.
 
-`.kittify/doctrine/skills/release-notes.skill.yaml`:
+`.kittify/charter-packs/skills/release-notes.skill.yaml`:
 
 ```yaml
 schema_version: "1.0"
@@ -77,7 +77,7 @@ version: 1.0.0
 maintainers: ["@acme/platform"]
 ```
 
-`.kittify/doctrine/skills/release-notes.skill.md`:
+`.kittify/charter-packs/skills/release-notes.skill.md`:
 
 ```markdown
 Draft release notes for the version the user names.
@@ -147,7 +147,7 @@ edges, so its `SKILL.md` has no such section.
 
 ### What Spec Kitty refuses
 
-For project and org skills, Spec Kitty skips the skill file with a warning (and `doctor doctrine`
+For project and org skills, Spec Kitty skips the skill file with a warning (and `doctor charter-packs`
 reports it) when:
 
 - the id or its rendered name starts with `spk-`, `spec-kitty-` or `spec-kitty.`;
@@ -166,7 +166,7 @@ Projection refuses, and writes no skill file, when:
 - a skill is installed or listed in `activated_skills`, and a configured org pack is not fetched or its
   `org-charter.yaml` cannot be read (run `spec-kitty charter fetch --pack <name>` or fix the file).
 
-To see the skipped files, run `spec-kitty doctor doctrine --json` and read
+To see the skipped files, run `spec-kitty doctor charter-packs --json` and read
 `profile_health.skills.invalid_skills`.
 
 A skipped file is harmless while nothing activates it. If a skill that is **already in force**
@@ -284,7 +284,7 @@ An org pack works the same way, with two differences:
   project that registers the pack, without a `charter activate` step. Two sibling org packs must
   not declare the same skill id.
 
-See [Understanding the Org Doctrine Layer](../../architecture/org-doctrine-layer.md) for how a
+See [Understanding the Org Layer of the Charter Offering](../../architecture/org-doctrine-layer.md) for how a
 project registers a pack.
 
 ## See also

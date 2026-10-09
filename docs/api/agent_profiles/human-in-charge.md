@@ -2,7 +2,7 @@
 title: Human in Charge — Agent Profile
 description: Workflow sentinel indicating this work package requires direct human execution
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-10-08'
 related:
   - docs/api/agent_profiles/index.md
   - docs/context/charter.md
@@ -10,7 +10,7 @@ related:
 
 # Human in Charge — Agent Profile
 
-This is not an AI persona. It is a routing sentinel marking a work package for direct human execution; no agent context is injected. Nothing in the codebase blocks resolving or loading this profile-id the way it would any other, but doing so is a no-op: doctrine-layers, directives, and the initialization-declaration are all empty, so there is no persona voice or context for `ad-hoc-profile-load` to apply.
+This is not an AI persona. It is a routing sentinel marking a work package for direct human execution; no agent context is injected. Nothing in the codebase blocks resolving or loading this profile-id the way it would any other, but doing so is a no-op: doctrine-layers, directives, and the initialization-declaration are all empty, so there is no persona voice or context for `spk-charter-profile-load` to apply.
 
 ## What it signals
 
@@ -22,11 +22,11 @@ When a work package carries the `human-in-charge` profile-id, that WP requires d
 
 ## What it does NOT do
 
-- No doctrine layers are loaded (the profile declares no `directive-references` / `tactic-references`).
+- No directives or tactics are loaded (the profile declares no `directive-references` / `tactic-references`).
 - No directives are applied (`directive-references` is empty).
 - No persona voice or initialization declaration is used — the field is a literal empty string.
 
 ## See also
 
 - [Agent Profiles index](index.md)
-- [spk-doctrine-profile-load](../skills/spk-doctrine-profile-load.md) — how profile loading works for the 16 real personas this sentinel is excluded from
+- [spk-charter-profile-load](../skills/spk-charter-profile-load.md) — how profile loading works for the 16 real personas this sentinel is excluded from

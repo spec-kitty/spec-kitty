@@ -2,7 +2,7 @@
 title: How to Run a Governed Mission
 description: Run spec-kitty next with Charter context injection, read JSON output, handle composed steps and blocked decisions.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-10-08'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -22,8 +22,8 @@ Confirm your governance is ready before running a mission:
 
 1. Charter bundle is current: `uv run spec-kitty charter status`
 2. Bundle validates: `uv run spec-kitty charter bundle validate`
-3. Doctrine is synthesized: check that `.kittify/doctrine/` is present. Fresh projects may only
-   have `PROVENANCE.md`; in that state the runtime falls back to built-in doctrine until
+3. Doctrine is synthesized: check that `.kittify/charter-packs/` is present. Fresh projects may only
+   have `PROVENANCE.md`; in that state the runtime falls back to the built-in Charter Pack until
    agent-generated artifacts are promoted.
 
 If the bundle is stale, run the synthesis flow first. See

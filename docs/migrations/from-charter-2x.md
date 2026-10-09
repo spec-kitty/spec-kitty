@@ -2,7 +2,7 @@
 title: Migrating from 2.x / Early 3.x Charter Projects
 description: What changed when upgrading from Spec Kitty 2.x or early 3.x to current Charter-era 3.x, migration steps, and known failure modes.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-10-08'
 related:
 - docs/context/index.md
 - docs/changelog/2x/index.md
@@ -21,7 +21,7 @@ the Charter era) to the current Charter-era 3.x.
 | Area | 2.x behavior | 3.x Charter behavior |
 |---|---|---|
 | Governance file location | `.kittify/charter/charter.md` — same location, but no DRG-backed synthesis | `.kittify/charter/charter.md` — same file, now drives the full synthesis pipeline |
-| Doctrine layer | Repository-native doctrine artifacts in `src/doctrine/` (directives, tactics, styleguides) | Project-local doctrine in `.kittify/doctrine/` promoted by `charter synthesize`; built-in doctrine in `src/doctrine/` is the fallback |
+| Governance artifacts | Repository-native doctrine artifacts in `src/doctrine/` (directives, tactics, styleguides) | Project layer in `.kittify/charter-packs/` promoted by `charter synthesize`; the built-in Charter Pack in `packs/built-in/` is the fallback |
 | Synthesis command | `charter sync` (sync only — charter.md to YAML config) | `charter synthesize` (full DRG-backed doctrine promotion) + `charter bundle validate` |
 | Partial synthesis | Not available | `charter resynthesize --topic <selector>` |
 | Bundle validation | Not available | `charter bundle validate` |
@@ -75,7 +75,7 @@ uv run spec-kitty charter generate --from-interview --force
 
 ### Step 3: Run the full synthesis flow
 
-Run synthesis to populate `.kittify/doctrine/` for the first time:
+Run synthesis to populate `.kittify/charter-packs/` for the first time:
 
 ```bash
 # Check current status
@@ -161,7 +161,7 @@ uv run spec-kitty charter bundle validate
 
 ### 4. Doctrine files missing after migration
 
-On first migration, `.kittify/doctrine/` may be empty because `charter synthesize` was never run.
+On first migration, `.kittify/charter-packs/` may be empty because `charter synthesize` was never run.
 Run it once to populate:
 
 ```bash
@@ -169,7 +169,7 @@ uv run spec-kitty charter synthesize
 ```
 
 If `.kittify/charter/generated/` is also empty (no agent-generated artifacts), synthesize will
-create only the minimal artifact set. The runtime falls back to built-in doctrine until you run
+create only the minimal artifact set. The runtime falls back to the built-in Charter Pack until you run
 a full synthesis with agent-generated content.
 
 ### 5. compact-context warnings in agent prompts

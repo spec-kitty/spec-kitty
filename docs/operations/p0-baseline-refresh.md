@@ -24,7 +24,7 @@ targeted analysis was finished (still at ~44% through the suite).
 |-------|---------|-------------------|--------|
 | #1301 | tests/sync/ + tests/contract/ | 1 | STILL REPRODUCES |
 | #1303 | tests/charter/synthesizer/ | 0 | STALE (resolved by prior commits) |
-| #1304 | tests/doctrine/ | 0 | STALE (resolved by prior commits) |
+| #1304 | tests/charter_offering/ | 0 | STALE (resolved by prior commits) |
 | #1305 | tests/next/ | 0 | STALE (resolved by prior commits) |
 
 ### Cluster Details
@@ -61,10 +61,10 @@ All synthesizer tests pass. The non-determinism issue described in #1303 is reso
 
 **#1304 — STALE**
 
-Command: `pytest tests/doctrine/ -q --tb=short -p no:cacheprovider`
+Command: `pytest tests/charter_offering/ -q --tb=short -p no:cacheprovider`
 Result: `1975 passed, 84 warnings in 56.88s`
 
-All doctrine/glossary tests pass. Anchor drift issue described in #1304 is resolved.
+All charter offering/glossary tests pass. Anchor drift issue described in #1304 is resolved.
 
 **#1305 — STALE**
 
@@ -154,10 +154,10 @@ WP03's target fixes were absorbed by WP02: all #1301 cluster tests pass with zer
 
 **Date**: 2026-06-01
 
-**T019 Findings**: All four #1304 cluster tests were confirmed to pass before any code changes. The doctrine/glossary tests (`test_glossary_link_integrity` and `test_tactic_compliance`) all pass including the specific anchors `doctrine-pack` and `platform-darwin--platform-linux`, and the `five-paradigm-parallel-debugging` tactic YAML is schema-valid with no unresolved references.
+**T019 Findings**: All four #1304 cluster tests were confirmed to pass before any code changes. The charter offering/glossary tests (`test_glossary_link_integrity` and `test_tactic_compliance`) all pass including the specific anchors `doctrine-pack` and `platform-darwin--platform-linux`, and the `five-paradigm-parallel-debugging` tactic YAML is schema-valid with no unresolved references.
 
-**Full `tests/doctrine/` result**: 1975 passed, 84 warnings, 0 failed
+**Full `tests/charter_offering/` result**: 1975 passed, 84 warnings, 0 failed
 
-**FR-007 Regression Guard**: `tests/doctrine/test_glossary_link_integrity.py` and `tests/doctrine/test_tactic_compliance.py` contain no `xfail` or `skip` markers — they are fully active regression guards that run on every CI pass.
+**FR-007 Regression Guard**: `tests/charter_offering/test_glossary_link_integrity.py` and `tests/charter_offering/test_tactic_compliance.py` contain no `xfail` or `skip` markers — they are fully active regression guards that run on every CI pass.
 
 **Action taken**: WP05 closed as stale (no code changes required; all target tests passed pre-implementation, consistent with WP01 baseline assessment which recorded #1304 as STALE).

@@ -8,7 +8,7 @@ audience: docs/context/audience/internal/system-architect.md
 # Doctrine relationships: lineage, delegation, augmentation, and action resolution
 
 This page explains how relationships between doctrine artifacts are modelled in
-Spec Kitty, and — importantly — **how to author them**. As of the org-doctrine
+Spec Kitty, and — importantly — **how to author them**. As of the org Charter Pack
 profile-integrity work (FR-001/FR-003/FR-004, NFR-007), every relationship is a
 **typed edge in the doctrine reference graph (DRG)**. Relationships are *not*
 authored as fields on the artifacts themselves.
@@ -28,7 +28,7 @@ registry in
 [`src/charter/offering/drg/models.py`](https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/drg/models.py)
 — that registry is the single source of truth; these sections mirror it for
 human readers, and the two are kept in parity by
-`tests/doctrine/test_relation_doc_parity.py` (FR-006/FR-012/NFR-003/NFR-004),
+`tests/charter_offering/test_relation_doc_parity.py` (FR-006/FR-012/NFR-003/NFR-004),
 which now scopes **all 15 relations**, not a subset.
 
 ## DRG schema at a glance
@@ -188,7 +188,7 @@ lineage/delegation/augmentation and action-resolution families above, and
 explicitly **not** to be confused with them or with each other. As with every
 other relation on this page, the description text below is copied
 **verbatim** from the canonical `RELATION_DESCRIPTIONS` registry and is kept
-in parity by `tests/doctrine/test_relation_doc_parity.py`.
+in parity by `tests/charter_offering/test_relation_doc_parity.py`.
 
 ### Tension — `in_tension_with`
 
@@ -268,7 +268,7 @@ queryable, layer-aware authority:
   there is no field-vs-edge ambiguity.
 - **Zero-loss migration (NFR-007).** Every previously field-authored
   relationship maps to exactly one merged edge. The migration test
-  (`tests/doctrine/test_relationship_migration.py`) discovers the field-authored
+  (`tests/charter_offering/test_relationship_migration.py`) discovers the field-authored
   set from the built-in artifacts and proves each one has a corresponding edge —
   it never trusts a hardcoded count.
 - **Fail-closed semantics (FR-003).** An edge whose `relation` token is not a
@@ -285,13 +285,13 @@ removed, or its semantics change, update:
 2. the `RELATION_DESCRIPTIONS` entry for that relation,
 3. this explanation page, and
 4. the relationship-migration tests and fixtures
-   (`tests/doctrine/test_relationship_migration.py`,
-   `tests/doctrine/fixtures/relationship_packs/`).
+   (`tests/charter_offering/test_relationship_migration.py`,
+   `tests/charter_offering/fixtures/relationship_packs/`).
 
 Every one of the 15 `Relation` members has its own dedicated `### …` section
 above, and each section must stay byte-identical (whitespace aside) to
 `RELATION_DESCRIPTIONS` in `src/charter/offering/drg/models.py` —
-`tests/doctrine/test_relation_doc_parity.py` enforces this for all 15 and
+`tests/charter_offering/test_relation_doc_parity.py` enforces this for all 15 and
 fails red, naming the relation, on any drift. There is no remaining subset of
 relations excluded from this parity check: the doc-parity restructure
 (mission `drg-relation-parity-activation-gate-01KY48PD`) is the follow-up that

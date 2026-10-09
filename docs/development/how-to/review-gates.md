@@ -475,11 +475,11 @@ typo pass: a real typo inside a code span is still a typo.
 - The `en-GB` to `en-US` dictionary is not complete; some words, for example
   `materialised`, slip through. Respell them by hand when you see them.
 
-## Shippable doctrine: built-in doctrine must work in a consumer repo
+## Shippable doctrine: the built-in Charter Pack must work in a consumer repo
 
-**Built-in doctrine (anything under `packs/built-in/`) MUST be valid
+**The built-in Charter Pack (anything under `packs/built-in/`) MUST be valid
 and actionable in a consumer repository that has activated the pack but has NO
-access to the spec-kitty source tree, CI, or tooling.** A doctrine pack is
+access to the spec-kitty source tree, CI, or tooling.** A Charter Pack is
 installed/activated as a *pack* in an arbitrary customer repo — it does not ship
 our `scripts/`, `.github/`, `src/`, or `tests/` directories, and never will.
 

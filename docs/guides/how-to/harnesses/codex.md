@@ -64,7 +64,7 @@ This is the key difference from slash-command hosts — do not type `/spec-kitty
 - **Profile not loading (researcher / reviewer roles do not adopt).**
   At the Codex prompt, run:
   ```
-  /ad-hoc-profile-load researcher-robbie
+  /spk-charter-profile-load researcher-robbie
   ```
   Use the profile id named in the work-package frontmatter (`agent_profile:`).
 

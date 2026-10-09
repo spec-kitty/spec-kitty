@@ -2,7 +2,7 @@
 title: "spk-start-here"
 description: "Start here for Spec Kitty. Orient CLI users and supported agent-harness users; choose the right command, skill family, and recovery path."
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-07-21'
 related: [docs/api/skills/index.md]
 ---
 
@@ -40,7 +40,9 @@ skills are agent-harness operating guides, not `spec-kitty` CLI commands.
 - Existing mission needs advancement → `spk-run-next`
 - Multi-mission or multi-repo program → `spk-run-program-orchestrate`
 - Review or approval work → `spk-run-review-wp`, then `spk-gate-accept`
-- Doctrine or governance concern → the `spk-doctrine-*` family
+- Team, SaaS, tracker, or sync concern → `spk-team-sync` or `spk-team-tracker`
+- Charter or governance concern → the `spk-charter-*` family
+- Engineering practice (bulk edit, visuals, code reduction) → the `spk-practice-*` family
 - Unsure which skill applies → `spk-meta-skill-map`
 
 ## What it does not do
