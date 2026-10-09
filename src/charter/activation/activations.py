@@ -277,8 +277,8 @@ def _activation_identity_key(entry: ActivationEntry) -> tuple[str, str, str, str
     hash keys regardless of insertion order.
 
     Relocated here (FR-003, WP01) from
-    ``specify_cli.doctrine.org_charter`` so the org-pack fold
-    (:func:`specify_cli.doctrine.org_charter._fold_policies`) and the
+    ``charter.activation.org_charter`` so the org-pack fold
+    (:func:`charter.activation.org_charter._fold_policies`) and the
     charter-layer resolve-time union
     (:func:`charter.activation.context._union_activations`) share ONE identity-key
     implementation and cannot drift. This module has no

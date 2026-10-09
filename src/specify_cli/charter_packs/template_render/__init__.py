@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.doctrine.template_render.resolve import (
+from specify_cli.charter_packs.template_render.resolve import (
     ParsedTemplate,
     ResolveError,
     ResolvedTemplateSource,
@@ -17,7 +17,7 @@ from specify_cli.doctrine.template_render.resolve import (
     parse_template_ref,
     resolve_template_source,
 )
-from specify_cli.doctrine.template_render.validation import (
+from specify_cli.charter_packs.template_render.validation import (
     ValidationResult,
     validate_local_path,
     validate_org_name,

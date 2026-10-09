@@ -4,7 +4,7 @@ Covers the topology contract of :func:`charter.offering.packs.extends.resolve_ex
 base-first ordering, fail-closed cycle rejection, missing-base rejection, and
 the non-destructive single-layer (no-``extends:``) path. The additive merge and
 precedence-on-conflict are exercised at the consumer layer
-(``tests/specify_cli/doctrine/test_org_charter.py``), which now delegates its
+(``tests/charter/activation/test_org_charter.py``), which now delegates its
 chain walk to this resolver.
 """
 

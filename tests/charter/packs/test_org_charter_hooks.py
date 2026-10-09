@@ -30,7 +30,7 @@ from charter.offering.packs.pack_validator import (
     validate_pack,
 )
 from specify_cli.cli.commands.doctrine import app
-from specify_cli.doctrine import org_charter
+from charter.activation import org_charter
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

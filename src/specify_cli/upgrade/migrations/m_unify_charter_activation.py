@@ -33,7 +33,7 @@ kind whose ``config.activated_<kind>`` key is *absent* before appending the
 promoted ids — but only if the caller actually supplies the real built-in set.
 This migration loads the shipped default pack via the shared
 :func:`charter.activation.default_pack.load_default_pack_activation_ids` loader (the
-same primitive :func:`specify_cli.doctrine.org_charter._promote_org_required_to_config`
+same primitive :func:`charter.activation.org_charter._promote_org_required_to_config`
 uses — squad finding #2530 dedup) and passes it as ``default_ids`` so a
 first-run/absent-key project keeps every built-in active rather than
 collapsing to a bare, newly-promoted list.
@@ -103,7 +103,7 @@ def load_default_pack_ids() -> dict[str, list[str]]:
     """Load the shipped default-pack IDs, keyed by ``config.yaml`` activation key.
 
     Public (imported by ``interview.py``'s promotion wiring, T024, and by
-    ``specify_cli.doctrine.org_charter``) so every consumer of the WP06
+    ``charter.activation.org_charter``) so every consumer of the WP06
     ``promote_activations`` primitive supplies the same real built-in
     ``default_ids`` rather than each re-deriving it independently. Thin
     re-export of the canonical :func:`charter.activation.default_pack.load_default_pack_activation_ids`

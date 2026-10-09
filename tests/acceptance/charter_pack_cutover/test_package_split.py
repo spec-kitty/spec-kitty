@@ -47,7 +47,6 @@ def test_fr010_charter_packs_facade_exports() -> None:
 
 
 @covers("FR-010", "OD-9")
-@pending_until("WP05", "src/specify_cli/doctrine/ deleted")
 def test_fr010_specify_cli_doctrine_package_deleted() -> None:
     assert importlib.import_module("specify_cli.cli").__name__ == "specify_cli.cli"  # control
     with pytest.raises(ModuleNotFoundError):
@@ -56,7 +55,6 @@ def test_fr010_specify_cli_doctrine_package_deleted() -> None:
 
 
 @covers("FR-010", "OD-9")
-@pending_until("WP05", "org charter composition and adapters at their ruled homes")
 def test_fr010_org_charter_and_adapters_at_ruled_homes() -> None:
     for name in (
         "charter.activation.org_charter",

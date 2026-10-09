@@ -8,7 +8,7 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.doctrine.template_render import (
+from specify_cli.charter_packs.template_render import (
     DEFAULT_LOCAL_PATH,
     RenderRequest,
     ResolveError,
@@ -17,13 +17,13 @@ from specify_cli.doctrine.template_render import (
     validate_local_path,
     validate_org_name,
 )
-from specify_cli.doctrine.template_render.ignore_copy import (
+from specify_cli.charter_packs.template_render.ignore_copy import (
     TemplateIgnoreDecodeError,
     TemplateIgnoreSymlinkError,
     copy_template_tree,
     load_ignore_rules,
 )
-from specify_cli.doctrine.template_render.substitute import (
+from specify_cli.charter_packs.template_render.substitute import (
     SubstituteError,
     substitute_tokens,
 )

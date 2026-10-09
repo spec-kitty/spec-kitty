@@ -350,7 +350,7 @@ def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> Non
         patch("charter.activation.context.build_charter_context_json", side_effect=_json_builder),
         patch("charter.drg.resolve_org_roots", return_value=[]),
         patch(
-            "specify_cli.doctrine.org_charter_loader.load_org_charter_json_block",
+            "charter.activation.org_charter_loader.load_org_charter_json_block",
             return_value={"present": False, "packs": []},
         ),
     ):

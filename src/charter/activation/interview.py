@@ -527,7 +527,7 @@ def apply_org_charter_pre_fill_to_answers(
 ) -> list[str]:
     """Pure data side-effect: non-destructively pre-fill ``answers.yaml``.
 
-    The org-layer caller (``specify_cli.doctrine.org_charter``) loads and
+    The org-layer caller (``charter.activation.org_charter``) loads and
     merges org-pack policies and passes the resulting interview defaults
     and required directives into this helper as plain Python data.  This
     keeps the ``charter`` layer free of ``specify_cli`` imports

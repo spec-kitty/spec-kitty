@@ -11,15 +11,20 @@ object, so no wrapper, alias or shim can drift from it
 boundary (``tests/architectural/test_runtime_charter_doctrine_boundary.py``)
 holds without growing its lazy-import baseline (NFR-002).
 
-Offering-side names only. ``validate_pack`` and ``assemble_pack`` take their
-org-charter leg as a hook; callers use the org-charter composing entries
-(``validate_pack_with_org_charter`` / ``assemble_pack_with_org_charter``),
-which join this facade once org charter composition lives in
-``charter.activation``.
+``validate_pack`` and ``assemble_pack`` take their org-charter leg as a hook;
+callers use the org-charter composing entries ``validate_pack_with_org_charter``
+and ``assemble_pack_with_org_charter``, re-exported here from
+:mod:`charter.activation.org_charter` (org charter composition is an activation
+concern; this module is not under ``charter.offering``, so importing
+``charter.activation`` here keeps the offering -> activation gate green).
 """
 
 from __future__ import annotations
 
+from charter.activation.org_charter import (
+    assemble_pack_with_org_charter,
+    validate_pack_with_org_charter,
+)
 from charter.offering.packs.builtin_manifest import (
     builtin_manifest_is_fresh,
     generate_builtin_manifest,
@@ -41,7 +46,6 @@ from charter.offering.packs.pack_manifest import (
 )
 from charter.offering.packs.pack_validator import (
     ValidationIssue,
-    ValidationResult,
     artifact_schema_registry,
     render_validation_result,
     validate_pack,
@@ -51,9 +55,9 @@ __all__ = [
     "RECOGNISED_ARTIFACT_DIRS",
     "AssemblyResult",
     "ValidationIssue",
-    "ValidationResult",
     "artifact_schema_registry",
     "assemble_pack",
+    "assemble_pack_with_org_charter",
     "builtin_manifest_is_fresh",
     "count_snapshot_artifacts",
     "generate_builtin_manifest",
@@ -65,5 +69,6 @@ __all__ = [
     "source_fingerprint",
     "strip_source_credentials",
     "validate_pack",
+    "validate_pack_with_org_charter",
     "write_pack_manifest",
 ]

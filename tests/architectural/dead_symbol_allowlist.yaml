@@ -715,13 +715,22 @@ entries:
 - module: specify_cli.core.worktree_topology
   name: WPTopologyEntry
   category: category_b_grandfathered_legacy
-- module: specify_cli.doctrine.org_charter
+# charter-pack-cutover-01M491G6 WP05 (#3732): both were "imported" in src only by the deleted
+# specify_cli.doctrine.config alias re-exports (C-001); the real users are tests
+# (registry round-trips). Not new debt: unmasked by deleting the conduit.
+- module: charter.offering.drg.org_pack_config
+  name: PackRegistry
+  category: category_b_grandfathered_legacy
+- module: charter.offering.drg.org_pack_config
+  name: save_pack_registry
+  category: category_b_grandfathered_legacy
+- module: charter.activation.org_charter
   name: GovernancePolicy
   category: category_b_grandfathered_legacy
-- module: specify_cli.doctrine.org_charter
+- module: charter.activation.org_charter
   name: REQUIRED_KIND_FIELDS
   category: category_b_grandfathered_legacy
-- module: specify_cli.doctrine.org_charter
+- module: charter.activation.org_charter
   name: apply_org_charter_pre_fill
   category: category_b_grandfathered_legacy
 - module: charter.offering.packs.pack_assembler
@@ -974,10 +983,10 @@ entries:
 - module: specify_cli.charter_activate
   name: StepRemovalWarning
   category: category_c_wp_in_flight_charter_activation
-- module: specify_cli.doctrine.org_charter
+- module: charter.activation.org_charter
   name: OrgCharterCycleError
   category: category_c_wp_in_flight_charter_activation
-- module: specify_cli.doctrine.org_charter
+- module: charter.activation.org_charter
   name: OrgCharterExtensionError
   category: category_c_wp_in_flight_charter_activation
 - module: charter.activation.activation_engine

@@ -153,7 +153,7 @@ def fetch(
     """Fetch org doctrine pack(s) from their configured remote sources."""
     from charter.drg import load_pack_registry
     from specify_cli.core.paths import locate_project_root
-    from specify_cli.doctrine.snapshot import fetch_pack
+    from specify_cli.charter_packs.snapshot import fetch_pack
 
     repo_root = locate_project_root()
     if repo_root is None:
@@ -417,8 +417,7 @@ def pack_validate(
     Exits 0 when the pack passes validation (advisories do not affect the
     exit code) and 1 when at least one error is reported.
     """
-    from specify_cli.doctrine.org_charter import validate_pack_with_org_charter
-    from charter.packs import render_validation_result
+    from charter.packs import render_validation_result, validate_pack_with_org_charter
 
     result = validate_pack_with_org_charter(pack_path)
     render_validation_result(result, json_output=json_output)
@@ -462,8 +461,7 @@ def pack_assemble(
     Exits 0 on success and 1 when conflicts block the merge or when the
     assembled output fails validation.
     """
-    from specify_cli.doctrine.org_charter import assemble_pack_with_org_charter
-    from charter.packs import render_assembly_result
+    from charter.packs import assemble_pack_with_org_charter, render_assembly_result
 
     result = assemble_pack_with_org_charter(
         input_packs=list(input_packs),
@@ -900,7 +898,7 @@ def validate(
 # ----------------------------------------------------------------------
 
 #: Minimal ``org-charter.yaml`` body.  All fields are optional in
-#: :class:`specify_cli.doctrine.org_charter.OrgCharterPolicy`; the stub
+#: :class:`charter.activation.org_charter.OrgCharterPolicy`; the stub
 #: carries the schema_version sentinel and a TODO org_name as a
 #: quickstart hint.
 _ORG_CHARTER_STUB = """\
@@ -1052,8 +1050,8 @@ def _run_template_render(
     force: bool,
 ) -> None:
     """Dispatch template render via ``template_render.pipeline``."""
-    from specify_cli.doctrine.template_render import RenderRequest
-    from specify_cli.doctrine.template_render.pipeline import render_org_pack
+    from specify_cli.charter_packs.template_render import RenderRequest
+    from specify_cli.charter_packs.template_render.pipeline import render_org_pack
 
     if not org_name:
         console.print(
@@ -1108,8 +1106,7 @@ def org_validate(
     Org fragments use id and plural kind (for example, directives) for nodes.
     Validation uses the runtime loader, which supplies pack provenance fields.
     """
-    from specify_cli.doctrine.org_charter import validate_pack_with_org_charter
-    from charter.packs import render_validation_result
+    from charter.packs import render_validation_result, validate_pack_with_org_charter
 
     # Written explicitly (not relying on validate_pack's own default) so a
     # future default change cannot silently alter org_validate's behaviour

@@ -1,19 +1,10 @@
 """Helpers for assembling the ``org_charter`` JSON block surfaced by ``charter context --json``.
 
-This module lives in ``specify_cli`` (the highest layer) and is responsible
-for materialising the data structure that :func:`charter.activation.context.build_charter_context_json`
-embeds under the ``org_charter`` key.
-
-Architectural note
-------------------
-The charter layer is forbidden from importing ``specify_cli`` (ADR
-2026-03-27-1).  All org-layer policy reads therefore happen here; the result
-is passed *as data* into the charter layer.
-
-WP09 owns ``specify_cli.doctrine.org_charter`` (the policy schema + loader).
-This module imports that loader lazily so WP07 ships independently — when
-WP09 is not yet installed, the org-charter block degrades to
-``{"present": false, "packs": []}``.
+Materialises the data structure that
+:func:`charter.activation.context.build_charter_context_json` embeds under the
+``org_charter`` key. Org charter composition lives in
+:mod:`charter.activation.org_charter` (mission ``charter-pack-cutover-01M491G6``,
+FR-010 / OD-9); this module reads policies through it and returns plain data.
 """
 
 from __future__ import annotations
@@ -21,6 +12,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from charter.activation.org_charter import load_org_charter_policy
+from kernel.charter_pack_paths import pack_org_charter
 
 _EMPTY_BLOCK: dict[str, Any] = {"present": False, "packs": []}
 
@@ -47,25 +40,16 @@ def load_org_charter_json_block(org_roots: list[Path] | None) -> dict[str, Any]:
     Returns the empty block (``present=False``, ``packs=[]``) when:
 
     * ``org_roots`` is empty or ``None``;
-    * the optional WP09 module ``specify_cli.doctrine.org_charter`` is not
-      installed;
     * none of the configured packs ship an ``org-charter.yaml``.
     """
     if not org_roots:
-        return dict(_EMPTY_BLOCK)
-
-    try:
-        from specify_cli.doctrine.org_charter import (
-            load_org_charter_policy,
-        )
-    except ImportError:
         return dict(_EMPTY_BLOCK)
 
     pack_entries: list[dict[str, Any]] = []
     for org_root in org_roots:
         if not org_root.exists():
             continue
-        charter_path = org_root / "org-charter.yaml"
+        charter_path = pack_org_charter(org_root)
         if not charter_path.exists():
             continue
         try:
@@ -88,9 +72,7 @@ def load_org_charter_json_block(org_roots: list[Path] | None) -> dict[str, Any]:
             {
                 "pack_name": getattr(policy, "org_name", None) or org_root.name,
                 "governance_policies": governance_policies,
-                "required_directives": list(
-                    getattr(policy, "required_directives", []) or []
-                ),
+                "required_directives": list(getattr(policy, "required_directives", []) or []),
             }
         )
 

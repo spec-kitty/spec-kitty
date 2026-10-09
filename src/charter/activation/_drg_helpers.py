@@ -52,7 +52,7 @@ def _resolve_org_root(_repo_root: Path) -> Path | None:
     The charter-layer implementation is intentionally inert — it always returns
     ``None``.  The ``repo_root`` parameter is accepted for API compatibility;
     callers in ``specify_cli`` are expected to resolve the org root themselves
-    (e.g. via ``specify_cli.doctrine.config``) and supply it explicitly to
+    (e.g. via ``charter.offering.drg.org_pack_config``) and supply it explicitly to
     :func:`load_validated_graph`.
 
     This design keeps the ``charter`` package free of ``specify_cli`` imports,

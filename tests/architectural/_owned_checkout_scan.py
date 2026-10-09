@@ -41,7 +41,6 @@ so the self-tests can exercise them without any path context.
 **Exemptions** (named rules, never a path list of offenders):
 
 - ``ORG_PACK_MODULE_RULE``: ``effective_root`` inside ``src/charter/**``,
-  ``src/specify_cli/doctrine/**``,
   ``src/specify_cli/cli/commands/_doctrine_collect.py`` and
   ``src/specify_cli/analysis_inputs.py`` is the unrelated
   ``OrgPackConfig.effective_root`` root concept, not the owned-checkout one.
@@ -97,7 +96,6 @@ _BARE_OWNED_ROOT_NAMES = frozenset({"owned_root", "owned_checkout", "checkout_ro
 #: (src/charter/offering/drg/org_pack_config.py:374), a different concept.
 ORG_PACK_MODULE_PATHS: tuple[str, ...] = (
     "src/charter/",
-    "src/specify_cli/doctrine/",
     "src/specify_cli/cli/commands/_doctrine_collect.py",
     "src/specify_cli/analysis_inputs.py",
 )

@@ -6,7 +6,7 @@ import pytest
 
 from charter.activation.catalog import resolve_doctrine_root
 from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn, resolve_config_id
-from specify_cli.doctrine.org_charter import _normalize_required_ids
+from charter.activation.org_charter import _normalize_required_ids
 from specify_cli.upgrade.migrations.m_unify_charter_activation import resolve_selected_id_to_stem
 
 pytestmark = pytest.mark.unit

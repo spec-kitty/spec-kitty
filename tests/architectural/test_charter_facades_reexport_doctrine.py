@@ -135,6 +135,10 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # ``specify_cli/doctrine`` boundary exemption is deleted. FACADE-ONLY.
         ("CORE_KIND_PLURALS", "charter.offering.artifact_kinds"),
         ("resolve_relative_path_within_root", "charter.offering.drg.org_pack_config"),
+        # Added by WP05 (#3732): ``specify_cli.charter_packs.snapshot`` types its
+        # fetch entry against the org pack config through this facade once
+        # ``specify_cli.doctrine.config``'s alias re-exports are deleted (C-001).
+        ("OrgPackConfig", "charter.offering.drg.org_pack_config"),
     ],
     # New door (WP03/T012): mission-template / mission-type / mission-step
     # repository surfaces. All FACADE-ONLY per the WP01 census.
@@ -212,7 +216,10 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
     # New door (mission ``charter-pack-cutover-01M491G6`` WP04, #3732, FR-010 /
     # OD-9): the charter pack model and tooling moved from ``specify_cli.doctrine``
     # to ``charter.offering.packs``; ``specify_cli`` reaches it only through this
-    # facade (research A.3 #8). Offering-side names only. FACADE-ONLY.
+    # facade (research A.3 #8). FACADE-ONLY. WP05 dropped ``ValidationResult``
+    # (no ``specify_cli`` caller once ``org_charter`` imports offering directly)
+    # and added the two org-charter composing entries, which originate in
+    # ``charter.activation.org_charter`` and so are not tabled here.
     "charter.packs": [
         ("RECOGNISED_ARTIFACT_DIRS", "charter.offering.packs.pack_manifest"),
         ("builtin_manifest_is_fresh", "charter.offering.packs.builtin_manifest"),
@@ -228,7 +235,6 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("pack_document_dict", "charter.offering.packs.pack_assembler"),
         ("render_assembly_result", "charter.offering.packs.pack_assembler"),
         ("ValidationIssue", "charter.offering.packs.pack_validator"),
-        ("ValidationResult", "charter.offering.packs.pack_validator"),
         ("artifact_schema_registry", "charter.offering.packs.pack_validator"),
         ("render_validation_result", "charter.offering.packs.pack_validator"),
         ("validate_pack", "charter.offering.packs.pack_validator"),

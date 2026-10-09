@@ -2,7 +2,7 @@
 
 ``required_<kind>`` is a first-seen-order union and ``skill_namespace`` is
 last-non-empty-wins; ``charter.activation.org_pack_discovery`` owns both rules
-and ``specify_cli.doctrine.org_charter`` delegates to them. This pins that the
+and ``charter.activation.org_charter`` delegates to them. This pins that the
 two views agree on a multi-pack fixture (incl. a blank namespace, duplicate ids and a
 non-list ``required_skills`` that both skip), declared through the canonical
 ``charter_packs.org.packs`` key.
@@ -19,7 +19,7 @@ from charter.activation.org_pack_discovery import (
     read_org_skill_namespace,
 )
 from charter.offering.artifact_kinds import ArtifactKind
-from specify_cli.doctrine.org_charter import load_org_charter_policies
+from charter.activation.org_charter import load_org_charter_policies
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

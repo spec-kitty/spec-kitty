@@ -27,10 +27,11 @@ catalog and turns selections into project-specific governance.
 Runtime prompt generation under `src/specify_cli/next/` must resolve doctrine
 through charter facades (`context.py`, `resolver.py`, `catalog.py`,
 `scope_router.py`) so project and org governance remains scoped by the charter
-trust boundary. CLI org-pack tooling under `src/specify_cli/doctrine/` is the
-documented exception: validators and assemblers may import charter.offering artifact
-models directly because they validate and package doctrine artifacts as data,
-not prompt-runtime governance context.
+trust boundary. There is no exempt subpackage: the charter pack fetch and
+scaffold adapters in `src/specify_cli/charter_packs/` reach the pack model and
+tooling (`charter.offering.packs`) only through the `charter.packs` and
+`charter.drg` facades, and org charter composition lives in
+`charter.activation.org_charter`.
 
 ## Key entry points
 

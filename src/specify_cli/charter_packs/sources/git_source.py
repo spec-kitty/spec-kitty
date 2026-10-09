@@ -7,7 +7,7 @@ Hand-authored packs are preserved on both fetch paths (#4960, #4989):
 
 * ``_first_install`` clones into a ``.tmp-<uuid>`` sibling and promotes it onto
   ``target_dir`` via the move-aside pattern borrowed from
-  :mod:`specify_cli.doctrine.snapshot` (``.old-<uuid>`` → promote → restore on
+  :mod:`specify_cli.charter_packs.snapshot` (``.old-<uuid>`` → promote → restore on
   failure). A failed clone/checkout removes ONLY the temp — never
   ``target_dir`` — and a pre-existing non-empty ``target_dir`` is refused up
   front instead of being clobbered.
@@ -114,7 +114,7 @@ class GitSource:
     def _promote(tmp_dir: Path, target_dir: Path) -> str | None:
         """Move ``tmp_dir`` onto ``target_dir`` via move-aside; return error or None.
 
-        Mirrors :mod:`specify_cli.doctrine.snapshot` (:196-228): move any existing
+        Mirrors :mod:`specify_cli.charter_packs.snapshot` (:196-228): move any existing
         ``target_dir`` aside to ``.old-<uuid>`` first (a bare ``Path.replace`` onto
         a non-empty dir raises ``ENOTEMPTY``, and on Windows even onto an existing
         empty dir), promote the temp, restore on failure, delete the backup only

@@ -1,7 +1,7 @@
 """End-to-end CLI test: `spec-kitty charter interview` applies org-charter pre-fill (FR-026).
 
 Proves the wiring between the CLI command and
-``specify_cli.doctrine.org_charter.apply_org_charter_to_interview`` —
+``charter.activation.org_charter.apply_org_charter_to_interview`` —
 without this test, the helper would be live but unreachable from the user
 surface, which was the original HIGH-2 finding in the post-mission review.
 """

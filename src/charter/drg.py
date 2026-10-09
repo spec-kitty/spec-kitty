@@ -99,6 +99,7 @@ from charter.offering.drg.migration.extractor import (
 )
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from charter.offering.drg.org_pack_config import (
+    OrgPackConfig,
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
     load_pack_registry as load_pack_registry,
@@ -121,6 +122,7 @@ __all__ = [
     "merge_three_layers",
     "ArtifactKind",
     "CORE_KIND_PLURALS",
+    "OrgPackConfig",
     "DRGEdge",
     "DRGGraph",
     "DRGLoadError",

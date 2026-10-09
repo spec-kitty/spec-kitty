@@ -81,7 +81,7 @@ dependencies = [
     "spec-kitty-tracker>=0.5.2,<0.6",
     "toml>=0.10.2",  # Config file parsing
     "tomli-w>=1.0.0",  # TOML write serialiser (stdlib tomllib is read-only)
-    "requests>=2.33.0",  # HTTP client for doctrine-pack https/api sources (CVE-2026-25645 fix)
+    "requests>=2.33.0",  # HTTP client for charter pack https/api sources (CVE-2026-25645 fix)
     "jsonschema>=4.0",  # JSON Schema validation for mission configs
     "python-ulid>=3.0",  # ULID generation for event IDs
     "google-re2>=1.1",  # RE2 engine for linear-time regex (ReDoS prevention)
@@ -570,10 +570,6 @@ exclude = [
     "src/specify_cli/distribution/simple_index.py",
     "src/specify_cli/doc_analysis/gap_analysis.py",
     "src/specify_cli/docs/index_model.py",
-    "src/specify_cli/doctrine/org_charter_loader.py",
-    "src/specify_cli/doctrine/snapshot.py",
-    "src/specify_cli/doctrine/sources/api_source.py",
-    "src/specify_cli/doctrine/sources/https_source.py",
     "src/specify_cli/doctrine_synthesizer/apply.py",
     "src/specify_cli/doctrine_synthesizer/conflict.py",
     "src/specify_cli/dossier/__init__.py",
@@ -2004,13 +2000,6 @@ exclude = [
     "tests/specify_cli/distribution/test_upgrade_provider.py",
     "tests/specify_cli/docs/test_host_surface_inventory.py",
     "tests/specify_cli/docs/test_trail_model_doc.py",
-    "tests/specify_cli/doctrine/test_collision_warnings.py",
-    "tests/specify_cli/doctrine/test_config.py",
-    "tests/specify_cli/doctrine/test_missing_pack_policy.py",
-    "tests/specify_cli/doctrine/test_org_charter.py",
-    "tests/specify_cli/doctrine/test_org_charter_pack_context.py",
-    "tests/specify_cli/doctrine/test_org_charter_union.py",
-    "tests/specify_cli/doctrine/test_sources_security.py",
     "tests/specify_cli/dossier/test_integration.py",
     "tests/specify_cli/drg_writers/test_registry_completeness.py",
     "tests/specify_cli/events/test_decision_log.py",

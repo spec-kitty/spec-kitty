@@ -36,7 +36,7 @@ from charter.activation.compiler import compile_charter
 from charter.activation.interview import CharterInterview, default_interview
 from charter.activation.pack_context import PackContext
 from charter.offering.service import DoctrineService
-from specify_cli.doctrine.org_charter import (
+from charter.activation.org_charter import (
     REQUIRED_KIND_FIELDS,
     apply_org_charter_to_interview,
 )
@@ -61,7 +61,7 @@ def _roundtrip_yaml() -> YAML:
 class _Interview:
     """Minimal interview shape declaring every Mission B selection field.
 
-    Mirrors ``tests/specify_cli/doctrine/test_org_charter_union.py`` -- a
+    Mirrors ``tests/charter/activation/test_org_charter_union.py`` -- a
     real :class:`CharterInterview` is a frozen dataclass that only declares
     ``selected_paradigms``/``selected_directives``/``selected_tactics``, so
     it cannot even receive the other 5 kinds' ``selected_<kind>`` mutation

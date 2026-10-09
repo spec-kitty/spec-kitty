@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doctrine.template_render.substitute import (
+from specify_cli.charter_packs.template_render.substitute import (
     RULE_LEFTOVER_TOKENS,
     RULE_PATH_TOKEN,
     substitute_tokens,

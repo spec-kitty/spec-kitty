@@ -14,8 +14,10 @@
 # WP04 6, WP05 1, WP14 13, WP25 7.
 # WP04 (2026-10-07) drained its 6 entries (pack_validator x4, pack_assembler,
 # org_charter) through kernel.charter_pack_paths -> 21 entries.
+# WP05 (2026-10-07) drained its 1 entry (org_charter_loader, moved to
+# charter.activation) through kernel.charter_pack_paths -> 20 entries.
 
-charter_pack_path_baseline: 21
+charter_pack_path_baseline: 20
 charter_pack_path_literals:
   - file: src/charter/activation/_doctrine_paths.py
     qualname: _project_root_candidates
@@ -150,13 +152,6 @@ charter_pack_path_literals:
     owner: WP14
     line: 180
     rationale: "pack-relative org-charter.yaml literal (research B.2); drained by WP14 T070 (path-allowlist sites handed over by WP03), which repoints it through kernel.charter_pack_paths"
-  - file: src/specify_cli/doctrine/org_charter_loader.py
-    qualname: load_org_charter_json_block
-    literal: "org-charter.yaml"
-    clause: b
-    owner: WP05
-    line: 68
-    rationale: "pack-relative org-charter.yaml literal in the specify_cli.doctrine package; WP05 repoints it to kernel.charter_pack_paths while moving the module"
   - file: src/specify_cli/mission_step_contracts/executor.py
     qualname: StepContractExecutor._org_root_folds_fragment
     literal: "fragment.yaml"

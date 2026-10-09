@@ -11,10 +11,10 @@ resolved order is returned, so a caller never folds a half-resolved chain.
 C-005 / R-10 (no parallel resolver)
 -----------------------------------
 Prior to FR-008 the ``extends:`` topology was walked by a private depth-first
-resolver inside ``specify_cli.doctrine.org_charter`` (``_resolve_chain``). That
+resolver inside ``charter.activation.org_charter`` (``_resolve_chain``). That
 was a second, hand-rolled resolution path living above the charter layer. This
 module hoists that logic into the canonical ``charter.*`` layer so there is a
-single resolution mechanism; ``specify_cli.doctrine.org_charter`` delegates to
+single resolution mechanism; ``charter.activation.org_charter`` delegates to
 :func:`resolve_extends_order` rather than maintaining its own walk.
 
 Layering (C-001 / C-008)

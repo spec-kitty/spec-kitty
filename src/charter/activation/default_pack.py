@@ -7,7 +7,7 @@ absent-key LAND-BLOCKER safety: promoting into a previously-absent
 ``activated_<kind>`` config key must materialize every built-in id first,
 never write a bare restrictive list):
 
-- :func:`specify_cli.doctrine.org_charter._promote_org_required_to_config`
+- :func:`charter.activation.org_charter._promote_org_required_to_config`
   (org-required-artefact promotion)
 - :class:`specify_cli.upgrade.migrations.m_unify_charter_activation.UnifyCharterActivationMigration`
   (answers-only-selection promotion)

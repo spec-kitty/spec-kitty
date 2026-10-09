@@ -8,23 +8,20 @@ answers YAML with org-level defaults.
 
 Architectural note
 ------------------
-``specify_cli`` is the highest layer and may freely import from
-``charter``.  The :func:`apply_org_charter_pre_fill` orchestration lives
-here, where it is permitted to (a) reach into ``specify_cli.doctrine.config``
-for the pack registry and (b) call into the pure ``charter`` data helper
-that performs the YAML side-effect.
+Org charter composition is an activation concern (mission
+``charter-pack-cutover-01M491G6``, FR-010 / OD-9), next to its siblings
+``org_pack_discovery`` and ``org_expected_artifacts``. It reads the pack
+registry from :mod:`charter.offering.drg.org_pack_config` and imports nothing
+from ``specify_cli``.
 
 The pure side-effect (writing to ``answers.yaml``) is implemented in
-``charter.activation.interview.apply_org_charter_pre_fill_to_answers``.  That charter
-helper accepts the merged policy data as plain Python (dict + list) so it
-never imports from this layer — the WP07 ``_resolve_org_root`` pattern.
+``charter.activation.interview.apply_org_charter_pre_fill_to_answers``, which
+accepts the merged policy data as plain Python (dict + list).
 
 Public API
 ----------
 - :class:`GovernancePolicy` — single governance policy entry
 - :class:`OrgCharterPolicy` — top-level schema for ``org-charter.yaml``
-- :class:`MissingDoctrinePackError` — raised when a configured pack's
-  ``local_path`` is missing on disk (FR-015)
 - :func:`load_org_charter_policy` — load policy from a single pack root
 - :func:`load_org_charter_policies` — load and merge across all packs
 - :func:`apply_org_charter_pre_fill` — pre-fill interview answers on disk
@@ -52,7 +49,9 @@ from charter.activation.kind_vocabulary import (
     resolve_selected_id_to_stem,
 )
 from charter.offering.artifact_kinds import ORG_REQUIRABLE_KIND_FIELDS, ArtifactKind
-from charter.packs import AssemblyResult, ValidationIssue, ValidationResult, assemble_pack, validate_pack
+from charter.offering.drg.org_pack_config import load_pack_registry
+from charter.offering.packs.pack_assembler import AssemblyResult, assemble_pack
+from charter.offering.packs.pack_validator import ValidationIssue, ValidationResult, validate_pack
 from kernel.charter_pack_paths import pack_org_charter
 
 
@@ -61,7 +60,6 @@ if TYPE_CHECKING:
 
 __all__ = [
     "GovernancePolicy",
-    "MissingDoctrinePackError",
     "OrgCharterCycleError",
     "OrgCharterExtensionError",
     "REQUIRED_KIND_FIELDS",
@@ -210,33 +208,6 @@ class OrgCharterPolicy(BaseModel):
 # ---------------------------------------------------------------------------
 # Errors
 # ---------------------------------------------------------------------------
-
-
-class MissingDoctrinePackError(RuntimeError):
-    """Raised when a configured doctrine pack's ``local_path`` is missing.
-
-    Per FR-015 (Mission B WP06), the consumer cannot silently degrade
-    when an org pack referenced by ``.kittify/config.yaml`` has not been
-    fetched (or the path is a typo).  Context resolution MUST fail loudly
-    with the pack name and the missing path so the operator can either
-    run ``spec-kitty charter fetch --pack <name>`` or remove the entry
-    from the config.
-
-    The exception message is also rendered into the bootstrap charter
-    context text as a hard-error diagnostic (see
-    :mod:`charter.activation.context._missing_pack_diagnostic`) so callers that do
-    not catch the exception still surface the error in the prompt body.
-    """
-
-    def __init__(self, pack_name: str, local_path: Path) -> None:
-        self.pack_name = pack_name
-        self.local_path = Path(local_path)
-        super().__init__(
-            f"Doctrine pack `{pack_name}` configured at "
-            f"`{self.local_path}` does not exist on disk. Run "
-            f"`spec-kitty charter fetch --pack {pack_name}` to populate it, "
-            f"or remove the pack from .kittify/config.yaml."
-        )
 
 
 class OrgCharterCycleError(Exception):
@@ -703,9 +674,6 @@ def load_org_charter_policies(
     if pack_context is not None:
         return _load_with_pack_context(pack_context)
 
-    # Lazy import avoids a circular module load at package-init time.
-    from specify_cli.doctrine.config import load_pack_registry
-
     registry = load_pack_registry(repo_root)
     if not registry.packs:
         return OrgCharterPolicy()
@@ -798,7 +766,6 @@ def apply_org_charter_pre_fill(repo_root: Path) -> list[str]:
     dependency direction is preserved.
     """
     from charter.activation.invocation_context import ProjectContext
-    from specify_cli.doctrine.config import load_pack_registry
 
     registry = load_pack_registry(repo_root)
     if not registry.packs:
@@ -862,7 +829,6 @@ def apply_org_charter_to_interview(
     Returns ``[]`` when no org packs are configured, none ship an
     ``org-charter.yaml``, or the merged policy contributes nothing.
     """
-    from specify_cli.doctrine.config import load_pack_registry
 
     registry = load_pack_registry(repo_root)
     if not registry.packs:

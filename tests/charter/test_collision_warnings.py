@@ -72,9 +72,7 @@ def test_styleguide_org_collision_warning_names_id_and_kind(
     assert matched, "Styleguide org override MUST raise a collision warning."
     message = matched[0]
     assert "collision-id" in message
-    assert "styleguide" in message.lower(), (
-        f"Warning message MUST name the artifact kind. Saw: {message!r}"
-    )
+    assert "styleguide" in message.lower(), f"Warning message MUST name the artifact kind. Saw: {message!r}"
 
 
 # ---------------------------------------------------------------------------

@@ -422,7 +422,7 @@ REGISTRY: dict[str, RegisteredSite] = {
         prior_signature=lambda instant: instant.strftime("%Y-%m-%dT%H:%M:%SZ"),
     ),
     # charter/offering/packs/pack_manifest.py (moved from doctrine/snapshot.py by
-    # #3732 WP04) + doctrine/sources/api_source.py's identically-shaped
+    # #3732 WP04) + charter_packs/sources/api_source.py's identically-shaped
     # retired `_iso_now()` helpers (persisted cache/freshness "fetched_at" /
     # cache "Date" fallback). Prior: `datetime.now(UTC).strftime(
     # "%Y-%m-%dT%H:%M:%SZ")` -> now_utc_stamp() (one representative entry;

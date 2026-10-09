@@ -74,7 +74,7 @@ def context(
     from charter.activation.context_contract import CONTEXT_SCHEMA_VERSION
 
     from charter.drg import resolve_org_roots
-    from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
+    from charter.activation.org_charter_loader import load_org_charter_json_block
 
     try:
         repo_root = _charter_pkg.find_repo_root()

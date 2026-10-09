@@ -74,7 +74,7 @@ class OrgDoctrineSource(Protocol):
 
         Implementations MUST be idempotent: calling ``fetch`` on a populated
         ``target_dir`` should refresh the snapshot in place (or be wrapped
-        by :func:`specify_cli.doctrine.snapshot.write_snapshot` for atomic
+        by :func:`specify_cli.charter_packs.snapshot.write_snapshot` for atomic
         replace semantics).
         """
         ...

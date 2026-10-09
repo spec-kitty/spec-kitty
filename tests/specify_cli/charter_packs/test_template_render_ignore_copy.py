@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doctrine.template_render.ignore_copy import (
+from specify_cli.charter_packs.template_render.ignore_copy import (
     BUILT_IN_EXCLUDES,
     TemplateIgnoreDecodeError,
     TemplateIgnoreSymlinkError,

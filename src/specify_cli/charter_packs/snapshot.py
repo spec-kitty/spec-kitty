@@ -9,7 +9,7 @@ partial snapshot:
 3. Write ``pack-manifest.yaml`` into the staged effective root.
 4. Replace ``local_path`` with the complete staged tree using a single rename.
 
-:class:`specify_cli.doctrine.sources.git_source.GitSource` deliberately
+:class:`specify_cli.charter_packs.sources.git_source.GitSource` deliberately
 does NOT use this helper.  Git owns ``target_dir`` and provides its own
 consistency story via ``fetch`` + ``reset --hard``.
 """
@@ -20,15 +20,12 @@ import hmac
 import shutil
 from dataclasses import replace
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 from uuid import uuid4
-
-if TYPE_CHECKING:
-    from .config import OrgPackConfig
 
 import yaml
 
-from charter.drg import resolve_relative_path_within_root
+from charter.drg import OrgPackConfig, resolve_relative_path_within_root
 from charter.packs import (
     RECOGNISED_ARTIFACT_DIRS,
     count_snapshot_artifacts,
@@ -40,9 +37,6 @@ from charter.packs import (
 )
 
 from .sources.protocol import FetchResult, OrgDoctrineSource
-
-# ``OrgPackConfig`` is imported lazily inside helpers to avoid a circular import
-# at module load time (config.py lives in the same package).
 
 
 # Suffix → artifact-count bucket name for ``pack-manifest.yaml``.
@@ -151,19 +145,13 @@ def write_snapshot(
 
     if not _has_recognised_artifacts(validate_root):
         shutil.rmtree(tmp_dir, ignore_errors=True)
-        location = (
-            f" at subdir {subdir!r}" if subdir else " at the snapshot root"
-        )
+        location = f" at subdir {subdir!r}" if subdir else " at the snapshot root"
         return FetchResult(
             ok=False,
             artifacts_written=result.artifacts_written,
             pack_version=result.pack_version,
             etag=result.etag,
-            errors=[
-                "No artifact directories found in fetched snapshot"
-                f"{location}. Expected at least one of: "
-                + ", ".join(sorted(RECOGNISED_ARTIFACT_DIRS))
-            ],
+            errors=[f"No artifact directories found in fetched snapshot{location}. Expected at least one of: " + ", ".join(sorted(RECOGNISED_ARTIFACT_DIRS))],
         )
 
     # Make metadata part of the staged snapshot. A manifest write failure must
@@ -205,10 +193,7 @@ def write_snapshot(
             try:
                 old_dir.replace(local_path)
             except OSError as restore_exc:
-                errors.append(
-                    "Automatic restore failed; the previous snapshot is preserved "
-                    f"at {old_dir}: {restore_exc}"
-                )
+                errors.append(f"Automatic restore failed; the previous snapshot is preserved at {old_dir}: {restore_exc}")
         return FetchResult(
             ok=False,
             artifacts_written=result.artifacts_written,
@@ -244,9 +229,7 @@ def _with_stored_etag(
     # dedicated ``etag`` field is absent so we can also read and persist the
     # artifact's JFrog ``version`` property.
     is_artifactory = source.is_artifactory
-    if is_artifactory and _artifactory_manifest_needs_version_migration(
-        local_path, subdir
-    ):
+    if is_artifactory and _artifactory_manifest_needs_version_migration(local_path, subdir):
         return source
     stored = _read_stored_etag(
         local_path,
@@ -258,9 +241,7 @@ def _with_stored_etag(
     return replace(source, if_none_match=stored)
 
 
-def _artifactory_manifest_needs_version_migration(
-    local_path: Path, subdir: str | None
-) -> bool:
+def _artifactory_manifest_needs_version_migration(local_path: Path, subdir: str | None) -> bool:
     """Return whether an existing JFrog snapshot lacks a distinct version.
 
     Before JFrog property support, ``pack_version`` was the HTTP ETag. Force
@@ -280,9 +261,7 @@ def _artifactory_manifest_needs_version_migration(
     return version.strip() == etag.strip()
 
 
-def _manifest_matches_source(
-    local_path: Path, subdir: str | None, source_url: str, source_type: str
-) -> bool:
+def _manifest_matches_source(local_path: Path, subdir: str | None, source_url: str, source_type: str) -> bool:
     data = _read_existing_manifest(local_path, subdir)
     if data is None:
         return False
@@ -292,11 +271,7 @@ def _manifest_matches_source(
     # them, and never reuse a validator when either side used one because a
     # secret-free comparison cannot prove resource identity.
     parsed_source = safe_urlsplit(source_url)
-    if (
-        parsed_source is None
-        or parsed_source.query
-        or data.get("source_uses_query") is True
-    ):
+    if parsed_source is None or parsed_source.query or data.get("source_uses_query") is True:
         return False
     if not _snapshot_manifest_is_intact(local_path, subdir, data):
         return False
@@ -338,9 +313,7 @@ def _read_stored_etag(
     return None
 
 
-def _read_existing_manifest(
-    local_path: Path, subdir: str | None
-) -> dict[str, Any] | None:
+def _read_existing_manifest(local_path: Path, subdir: str | None) -> dict[str, Any] | None:
     """Read an existing snapshot manifest without mutating the snapshot."""
     if not local_path.exists():
         return None
@@ -380,10 +353,7 @@ def _finish_unchanged_snapshot(
             artifacts_written=0,
             pack_version=result.pack_version,
             etag=result.etag,
-            errors=[
-                "Remote reported unchanged (HTTP 304) but no local snapshot "
-                f"exists at {local_path}."
-            ],
+            errors=[f"Remote reported unchanged (HTTP 304) but no local snapshot exists at {local_path}."],
         )
     try:
         manifest_root = _resolve_snapshot_validate_root(local_path, subdir)
@@ -401,24 +371,16 @@ def _finish_unchanged_snapshot(
             artifacts_written=0,
             pack_version=result.pack_version,
             etag=result.etag,
-            errors=[
-                "Remote reported unchanged (HTTP 304) but the local snapshot "
-                "has no recognised artifact directories."
-            ],
+            errors=["Remote reported unchanged (HTTP 304) but the local snapshot has no recognised artifact directories."],
         )
     manifest = _read_existing_manifest(local_path, subdir)
-    if manifest is None or not _snapshot_manifest_is_intact(
-        local_path, subdir, manifest
-    ):
+    if manifest is None or not _snapshot_manifest_is_intact(local_path, subdir, manifest):
         return FetchResult(
             ok=False,
             artifacts_written=0,
             pack_version=result.pack_version,
             etag=result.etag,
-            errors=[
-                "Remote reported unchanged (HTTP 304) but the local snapshot "
-                "does not match its recorded integrity digest."
-            ],
+            errors=["Remote reported unchanged (HTTP 304) but the local snapshot does not match its recorded integrity digest."],
         )
     counts = count_snapshot_artifacts(manifest_root)
     return FetchResult(
@@ -430,9 +392,7 @@ def _finish_unchanged_snapshot(
     )
 
 
-def _resolve_snapshot_validate_root(
-    snapshot_dir: Path, subdir: str | None
-) -> Path:
+def _resolve_snapshot_validate_root(snapshot_dir: Path, subdir: str | None) -> Path:
     """Return the directory to validate/count within a staged or installed snapshot.
 
     When ``subdir`` is set, joins it under ``snapshot_dir`` with the same
@@ -449,10 +409,7 @@ def _resolve_snapshot_validate_root(
 def _has_recognised_artifacts(snapshot_dir: Path) -> bool:
     if not snapshot_dir.exists():
         return False
-    return any(
-        entry.is_dir() and entry.name in RECOGNISED_ARTIFACT_DIRS
-        for entry in snapshot_dir.iterdir()
-    )
+    return any(entry.is_dir() and entry.name in RECOGNISED_ARTIFACT_DIRS for entry in snapshot_dir.iterdir())
 
 
 def _snapshot_manifest_is_intact(
@@ -462,11 +419,7 @@ def _snapshot_manifest_is_intact(
 ) -> bool:
     """Return whether installed files match the manifest's safe digest."""
     stored = manifest.get("snapshot_sha256")
-    if (
-        not isinstance(stored, str)
-        or len(stored) != 64
-        or any(character not in "0123456789abcdef" for character in stored)
-    ):
+    if not isinstance(stored, str) or len(stored) != 64 or any(character not in "0123456789abcdef" for character in stored):
         return False
     try:
         snapshot_root = _resolve_snapshot_validate_root(local_path, subdir)
@@ -501,15 +454,9 @@ def _build_source(pack: OrgPackConfig) -> OrgDoctrineSource:
             (``url``) are missing.
     """
     if pack.source_type is None:
-        raise ValueError(
-            f"Pack '{pack.name}' has no source_type configured; "
-            "set doctrine.org.packs[].source_type to one of: git, https, artifactory, api."
-        )
+        raise ValueError(f"Pack '{pack.name}' has no source_type configured; set doctrine.org.packs[].source_type to one of: git, https, artifactory, api.")
     if not pack.url:
-        raise ValueError(
-            f"Pack '{pack.name}' has source_type={pack.source_type!r} "
-            "but no url; set doctrine.org.packs[].url."
-        )
+        raise ValueError(f"Pack '{pack.name}' has source_type={pack.source_type!r} but no url; set doctrine.org.packs[].url.")
 
     if pack.source_type == "git":
         from .sources.git_source import GitSource
@@ -518,17 +465,13 @@ def _build_source(pack: OrgPackConfig) -> OrgDoctrineSource:
     if pack.source_type in {"https", "artifactory"}:
         from .sources.https_source import HttpsBundleSource
 
-        return HttpsBundleSource(
-            url=pack.url, ref=pack.ref, source_type=pack.source_type
-        )
+        return HttpsBundleSource(url=pack.url, ref=pack.ref, source_type=pack.source_type)
     if pack.source_type == "api":
         from .sources.api_source import ApiSource
 
         return cast(OrgDoctrineSource, ApiSource(url=pack.url, ref=pack.ref))
 
-    raise ValueError(
-        f"Unknown source_type: {pack.source_type!r} for pack '{pack.name}'"
-    )
+    raise ValueError(f"Unknown source_type: {pack.source_type!r} for pack '{pack.name}'")
 
 
 def fetch_pack(pack: OrgPackConfig, repo_root: Path) -> FetchResult:

@@ -11,8 +11,8 @@ from urllib.parse import urlparse
 
 from typing import Literal, Protocol
 
-from specify_cli.doctrine.sources.git_source import GitSource
-from specify_cli.doctrine.sources.protocol import FetchResult
+from specify_cli.charter_packs.sources.git_source import GitSource
+from specify_cli.charter_packs.sources.protocol import FetchResult
 
 RULE_BRANCH_CONFLICT = "branch.conflict"
 RULE_TEMPLATE_MISSING = "template.missing"

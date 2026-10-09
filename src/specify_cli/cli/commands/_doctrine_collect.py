@@ -175,14 +175,14 @@ def _summarize_org_charter(snapshot_path: Path) -> dict[str, object]:
     """Inspect ``org-charter.yaml`` in *snapshot_path* and return a JSON-able summary.
 
     Gracefully degrades when the optional
-    ``specify_cli.doctrine.org_charter`` module is not yet shipped (WP09).
+    ``charter.activation.org_charter`` module is not yet shipped (WP09).
     """
     charter_path = snapshot_path / "org-charter.yaml"
     if not charter_path.exists():
         return {"present": False}
 
     try:
-        from specify_cli.doctrine.org_charter import load_org_charter_policy
+        from charter.activation.org_charter import load_org_charter_policy
     except ImportError:
         # Module not yet shipped — surface presence without policy details.
         return {"present": True, "module_available": False}
@@ -1113,7 +1113,7 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
     org_required: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
     try:
         from charter.activation.invocation_context import ProjectContext
-        from specify_cli.doctrine.org_charter import load_org_charter_policies
+        from charter.activation.org_charter import load_org_charter_policies
 
         _pack_ctx = None
         try:

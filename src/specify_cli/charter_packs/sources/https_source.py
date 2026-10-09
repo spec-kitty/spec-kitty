@@ -2,7 +2,7 @@
 
 ``HttpsBundleSource`` downloads a tar.gz or zip archive over HTTPS, extracts
 it into ``target_dir`` and returns a :class:`FetchResult`.  Atomic-write
-semantics are layered on by :func:`specify_cli.doctrine.snapshot.write_snapshot`.
+semantics are layered on by :func:`specify_cli.charter_packs.snapshot.write_snapshot`.
 """
 
 from __future__ import annotations
@@ -90,13 +90,7 @@ class HttpsBundleSource:
         """Whether this source requires Artifactory provenance validation."""
         canonical_url = self.canonical_url
         parsed = _safe_urlsplit(canonical_url) if canonical_url is not None else None
-        return (
-            self.source_type == "artifactory"
-            or (
-                parsed is not None
-                and _ARTIFACTORY_PATH_MARKER in parsed.path
-            )
-        )
+        return self.source_type == "artifactory" or (parsed is not None and _ARTIFACTORY_PATH_MARKER in parsed.path)
 
     # ------------------------------------------------------------------
     # Public API
@@ -116,20 +110,14 @@ class HttpsBundleSource:
 
         parsed = _safe_urlsplit(canonical_url)
         assert parsed is not None
-        is_artifactory = (
-            self.source_type == "artifactory"
-            or _ARTIFACTORY_PATH_MARKER in parsed.path
-        )
+        is_artifactory = self.source_type == "artifactory" or _ARTIFACTORY_PATH_MARKER in parsed.path
         artifactory_item = _artifactory_item(canonical_url)
         if is_artifactory and artifactory_item is None:
             return FetchResult(
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[
-                    "Artifactory source requires a valid Artifactory item URL "
-                    "containing /artifactory/<repo>/<item>."
-                ],
+                errors=["Artifactory source requires a valid Artifactory item URL containing /artifactory/<repo>/<item>."],
             )
 
         try:
@@ -139,16 +127,11 @@ class HttpsBundleSource:
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[
-                    f"Network error fetching {_safe_url_for_error(canonical_url)}: "
-                    f"{type(exc).__name__}"
-                ],
+                errors=[f"Network error fetching {_safe_url_for_error(canonical_url)}: {type(exc).__name__}"],
             )
 
         try:
-            return self._consume_response(
-                response, target_dir, artifactory_item, canonical_url
-            )
+            return self._consume_response(response, target_dir, artifactory_item, canonical_url)
         finally:
             response.close()
 
@@ -182,9 +165,7 @@ class HttpsBundleSource:
                     ok=False,
                     artifacts_written=0,
                     pack_version=None,
-                    errors=[
-                        "Remote returned HTTP 304 without an If-None-Match validator."
-                    ],
+                    errors=["Remote returned HTTP 304 without an If-None-Match validator."],
                 )
             return FetchResult(
                 ok=True,
@@ -199,20 +180,14 @@ class HttpsBundleSource:
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[
-                    "Authentication failed. Set SPEC_KITTY_ORG_TOKEN to a"
-                    " valid bearer token for the doctrine bundle endpoint."
-                ],
+                errors=["Authentication failed. Set SPEC_KITTY_ORG_TOKEN to a valid bearer token for the doctrine bundle endpoint."],
             )
         if response.status_code >= 400:
             return FetchResult(
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[
-                    f"HTTP {response.status_code} fetching "
-                    f"{_safe_url_for_error(canonical_url)}."
-                ],
+                errors=[f"HTTP {response.status_code} fetching {_safe_url_for_error(canonical_url)}."],
             )
 
         archive_kind = self._detect_archive(response)
@@ -221,11 +196,7 @@ class HttpsBundleSource:
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[
-                    "Could not determine archive format from Content-Type "
-                    f"({response.headers.get('Content-Type', '<missing>')}) "
-                    "or URL suffix."
-                ],
+                errors=[f"Could not determine archive format from Content-Type ({response.headers.get('Content-Type', '<missing>')}) or URL suffix."],
             )
 
         buffered, buffer_error = self._buffer_archive(response, archive_kind)
@@ -240,9 +211,7 @@ class HttpsBundleSource:
 
         metadata: _ArtifactoryMetadata | None = None
         if artifactory_item is not None:
-            metadata, metadata_error = self._fetch_artifactory_metadata(
-                artifactory_item, canonical_url
-            )
+            metadata, metadata_error = self._fetch_artifactory_metadata(artifactory_item, canonical_url)
             if metadata_error is not None:
                 buffered.path.unlink(missing_ok=True)
                 return FetchResult(
@@ -258,10 +227,7 @@ class HttpsBundleSource:
                     ok=False,
                     artifacts_written=0,
                     pack_version=None,
-                    errors=[
-                        "JFrog metadata checksum does not match the downloaded "
-                        "archive; the mutable artifact changed during fetch."
-                    ],
+                    errors=["JFrog metadata checksum does not match the downloaded archive; the mutable artifact changed during fetch."],
                 )
 
         try:
@@ -289,21 +255,15 @@ class HttpsBundleSource:
         )
 
     @staticmethod
-    def _buffer_archive(
-        response: requests.Response, archive_kind: str
-    ) -> tuple[_BufferedArchive | None, str | None]:
+    def _buffer_archive(response: requests.Response, archive_kind: str) -> tuple[_BufferedArchive | None, str | None]:
         """Stream one bounded response body to disk and hash those exact bytes."""
         tmp_path: Path | None = None
         digest = hashlib.sha256()  # noqa: TID251 - downloaded-body integrity checksum
         try:
             content_length = _parse_content_length(response.headers.get("Content-Length"))
             if content_length is not None and content_length > MAX_ARCHIVE_BYTES:
-                raise ArchiveSizeLimitError(
-                    f"Archive exceeds raw byte limit: {content_length} > {MAX_ARCHIVE_BYTES}"
-                )
-            with tempfile.NamedTemporaryFile(
-                delete=False, suffix=f".{archive_kind}"
-            ) as tmp:
+                raise ArchiveSizeLimitError(f"Archive exceeds raw byte limit: {content_length} > {MAX_ARCHIVE_BYTES}")
+            with tempfile.NamedTemporaryFile(delete=False, suffix=f".{archive_kind}") as tmp:
                 tmp_path = Path(tmp.name)
                 total = 0
                 for chunk in response.iter_content(chunk_size=64 * 1024):
@@ -311,26 +271,18 @@ class HttpsBundleSource:
                         continue
                     total += len(chunk)
                     if total > MAX_ARCHIVE_BYTES:
-                        raise ArchiveSizeLimitError(
-                            f"Archive exceeds raw byte limit: {total} > {MAX_ARCHIVE_BYTES}"
-                        )
+                        raise ArchiveSizeLimitError(f"Archive exceeds raw byte limit: {total} > {MAX_ARCHIVE_BYTES}")
                     digest.update(chunk)
                     tmp.write(chunk)
         except (ArchiveSizeLimitError, OSError, requests.RequestException) as exc:
             if tmp_path is not None:
                 tmp_path.unlink(missing_ok=True)
-            detail = (
-                str(exc)
-                if not isinstance(exc, requests.RequestException)
-                else type(exc).__name__
-            )
+            detail = str(exc) if not isinstance(exc, requests.RequestException) else type(exc).__name__
             return None, f"Failed to buffer archive: {detail}"
         assert tmp_path is not None
         return _BufferedArchive(path=tmp_path, sha256=digest.hexdigest()), None
 
-    def _fetch_artifactory_metadata(
-        self, item: _ArtifactoryItem, canonical_url: str
-    ) -> tuple[_ArtifactoryMetadata | None, str | None]:
+    def _fetch_artifactory_metadata(self, item: _ArtifactoryItem, canonical_url: str) -> tuple[_ArtifactoryMetadata | None, str | None]:
         """Read one AQL result that co-attests version and body checksum."""
         payload, error = self._post_artifactory_aql(item)
         if error is not None:
@@ -355,22 +307,15 @@ class HttpsBundleSource:
             return None, f"Failed to read JFrog AQL metadata: {type(exc).__name__}"
         try:
             if response.status_code >= 400:
-                return None, (
-                    "Failed to read JFrog AQL metadata: "
-                    f"HTTP {response.status_code}"
-                )
+                return None, (f"Failed to read JFrog AQL metadata: HTTP {response.status_code}")
             try:
                 return response.json(), None
             except (ValueError, TypeError):
-                return None, (
-                    "Failed to read JFrog AQL metadata: invalid JSON response"
-                )
+                return None, ("Failed to read JFrog AQL metadata: invalid JSON response")
         finally:
             response.close()
 
-    def _post_artifactory_aql_with_retry(
-        self, item: _ArtifactoryItem
-    ) -> requests.Response:
+    def _post_artifactory_aql_with_retry(self, item: _ArtifactoryItem) -> requests.Response:
         headers = _without_conditional_header(self._headers())
         headers["Content-Type"] = "text/plain"
         criteria = json.dumps(
@@ -382,10 +327,7 @@ class HttpsBundleSource:
             },
             separators=(",", ":"),
         )
-        query = (
-            f"items.find({criteria})"
-            '.include("repo","path","name","sha256","virtual_repos","@version")'
-        )
+        query = f'items.find({criteria}).include("repo","path","name","sha256","virtual_repos","@version")'
         kwargs: dict[str, Any] = {
             "headers": headers,
             "data": query,
@@ -477,9 +419,7 @@ def _artifactory_item(artifact_url: str) -> _ArtifactoryItem | None:
     name = segments[-1]
     aql_path = f"{prefix}{_ARTIFACTORY_PATH_MARKER}api/search/aql"
     return _ArtifactoryItem(
-        aql_url=urlunsplit(
-            (parsed.scheme, _safe_netloc(parsed), aql_path, "", "")
-        ),
+        aql_url=urlunsplit((parsed.scheme, _safe_netloc(parsed), aql_path, "", "")),
         repo=repository,
         path=path,
         name=name,
@@ -499,12 +439,7 @@ def _decode_artifactory_segments(item_path: str) -> list[str] | None:
             decoded = unquote(raw_segment, errors="strict")
         except UnicodeDecodeError:
             return None
-        if (
-            decoded in {".", ".."}
-            or "/" in decoded
-            or "\\" in decoded
-            or any(ord(character) < 32 or ord(character) == 127 for character in decoded)
-        ):
+        if decoded in {".", ".."} or "/" in decoded or "\\" in decoded or any(ord(character) < 32 or ord(character) == 127 for character in decoded):
             return None
         decoded_segments.append(decoded)
     return decoded_segments
@@ -512,11 +447,7 @@ def _decode_artifactory_segments(item_path: str) -> list[str] | None:
 
 def _without_conditional_header(headers: dict[str, str]) -> dict[str, str]:
     """Return request headers without an artifact-body conditional."""
-    return {
-        name: value
-        for name, value in headers.items()
-        if name.lower() != "if-none-match"
-    }
+    return {name: value for name, value in headers.items() if name.lower() != "if-none-match"}
 
 
 def _safe_url_for_error(url: str) -> str:
@@ -537,18 +468,12 @@ def _safe_urlsplit(url: str) -> SplitResult | None:
 
 def _canonical_https_url(url: str) -> str | None:
     """Normalize one HTTPS URL once, rejecting parser-differential inputs."""
-    if (
-        "\\" in url
-        or re.search(r"%(?![0-9A-Fa-f]{2})", url)
-        or any(ord(char) < 32 or ord(char) == 127 for char in url)
-    ):
+    if "\\" in url or re.search(r"%(?![0-9A-Fa-f]{2})", url) or any(ord(char) < 32 or ord(char) == 127 for char in url):
         return None
     canonical_url = url
     for _ in range(4):
         try:
-            prepared = requests.Request(
-                method="GET", url=canonical_url
-            ).prepare()
+            prepared = requests.Request(method="GET", url=canonical_url).prepare()
         except (requests.RequestException, UnicodeError, ValueError):
             return None
         if prepared.url is None:
@@ -591,9 +516,7 @@ def _is_valid_hostname(hostname: str) -> bool:
     if all(char.isdigit() or char == "." for char in candidate):
         return False
     try:
-        prepared = requests.Request(
-            method="GET", url=f"https://{candidate}/"
-        ).prepare()
+        prepared = requests.Request(method="GET", url=f"https://{candidate}/").prepare()
     except (requests.RequestException, UnicodeError, ValueError):
         return False
     if prepared.url is None:
@@ -606,14 +529,7 @@ def _is_valid_hostname(hostname: str) -> bool:
         return False
     labels = ascii_hostname.split(".")
     return all(
-        label
-        and len(label) <= 63
-        and label[0] != "-"
-        and label[-1] != "-"
-        and all(
-            char.isascii() and (char.isalnum() or char == "-")
-            for char in label
-        )
+        label and len(label) <= 63 and label[0] != "-" and label[-1] != "-" and all(char.isascii() and (char.isalnum() or char == "-") for char in label)
         for label in labels
     )
 
@@ -630,9 +546,7 @@ def _safe_netloc(parsed: Any) -> str:
     return f"{hostname}:{port}" if port is not None else hostname
 
 
-def _extract_aql_metadata(
-    payload: object, item: _ArtifactoryItem
-) -> _ArtifactoryMetadata | None:
+def _extract_aql_metadata(payload: object, item: _ArtifactoryItem) -> _ArtifactoryMetadata | None:
     """Validate one exact AQL item and return its co-attested provenance."""
     if not isinstance(payload, dict):
         return None
@@ -643,14 +557,8 @@ def _extract_aql_metadata(
     if not isinstance(result, dict):
         return None
     virtual_repos = result.get("virtual_repos")
-    repo_matches = result.get("repo") == item.repo or (
-        isinstance(virtual_repos, list) and item.repo in virtual_repos
-    )
-    if (
-        not repo_matches
-        or result.get("path") != item.path
-        or result.get("name") != item.name
-    ):
+    repo_matches = result.get("repo") == item.repo or (isinstance(virtual_repos, list) and item.repo in virtual_repos)
+    if not repo_matches or result.get("path") != item.path or result.get("name") != item.name:
         return None
     checksum = result.get("sha256")
     if not isinstance(checksum, str):
@@ -709,36 +617,24 @@ def _safe_extract_tar(tf: tarfile.TarFile, target_dir: Path) -> None:
     base = target_dir.resolve()
     members = tf.getmembers()
     if len(members) > MAX_ARCHIVE_MEMBERS:
-        raise ArchiveSizeLimitError(
-            f"Archive exceeds member count limit: {len(members)} > {MAX_ARCHIVE_MEMBERS}"
-        )
+        raise ArchiveSizeLimitError(f"Archive exceeds member count limit: {len(members)} > {MAX_ARCHIVE_MEMBERS}")
     extracted_bytes = 0
     for member in members:
         # --- type guard (before path check) ---
         if member.issym() or member.islnk():
-            raise tarfile.TarError(
-                f"Refusing symlink/hardlink entry: {member.name}"
-            )
+            raise tarfile.TarError(f"Refusing symlink/hardlink entry: {member.name}")
         if not member.isfile() and not member.isdir():
-            raise tarfile.TarError(
-                f"Refusing non-file/non-dir entry: {member.name} "
-                f"(type={member.type!r})"
-            )
+            raise tarfile.TarError(f"Refusing non-file/non-dir entry: {member.name} (type={member.type!r})")
         if member.isfile():
             extracted_bytes += member.size
             if extracted_bytes > MAX_EXTRACTED_BYTES:
-                raise ArchiveSizeLimitError(
-                    "Archive exceeds extracted byte limit: "
-                    f"{extracted_bytes} > {MAX_EXTRACTED_BYTES}"
-                )
+                raise ArchiveSizeLimitError(f"Archive exceeds extracted byte limit: {extracted_bytes} > {MAX_EXTRACTED_BYTES}")
         # --- path traversal guard (use relative_to, not startswith) ---
         member_path = (target_dir / member.name).resolve()
         try:
             member_path.relative_to(base)
         except ValueError as exc:
-            raise tarfile.TarError(
-                f"Refusing path traversal entry: {member.name}"
-            ) from exc
+            raise tarfile.TarError(f"Refusing path traversal entry: {member.name}") from exc
     tf.extractall(target_dir)  # noqa: S202  # nosec B202 - paths and types validated above
 
 
@@ -751,26 +647,19 @@ def _safe_extract_zip(zf: zipfile.ZipFile, target_dir: Path) -> None:
     base = target_dir.resolve()
     members = zf.infolist()
     if len(members) > MAX_ARCHIVE_MEMBERS:
-        raise ArchiveSizeLimitError(
-            f"Archive exceeds member count limit: {len(members)} > {MAX_ARCHIVE_MEMBERS}"
-        )
+        raise ArchiveSizeLimitError(f"Archive exceeds member count limit: {len(members)} > {MAX_ARCHIVE_MEMBERS}")
     extracted_bytes = 0
     for info in members:
         name = info.filename
         if not info.is_dir():
             extracted_bytes += info.file_size
             if extracted_bytes > MAX_EXTRACTED_BYTES:
-                raise ArchiveSizeLimitError(
-                    "Archive exceeds extracted byte limit: "
-                    f"{extracted_bytes} > {MAX_EXTRACTED_BYTES}"
-                )
+                raise ArchiveSizeLimitError(f"Archive exceeds extracted byte limit: {extracted_bytes} > {MAX_EXTRACTED_BYTES}")
         member_path = (target_dir / name).resolve()
         try:
             member_path.relative_to(base)
         except ValueError as exc:
-            raise zipfile.BadZipFile(
-                f"Refusing path traversal entry: {name}"
-            ) from exc
+            raise zipfile.BadZipFile(f"Refusing path traversal entry: {name}") from exc
     zf.extractall(target_dir)  # noqa: S202  # nosec B202 - paths validated above
 
 

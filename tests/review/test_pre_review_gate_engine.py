@@ -79,7 +79,7 @@ FAKE_GROUPS: dict[str, tuple[str, ...]] = {
     ),
     "governance": (
         "src/specify_cli/validators/**",
-        "src/specify_cli/doctrine/**",
+        "src/specify_cli/charter_packs/**",
     ),
 }
 

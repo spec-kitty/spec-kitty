@@ -487,7 +487,7 @@ def generate(
             profile=profile,
         )
 
-        from specify_cli.doctrine.org_charter import validate_org_required_directive_stems
+        from charter.activation.org_charter import validate_org_required_directive_stems
 
         validate_org_required_directive_stems(repo_root)
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from specify_cli.doctrine.template_render.validation import (
+from specify_cli.charter_packs.template_render.validation import (
     RULE_LOCAL_EMPTY,
     RULE_LOCAL_PLACEHOLDER,
     RULE_ORG_FORMAT,

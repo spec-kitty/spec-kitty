@@ -572,16 +572,16 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
             "HEAD-only urllib probe, new address."
         ),
     ),
-    "specify_cli/doctrine/sources/api_source.py": Allowance(
+    "specify_cli/charter_packs/sources/api_source.py": Allowance(
         kind=AllowanceKind.NOT_PROJECT_DATA,
         inventory_id="E18",
-        note="Fetches doctrine content inbound; the request carries no project data.",
+        note="Fetches charter pack content inbound; the request carries no project data.",
     ),
-    "specify_cli/doctrine/sources/https_source.py": Allowance(
+    "specify_cli/charter_packs/sources/https_source.py": Allowance(
         kind=AllowanceKind.NOT_PROJECT_DATA,
         inventory_id="E18-#217",
         note=(
-            "Inbound doctrine fetch. The Artifactory AQL query identifies the "
+            "Inbound charter pack fetch. The Artifactory AQL query identifies the "
             "configured public pack item (repo/path/name) and returns metadata; "
             "it carries no project data."
         ),

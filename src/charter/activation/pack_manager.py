@@ -637,7 +637,7 @@ def resolve_activation_write_target(
 
     Shared by :class:`CharterPackManager` and the two other activation
     writers (``specify_cli.cli.commands.charter.interview`` and
-    ``specify_cli.doctrine.org_charter``) so pointer resolution has exactly
+    ``charter.activation.org_charter``) so pointer resolution has exactly
     one implementation on the write side — mirroring
     :meth:`charter.activation.pack_context.PackContext.from_config` on the read side
     (INV-2/INV-5/INV-9).

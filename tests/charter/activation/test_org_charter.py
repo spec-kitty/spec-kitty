@@ -16,7 +16,7 @@ import pytest
 from ruamel.yaml import YAML
 
 from charter.activation.interview import apply_org_charter_pre_fill_to_answers
-from specify_cli.doctrine.org_charter import (
+from charter.activation.org_charter import (
     GovernancePolicy,
     OrgCharterCycleError,
     OrgCharterExtensionError,
@@ -30,7 +30,7 @@ from specify_cli.doctrine.org_charter import (
     load_org_charter_policies,
     load_org_charter_policy,
 )
-from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
+from charter.activation.org_charter_loader import load_org_charter_json_block
 
 
 # ---------------------------------------------------------------------------
@@ -39,6 +39,7 @@ from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 def _write_org_charter(pack_dir: Path, body: str) -> Path:
     """Write a YAML org-charter file at ``pack_dir/org-charter.yaml``."""
@@ -218,9 +219,7 @@ class TestLoadOrgCharterPolicies:
 
         assert policy.required_directives == ["dir-1", "shared", "dir-2"]
 
-    def test_load_org_charter_policies_unset_env_var_propagates(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_load_org_charter_policies_unset_env_var_propagates(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """``OrgPackEnvVarUnsetError`` must propagate out of ``load_org_charter_policies``.
 
         The narrowed ``except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError): raise``
@@ -274,9 +273,7 @@ class TestLoadOrgCharterPolicies:
         policy = load_org_charter_policies(tmp_path)
 
         # autonomous_mode appears once even though both packs declare it.
-        autonomous_entries = [
-            gp for gp in policy.governance_policies if gp.field == "autonomous_mode"
-        ]
+        autonomous_entries = [gp for gp in policy.governance_policies if gp.field == "autonomous_mode"]
         assert len(autonomous_entries) == 1
         # The non-overlapping policy from pack-a survives.
         assert any(gp.field == "another_field" for gp in policy.governance_policies)
@@ -381,9 +378,7 @@ class TestApplyOrgCharterPreFill:
         messages = apply_org_charter_pre_fill(tmp_path)
 
         assert messages == []
-        assert not (
-            tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
-        ).exists()
+        assert not (tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml").exists()
 
     def test_apply_org_charter_pre_fill_with_pack(self, tmp_path: Path) -> None:
         """End-to-end: configured pack with charter -> answers.yaml written."""
@@ -397,16 +392,12 @@ class TestApplyOrgCharterPreFill:
               - sec-001
             """,
         )
-        _write_kittify_config(
-            tmp_path, [{"name": "security", "local_path": str(pack)}]
-        )
+        _write_kittify_config(tmp_path, [{"name": "security", "local_path": str(pack)}])
 
         messages = apply_org_charter_pre_fill(tmp_path)
 
         assert messages
-        answers_path = (
-            tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
-        )
+        answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
         assert answers_path.exists()
         yaml = YAML(typ="safe")
         loaded = yaml.load(answers_path.read_text(encoding="utf-8"))
@@ -719,9 +710,7 @@ class TestResolveChain:
         # Cycle path includes the repeated node so operators see the loop.
         assert "A" in exc.value.cycle_path
         assert "B" in exc.value.cycle_path
-        assert exc.value.cycle_path[-1] == exc.value.cycle_path[0] or len(
-            exc.value.cycle_path
-        ) >= 2
+        assert exc.value.cycle_path[-1] == exc.value.cycle_path[0] or len(exc.value.cycle_path) >= 2
 
     def test_self_reference(self) -> None:
         pack_set = {"A": _policy(extends="A", required_directives=["a"])}
@@ -859,9 +848,7 @@ class TestLegacyPathFoldParity:
     strict extends-chain path — the latent #1894 inconsistency, preserved.
     """
 
-    def test_legacy_path_lenient_on_version_mismatch(
-        self, tmp_path: Path
-    ) -> None:
+    def test_legacy_path_lenient_on_version_mismatch(self, tmp_path: Path) -> None:
         pack_a = tmp_path / "packs" / "a"
         pack_b = tmp_path / "packs" / "b"
         _write_org_charter(pack_a, "schema_version: 1\nrequired_directives: [x]\n")

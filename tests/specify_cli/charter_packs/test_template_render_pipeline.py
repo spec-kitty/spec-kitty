@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doctrine.template_render import RenderRequest
-from specify_cli.doctrine.template_render.pipeline import render_org_pack
-from specify_cli.doctrine.template_render.ignore_copy import IgnoreRules
+from specify_cli.charter_packs.template_render import RenderRequest
+from specify_cli.charter_packs.template_render.pipeline import render_org_pack
+from specify_cli.charter_packs.template_render.ignore_copy import IgnoreRules
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -136,7 +136,7 @@ def test_pipeline_force_overwrites_existing(tmp_path: Path) -> None:
 
 
 def test_pipeline_stages_on_destination_filesystem(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.doctrine.template_render import pipeline
+    from specify_cli.charter_packs.template_render import pipeline
 
     template = tmp_path / "template"
     template.mkdir()
@@ -158,7 +158,7 @@ def test_pipeline_stages_on_destination_filesystem(tmp_path: Path, monkeypatch: 
 
 @pytest.mark.parametrize("partial_destination", [False, True])
 def test_failed_atomic_promotion_restores_original_pack(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, partial_destination: bool) -> None:
-    from specify_cli.doctrine.template_render import pipeline
+    from specify_cli.charter_packs.template_render import pipeline
 
     template = tmp_path / "template"
     template.mkdir()
@@ -234,7 +234,7 @@ def test_failed_restore_names_preserved_original_backup(tmp_path: Path, monkeypa
 
 
 def test_copy_failure_leaves_original_pack_in_place(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.doctrine.template_render import pipeline
+    from specify_cli.charter_packs.template_render import pipeline
 
     template = tmp_path / "template"
     template.mkdir()
@@ -284,7 +284,7 @@ class _NeverCalledGitSource:
 def test_symlinked_destination_refused_before_git_fetch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A symlinked destination must be refused before any network fetch (pack_path.symlink)."""
     monkeypatch.setattr(
-        "specify_cli.doctrine.template_render.resolve.GitSource",
+        "specify_cli.charter_packs.template_render.resolve.GitSource",
         _NeverCalledGitSource,
     )
     target = tmp_path / "target"
@@ -306,7 +306,7 @@ def test_symlinked_destination_refused_before_git_fetch(tmp_path: Path, monkeypa
 def test_existing_destination_without_force_refused_before_git_fetch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An already-existing destination (no --force) must be refused before any network fetch."""
     monkeypatch.setattr(
-        "specify_cli.doctrine.template_render.resolve.GitSource",
+        "specify_cli.charter_packs.template_render.resolve.GitSource",
         _NeverCalledGitSource,
     )
     destination = tmp_path / "output"

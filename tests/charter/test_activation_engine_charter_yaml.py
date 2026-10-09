@@ -7,7 +7,7 @@ into ``charter.yaml``:
   pointer-resolution primitive used by ``CharterPackManager.activate`` /
   ``deactivate`` / ``merge_defaults`` and by the two other activation
   writers (``specify_cli.cli.commands.charter.interview``,
-  ``specify_cli.doctrine.org_charter``).
+  ``charter.activation.org_charter``).
 * ``activation_engine.commit_plan`` writing into ``charter.yaml`` via that
   target, preserving the OTHER sections (``governance``/``catalog``/
   ``directives``/``metadata``) byte-for-byte (data-model.md Landmine 3 /

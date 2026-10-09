@@ -202,7 +202,7 @@ def interview(  # noqa: C901
         org_prefill_messages: list[str] = []
         org_prefill_warning: str | None = None
         try:
-            from specify_cli.doctrine.org_charter import apply_org_charter_to_interview
+            from charter.activation.org_charter import apply_org_charter_to_interview
 
             org_prefill_messages = apply_org_charter_to_interview(interview_data, repo_root)
             if not json_output:

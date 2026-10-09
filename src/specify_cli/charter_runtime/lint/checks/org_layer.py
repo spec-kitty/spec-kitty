@@ -7,7 +7,7 @@ to the project charter, never a hard gate.  Findings carry the
 ``org_layer`` category so operators can filter them.
 
 These checkers degrade silently when no org pack is configured or when the
-optional ``specify_cli.doctrine.org_charter`` module (owned by WP09) has not
+optional ``charter.activation.org_charter`` module (owned by WP09) has not
 yet shipped — they simply return an empty finding list.
 """
 
@@ -78,7 +78,7 @@ class OrgCharterDeviationChecker:
     """Advisory: project charter deviates from an org charter governance policy.
 
     Reads the merged ``org-charter.yaml`` policies via
-    :func:`specify_cli.doctrine.org_charter.load_org_charter_policies` (owned
+    :func:`charter.activation.org_charter.load_org_charter_policies` (owned
     by WP09).  When the module is not yet shipped, the check returns ``[]``.
     """
 
@@ -93,7 +93,7 @@ class OrgCharterDeviationChecker:
 
         # Optional dependency on WP09's module.  When absent, advisory is a no-op.
         try:
-            from specify_cli.doctrine.org_charter import (
+            from charter.activation.org_charter import (
                 load_org_charter_policies,
             )
         except ImportError:

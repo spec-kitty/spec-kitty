@@ -8,8 +8,8 @@ from typing import Any
 
 import pytest
 
-from specify_cli.doctrine.sources.protocol import FetchResult
-from specify_cli.doctrine.template_render.resolve import (
+from specify_cli.charter_packs.sources.protocol import FetchResult
+from specify_cli.charter_packs.template_render.resolve import (
     RULE_BRANCH_CONFLICT,
     RULE_TEMPLATE_GIT_FETCH,
     RULE_TEMPLATE_MISSING,
@@ -256,7 +256,7 @@ def test_resolve_git_fetch_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     clone_dir = tmp_path / "failed-clone"
     clone_dir.mkdir()
     monkeypatch.setattr(
-        "specify_cli.doctrine.template_render.resolve.tempfile.mkdtemp",
+        "specify_cli.charter_packs.template_render.resolve.tempfile.mkdtemp",
         lambda **_kwargs: str(clone_dir),
     )
 
@@ -315,7 +315,7 @@ def test_resolve_rejects_https_userinfo_without_echoing_secret() -> None:
 def test_git_source_inject_token_false_skips_env(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    from specify_cli.doctrine.sources.git_source import GitSource
+    from specify_cli.charter_packs.sources.git_source import GitSource
 
     monkeypatch.setenv("GIT_TOKEN", "super-secret-token")
     source = GitSource(url="https://attacker.example/repo.git", inject_token=False)
