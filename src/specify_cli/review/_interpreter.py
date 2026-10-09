@@ -10,7 +10,7 @@ the gate silently degrades to a false ``GateOutcome.NO_COVERAGE`` warn — the
 exact failure #2570.3 removes.
 
 ``uv run --frozen --project <repo_root> ...`` re-resolves the project's own
-``uv``-managed environment (which DOES carry the test extras), so it is
+``uv``-managed environment and requests a declared ``test`` extra, so it is
 preferred whenever both ``uv`` is on ``PATH`` and the target looks like a
 ``uv``-managed project (a ``pyproject.toml`` at its root). There is no other
 shared ``uv run`` executor in ``src/`` today — ``compat/`` only carries
@@ -34,10 +34,20 @@ from __future__ import annotations
 
 import shutil
 import sys
+import tomllib
 from collections.abc import Sequence
 from pathlib import Path
 
 __all__ = ["resolve_pytest_command"]
+
+
+def _declares_test_extra(pyproject: Path) -> bool:
+    try:
+        with pyproject.open("rb") as stream:
+            project = tomllib.load(stream).get("project", {})
+    except (OSError, tomllib.TOMLDecodeError):
+        return False
+    return "test" in project.get("optional-dependencies", {})
 
 
 def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> list[str]:
@@ -46,20 +56,21 @@ def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> li
     Resolution order:
 
     1. ``uv`` is on ``PATH`` **and** ``<repo_root>/pyproject.toml`` exists ->
-       ``["uv", "run", "--frozen", "--project", str(repo_root), "python", "-m", "pytest", *pytest_args]``.
-       ``uv run`` resolves the project's own managed virtualenv, which is
-       where the ``test`` extra (and therefore ``pytest`` itself) actually
-       lives.
+       Run ``python -m pytest`` in the project's own managed virtualenv.
+       Request ``--extra test`` when that extra is declared, so pytest is
+       installed there without rejecting projects that have no such extra.
     2. Otherwise -> ``[sys.executable, "-m", "pytest", *pytest_args]``, the
        universal fallback used when ``uv`` is unavailable, or when
        ``repo_root`` is not a ``uv``-managed project (no ``pyproject.toml``
        at its root — a named edge case: the AND's second leg).
     """
     if shutil.which("uv") is not None and (repo_root / "pyproject.toml").is_file():
+        extra = ["--extra", "test"] if _declares_test_extra(repo_root / "pyproject.toml") else []
         return [
             "uv",
             "run",
             "--frozen",
+            *extra,
             "--project",
             str(repo_root),
             "python",

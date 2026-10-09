@@ -108,13 +108,13 @@ z src
 ## Python environment isolation (uv)
 
 - In a git worktree or a fresh clone of a `uv`-managed Python project, a bare `python` or `pytest` invocation resolves imports against the interpreter's installed/site-packages state, not necessarily the checkout you are standing in. A lane worktree and a fresh clone are separate checkouts from the repository root; running the bare interpreter can silently import the wrong checkout's source tree instead of the one you intend to test.
-- Prefer `uv run <command>` for every gate, test, or script invocation so the command resolves against the current checkout's declared environment and dependencies, not whatever a bare interpreter happens to find first.
+- Prefer `uv run <command>` for every gate or script invocation. For pytest, use `uv run --extra test python -m pytest`: the test extra installs pytest in the current checkout's environment, and `python -m` uses that interpreter instead of a pytest executable found elsewhere on PATH.
 - This matters most for every gate run inside a lane worktree: linting, type-checking, and the test suite must all go through `uv run` so a green result reflects the lane's own code, not a sibling checkout's.
 
 Examples:
 
 ```bash
-uv run pytest tests/ -q
+uv run --extra test python -m pytest tests/ -q
 uv run ruff check .
 uv run mypy src/
 ```
@@ -127,8 +127,8 @@ uv run mypy src/
 Examples:
 
 ```bash
-uv run pytest tests/ -q            # foreground: wait, then act on the result
-uv run pytest tests/ -q &          # avoid before a commit/handoff that needs the result
+uv run --extra test python -m pytest tests/ -q            # foreground: wait, then act on the result
+uv run --extra test python -m pytest tests/ -q &          # avoid before a commit/handoff that needs the result
 ```
 
 ## Shell quoting
