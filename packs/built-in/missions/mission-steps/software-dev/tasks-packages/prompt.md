@@ -119,11 +119,11 @@ model: ""          # filled in Step 4a — model identifier (e.g., claude-sonnet
 **IMPORTANT — `plan_concern_refs` lives in `wps.yaml` only.** Do NOT copy `plan_concern_refs` into WP prompt frontmatter. `WPMetadata` uses `extra="forbid"`, so any WP prompt file with `plan_concern_refs` in its frontmatter will cause `finalize-tasks --validate-only` to raise a `ValidationError`.
 
 Body sections (in order):
-0. `## ⚡ Do This First: Load Agent Profile` — **REQUIRED. Must be the first section after the H1 title, before Objective.** Instructs the implementing agent to load the assigned profile via the `spk-doctrine-profile-load` skill before reading anything else. Use this exact structure, substituting frontmatter values:
+0. `## ⚡ Do This First: Load Agent Profile` — **REQUIRED. Must be the first section after the H1 title, before Objective.** Instructs the implementing agent to load the assigned profile via the `/spk-charter-profile-load` skill before reading anything else. Use this exact structure, substituting frontmatter values:
    ```markdown
    ## ⚡ Do This First: Load Agent Profile
 
-   Use the `spk-doctrine-profile-load` skill to load the agent profile specified in the frontmatter, and behave according to its guidance before parsing the rest of this prompt.
+   Use the `/spk-charter-profile-load` skill to load the agent profile specified in the frontmatter, and behave according to its guidance before parsing the rest of this prompt.
 
    - **Profile**: `{agent_profile}`
    - **Role**: `{role}`

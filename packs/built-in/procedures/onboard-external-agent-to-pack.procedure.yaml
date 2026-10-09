@@ -3,7 +3,7 @@ id: onboard-external-agent-to-pack
 name: Onboard an External Agent into the Pack
 purpose: >
   Guide a team member through bringing an agent that was built outside the framework — in any
-  tool or format — into the doctrine pack as typed YAML artifacts. The source agent might be a
+  tool or format — into a Charter Pack as typed YAML artifacts. The source agent might be a
   set of Cursor rules, a system prompt, a no-code bot, a framework script (LangChain, CrewAI,
   AutoGen), a custom GPT, or an assistant described only in a wiki page or Markdown document;
   the procedure treats them all the same way. It first ensures the agent is fully understood —
@@ -27,7 +27,7 @@ exit_condition: >
   documented justification). Every artifact extracted from the source agent is written under the
   correct pack subdirectory and registered in the DRG with appropriate edges. If a dedicated
   agent profile was warranted it is created; if not, the decision not to create one is recorded.
-  For an org pack, spec-kitty doctor doctrine reports the pack installed with the
+  For an org pack, spec-kitty doctor charter-packs reports the pack installed with the
   expected artifact counts; for the project tier, spec-kitty charter list shows the new
   artifacts activated.
 steps:
@@ -38,8 +38,8 @@ steps:
       registered, and verified with different commands:
 
         - Project tier — the artifacts govern only this repository. They are authored under
-          .kittify/doctrine/ with spec-kitty charter new and validated with
-          spec-kitty charter validate .kittify/doctrine.
+          .kittify/charter-packs/ with spec-kitty charter new and validated with
+          spec-kitty charter validate .kittify/charter-packs.
         - Org pack — the artifacts are shared across repositories through a pack directory
           configured under charter_packs.org.packs in .kittify/config.yaml. The pack is validated
           with spec-kitty charter org validate <pack-dir>.
@@ -231,11 +231,11 @@ steps:
     actor: human
     description: >
       Run the full verification suite for the chosen tier: the tier's validation command from the
-      first step (expect zero errors), then spec-kitty doctor doctrine (expect the pack installed
+      first step (expect zero errors), then spec-kitty doctor charter-packs (expect the pack installed
       with matching counts, for an org pack). For the project tier, confirm the
       artifacts are active with spec-kitty charter list, check the graph with
       spec-kitty charter lint, and, if a profile was created, inspect it with
-      spec-kitty profiles show <profile-id>. If spec-kitty doctor doctrine is unavailable, verify
+      spec-kitty profiles show <profile-id>. If spec-kitty doctor charter-packs is unavailable, verify
       manually that there are no duplicate ids within a kind and that each new artifact has a
       DRG node and at least one edge.
 
@@ -304,7 +304,7 @@ references:
     reason: Every classification, overlap-versus-augment call, and the profile-or-no-profile decision must be recorded with rationale.
   - type: directive
     id: DIRECTIVE_018
-    reason: Onboarded artifacts change doctrine layers and must be versioned with documented change rationale.
+    reason: Onboarded artifacts change charter offering layers and must be versioned with documented change rationale.
   - type: directive
     id: DIRECTIVE_032
     reason: Confirm shared understanding of artifact-kind terminology with the owner before decomposing.

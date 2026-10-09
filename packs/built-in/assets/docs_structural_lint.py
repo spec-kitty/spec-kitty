@@ -37,7 +37,7 @@ it imports only the stdlib and ``ruamel.yaml`` (nothing from the Spec Kitty
 source tree), so it runs unchanged in a consumer repo. The file it loads its
 policy from is supplied explicitly — the ``--styleguide PATH`` CLI argument,
 else the ``SPEC_KITTY_STYLEGUIDE`` environment variable — with no hard-coded
-``src/doctrine/...`` fallback. Despite its flag/env-var name (kept for CLI
+Spec Kitty source-tree fallback. Despite its flag/env-var name (kept for CLI
 backward compatibility), the path may point at any file carrying the
 ``structural_lint_config:`` block, not specifically a styleguide.
 
@@ -104,7 +104,7 @@ _CONFIG_KEY: Final[str] = "structural_lint_config"
 
 #: Environment variable naming the config file the lint LOADS its policy from,
 #: consulted when ``--styleguide`` is not passed. Keeps this asset consumable
-#: from any repo without a hard-coded ``src/doctrine/...`` path.
+#: from any repo without a hard-coded Spec Kitty source-tree path.
 _STYLEGUIDE_ENV_VAR: Final[str] = "SPEC_KITTY_STYLEGUIDE"
 
 _MD_LINK_RE: Final[re.Pattern[str]] = re.compile(r"\]\(([^)]+)\)")
@@ -237,7 +237,7 @@ _REQUIRED_STR_LIST_KEYS: Final[tuple[str, ...]] = (
 def _resolve_styleguide(arg: str | None) -> Path:
     """Resolve the config-file path from the CLI arg, then the environment.
 
-    Resolution order (there is deliberately NO hard-coded ``src/doctrine/...``
+    Resolution order (there is deliberately NO hard-coded Spec Kitty source-tree
     default — this asset ships to consumer repos that do not have the Spec
     Kitty source tree, so the path must be supplied explicitly):
 
@@ -266,7 +266,7 @@ def load_config(styleguide_path: Path) -> LintConfig:
         Path to a file carrying the ``structural_lint_config:`` block — the
         built-in default is ``assets/docs_structural_lint.config.yaml``, and
         a project may override it with its own file carrying the same key.
-        Required — the lint no longer hard-codes a ``src/doctrine/...``
+        Required — the lint no longer hard-codes a Spec Kitty source-tree
         default so it stays consumable from a repo with no access to the
         Spec Kitty source tree. Callers resolve it via
         :func:`_resolve_styleguide` (``--styleguide`` /

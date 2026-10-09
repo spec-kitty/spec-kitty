@@ -23,7 +23,7 @@ steps:
       An agent or session that implemented a WP must not load the reviewer
       profile and perform the review of that same WP. If the same operator
       must continue, open a new session, load the reviewer profile explicitly
-      via /ad-hoc-profile-load, and treat the prior implementation as
+      via /spk-charter-profile-load, and treat the prior implementation as
       external work to be reviewed with fresh eyes.
     examples:
       - "Wrong: same Claude session implements WP04 then immediately loads reviewer-renata and reviews WP04."

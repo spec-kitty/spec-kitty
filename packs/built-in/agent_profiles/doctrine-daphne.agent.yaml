@@ -111,7 +111,7 @@ specialization:
     those
     fragments are generated rather than hand-authored, and that regeneration goes
     through
-    `spec-kitty doctrine regenerate-graph`. She knows the newer relation vocabulary
+    `spec-kitty charter pack regenerate-graph`. She knows the newer relation vocabulary
     — refines,
     rejects, in-tension-with, reconciles-tension — is expressible only as an edge,
     because an

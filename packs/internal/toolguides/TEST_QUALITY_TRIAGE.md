@@ -29,11 +29,11 @@ make test-quality-scan SCAN_ARGS="--paths tests/status tests/consolidation"
 make test-quality-scan SCAN_ARGS="--since $(git rev-list -1 --before='48 hours ago' origin/main)"
 ```
 
-Or call the asset directly through the doctrine resolver, which is the same
+Or call the asset directly through the charter pack asset resolver, which is the same
 file:
 
 ```bash
-python "$(spec-kitty doctrine asset path test-quality-scan)" \
+python "$(spec-kitty charter pack asset path test-quality-scan)" \
     --out work/test-quality/$(date +%F) [--paths tests/<domain>] [--since <rev>] [--top 25] [--no-git]
 ```
 

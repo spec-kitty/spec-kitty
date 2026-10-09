@@ -15,7 +15,7 @@ exit_condition: >
   source defines or uses with a specific meaning is in the project glossary
   at the right scope, or intentionally excluded with a stated reason. All
   generated/curated artefacts are internally consistent, use the glossary
-  surfaces verbatim, and are retrievable through the doctrine-layer
+  surfaces verbatim, and are retrievable through the charter offering's
   repository classes.
 steps:
   - title: Inventory the source guidance
