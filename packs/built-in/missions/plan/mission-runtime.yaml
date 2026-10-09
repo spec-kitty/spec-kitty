@@ -5,8 +5,7 @@
 # Runtime template for the plan mission, enabling plan selection in spec-kitty next.
 # Defines 4-step linear workflow: specify -> research -> plan -> review
 #
-# The runtime YAML must validate against the runtime
-# schema in `src/runtime/next/_internal_runtime/schema.py`. The
+# The runtime YAML must validate against the runtime step schema. The
 # canonical schema reads steps at the TOP LEVEL and identity from the
 # `mission` block. We also keep a `mission.steps` mirror so legacy readers
 # (existing dashboard tests, prompt builder smoke checks) continue to work.
