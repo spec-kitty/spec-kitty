@@ -932,6 +932,43 @@ def test_rollback_buffered_run_state_is_a_noop_when_nothing_was_captured(tmp_pat
     assert not (run_dir / "run.events.jsonl").exists()
 
 
+def test_rollback_buffered_run_state_logs_and_leaves_everything_when_live_state_is_unreadable(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    # A directory in place of state.json makes the live read raise OSError.
+    (run_dir / "state.json").mkdir()
+    (run_dir / "run.events.jsonl").write_bytes(b"event-1\nevent-2\n")
+
+    with caplog.at_level("ERROR", logger=rb.logger.name):
+        rb._dn_rollback_buffered_run_state(run_dir, b'{"pre": true}', len(b"event-1\n"), b'{"post": true}', len(b"event-1\nevent-2\n"))
+
+    assert "cannot read live run state" in caplog.text
+    assert (run_dir / "state.json").is_dir()  # not replaced by the pre-state bytes
+    assert (run_dir / "run.events.jsonl").read_bytes() == b"event-1\nevent-2\n"  # not truncated
+
+
+def test_terminal_retrospective_gate_skips_rollback_but_still_blocks_when_post_state_is_unreadable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    ctx = _make_ctx(tmp_path)
+    state_path = ctx.run_dir / "state.json"
+    events_path = ctx.run_dir / "run.events.jsonl"
+    # The speculative commit already landed; the post-commit read failed (post_state None).
+    state_path.write_text('{"post": true}')
+    events_path.write_text("event-1\nevent-2\n")
+    monkeypatch.setattr(_retrospective_seam, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
+
+    with caplog.at_level("WARNING", logger=rb.logger.name):
+        decision = rb._dn_terminal_retrospective_gate(ctx, RuntimeError("gate refused"), None, b'{"pre": true}', len(b"event-1\n"), None)
+
+    assert decision is not None
+    assert decision.kind == DecisionKind.blocked
+    assert decision.reason == "Retrospective gate refused completion: gate refused"
+    assert "post-commit run state unavailable" in caplog.text
+    assert state_path.read_text() == '{"post": true}'
+    assert events_path.read_bytes() == b"event-1\nevent-2\n"
+
+
 # ---------------------------------------------------------------------------
 # 7. _dn_decision_materialize (+ _dn_terminal_retrospective_gate)
 # ---------------------------------------------------------------------------
