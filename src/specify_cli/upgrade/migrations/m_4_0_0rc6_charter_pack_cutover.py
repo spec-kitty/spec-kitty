@@ -230,6 +230,15 @@ def _mentions_legacy_root(text: str) -> bool:
     return _LEGACY_PREFIX in text or _LEGACY_PREFIX_WINDOWS in text
 
 
+_DROPPED_VALUE_LIMIT = 160
+
+
+def _compact(value: object) -> str:
+    """One-line JSON rendering of a dropped *value* so the report keeps it recoverable."""
+    text = json.dumps(value, default=str, separators=(",", ":"))
+    return text if len(text) <= _DROPPED_VALUE_LIMIT else text[: _DROPPED_VALUE_LIMIT - 3] + "..."
+
+
 @dataclass(frozen=True)
 class _KeyEdit:
     """Rename *old* to *new* in *mapping* (or drop *old* when *new* is already there)."""
@@ -247,7 +256,7 @@ class _KeyEdit:
     def describe(self, rel: str) -> str:
         new_label = self.label.rsplit(".", 1)[0] + f".{self.new}" if "." in self.label else self.new
         if self.drops:
-            return f"{rel}: dropped {self.label} ({new_label} is already present; the canonical value wins)"
+            return f"{rel}: dropped {self.label} ({new_label} is already present; the canonical value wins; dropped value: {_compact(self.mapping[self.old])})"
         return f"{rel}: {self.label} -> {new_label}"
 
 
@@ -289,13 +298,14 @@ def _apply_key_edits(run: _Run, path: Path, text: str, data: Any, edits: list[_K
     """Apply *edits* to the file at *path*, line-level when only renames, else a round-trip dump."""
     if not edits:
         return
+    rel = run.rel(path)
+    descriptions = [edit.describe(rel) for edit in edits]  # before the rename drops the old value
     edited = None if any(edit.drops for edit in edits) else _rename_in_text(text, edits)
     if edited is None:
         for edit in edits:
             _rename_in_mapping(edit)
         edited = _dump(data)
-    rel = run.rel(path)
-    run.report.rewritten.extend(edit.describe(rel) for edit in edits)
+    run.report.rewritten.extend(descriptions)
     run.write_text(path, edited)
 
 
@@ -643,8 +653,11 @@ def _rewrite_legacy_org(run: _Run, config: CommentedMap, rel: str) -> bool:
     legacy_label = f"{LEGACY_SELECTION_KEYWORD}.{_ORG_KEY}.{_PACKS_KEY}" if _PACKS_KEY in org else f"{LEGACY_SELECTION_KEYWORD}.{_ORG_KEY} (single-pack form)"
     section = config[LEGACY_SELECTION_KEYWORD]
     if _canonical_org(config) is not None:
+        dropped = _compact(section[_ORG_KEY])
         del section[_ORG_KEY]
-        run.report.rewritten.append(f"{rel}: dropped {legacy_label} ({_CHARTER_PACKS_KEY}.{_ORG_KEY} is already present; the canonical value wins)")
+        run.report.rewritten.append(
+            f"{rel}: dropped {legacy_label} ({_CHARTER_PACKS_KEY}.{_ORG_KEY} is already present; the canonical value wins; dropped value: {dropped})"
+        )
     elif _PACKS_KEY in org:
         if not _place_canonical_org(config, org, LEGACY_SELECTION_KEYWORD):
             run.report.kept_for_review.append(f"{rel}: {legacy_label} kept ({_NOT_A_MAPPING})")
@@ -672,8 +685,11 @@ def _rewrite_organisation_packs(run: _Run, config: CommentedMap, rel: str) -> bo
             run.report.kept_for_review.append(f"{rel}: {ORGANISATION_PACKS_KEYWORD} kept (no entry converts to a local_path pack)")
         return False
     if _canonical_org(config) is not None:
+        dropped = _compact(flat)
         del config[ORGANISATION_PACKS_KEYWORD]
-        run.report.rewritten.append(f"{rel}: dropped {ORGANISATION_PACKS_KEYWORD} ({_CHARTER_PACKS_KEY}.{_ORG_KEY} is already present; the canonical value wins)")
+        run.report.rewritten.append(
+            f"{rel}: dropped {ORGANISATION_PACKS_KEYWORD} ({_CHARTER_PACKS_KEY}.{_ORG_KEY} is already present; the canonical value wins; dropped value: {dropped})"
+        )
         return True
     converted = [CommentedMap({"name": e["name"], _LOCAL_PATH_KEY: e["path"]}) for e in flat if is_convertible_organisation_pack(e)]
     kept = [e for e in flat if not is_convertible_organisation_pack(e)]

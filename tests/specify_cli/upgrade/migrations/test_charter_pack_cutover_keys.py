@@ -115,19 +115,21 @@ def test_organisation_packs_fully_converted_is_removed(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("legacy", "label"),
+    ("legacy", "label", "dropped"),
     [
-        ("doctrine:\n  org:\n    packs:\n    - name: old\n      local_path: o\n", "doctrine.org.packs"),
-        ("organisation_packs:\n- name: old\n  path: o\n", "organisation_packs"),
+        ("doctrine:\n  org:\n    packs:\n    - name: old\n      local_path: o\n", "doctrine.org.packs", '{"packs":[{"name":"old","local_path":"o"}]}'),
+        ("organisation_packs:\n- name: old\n  path: o\n", "organisation_packs", '[{"name":"old","path":"o"}]'),
     ],
 )
-def test_canonical_org_block_wins_over_a_legacy_one(tmp_path: Path, legacy: str, label: str) -> None:
+def test_canonical_org_block_wins_over_a_legacy_one(tmp_path: Path, legacy: str, label: str, dropped: str) -> None:
     config = _config(tmp_path, "charter_packs:\n  org:\n    packs:\n    - name: canonical\n      local_path: c\n" + legacy)
     report = _apply_twice(tmp_path)
     data = _load(config)
     assert set(data) == {"charter_packs"}
     assert [p["name"] for p in data["charter_packs"]["org"]["packs"]] == ["canonical"]
-    assert report["rewritten"] == [f".kittify/config.yaml: dropped {label} (charter_packs.org is already present; the canonical value wins)"]
+    assert report["rewritten"] == [
+        f".kittify/config.yaml: dropped {label} (charter_packs.org is already present; the canonical value wins; dropped value: {dropped})"
+    ]
 
 
 def test_charter_packs_without_org_receives_the_org_block(tmp_path: Path) -> None:
@@ -164,7 +166,9 @@ def test_governance_and_tracker_canonical_wins(tmp_path: Path, section: str, new
     config = _config(tmp_path, f"{section}:\n  {new_key}: {{keep: 1}}\n  doctrine: {{drop: 1}}\n")
     report = _apply_twice(tmp_path)
     assert _load(config) == {section: {new_key: {"keep": 1}}}
-    assert report["rewritten"] == [f".kittify/config.yaml: dropped {section}.doctrine ({section}.{new_key} is already present; the canonical value wins)"]
+    assert report["rewritten"] == [
+        f'.kittify/config.yaml: dropped {section}.doctrine ({section}.{new_key} is already present; the canonical value wins; dropped value: {{"drop":1}})'
+    ]
 
 
 def test_config_structural_and_key_rewrites_together(tmp_path: Path) -> None:
