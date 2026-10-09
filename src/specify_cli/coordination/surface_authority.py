@@ -82,7 +82,7 @@ __all__ = [
 #: ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1`` is the operator hatch that folds
 #: ``primary_protected`` to ``False`` at the caller boundary (rule 6), degrading rule
 #: 3 to rule 4.
-REMEDY_PROTECTED_PRIMARY: Final[str] = "--start-branch <feature-branch> or SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1"
+REMEDY_PROTECTED_PRIMARY: Final[str] = "--start-branch <topic-branch> or SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1"
 
 #: The remedy offered when a commit-bearing operation targets the WRONG surface
 #: (the artifact is absent at / never staged to the resolved placement). A
@@ -164,7 +164,7 @@ def coord_topology_reachable(pr_bound: bool, primary_protected: bool, current_is
 
     The create-time predicate (contract §1): a mission mints a coordination
     topology only when coordination routing is actually reachable (INV-2 topology
-    honesty) — never as pure overhead on an unprotected feature branch.
+    honesty) — never as pure overhead on an unprotected topic branch.
 
     This is a pure boolean; the caller resolves the inputs. ``primary_protected``
     is the protection of the **primary target branch**

@@ -197,7 +197,7 @@ def _inject_branch_contract(
             recommended_strategy = "feature-branch"
             recommendation_reason = (
                 f"You are on the primary branch '{primary_branch}'. PR-bound "
-                "missions should start on a dedicated feature branch so planning "
+                "missions should start on a dedicated topic branch so planning "
                 f"artifacts are not committed to '{primary_branch}'."
             )
         else:

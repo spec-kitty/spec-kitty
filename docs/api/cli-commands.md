@@ -5338,8 +5338,8 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
  SPEC is a primary/planning artifact: it lands on the mission's primary target
  branch for every topology. On an unprotected or flattened primary the commit
  is direct. On a PROTECTED primary the commit is refused (there is no fallback
- surface); recover by either creating/checking out a non-protected feature
- branch ('spec-kitty agent mission create --start-branch <feature-branch>') or
+ surface); recover by either creating/checking out a non-protected topic
+ branch ('spec-kitty agent mission create --start-branch <topic-branch>') or
  setting SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 to commit on the current
  branch.
 

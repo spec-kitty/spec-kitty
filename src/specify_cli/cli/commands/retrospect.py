@@ -371,7 +371,7 @@ def _warn_protected_target_refused(target: str, files: list[Path]) -> None:
     Non-fatal: the record and its events are on disk. The mission commit router
     refuses a STANDARD commit onto a protected branch, and the retrospect CLI holds
     no protected-flow capability, so the operator commits from a branch that may
-    take it. The hint names a feature branch and never the mission branch: on a
+    take it. The hint names a topic branch and never the mission branch: on a
     coordination-topology Mission the only ``kitty/mission-*`` branch is the
     coordination branch, which must never carry the PRIMARY-partition record.
     """
@@ -379,7 +379,7 @@ def _warn_protected_target_refused(target: str, files: list[Path]) -> None:
     _err_console.print(
         f"[yellow]Warning:[/yellow] retrospective auto-commit skipped: the mission's "
         f"target branch '{escape(target)}' is protected, so nothing was committed to it. "
-        f"The record is written but not committed; commit it from a feature branch "
+        f"The record is written but not committed; commit it from a topic branch "
         f"(never the coordination branch) and land it through a pull request: {escape(paths)}",
         soft_wrap=True,
     )

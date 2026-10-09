@@ -53,7 +53,7 @@ def test_inject_branch_contract_on_primary_recommends_feature_branch() -> None:
     out = seam._inject_branch_contract({}, target_branch="main", current_branch="main", primary_branch="main")
     assert out["current_is_primary"] is True
     assert out["recommended_strategy"] == "feature-branch"
-    assert "dedicated feature branch" in str(out["branch_recommendation_reason"])
+    assert "dedicated topic branch" in str(out["branch_recommendation_reason"])
     assert out["branch_context"]["recommended_strategy"] == "feature-branch"
 
 

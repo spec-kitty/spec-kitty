@@ -230,7 +230,7 @@ def test_protected_primary_refusal_names_mission_create_for_pre_tasks_kind(tmp_p
     assert result.status == "no_op_wrong_surface"
     assert result.placement_ref == _PRIMARY_BRANCH
     assert result.diagnostic is not None
-    assert f"spec-kitty agent mission create {mission_slug} --start-branch <feature-branch>" in result.diagnostic
+    assert f"spec-kitty agent mission create {mission_slug} --start-branch <topic-branch>" in result.diagnostic
     assert "spec-kitty mission create --start-branch" not in result.diagnostic
     assert "finalize-tasks --mission" not in result.diagnostic
     safe_commit.assert_not_called()
@@ -277,7 +277,7 @@ def test_protected_primary_refusal_names_real_finalize_tasks_command(tmp_path: P
     assert result.status == "no_op_wrong_surface"
     assert result.placement_ref == _PRIMARY_BRANCH
     assert result.diagnostic is not None
-    assert f"spec-kitty agent mission finalize-tasks --mission {mission_slug} --target-branch <feature-branch>" in result.diagnostic
+    assert f"spec-kitty agent mission finalize-tasks --mission {mission_slug} --target-branch <topic-branch>" in result.diagnostic
     assert "spec-kitty mission create --start-branch" not in result.diagnostic
     assert "agent mission create" not in result.diagnostic
     safe_commit.assert_not_called()

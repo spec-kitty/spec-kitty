@@ -492,15 +492,15 @@ def _resolve_group_placement(
                     f"No tasks have been generated for this mission yet, so the "
                     f"finalize-tasks --target-branch override has nothing durable "
                     f"to attach to and would silently revert. Start a mission on "
-                    f"a feature branch instead: 'spec-kitty agent mission create "
-                    f"{mission_slug} --start-branch <feature-branch>'."
+                    f"a topic branch instead: 'spec-kitty agent mission create "
+                    f"{mission_slug} --start-branch <topic-branch>'."
                 )
             else:
                 remedy = (
-                    f"Check out or create a non-protected feature branch, then "
+                    f"Check out or create a non-protected topic branch, then "
                     f"persist it onto this mission with: 'spec-kitty agent mission "
                     f"finalize-tasks --mission {mission_slug} --target-branch "
-                    f"<feature-branch>'."
+                    f"<topic-branch>'."
                 )
             return (
                 placement,
@@ -512,7 +512,7 @@ def _resolve_group_placement(
                         f"Refusing to commit planning artifacts to the protected branch "
                         f"'{placement.ref}'. This mission's target_branch is protected. "
                         f"{remedy} "
-                        f"Planning artifacts must land on a feature branch. To commit on "
+                        f"Planning artifacts must land on a topic branch. To commit on "
                         f"the current protected branch anyway, set "
                         f"{_ENV_HATCH}=1."
                     ),

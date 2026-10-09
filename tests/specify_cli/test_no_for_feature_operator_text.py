@@ -4,7 +4,9 @@ out of operator-facing text under ``src/specify_cli``.
 The Terminology Canon forbids "feature" for a Mission in operator-facing text
 (charter, Terminology Canon; #5885). This module scans every NON-docstring
 string constant under ``src/specify_cli`` and fails if any such string contains
-``"for feature"`` or begins (after leading whitespace) with ``"Feature:"``.
+``"for feature"``, begins (after leading whitespace) with ``"Feature:"``, or says
+the deprecated prose alias ``"feature branch"`` (canonical: "topic branch"; the
+hyphenated ``feature-branch`` machine value is exempt).
 
 The scan reconstructs a *static string skeleton* for every string-producing
 expression, so it catches the wording regardless of how the string was
@@ -35,6 +37,7 @@ as a follow-up.
 from __future__ import annotations
 
 import ast
+import re
 import subprocess
 from pathlib import Path
 
@@ -46,6 +49,9 @@ SRC_ROOT = Path(__file__).resolve().parents[2] / "src" / "specify_cli"
 
 _FORBIDDEN_SUBSTRING = "for feature"
 _FORBIDDEN_LEADING = "feature:"
+# Deprecated glossary alias of "topic branch" in operator prose. The space-separated
+# phrase only: the hyphenated ``feature-branch`` machine/strategy value is unchanged.
+_FORBIDDEN_BRANCH_PROSE = re.compile(r"\bfeature branch(?:es)?\b", re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +92,7 @@ def _string_skeleton(node: ast.AST) -> str | None:
 
 def _is_offender(skeleton: str) -> bool:
     low = skeleton.lower()
-    if _FORBIDDEN_SUBSTRING in low:
+    if _FORBIDDEN_SUBSTRING in low or _FORBIDDEN_BRANCH_PROSE.search(low):
         return True
     return low.lstrip().startswith(_FORBIDDEN_LEADING)
 

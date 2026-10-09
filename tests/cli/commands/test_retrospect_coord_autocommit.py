@@ -141,7 +141,7 @@ def test_create_on_a_protected_target_commits_the_log_and_warns_about_the_record
     assert git_out(repo, "status", "--porcelain", "--", record_rel) == f"?? {record_rel}"
     warning = " ".join(stderr.split())
     assert "target branch 'main' is protected" in warning
-    assert "commit it from a feature branch (never the coordination branch) and land it through a pull request" in warning
+    assert "commit it from a topic branch (never the coordination branch) and land it through a pull request" in warning
     assert "mission branch" not in warning
     assert str(repo / record_rel) in stderr.replace("\n", "")
     assert "status.events.jsonl" not in warning

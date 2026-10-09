@@ -939,7 +939,7 @@ class TestMaybeAutoCommit:
         assert _git(repo, "rev-parse", "HEAD") == head_before
         warning = " ".join(strip_ansi(capsys.readouterr().err).split())
         assert "auto-commit skipped: the mission's target branch 'main' is protected" in warning
-        assert "commit it from a feature branch (never the coordination branch) and land it through a pull request" in warning
+        assert "commit it from a topic branch (never the coordination branch) and land it through a pull request" in warning
         assert "mission branch" not in warning
         assert "auto-commit failed" not in warning
         assert str(record) in warning
@@ -2549,7 +2549,7 @@ class TestCreateHarness:
         assert project.git("ls-files", "--others", "--exclude-standard") == f"kitty-specs/{MISSION_SLUG_COMPLETED}/retrospective.yaml"
         warning = " ".join(strip_ansi(result.stderr).split())
         assert "auto-commit skipped: the mission's target branch 'main' is protected, so nothing was committed to it" in warning
-        assert "commit it from a feature branch (never the coordination branch) and land it through a pull request" in warning
+        assert "commit it from a topic branch (never the coordination branch) and land it through a pull request" in warning
         assert "mission branch" not in warning
         assert str(project.record_path) in warning
         assert str(project.events_path) in warning

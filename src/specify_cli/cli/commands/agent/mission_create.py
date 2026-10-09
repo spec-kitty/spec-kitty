@@ -361,7 +361,7 @@ def _enforce_branch_strategy_gate_phase(
         raise typer.Exit(1) from exc
 
     if gate_outcome.prompted and not gate_outcome.decision.proceed:
-        message = "Mission creation aborted by operator at branch-strategy gate. Switch to a feature branch or pass `--branch-strategy already-confirmed`."
+        message = "Mission creation aborted by operator at branch-strategy gate. Switch to a topic branch or pass `--branch-strategy already-confirmed`."
         if json_output:
             _emit_json({"error": message, "branch_strategy_gate": "aborted"})
         else:
@@ -406,7 +406,7 @@ def _resolve_default_topology_phase(
     - ``--pr-bound`` missions consult :func:`coord_topology_reachable` — coord
       is reachable iff ``primary_protected or current_is_primary``. A pr-bound
       mission on an **unprotected** primary target (e.g. created with
-      ``--start-branch <feature-branch>``) therefore defaults to ``lanes``,
+      ``--start-branch <topic-branch>``) therefore defaults to ``lanes``,
       eliminating the stranded coord branch behind the #2533 split-brain
       without falling back to the no-longer-implicit ``single_branch``.
       Protection is keyed on the **primary TARGET branch** (``ProtectionPolicy``
@@ -711,7 +711,7 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
                     if path == spec_file
                     else "Generated scaffold could not be committed to the protected or unavailable target branch."
                 ),
-                "responsible_command": ("/spec-kitty.specify" if path == spec_file else "commit from a non-protected feature branch"),
+                "responsible_command": ("/spec-kitty.specify" if path == spec_file else "commit from a non-protected topic branch"),
             }
             for path in result.uncommitted_files
         ],
@@ -773,8 +773,8 @@ def _print_meta_outcome(result: MissionCreationResult, mission_branch: str | Non
         f"branch); kitty-specs/{result.mission_slug}/ is left on disk, untracked"
     )
     console.print(
-        "   Planning artifacts must land on a feature branch, or land via the mission lane worktree "
-        "— switch to a feature branch first, or re-run 'agent mission create --start-branch <feature-branch>'."
+        "   Planning artifacts must land on a topic branch, or land via the mission lane worktree "
+        "— switch to a topic branch first, or re-run 'agent mission create --start-branch <topic-branch>'."
     )
 
 
