@@ -546,10 +546,21 @@ class TestAgentActionReviewTextEnvelope:
         self._assert_skeleton(text)
 
     def test_coord_mission_prompt_skeleton(self, coord_repo_for_review: tuple[Path, str]) -> None:
-        """A coord review without lane commits fails with an actionable gate.
+        """A coord review without lane commits fails, honestly reporting the committed claim.
 
-        The former raw ``FileNotFoundError`` is gone; the command now reaches
-        the review commit guard and reports the refused coordination branch.
+        The former raw ``FileNotFoundError`` is gone. The review claim's
+        coordination commit lands, then the follow-up lane sync fails (this
+        ``for_review`` fixture has no lane commits to sync), so the command
+        exits 1 and discloses the failure in prose
+        (``WP01 claim was committed; the lane sync after ... failed``). The
+        revert of that commit is refused because its status rows are already
+        committed at HEAD (``STATUS_ROLLBACK_REFUSED`` /
+        ``RollbackRefusal.TAIL_ALREADY_COMMITTED``), so the commit summary
+        honestly renders the present commit as ``[ok]`` rather than
+        mislabelling it ``[refused]`` -- the misleading-receipt behaviour
+        closed by #5440 (and #5819 / #5804). Re-pinned by mission
+        ``green-reds-coord-review-repin`` (#5928 / #5948): the prior ``[refused]``
+        expectation encoded the pre-#5440 mislabel and was stale.
         """
         repo_root, mission_slug = coord_repo_for_review
         result = runner.invoke(
@@ -561,4 +572,15 @@ class TestAgentActionReviewTextEnvelope:
         text = normalize_envelope(result.output, repo_root)
         assert "Error: [Errno 2]" not in text
         assert "[review] Commits recorded:" in text
-        assert "[refused]" in text
+        # The lane sync after the review claim's coordination commit failed, but
+        # the commit is present (its revert was refused), so the receipt reads
+        # the honest ``[ok]`` and the failure is disclosed in prose -- never a
+        # mislabelled ``[refused]`` (the #5440 misleading-receipt discipline).
+        assert "claim was committed; the lane sync after" in text
+        # Anchor the glyph assertions to the review-claim receipt itself (the
+        # summary carries exactly this one receipt for this single-commit
+        # fixture), rather than matching ``[ok]``/``[refused]`` anywhere in the
+        # output.
+        assert "chore: Start WP01 review" in text
+        assert "[ok]" in text
+        assert "[refused]" not in text
