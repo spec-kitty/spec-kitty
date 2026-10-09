@@ -261,20 +261,6 @@ charter_path_literals:
   clause: "b"
   token: "if old_md . exists ( ) and not new_md . exists ( ) :"
   rationale: "HISTORICAL DETERMINISM: old/new presence comparison guarding the :211 rename so it never clobbers; frozen 3.1.1 migration path."
-- file: src/specify_cli/upgrade/migrations/m_3_2_0rc35_default_charter_pack.py
-  qualname: DefaultCharterPackMigration.apply
-  line: 161
-  literal: "charter.md"
-  clause: "a"
-  token: "charter_md_path = project_path / / /"
-  rationale: "HISTORICAL DETERMINISM: probes the pre-existing charter.md when seeding the default charter pack in 3.2.0rc35; frozen migration path."
-- file: src/specify_cli/upgrade/migrations/m_3_2_0rc35_default_charter_pack.py
-  qualname: DefaultCharterPackMigration.apply
-  line: 162
-  literal: "charter.md"
-  clause: "b"
-  token: "if charter_md_path . exists ( ) and not dry_run :"
-  rationale: "HISTORICAL DETERMINISM: presence+dry-run branch paired with :161; frozen 3.2.0rc35 migration path."
 - file: src/specify_cli/upgrade/migrations/m_3_2_0rc35_unified_bundle.py
   qualname: UnifiedBundleMigration.apply
   line: 159

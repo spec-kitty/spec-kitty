@@ -311,8 +311,10 @@ class MigrationRunner:
             Tuple of (MigrationResult, status) where status is one of
             ``applied``, ``skipped``, or ``failed``.
         """
-        # Skip if already applied
-        if metadata.has_migration(migration.migration_id):
+        # Skip if already applied -- unless a runs_first migration's structural
+        # predicate says the project carries its old state again (a pulled
+        # metadata.yaml or a merge brought it back), which re-selects it.
+        if metadata.has_migration(migration.migration_id) and not migration.reselect_when_recorded(self.project_path):
             return (
                 MigrationResult(
                     success=True,
@@ -504,7 +506,7 @@ class MigrationRunner:
 
             # Apply migrations to worktree
             for migration in worktree_migrations:
-                if wt_metadata.has_migration(migration.migration_id):
+                if wt_metadata.has_migration(migration.migration_id) and not migration.reselect_when_recorded(worktree):
                     continue
 
                 # Same fail-closed handling as the main checkout in
