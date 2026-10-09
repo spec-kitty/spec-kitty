@@ -402,7 +402,7 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 | **Definition** | A short-lived branch carrying one change to a pull request. |
 | **Context** | Orchestration |
 | **Status** | canonical |
-| **Applicable to** | `3.x` |
+| **Applicable to** | `3.x`, `4.x` |
 | **Do NOT use when** | The concept is the repository's default integration branch — use [primary branch](#primary-branch). The concept is the ref a mission's code must ultimately land on — use [target branch](#target-branch). Avoid the aliases "feature branch" and "PR branch". |
 | **Related terms** | [feature branch](#feature-branch), [primary branch](#primary-branch), [target branch](#target-branch), [pr-bound mission](#pr-bound-mission) |
 
@@ -415,7 +415,7 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 | **Definition** | Alias of topic branch: a short-lived branch carrying one change to a pull request. Prefer "topic branch" in canonical and operator-facing language. |
 | **Context** | Orchestration |
 | **Status** | deprecated |
-| **Applicable to** | `3.x` |
+| **Applicable to** | `3.x`, `4.x` |
 | **Do NOT use when** | Prefer the canonical [topic branch](#topic-branch) in new code, prose and operator-facing text. The machine value `feature-branch` (for example the `recommended_strategy` branch-strategy value) is unchanged and is not this alias. |
 | **Related terms** | [topic branch](#topic-branch), [pr-bound mission](#pr-bound-mission), [primary branch](#primary-branch), [start branch](#start-branch), [target branch](#target-branch) |
 
