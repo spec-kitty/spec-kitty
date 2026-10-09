@@ -34,7 +34,7 @@ Generic Agent is the deliberate catch-all: the baseline identity used when no sp
 Inside Claude Code, Codex, or another configured harness, you don't run a CLI command to attach this profile to your session. Instead:
 
 - **Let routing pick it**: describe what you need in natural language and `spec-kitty dispatch` routes the request to the matching profile — Generic Agent is what you get when nothing more specific applies. Its routing-priority (10) is the lowest of all 18 built-in profiles, so any specialist match is preferred over it.
-- **Ask for it by name**: if your harness supports ad-hoc profile loading, request Generic Agent explicitly — see the `ad-hoc-profile-load` skill for the mechanic.
+- **Ask for it by name**: if your harness supports ad-hoc profile loading, request Generic Agent explicitly — see the `spk-charter-profile-load` skill for the mechanic.
 
 ## See also
 

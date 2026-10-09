@@ -59,7 +59,7 @@ Inside Cursor's agent chat, invoke as:
 - **Profile not loading.**
   In the chat, run:
   ```
-  /ad-hoc-profile-load researcher-robbie
+  /spk-charter-profile-load researcher-robbie
   ```
   Use the profile id from the work-package frontmatter.
 

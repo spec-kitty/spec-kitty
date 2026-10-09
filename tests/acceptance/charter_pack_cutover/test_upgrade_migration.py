@@ -39,7 +39,8 @@ from click.testing import Result
 
 from ._effective_set import ALL_BUILTIN, builtin_inventory, effective_set, expand
 from ._requirements import REPO_ROOT
-from ._support import active_charter, covers, describe, git, git_init_commit, load_yaml, output_of, pending_until, read_json_output, run_cli, tree_digest
+from ._support import active_charter, covers, describe, git, git_init_commit, load_yaml, output_of, read_json_output, run_cli, tree_digest
+from .test_rename_skills_glossary import install_old_global_skill
 from .legacy_fixtures import (
     COLLISION_PATH,
     EDITED_SKILL,
@@ -402,7 +403,6 @@ def test_fr012_normalizer_empty_lists_reset_and_reported(tmp_path: Path) -> None
 
 
 @covers("FR-012", "FR-008", "INV:Installed skills", "US4-1")
-@pending_until("WP18", "installed copies of removed skills retired through spec-kitty upgrade")
 def test_fr012_installed_removed_skills(tmp_path: Path) -> None:
     project = build("installed_removed_skills", tmp_path)
     _, payload = upgrade(project)
@@ -413,6 +413,39 @@ def test_fr012_installed_removed_skills(tmp_path: Path) -> None:
     assert "spk-doctrine-show-me" in report_text(report, "skills_kept")
     assert "spk-doctrine-charter" in report_text(report, "skills_removed")
     assert (project / ".claude" / "skills" / "spk-charter-governance").is_dir(), "control: the new name is installed"
+
+
+@covers("FR-012", "US4-1")
+def test_fr012_edited_skill_copy_is_released_and_later_upgrades_exit_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Owner ruling A (US4): a kept edited copy of a removed skill becomes user-owned.
+
+    It is reported once, its skills-manifest entries are dropped, and no later
+    ``spec-kitty upgrade`` warns about it or exits non-zero for it.
+    """
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    # An edited user-global copy an older release installed: the global inventory keeps it, silently.
+    install_old_global_skill(tmp_path / "old-catalog", "spk-doctrine-charter", monkeypatch)
+    global_edited = home / ".claude" / "skills" / "spk-doctrine-charter" / "SKILL.md"
+    global_edited.chmod(0o644)
+    global_edited.write_text("my global edit\n", encoding="utf-8")
+    project = build("installed_removed_skills", tmp_path)
+    edited = project / EDITED_SKILL
+    edited_dir = EDITED_SKILL.rsplit("/", 1)[0]
+    before = edited.read_bytes()
+    first, payload = upgrade(project)
+    assert first.exit_code == 0, describe(first)
+    assert "spk-doctrine-show-me" in report_text(cutover_report(payload), "skills_kept")
+    assert not (project / MANIFESTED_SKILL).exists(), "control: an unedited removed copy is still removed"
+    manifest = json.loads((project / ".kittify" / "skills-manifest.json").read_text(encoding="utf-8"))
+    released = [e["installed_path"] for e in manifest["entries"] if e["installed_path"].startswith(f"{edited_dir}/")]
+    assert released == [], released
+    second, _ = upgrade(project)
+    assert second.exit_code == 0, describe(second)
+    assert edited_dir not in output_of(second), describe(second)
+    assert edited.read_bytes() == before, "the user-owned copy is never touched"
+    assert str(global_edited.parent) not in output_of(first) + output_of(second)
+    assert global_edited.read_text(encoding="utf-8") == "my global edit\n", "an edited global copy is kept"
 
 
 @covers("FR-012")

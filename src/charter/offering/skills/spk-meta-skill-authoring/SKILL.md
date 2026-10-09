@@ -20,5 +20,5 @@ Use this skill when creating or revising a Spec Kitty skill.
 ## Families
 
 Use only established families unless a new family improves discovery:
-`start`, `mission`, `run`, `gate`, `admin`, `team`, `doctrine`, `integrate`,
-or `meta`.
+`start`, `mission`, `run`, `gate`, `admin`, `team`, `charter`, `practice`,
+`integrate`, or `meta`.

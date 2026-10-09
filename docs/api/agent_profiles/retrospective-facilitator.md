@@ -31,7 +31,7 @@ Retrospective Facilitator runs a human-mediated post-mortem at the end of a miss
 
 ## How to load it from your harness
 
-You do not run a CLI command to load this profile directly. In practice it is invoked automatically by the runtime's lifecycle terminus hook (built-in missions) or an explicit retrospective marker step (custom missions) — you don't need to request it by name for a normal mission run. If you want to adopt it ad hoc in a chat session (for example, to draft retrospective-style findings outside a mission), use `ad-hoc-profile-load` and name the profile explicitly, or describe what you need and let spec-kitty's routing pick it. Findings and proposals it captures are data only — applying proposed doctrine, DRG, or glossary changes is a separate, human-approved step via `agent retrospect synthesize`.
+You do not run a CLI command to load this profile directly. In practice it is invoked automatically by the runtime's lifecycle terminus hook (built-in missions) or an explicit retrospective marker step (custom missions) — you don't need to request it by name for a normal mission run. If you want to adopt it ad hoc in a chat session (for example, to draft retrospective-style findings outside a mission), use `spk-charter-profile-load` and name the profile explicitly, or describe what you need and let spec-kitty's routing pick it. Findings and proposals it captures are data only — applying proposed doctrine, DRG, or glossary changes is a separate, human-approved step via `agent retrospect synthesize`.
 
 ## See also
 

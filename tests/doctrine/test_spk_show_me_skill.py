@@ -21,7 +21,7 @@ from tests.mocked_env import setup_mocked_env
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SKILLS_ROOT = REPO_ROOT / "src" / "charter" / "offering" / "skills"
-SKILL = SKILLS_ROOT / "spk-doctrine-show-me" / "SKILL.md"
+SKILL = SKILLS_ROOT / "spk-practice-show-me" / "SKILL.md"
 
 
 @pytest.fixture(scope="module")
@@ -208,12 +208,12 @@ def test_installed_skill_carries_portable_sources_and_themes(
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     project = tmp_path / "project"
     project.mkdir()
-    skill = SkillRegistry.from_local_repo(REPO_ROOT).get_skill("spk-doctrine-show-me")
+    skill = SkillRegistry.from_local_repo(REPO_ROOT).get_skill("spk-practice-show-me")
     assert skill is not None
 
     install_skills_for_agent(project, "codex", [skill])
 
-    installed = project / ".agents" / "skills" / "spk-doctrine-show-me"
+    installed = project / ".agents" / "skills" / "spk-practice-show-me"
     assert (installed / "references" / "spec-kitty-diagram-sources.md").is_file()
     assert (installed / "assets" / "MERMAID_DIAGRAMMING.md").is_file()
     assert (installed / "assets" / "PLANTUML_DIAGRAMMING.md").is_file()
@@ -260,7 +260,7 @@ def test_bundled_guide_matches_canonical_toolguide(filename: str) -> None:
 )
 def test_primary_surfaces_recommend_the_skill(relative_path: str) -> None:
     text = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
-    assert "spk-doctrine-show-me" in text
+    assert "spk-practice-show-me" in text
 
 
 @pytest.mark.parametrize(
@@ -272,4 +272,4 @@ def test_primary_surfaces_recommend_the_skill(relative_path: str) -> None:
 )
 def test_rendered_specify_command_preserves_exact_skill_name(relative_path: str) -> None:
     text = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
-    assert "`spk-doctrine-show-me`" in text
+    assert "`spk-practice-show-me`" in text

@@ -33,8 +33,8 @@ This page catalogs the 18 built-in agent profiles shipped in
 `packs/built-in/agent_profiles/`. A profile governs identity, routing,
 and boundaries for a work package: the runtime assigns profiles to work
 packages automatically, and you can also load one on demand for an
-interactive session with the [`ad-hoc-profile-load`
-skill](../skills/spk-doctrine-profile-load.md). Two entries — `generic-agent`
+interactive session with the [`spk-charter-profile-load`
+skill](../skills/spk-charter-profile-load.md). Two entries — `generic-agent`
 and `human-in-charge` — are structurally different from the other 16; see
 their own pages for what that means.
 

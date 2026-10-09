@@ -154,8 +154,8 @@ output.
 ## Generating and updating the canvas
 
 The canvas is authored by the agent skill
-`spec-kitty-spdd-reasons` (built-in at
-`src/charter/offering/skills/spec-kitty-spdd-reasons/SKILL.md`). The skill is
+`spk-charter-spdd-reasons` (built-in at
+`src/charter/offering/skills/spk-charter-spdd-reasons/SKILL.md`). The skill is
 triggered by any of the following phrases in user input:
 
 - "use SPDD"
@@ -378,7 +378,7 @@ Data artifacts ship under the built-in pack root `packs/built-in/`; the template
 | Styleguide | `packs/built-in/styleguides/reasons-canvas-writing.styleguide.yaml` |
 | Directive | `packs/built-in/directives/038-structured-prompt-boundary.directive.yaml` |
 | Template fragment | `src/charter/offering/templates/fragments/reasons-canvas-template.md` |
-| Skill | `src/charter/offering/skills/spec-kitty-spdd-reasons/SKILL.md` |
+| Skill | `src/charter/offering/skills/spk-charter-spdd-reasons/SKILL.md` |
 
 Mission seed material:
 

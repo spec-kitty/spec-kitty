@@ -1496,7 +1496,7 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/api/skills/spk-doctrine-profile-load.md
+- path: docs/api/skills/spk-charter-profile-load.md
   tag: current
   divio_type: none
   owning_workstream: none
