@@ -1147,10 +1147,9 @@ def init(  # noqa: C901
                     tracker.complete(f"{agent_key}-cleanup", "done")
 
                 # Install skill pack for this agent (non-fatal).
-                # T002: Only NATIVE-class agents install into per-agent directories
-                # (e.g. .claude/skills/, .qwen/skills/).  SHARED-class agents
-                # previously installed into .agents/skills/ — that shared root is
-                # intentionally NOT seeded during init (FR-003).
+                # T002: Only NATIVE-class agents install in this loop.
+                # The later tool-surface repair step installs canonical project
+                # skills for SHARED-class agents into .agents/skills/.
                 tracker.start(f"{agent_key}-skills")
                 try:
                     from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_SHARED, SKILL_CLASS_WRAPPER
@@ -1168,10 +1167,9 @@ def init(  # noqa: C901
                             "queued until project configuration is saved",
                         )
                     elif agent_skill_class == SKILL_CLASS_SHARED:
-                        # Other SHARED-class agents install their canonical skills
-                        # via the legacy installer path below (doctrine/tactic
-                        # skills), not command-skills.
-                        tracker.complete(f"{agent_key}-skills", "skipped (global runtime)")
+                        # Canonical project skills are installed by tool-surface
+                        # repair after the agent configuration is saved.
+                        tracker.complete(f"{agent_key}-skills", "queued until project configuration is saved")
                     else:
                         if skill_registry_per_agent is None:
                             skill_registry_per_agent = resolve_project_skill_catalog(
