@@ -1137,10 +1137,6 @@ def test_rule1_flags_each_truncate_offender(source: str) -> None:
     assert find_truncate_sites(ast.parse(source))
 
 
-def test_rule1_does_not_flag_unrelated_unlink() -> None:
-    assert not find_truncate_sites(ast.parse("tmp_path.unlink()"))
-
-
 # --------------------------------------------------------------------------- non-vacuity: rule 1 whole-file offenders
 
 _WHOLEFILE_OFFENDERS = {
@@ -1167,6 +1163,7 @@ def test_rule1_flags_each_wholefile_offender(source: str) -> None:
 
 _WHOLEFILE_NEAR_MISSES = {
     "write_text config file": "def f():\n    config_path.write_text('x')\n",
+    "unlink of an unrelated path": "def f():\n    tmp_path.unlink()\n",
     "append open a": "def f():\n    events_path.open('a')\n",
     "append builtin open a": "def f():\n    open(events_path, 'a').write('x')\n",
     "exclusive create x": "def f():\n    events_path.open('x')\n",
@@ -1187,7 +1184,9 @@ _WHOLEFILE_NEAR_MISSES = {
 
 @pytest.mark.parametrize("source", _WHOLEFILE_NEAR_MISSES.values(), ids=_WHOLEFILE_NEAR_MISSES.keys())
 def test_rule1_accepts_each_wholefile_near_miss(source: str) -> None:
-    assert find_wholefile_rewrite_sites(ast.parse(source)) == [], source
+    tree = ast.parse(source)
+    assert find_wholefile_rewrite_sites(tree) == [], source
+    assert not find_truncate_sites(tree), source
 
 
 # --------------------------------------------------------------------------- non-vacuity: rule 2 (owned by WP15)
@@ -1354,19 +1353,14 @@ _META_NEAR_MISSES = {
     "write_frontmatter on a config path": "def f():\n    write_frontmatter(config_path, fm, body)\n",
     "write_text on a config file": "def f():\n    config_path.write_text(content)\n",
     "merge driver writes the argv path": "def run(ours):\n    ours.write_text(content)\n",
+    "self-locking named sink (registered by the pre-pass)": "def revert():\n    restore_meta_text(d, text, expected_current=prev)\n",
 }
 
 
 @pytest.mark.parametrize("source", _META_NEAR_MISSES.values(), ids=_META_NEAR_MISSES.keys())
 def test_rule4_accepts_each_near_miss(source: str) -> None:
-    assert _rule4(source) == [], source
-
-
-def test_rule4_accepts_a_call_to_a_self_locking_named_sink() -> None:
-    """A call to ``restore_meta_text`` is accepted when the whole-tree pre-pass found it self-locks (plan A8/D5)."""
-    source = "def revert():\n    restore_meta_text(d, text, expected_current=prev)\n"
-    assert _rule4(source, self_locked=frozenset({"restore_meta_text"})) == []
-    assert _rule4(source, self_locked=frozenset())  # without the registration it is an offender (fail-closed)
+    # ``restore_meta_text`` self-locks (whole-tree pre-pass, plan A8/D5); unregistered it is an offender, see _META_OFFENDERS.
+    assert _rule4(source, self_locked=frozenset({"restore_meta_text"})) == [], source
 
 
 # --------------------------------------------------------------------------- non-vacuity: self-mutation of the real modules
