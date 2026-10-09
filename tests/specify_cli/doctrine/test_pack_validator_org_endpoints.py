@@ -42,6 +42,14 @@ Final bounded evidence (same clone tools, two workers, loadfile):
   make test-fast: exit 0, 2451 passed, 5 skipped. The gate itself was not skipped
   or altered. Canonical review transition independently reruns its real gate.
 No full architectural/e2e/performance/stress/test-full sweep was run.
+
+Cycle-1 shared-id RED on rejected source at d05bef03cafb5863a078d84a5b4eec59ca0f9b6e
+(lifecycle-only delta from rejected head 8ec3b0c28025909f00bf8eca6a84ed7cbbb5b59a):
+same pytest file/worker command with -k shared_id: 4 failed, 6 passed, exit 1.
+Qualified directive:SHARED -> asset:SHARED failed through both public commands
+in both declaration orders (source then target false positives); no artifact
+files. Four CLI bare controls and two actual last-winner binding controls passed.
+Original separately committed mandatory ATDD RED d0a48f3f remains unchanged.
 """
 
 from __future__ import annotations
@@ -269,7 +277,39 @@ def test_unknown_label_and_local_last_assignment_do_not_validate_relation(tmp_pa
     _write_fragment(tmp_path, [{"id": "shared", "kind": "directives"}, {"id": "shared", "kind": "assets"}], [_edge("shared", "asset:shared", "unknown-label")])
     assert pv.validate_pack(tmp_path).ok
     loaded = load_org_pack("test", tmp_path, 1)
-    assert pv._org_local_registry(loaded, set())["shared"] == "asset:shared"
+    local, declared = pv._org_local_registry(loaded, set())
+    assert local["shared"] == "asset:shared"
+    assert declared == {"directive:shared", "asset:shared"}
+
+
+@pytest.mark.parametrize("command", ["doctrine", "charter"])
+@pytest.mark.parametrize("kinds", [("directives", "assets"), ("assets", "directives")])
+@pytest.mark.parametrize("bare", [False, True], ids=["qualified", "bare-control"])
+def test_shared_id_declarations_keep_qualified_endpoints(tmp_path: Path, command: str, kinds: tuple[str, str], bare: bool) -> None:
+    """All qualified declarations survive either order; bare ids still bind locally."""
+    source, target = ("SHARED", "SHARED") if bare else ("directive:SHARED", "asset:SHARED")
+    _write_fragment(tmp_path, [{"id": "SHARED", "kind": kind} for kind in kinds], [_edge(source, target)])
+    assert sorted(path.relative_to(tmp_path).as_posix() for path in tmp_path.rglob("*.*")) == ["drg/fragment.yaml"]
+    app = doctrine_app if command == "doctrine" else charter_app
+    args = ["pack", "validate", str(tmp_path), "--json"] if command == "doctrine" else ["org", "validate", str(tmp_path)]
+    result = CliRunner().invoke(app, args)
+    if command == "doctrine":
+        assert json.loads(result.stdout) == {"advisories": [], "errors": [], "ok": True}, result.stdout
+    else:
+        assert "Pack validation: 0 errors, 0 advisories" in result.output, result.output
+    assert result.exit_code == 0, result.output
+
+
+@pytest.mark.parametrize("kinds,winner", [(("directives", "assets"), "asset:SHARED"), (("assets", "directives"), "directive:SHARED")])
+def test_shared_id_bare_last_winner_control(tmp_path: Path, kinds: tuple[str, str], winner: str) -> None:
+    _write_fragment(tmp_path, [{"id": "SHARED", "kind": kind} for kind in kinds], [_edge("SHARED", "SHARED")])
+    fragment = load_org_pack("test", tmp_path, 1)
+    local, declared = pv._org_local_registry(fragment, set())
+    assert local == {"SHARED": winner}
+    assert declared == {"directive:SHARED", "asset:SHARED"}
+    bound = pv._bind_org_edge(fragment.authored_edges[0], local, set())
+    assert (bound.source, bound.target, bound.source_cause, bound.target_cause) == (winner, winner, None, None)
+    assert pv.validate_pack(tmp_path).ok
 
 
 def test_builtin_bare_and_qualified_controls_and_deterministic_json(tmp_path: Path) -> None:
@@ -398,7 +438,14 @@ def test_identity_helper_defensive_branches() -> None:
 def test_alias_trusted_identity_without_loader_discovery_is_added_deterministically(tmp_path: Path) -> None:
     _write_fragment(tmp_path, [_local_node()], [])
     fragment = load_org_pack("test", tmp_path, 1)
-    assert pv._org_local_registry(fragment, {"agent_profile:alias"}) == {"local": "directive:local", "alias": "agent_profile:alias"}
+    local, declared = pv._org_local_registry(fragment, {"agent_profile:alias"})
+    assert local == {"local": "directive:local", "alias": "agent_profile:alias"}
+    assert declared == {"directive:local"}
+
+
+@pytest.mark.parametrize("kind,urn", [("directives", "directive:SHARED"), ("assets", "asset:SHARED"), ("custom", "custom:SHARED")])
+def test_org_node_urn_normalization(kind: str, urn: str) -> None:
+    assert pv._org_node_urn(kind, "SHARED") == urn
 
 
 def test_intentional_sibling_standalone_red_complete_runtime_resolves(tmp_path: Path) -> None:

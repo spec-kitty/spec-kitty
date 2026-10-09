@@ -833,22 +833,27 @@ def _dangling_sides(graph: EndpointGraph[_EndpointT]) -> list[tuple[_EndpointT, 
     ]
 
 
-def _org_local_registry(fragment: OrgDRGFragment, trusted: set[str]) -> dict[str, str]:
-    """Preserve loader order/last assignment, but discovery alone confers no trust."""
-    declared = {
-        f"{ORG_PLURAL_TO_SINGULAR_KIND.get(node.kind, node.kind)}:{node.id}"
-        for node in fragment.authored_nodes
-    }
+def _org_node_urn(kind: str, node_id: str) -> str:
+    """Normalize the loader's node identity for both declaration and binding views."""
+    return f"{ORG_PLURAL_TO_SINGULAR_KIND.get(kind, kind)}:{node_id}"
+
+
+def _org_local_registry(fragment: OrgDRGFragment, trusted: set[str]) -> tuple[dict[str, str], set[str]]:
+    """Keep all declarations separately from last-winner bare bindings.
+
+    Preserve loader order/last assignment; discovery alone confers no trust.
+    """
+    declared = {_org_node_urn(node.kind, node.id) for node in fragment.authored_nodes}
     local: dict[str, str] = {}
     represented: set[str] = set()
     for node in fragment.nodes:
-        urn = f"{ORG_PLURAL_TO_SINGULAR_KIND.get(node.kind, node.kind)}:{node.id}"
+        urn = _org_node_urn(node.kind, node.id)
         if urn in declared or urn in trusted:
             local[node.id] = urn
             represented.add(urn)
     for urn in sorted(trusted - represented):
         local[urn.partition(":")[2]] = urn
-    return local
+    return local, declared
 
 
 @dataclass(frozen=True)
@@ -886,8 +891,8 @@ def _validate_authored_endpoints(
     """
     if fragment is None:
         return []
-    local = _org_local_registry(fragment, trusted)
-    known = catalog.urns | trusted | set(local.values())
+    local, declared = _org_local_registry(fragment, trusted)
+    known = catalog.urns | trusted | declared
     edges = [_bind_org_edge(edge, local, catalog.urns) for edge in fragment.authored_edges]
     issues: list[ValidationIssue] = []
     view: EndpointGraph[_BoundEdge] = _EndpointView(edges, known)

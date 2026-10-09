@@ -206,21 +206,27 @@ edge endpoints, and artifact discovery does not infer scope or reference edges.
 kind (`directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`,
 `agent_profile`, `mission_step_contract`, `mission_type`, `template`, `asset`,
 `action`, `glossary_pack`, `anti_pattern`, `skill`). For standalone validation,
-a bare id binds first to an explicit declaration or a schema-valid artifact in
-this pack, then to exactly one built-in node. Local bindings win over built-in
-ambiguity. Discovery alone is not schema proof: an invalid artifact does not
-supply a trusted endpoint. An explicit `nodes:` declaration independently asserts
-graph identity and needs no backing artifact file.
+a bare id binds first to an explicit declaration or an artifact successfully
+validated by the supported existing schema scan in this pack, then to exactly
+one built-in node. Local bindings win over built-in ambiguity. Recursive loader
+discovery is not schema trust: discovered-only kinds and nested artifacts outside
+that scan need an explicit plural-kind `nodes:` declaration for standalone
+endpoint closure. An invalid artifact does not supply a trusted endpoint.
+An explicit declaration independently asserts graph identity and needs no backing
+artifact file; it does not prove schema validity.
 
 Both `charter org validate` and `doctrine pack validate` check authored sources
 **and** targets in `drg/fragment.yaml`, as well as graph-document edges in
 `drg/*.graph.yaml`. Standalone scope is **built-ins plus this pack only**;
 a qualified sibling-pack endpoint fails closed unless explicitly declared here.
-Unresolved bare or unknown-prefix tokens, malformed known-kind URNs, and ambiguous
-built-in bare ids produce `drg_dangling_edge` errors, naming the file, raw token,
-role, and resolver cause. Qualify ambiguous ids as `<kind>:<id>`; there is no
-`urn:` prefix form. Endpoint checks do not validate unknown relation labels,
-and loader-projected edges are not attributed to the authored fragment.
+Every `drg_dangling_edge` finding names the file, endpoint and source/target role.
+Canonical binding refusals for unresolved bare or unknown-prefix tokens,
+malformed known-kind URNs, and ambiguous built-in bare ids additionally carry
+the resolver cause. An absent syntactically valid qualified URN has no resolver
+cause. Graph documents retain their legacy URN-only wording and schema parsing.
+Qualify ambiguous ids as `<kind>:<id>`; there is no `urn:` prefix form. Endpoint
+checks do not validate unknown relation labels, and loader-projected edges are
+not attributed to the authored fragment.
 
 DRG fragments are **additive only**. They may add new edges and nodes but must not
 remove or modify built-in graph state. An org pack contributes a single
@@ -371,7 +377,8 @@ The validator distinguishes errors from advisories:
 |---|---|
 | Artifact YAML fails schema validation | Error |
 | Duplicate `id` within the pack | Error |
-| `drg_dangling_edge`: authored source or target absent/unresolved/malformed/ambiguous in either layout | Error |
+| `drg_dangling_edge`: source or target URN absent from the layout's known identities (canonical fragments and graph documents) | Error |
+| `drg_dangling_edge`: unresolved/unknown-prefix, malformed or ambiguous endpoint binding (canonical fragments only) | Error |
 | DRG extension tries to modify or remove a built-in node | Error |
 | `org-charter.yaml` schema violation | Error |
 | `replaceable-builtins.yaml` malformed, or a directive entry without a reason | Error |
@@ -380,9 +387,12 @@ The validator distinguishes errors from advisories:
 | `pack-manifest.yaml` exists and was author-edited | Advisory |
 | `enforcement` value other than `"advisory"` | Advisory |
 
-A `drg_dangling_edge` finding names the fragment file, offending endpoint and
-`source`/`target` role. Correct a typo, ship a schema-valid artifact, or remove a
-stale edge. For an intentional sibling dependency, follow the declaration and
+A `drg_dangling_edge` finding always names the file, offending endpoint and
+`source`/`target` role; canonical binding refusals additionally name the resolver
+cause where applicable. Absent qualified URNs have no resolver cause, and graph
+documents keep their legacy URN/schema behavior. Correct a typo, supply an
+artifact successfully validated by the supported existing schema scan, or remove
+a stale edge. For an intentional sibling dependency, follow the declaration and
 assembled-runtime verification steps in Troubleshooting below. `charter org validate`
 reports the same findings as the doctrine command; only the latter has `--json`.
 
@@ -637,14 +647,19 @@ the canonical subdirectories exists with valid YAML files.
 ### Error: "Dangling DRG edge"
 
 Standalone validation sees built-ins and one pack, not the consumer's assembled
-runtime graph. Locate the named token in the named file and check its role:
+runtime graph. Every finding names the file, endpoint and role. Canonical binding
+refusals additionally carry a resolver cause where applicable; an absent qualified
+URN has no such cause. Graph-document URN wording and schema parsing are unchanged.
 
 - Correct a typo or remove a stale edge.
-- Ship a schema-valid local artifact; a discovered but schema-invalid file is not
-  proof that the endpoint exists. Fix its separately reported schema error.
-- Qualify an ambiguous bare id as `<kind>:<id>`. A malformed known-kind token
-  carries `malformed_urn`; an unresolved bare id or unknown prefix carries
-  `unresolved_edge_endpoint`.
+- Supply a local artifact successfully validated by the supported existing schema
+  scan. Recursive loader discovery is not schema trust: discovered-only kinds and
+  nested artifacts outside that scan need an explicit plural-kind node declaration
+  for standalone endpoint closure; that declaration is not schema proof. Fix any
+  separately reported artifact schema error.
+- In canonical fragments, qualify an ambiguous bare id as `<kind>:<id>`. A malformed
+  known-kind token carries `malformed_urn`; an unresolved bare id or unknown prefix
+  carries `unresolved_edge_endpoint`.
 
 For an **intentional sibling-pack dependency**, explicitly declare the sibling's
 graph identity here, using its real id and the correct **plural** kind, and keep
