@@ -9,13 +9,6 @@ steps:
   - id: bootstrap
     description: Load charter context for this action
     command: "spec-kitty charter context --action discover --json"
-    inputs:
-      - flag: --profile
-        source: wp.agent_profile
-        optional: true
-      - flag: --tool
-        source: env.agent_tool
-        optional: true
 
   - id: capture_documentation_needs
     description: Capture target audience, iteration mode, and goals; emit spec.md

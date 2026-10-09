@@ -90,8 +90,6 @@ To advance: populate the Technical Context with real values, then re-run
 `spec-kitty agent mission setup-plan --mission <mission-slug> --json`. The substantive plan will be
 auto-committed and `phase_complete` will report `true`.
 
-Reference: `kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/specify-plan-commit-boundary.md`.
-
 ## Issue-Matrix Approval Heads-Up (non-gating, #3469)
 
 If `plan.md`/`research.md` cite a GitHub issue number (`#NNNN`), a bare/unmarked

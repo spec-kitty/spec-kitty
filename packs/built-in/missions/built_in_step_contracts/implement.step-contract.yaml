@@ -6,13 +6,6 @@ steps:
   - id: bootstrap
     description: Load charter context for this action
     command: "spec-kitty charter context --action implement --json"
-    inputs:
-      - flag: --profile
-        source: wp.agent_profile
-        optional: true
-      - flag: --tool
-        source: env.agent_tool
-        optional: true
 
   - id: workspace
     description: Create or enter the work package workspace
@@ -61,8 +54,8 @@ steps:
         - DIRECTIVE_029
         - DIRECTIVE_033
     guidance: >
-      Use conventional commit format. Include WP ID in commit scope.
+      Use conventional commit format. Scope the subject with the mission slug.
 
   - id: status_transition
     description: Move WP to for_review
-    command: "spec-kitty agent tasks move-task {wp_id} --to for_review"
+    command: "spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug}"

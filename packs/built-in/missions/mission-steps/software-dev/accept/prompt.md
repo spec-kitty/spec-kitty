@@ -7,9 +7,9 @@ description: Validate an approved mission before merge
 
 ## Purpose
 
-Validate that every work package is complete and the mission is ready to merge.
-This step runs the acceptance gate, surfaces any blocking diagnostics, and only
-clears the path to merge once the gate passes.
+Validate that every work package is complete and the mission is ready to
+consolidate. This step runs the acceptance gate, surfaces any blocking
+diagnostics, and only clears the path to consolidate once the gate passes.
 
 ---
 
@@ -19,11 +19,13 @@ clears the path to merge once the gate passes.
 from a work-package worktree.
 
 ```bash
-# If you are inside a worktree, return to the repository root checkout first:
-cd $(git rev-parse --show-toplevel)
+# If you are inside a worktree, return to the repository root checkout first.
+# `--show-toplevel` returns the *worktree* root inside a worktree, so resolve
+# the repository root checkout from the shared git common directory instead:
+cd "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
 ```
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, pass `--mission <handle>` to every command that accepts `--mission`.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -77,8 +79,8 @@ reports what (if anything) still blocks merge.
 
 Read the command output carefully:
 
-- If the gate **passes**, the output confirms the mission is ready to merge and
-  prints the merge instructions.
+- If the gate **passes**, the output confirms the mission is ready to
+  consolidate and prints the consolidate instructions.
 - If the gate **fails**, the output lists each outstanding category (for
   example: WPs not yet approved, failing checks, or unresolved review
   feedback — including any malformed acceptance-matrix entry, named by item
@@ -116,5 +118,6 @@ After completing this step:
 - All blocking diagnostics have been resolved (or none were present).
 - Consolidate instructions have been surfaced to the operator.
 
-**Next step**: `spec-kitty next --agent <name>` will advance to consolidate, or run
-`spec-kitty consolidate --mission <handle>` directly.
+**Next step**: run `spec-kitty consolidate --mission <handle>` to consolidate
+the accepted mission. `spec-kitty next` does not issue a consolidate step —
+consolidation is the operator-run step after acceptance passes.
