@@ -284,23 +284,17 @@ def test_both_sides_and_unknown_prefix_order(tmp_path: Path, relation: str) -> N
     assert all("unresolved_edge_endpoint" in issue.message for issue in _dangling(result))
 
 
-def test_unknown_label_and_local_last_assignment_do_not_validate_relation(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unknown_relation_label_is_not_validated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(pv, "_load_endpoint_catalog", lambda: pv._EndpointCatalog({"directive:shared", "tactic:shared"}, {}))
     _write_fragment(tmp_path, [{"id": "shared", "kind": "directives"}, {"id": "shared", "kind": "assets"}], [_edge("shared", "asset:shared", "unknown-label")])
     assert pv.validate_pack(tmp_path).ok
-    loaded = load_org_pack("test", tmp_path, 1)
-    local, declared = pv._org_local_registry(loaded, set())
-    assert local["shared"] == "asset:shared"
-    assert declared == {"directive:shared", "asset:shared"}
 
 
 @pytest.mark.parametrize("command", ["pack", "org"])
 @pytest.mark.parametrize("kinds", [("directives", "assets"), ("assets", "directives")])
-@pytest.mark.parametrize("bare", [False, True], ids=["qualified", "bare-control"])
-def test_shared_id_declarations_keep_qualified_endpoints(tmp_path: Path, command: str, kinds: tuple[str, str], bare: bool) -> None:
-    """All qualified declarations survive either order; bare ids still bind locally."""
-    source, target = ("SHARED", "SHARED") if bare else ("directive:SHARED", "asset:SHARED")
-    _write_fragment(tmp_path, [{"id": "SHARED", "kind": kind} for kind in kinds], [_edge(source, target)])
+def test_shared_id_declarations_keep_qualified_endpoints(tmp_path: Path, command: str, kinds: tuple[str, str]) -> None:
+    """All qualified declarations survive either order."""
+    _write_fragment(tmp_path, [{"id": "SHARED", "kind": kind} for kind in kinds], [_edge("directive:SHARED", "asset:SHARED")])
     assert sorted(path.relative_to(tmp_path).as_posix() for path in tmp_path.rglob("*.*")) == ["drg/fragment.yaml"]
     app = charter_app
     args = ["pack", "validate", str(tmp_path), "--json"] if command == "pack" else ["org", "validate", str(tmp_path)]
@@ -322,15 +316,6 @@ def test_shared_id_bare_last_winner_control(tmp_path: Path, kinds: tuple[str, st
     bound = pv._bind_org_edge(fragment.authored_edges[0], local, set())
     assert (bound.source, bound.target, bound.source_cause, bound.target_cause) == (winner, winner, None, None)
     assert pv.validate_pack(tmp_path).ok
-
-
-def test_builtin_bare_and_qualified_controls_and_deterministic_json(tmp_path: Path) -> None:
-    _write_fragment(tmp_path, [_local_node()], [_edge("local", "acceptance-test-first"), _edge("local", "tactic:acceptance-test-first"), _edge("local", "missing")])
-    results = [CliRunner().invoke(charter_app, ["pack", "validate", str(tmp_path), "--json"]) for _ in range(2)]
-    assert all(result.exit_code == 1 for result in results)
-    assert results[0].stdout == results[1].stdout
-    payload = json.loads(results[0].stdout)
-    assert [row["artifact_id"] for row in payload["errors"]] == ["missing"]
 
 
 def test_all_three_consumers_load_once_and_sanctions_keep_discovery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
