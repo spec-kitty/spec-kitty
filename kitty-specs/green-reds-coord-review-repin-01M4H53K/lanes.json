@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "mission_slug": "green-reds-coord-review-repin-01M4H53K",
+  "mission_id": "01M4H53KHHGVQS8HXHCE861NM4",
+  "mission_branch": "kitty/mission-green-reds-coord-review-repin-01M4H53K",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/characterization/test_trio_json_envelope.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-09T20:22:40.826921+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "ef53a43352136daf21d281a1832ac2536523d9cb"
+}

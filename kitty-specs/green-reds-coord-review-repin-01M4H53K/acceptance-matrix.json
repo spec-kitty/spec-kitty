@@ -1,0 +1,19 @@
+{
+  "mission_slug": "green-reds-coord-review-repin-01M4H53K",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/characterization/test_trio_json_envelope.py: 8 passed (re-pinned coord review case green); make test-fast: 2500 passed, 8 skipped",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-10-09T20:50:36.178843+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
