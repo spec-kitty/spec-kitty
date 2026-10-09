@@ -364,7 +364,7 @@ def test_sc6_finalize_lands_on_resolved_placement_no_catch22(
             f"[{topology.name}] finalize must REFUSE a planning commit to the protected target_branch (FR-008), got exit 0:\n{result.output}"
         )
         lowered = result.output.lower()
-        assert "feature branch" in lowered, f"[{topology.name}] refusal must name the feature-branch remedy (FR-008):\n{result.output}"
+        assert "topic branch" in lowered, f"[{topology.name}] refusal must name the topic-branch remedy (FR-008):\n{result.output}"
         assert "coordination worktree" not in lowered, (
             f"[{topology.name}] refusal must NOT advise the coordination worktree (C-005 — planning never transits coord):\n{result.output}"
         )
@@ -565,7 +565,7 @@ def test_sc6_finalize_is_idempotent_on_rerun(
         # never wedge.
         for label, run in (("first", first), ("second", second)):
             assert run.exit_code != 0, f"[{topology.name}] {label} finalize must refuse the protected target (FR-008), got exit 0:\n{run.output}"
-            assert "feature branch" in run.output.lower(), f"[{topology.name}] {label} refusal must name the feature-branch remedy:\n{run.output}"
+            assert "topic branch" in run.output.lower(), f"[{topology.name}] {label} refusal must name the topic-branch remedy:\n{run.output}"
             assert "PLANNING_BRANCH_NOT_PERSISTED" not in run.output, f"[{topology.name}] {label} refusal wedged on PLANNING_BRANCH_NOT_PERSISTED:\n{run.output}"
         return
 

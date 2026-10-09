@@ -1530,7 +1530,7 @@
    "deprecated": false
   },
   "spec-commit": {
-   "help": "Commit spec artifacts to the mission's resolved placement.\n\nSPEC is a primary/planning artifact: it lands on the mission's primary target\nbranch for every topology. On an unprotected or flattened primary the commit\nis direct. On a PROTECTED primary the commit is refused (there is no fallback\nsurface); recover by either creating/checking out a non-protected feature\nbranch ('spec-kitty agent mission create --start-branch <feature-branch>') or\nsetting SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 to commit on the current\nbranch.\n\nPass individual FILES, not directories.",
+   "help": "Commit spec artifacts to the mission's resolved placement.\n\nSPEC is a primary/planning artifact: it lands on the mission's primary target\nbranch for every topology. On an unprotected or flattened primary the commit\nis direct. On a PROTECTED primary the commit is refused (there is no fallback\nsurface); recover by either creating/checking out a non-protected feature\nbranch ('spec-kitty agent mission create --start-branch <topic-branch>') or\nsetting SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 to commit on the current\nbranch.\n\nPass individual FILES, not directories.",
    "hidden": false,
    "deprecated": false
   },

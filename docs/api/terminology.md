@@ -68,7 +68,7 @@ See the [mission identity migration runbook](../migrations/mission-id-canonical-
 | **current branch** | The branch checked out when planning starts | The mission's intended landing branch if it was explicitly overridden |
 | **primary branch** | The repository's default integration branch, usually resolved from `origin/HEAD` | The mission's intended landing branch after `target_branch` is persisted |
 | **feature branch** | A dedicated branch for pr-bound mission planning and implementation work | The protected/default branch or every lane worktree branch |
-| **start branch** | The branch `agent mission create <mission_slug> --start-branch <feature-branch>` creates or switches to before writing mission scaffolding | A later merge override or a separate branch from `--target-branch` |
+| **start branch** | The branch `agent mission create <mission_slug> --start-branch <topic-branch>` creates or switches to before writing mission scaffolding | A later merge override or a separate branch from `--target-branch` |
 | **target branch** | The branch the mission records planning and merge intent against | "Whatever branch happens to be checked out later" |
 | **base_branch** | At mission level, alias for `target_branch`; at WP level, the immediate parent branch for a lane worktree | A universal synonym for `main` |
 | **planning_base_branch** | Canonical helper alias for the intended planning branch | A second repository or a worktree |

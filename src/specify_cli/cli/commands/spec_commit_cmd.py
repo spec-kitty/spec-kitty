@@ -11,7 +11,7 @@ SPEC is a PRIMARY/planning artifact, so it lands on the mission's primary
 target branch for every topology and NEVER routes through coordination
 (write-surface-coherence WP02/WP03). On a PROTECTED primary the commit is
 therefore refused — not silently transited to a coord worktree — with the two
-real remedies: create/check out a non-protected feature branch, or set the
+real remedies: create/check out a non-protected topic branch, or set the
 ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` operator hatch (#2739 B01).
 
 Design basis: WP02 / IC-02 / ADR ``2026-06-21-1``.
@@ -503,7 +503,7 @@ def spec_commit_command(
     branch for every topology. On an unprotected or flattened primary the commit
     is direct. On a PROTECTED primary the commit is refused (there is no fallback
     surface); recover by either creating/checking out a non-protected feature
-    branch ('spec-kitty agent mission create --start-branch <feature-branch>') or
+    branch ('spec-kitty agent mission create --start-branch <topic-branch>') or
     setting SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1 to commit on the current
     branch.
 

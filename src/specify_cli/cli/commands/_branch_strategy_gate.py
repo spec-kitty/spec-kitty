@@ -4,11 +4,11 @@ When a mission is declared PR-bound (``meta.json`` carries ``pr_bound:
 true``) and the operator invokes ``mission create`` while the cwd is
 already on the mission's ``merge_target_branch``, we must not silently
 let the mission start on the merge target. Instead we prompt the
-operator to confirm or to switch to a feature branch.
+operator to confirm or to switch to a topic branch.
 
 The prompt is suppressed entirely when the operator passes
 ``--branch-strategy already-confirmed``. Non-PR-bound missions and
-missions on a feature branch hit the no-op path so the legacy flow is
+missions on a topic branch hit the no-op path so the legacy flow is
 preserved verbatim.
 
 The gate is intentionally side-effect-free apart from emitting the
@@ -120,7 +120,7 @@ def evaluate_branch_strategy(
 
     message = (
         f"You are on '{current_branch}', which is the mission's merge target. "
-        "PR-bound missions usually live on a feature branch. Proceed anyway?"
+        "PR-bound missions usually live on a topic branch. Proceed anyway?"
     )
     answer = prompt(message)
     decision_reason = "operator-confirmed" if answer else "operator-aborted"
