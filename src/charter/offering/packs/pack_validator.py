@@ -100,15 +100,8 @@ __all__ = [
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.packs.pack_descriptor import load_pack_descriptor
 from charter.offering.packs.retired_fields import RETIRED_PACK_FIELD, RetiredPackFieldError
-from charter.drg import (
-    EndpointEdge,
-    EndpointGraph,
-    EndpointResolutionError,
-    OrgDRGFragment,
-    dangling_endpoints,
-    resolve_edge_endpoint,
-)
-from charter.offering.drg.merge import org_local_endpoint_map
+from charter.offering.drg.merge import EndpointResolutionError, org_local_endpoint_map, resolve_edge_endpoint
+from charter.offering.drg.validator import EndpointEdge, EndpointGraph, dangling_endpoints
 from charter.offering.drg.override_policy import (
     PACK_POLICY_FILENAME,
     OverridePolicyError,
@@ -120,6 +113,7 @@ from charter.offering.drg.org_pack_loader import (
     ORG_PLURAL_TO_SINGULAR_KIND,
     OrgPackMissingError,
     OrgPackParseError,
+    OrgDRGFragment,
     OrgPackSchemaError,
     augmentation_plural_kinds,
     load_org_pack,
