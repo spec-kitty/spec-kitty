@@ -809,7 +809,7 @@
     },
     "WP25": {
       "actor": "claude",
-      "agent": "claude",
+      "agent": null,
       "agent_profile": "architect-alphonso",
       "agent_profile_version": "1.0",
       "force_count": 1,
@@ -819,9 +819,11 @@
       "last_transition_at": "2026-10-09T02:08:22.743630+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "WP25 lane-y 080781e4..220bb317: FR-018 gate (0 hits, 2455 scanned >= floor 2392, allowlist empty; 2 orchestrator-ruled exemptions escalated: glossary pack by file, retrieval index historical blocks); FR-014 pins deleted with reasons; FR-016 allowlist 0, facade gate keyed on charter.offering (red then green); renames/closeout follow-ups. Acceptance 352 passed/1 skipped/0 failed/0 xfail. Escalation: census TICKETED_BASELINE 2 entries remain. Activity log: scratchpad wp25tools/WP25-activity-log.md"
+        "WP25 lane-y 080781e4..220bb317: FR-018 gate (0 hits, 2455 scanned >= floor 2392, allowlist empty; 2 orchestrator-ruled exemptions escalated: glossary pack by file, retrieval index historical blocks); FR-014 pins deleted with reasons; FR-016 allowlist 0, facade gate keyed on charter.offering (red then green); renames/closeout follow-ups. Acceptance 352 passed/1 skipped/0 failed/0 xfail. Escalation: census TICKETED_BASELINE 2 entries remain. Activity log: scratchpad wp25tools/WP25-activity-log.md",
+        "Rejected cycle 1: test_no_manual_global_state_mutation red (3 WP01 acceptance-suite sites, red at lane base too); fix in rework. Nit: manifest_loader docstring origin example. All other WP25 surfaces verified."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/home/user/spec-kitty/.worktrees/charter-pack-cutover-01M491G6-coord/kitty-specs/charter-pack-cutover-01M491G6/tasks/WP25-vocabulary-gate-and-closeout/review-cycle-1.md",
         "reference": "review-cycle://charter-pack-cutover-01M491G6/WP25-vocabulary-gate-and-closeout/review-cycle-1.md",
@@ -829,13 +831,13 @@
         "verdict": "changes_requested"
       },
       "role": "reviewer",
-      "shell_pid": 27216,
-      "shell_pid_created_at": "1791509474.95",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T111": "done",
-        "T112": "done",
-        "T113": "done",
-        "T114": "done"
+        "T111": "planned",
+        "T112": "planned",
+        "T113": "planned",
+        "T114": "planned"
       }
     }
   }
