@@ -172,12 +172,11 @@ terms:
     status: deprecated
 
   - surface: feature branch
-    definition: >
-      A dedicated git branch for PR-bound mission planning and implementation work, typically named
-      feat/<slug> for feature work or fix/<slug> for bug-fix work. It is distinct from the primary
-      branch and is the recommended start point when a mission is expected to become a pull request.
+    definition: >-
+      Alias of topic branch: a short-lived branch carrying one change to a pull request.
+      Prefer "topic branch" in canonical and operator-facing language.
     confidence: 0.95
-    status: active
+    status: deprecated
 
   - surface: friendly_name
     definition: The human-readable title string of a mission, used for display in dashboards and logs. Mutable — changing it does not affect routing or identity.
@@ -316,9 +315,31 @@ terms:
     status: draft
 
   - surface: mission
-    definition: Purpose-specific workflow machine with defined inputs, process, outcomes, and states
+    definition: >-
+      A unit of governed delivery: the concrete tracked item, stored under the Mission's
+      own spec directory and linked to exactly one Mission Type, that carries one
+      piece of work from agreed intent to a verified result.
     confidence: 1.0
     status: active
+    synonyms_to_avoid:
+      - Feature
+
+  - surface: mission run
+    definition: >-
+      One runtime execution of a Mission's step loop, keyed by `run_id`.
+    confidence: 1.0
+    status: active
+    synonyms_to_avoid:
+      - mission session
+
+  - surface: topic branch
+    definition: >-
+      A short-lived branch carrying one change to a pull request.
+    confidence: 1.0
+    status: active
+    synonyms_to_avoid:
+      - feature branch
+      - PR branch
 
   - surface: mission_id
     definition: The ULID-based canonical, immutable machine identity for a mission, assigned at creation and used for all event routing and disambiguation. Never displayed as a mission number.
@@ -595,7 +616,7 @@ terms:
     status: draft
 
   - surface: work package
-    definition: Execution slice inside a mission run, the unit of human/agent handoff
+    definition: Execution slice inside a Mission, the unit of human/agent handoff
     confidence: 1.0
     status: active
 

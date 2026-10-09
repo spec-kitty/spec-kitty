@@ -68,11 +68,12 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 
 | | |
 |---|---|
-| **Definition** | Concrete tracked item stored under `kitty-specs/<mission-slug>/` and linked to exactly one [Mission Type](#mission-type). |
+| **Definition** | A unit of governed delivery: the concrete tracked item, stored under the Mission's own spec directory and linked to exactly one Mission Type, that carries one piece of work from agreed intent to a verified result. |
 | **Context** | Orchestration |
 | **Status** | canonical |
-| **Applicable to** | `1.x`, `2.x` |
+| **Applicable to** | `1.x`, `2.x`, `3.x` |
 | **Note** | This is the generic tracked-item noun across software, research, planning, and documentation work. |
+| **Do NOT use when** | The concept is the reusable workflow blueprint the Mission is an instance of — use [Mission Type](#mission-type). The concept is one runtime execution of the Mission's step loop — use [Mission Run](#mission-run). Never use the retired alias "Feature" for the Mission domain object (Terminology Canon). |
 
 ---
 
@@ -80,11 +81,12 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 
 | | |
 |---|---|
-| **Definition** | Runtime collaboration/execution container for one mission session. |
+| **Definition** | One runtime execution of a Mission's step loop, keyed by `run_id`. |
 | **Context** | Orchestration |
 | **Status** | canonical |
-| **Applicable to** | `1.x`, `2.x` |
-| **Scoping rule** | Runtime events should be scoped by `mission_run_id` as primary identity where available |
+| **Applicable to** | `1.x`, `2.x`, `3.x` |
+| **Scoping rule** | Runtime events should be scoped by the run's `run_id` where available |
+| **Do NOT use when** | The concept is the tracked unit of work itself — use [Mission](#mission). Avoid "mission session". |
 
 ---
 
@@ -163,7 +165,7 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 
 | | |
 |---|---|
-| **Definition** | work package state position in the canonical lifecycle FSM. Canonical lanes: `planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`. Alias: `doing` -> `in_progress`. |
+| **Definition** | work package state position in the canonical lifecycle FSM. The nine canonical lanes are `planned`, `claimed`, `in_progress`, `for_review`, `in_review`, `approved`, `done`, `blocked`, `canceled`. The happy path is `planned` -> `claimed` -> `in_progress` -> `for_review` -> `in_review` -> `approved` -> `done`; `blocked` is reachable from every non-terminal lane and `canceled` from every lane. Alias: `doing` -> `in_progress`. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -393,15 +395,29 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 
 ---
 
+### topic branch
+
+| | |
+|---|---|
+| **Definition** | A short-lived branch carrying one change to a pull request. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Do NOT use when** | The concept is the repository's default integration branch — use [primary branch](#primary-branch). The concept is the ref a mission's code must ultimately land on — use [target branch](#target-branch). Avoid the aliases "feature branch" and "PR branch". |
+| **Related terms** | [feature branch](#feature-branch), [primary branch](#primary-branch), [target branch](#target-branch), [pr-bound mission](#pr-bound-mission) |
+
+---
+
 ### feature branch
 
 | | |
 |---|---|
-| **Definition** | A dedicated git branch for pr-bound mission planning and implementation work, typically named `feat/<slug>` for feature work or `fix/<slug>` for bug-fix work. It is distinct from the primary branch and is the recommended start point when a mission is expected to become a pull request. |
+| **Definition** | Alias of topic branch: a short-lived branch carrying one change to a pull request. Prefer "topic branch" in canonical and operator-facing language. |
 | **Context** | Orchestration |
-| **Status** | canonical |
+| **Status** | deprecated |
 | **Applicable to** | `3.x` |
-| **Related terms** | [pr-bound mission](#pr-bound-mission), [primary branch](#primary-branch), [start branch](#start-branch), [target branch](#target-branch) |
+| **Do NOT use when** | Prefer the canonical [topic branch](#topic-branch) in new code, prose and operator-facing text. The machine value `feature-branch` (for example the `recommended_strategy` branch-strategy value) is unchanged and is not this alias. |
+| **Related terms** | [topic branch](#topic-branch), [pr-bound mission](#pr-bound-mission), [primary branch](#primary-branch), [start branch](#start-branch), [target branch](#target-branch) |
 
 ---
 
@@ -568,7 +584,7 @@ Mission topology terms (the four topologies, write checkout, repo-root lane, cod
 
 | | |
 |---|---|
-| **Definition** | The `spec-kitty consolidate` operation (renamed from `spec-kitty merge` by #3080): LOCAL consolidation of completed lane branches into the mission branch, with **no** push to any remote. Realized by the internal helper `consolidate_lane_into_mission`. This is `merge` **Sense 1** — the first of three distinct "merge" operations. It stops at local main; it never publishes. |
+| **Definition** | The `spec-kitty consolidate` operation (renamed from `spec-kitty merge` by #3080): LOCAL consolidation of completed lane branches into the mission branch, with **no** push to any remote. Realized by the internal helper `consolidate_lane_into_mission`. This is `merge` **Sense 1** — the first of three distinct "merge" operations. It stops at the local mission branch; it never publishes to any remote. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |

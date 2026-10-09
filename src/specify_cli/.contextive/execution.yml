@@ -16,7 +16,7 @@ contexts:
       - name: "communication artifact"
         definition: "A durable artifact produced or consumed by an Effector during a mission run (for example, a commit, a pull request, a review comment). Distinct from planning artifacts (spec, plan, tasks) which are produced before execution begins."
       - name: "Effector"
-        definition: "The Actor realized inside the Execution domain — the execution-bound realization of an Actor that performs actions within a mission run, producing or consuming communication artifacts (commits, PRs, comments). Named concept in docs only; no code type until a concrete actor-kind-mismatch bug triggers materialization."
+        definition: "The Actor realized inside the Execution domain — the execution-bound realization of an Actor that performs actions within a Mission, producing or consuming communication artifacts (commits, PRs, comments). Named concept in docs only; no code type until a concrete actor-kind-mismatch bug triggers materialization."
       - name: "Fully Delegated Mode"
         definition: "The agentic stack operates asynchronously without the HiC present. Work proceeds until a final Accept/Decline decision point, where the HiC returns to approve or reject the outcome. Also known as \"AFK mode.\""
       - name: "Generation Boundary"

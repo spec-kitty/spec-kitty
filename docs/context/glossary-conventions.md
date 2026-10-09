@@ -45,12 +45,20 @@ generate the IDE hover glossaries.
 
 ## Term Entry Schema
 
-Each glossary term table should include:
+Each glossary term table carries these required rows:
 
 1. `Definition`
 2. `Context`
 3. `Status`
 4. `Applicable to` (version scope, for example `` `1.x`, `2.x` ``)
+
+Entries may also carry optional rows, used where they add clarity:
+
+- `Do NOT use when` — disambiguation guards that steer a reader to the correct neighboring term when a word is overloaded
+- `Related terms` — in-page or cross-page links to neighboring terms
+- `Note` — any additional context
+- `Canonical term` — present when the heading is a legacy alias and a different word is canonical for the sense
+- term-specific rows such as `Scoping rule`, `Materialization trigger` and `Placement when materialized`
 
 ## Runtime Anchors
 

@@ -80,13 +80,13 @@ Each filename (without `.md`) under `docs/context/` is a valid context slug:
 | Slug | Domain |
 |------|--------|
 | `configuration-project-structure` | Project layout and configuration artifacts |
-| `doctrine` | Doctrine domain model and artifact taxonomy |
+| `charter` | Charter domain model and artifact taxonomy |
 | `dossier` | Artifact inventory and drift detection |
 | `execution` | CLI invocation and semantic safety gates |
 | `governance` | Charter, ADR, and policy precedence |
 | `identity` | Actors, roles, and Human-in-Charge |
 | `lexical` | Glossary internal data model |
-| `orchestration` | Feature, WP, mission lifecycle |
+| `orchestration` | Mission, work package, and mission lifecycle |
 | `practices-principles` | Working agreements |
 | `system-events` | Event envelope and glossary evolution |
 | `technology-foundations` | General tech terms (API, CLI, YAML, Git) |
