@@ -2,9 +2,7 @@
 
 * the closed id list equals what spec.md declares;
 * every id is covered by at least one ``covers(...)`` decorator;
-* every ``pending_until`` names a real work package of this one mission (OD-10) with a
-  string literal, never WP01, and carries a reason;
-* the helpers really produce strict xfails without a ``raises`` restriction.
+* ``covers(...)`` rejects ids outside the requirement id grammar.
 """
 
 from __future__ import annotations
@@ -26,10 +24,9 @@ from ._requirements import (
     REQUIRED_IDS,
     SC_IDS,
     SPEC_PATH,
-    TASKS_PATH,
     US_IDS,
 )
-from ._support import covers, pending_until
+from ._support import covers
 
 pytestmark = [pytest.mark.corpus]
 
@@ -114,31 +111,8 @@ def covered_ids(sources: Iterable[Source]) -> set[str]:
     return ids
 
 
-def real_wp_ids() -> set[str]:
-    return set(re.findall(r"^## Work Package (WP\d\d):", TASKS_PATH.read_text(encoding="utf-8"), flags=re.MULTILINE))
-
-
-def pending_marker_problems(sources: Iterable[Source], valid: set[str]) -> list[str]:
-    problems: list[str] = []
-    for file_name, call in _calls(sources, "pending_until"):
-        where = f"{file_name}:{call.lineno}"
-        first = call.args[0] if call.args else None
-        if not (isinstance(first, ast.Constant) and isinstance(first.value, str)):
-            problems.append(f"{where}: the WP id is not a string literal")
-            continue
-        if first.value == "WP01" or first.value not in valid:
-            problems.append(f"{where}: {first.value} is not a later work package of this mission")
-        if len(call.args) < 2:
-            problems.append(f"{where}: no reason")
-    return problems
-
-
-def _marker_count(sources: Iterable[Source]) -> int:
-    return len(_calls(sources, "pending_until"))
-
-
 # --------------------------------------------------------------------------------------
-# Coverage and markers
+# Coverage
 # --------------------------------------------------------------------------------------
 
 
@@ -148,32 +122,9 @@ def test_every_required_id_is_covered() -> None:
     assert missing == [], missing
 
 
-@covers("C-006", "OD-10")
-def test_every_pending_marker_names_a_real_wp() -> None:
-    valid = real_wp_ids()
-    assert {"WP02", "WP25"} <= valid and "WP01" in valid, "control: tasks.md headings parse"
-    assert pending_marker_problems(suite_sources(), valid - {"WP01"}) == []
-
-
-@covers("C-006")
-def test_traceability_no_pending_markers_remain() -> None:
-    assert _marker_count(suite_sources()) == 0
-
-
 # --------------------------------------------------------------------------------------
 # Self-tests of the checkers and helpers
 # --------------------------------------------------------------------------------------
-
-
-@covers("C-006")
-def test_planted_unknown_wp_is_reported() -> None:
-    sources = suite_sources()
-    name, source = next((n, s) for n, s in sources if "pending_until(" in s)
-    planted = [*sources, (f"planted_{name}", source + '\n\n@pending_until("WP99", "x")\ndef test_planted() -> None:\n    pass\n')]
-    problems = pending_marker_problems(planted, real_wp_ids() - {"WP01"})
-    assert any("WP99" in p for p in problems), problems
-    non_literal = [*sources, ("planted_var.py", 'WP = "WP02"\nmark = pending_until(WP, "x")\n')]
-    assert any("not a string literal" in p for p in pending_marker_problems(non_literal, real_wp_ids()))
 
 
 @covers("C-006")
@@ -182,19 +133,6 @@ def test_dropped_cover_is_named() -> None:
     stripped = [(n, s.replace('"FR-019"', '"FR-001"')) for n, s in sources]
     assert "FR-019" in covered_ids(sources)
     assert "FR-019" in set(REQUIRED_IDS) - covered_ids(stripped)
-
-
-@covers("C-006")
-def test_pending_until_is_a_strict_xfail_without_raises() -> None:
-    make = pending_until  # an alias: these probes are not markers the suite counts
-    mark = make("WP02", "x")
-    assert mark.name == "xfail"
-    assert mark.kwargs.get("strict") is True
-    assert "raises" not in mark.kwargs
-    assert mark.kwargs["reason"].startswith("pending WP02")
-    for bad in ("WP01", "wp02", "WP2"):
-        with pytest.raises(ValueError, match="pending_until"):
-            make(bad, "x")
 
 
 @covers("C-006")

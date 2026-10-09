@@ -1,10 +1,5 @@
 """Shared helpers for the charter-pack cutover acceptance suite (#3732, C-006).
 
-* :func:`pending_until` marks a test whose behaviour a later work package builds.
-  It is a strict ``xfail`` with **no** ``raises=`` restriction: at the mission base
-  any exception is the expected failure, and an unexpected pass (XPASS) fails the
-  run. Non-vacuity comes from each test's positive control and from the owning
-  work package's red-first run, not from the exception type.
 * :func:`covers` records which requirement ids a test covers; ``test_traceability``
   reads the decorators with ``ast``.
 * :func:`run_cli` drives the real ``spec-kitty`` Typer app in-process.
@@ -24,7 +19,6 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any, TypeVar
 
-import pytest
 from click.testing import Result
 from ruamel.yaml import YAML
 
@@ -32,30 +26,9 @@ from ._requirements import ID_GRAMMAR
 
 _T = TypeVar("_T")
 
-#: Shape of a work-package id a marker may name (the set of real ids is read from tasks.md).
-WP_SHAPE = re.compile(r"^WP\d\d$")
-
-#: The work package that owns this suite; no test may be pending on it.
-OWNING_WP = "WP01"
-
 _COVERS_ATTR = "__covers__"
 
 _ANSI_SGR_RE = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]")
-
-
-def pending_until(wp: str, reason: str) -> pytest.MarkDecorator:
-    """Strict xfail naming the work package that turns the test green.
-
-    The first argument must be a string literal at every call site (checked by
-    ``test_traceability``). There is deliberately no ``raises=`` restriction.
-    """
-    if not WP_SHAPE.match(wp):
-        raise ValueError(f"pending_until: {wp!r} is not a work-package id (WPnn)")
-    if wp == OWNING_WP:
-        raise ValueError("pending_until: WP01 owns the suite; a WP01 test is never pending")
-    if not reason.strip():
-        raise ValueError("pending_until: a reason is required")
-    return pytest.mark.xfail(strict=True, reason=f"pending {wp}: {reason}")
 
 
 def covers(*ids: str) -> Callable[[_T], _T]:
