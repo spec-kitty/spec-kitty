@@ -98,6 +98,18 @@ def get_all_lane_values() -> frozenset[str]:
 
 ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
+#: Canonical work-package id form (``WP`` + digits). One authority for the store,
+#: ``agent status emit`` and ``agent tasks mark-status``.
+WP_ID_PATTERN = re.compile(r"^WP\d+$")
+
+
+def normalize_wp_id(value: str) -> str:
+    """Return *value* upper-cased and stripped, or raise ``ValueError`` naming the expected form."""
+    normalized = value.strip().upper()
+    if WP_ID_PATTERN.fullmatch(normalized) is None:
+        raise ValueError(f"Invalid work package ID '{value}': expected WP<digits> (e.g. WP01)")
+    return normalized
+
 
 class SubtaskStatus(StrEnum):
     """Subtask-only terminal state; it is never a work-package lane."""

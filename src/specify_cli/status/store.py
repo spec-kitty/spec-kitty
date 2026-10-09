@@ -37,7 +37,7 @@ from specify_cli.core.paths import (
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.events import sanitize_event_for_log
 
-from .models import EventStream, InnerStateChanged, StatusEvent
+from .models import WP_ID_PATTERN, EventStream, InnerStateChanged, StatusEvent
 
 #: Wire discriminator for off-axis runtime-state annotation events
 #: (``InnerStateChanged``). These are surfaced to ``reduce()`` — never
@@ -52,7 +52,7 @@ EVENTS_FILENAME = "status.events.jsonl"
 # Regex patterns for identity classification (T024)
 _ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 _MISSION_SLUG_PATTERN = re.compile(r"^\d{3}-[a-z0-9-]+$")
-_WP_ID_PATTERN = re.compile(r"^WP\d+$")
+_WP_ID_PATTERN = WP_ID_PATTERN
 
 
 class StoreError(Exception):

@@ -131,6 +131,11 @@ def test_repeated_subtask_requires_wp_and_scoped_mark_is_idempotent(tmp_path: Pa
     # roster decides, so T002 resolves to WP01 without --wp, and --wp WP02 refuses.
     not_owner = invoke("--wp", "WP02", task_id="T002")
     assert not_owner.exit_code == 1
+    for fragment in ("T002 is not a subtask of WP02", f"Mission {slug}", "(owners: WP01)", "Re-run with --wp WP01."):
+        assert fragment in not_owner.output
+    bad_format = invoke("--wp", "second")
+    assert bad_format.exit_code == 1
+    assert "expected WP<digits>" in bad_format.output
     assert (mission_dir / "status.events.jsonl").read_text(encoding="utf-8") == events_before
     prose_only = invoke(task_id="T002")
     assert prose_only.exit_code == 0, prose_only.output

@@ -91,7 +91,7 @@ from specify_cli.core.subtask_rows import (
     authored_subtask_roster,
 )
 from specify_cli.core.owned_mission import require_unstaged_index
-from specify_cli.status import Lane, SubtaskStatus, SubtaskValue, mission_lock_key, resolve_subtask_status_alias
+from specify_cli.status import Lane, SubtaskStatus, SubtaskValue, mission_lock_key, normalize_wp_id, resolve_subtask_status_alias, wp_snapshot_state
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
 #: ``--status`` values; ``not_applicable`` is an input alias for ``skipped``.
@@ -175,10 +175,11 @@ def _ms_validate_inputs(st: _MarkStatusState) -> None:
         _tasks._output_error(st.json_output, f"Invalid status '{st.status}'. Must be 'done', 'pending', 'skipped', or 'not_applicable'.")
         raise typer.Exit(1)
     if st.wp is not None:
-        st.wp = st.wp.upper()
-        if re.fullmatch(r"WP\d+", st.wp) is None:
-            _tasks._output_error(st.json_output, f"Invalid --wp value: {st.wp}")
-            raise typer.Exit(1)
+        try:
+            st.wp = normalize_wp_id(st.wp)
+        except ValueError as exc:
+            _tasks._output_error(st.json_output, f"Invalid --wp value: {exc}")
+            raise typer.Exit(1) from exc
     if not st.task_ids:
         _tasks._output_error(st.json_output, "At least one task ID is required")
         raise typer.Exit(1)
@@ -331,6 +332,15 @@ def _owners_for_task(owner_map: dict[str, frozenset[str]], tasks_content: str, t
     return authored_roster_owners(owner_map, task_id) or history_wp_ids(tasks_content, task_id)
 
 
+def _not_an_owner_message(st: _MarkStatusState, task_id: str, owners: list[str]) -> str:
+    """Operator message for ``--wp`` naming a work package that does not own *task_id*."""
+    head = f"{task_id} is not a subtask of {st.wp} in Mission {st.mission_slug}"
+    if not owners:
+        return f"{head}; no work package lists it."
+    rerun = " or ".join(f"--wp {owner}" for owner in owners)
+    return f"{head} (owners: {', '.join(owners)}). Re-run with {rerun}."
+
+
 def _resolve_task_owners(st: _MarkStatusState, tasks_content: str) -> None:
     """Resolve and record (``st.task_wps``) the owning WP of every requested id.
 
@@ -351,13 +361,31 @@ def _resolve_task_owners(st: _MarkStatusState, tasks_content: str) -> None:
             continue
         owners = _owners_for_task(owner_map, tasks_content, task_id)
         if st.wp is None and len(owners) > 1:
-            _tasks._output_error(st.json_output, f"{task_id} occurs in {', '.join(owners)}; pass --wp to select one.")
+            _tasks._output_error(
+                st.json_output,
+                f"{task_id} is a subtask of {', '.join(owners)} in Mission {st.mission_slug}; pass --wp to select one.",
+            )
             raise typer.Exit(1)
         if st.wp is not None and st.wp not in owners:
-            _tasks._output_error(st.json_output, f"{task_id} was not found in --wp {st.wp}.")
+            _tasks._output_error(st.json_output, _not_an_owner_message(st, task_id, owners))
             raise typer.Exit(1)
         if owners:
             st.task_wps[task_id] = st.wp or owners[0]
+
+
+def _classify_against_snapshot(st: _MarkStatusState, result: TaskIdResult, task_id: str) -> TaskIdResult:
+    """Turn an ``UPDATED`` result into ``ALREADY_SATISFIED`` when the owning WP's
+    reduced snapshot already holds the requested value (a repeat writes no event);
+    otherwise report what is about to be recorded. Other outcomes pass through."""
+    wp_id = st.task_wps.get(task_id)
+    if result.outcome != TaskIdResolutionOutcome.UPDATED or wp_id is None:
+        return result
+    current = wp_snapshot_state(st.status_dir, wp_id)
+    subtasks = (current.get("subtasks") or {}) if current is not None else {}
+    requested = str(_requested_subtask_value(st.status))
+    if subtasks.get(task_id) == requested:
+        return TaskIdResult(task_id, TaskIdResolutionOutcome.ALREADY_SATISFIED, result.format, f"{task_id} in {wp_id} is already {requested}; no event written.")
+    return TaskIdResult(task_id, TaskIdResolutionOutcome.UPDATED, result.format, f"Recorded {requested} for {task_id} in {wp_id}.")
 
 
 def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
@@ -408,19 +436,7 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
                     message=f"{task_id} was not found in any supported task format.",
                 )
             )
-            wp_id = st.task_wps.get(task_id)
-            if result.outcome == TaskIdResolutionOutcome.UPDATED and wp_id is not None:
-                from specify_cli.status import wp_snapshot_state
-
-                current = wp_snapshot_state(st.status_dir, wp_id)
-                subtasks = (current.get("subtasks") or {}) if current is not None else {}
-                requested = str(_requested_subtask_value(st.status))
-                if subtasks.get(task_id) == requested:
-                    result = TaskIdResult(
-                        task_id, TaskIdResolutionOutcome.ALREADY_SATISFIED, result.format, f"{task_id} in {wp_id} is already {requested}; no event written."
-                    )
-                else:
-                    result = TaskIdResult(task_id, TaskIdResolutionOutcome.UPDATED, result.format, f"Recorded {requested} for {task_id} in {wp_id}.")
+            result = _classify_against_snapshot(st, result, task_id)
             results.append(result)
 
         st.results = results

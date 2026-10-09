@@ -25,7 +25,7 @@ from specify_cli.missions._read_path_resolver import (
 )
 from specify_cli.status import feature_status_lock, mission_lock_key
 from specify_cli.status import EVENTS_FILENAME, EventPersistenceError, StoreError
-from specify_cli.status import parse_review_result_json
+from specify_cli.status import normalize_wp_id, parse_review_result_json
 
 logger = logging.getLogger(__name__)
 
@@ -289,6 +289,20 @@ def _enforce_emit_for_review_gate(
         raise typer.Exit(1)
 
 
+def _resolve_wp_arg(wp_id: str | None, wp: str | None) -> str:
+    """Resolve the positional WP id and ``--wp`` into one validated, upper-cased id.
+
+    Raises ``ValueError`` (rendered by ``emit``'s error handler) when neither is
+    given, when both are given and differ, or when the id is not ``WP<digits>``.
+    """
+    if wp_id is not None and wp is not None and normalize_wp_id(wp_id) != normalize_wp_id(wp):
+        raise ValueError(f"Positional WP ID '{wp_id}' and --wp '{wp}' must match when both are supplied")
+    chosen = wp_id if wp_id is not None else wp
+    if chosen is None:
+        raise ValueError("A work package ID is required (positional or --wp)")
+    return normalize_wp_id(chosen)
+
+
 @app.command()
 def emit(
     wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01)")] = None,
@@ -354,14 +368,7 @@ def emit(
         spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason "resuming after crash"
     """
     try:
-        if wp_id is not None and wp is not None and wp_id.upper() != wp.upper():
-            _output_error(json_output, "Positional WP ID and --wp must match when both are supplied")
-            raise typer.Exit(1)
-        wp_id = wp_id or wp
-        if wp_id is None:
-            _output_error(json_output, "A work package ID is required (positional or --wp)")
-            raise typer.Exit(1)
-        wp_id = wp_id.upper()
+        wp_id = _resolve_wp_arg(wp_id, wp)
         # Resolve repo root
         cwd = Path.cwd().resolve()
         repo_root = locate_project_root(cwd)
