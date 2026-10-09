@@ -1,13 +1,11 @@
-# Built-in Doctrine Pack
+# Built-in Charter Pack
 
 The **built-in** pack ships with Spec Kitty itself: the baseline directives,
 tactics, styleguides, toolguides, paradigms, procedures, agent profiles, and
 mission-step contracts every project starts with before any org or project
 layer is applied.
 
-It has no `parent_pack` (it is the root of every lineage chain) and does not
-accompany a doctrine pack (`accompanies_doctrine_pack` is only meaningful for
-charter/synthesized packs).
+It has no `parent_pack` (it is the root of every lineage chain).
 
 This file, and its sibling `pack.yaml`, are **authored** — hand-edited data
 that is never regenerated. The pack's constituent inventory, content hashes,

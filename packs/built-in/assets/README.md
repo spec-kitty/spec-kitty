@@ -15,7 +15,7 @@ next to it as `assets/<pack>/diagrams/logo.png.asset.yaml` (or any filename
 matching `*.asset.yaml` in the same pack's `assets/` directory tree — the
 manifest's own `id` is what identifies it, not the filename).
 
-Manifest shape (`doctrine.assets.models.AssetManifest`):
+Manifest shape (`charter.offering.assets.models.AssetManifest`):
 
 ```yaml
 id: acme-logo-png
@@ -35,7 +35,7 @@ Fields:
 
 ## Safety contract enforced by the pack validator
 
-`specify_cli.doctrine.pack_validator` validates every `*.asset.yaml`
+`charter.offering.packs.pack_validator` validates every `*.asset.yaml`
 manifest found under a pack's `assets/` directory in a separate pass
 (`_validate_asset_manifests`, run once per pack alongside DRG validation),
 in addition to the generic per-kind schema scan. It enforces two safety
@@ -44,7 +44,7 @@ rules on top of the `AssetManifest` schema:
 * **Path containment** (`asset_path_escape`): `path` must resolve inside the
   owning pack's `assets/` root. An absolute path, a `..`-escape, or a
   symlink that resolves outside the root is rejected. This reuses
-  `doctrine.drg.org_pack_config.resolve_relative_path_within_root` — the
+  `charter.offering.drg.org_pack_config.resolve_relative_path_within_root` — the
   same containment primitive `OrgPackConfig.effective_root` uses for
   `subdir` — rather than a second hand-rolled implementation.
 * **MIME consistency** (`asset_mime_invalid`): `mime` must have the

@@ -20,7 +20,7 @@ Before coding, load the WP-scoped REASONS section from
 - Norms (testing, observability, style)
 - Safeguards (hard constraints — what not to break)
 
-If the canvas is missing, invoke the `spec-kitty-spdd-reasons` skill to
+If the canvas is missing, invoke the `spk-charter-spdd-reasons` skill to
 generate it before continuing.
 
 Do not invent files, entities, or scope outside the canvas without recording a
@@ -153,7 +153,7 @@ Parse frontmatter for:
 
 ### 2a. Load Agent Profile
 
-Before proceeding, load the agent profile from the WP frontmatter using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to find user-defined profiles). Apply the profile's guidance for the rest of this implementation session.
+Before proceeding, load the agent profile from the WP frontmatter using the `/spk-charter-profile-load` skill (or `spec-kitty agent profile list` to find user-defined profiles). Apply the profile's guidance for the rest of this implementation session.
 
 If `agent_profile` is empty, run `spec-kitty agent profile list` and select the best
 available profile for the WP's `task_type` and `authoritative_surface`.
@@ -356,7 +356,7 @@ the orchestrator opens the draft PR:
 4. Only after the orchestrator confirms the recorded evidence does the WP move
    to `for_review`.
 
-The reviewer will then use `/ad-hoc-profile-load` with the reviewer profile and apply
+The reviewer will then use `/spk-charter-profile-load` with the reviewer profile and apply
 its self-review gates automatically.
 
 ---

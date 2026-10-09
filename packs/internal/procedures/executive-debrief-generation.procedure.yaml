@@ -44,7 +44,7 @@ steps:
     actor: agent
   - title: Collect the facts deterministically
     description: >
-      Run the debrief collector asset (spec-kitty doctrine asset path
+      Run the debrief collector asset (spec-kitty charter pack asset path
       debrief-collector; packs/internal/assets/debrief/collect-debrief.py) in
       the chosen mode with GITHUB_TOKEN unset so it uses the keyring token. Window
       mode takes the repositories and a UTC range, for example `collect-debrief.py
