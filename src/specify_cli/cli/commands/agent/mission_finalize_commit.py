@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Final, cast
 
 import typer
 
-from kernel.atomic import observe_writes, stop_observing_writes
+from kernel.atomic import atomic_write, observe_writes, stop_observing_writes
 
 
 if TYPE_CHECKING:
@@ -1163,8 +1163,12 @@ def _undo_one_path(path: Path, original: bytes | None) -> None:
         if original is None:
             path.unlink(missing_ok=True)
         else:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(original)
+            atomic_write(path, original, mkdir=True)
+            # The restore runs while the run's write ledger still observes writes: the restored
+            # bytes are the pre-run state, not something this run wrote, so drop them from it.
+            ledger = active_write_ledger()
+            if ledger is not None:
+                ledger.written.pop(path.resolve(), None)
     except OSError as exc:
         logger.warning("finalize atomicity: failed to restore %s: %s", path, exc)
 
