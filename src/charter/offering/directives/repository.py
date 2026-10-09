@@ -18,12 +18,12 @@ from ruamel.yaml import YAML
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 from charter.offering.pack_paths import built_in_dir
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 from .models import Directive
 from .validation import reject_directive_inline_refs
 
 
-class DirectiveRepository(BaseDoctrineRepository[Directive]):
+class DirectiveRepository(BaseArtifactRepository[Directive]):
     """Repository for loading and managing directive YAML files."""
 
     def __init__(

@@ -11,7 +11,7 @@ each one resolves and formats a single ``--include <kind>:<id>`` selector.
   service), matching the WP04 typing pass.
 * :func:`_render_generic_artifact_include` — the best-effort ``artifact:<id>``
   probe that fans out across every bare-probeable kind.
-* :func:`_render_doctrine_artifact_include` — the shared renderer for the
+* :func:`_render_offering_artifact_include` — the shared renderer for the
   remaining (non-directive/tactic) doctrine artifact kinds.
 
 ``_default_missions_root`` is a private helper consumed only by
@@ -33,7 +33,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from charter.activation._doctrine_paths import resolve_project_root
+from charter.activation._project_root_candidates import resolve_project_root
 from charter.bundle import CHARTER_MD
 from charter.activation.context_json import _bundle_root_for_json
 from charter.activation.context_renderers.artifact_bodies import (
@@ -52,7 +52,7 @@ from charter.activation.context_renderers.section_bodies import render_critical_
 from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 
 if TYPE_CHECKING:
-    import charter.offering.service as _doctrine_service_module
+    import charter.offering.service as _offering_service_module
     from charter.offering.artifact_kinds import ArtifactKind
 
     from charter.repository_protocol import ArtifactRepository
@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 __all__ = [
     "_render_agent_profile_include_selector",
     "_render_catalog_kind_include_selector",
-    "_render_doctrine_artifact_include",
+    "_render_offering_artifact_include",
     "_render_generic_artifact_include",
     "_render_section_include_selector",
     "_render_template_include",
@@ -82,7 +82,7 @@ def _render_template_include(
     project-scoped override/legacy tiers participate in resolution.
 
     Fails closed on malformed pack configuration: a
-    :class:`charter.activation.pack_context.CharterPackConfigError` raised while
+    :class:`charter.activation.pack_context.ActiveCharterConfigError` raised while
     resolving the project root is re-raised rather than swallowed, matching
     WP12's fail-closed contract for the context entry point.
     """
@@ -171,7 +171,7 @@ def _render_tactic_include(tactics: ArtifactRepository[Any], identifier: str, se
     )
 
 
-def _render_generic_artifact_include(service: _doctrine_service_module.DoctrineService, identifier: str) -> str:
+def _render_generic_artifact_include(service: _offering_service_module.CharterOfferingService, identifier: str) -> str:
     """Resolve a best-effort ``artifact:<id>`` selector emitted by activations."""
 
     from charter.offering.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
@@ -194,7 +194,7 @@ def _render_generic_artifact_include(service: _doctrine_service_module.DoctrineS
             elif candidate_kind == "tactic":
                 rendered = _render_tactic_include(service.tactics, identifier, selector)
             else:
-                rendered = _render_doctrine_artifact_include(service, candidate_kind, identifier)
+                rendered = _render_offering_artifact_include(service, candidate_kind, identifier)
         except ValueError:
             continue
         if rendered is not None:
@@ -226,7 +226,7 @@ def _format_inline_glossary_pack_body(pack: object) -> list[str]:
     return lines
 
 
-def _render_doctrine_artifact_include(
+def _render_offering_artifact_include(
     service: object,
     kind: str,
     identifier: str,
@@ -354,9 +354,9 @@ def _resolve_include_kind(kind: str, selector: str) -> ArtifactKind:
 
 
 def _render_agent_profile_include_selector(
-    # object (not DoctrineService): the caller forwards either the plain or the
-    # activation-aware service (charter.activation.resolver.DoctrineService, an unrelated
-    # class), and this only forwards it to _render_doctrine_artifact_include(service: object).
+    # object (not ActiveCharterService): the caller forwards either the plain or the
+    # activation-aware service (charter.activation.resolver.ActiveCharterService, an unrelated
+    # class), and this only forwards it to _render_offering_artifact_include(service: object).
     gated_service: object,
     canonical_kind: str,
     identifier: str,
@@ -367,24 +367,24 @@ def _render_agent_profile_include_selector(
     Takes the already-built *gated_service* (not ``repo_root``/``org_roots``)
     so the caller — ``charter.activation.context.build_charter_context_include`` — stays
     the sole call site of
-    :func:`charter.activation.doctrine_service_builder._build_activation_aware_doctrine_service`.
-    That preserves the existing ``context_module._build_activation_aware_doctrine_service``
+    :func:`charter.activation.active_charter_service_builder._build_active_charter_service`.
+    That preserves the existing ``context_module._build_active_charter_service``
     monkeypatch seam several tests rely on
     (e.g. ``tests/charter/test_context_include_activation.py``).
     """
     # For a kind with a registered renderer (agent_profile has one),
-    # _render_doctrine_artifact_include renders the activated profile or
+    # _render_offering_artifact_include renders the activated profile or
     # raises ("No agent_profile found ...") for a gated/missing one — it
     # never returns None here, so a direct return is sufficient (no dead
     # fall-through branch to guard).
-    artifact_result = _render_doctrine_artifact_include(gated_service, canonical_kind, identifier)
+    artifact_result = _render_offering_artifact_include(gated_service, canonical_kind, identifier)
     if artifact_result is None:
         raise ValueError(f"No {canonical_kind} found for selector '{selector}'.")
     return artifact_result
 
 
 def _render_catalog_kind_include_selector(
-    service: _doctrine_service_module.DoctrineService,
+    service: _offering_service_module.CharterOfferingService,
     canonical_kind: str,
     identifier: str,
     selector: str,
@@ -393,7 +393,7 @@ def _render_catalog_kind_include_selector(
 
     Takes the already-built *service* (not ``repo_root``/``org_roots``) so the
     caller stays the sole call site of
-    :func:`charter.activation.doctrine_service_builder._build_doctrine_service` — see
+    :func:`charter.activation.active_charter_service_builder._build_offering_service` — see
     :func:`_render_agent_profile_include_selector` for why that matters.
 
     Returns ``None`` when *canonical_kind* has no registered include renderer
@@ -406,4 +406,4 @@ def _render_catalog_kind_include_selector(
         return _render_directive_include(service.directives, identifier, selector)
     if canonical_kind == ArtifactKind.TACTIC.value:
         return _render_tactic_include(service.tactics, identifier, selector)
-    return _render_doctrine_artifact_include(service, canonical_kind, identifier)
+    return _render_offering_artifact_include(service, canonical_kind, identifier)

@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from glossary.semantic_events import iter_semantic_conflicts
+from kernel.charter_pack_paths import project_pack_root
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ def _load_merged_drg(repo_root: Path) -> Any | None:
         from charter.offering.drg.models import DRGGraph
         from ruamel.yaml import YAML
 
-        drg_dir = repo_root / ".kittify" / "doctrine"
+        drg_dir = project_pack_root(repo_root)
         candidates = ["graph.yaml", "merged_drg.json", "drg.json", "compiled_drg.json"]
         for name in candidates:
             p = drg_dir / name

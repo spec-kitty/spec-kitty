@@ -10,7 +10,7 @@ risking an import cycle.
 from __future__ import annotations
 
 #: Canonical filename of the project-layer DRG overlay written under
-#: ``.kittify/doctrine/`` and staged under ``<staging>/doctrine/``.
+#: ``.kittify/charter-packs/`` and staged under ``<staging>/charter-packs/``.
 GRAPH_FILENAME = "graph.yaml"
 
 __all__ = ["GRAPH_FILENAME"]

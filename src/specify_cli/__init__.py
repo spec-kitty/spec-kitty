@@ -132,6 +132,10 @@ def main_callback(
 
     if ctx.meta.get("defer_root_bootstrap") is True:
         # Windows migration must relocate legacy state before global runtime reads.
+        # The FR-011 legacy charter gate reads no global state, so it still runs.
+        project_root = locate_project_root()
+        if project_root is not None:
+            _check_legacy_charter_layout(ctx, project_root)
         return
 
     next_fast_path = _is_next_invocation(sys.argv)
@@ -177,6 +181,26 @@ def _run_startup_project_gates(ctx: typer.Context) -> None:
         from specify_cli.migration.gate import check_schema_version
 
         check_schema_version(project_root, invoked_subcommand=ctx.invoked_subcommand)
+
+    # FR-011 (#3732): refuse a project, or the current checkout (a lane worktree
+    # created before the upgrade), that still carries the retired doctrine layout.
+    # The hook paths never reach here (main_callback skips both gates for them).
+    if project_root is not None:
+        _check_legacy_charter_layout(ctx, project_root)
+
+
+def _check_legacy_charter_layout(ctx: typer.Context, project_root: Path) -> None:
+    from specify_cli.cli.helpers import ROOT_COMMAND_ARGS_META_KEY
+    from specify_cli.migration.legacy_charter_gate import check_legacy_charter_layout, current_checkout_root, usage_errors_first
+
+    args = tuple(ctx.meta.get(ROOT_COMMAND_ARGS_META_KEY, sys.argv[1:]))
+    check_legacy_charter_layout(
+        project_root,
+        current_checkout_root(),
+        invoked_subcommand=ctx.invoked_subcommand,
+        argv=args,
+        before_refusal=usage_errors_first(ctx, args),
+    )
 
 
 def _build_app() -> typer.Typer:

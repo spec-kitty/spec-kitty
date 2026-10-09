@@ -23,8 +23,10 @@ Families:
   review, and blockers.
 - `spk-gate-*`: accept, merge, mission review, and retrospectives.
 - `spk-admin-*`: setup, configuration, upgrades.
-- `spk-doctrine-*`: charter, glossary, SPDD, profiles, visual communication,
-  and bulk-edit policy.
+- `spk-team-*`: auth, sync, tracker, connectors.
+- `spk-charter-*`: charter governance, glossary, SPDD, profiles.
+- `spk-practice-*`: bulk-edit policy, visual communication, semantic
+  compression.
 - `spk-integrate-*`: APIs, CI, external automation.
 - `spk-meta-*`: skill discovery and authoring.
 
@@ -36,5 +38,5 @@ Use the reference map for the complete inventory:
 ## Rule
 
 Choose the narrowest matching skill. If multiple skills match, start at the
-earliest lifecycle family: start, mission, run, gate, admin/team, doctrine,
-integrate, meta.
+earliest lifecycle family: start, mission, run, gate, admin/team, charter,
+practice, integrate, meta.

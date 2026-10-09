@@ -47,7 +47,7 @@ from specify_cli.cli.commands.charter._common import (  # noqa: F401
 # are also re-exported under their legacy spellings for downstream consumers.
 from specify_cli.cli.commands.charter.interview import interview  # noqa: F401
 from specify_cli.cli.commands.charter.generate import (  # noqa: F401
-    _build_doctrine_service_with_org_layer,
+    _build_active_charter_service_with_org_layer,
     _ensure_gitignore_entries,
     _is_inside_git_worktree,
     _stage_charter_files,
@@ -74,7 +74,7 @@ from specify_cli.cli.commands.charter._status_collectors import (  # noqa: F401
 
 # Synthesis helpers (used by the legacy public synthesis tests).
 from specify_cli.cli.commands.charter._synthesis import (  # noqa: F401
-    _MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE,
+    _MINIMAL_FRESH_PROJECT_LAYER_PROVENANCE_TEMPLATE,
     _build_synthesis_request,
     _build_synthesis_validation_callback,
     _collect_evidence_result,
@@ -82,9 +82,9 @@ from specify_cli.cli.commands.charter._synthesis import (  # noqa: F401
     _has_generated_artifacts,
     _list_resynthesis_topics,
     _load_written_artifacts_from_manifest,
-    _materialize_fresh_doctrine,
-    _planned_fresh_doctrine_deletes,
-    _planned_fresh_doctrine_paths,
+    _materialize_fresh_project_layer,
+    _planned_fresh_project_layer_deletes,
+    _planned_fresh_project_layer_paths,
     _provenance_to_planned_artifacts,
     _read_written_artifacts_from_manifest,
     _run_synthesis_dry_run,
@@ -168,7 +168,7 @@ __all__ = [
     "charter_resynthesize",
     "charter_lint",
     # Generate helpers
-    "_build_doctrine_service_with_org_layer",
+    "_build_active_charter_service_with_org_layer",
     "_is_inside_git_worktree",
     "_stage_charter_files",
     "_ensure_gitignore_entries",
@@ -194,9 +194,9 @@ __all__ = [
     "_extract_artifact_id_from_provenance",
     "_list_resynthesis_topics",
     "_has_generated_artifacts",
-    "_materialize_fresh_doctrine",
-    "_planned_fresh_doctrine_paths",
-    "_MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE",
+    "_materialize_fresh_project_layer",
+    "_planned_fresh_project_layer_paths",
+    "_MINIMAL_FRESH_PROJECT_LAYER_PROVENANCE_TEMPLATE",
     # Widen helpers
     "_get_widen_prereqs_absent",
     "_get_mission_id",

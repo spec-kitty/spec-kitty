@@ -587,7 +587,7 @@ class _ProjectSkillPreparation:
             reason,
             proofs,
             tuple(entry.agent_key for entry in affected) or ("managed_skills",),
-            tuple(f"{entry.agent_key}.doctrine_skill.{entry.skill_name}.{entry.source_file.replace('/', '.')}" for entry in affected),
+            tuple(f"{entry.agent_key}.charter_skill.{entry.skill_name}.{entry.source_file.replace('/', '.')}" for entry in affected),
         )
         self.writes.append(PreparedProjectSkillWrite(effect, content, order))
 

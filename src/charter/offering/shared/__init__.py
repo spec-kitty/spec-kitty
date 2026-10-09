@@ -1,10 +1,10 @@
-"""Shared utilities and primitive types for the doctrine package.
+"""Shared utilities and primitive types for the charter offering.
 
 Provides cross-cutting concerns used by multiple artifact subpackages:
 
 - :class:`~charter.offering.shared.schema_utils.SchemaUtilities` — cached JSON Schema loading
-- :exc:`~charter.offering.shared.exceptions.DoctrineArtifactLoadError` — load failure signal
-- :exc:`~charter.offering.shared.exceptions.DoctrineResolutionCycleError` — cycle detection signal
+- :exc:`~charter.offering.shared.exceptions.ArtifactLoadError` — load failure signal
+- :exc:`~charter.offering.shared.exceptions.ArtifactResolutionCycleError` — cycle detection signal
 
 Glossary primitive types (canonical definitions in kernel, re-exported here):
 
@@ -21,7 +21,7 @@ those kernel duplicates (dead-code review 2026-09-30).
 
 from __future__ import annotations
 
-from .exceptions import DoctrineArtifactLoadError, DoctrineResolutionCycleError
+from .exceptions import ArtifactLoadError, ArtifactResolutionCycleError
 from .schema_utils import SchemaUtilities
 from kernel.glossary_types import (
     ConflictType,
@@ -33,8 +33,8 @@ from kernel.glossary_types import (
 
 __all__ = [
     "ConflictType",
-    "DoctrineArtifactLoadError",
-    "DoctrineResolutionCycleError",
+    "ArtifactLoadError",
+    "ArtifactResolutionCycleError",
     "GlossaryScope",
     "SchemaUtilities",
     "SenseRef",

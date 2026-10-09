@@ -1,9 +1,9 @@
 """Extract inline reference fields from built-in doctrine into DRG nodes + edges.
 
 Public API:
-    extract_artifact_edges(doctrine_root) -> (nodes, edges)
-    extract_action_edges(doctrine_root)   -> (nodes, edges)
-    generate_graph(doctrine_root, output_path) -> DRGGraph
+    extract_artifact_edges(pack_root) -> (nodes, edges)
+    extract_action_edges(pack_root)   -> (nodes, edges)
+    generate_graph(pack_root, output_path) -> DRGGraph
 
 ``generate_graph`` composes + validates the graph and writes it to disk as
 per-populated-node-kind ``<kind>.graph.yaml`` fragments in ``output_path``'s
@@ -34,7 +34,7 @@ from charter.offering.missions.step_projection import (
     iter_template_refs,
     project_action_sequence,
 )
-from charter.offering.pack_paths import built_in_root, doctrine_package_dir
+from charter.offering.pack_paths import built_in_root, offering_package_dir
 from charter.offering.template_catalog import template_id_for, template_urn
 
 SPECIFICATION_BY_EXAMPLE = "paradigm:specification-by-example"
@@ -53,7 +53,7 @@ _yaml = YAML(typ="safe")
 
 # ---------------------------------------------------------------------------
 # Root resolution (post-flatten: built-in *content* lives in ``packs/built-in/``
-# while ``missions/`` stays inside the ``doctrine`` package).
+# while ``missions/`` stays inside the ``charter.offering`` package).
 # ---------------------------------------------------------------------------
 
 
@@ -69,7 +69,7 @@ def _is_pack_root(root: Path) -> bool:
 
     A pack root ships artifact YAML directly under ``<kind>/`` (post-flatten,
     WP03), so a populated ``directives/`` block is a reliable proxy. The
-    ``doctrine`` **package** root (``src/doctrine``) fails this test — its
+    offering **package** root (``src/charter/offering``, formerly ``src/doctrine``) fails this test — its
     ``directives/`` holds only Python modules — as does an artifact-free
     synthetic or nonexistent test root. ``Path.glob`` on a missing directory
     yields nothing.
@@ -77,52 +77,52 @@ def _is_pack_root(root: Path) -> bool:
     return any((root / "directives").glob("*.directive.yaml"))
 
 
-def _is_doctrine_package_root(root: Path) -> bool:
-    """True iff *root* is the installed ``doctrine`` package directory itself
-    (``src/doctrine`` in a checkout) — the legacy caller shape whose built-in
+def _is_offering_package_root(root: Path) -> bool:
+    """True iff *root* is the installed ``charter.offering`` package directory itself
+    (``src/charter/offering`` in a checkout, formerly ``src/doctrine``) — the legacy caller shape whose built-in
     artifacts were relocated out to ``packs/built-in``."""
-    pkg = doctrine_package_dir()
+    pkg = offering_package_dir()
     return pkg is not None and _same_path(root, pkg)
 
 
-def _artifacts_root(doctrine_root: Path) -> Path:
-    """Resolve the flattened built-in **artifact** pack root for *doctrine_root*.
+def _artifacts_root(pack_root: Path) -> Path:
+    """Resolve the flattened built-in **artifact** pack root for *pack_root*.
 
     Post-flatten, the nine artifact kinds live at ``packs/built-in/<kind>/``
     (WP03) — the inner ``built-in/`` level is gone. Three caller shapes exist:
 
     * A *flattened pack root* (:func:`_is_pack_root` true) is honoured unchanged
       — this is what the CLI command and the shipped-graph tests pass.
-    * The ``doctrine`` **package** root (``src/doctrine``,
-      :func:`_is_doctrine_package_root`) no longer carries artifacts — they were
+    * The offering **package** root (``src/charter/offering``,
+      :func:`_is_offering_package_root`) no longer carries artifacts — they were
       relocated to ``packs/built-in`` — so the canonical pack root is resolved
       via :func:`built_in_root` (the same fail-closed seam the loader uses).
     * Any **other** root is a synthetic test fixture and is honoured as-is, so a
       unit test can inject artifacts under an arbitrary temp root without the
       resolver silently substituting the real shipped tree.
     """
-    if _is_pack_root(doctrine_root):
-        return doctrine_root
-    if _is_doctrine_package_root(doctrine_root):
+    if _is_pack_root(pack_root):
+        return pack_root
+    if _is_offering_package_root(pack_root):
         return built_in_root()
-    return doctrine_root
+    return pack_root
 
 
-def _missions_root(doctrine_root: Path) -> Path:
-    """Resolve the ``missions/`` root for *doctrine_root*.
+def _missions_root(pack_root: Path) -> Path:
+    """Resolve the ``missions/`` root for *pack_root*.
 
     Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
     (FR-005) relocated the missions data subdirectories out of the
-    ``doctrine`` package to ``packs/built-in/missions``, alongside every
+    offering package to ``packs/built-in/missions``, alongside every
     other built-in artifact kind — falsifying this function's previous
-    assumption that missions stayed inside the ``doctrine`` package,
+    assumption that missions stayed inside the offering package,
     untouched by the WP03 flatten.
 
     * A flattened **pack** root (``packs/built-in``, :func:`_is_pack_root`)
       now carries ``missions/`` directly, exactly like every other kind
       directory — ``<root>/missions`` needs no further indirection.
-    * The ``doctrine`` **package** root (``src/doctrine``,
-      :func:`_is_doctrine_package_root`) no longer carries missions data
+    * The offering **package** root (``src/charter/offering``,
+      :func:`_is_offering_package_root`) no longer carries missions data
       (only the 11 ``.py`` logic modules remain there) — resolved via
       :meth:`~charter.offering.missions.repository.MissionTemplateRepository.default_missions_root`,
       the missions-root authority (not :func:`built_in_root`: joining a
@@ -131,14 +131,14 @@ def _missions_root(doctrine_root: Path) -> Path:
       ``default_missions_root`` resolves the identical
       ``packs/built-in/missions`` directory via the same underlying
       :func:`kernel.sibling_paths.resolve_installed_sibling` primitive,
-      anchored on a sibling module within the same ``doctrine`` package).
+      anchored on a sibling module within the same ``charter.offering`` package).
     * Any **other** root (a synthetic/nonexistent test root) uses its own
       ``<root>/missions`` — so a nonexistent root still resolves to an
       absent, empty missions tree rather than the real shipped one.
     """
-    if _is_doctrine_package_root(doctrine_root):
+    if _is_offering_package_root(pack_root):
         return MissionTemplateRepository.default_missions_root()
-    return doctrine_root / "missions"
+    return pack_root / "missions"
 
 # ---------------------------------------------------------------------------
 # T027: Path-string reference resolver for styleguide / toolguide ``references``
@@ -231,7 +231,7 @@ def _resolve_path_ref(path_str: str) -> tuple[str, str] | None:
 #: previously restated 11 of the 16 members by hand and dropped ``anti_pattern``,
 #: ``asset``, ``glossary``, ``glossary_pack`` and ``glossary_scope``. Because the
 #: table is ``str``-keyed it was invisible to the ``NodeKind``-keyed totality
-#: guard in ``tests/doctrine/drg/test_kind_mapping_totality.py`` -- a
+#: guard in ``tests/charter_offering/drg/test_kind_mapping_totality.py`` -- a
 #: hand-restated table one step outside the gate that exists to catch
 #: hand-restated tables. Deriving it removes the restatement instead of
 #: lengthening it: a ``NodeKind`` member added tomorrow is carried with no edit
@@ -520,7 +520,7 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     # ``enforcement: advisory``), each following an existing
     # (directive -> {directive,procedure}, suggests) pattern in the shipped
     # graph. All five targets are already edge-incident. Ledgered as
-    # composition entry (22) in ``tests/doctrine/drg/migration/
+    # composition entry (22) in ``tests/charter_offering/drg/migration/
     # test_extractor_projection.py``.
     # These five are OUTBOUND-only, so they do NOT de-orphan DIRECTIVE_052
     # itself — ``charter lint``'s ``OrphanChecker`` (checks/orphan.py) flags a
@@ -571,7 +571,7 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     # it. ``suggests``, advisory, no cascade: it stays consistent with
     # DIRECTIVE_052's own ``enforcement: advisory`` and pulls in no dependents.
     # Ledgered as composition entry (24) in
-    # ``tests/doctrine/drg/migration/test_extractor_projection.py``.
+    # ``tests/charter_offering/drg/migration/test_extractor_projection.py``.
     (
         "procedure:disciplined-defect-diagnosis",
         "directive:DIRECTIVE_052",
@@ -588,7 +588,7 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     # pointer (the existing tactic -> procedure suggests shape). The inbound
     # edge to the directive is extractor-minted from planner-priti's
     # ``directive-references``. Ledgered as composition entry (23) in
-    # ``tests/doctrine/drg/migration/test_extractor_projection.py``.
+    # ``tests/charter_offering/drg/migration/test_extractor_projection.py``.
     (
         "directive:DIRECTIVE_053",
         "tactic:op-or-mission-selection",
@@ -604,7 +604,7 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
     # below carries a relation the YAML ``references`` path cannot mint for its
     # (source kind, target kind) pair, which is why it is curated here. Ledgered
     # as composition entry (25) in
-    # ``tests/doctrine/drg/migration/test_extractor_projection.py``.
+    # ``tests/charter_offering/drg/migration/test_extractor_projection.py``.
     #
     # The squad procedure delegates model-tier choice to model-task-routing. A
     # procedure's YAML reference to a tactic would mint ``requires``; the choice
@@ -744,7 +744,7 @@ def _reference_edge_kwargs(ref: dict[str, Any]) -> dict[str, str | None]:
     ``when``/``reason`` gained values. (The later agent-profile consolidation,
     mission ``doctrine-drg-silent-drop-boundary-01M0PE7E`` WP02 / #3629 p1, DID
     move the profile edge set -- see ledger entry (21) in
-    ``tests/doctrine/drg/migration/test_extractor_projection.py`` for that
+    ``tests/charter_offering/drg/migration/test_extractor_projection.py`` for that
     re-ledger -- but it re-homed profile *references*, not this procedure
     metadata branch.) Note also that end-to-end frontmatter promotion for a non-directive
     source additionally needs that kind's reference *model* + generated schema
@@ -966,7 +966,7 @@ def _emit_operating_procedure_edges(
     walk is 16 small files. The field harvest is delegated to
     :func:`~charter.offering.agent_profiles.operating_procedures.collect_operating_procedure_entries`
     (the single authority, also read by the architectural gate and ``doctor
-    doctrine``) so the three consumers cannot diverge on the falsy-entry policy;
+    charter-packs``) so the three consumers cannot diverge on the falsy-entry policy;
     ``resolve_operating_procedure_entries`` is the single authority for "does
     this entry resolve to a procedure node".
     """
@@ -1005,7 +1005,7 @@ def _emit_operating_procedure_edges(
 
 
 def extract_artifact_edges(  # noqa: C901
-    doctrine_root: Path,
+    pack_root: Path,
 ) -> tuple[list[DRGNode], list[DRGEdge]]:
     """Walk built-in directives, tactics, paradigms, and procedures; return (nodes, edges).
 
@@ -1014,7 +1014,7 @@ def extract_artifact_edges(  # noqa: C901
     """
     nodes_by_urn: dict[str, DRGNode] = {}
     edges_by_triple: dict[tuple[str, str, str], DRGEdge] = {}
-    packs_root = _artifacts_root(doctrine_root)
+    packs_root = _artifacts_root(pack_root)
 
     def _add_edge(edge: DRGEdge) -> None:
         triple = (edge.source, edge.target, edge.relation.value)
@@ -1310,7 +1310,7 @@ def extract_artifact_edges(  # noqa: C901
 
 
 def extract_action_edges(
-    doctrine_root: Path,
+    pack_root: Path,
 ) -> tuple[list[DRGNode], list[DRGEdge]]:
     """Walk action index files and return action nodes + scope edges."""
     nodes_by_urn: dict[str, DRGNode] = {}
@@ -1323,7 +1323,7 @@ def extract_action_edges(
             seen_triples.add(triple)
             edges.append(edge)
 
-    missions_dir = _missions_root(doctrine_root)
+    missions_dir = _missions_root(pack_root)
     if not missions_dir.is_dir():
         return [], []
 
@@ -1366,7 +1366,7 @@ def extract_action_edges(
 
 
 def _discover_built_in_artifact_nodes(
-    doctrine_root: Path,
+    pack_root: Path,
     nodes_by_urn: dict[str, DRGNode],
 ) -> None:
     """Scan built-in directories for artifacts not yet tracked as nodes.
@@ -1379,7 +1379,7 @@ def _discover_built_in_artifact_nodes(
     # ``system_tools/``, styleguides under ``writing/``) are always discovered.
     # Each (subdir, kind, node_kind) triple maps to a ``rglob`` pattern; the
     # previous ``glob`` form missed files in second-level subdirectories.
-    packs_root = _artifacts_root(doctrine_root)
+    packs_root = _artifacts_root(pack_root)
     scan_dirs: list[tuple[str, str, NodeKind]] = [
         ("styleguides", "styleguide", NodeKind.STYLEGUIDE),
         ("toolguides", "toolguide", NodeKind.TOOLGUIDE),
@@ -1420,7 +1420,7 @@ def _discover_built_in_nodes_in_dir(
 
 
 def _iter_mission_type_data(
-    doctrine_root: Path,
+    pack_root: Path,
 ) -> Iterator[tuple[str, dict[str, Any], Path]]:
     """Yield ``(id, data, path)`` for each shipped mission-type YAML.
 
@@ -1429,7 +1429,7 @@ def _iter_mission_type_data(
     :func:`extract_mission_type_edges` (edges) consume it so the glob is defined
     once. Files without an ``id`` or that fail to parse are skipped.
     """
-    mission_types_dir = _missions_root(doctrine_root) / "mission_types"
+    mission_types_dir = _missions_root(pack_root) / "mission_types"
     if not mission_types_dir.is_dir():
         return
     for path in sorted(mission_types_dir.glob("*.yaml")):
@@ -1443,7 +1443,7 @@ def _iter_mission_type_data(
 
 
 def _discover_mission_type_nodes(
-    doctrine_root: Path,
+    pack_root: Path,
     nodes_by_urn: dict[str, DRGNode],
 ) -> None:
     """Register a ``mission_type`` node for each shipped mission-type YAML.
@@ -1463,7 +1463,7 @@ def _discover_mission_type_nodes(
             id/stem invariant.
     """
     seen_ids: dict[str, Path] = {}
-    for mission_type_id, data, path in _iter_mission_type_data(doctrine_root):
+    for mission_type_id, data, path in _iter_mission_type_data(pack_root):
         if mission_type_id in seen_ids:
             msg = (
                 f"Duplicate mission_type id {mission_type_id!r} declared by "
@@ -1478,7 +1478,7 @@ def _discover_mission_type_nodes(
 
 
 def _discover_mission_step_contract_nodes(
-    doctrine_root: Path,
+    pack_root: Path,
     nodes_by_urn: dict[str, DRGNode],
 ) -> None:
     """Register a ``mission_step_contract`` node per built-in step contract.
@@ -1502,7 +1502,7 @@ def _discover_mission_step_contract_nodes(
             pair onto one URN, masking an authoring collision behind a
             freshness-clean graph.
     """
-    contracts_dir = _missions_root(doctrine_root) / "built_in_step_contracts"
+    contracts_dir = _missions_root(pack_root) / "built_in_step_contracts"
     if not contracts_dir.is_dir():
         return
     seen_urns: dict[str, Path] = {}
@@ -1554,7 +1554,7 @@ def _resolve_action_sequence(
     return projected or list(data.get("action_sequence", []) or [])
 
 
-def extract_mission_type_edges(doctrine_root: Path) -> list[DRGEdge]:
+def extract_mission_type_edges(pack_root: Path) -> list[DRGEdge]:
     """Emit ``mission_type:<id> --requires--> action:<id>/<step>`` edges.
 
     For each shipped mission-type YAML, resolve its action sequence through
@@ -1568,8 +1568,8 @@ def extract_mission_type_edges(doctrine_root: Path) -> list[DRGEdge]:
     duplicate/dangling/cycle safety is enforced by ``assert_valid``.
     """
     edges: list[DRGEdge] = []
-    step_repo = MissionStepRepository(_missions_root(doctrine_root) / "mission-steps")
-    for mission_type_id, data, _path in _iter_mission_type_data(doctrine_root):
+    step_repo = MissionStepRepository(_missions_root(pack_root) / "mission-steps")
+    for mission_type_id, data, _path in _iter_mission_type_data(pack_root):
         source_urn = artifact_to_urn("mission_type", mission_type_id)
         sequence = _resolve_action_sequence(step_repo, mission_type_id, data)
         for step in sequence:
@@ -1603,7 +1603,7 @@ _GOVERNANCE_PROFILE_SCOPE_FIELDS: tuple[tuple[str, str], ...] = (
 )
 
 
-def extract_governance_profile_scope_edges(doctrine_root: Path) -> list[DRGEdge]:
+def extract_governance_profile_scope_edges(pack_root: Path) -> list[DRGEdge]:
     """Emit ``mission_type:<id> --scope--> <gov>`` edges from each shipped
     ``governance-profile.yaml``'s ``selected_*`` lists (#3604).
 
@@ -1635,7 +1635,7 @@ def extract_governance_profile_scope_edges(doctrine_root: Path) -> list[DRGEdge]
     """
     edges: list[DRGEdge] = []
     seen_triples: set[tuple[str, str, str]] = set()
-    missions_dir = _missions_root(doctrine_root)
+    missions_dir = _missions_root(pack_root)
     if not missions_dir.is_dir():
         return edges
 
@@ -1714,7 +1714,7 @@ def assert_governance_scope_edges_resolve(
 
 
 def extract_template_instantiation_edges(
-    doctrine_root: Path,
+    pack_root: Path,
 ) -> tuple[list[DRGNode], list[DRGEdge]]:
     """Emit ``template:<mission>/<file>`` nodes + ``action --instantiates--> template`` edges.
 
@@ -1752,8 +1752,8 @@ def extract_template_instantiation_edges(
     nodes: list[DRGNode] = []
     edges: list[DRGEdge] = []
     seen_node_urns: set[str] = set()
-    step_repo = MissionStepRepository(_missions_root(doctrine_root) / "mission-steps")
-    for mission_type_id, _data, _path in _iter_mission_type_data(doctrine_root):
+    step_repo = MissionStepRepository(_missions_root(pack_root) / "mission-steps")
+    for mission_type_id, _data, _path in _iter_mission_type_data(pack_root):
         steps = step_repo.resolve_all_for_mission_type(
             mission_type_id, pack_context=None
         ).values()
@@ -1778,7 +1778,7 @@ def extract_template_instantiation_edges(
 
 
 def generate_graph(
-    doctrine_root: Path,
+    pack_root: Path,
     output_path: Path,
     *,
     generated_at: str | None = None,
@@ -1786,7 +1786,8 @@ def generate_graph(
     """Compose extraction + calibration into a validated ``graph.yaml``.
 
     Args:
-        doctrine_root: Path to ``src/charter/offering/``.
+        pack_root: The built-in pack root (``packs/built-in``) to extract
+            from; :func:`_artifacts_root` lists the other accepted shapes.
         output_path: Locates the output *directory* (``output_path.parent``).
             The graph is written there as per-kind ``<kind>.graph.yaml``
             fragments and any ``graph.yaml`` monolith in that directory is
@@ -1799,10 +1800,10 @@ def generate_graph(
         The validated ``DRGGraph`` instance.
     """
     # Step 1: Extract artifact nodes + edges
-    artifact_nodes, artifact_edges = extract_artifact_edges(doctrine_root)
+    artifact_nodes, artifact_edges = extract_artifact_edges(pack_root)
 
     # Step 2: Extract action nodes + edges
-    action_nodes, action_edges = extract_action_edges(doctrine_root)
+    action_nodes, action_edges = extract_action_edges(pack_root)
 
     # Step 3: Merge nodes (deduplicate by URN)
     nodes_by_urn: dict[str, DRGNode] = {}
@@ -1810,32 +1811,32 @@ def generate_graph(
         _ensure_node(nodes_by_urn, node.urn, node.kind, node.label)
 
     # Step 4: Discover built-in artifacts not yet tracked
-    _discover_built_in_artifact_nodes(doctrine_root, nodes_by_urn)
+    _discover_built_in_artifact_nodes(pack_root, nodes_by_urn)
 
     # Step 4b: Discover mission-type nodes
-    _discover_mission_type_nodes(doctrine_root, nodes_by_urn)
+    _discover_mission_type_nodes(pack_root, nodes_by_urn)
 
     # Step 4b': Discover mission_step_contract nodes (one per built-in step
     # contract) so the pre-review activation join resolves ACTIVE.
-    _discover_mission_step_contract_nodes(doctrine_root, nodes_by_urn)
+    _discover_mission_step_contract_nodes(pack_root, nodes_by_urn)
 
     # Step 4c: Graph-back the mission_type->step->template chain (FR-009):
     # mint mission-qualified template nodes + action->template instantiates
     # edges from the WP01 iter_template_refs projection.
     template_nodes, template_instantiation_edges = extract_template_instantiation_edges(
-        doctrine_root
+        pack_root
     )
     for node in template_nodes:
         _ensure_node(nodes_by_urn, node.urn, node.kind, node.label)
 
     # Step 5: Merge all edges (mission_type->action edges join before
     # calibration + the deterministic sort so they are treated uniformly)
-    mission_type_edges = extract_mission_type_edges(doctrine_root)
+    mission_type_edges = extract_mission_type_edges(pack_root)
     # Step 5b (#3604, T007): type-wide governance-profile.yaml selections as
     # direct mission_type --scope--> gov edges (distinct from the action-grain
     # scope edges action_edges already carries).
     governance_profile_scope_edges = extract_governance_profile_scope_edges(
-        doctrine_root
+        pack_root
     )
     # #3629: fail loud on any fictional ``selected_*`` entry (an id naming no
     # node minted by any pass above) instead of letting it reach the

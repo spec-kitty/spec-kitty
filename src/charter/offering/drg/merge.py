@@ -258,7 +258,7 @@ class OrgDRGConflictError(Exception):
         """One flat operator-readable line per fatal refusal.
 
         The CLI collectors report findings on a ``list[str]`` errors channel
-        (that is what ``DoctrineHealthReport.healthy`` reads). Formatting lives
+        (that is what ``CharterPackHealthReport.healthy`` reads). Formatting lives
         here, next to :meth:`_format_message`, so the three collectors share one
         wording instead of each inventing its own.
         """
@@ -426,7 +426,7 @@ def _built_in_invariant_ids(built_in: DRGGraph) -> frozenset[str]:
 
     Whether a given repo *tolerates* a built-in override is a per-repo
     governance TEST (``tests/architectural/test_builtin_override_policy.py``
-    consults ``.kittify/doctrine/replaceable-builtins.yaml``), not a merge-time
+    consults ``.kittify/charter-packs/replaceable-builtins.yaml``), not a merge-time
     prohibition.
     """
     return frozenset(n.urn for n in built_in.nodes)
@@ -555,7 +555,7 @@ def _resolve_edge_endpoint(
 
     Rule 3 reads the built-in layer ONLY, never the running merge state. Were
     it to consult earlier fragments, whether a pack's bare cross-pack
-    reference resolved would depend on the operator's ``organisation_packs:``
+    reference resolved would depend on the operator's ``charter_packs.org.packs``
     ordering — an order-dependent graph is a silent-difference generator of
     the same family this mission closes. Cross-pack references must be
     qualified (rule 2), which is order-independent by construction.
@@ -806,7 +806,7 @@ def _dangling_org_endpoints(
     graph — the real shipped built-in against every configured pack — escalates
     the same finding to a structured error via
     :func:`charter.offering.drg.validator.validate_dangling_references`, whose docstring
-    carries the predicate. Today that is ``doctor doctrine`` (both its JSON
+    carries the predicate. Today that is ``doctor charter-packs`` (both its JSON
     collector and its human section) and ``charter status``; it is a rule about
     the merge, not a property of a particular command.
 
@@ -840,7 +840,7 @@ def _warn_dangling_org_endpoints(
             "any merged layer. The edge is kept (the endpoint may belong to a "
             "sibling pack this merge did not load) but it resolves to nothing "
             "here — check the token for a typo, or configure the pack that "
-            "declares it. `spec-kitty doctor doctrine` reports this as an error.",
+            "declares it. `spec-kitty doctor charter-packs` reports this as an error.",
             source_marker,
             urn,
         )
@@ -1163,7 +1163,7 @@ def merge_three_layers(
       emitted. The merge does NOT raise. Whether a given repo *tolerates* this
       override is a per-repo governance TEST
       (``tests/architectural/test_builtin_override_policy.py`` consulting
-      ``.kittify/doctrine/replaceable-builtins.yaml``), not a merge prohibition.
+      ``.kittify/charter-packs/replaceable-builtins.yaml``), not a merge prohibition.
     * **Kind-drift** collision (org kind DIFFERS from built-in kind) — hard-fails
       with :class:`OrgDRGConflictError` (``resolution_applied='hard_fail'``). An
       override may replace a built-in's content, never its kind.
@@ -1210,7 +1210,7 @@ def merge_three_layers(
         last org pack that declares it wins (``_resolve_builtin_collision``).
         A kind-drift collision with a built-in node is a hard failure.
     project:
-        Optional project-tier DRG (``.kittify/doctrine/graph.yaml`` loaded and
+        Optional project-tier DRG (``.kittify/charter-packs/graph.yaml`` loaded and
         merged elsewhere). When ``None``, the merge collapses to the
         built-in+org case.
 

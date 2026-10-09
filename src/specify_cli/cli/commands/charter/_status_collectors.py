@@ -6,6 +6,7 @@ serialises to JSON or renders to the console. Kept in their own module so
 """
 from __future__ import annotations
 
+from kernel.charter_pack_paths import project_pack_root
 from kernel.clock import date
 from pathlib import Path
 from typing import Any
@@ -208,12 +209,12 @@ def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | Non
     from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify
 
     manifest_path = repo_root / MANIFEST_PATH
-    doctrine_root = repo_root / ".kittify" / "doctrine"
+    pack_root = project_pack_root(repo_root)
     provenance_root = repo_root / ".kittify" / "charter" / "provenance"
     from charter.activation.kind_vocabulary import ArtifactKind, PROJECT_KIND_DIRS
 
     live_artifact_count = sum(
-        len(list((doctrine_root / PROJECT_KIND_DIRS[kind]).rglob(kind.glob_pattern)))
+        len(list((pack_root / PROJECT_KIND_DIRS[kind]).rglob(kind.glob_pattern)))
         for kind in (ArtifactKind.DIRECTIVE, ArtifactKind.TACTIC, ArtifactKind.STYLEGUIDE,
                      ArtifactKind.PROCEDURE, ArtifactKind.AGENT_PROFILE)
     )
@@ -446,7 +447,7 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     merges the COMPLETE graph — any org edge endpoint that binds to nothing.
 
     Dangling endpoints land in the existing ``errors`` array rather than a
-    dedicated key. ``doctor doctrine``'s collector keeps a separate
+    dedicated key. ``doctor charter-packs``'s collector keeps a separate
     ``dangling_endpoints`` list because its renderer reads it; nothing renders
     such a key here, and an unread payload slot is the inert-schema-slot defect
     this mission ratchets elsewhere. ``status`` already prints every ``errors``
@@ -462,7 +463,7 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     Per the charter layer architectural boundary (kernel <- doctrine <-
     charter <- specify_cli), we use ``charter.activation.drg_activation.load_org_drg`` directly
     rather than the ``specify_cli`` config path.  The caller may also pass
-    the repo root to ``specify_cli.doctrine.config`` for richer pack metadata;
+    the repo root to ``charter.offering.drg.org_pack_config`` for richer pack metadata;
     this implementation stays purely charter-layer.
     """
     from charter.drg import (
@@ -557,7 +558,7 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
         # Without this, ``charter status --json`` returned ``org_layer.errors:
         # []`` for a graph whose edge named nothing — a machine-readable clean
         # bill for an unclean graph, on the very array built to carry the
-        # finding, while ``doctor doctrine`` reported it from identical inputs.
+        # finding, while ``doctor charter-packs`` reported it from identical inputs.
         result["errors"].extend(validate_dangling_references(merged))
     except Exception as exc:  # noqa: BLE001 — status must not crash on a bad pack
         # Attributed separately from the merge above: the merge succeeded, so

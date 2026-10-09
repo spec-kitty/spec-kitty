@@ -249,7 +249,7 @@ def _package_default_path(
     ``charter.activation.template_resolver.CharterTemplateResolver``, obtained from an
     ``lru_cache``d ``_charter_template_resolver_for(missions_root)`` factory
     keyed on a ``missions_root`` *string*, while the canonical charter factory
-    (``charter.activation.resolver.DoctrineService``) is built from a ``repo_root`` by the
+    (``charter.activation.resolver.ActiveCharterService``) is built from a ``repo_root`` by the
     unified builder. Those two construction contracts do not compose, and the
     mapping is resolved as follows:
 
@@ -278,9 +278,9 @@ def _package_default_path(
     scope. Only the tier-6 hop is charter-mediated, which is why the factory
     exposes a tier-6-only entry point at all.
     """
-    from charter.activation.resolver import DoctrineService  # noqa: PLC0415 — lazy: keeps the charter import off module load
+    from charter.activation.resolver import ActiveCharterService  # noqa: PLC0415 — lazy: keeps the charter import off module load
 
-    return DoctrineService.resolve_package_default_asset_path(
+    return ActiveCharterService.resolve_package_default_asset_path(
         missions_root=pkg_missions,
         mission=mission,
         subdir=subdir,
@@ -300,7 +300,7 @@ def _resolve_asset(
     1a. ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` (mission-scoped)
     1b. ``.kittify/overrides/{subdir}/{name}`` (global, backward-compatible fallback)
 
-    Tier 3 (org) probes each configured org doctrine pack root, in
+    Tier 3 (org) probes each configured org charter pack root, in
     declaration order, before falling through to the global-mission tier.
     Sourced via the lazy ``charter.drg.resolve_org_roots`` facade (DEC-003) --
     never a direct ``doctrine.*`` import from this module.
@@ -339,7 +339,7 @@ def _resolve_asset(
         _warn_legacy_asset(legacy)
         return ResolutionResult(path=legacy, tier=ResolutionTier.LEGACY, mission=mission)
 
-    # Tier 3 -- org (sourced from configured org doctrine packs). Lazy import
+    # Tier 3 -- org (sourced from configured org charter packs). Lazy import
     # mirrors the five existing specify_cli/** call sites that route org-root
     # resolution through this facade (DEC-003) -- never a direct
     # ``doctrine.*`` import from runtime. No try/except around
@@ -808,7 +808,7 @@ def resolve_mission(
         _warn_legacy_asset(legacy)
         return ResolutionResult(path=legacy, tier=ResolutionTier.LEGACY, mission=name)
 
-    # Tier 3 -- org (sourced from configured org doctrine packs). Lazy import
+    # Tier 3 -- org (sourced from configured org charter packs). Lazy import
     # mirrors _resolve_asset's org-tier import above (DEC-003); no
     # try/except around resolve_org_roots() -- see the identical rationale
     # in _resolve_asset above (DEC-005, NFR-001). ``quiet=True`` -- see the
@@ -833,10 +833,10 @@ def resolve_mission(
     # canonical charter factory; see _package_default_path's docstring for the
     # construction-contract mapping this call site shares.
     try:
-        from charter.activation.resolver import DoctrineService  # noqa: PLC0415 — lazy, mirrors _package_default_path
+        from charter.activation.resolver import ActiveCharterService  # noqa: PLC0415 — lazy, mirrors _package_default_path
 
         pkg_missions = get_package_asset_root()
-        pkg_path = DoctrineService.resolve_package_default_mission_config_path(
+        pkg_path = ActiveCharterService.resolve_package_default_mission_config_path(
             missions_root=pkg_missions,
             mission=name,
         )

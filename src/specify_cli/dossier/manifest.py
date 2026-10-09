@@ -17,7 +17,7 @@ site uses a lazy, function-local import, and the module-level
 ``__getattr__`` below (PEP 562) keeps
 ``from specify_cli.dossier.manifest import ExpectedArtifactManifest`` (and
 its two siblings) resolving for existing importers -- see
-``tests/doctrine/missions/test_expected_artifact_manifest_relocation.py``.
+``tests/dossier/test_manifest.py``, which imports them from this module.
 
 **Loader-authority relocation (mission
 expected-artifacts-loader-unification-01M1C9VQ, WP01 / #3770):** the
@@ -65,7 +65,7 @@ from charter.activation.manifest_loader import (
 # `charter.offering.*` import (test_runtime_charter_doctrine_boundary.py) --
 # so this goes through the already-established `charter.missions` door
 # (object identity preserved; see
-# tests/architectural/test_charter_facades_reexport_doctrine.py).
+# tests/architectural/test_charter_facades_reexport_offering.py).
 from charter.missions import MalformedManifestError as MalformedManifestError
 
 if TYPE_CHECKING:

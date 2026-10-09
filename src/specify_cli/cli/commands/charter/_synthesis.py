@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 import typer
 
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT, PROJECT_PACK_ROOT_POSIX
 from specify_cli.cli.commands._commit_recipes import safe_commit_recipe
 from specify_cli.cli.console import console, err_console
 from specify_cli.task_utils import TaskCliError
@@ -183,7 +184,7 @@ def _build_synthesis_request(
             f"Unknown adapter '{adapter_name}'. "
             "Supported adapters are '--adapter generated' and '--adapter fixture'. "
             "Doctrine generation is performed by the LLM harness (Claude Code, Codex, "
-            "Cursor, etc.) via the spec-kitty-charter-doctrine skill. "
+            "Cursor, etc.) via the spk-charter-governance skill. "
             "spec-kitty never calls an LLM itself."
         )
 
@@ -285,7 +286,7 @@ def _provenance_to_planned_artifacts(
     """Convert synthesis provenance entries into planned doctrine paths."""
     from charter.activation.synthesizer.artifact_naming import (
         artifact_filename,
-        doctrine_kind_subdir,
+        pack_kind_subdir,
     )
 
     planned: list[dict[str, str]] = []
@@ -297,12 +298,12 @@ def _provenance_to_planned_artifacts(
             artifact_id = prov.artifact_urn.split(":", 1)[1]
         try:
             filename = artifact_filename(kind, slug, artifact_id)
-            subdir = doctrine_kind_subdir(kind)
+            subdir = pack_kind_subdir(kind)
         except Exception:  # noqa: S112
             continue
         planned.append(
             {
-                "path": f".kittify/doctrine/{subdir}/{filename}",
+                "path": (PROJECT_PACK_ROOT / subdir / filename).as_posix(),
                 "kind": kind,
             }
         )
@@ -313,7 +314,7 @@ def _staged_to_planned_artifacts(staged_files: list[str]) -> list[dict[str, str]
     """Convert legacy staged ``kind:slug`` selectors to planned artifacts."""
     from charter.activation.synthesizer.artifact_naming import (
         artifact_filename,
-        doctrine_kind_subdir,
+        pack_kind_subdir,
     )
 
     planned: list[dict[str, str]] = []
@@ -326,12 +327,12 @@ def _staged_to_planned_artifacts(staged_files: list[str]) -> list[dict[str, str]
             artifact_id = "PROJECT_000"
         try:
             filename = artifact_filename(kind, slug, artifact_id)
-            subdir = doctrine_kind_subdir(kind)
+            subdir = pack_kind_subdir(kind)
         except Exception:  # noqa: S112
             continue
         planned.append(
             {
-                "path": f".kittify/doctrine/{subdir}/{filename}",
+                "path": (PROJECT_PACK_ROOT / subdir / filename).as_posix(),
                 "kind": kind,
             }
         )
@@ -624,14 +625,14 @@ def _has_real_prior_synthesis(repo_root: Path) -> bool:
     Reads ``.kittify/charter/synthesis-manifest.yaml`` directly (no full
     ``SynthesisManifest`` validation -- this is a cheap presence/flag probe,
     not a consumer of the manifest's content). The fresh-project seed path
-    itself (``_materialize_fresh_doctrine``) writes this same file with
+    itself (``_materialize_fresh_project_layer``) writes this same file with
     ``built_in_only: true`` -- that is NOT evidence of a real synthesis (it
     is the seed's own marker, and re-running the seed on top of it must stay
     idempotent -- see ``tests/integration/test_charter_synthesize_fresh.py::
     test_synthesize_is_idempotent``). Only ``built_in_only: false`` --
     written exclusively by a real synthesis run (the production ``generated``
     adapter path, or the registered-direct-project-artifact path in
-    ``_synthesize_project_doctrine``) -- counts as "already established".
+    ``_synthesize_project_layer``) -- counts as "already established".
 
     A present-but-unparseable manifest is treated conservatively as
     established (returns True): the fresh-project short-circuit must never
@@ -747,7 +748,9 @@ def _catalog_is_established(repo_root: Path, charter_yaml_path: Path) -> bool:
 _SYNTHESIS_ARTIFACT_PATHS = (
     ".kittify/charter/synthesis-manifest.yaml",
     ".kittify/charter/provenance/",
-    ".kittify/doctrine/",
+    # FR-016: only the project charter pack root. A project still on the
+    # retired root is migrated before it synthesizes again (WP14 gates it).
+    f"{PROJECT_PACK_ROOT_POSIX}/",
 )
 
 
@@ -1096,19 +1099,19 @@ def _emit_real_run_report(
         _print_synthesis_commit_reminder(repo_root)
 
 
-# Fresh-project doctrine seed helpers were carved out into ``_fresh_doctrine``
+# Fresh-project doctrine seed helpers were carved out into ``_fresh_project_layer``
 # so this module stays comfortably under the WP06 line budget. Re-exported so
 # legacy ``from specify_cli.cli.commands.charter._synthesis import …`` consumers
 # (and the package ``__init__``) keep working unchanged.
-from specify_cli.cli.commands.charter._fresh_doctrine import (  # noqa: E402,F401
-    _MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE,
-    _materialize_fresh_doctrine,
-    _planned_fresh_doctrine_deletes,
-    _planned_fresh_doctrine_paths,
+from specify_cli.cli.commands.charter._fresh_project_layer import (  # noqa: E402,F401
+    _MINIMAL_FRESH_PROJECT_LAYER_PROVENANCE_TEMPLATE,
+    _materialize_fresh_project_layer,
+    _planned_fresh_project_layer_deletes,
+    _planned_fresh_project_layer_paths,
 )
 
 __all__ = [
-    "_MINIMAL_FRESH_DOCTRINE_PROVENANCE_TEMPLATE",
+    "_MINIMAL_FRESH_PROJECT_LAYER_PROVENANCE_TEMPLATE",
     "_build_synthesis_request",
     "_build_synthesis_validation_callback",
     "_catalog_is_established",
@@ -1120,10 +1123,10 @@ __all__ = [
     "_has_generated_artifacts",
     "_list_resynthesis_topics",
     "_load_written_artifacts_from_manifest",
-    "_materialize_fresh_doctrine",
+    "_materialize_fresh_project_layer",
     "_orphaned_removals",
-    "_planned_fresh_doctrine_deletes",
-    "_planned_fresh_doctrine_paths",
+    "_planned_fresh_project_layer_deletes",
+    "_planned_fresh_project_layer_paths",
     "_print_synthesis_commit_reminder",
     "_provenance_to_planned_artifacts",
     "_raise_if_bundle_incomplete",

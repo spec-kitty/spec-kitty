@@ -17,7 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 from dataclasses import dataclass, replace
 
-from charter.activation.doctrine_service_builder import _build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import _build_active_charter_service
 from charter.profiles import AgentProfile, AgentProfileRepository, SkippedProfile
 from charter.provenance import to_portable_source_path
 
@@ -112,14 +112,14 @@ def default_profile_repository(project_root: Path) -> AgentProfileRepository:
     (no project layer).
 
     The base repository is now obtained through the sanctioned builder
-    ``charter.doctrine_service_builder._build_activation_aware_doctrine_service``
+    ``charter.active_charter_service_builder._build_active_charter_service``
     with ``org_roots=[]`` (C-008: an org-free base — see the call site) and
     ``agent_profile_overlay_dir=project_root / _PROJECT_PROFILE_SUBDIR``
     (the #3176 builder overlay seam, WP02). That seam resolves the inner
-    ``doctrine.service.DoctrineService``'s agent-profile project overlay at
+    ``charter.offering.service.CharterOfferingService``'s agent-profile project overlay at
     ``.kittify/agent_profiles`` — the path the builder's default
-    ``resolve_project_root`` candidates (``.kittify/doctrine`` / ``src/doctrine``
-    / ``doctrine``) never reach — so every seeded ``.kittify/agent_profiles/
+    ``resolve_project_root`` candidates (``.kittify/charter-packs`` /
+    ``src/charter/offering``) never reach — so every seeded ``.kittify/agent_profiles/
     *.agent.yaml`` stays visible with ``project`` provenance. ``specify_cli``
     consuming the ``charter`` builder is the correct dependency direction
     (C-001); the param lives in ``charter``/``doctrine``.
@@ -143,14 +143,14 @@ def _profile_repository_inputs(project_root: Path) -> tuple[AgentProfileReposito
     # ``org_roots=[]`` is load-bearing for C-008: the base repository must carry
     # NO org layer, because org profiles enter EXCLUSIVELY through the
     # activation-gated ``_merge_activated_org_profiles`` below. The public
-    # ``build_activation_aware_doctrine_service`` self-resolves org roots
+    # ``build_active_charter_service`` self-resolves org roots
     # (FR-008), which would pre-populate the base with *unfiltered* org
     # profiles — the very raw-``org_dirs`` splice this function forbids, letting
     # de-activated org profiles leak onto the host surface. The private builder
     # with an explicit empty ``org_roots`` suppresses that self-resolution while
     # still threading the ``agent_profile_overlay_dir`` seam that reaches
     # ``.kittify/agent_profiles`` (#3176).
-    repo = _build_activation_aware_doctrine_service(
+    repo = _build_active_charter_service(
         project_root,
         org_roots=[],
         agent_profile_overlay_dir=project_root / _PROJECT_PROFILE_SUBDIR,

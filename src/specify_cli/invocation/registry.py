@@ -5,28 +5,28 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from charter.activation.active_charter_service_builder import build_active_charter_service
 from charter.profiles import AgentProfile, AgentProfileRepository
 
-from specify_cli.doctrine_service_factory import build_activation_aware_doctrine_service
 from specify_cli.invocation.errors import ProfileNotFoundError
 
 if TYPE_CHECKING:
-    from charter.activation.resolver import DoctrineService
+    from charter.activation.resolver import ActiveCharterService
 
 # Provenance layers exposed by ``AgentProfileRepository.get_provenance``.
 _LAYER_BUILTIN = "builtin"
 _LAYER_ORG = "org"
 _LAYER_PROJECT = "project"
 
-# Doctrine layers that the dispatch routing catalog draws from the
+# Charter Pack layers that the dispatch routing catalog draws from the
 # activation-aware service. All three provenance layers are admitted (#4114):
-# a project-layer profile authored under ``.kittify/doctrine/agent_profiles``
+# a project-layer profile authored under ``.kittify/charter-packs/agent_profiles``
 # is routable exactly when the ``activated_agent_profiles`` gate admits it,
 # so ``charter activate agent-profile <id>`` is sufficient to make a project
 # profile dispatchable — routing and governance context agree on every
-# doctrine layer. The legacy ``.kittify/profiles`` invocation project layer
+# Charter Pack layer. The legacy ``.kittify/profiles`` invocation project layer
 # is still overlaid separately (and ungated) below.
-_DOCTRINE_ROUTING_LAYERS = frozenset({_LAYER_BUILTIN, _LAYER_ORG, _LAYER_PROJECT})
+_CHARTER_PACK_ROUTING_LAYERS = frozenset({_LAYER_BUILTIN, _LAYER_ORG, _LAYER_PROJECT})
 
 
 class ProfileRegistry:
@@ -56,7 +56,7 @@ class ProfileRegistry:
     * **Activation gate** — the three-state ``activated_agent_profiles``
       contract. With no ``activated_agent_profiles`` key the gate admits
       every doctrine layer (inert).
-    * **Language-scope filter** — ``build_activation_aware_doctrine_service``
+    * **Language-scope filter** — ``build_active_charter_service``
       always computes ``active_languages=infer_repo_languages(repo_root)``
       (FR-008 unification, charter-sole-door-bypass-closure-01KZ3WAA WP01)
       and every language-scoped profile (e.g. ``frontend-freddy``) is
@@ -92,12 +92,12 @@ class ProfileRegistry:
         # One service build feeds both catalogs (routing + local) — the
         # activation-aware builder walks the doctrine tree, so building it
         # twice per registry would double the filesystem reads for no gain.
-        service = build_activation_aware_doctrine_service(repo_root)
+        service = build_active_charter_service(repo_root)
         self._merged = self._build_merged_profiles(service)
         self._local = self._build_local_profiles(service)
 
     def _build_merged_profiles(
-        self, service: DoctrineService
+        self, service: ActiveCharterService
     ) -> dict[str, AgentProfile]:
         """Build the routing catalog: activation-gated doctrine + legacy project.
 
@@ -113,7 +113,7 @@ class ProfileRegistry:
         merged: dict[str, AgentProfile] = {
             profile_id: profile
             for profile_id, profile in gated.items()
-            if inner_repo.get_provenance(profile_id) in _DOCTRINE_ROUTING_LAYERS
+            if inner_repo.get_provenance(profile_id) in _CHARTER_PACK_ROUTING_LAYERS
         }
         for profile in self._repo.list_all():
             if self._repo.get_provenance(profile.profile_id) == _LAYER_PROJECT:
@@ -121,12 +121,12 @@ class ProfileRegistry:
         return merged
 
     def _build_local_profiles(
-        self, service: DoctrineService
+        self, service: ActiveCharterService
     ) -> dict[str, AgentProfile]:
         """Build the local-resolution catalog (#4120): every layer, same gate.
 
         The routing catalog above carries the activation-gated doctrine
-        *project* layer (see ``_DOCTRINE_ROUTING_LAYERS``); dispatch routing
+        *project* layer (see ``_CHARTER_PACK_ROUTING_LAYERS``); dispatch routing
         began carrying it with R3 parity (#4114/#4128) — it formerly did not,
         which is why resolving an operator ``--profile`` flag against the
         routing catalog once made every locally-authored profile unresolvable
@@ -142,7 +142,7 @@ class ProfileRegistry:
         org + project), plus the legacy ``.kittify/profiles`` invocation
         project overlay ungated on top (same collision semantics as the routing
         catalog). Unlike the routing catalog it applies no
-        ``_DOCTRINE_ROUTING_LAYERS`` provenance filter to the gated doctrine
+        ``_CHARTER_PACK_ROUTING_LAYERS`` provenance filter to the gated doctrine
         profiles. It is the operator-facing resolution surface behind
         ``resolve_local`` — NOT a routing catalog, and never consumed by the
         dispatch router.
@@ -175,7 +175,7 @@ class ProfileRegistry:
         Unlike :meth:`resolve` (the dispatch *routing* catalog), this resolves
         against the local catalog built by ``_build_local_profiles``: the same
         activation gate, every doctrine layer admitted, minus the routing
-        catalog's ``_DOCTRINE_ROUTING_LAYERS`` provenance filter. The routing
+        catalog's ``_CHARTER_PACK_ROUTING_LAYERS`` provenance filter. The routing
         catalog now carries the activation-gated project layer as well (R3
         parity, #4114/#4128); this remains the operator-facing seam for a
         supplied ``--profile <id>`` on ``agent action implement/review`` — the

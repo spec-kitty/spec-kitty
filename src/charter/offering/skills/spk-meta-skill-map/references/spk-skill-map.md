@@ -42,15 +42,25 @@ detailed workflows or aliases while new public operating skills use `spk-*`.
 - `spk-admin-upgrade`: upgrade and migrations.
 - `spk-admin-git-workflow`: git and worktree workflows.
 
-## Doctrine
+## Team
 
-- `spk-doctrine-charter`: charter workflows.
-- `spk-doctrine-glossary`: terminology.
-- `spk-doctrine-spdd-reasons`: REASONS Canvas.
-- `spk-doctrine-profile-load`: agent profiles.
-- `spk-doctrine-show-me`: compact visuals, diagram selection, and TUI status rendering.
-- `spk-doctrine-semantic-compression`: behavior-preserving code reduction.
-- `spk-doctrine-bulk-edit`: bulk edit classification.
+- `spk-team-auth`: auth and accounts.
+- `spk-team-sync`: tracker sync (local pull/push/run, hosted binding).
+- `spk-team-tracker`: tracker workflows.
+- `spk-team-connectors`: connector integrations.
+
+## Charter
+
+- `spk-charter-governance`: charter workflows.
+- `spk-charter-glossary`: terminology.
+- `spk-charter-spdd-reasons`: REASONS Canvas.
+- `spk-charter-profile-load`: agent profiles.
+
+## Practice
+
+- `spk-practice-show-me`: compact visuals, diagram selection, and TUI status rendering.
+- `spk-practice-semantic-compression`: behavior-preserving code reduction.
+- `spk-practice-bulk-edit`: bulk edit classification.
 
 ## Integration
 
@@ -67,7 +77,6 @@ detailed workflows or aliases while new public operating skills use `spk-*`.
 - `spec-kitty-runtime-review` -> prefer `spk-run-review-wp`
 - `spec-kitty-implement-review` -> prefer `spk-run-implement-review`
 - `spec-kitty-mission-system` -> prefer `spk-mission-types`
-- `spec-kitty-charter-doctrine` -> prefer `spk-doctrine-charter`
 - `spec-kitty-setup-doctor` -> prefer `spk-admin-setup-doctor`
 - `spec-kitty-git-workflow` -> prefer `spk-admin-git-workflow`
 - `spec-kitty-orchestrator-api-operator` -> prefer `spk-integrate-orchestrator-api`

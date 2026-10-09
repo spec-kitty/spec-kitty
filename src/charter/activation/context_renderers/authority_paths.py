@@ -17,7 +17,7 @@ Design notes
   fold).  Each default carries a project-agnostic "When you ..., ..."
   conditional.
 * **Charter-declared paths** come from
-  :attr:`charter.activation.schemas.DoctrineSelectionConfig.authority_paths` and are
+  :attr:`charter.activation.schemas.GovernanceCharterConfig.authority_paths` and are
   appended in declaration order, deduped against the defaults.  Their
   conditional defaults to a generic "consult when you change content
   under this directory" copy; a future mission may parameterise this.
@@ -32,7 +32,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter.activation.schemas import DoctrineSelectionConfig
+from charter.activation.schemas import GovernanceCharterConfig
 
 __all__ = [
     "AUTHORITY_PATHS_HEADER",
@@ -111,7 +111,7 @@ def _directory_exists(repo_root: Path, relative_path: str) -> bool:
 
 def render_authority_paths(
     repo_root: Path,
-    doctrine_selection: DoctrineSelectionConfig,
+    charter_config: GovernanceCharterConfig,
 ) -> str:
     """Render the ``Project authority paths:`` section.
 
@@ -121,7 +121,7 @@ def render_authority_paths(
         Repository root whose layout determines which authority paths
         actually exist on disk.  Only existing directories are emitted —
         missing defaults are silently skipped (no broken pointers).
-    doctrine_selection:
+    charter_config:
         The charter-resolved doctrine selection.  Its
         :attr:`authority_paths` list contributes additional pointers
         beyond the built-in defaults; entries that duplicate a default
@@ -147,7 +147,7 @@ def render_authority_paths(
         seen.add(normalised)
         lines.append(f"  - {normalised}    ({when_clause})")
 
-    for declared in doctrine_selection.authority_paths:
+    for declared in charter_config.authority_paths:
         normalised = _normalize_path(declared)
         if not normalised or normalised in seen:
             continue

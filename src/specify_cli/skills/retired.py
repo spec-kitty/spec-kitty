@@ -18,4 +18,18 @@ RETIRED_CANONICAL_SKILL_NAMES = frozenset({
     "spk-team-connectors",
     "spk-team-sync",
     "spk-team-tracker",
+    # Renamed/folded by #3732 (FR-008): spk-charter-* / spk-practice-*.
+    "ad-hoc-profile-load",
+    "spec-kitty-bulk-edit-classification",
+    "spec-kitty-charter-doctrine",
+    "spec-kitty-constitution-doctrine",
+    "spec-kitty-glossary-context",
+    "spec-kitty-spdd-reasons",
+    "spk-doctrine-bulk-edit",
+    "spk-doctrine-charter",
+    "spk-doctrine-glossary",
+    "spk-doctrine-profile-load",
+    "spk-doctrine-semantic-compression",
+    "spk-doctrine-show-me",
+    "spk-doctrine-spdd-reasons",
 }) | RETIRED_STANDALONE_SKILL_NAMES

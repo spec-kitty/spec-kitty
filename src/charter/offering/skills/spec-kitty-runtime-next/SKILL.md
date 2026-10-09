@@ -216,9 +216,9 @@ your role, boundaries, and initialization context.
 **Load the profile using the Python API — do NOT read YAML files directly:**
 
 ```python
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 
-service = build_activation_aware_doctrine_service(project_root)
+service = build_active_charter_service(project_root)
 
 # resolve_profile()'s specializes_from lineage traversal is a repository
 # operation, not available on the filtered `agent_profiles` dict — reach it
@@ -274,9 +274,9 @@ which review criteria apply), pull the specific tactic or directive by ID
 rather than re-loading the full context:
 
 ```python
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 
-service = build_activation_aware_doctrine_service(project_root)
+service = build_active_charter_service(project_root)
 
 # Pull a specific tactic when it becomes relevant
 tactic = service.tactics.get("tdd-red-green-refactor")

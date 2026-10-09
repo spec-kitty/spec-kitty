@@ -14,7 +14,7 @@ After WP05 the byte-pinned surface is one canonical command baseline + one
 canonical skill snapshot (the 12x12 / codex+vibe grids were retired for
 structural invariants), so ``regen`` maintains those canonicals.
 
-Modes (modeled on ``spec-kitty doctrine regenerate-graph``):
+Modes (modeled on ``spec-kitty charter pack regenerate-graph``):
 
 - default (write): rewrite every fixture, report how many changed;
 - ``--check``: render into memory, byte-compare against the committed

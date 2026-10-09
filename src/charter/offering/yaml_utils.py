@@ -1,4 +1,4 @@
-"""Shared YAML utilities for the doctrine package.
+"""Shared YAML utilities for the charter offering.
 
 Provides ``canonical_yaml`` — a deterministic, sorted-key YAML serializer
 that returns bytes — and ``parse_shipped_yaml``, which parses each shipped

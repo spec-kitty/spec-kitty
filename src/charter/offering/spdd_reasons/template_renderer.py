@@ -11,7 +11,7 @@ This module exposes :func:`process_spdd_blocks`, which is invoked by the
 template materialization seam (``specify_cli.template.asset_generator`` and
 ``specify_cli.skills.command_renderer``) just after a template file has been
 read from disk and before any further processing. The hook keeps content with
-markers stripped when the project has the SPDD/REASONS doctrine pack active,
+markers stripped when the project has the SPDD/REASONS Charter Pack active,
 and removes the entire block (including delimiter comment lines and the single
 blank line that author convention places around the markers) when inactive.
 
@@ -60,7 +60,7 @@ def process_spdd_blocks(template_text: str, *, active: bool) -> str:
         Raw template text. May contain zero or more (currently expected: zero
         or one) ``spdd:reasons-block`` regions.
     active:
-        ``True`` when the SPDD/REASONS doctrine pack is active for the calling
+        ``True`` when the SPDD/REASONS Charter Pack is active for the calling
         project (caller passes ``is_spdd_reasons_active(repo_root)``).
 
         - ``True``: keep block content; strip only the marker comment lines.

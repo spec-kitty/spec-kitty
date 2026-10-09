@@ -7,7 +7,7 @@ corresponding to the removed step, before completing activation.
 
 The warning is **non-blocking**: activation completes after warning emission.
 
-FR-014: Activation now writes to ``config.yaml`` via ``CharterPackManager``
+FR-014: Activation now writes to ``config.yaml`` via ``ActiveCharterManager``
 instead of writing ``.kittify/overrides/`` files that nothing reads.
 
 Layer note

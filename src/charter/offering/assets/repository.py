@@ -3,7 +3,7 @@
 An :class:`~charter.offering.assets.models.AssetManifest` (``*.asset.yaml`` sidecar)
 names a blob by ``path`` relative to its pack's ``assets/`` root. This
 repository loads those manifests across the built-in, organisation and project
-tiers (via :class:`~charter.offering.base.BaseDoctrineRepository`) and resolves an
+tiers (via :class:`~charter.offering.base.BaseArtifactRepository`) and resolves an
 asset identifier to the on-disk blob path, fail-closed.
 
 Two traps the base class does not handle for this kind, addressed here:
@@ -16,8 +16,8 @@ Two traps the base class does not handle for this kind, addressed here:
    itself. A single shared anchor rule would double the segment
    (``.../assets/built-in/built-in/...``).
 2. **Layer-correct containment** (A-4). Containment is enforced through the
-   doctrine-layer :func:`resolve_relative_path_within_root` primitive — never
-   the ``specify_cli`` pack-validator convenience helper, which ``doctrine``
+   offering-layer :func:`resolve_relative_path_within_root` primitive — never
+   the ``specify_cli`` pack-validator convenience helper, which ``charter.offering``
    may not import upward (C-001). Traversal and symlink escapes raise a typed,
    named error (NFR-006, fail-closed).
 """
@@ -29,7 +29,7 @@ from pathlib import Path
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.assets.models import AssetManifest
 from charter.offering.pack_paths import built_in_dir
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 from charter.offering.drg.org_pack_config import (
     OrgPackSubdirEscapeError,
     resolve_relative_path_within_root,
@@ -62,7 +62,7 @@ class AssetNotFoundError(AssetResolutionError):
 class AssetPathEscapeError(AssetResolutionError):
     """Raised when an asset blob ``path`` escapes its anchoring root (NFR-006).
 
-    Wraps the doctrine-layer :class:`OrgPackSubdirEscapeError` in an
+    Wraps the offering-layer :class:`OrgPackSubdirEscapeError` in an
     asset-domain type so containment refusals are catchable by identity.
     """
 
@@ -75,7 +75,7 @@ class AssetPathEscapeError(AssetResolutionError):
         )
 
 
-class AssetRepository(BaseDoctrineRepository[AssetManifest]):
+class AssetRepository(BaseArtifactRepository[AssetManifest]):
     """Three-tier repository resolving asset ids to on-disk blob paths."""
 
     def __init__(
@@ -137,7 +137,7 @@ class AssetRepository(BaseDoctrineRepository[AssetManifest]):
         """Resolve *asset_id* to the on-disk blob path, fail-closed.
 
         Anchors the manifest ``path`` at the tier-correct root (A-2) and
-        enforces containment through the doctrine-layer
+        enforces containment through the offering-layer
         :func:`resolve_relative_path_within_root` primitive (A-4).
 
         Raises:

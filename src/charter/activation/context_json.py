@@ -7,12 +7,12 @@ resolver, the relative-path formatter, the project-local charter metadata
 reader, and the project directive enumerator (local charter + resolver
 catalog fallback).
 
-Cycle note: :func:`_maybe_build_doctrine_service` calls
-:func:`~charter.activation.doctrine_service_builder._build_doctrine_service` via a
-function-local ``from charter.activation.context import _build_doctrine_service``
-rather than a direct import of ``charter.activation.doctrine_service_builder`` — several
+Cycle note: :func:`_maybe_build_offering_service` calls
+:func:`~charter.activation.active_charter_service_builder._build_offering_service` via a
+function-local ``from charter.activation.context import _build_offering_service``
+rather than a direct import of ``charter.activation.active_charter_service_builder`` — several
 existing tests (``tests/charter/test_context.py::test_project_directive_entries_fallbacks``)
-patch only ``charter.activation.context._build_doctrine_service`` and expect
+patch only ``charter.activation.context._build_offering_service`` and expect
 ``_project_directive_entries`` (re-exported from this module) to observe it;
 routing through ``charter.activation.context`` keeps that single patch-point contract.
 :func:`_project_charter_json_block` similarly resolves ``YAML`` via a
@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    import charter.offering.service as _doctrine_service_module
+    import charter.offering.service as _offering_service_module
 
 from ruamel.yaml.error import YAMLError
 
@@ -183,11 +183,11 @@ def _load_project_directives(
     return local_by_id, directive_ids
 
 
-def _maybe_build_doctrine_service(repo_root: Path) -> _doctrine_service_module.DoctrineService | None:
+def _maybe_build_offering_service(repo_root: Path) -> _offering_service_module.CharterOfferingService | None:
     try:
-        from charter.activation.context import _build_doctrine_service  # noqa: PLC0415
+        from charter.activation.context import _build_offering_service  # noqa: PLC0415
 
-        return _build_doctrine_service(repo_root)
+        return _build_offering_service(repo_root)
     except Exception:  # noqa: BLE001 - local directive IDs are still useful
         return None
 
@@ -209,7 +209,7 @@ _EMPTY_ORG_CHARTER: dict[str, object] = {"present": False, "packs": []}
 def _assemble_directive_entries(
     directive_ids: list[str],
     local_by_id: dict[str, object],
-    service: _doctrine_service_module.DoctrineService | None,
+    service: _offering_service_module.CharterOfferingService | None,
 ) -> list[dict[str, object]]:
     """Build the per-directive ``all_directives`` entries from resolved IDs."""
     entries: list[dict[str, object]] = []
@@ -238,7 +238,7 @@ def _project_directive_entries_with_source(
     from charter.activation.sync import load_directives_config
 
     local_by_id, directive_ids, directives_source = _load_project_directives_with_source(repo_root, load_directives_config)
-    service = _maybe_build_doctrine_service(repo_root)
+    service = _maybe_build_offering_service(repo_root)
     return _assemble_directive_entries(directive_ids, local_by_id, service), directives_source
 
 
