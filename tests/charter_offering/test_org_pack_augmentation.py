@@ -212,7 +212,7 @@ def test_directive_field_projection_emits_edge(tmp_path: Path) -> None:
 def _fragment_intent(drg_dir: Path):
     from charter.offering.packs.pack_validator import _collect_fragment_edge_intent
 
-    return _collect_fragment_edge_intent(drg_dir)
+    return _collect_fragment_edge_intent(drg_dir, None)
 
 
 def test_fragment_edge_intent_unknown_target_hard_errors(tmp_path: Path) -> None:

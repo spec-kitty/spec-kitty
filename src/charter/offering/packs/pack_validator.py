@@ -495,7 +495,12 @@ def validate_pack(
         except _BuiltInGraphUnavailableError as exc:
             errors.append(_builtin_unavailable_issue(drg_dir, exc))
         else:
-            authored_errors, authored_advisories = _validate_authored_endpoints(pack_drg_fragment(pack_dir), org_fragment, trusted_artifact_urns, endpoint_catalog)
+            authored_errors, authored_advisories = _validate_authored_endpoints(
+                pack_drg_fragment(pack_dir),
+                org_fragment,
+                trusted_artifact_urns,
+                endpoint_catalog,
+            )
             errors.extend(authored_errors)
             advisories.extend(authored_advisories)
             drg_errors, drg_advisories = _validate_drg(drg_dir, pack_artifact_urns, endpoint_catalog)
@@ -565,7 +570,7 @@ def validate_pack(
     errors.extend(_validate_pack_descriptor(pack_dir))
 
     # FR-019: activation presets under presets/ (format, id resolution, kind gate).
-    errors.extend(_validate_presets(pack_dir))
+    errors.extend(_validate_presets(pack_dir, org_fragment))
 
     # T044: the optional org-charter.yaml leg runs through the caller's hook;
     # without one, an org-charter.yaml is an explicit error, never skipped.
@@ -599,14 +604,14 @@ def _canonical_urn(urn_kind: str, artifact_id: str) -> str:
     return f"{urn_kind}:{artifact_id}"
 
 
-def _preset_offering_urns(pack_dir: Path) -> frozenset[str]:
+def _preset_offering_urns(fragment: OrgDRGFragment | None) -> frozenset[str]:
     """Return the URNs a preset id may resolve to: built-in plus the pack's own nodes.
 
     A pack's ``parent_pack`` ancestors are not consulted: a bare pack directory
     does not say where its ancestors live, so an id that only an ancestor ships
     is reported unresolved (recorded decision, WP07 T038).
     """
-    known = set(_built_in_node_urns()) | set(_pack_node_urns(pack_dir) or frozenset())
+    known = set(_built_in_node_urns()) | set(_pack_node_urns(fragment) or frozenset())
     canonical: set[str] = set()
     for urn in known:
         urn_kind, _, artifact_id = urn.partition(":")
@@ -634,7 +639,7 @@ def _unresolved_preset_ids(preset: ActivationPreset, known_urns: AbstractSet[str
     return [(key, artifact_id) for key, urn_kind, artifact_id in listed if _canonical_urn(urn_kind, artifact_id) not in known_urns]
 
 
-def _validate_presets(pack_dir: Path) -> list[ValidationIssue]:
+def _validate_presets(pack_dir: Path, fragment: OrgDRGFragment | None) -> list[ValidationIssue]:
     """Validate every preset under ``presets/``: format, id resolution and kind gate.
 
     A malformed file is one ``preset_format`` error naming the field; an id
@@ -655,7 +660,7 @@ def _validate_presets(pack_dir: Path) -> list[ValidationIssue]:
             issues.append(_preset_issue(path, f"malformed preset {path.name}: {exc.field}: {exc.detail}", "preset_format"))
             continue
         if known_urns is None:
-            known_urns = _preset_offering_urns(pack_dir)
+            known_urns = _preset_offering_urns(fragment)
         for key, artifact_id in _unresolved_preset_ids(preset, known_urns):
             issues.append(_preset_issue(path, f"preset {path.name}: {key} id {artifact_id!r} does not resolve in the offering", "preset_unresolved_id"))
         omitted = kind_gate_omissions(preset)
@@ -744,23 +749,6 @@ def _validated_artifact_urn(plural: str, validated: BaseModel) -> str | None:
     return f"{kind}:{identity}"
 
 
-class _LoadDefault:
-    """Omitted helper input requests loading; explicit None never does."""
-
-
-_LOAD_DEFAULT = _LoadDefault()
-
-
-def _load_optional_fragment(pack_dir: Path) -> OrgDRGFragment | None:
-    """Best-effort default for direct helpers; main validation loads explicitly."""
-    if not pack_drg_fragment(pack_dir).exists():
-        return None
-    try:
-        return load_org_pack(pack_name=pack_dir.name, pack_root=pack_dir, layer_index=1)
-    except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, OSError):
-        return None
-
-
 def _validate_org_fragment(pack_dir: Path) -> tuple[OrgDRGFragment | None, list[ValidationIssue]]:
     """Validate the pack's org surfaces through the runtime loading authority.
 
@@ -822,17 +810,15 @@ def _built_in_node_urns() -> frozenset[str]:
         return frozenset()
 
 
-def _pack_node_urns(pack_dir: Path, fragment: OrgDRGFragment | None | _LoadDefault = _LOAD_DEFAULT) -> frozenset[str] | None:
+def _pack_node_urns(fragment: OrgDRGFragment | None) -> frozenset[str] | None:
     """Return the URNs of the nodes the pack contributes, or ``None`` if unloadable.
 
-    Goes through :func:`load_org_pack` (the runtime authority), so nodes minted
-    from artifact files count as well as nodes declared in ``drg/fragment.yaml``.
-    A load failure is already reported by :func:`_validate_org_fragment`.
-    Omitted input retains direct-helper loading; explicit ``None`` (failed or
-    absent main-path load) prevents a retry. Sanctions use ALL loaded nodes.
+    Takes the fragment :func:`_validate_org_fragment` already loaded through
+    :func:`load_org_pack` (the runtime authority), so nodes minted from artifact
+    files count as well as nodes declared in ``drg/fragment.yaml``. ``None``
+    (failed or absent load, already reported there) yields ``None``. Sanctions
+    use ALL loaded nodes.
     """
-    if isinstance(fragment, _LoadDefault):
-        fragment = _load_optional_fragment(pack_dir)
     if fragment is None:
         return None
     return frozenset(f"{ORG_PLURAL_TO_SINGULAR_KIND.get(node.kind, node.kind)}:{node.id}" for node in fragment.nodes)
@@ -852,7 +838,7 @@ def _sanction_issue(severity: str, file: Path, urn: str | None, message: str) ->
 def _validate_pack_sanction(
     pack_dir: Path,
     built_in_urns: frozenset[str],
-    fragment: OrgDRGFragment | None | _LoadDefault = _LOAD_DEFAULT,
+    fragment: OrgDRGFragment | None,
 ) -> tuple[list[ValidationIssue], list[ValidationIssue]]:
     """Validate ``<pack>/replaceable-builtins.yaml`` (FR-014).
 
@@ -871,7 +857,7 @@ def _validate_pack_sanction(
 
     errors: list[ValidationIssue] = []
     advisories: list[ValidationIssue] = []
-    pack_urns = _pack_node_urns(pack_dir, fragment)
+    pack_urns = _pack_node_urns(fragment)
     for entry in policy.entries:
         if sanction_reason_missing(entry.urn, entry.reason):
             errors.append(
@@ -1716,8 +1702,7 @@ def _fold_augmentation_edges(
 
 
 def _collect_fragment_yaml_edges(
-    drg_dir: Path,
-    fragment: OrgDRGFragment | None | _LoadDefault = _LOAD_DEFAULT,
+    fragment: OrgDRGFragment | None,
 ) -> list[tuple[str, str, str]] | None:
     """Read ``(source, target, relation)`` triples from ``drg/fragment.yaml``.
 
@@ -1727,17 +1712,14 @@ def _collect_fragment_yaml_edges(
     fails to load returns ``None`` (no edges to fold) because
     ``_validate_org_fragment`` already surfaces the load error as a finding.
     Returns ``None`` (not ``[]``) when no ``fragment.yaml`` exists, so callers
-    can distinguish "nothing to fold" from "empty edges list". An omitted
-    argument loads by default for direct callers; an explicit fragment or
-    ``None`` consumes the main validation outcome without another load.
+    can distinguish "nothing to fold" from "empty edges list". The fragment is
+    the main validation's own load outcome; it is never loaded again here.
 
     Endpoints are qualified to ``kind:id`` before they are returned
     (:func:`_qualify_fragment_edge`), so a bare-id endpoint — a documented
     valid spelling the runtime resolver accepts — folds like the qualified
     form instead of being dropped by :func:`_urn_to_plural` (#5494).
     """
-    if isinstance(fragment, _LoadDefault):
-        fragment = _load_optional_fragment(drg_dir.parent)
     if fragment is None:
         return None
     # Mint fragment-local URNs exactly as the runtime bridge does
@@ -1801,7 +1783,7 @@ def _qualify_fragment_edge(
 
 def _collect_fragment_edge_intent(
     drg_dir: Path,
-    org_fragment: OrgDRGFragment | None | _LoadDefault = _LOAD_DEFAULT,
+    org_fragment: OrgDRGFragment | None,
 ) -> FragmentIntent:
     """Read augmentation/lineage intent from DRG fragment edges.
 
@@ -1843,7 +1825,7 @@ def _collect_fragment_edge_intent(
             augmentation_relations,
         )
 
-    org_fragment_edges = _collect_fragment_yaml_edges(drg_dir, org_fragment)
+    org_fragment_edges = _collect_fragment_yaml_edges(org_fragment)
     if org_fragment_edges is not None:
         _fold_augmentation_edges(
             org_fragment_edges,
