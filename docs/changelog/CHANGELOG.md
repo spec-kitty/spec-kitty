@@ -4,7 +4,7 @@ description: Canonical changelog for the Spec Kitty CLI and templates, following
 doc_status: active
 type: reference
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-11'
+updated: '2026-10-12'
 ---
 # Changelog
 
@@ -100,6 +100,7 @@ this section at publish._
 
 ### Fixed
 
+- **Cursor's `init` no longer reports shared-agent skills as "skipped"; `init` and `upgrade` make the same project-skill install decision** (#3788). **Before:** fresh `init` printed `skipped (global runtime)` for SHARED-class agents such as Cursor, implying their managed project skills were not installed — though the later tool-surface repair did install them. **After:** the progress line says that setup is *queued until project configuration is saved*, and regression coverage pins both `init`'s installed-skills result and the upgrade migration's shared-root decision.
 - **A rejected work package whose review history was backfilled can no longer read as approved after a bare approval** (#6084). **Before:** with spec-kitty-events 10.4.2, a later approval that did not follow a rework overrode a rejection written by the verdict backfill, so the work package's verdict read `approved`. **After:** spec-kitty-events 10.4.4 keeps the backfilled verdict, and the rejection stands until a real rework and review.
 - **`spec-kitty mission close --discard` works again on a Mission whose branch holds work, and now shows what it deletes and keeps a way back** (#6085; #6071). **Before:** discarding a Mission whose own branch had commits found nowhere else failed with `BRANCH_HAS_UNIQUE_COMMITS`, so a single-branch Mission with any work could not be discarded. **After:** before it asks to confirm (and also with `--force`), discard lists each branch it will delete with its tip and how many commits exist on no other branch. It keeps each deleted tip under `refs/spec-kitty/discarded/<branch>` and prints the restore command, `git branch <branch> refs/spec-kitty/discarded/<branch>`. An earlier kept tip is never overwritten: a second tip goes under `refs/spec-kitty/discarded/<branch>@<short-sha>`, and the printed command names that ref. Lane branches still refuse to be deleted while they hold the only copy of their work.
 - **`spec-kitty agent action implement` no longer hangs holding the pre-review-gate lock; a claim returns promptly** (#6062). **Before:** a claim ran the configured baseline test suite synchronously, and that run took the machine-wide `pre-review-gate-run.lock` that belongs to the `move-task --to for_review` regression gate, not to a claim — so `implement` could wedge (exit 124 under a `timeout`) and the held lock could block a concurrent lane's `for_review` gate. **After:** baseline capture runs lock-free in its own detached base-branch worktree, and it moved OFF the claim path to a fail-open capture-if-missing step on the `in_progress -> for_review` edge where the gate consumes it, taken at the point the lane forked from its base branch. A claim now returns right after moving the work package to `doing`, and the gate still diffs head against a base-branch baseline.

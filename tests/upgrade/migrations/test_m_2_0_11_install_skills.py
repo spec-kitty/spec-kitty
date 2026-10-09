@@ -136,12 +136,14 @@ class TestApplyReal:
         assert data["spec_kitty_version"] == "2.0.11"
         assert len(data["entries"]) >= 1
 
-    def test_shared_root_agent_via_apply(self, tmp_path: Path) -> None:
-        """apply() installs skills to .agents/skills/ for shared-root agent."""
-        project, result = self._apply_with_test_skills(tmp_path, ["codex"])
+    @pytest.mark.parametrize("agent", ["cursor", "codex"])
+    def test_shared_root_agent_via_apply(self, tmp_path: Path, agent: str) -> None:
+        """Upgrade gives shared agents the project skills that init repairs in."""
+        project, result = self._apply_with_test_skills(tmp_path, [agent])
 
         assert result.success is True
         assert (project / ".agents" / "skills" / "spec-kitty-test-skill" / "SKILL.md").is_file()
+        assert (project / ".kittify" / "skills-manifest.json").is_file()
 
     def test_wrapper_only_fails_when_sole_agent(self, tmp_path: Path) -> None:
         """apply() with only wrapper-only agent fails (no files installed)."""
