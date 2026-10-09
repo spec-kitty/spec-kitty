@@ -365,6 +365,11 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # registry lookup in
         # tests/specify_cli/upgrade/migrations/test_install_lane_tip_recorder.py.
         "specify_cli.upgrade.migrations.m_4_0_0rc5_install_lane_tip_recorder",
+        # #3732 (charter-pack cutover, FR-012): same shape -- discovered via
+        # pkgutil.iter_modules + @MigrationRegistry.register (runs_first), never
+        # statically imported; verified by registry lookup in
+        # tests/specify_cli/upgrade/migrations/test_charter_pack_cutover_paths.py.
+        "specify_cli.upgrade.migrations.m_4_0_0rc6_charter_pack_cutover",
         # coord-artifact-single-home-01M3V4BE WP11 (FR-009b/#5023): same
         # auto-discovered shape as the m_3_2_6_*/m_3_2_7_* merge-driver
         # migrations above -- never statically imported, registered via
