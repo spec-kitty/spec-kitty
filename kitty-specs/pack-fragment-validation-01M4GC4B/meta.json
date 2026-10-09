@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-09T17:21:56.572991+00:00",
+      "accepted_by": "pi/gpt-6.1-sol",
+      "accepted_from_commit": "367820e9aa69deea47d47ab48173c440029bbde7"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-09T17:21:56.572991+00:00",
+  "accepted_by": "pi/gpt-6.1-sol",
+  "accepted_from_commit": "367820e9aa69deea47d47ab48173c440029bbde7",
   "created_at": "2026-10-09T13:02:39.524800+00:00",
   "flattened": false,
   "friendly_name": "Canonical org-fragment reference validation",
