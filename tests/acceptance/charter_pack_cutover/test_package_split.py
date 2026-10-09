@@ -96,7 +96,6 @@ def test_fr010_tests_doctrine_directory_renamed() -> None:
 @covers("FR-010", "OD-1", "INV:Activation entry key")
 @pytest.mark.integration
 @pytest.mark.git_repo
-@pending_until("WP11", "project activation entries use charter_pack_id after upgrade")
 def test_fr010_charter_pack_id_in_project_state(tmp_path: Path) -> None:
     project = project_from_template("doctrine_pack_id_activations", tmp_path / "p")
     charter_yaml = project / ".kittify" / "charter" / "charter.yaml"

@@ -126,7 +126,6 @@ def cutover_migration() -> Any:
 
 
 @covers("FR-012")
-@pending_until("WP11", "the cutover migration runs before every other pending migration")
 def test_fr012_cutover_runs_first(tmp_path: Path) -> None:
     project = build("legacy_keys_only", tmp_path)
     result = run_cli(["upgrade", "--dry-run", "--json"], project)
@@ -253,13 +252,12 @@ _KEY_ROWS = {
     "INV:Interview answers",
     "EC:Canonical and legacy config keys both present",
 )
-@pytest.mark.parametrize("row", [pytest.param(k, marks=pending_until("WP11", "legacy config keys rewritten")) for k in _KEY_ROWS])
+@pytest.mark.parametrize("row", list(_KEY_ROWS))
 def test_fr012_legacy_keys_rewritten(row: str, tmp_path: Path) -> None:
     _KEY_ROWS[row](tmp_path)
 
 
 @covers("FR-012", "OD-1", "INV:Activation entry key")
-@pending_until("WP11", "doctrine_pack_id rewritten to charter_pack_id")
 def test_fr012_doctrine_pack_id_renamed(tmp_path: Path) -> None:
     project = build("doctrine_pack_id_activations", tmp_path)
     assert "doctrine_pack_id" in charter_yaml(project)["activations"][0]  # control
@@ -269,7 +267,6 @@ def test_fr012_doctrine_pack_id_renamed(tmp_path: Path) -> None:
 
 
 @covers("FR-012", "US2-1", "INV:Project layer", "EC:Uncommitted edits in moved or rewritten files")
-@pending_until("WP11", ".kittify/doctrine moved to .kittify/charter-packs")
 def test_fr012_project_root_moved(tmp_path: Path) -> None:
     project = build("legacy_directory_only", tmp_path)
     legacy = project / ".kittify" / "doctrine"
@@ -286,7 +283,6 @@ def test_fr012_project_root_moved(tmp_path: Path) -> None:
 
 
 @covers("FR-012", "EC:Both project roots present")
-@pending_until("WP11", "colliding roots refuse and move nothing")
 def test_fr012_collision_refuses_and_moves_nothing(tmp_path: Path) -> None:
     project = build("both_roots_collision", tmp_path)
     before = tree_digest(project)
@@ -307,7 +303,6 @@ _GITIGNORE_RULES = ".kittify/doctrine/**\n!.kittify/doctrine/graph.yaml\n"
 
 
 @covers("FR-012", "INV:Synthesis manifest", "INV:Provenance sidecars", "INV:Pack-skill manifest", "INV:Ignore rules")
-@pending_until("WP11", "path references follow the moved root")
 def test_fr012_path_references_rewritten(tmp_path: Path) -> None:
     project = build("synthesized_with_provenance", tmp_path)
     write_text(project / ".gitignore", _GITIGNORE_RULES)
@@ -337,7 +332,6 @@ def test_fr012_user_path_values_untouched(tmp_path: Path) -> None:
 
 @covers("FR-012", "EC:Windows")
 @pytest.mark.windows_ci
-@pending_until("WP11", "a locked file under .kittify/doctrine refuses the move (exempt from red-first: win32 only)")
 def test_fr012_windows_locked_file_refuses(tmp_path: Path) -> None:
     project = build("legacy_directory_only", tmp_path)
     locked = project / ".kittify" / "doctrine" / "graph.yaml"
@@ -528,8 +522,28 @@ def _assert_charter_list_agrees(project: Path, record: dict[str, Any]) -> None:
 CUTOVER_NOT_APPLICABLE = frozenset({"two_org_packs", "pre_rc35"})
 
 
+#: NFR-001 fixtures that carry no reset row (stale list, kind gate, ``[]``): their second upgrade is
+#: a 0-byte no-op once WP11's keys, root and path rows land, so they are not pending WP12.
+NFR004_GREEN_AT_WP11 = frozenset(
+    {
+        "legacy_keys_only",
+        "single_pack_legacy_form",
+        "organisation_packs",
+        "legacy_directory_only",
+        "governance_doctrine_in_charter_yaml",
+        "two_org_packs",
+        "pre_rc35",
+        "synthesized_with_provenance",
+        "project_pack_skills",
+    }
+)
+
+
 @covers("NFR-004", "US2-4")
-@pytest.mark.parametrize("name", [pytest.param(n, marks=pending_until("WP12", "a second upgrade changes 0 bytes")) for n in NFR001_FIXTURES])
+@pytest.mark.parametrize(
+    "name",
+    [pytest.param(n, marks=() if n in NFR004_GREEN_AT_WP11 else pending_until("WP12", "a second upgrade changes 0 bytes")) for n in NFR001_FIXTURES],
+)
 def test_nfr004_second_upgrade_changes_zero_bytes(name: str, tmp_path: Path) -> None:
     project, first, first_payload = first_upgrade(name, tmp_path)
     before = tree_digest(first.pristine)
@@ -560,7 +574,6 @@ def test_us2_6_pre_rc35_upgrade_has_zero_errors(tmp_path: Path) -> None:
 
 @covers("US2-7", "EC:Lane worktrees created before the upgrade")
 @pytest.mark.slow
-@pending_until("WP11", "the root upgrade moves the lane-carried legacy project layer; the lane still consolidates")
 def test_us2_7_lane_in_approved_consolidates_after_root_upgrade(tmp_path: Path) -> None:
     """Root upgrade (a cutover commit on the target), merge the target into the lane, then consolidate."""
     project = build_lane_project(tmp_path / "lanes")
