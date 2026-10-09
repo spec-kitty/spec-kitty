@@ -196,10 +196,10 @@ modules:
   # passed, 12 skipped, exit 0; 1233.204s summed). Committed now equals
   # collected, so main's shards are weighted by measured time again.
   shard_count: 7
-  # DUAL test tree (CLAUDE.md Modularity SSOT): the doctrine test tree did
-  # not move when src/doctrine/ was absorbed into src/charter/offering/, so
-  # both dirs cover `charter`. This pair was previously hardcoded inside
-  # module-tests.yml's selection step as an extra_dirs special case;
+  # DUAL test tree: `charter` is covered by tests/charter/ and by
+  # tests/charter_offering/ (the offering's test tree, renamed by mission
+  # charter-pack-cutover-01M491G6), so both dirs cover `charter`. This pair
+  # was previously hardcoded inside module-tests.yml's selection step as an extra_dirs special case;
   # promoted into the registry (spec-kitty#4369) so the registry alone
   # determines every module's test directories.
   test_dirs:

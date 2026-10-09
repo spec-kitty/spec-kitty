@@ -47,7 +47,7 @@ mission_type_canonical/
     └── canonical/                        # post-migration target home (fixture only; not yet
         ├── .kittify/                     # exercised by a red repro -- reserved for WP05's
         │   ├── config.yaml               # migration/doctor tests)
-        │   └── doctrine/mission_types/software-dev/governance-profile.yaml
+        │   └── charter-packs/mission_types/software-dev/governance-profile.yaml
         └── kitty-specs/001-canonical-override-feature/meta.json
 ```
 

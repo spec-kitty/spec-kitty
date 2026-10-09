@@ -17,7 +17,7 @@ site uses a lazy, function-local import, and the module-level
 ``__getattr__`` below (PEP 562) keeps
 ``from specify_cli.dossier.manifest import ExpectedArtifactManifest`` (and
 its two siblings) resolving for existing importers -- see
-``tests/charter_offering/missions/test_expected_artifact_manifest_relocation.py``.
+``tests/dossier/test_manifest.py``, which imports them from this module.
 
 **Loader-authority relocation (mission
 expected-artifacts-loader-unification-01M1C9VQ, WP01 / #3770):** the

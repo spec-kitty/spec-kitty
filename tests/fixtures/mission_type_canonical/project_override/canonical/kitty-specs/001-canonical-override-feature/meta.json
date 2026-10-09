@@ -7,7 +7,7 @@
   "mission_number": 41,
   "mission_slug": "canonical-override-feature-01J4Y9NR",
   "mission_type": "software-dev",
-  "purpose_context": "This feature expects the project's .kittify/doctrine/mission_types/software-dev/ governance-profile override to win over the packaged default.",
+  "purpose_context": "This feature expects the project's .kittify/charter-packs/mission_types/software-dev/ governance-profile override to win over the packaged default.",
   "purpose_tldr": "Post-migration counterpart to the legacy override fixture.",
   "slug": "001-canonical-override-feature",
   "target_branch": "main",

@@ -1,7 +1,7 @@
 # Fixture: consumer project carrying the same project-level mission-type
 # override intent as ../legacy/, but authored at the CANONICAL
-# `.kittify/doctrine/mission_types/<type>/` home (the migration target of
-# plan.md WP05: ".kittify/overrides/missions/ -> .kittify/doctrine/mission_types/").
+# `.kittify/charter-packs/mission_types/<type>/` home (the project pack root;
+# mission charter-pack-cutover-01M491G6 moved it from the retired project layer).
 #
 # Not exercised by a red repro in WP01 (no canonical-source loader consumes
 # this shape yet) -- it exists so WP05's migration/doctor tests have a

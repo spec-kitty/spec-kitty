@@ -31532,7 +31532,6 @@
       "tests/architectural/test_lifted_cli_accept_birth_cutover.py": 0.24,
       "tests/architectural/test_lifted_cli_accept_coord_surface_anchor.py": 0.24,
       "tests/architectural/test_lifted_cli_bytecode_heal_startup.py": 4.93,
-      "tests/architectural/test_lifted_cli_doctrine_charter_cr02_compat.py": 4.98,
       "tests/architectural/test_lifted_cli_doctrine_retirement.py": 5.14,
       "tests/architectural/test_lifted_cli_no_visible_feature_alias.py": 0.24,
       "tests/architectural/test_lifted_cli_project_root_resolution.py": 0.36,

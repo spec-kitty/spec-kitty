@@ -73,7 +73,7 @@ class TestRegenerationWriteTarget:
     def test_offering_source_tree_carries_no_fragments(self) -> None:
         stale = sorted((_REPO_ROOT / "src" / "charter" / "offering").glob("*.graph.yaml"))
         assert stale == [], (
-            "graph fragments still sit under the retired src/doctrine home: "
+            "graph fragments still sit in the charter offering source tree (they live under packs/): "
             f"{[p.name for p in stale]}"
         )
 

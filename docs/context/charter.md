@@ -494,7 +494,8 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 <!-- doc surface -- that role belongs solely to                         -->
 <!-- docs/architecture/doctrine-relationships.md, whose per-relation     -->
 <!-- section bodies are checked verbatim against                        -->
-<!-- RELATION_DESCRIPTIONS by tests/doctrine/test_relation_doc_parity.py.-->
+<!-- RELATION_DESCRIPTIONS by                                      -->
+<!-- tests/charter_offering/test_relation_doc_parity.py.             -->
 <!-- Do not attempt to make the prose below content-equal to the         -->
 <!-- registry; a wording drift here is expected and harmless.            -->
 <!-- ================================================================== -->
