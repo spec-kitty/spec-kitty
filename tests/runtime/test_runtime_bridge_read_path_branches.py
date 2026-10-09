@@ -27,6 +27,7 @@ from typing import Any
 
 import pytest
 
+from kernel.locks import LockAcquireTimeout
 from mission_runtime import ActionContextError
 from runtime.next._internal_runtime.schema import MissionRuntimeError, NextDecision
 from runtime.next.runtime_bridge_decision_log import DecisionGitLogUnavailable, _wrap_with_decision_git_log
@@ -287,6 +288,27 @@ class TestAnswerDecisionPreconditions:
 
         assert str(excinfo.value) == f"Mission {_MISSION!r} not found; cannot answer decision 'dec-1'"
         assert resolved == ["tasks"]
+
+    def test_lock_timeout_is_mapped_to_the_answer_error_surface(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        feature_dir = tmp_path / "kitty-specs" / _MISSION
+        feature_dir.mkdir(parents=True)
+        monkeypatch.setattr("mission_runtime.resolve_action_context", lambda *a, **k: SimpleNamespace(feature_dir=str(feature_dir)))
+        monkeypatch.setattr("runtime.next.runtime_bridge_query.get_mission_type", lambda _d: "software-dev")
+        monkeypatch.setattr(
+            "runtime.next.runtime_bridge_query._io_seam.get_or_start_run", lambda *a, **k: SimpleNamespace(run_dir=str(tmp_path))
+        )
+        monkeypatch.setattr("runtime.next.runtime_bridge_query.runtime_emitter_for_mission", lambda **k: object())
+        monkeypatch.setattr("runtime.next.runtime_bridge_query.seed_runtime_emitter", lambda *a, **k: None)
+        monkeypatch.setattr("runtime.next.runtime_bridge_query._decision_log._wrap_with_decision_git_log", lambda e, *a, **k: e)
+        monkeypatch.setattr("specify_cli.status.ensure_runtime_moment_producer", lambda: None)
+
+        def _busy(*args: Any, **kwargs: Any) -> None:
+            raise LockAcquireTimeout(path=str(tmp_path / "state.json.lock"))
+
+        monkeypatch.setattr("runtime.next.runtime_bridge_query.runtime_provide_decision_answer", _busy)
+
+        with pytest.raises(MissionRuntimeError, match="is busy"):
+            answer_decision_via_runtime(_MISSION, "dec-1", "yes", "claude", tmp_path)
 
     def test_typed_read_path_error_propagates_unchanged(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         error = ActionContextError("COORDINATION_BRANCH_DELETED", "coordination branch is gone")
