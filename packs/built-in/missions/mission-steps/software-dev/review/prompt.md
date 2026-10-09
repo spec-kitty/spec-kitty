@@ -25,7 +25,7 @@ one-line rationale in the commit message.
 warns, naming them, when another actor works there. Review from your own checkout (a lane worktree,
 or a harness-isolated worktree) instead.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, pass `--mission <handle>` to every command that accepts `--mission`.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -314,10 +314,10 @@ implementer profile so the next implementation cycle starts with the right conte
    spec-kitty agent tasks move-task WPxx --to in_progress --actor <name> --mission <handle> \
      --review-feedback-file <feedback.md>
    ```
-   A rejection must carry its rationale (`--review-feedback-file`); a rejection without
-   one is accepted locally but never propagates to the team (see `move-task --help`).
+   A rejection should carry its rationale (`--review-feedback-file`); record it
+   before moving the WP back (see `move-task --help`).
 
 The implementing agent will then load the correct profile via `/ad-hoc-profile-load`
 and resume work with the proper agent profile and self-review gates.
 
-**Next step**: `spec-kitty next --agent <name>` will advance to the next phase.
+**Next step**: `spec-kitty next --agent <name> --mission <handle>` will advance to the next phase.

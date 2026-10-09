@@ -58,16 +58,22 @@ class TestShippedContractsExistAndValidate:
                 )
                 assert len(step.delegates_to.candidates) > 0
 
-    def test_all_builtin_bootstrap_inputs_are_preserved(self, repo: MissionStepContractRepository) -> None:
-        expected_inputs = [
-            {"flag": "--profile", "source": "wp.agent_profile", "optional": True},
-            {"flag": "--tool", "source": "env.agent_tool", "optional": True},
-        ]
+    def test_no_builtin_bootstrap_declares_profile_or_tool_inputs(self, repo: MissionStepContractRepository) -> None:
+        """The bootstrap step carries no ``inputs``.
 
+        Every built-in bootstrap step used to advertise ``--profile`` and
+        ``--tool`` inputs that the executor appends to ``spec-kitty charter
+        context``, which refuses both options — the rendered command never
+        parsed (mission-writer-followups C1). The decision is to drop those
+        inputs from every built-in contract rather than teach the CLI two flags
+        it does not need; this guards against them creeping back. The rendered
+        bootstrap command is parsed against the CLI in
+        ``test_contract_bootstrap_commands``.
+        """
         for contract in repo.list_all():
             bootstrap = contract.steps[0]
             assert bootstrap.id == "bootstrap", contract.id
-            assert [step_input.model_dump() for step_input in bootstrap.inputs] == expected_inputs, contract.id
+            assert list(bootstrap.inputs) == [], contract.id
 
 
 class TestContractsAccessibleViaService:
@@ -111,10 +117,9 @@ class TestImplementContractStructure:
         assert bootstrap is not None
         assert bootstrap.command is not None
         assert "charter context" in bootstrap.command
-        assert [step_input.model_dump() for step_input in bootstrap.inputs] == [
-            {"flag": "--profile", "source": "wp.agent_profile", "optional": True},
-            {"flag": "--tool", "source": "env.agent_tool", "optional": True},
-        ]
+        # C1: the bootstrap step declares no inputs — charter context refuses
+        # --profile/--tool, so the rendered command would not parse.
+        assert list(bootstrap.inputs) == []
 
     def test_has_workspace_step_with_paradigm_delegation(self, contract: MissionStepContract) -> None:
         workspace = next((s for s in contract.steps if s.id == "workspace"), None)

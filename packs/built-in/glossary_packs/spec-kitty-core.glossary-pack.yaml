@@ -204,11 +204,10 @@ terms:
   status: deprecated
   surface: feature slug
 - confidence: 0.95
-  definition: "A dedicated git branch for PR-bound mission planning and implementation
-    work, typically named feat/<slug> for feature work or fix/<slug> for bug-fix work.
-    It is distinct from the primary branch and is the recommended start point when
-    a mission is expected to become a pull request.\n"
-  status: active
+  definition: >-
+    Alias of topic branch: a short-lived branch carrying one change to a pull request.
+    Prefer "topic branch" in canonical and operator-facing language.
+  status: deprecated
   surface: feature branch
 - confidence: 1.0
   definition: The human-readable title string of a mission, used for display in
@@ -380,10 +379,29 @@ terms:
   status: draft
   surface: minimal viable trail
 - confidence: 1.0
-  definition: Purpose-specific workflow machine with defined inputs, process, 
-    outcomes, and states
+  definition: >-
+    A unit of governed delivery: the concrete tracked item, stored under the Mission's
+    own spec directory and linked to exactly one Mission Type, that carries one
+    piece of work from agreed intent to a verified result.
   status: active
   surface: mission
+  synonyms_to_avoid:
+    - Feature
+- confidence: 1.0
+  definition: >-
+    One runtime execution of a Mission's step loop, keyed by `run_id`.
+  status: active
+  surface: mission run
+  synonyms_to_avoid:
+    - mission session
+- confidence: 1.0
+  definition: >-
+    A short-lived branch carrying one change to a pull request.
+  status: active
+  surface: topic branch
+  synonyms_to_avoid:
+    - feature branch
+    - PR branch
 - confidence: 1.0
   definition: The ULID-based canonical, immutable machine identity for a 
     mission, assigned at creation and used for all event routing and 
@@ -676,8 +694,7 @@ terms:
   status: draft
   surface: widen mode
 - confidence: 1.0
-  definition: Execution slice inside a mission run, the unit of human/agent 
-    handoff
+  definition: Execution slice inside a Mission, the unit of human/agent handoff
   status: active
   surface: work package
 - confidence: 1.0

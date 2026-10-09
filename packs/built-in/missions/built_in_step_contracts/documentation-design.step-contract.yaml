@@ -9,13 +9,6 @@ steps:
   - id: bootstrap
     description: Load charter context for this action
     command: "spec-kitty charter context --action design --json"
-    inputs:
-      - flag: --profile
-        source: wp.agent_profile
-        optional: true
-      - flag: --tool
-        source: env.agent_tool
-        optional: true
 
   - id: plan_divio_types
     description: Plan Divio documentation types (tutorial, how-to, reference, explanation) for the deliverable

@@ -6,13 +6,6 @@ steps:
   - id: bootstrap
     description: Load charter context for this action
     command: "spec-kitty charter context --action gathering --json"
-    inputs:
-      - flag: --profile
-        source: wp.agent_profile
-        optional: true
-      - flag: --tool
-        source: env.agent_tool
-        optional: true
 
   - id: read_methodology
     description: Read the methodology plan to align gathering against the documented approach

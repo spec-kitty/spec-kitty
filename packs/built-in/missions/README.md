@@ -8,7 +8,7 @@ optional runtime step DAG, command templates, and content templates.
 
 | Mission              | Directory        | Domain       | Steps                                                         |
 |----------------------|------------------|--------------|---------------------------------------------------------------|
-| Software Development | `software-dev/`  | software-dev | discovery → specify → plan → tasks → implement → review → accept |
+| Software Development | `software-dev/`  | software-dev | discovery → specify → plan → tasks → analyze → implement → review → accept |
 | Documentation        | `documentation/` | other        | discover → audit → design → generate → validate → publish → accept |
 | Plan                 | `plan/`          | planning     | specify → research → plan → review                            |
 | Research             | `research/`      | research     | scoping → methodology → gathering → synthesis → output → accept |
@@ -19,8 +19,10 @@ Each mission directory contains:
 
 - `mission.yaml` — Mission configuration (workflow phases, expected artifacts, commands, validation rules)
 - `mission-runtime.yaml` — Runtime step DAG (steps, `depends_on` dependencies, agent-profile assignments)
-- `command-templates/` — Markdown prompt files for each slash command step
 - `templates/` — Content scaffolds for output artifacts (spec, plan, tasks, etc.)
+
+The step prompts live under `mission-steps/<type>/<step>/prompt.md` (a sibling of
+these mission directories), one directory per workflow step.
 
 ## Python Utilities
 

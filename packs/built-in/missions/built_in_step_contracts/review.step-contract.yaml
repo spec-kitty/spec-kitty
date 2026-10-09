@@ -13,13 +13,6 @@ steps:
   - id: bootstrap
     description: Load charter context for this action
     command: "spec-kitty charter context --action review --json"
-    inputs:
-      - flag: --profile
-        source: wp.agent_profile
-        optional: true
-      - flag: --tool
-        source: env.agent_tool
-        optional: true
 
   - id: verify_spec_fidelity
     description: Verify implementation matches specification intent
@@ -72,7 +65,7 @@ steps:
 
   - id: status_transition
     description: Move WP to approved or request changes
-    command: "spec-kitty agent tasks move-task {wp_id} --to approved"
+    command: "spec-kitty agent tasks move-task {wp_id} --to approved --mission {mission_slug}"
     guidance: >
       If changes are needed, move to in_progress with a reason.
-      If review passes, move to approved with evidence. Merge later records done.
+      If review passes, move to approved with evidence. Consolidate later records done.

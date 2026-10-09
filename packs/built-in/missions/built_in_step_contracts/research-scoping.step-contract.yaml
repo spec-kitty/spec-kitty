@@ -12,13 +12,6 @@ steps:
   - id: bootstrap
     description: Load charter context for this action
     command: "spec-kitty charter context --action scoping --json"
-    inputs:
-      - flag: --profile
-        source: wp.agent_profile
-        optional: true
-      - flag: --tool
-        source: env.agent_tool
-        optional: true
 
   - id: capture_question
     description: Capture the research question, scope boundaries, and stakeholder context

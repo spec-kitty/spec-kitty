@@ -139,17 +139,19 @@ class TestMissionStepContractRepository:
         shipped_dir = Path("packs/built-in/missions/built_in_step_contracts")
         yaml = YAML(typ="safe")
 
-        declared: dict[str, list[dict[str, object]]] = {}
+        # C1 (mission-writer-followups, #5885) removed the --profile/--tool
+        # bootstrap inputs from every built-in step contract because the CLI
+        # refuses them, so no shipped contract declares first-step inputs any
+        # more. The invariant this pins is the repository's round-trip fidelity:
+        # the loaded bootstrap inputs match the contract YAML exactly for every
+        # contract (an empty/absent YAML inputs list loads as no inputs, and a
+        # contract that re-declares inputs in future still round-trips).
+        checked = 0
         for contract_path in sorted(shipped_dir.glob("*.step-contract.yaml")):
             raw = yaml.load(contract_path)
             first_step = raw["steps"][0]
-            if first_step.get("inputs"):
-                declared[raw["id"]] = first_step["inputs"]
-
-        assert declared
-
-        for contract_id, expected_inputs in declared.items():
-            contract = repo.get(contract_id)
+            expected_inputs = first_step.get("inputs") or []
+            contract = repo.get(raw["id"])
             assert contract is not None
             bootstrap_step = contract.steps[0]
             assert [input.flag for input in bootstrap_step.inputs] == [
@@ -161,6 +163,9 @@ class TestMissionStepContractRepository:
             assert [input.optional for input in bootstrap_step.inputs] == [
                 input_data.get("optional", False) for input_data in expected_inputs
             ]
+            checked += 1
+
+        assert checked, "no shipped step contracts found to verify"
 
 
 class TestMissionStepContractRepositoryLookup:
