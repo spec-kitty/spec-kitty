@@ -57,6 +57,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -79,6 +80,10 @@ from specify_cli.cli.commands.agent.tasks_outline import (
     TaskIdResult,
     _INLINE_SUBTASKS_RE,
     _normalize_task_id_input,
+    _match_history_wp_heading,
+    _extract_pipe_table_wp_id,
+    _is_pipe_table_task_row,
+    _parse_pipe_table_header,
     _resolve_history_wp_id,
     _resolve_wp_id,
 )
@@ -110,6 +115,7 @@ class _MarkStatusState:
     mission: str | None
     auto_commit: bool | None
     json_output: bool
+    wp: str | None = None
     # --- phase A/B: resolved context ---
     repo_root: Path = field(default_factory=Path)
     main_repo_root: Path = field(default_factory=Path)
@@ -127,6 +133,7 @@ class _MarkStatusState:
     updated_tasks: list[str] = field(default_factory=list)
     not_found_tasks: list[str] = field(default_factory=list)
     resolved_tasks: list[str] = field(default_factory=list)
+    task_wps: dict[str, str] = field(default_factory=dict)
 
 
 def _default_mark_status_ports() -> TasksPorts:
@@ -148,9 +155,14 @@ def _ms_validate_inputs(st: _MarkStatusState) -> None:
     """Phase A: validate ``--status`` + non-empty task IDs, then normalize IDs."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    if st.status not in ("done", "pending"):
-        _tasks._output_error(st.json_output, f"Invalid status '{st.status}'. Must be 'done' or 'pending'.")
+    if st.status not in ("done", "pending", "skipped", "not_applicable"):
+        _tasks._output_error(st.json_output, f"Invalid status '{st.status}'. Must be 'done', 'pending', 'skipped', or 'not_applicable'.")
         raise typer.Exit(1)
+    if st.wp is not None:
+        st.wp = st.wp.upper()
+        if re.fullmatch(r"WP\d+", st.wp) is None:
+            _tasks._output_error(st.json_output, f"Invalid --wp value: {st.wp}")
+            raise typer.Exit(1)
     if not st.task_ids:
         _tasks._output_error(st.json_output, "At least one task ID is required")
         raise typer.Exit(1)
@@ -298,6 +310,34 @@ def _ms_commit(st: _MarkStatusState, ports: TasksPorts) -> None:
             _tasks.console.print(f"[yellow]Warning:[/yellow] Auto-commit exception: {e}")
 
 
+def _matching_wp_ids(feature_dir: Path, tasks_content: str, task_id: str) -> list[str]:
+    """Find every owning WP before a mark can mutate canonical state."""
+    owners: set[str] = set()
+    tasks_dir = feature_dir / "tasks"
+    for path in sorted(tasks_dir.glob("WP*.md")):
+        wp_id = path.stem.split("-", 1)[0].upper()
+        try:
+            roster = authored_subtask_roster(feature_dir, wp_id)
+        except (SubtaskRosterResolutionError, OSError, ValueError):
+            continue
+        if task_id.upper() in {entry.upper() for entry in roster}:
+            owners.add(wp_id)
+    current_wp: str | None = None
+    lines = tasks_content.splitlines()
+    for index, line in enumerate(lines):
+        current_wp = _match_history_wp_heading(line) or current_wp
+        if re.search(rf"\b{re.escape(task_id)}\b", line, re.IGNORECASE):
+            table_wp = _extract_pipe_table_wp_id(line, _parse_pipe_table_header(lines, index)) if _is_pipe_table_task_row(line, task_id) else None
+            owner = table_wp or current_wp
+            if owner is not None:
+                owners.add(owner)
+    if not owners:
+        fallback = _resolve_history_wp_id(tasks_content, task_id)
+        if fallback is not None:
+            owners.add(fallback)
+    return sorted(owners)
+
+
 def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
     """Phase C: resolve task IDs without mutating the authored tasks index.
 
@@ -323,6 +363,18 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
             raise typer.Exit(1)
 
         content = st.tasks_md.read_text(encoding="utf-8")
+        for task_id in st.task_ids:
+            if not re.fullmatch(r"T\d+", task_id, re.IGNORECASE):
+                continue
+            owners = _matching_wp_ids(st.feature_dir, content, task_id)
+            if st.wp is None and len(owners) > 1:
+                _tasks._output_error(st.json_output, f"{task_id} occurs in {', '.join(owners)}; pass --wp to select one.")
+                raise typer.Exit(1)
+            if st.wp is not None and st.wp not in owners:
+                _tasks._output_error(st.json_output, f"{task_id} was not found in --wp {st.wp}.")
+                raise typer.Exit(1)
+            if owners:
+                st.task_wps[task_id] = st.wp or owners[0]
         lines = content.split("\n")
         results: list[TaskIdResult] = []
         # Update all requested tasks in a single pass.
@@ -345,6 +397,19 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
                     message=f"{task_id} was not found in any supported task format.",
                 )
             )
+            wp_id = st.task_wps.get(task_id)
+            if result.outcome == TaskIdResolutionOutcome.UPDATED and wp_id is not None:
+                from specify_cli.status import wp_snapshot_state
+
+                current = wp_snapshot_state(st.status_dir, wp_id)
+                subtasks = (current.get("subtasks") or {}) if current is not None else {}
+                requested = "skipped" if st.status in ("skipped", "not_applicable") else ("done" if st.status == "done" else "planned")
+                if subtasks.get(task_id) == requested:
+                    result = TaskIdResult(
+                        task_id, TaskIdResolutionOutcome.ALREADY_SATISFIED, result.format, f"{task_id} in {wp_id} is already {requested}; no event written."
+                    )
+                else:
+                    result = TaskIdResult(task_id, TaskIdResolutionOutcome.UPDATED, result.format, f"Recorded {requested} for {task_id} in {wp_id}.")
             results.append(result)
 
         st.results = results
@@ -377,17 +442,20 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     ``Path.cwd()`` (C-003/#2647).
     """
     from mission_runtime import is_single_branch, resolve_topology
-    from specify_cli.status import Lane, Status, WPInnerStateDelta
+    from specify_cli.status import Lane, WPInnerStateDelta
+    from specify_cli.status.models import SubtaskStatus
 
     if not st.updated_tasks:
         return
 
-    target_status: Status = Lane.DONE if st.status == "done" else Lane.PLANNED
+    target_status: Lane | SubtaskStatus = (
+        SubtaskStatus.SKIPPED if st.status in ("skipped", "not_applicable") else (Lane.DONE if st.status == "done" else Lane.PLANNED)
+    )
     tasks_content = st.tasks_md.read_text(encoding="utf-8")
     resolved_tasks_by_wp: dict[str, list[str]] = {}
     unresolved_tasks: list[str] = []
     for task_id in st.updated_tasks:
-        history_wp_id = _resolve_history_wp_id(tasks_content, task_id) or owning_wp_from_authored_roster(st.feature_dir, task_id)
+        history_wp_id = st.task_wps.get(task_id) or _resolve_history_wp_id(tasks_content, task_id) or owning_wp_from_authored_roster(st.feature_dir, task_id)
         if history_wp_id is None:
             unresolved_tasks.append(task_id)
         else:
@@ -606,6 +674,7 @@ def _do_mark_status(
     json_output: bool,
     owned: OwnedCheckout | None = None,
     *,
+    wp: str | None = None,
     ports: TasksPorts | None = None,
 ) -> None:
     """Orchestrate ``mark-status`` over the WP02 ports (C-005 seam), CORELESS.
@@ -629,6 +698,7 @@ def _do_mark_status(
         mission=mission,
         auto_commit=auto_commit,
         json_output=json_output,
+        wp=wp,
         owned=owned,
     )
     try:

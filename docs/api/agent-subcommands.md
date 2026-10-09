@@ -1565,7 +1565,7 @@ _Canonical status management commands_
 ## spec-kitty agent status emit
 
 ```
- Usage: spec-kitty agent status emit [OPTIONS] WP_ID
+ Usage: spec-kitty agent status emit [OPTIONS] [WP_ID]
 
  Emit a status transition event for a work package.
 
@@ -1575,6 +1575,7 @@ _Canonical status management commands_
 
  Examples:
      spec-kitty agent status emit WP01 --to claimed --actor claude
+     spec-kitty agent status emit --wp WP01 --to claimed --actor claude
      spec-kitty agent status emit WP01 --to approved --actor claude
  --review-result-json '{"reviewer": "alice", "verdict": "approved",
  "reference": "PR#1"}'
@@ -1582,7 +1583,7 @@ _Canonical status management commands_
  --reason "resuming after crash"
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    wp_id      TEXT  Work package ID (e.g., WP01) [required]                │
+│   wp_id      [WP_ID]  Work package ID (e.g., WP01)                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --to                                  TEXT  Target lane (e.g., claimed,   │
@@ -1593,6 +1594,8 @@ _Canonical status management commands_
 │                                                [required]                    │
 │    --mission                             TEXT  Mission slug (required in     │
 │                                                multi-mission repos)          │
+│    --wp                                  TEXT  Work package ID (alternative  │
+│                                                to positional ID)             │
 │    --force                                     Force transition bypassing    │
 │                                                guards                        │
 │    --reason                              TEXT  Reason for forced transition  │
@@ -1752,8 +1755,7 @@ _Task workflow commands for AI agents_
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ move-task            Move task between lanes (planned → doing → for_review → │
 │                      approved → done).                                       │
-│ mark-status          Update task checkbox status in tasks.md for one or more │
-│                      tasks.                                                  │
+│ mark-status          Record subtask status for one or more tasks.            │
 │ list-tasks           List tasks with optional lane filtering.                │
 │ add-history          Record a history note in the WP status event log.       │
 │ finalize-tasks       Parse tasks.md and inject dependencies into WP          │
@@ -1922,10 +1924,10 @@ _Task workflow commands for AI agents_
 ```
  Usage: spec-kitty agent tasks mark-status [OPTIONS] TASK_IDS...
 
- Update task checkbox status in tasks.md for one or more tasks.
+ Record subtask status for one or more tasks.
 
- Accepts MULTIPLE task IDs separated by spaces. All tasks are updated
- in a single operation with one commit.
+ Accepts multiple task IDs separated by spaces. Status is recorded in the
+ mission event log. Use --wp when the same ID appears in more than one WP.
 
  Examples:
      # Single task:
@@ -1941,21 +1943,27 @@ _Task workflow commands for AI agents_
      # With JSON output:
      spec-kitty agent tasks mark-status T001 T002 --status done --json
 
+     # When IDs repeat across work packages:
+     spec-kitty agent tasks mark-status T001 --wp WP02 --status skipped
+
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    task_ids      TASK_IDS...  Task ID(s) - space-separated (e.g., T001     │
 │                                 T002 T003)                                   │
 │                                 [required]                                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --status                                  TEXT  Status: done/pending      │
+│ *  --status                                  TEXT  Status:                   │
+│                                                    done/pending/skipped/not… │
 │                                                    [required]                │
 │    --mission                                 TEXT  Mission slug              │
+│    --wp                                      TEXT  Work package containing   │
+│                                                    the subtasks (e.g., WP02) │
 │    --owned-checkout                          PATH  Explicit single-branch    │
 │                                                    checkout root.            │
 │    --auto-commit         --no-auto-commit          Automatically commit      │
-│                                                    tasks.md changes to       │
-│                                                    target branch (default:   │
-│                                                    from project config)      │
+│                                                    status events when        │
+│                                                    supported (default: from  │
+│                                                    project config)           │
 │    --json                                          Output JSON format        │
 │    --help            -h                            Show this message and     │
 │                                                    exit.                     │

@@ -140,6 +140,22 @@ def _patch_detection(tmp_path: Path, mission_slug: str = "034-test-feature"):
 class TestEmitCommand:
     """Tests for ``spec-kitty agent status emit``."""
 
+    def test_emit_accepts_wp_option(self, tmp_path: Path, feature_dir: Path) -> None:
+        _seed_planned(feature_dir)
+        patches = _patch_detection(tmp_path)
+        with (patches["locate_project_root"], patches["get_main_repo_root"], patches["saas_fan_out"]):
+            result = runner.invoke(
+                app,
+                ["emit", "--wp", "WP01", "--to", "claimed", "--actor", "test-agent", "--mission", "034-test-feature"],
+            )
+        assert result.exit_code == 0, result.output
+        assert "WP01" in result.output
+
+    def test_emit_refuses_conflicting_wp_option(self) -> None:
+        result = runner.invoke(app, ["emit", "WP01", "--wp", "WP02", "--to", "claimed", "--actor", "test-agent"])
+        assert result.exit_code == 1
+        assert "must match" in result.output
+
     def test_emit_valid_transition(self, tmp_path: Path, feature_dir: Path):
         """A valid planned -> claimed transition should succeed."""
         _seed_planned(feature_dir)

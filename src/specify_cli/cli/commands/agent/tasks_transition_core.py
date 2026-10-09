@@ -729,7 +729,7 @@ def _snapshot_unchecked_subtasks(req: MoveTaskRequest) -> tuple[str, ...] | None
     if wp_state is None:
         return None
     subtasks = wp_state.get("subtasks") or {}
-    return tuple(str(sid) for sid, status in subtasks.items() if str(status) != str(Lane.DONE))
+    return tuple(str(sid) for sid, status in subtasks.items() if str(status) not in {str(Lane.DONE), "skipped"})
 
 
 def _guard_subtasks(req: MoveTaskRequest) -> RefuseExit1 | None:

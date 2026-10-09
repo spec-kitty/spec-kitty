@@ -291,7 +291,7 @@ def _enforce_emit_for_review_gate(
 
 @app.command()
 def emit(
-    wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
+    wp_id: Annotated[str | None, typer.Argument(help="Work package ID (e.g., WP01)")] = None,
     to: Annotated[
         str,
         typer.Option(
@@ -304,6 +304,7 @@ def emit(
         str | None,
         typer.Option("--mission", help="Mission slug (required in multi-mission repos)"),
     ] = None,
+    wp: Annotated[str | None, typer.Option("--wp", help="Work package ID (alternative to positional ID)")] = None,
 
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
     reason: Annotated[str | None, typer.Option("--reason", help="Reason for forced transition (required with --force out of in_review or approved)")] = None,
@@ -348,10 +349,19 @@ def emit(
 
     Examples:
         spec-kitty agent status emit WP01 --to claimed --actor claude
+        spec-kitty agent status emit --wp WP01 --to claimed --actor claude
         spec-kitty agent status emit WP01 --to approved --actor claude --review-result-json '{"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}'
         spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason "resuming after crash"
     """
     try:
+        if wp_id is not None and wp is not None and wp_id.upper() != wp.upper():
+            _output_error(json_output, "Positional WP ID and --wp must match when both are supplied")
+            raise typer.Exit(1)
+        wp_id = wp_id or wp
+        if wp_id is None:
+            _output_error(json_output, "A work package ID is required (positional or --wp)")
+            raise typer.Exit(1)
+        wp_id = wp_id.upper()
         # Resolve repo root
         cwd = Path.cwd().resolve()
         repo_root = locate_project_root(cwd)
