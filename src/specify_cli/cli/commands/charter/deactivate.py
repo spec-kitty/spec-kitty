@@ -16,7 +16,7 @@ safe cascade engine on the removal side:
   active source named.
 * :class:`charter.activation.activation_engine.NoActivationRestrictionsError` (raised by
   the WP10 engine for a None-state kind) is caught and surfaced as a clean
-  exit-1 with the upgrade guidance.
+  exit-1 with the "activate one first" guidance.
 * :class:`charter.activation.pack_context.ActiveCharterConfigError` is caught and surfaced as
   fail-closed guidance before any mutation (FR-035, C1.5).
 """
@@ -309,8 +309,8 @@ def deactivate_cmd(
             layer_roots=layer_roots,
         )
     except NoActivationRestrictionsError as exc:
-        # WP10 engine raises this for a None-state kind; surface the upgrade
-        # guidance carried in the error and exit non-zero (no mutation).
+        # WP10 engine raises this for a None-state kind; surface the
+        # "activate one first" guidance carried in the error and exit non-zero (no mutation).
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
     except ValueError as exc:

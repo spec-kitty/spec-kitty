@@ -195,13 +195,6 @@ REGISTRY: dict[str, RegisteredSite] = {
         producer=now_utc_iso,
         prior_signature=lambda instant: instant.isoformat(),
     ),
-    # charter/pack_manager.py's charter.md backup filename suffix (see also
-    # test_pack_manager_persisted_goldens.py). Prior (in-function import):
-    # `datetime.now(tz=UTC).strftime("%Y%m%dT%H%M%SZ")` -> now_utc_compact_stamp().
-    "charter.activation.pack_manager.MergePacksAction#backup_ts": RegisteredSite(
-        producer=now_utc_compact_stamp,
-        prior_signature=lambda instant: instant.strftime("%Y%m%dT%H%M%SZ"),
-    ),
     # charter/synthesizer/generated_artifact_adapter.py's `generated_at`
     # derived from the source file's mtime. Prior:
     # `datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)` -> from_epoch(mtime).

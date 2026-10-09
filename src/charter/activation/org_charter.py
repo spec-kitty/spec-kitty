@@ -31,7 +31,7 @@ Public API
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -41,9 +41,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter.activation.activation_engine import EffectiveSet
 from charter.activation.activations import ActivationEntry, _activation_identity_key
 from charter.activation.org_pack_discovery import last_non_empty_token, union_required_tokens
-from charter.activation.default_pack import load_default_pack_activation_ids
 from charter.activation.kind_vocabulary import (
     UnrepresentableDirectiveIdError,
     resolve_selected_id_to_stem,
@@ -278,10 +278,10 @@ def _yaml() -> YAML:
 # ---------------------------------------------------------------------------
 # T014 — org-required union into the project's activation source
 #
-# ``promote_activations`` (charter.activation.activation_engine, WP06) is the single
-# append-only write path used below. It never re-derives the built-in id
-# universe itself (C-008: default ids arrive as caller-supplied data), so
-# this module loads the shipped default pack directly.
+# ``promote_activations`` (charter.activation.activation_engine) is the single
+# append-only write path used below. It never resolves the effective set
+# itself (C-008: it arrives as caller-supplied data), so this module asks the
+# one public seam, ``charter.activation.effective_set`` (FR-015, #4400).
 #
 # consolidate-charter-bundle WP02: the write target itself (``config.yaml``
 # vs the migrated ``charter.yaml``) is resolved by
@@ -336,6 +336,28 @@ def _normalize_required_ids(
     return normalized
 
 
+def _effective_sets_for_absent_keys(repo_root: Path, promotions: Mapping[str, list[str]], config_data: Mapping[str, Any]) -> dict[str, EffectiveSet]:
+    """The effective set of every absent promoted key (FR-015, #4400).
+
+    Activation keys resolve through the one public seam. A ``required_<kind>``
+    whose key is not an activation key (``activated_assets``: the kind is not
+    charter-activatable, so no activation filter reads the key) has nothing
+    effective to preserve; it resolves to an empty set and is written as the
+    org-required list, as before.
+    """
+    from charter.activation.effective_set import resolve_effective_sets
+    from charter.activation.pack_manager import YAML_KEY_MAP
+
+    absent = [key for key in promotions if config_data.get(key) is None]
+    activation_keys = set(YAML_KEY_MAP.values())
+    seam_keys = [key for key in absent if key in activation_keys]
+    sets = resolve_effective_sets(repo_root, seam_keys) if seam_keys else {}
+    for key in absent:
+        if key not in activation_keys:
+            sets[key] = EffectiveSet(kind=key.removeprefix("activated_"), yaml_key=key)
+    return sets
+
+
 def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -> list[str]:
     """Union every ``required_<kind>`` in *policy* into ``config.activated_<kind>``.
 
@@ -366,12 +388,12 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
     "all built-ins active" (:meth:`charter.activation.pack_context.PackContext.from_config`)
     for those kinds.
 
-    Absent-key safety: for a kind whose ``activated_<kind>`` key is not yet
-    present in ``config.yaml``, ``promote_activations`` needs the real
-    built-in id set as ``default_ids`` or it would write a bare restrictive
-    list and silently drop every other built-in for that kind (the WP06
-    LAND-BLOCKER). :func:`~charter.activation.default_pack.load_default_pack_activation_ids`
-    supplies that real set — never an empty/omitted default.
+    Absent-key safety (FR-015, #4400): for a kind whose ``activated_<kind>``
+    key is not yet present, the effective set is resolved through
+    :func:`charter.activation.effective_set.resolve_effective_sets` and seeded
+    before the org-required ids are appended, so nothing effective is lost.
+    When that set cannot be resolved the key stays absent and a message names
+    it; a bare restrictive list is never written.
     """
     from charter.activation.activation_engine import promote_activations
     from charter.activation.catalog import resolve_doctrine_root
@@ -411,17 +433,16 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
         for kind, raw_ids in required_by_kind.items()
     }
 
-    default_ids = load_default_pack_activation_ids()
-
-    plans = promote_activations(
+    outcome = promote_activations(
         promotions,
         config_path=target_path,
         config_data=config_data,
         save=save,
-        default_ids=default_ids,
+        effective_sets=_effective_sets_for_absent_keys(repo_root, promotions, config_data),
     )
 
-    return warnings + [f"Promoted {len(plan.activated)} org-required id(s) into {plan.yaml_key} (config-authority)." for plan in plans if plan.activated]
+    promoted = [f"Promoted {len(plan.activated)} org-required id(s) into {plan.yaml_key} (config-authority)." for plan in outcome.committed if plan.activated]
+    return warnings + promoted + outcome.left_absent_messages()
 
 
 def load_org_charter_policy(pack_path: Path) -> OrgCharterPolicy | None:

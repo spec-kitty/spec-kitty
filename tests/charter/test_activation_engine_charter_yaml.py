@@ -5,14 +5,14 @@ into ``charter.yaml``:
 
 * :func:`charter.activation.pack_manager.resolve_activation_write_target` — the shared
   pointer-resolution primitive used by ``ActiveCharterManager.activate`` /
-  ``deactivate`` / ``merge_defaults`` and by the two other activation
+  ``deactivate`` and by the two other activation
   writers (``specify_cli.cli.commands.charter.interview``,
   ``charter.activation.org_charter``).
 * ``activation_engine.commit_plan`` writing into ``charter.yaml`` via that
   target, preserving the OTHER sections (``governance``/``catalog``/
   ``directives``/``metadata``) byte-for-byte (data-model.md Landmine 3 /
   INV-9 — the #2772 clobber, one level down, on a tracked file).
-* ``ActiveCharterManager.activate`` / ``deactivate`` / ``merge_defaults``
+* ``ActiveCharterManager.activate`` / ``deactivate``
   end-to-end against a migrated project (a ``charter:`` pointer resolves to
   a real ``charter.yaml``).
 
@@ -213,8 +213,8 @@ class TestCommitPlanChartersYamlSectionPreservation:
 #
 # NOTE: these tests build ``ProjectContext(repo_root=tmp_path)`` via the bare
 # dataclass constructor rather than ``ProjectContext.from_repo(tmp_path)``.
-# ``ActiveCharterManager.activate``/``deactivate``/``list_activated``/
-# ``merge_defaults`` only ever call ``ctx.require_repo_root()`` -- they never
+# ``ActiveCharterManager.activate``/``deactivate``/``list_activated``
+# only ever call ``ctx.require_repo_root()`` -- they never
 # touch ``ctx.pack_context`` -- whereas ``from_repo`` eagerly resolves
 # ``PackContext.from_config()``, which now hard-fails (WP04, C-A1) when
 # ``mission_type_activations`` is absent from ``_MIGRATED_CHARTER_YAML``
@@ -291,22 +291,3 @@ class TestListActivatedAgainstMigratedProject:
         result = manager.list_activated(ctx)
 
         assert result["directive"] == frozenset({"001-architectural-integrity-standard"})
-
-
-class TestMergeDefaultsAgainstMigratedProject:
-    def test_merge_defaults_seeds_absent_keys_into_charter_yaml_single_write(
-        self, manager: ActiveCharterManager, tmp_path: Path
-    ) -> None:
-        _migrated_project(tmp_path)
-        ctx = ProjectContext(repo_root=tmp_path)
-
-        result = manager.merge_defaults(ctx)
-
-        assert "tactic" in result.kinds_written
-        assert "directive" not in result.kinds_written  # already present, not overwritten
-
-        charter_path = tmp_path / ".kittify" / "charter" / "charter.yaml"
-        charter_data = pyyaml.safe_load(charter_path.read_text(encoding="utf-8"))
-        assert charter_data["activated_directives"] == ["001-architectural-integrity-standard"]
-        assert isinstance(charter_data["activated_tactics"], list)
-        assert charter_data["governance"]["testing"]["coverage_threshold"] == 80

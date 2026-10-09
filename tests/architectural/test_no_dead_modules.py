@@ -197,6 +197,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_0rc35_fix_prompt_file_workaround",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_charter_bundle_v2",
         "specify_cli.upgrade.migrations.m_3_2_0rc35_charter_manifest_defaults_repair",
+        "specify_cli.upgrade.migrations.m_unify_charter_activation",  # auto-discovered; its last static importer (charter interview) was removed by #4400
         "specify_cli.upgrade.migrations.m_unify_charter_activation_finalize",
         "specify_cli.upgrade.migrations.m_3_2_0rc43_retire_profile_context_command",
         # #5530: removes the retired dashboard command files and runtime state;

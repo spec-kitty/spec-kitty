@@ -297,7 +297,7 @@ def test_plan_deactivation_no_restrictions_raises(tmp_path: Path) -> None:
         )
 
     assert exc_info.value.kind == "directive"
-    assert "spec-kitty upgrade" in str(exc_info.value)
+    assert "spec-kitty charter activate directive <id>" in str(exc_info.value)
     assert path.read_bytes() == before
 
 
