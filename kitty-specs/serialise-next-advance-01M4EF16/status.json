@@ -1,0 +1,53 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M4EN4KC70J7C2Z9PPSE1DYV5",
+  "materialized_at": "2026-10-08T21:01:35.495319+00:00",
+  "mission_number": "",
+  "mission_slug": "serialise-next-advance-01M4EF16",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M4EN4EVARQSH6WVVVQRV2CKY",
+      "last_transition_at": "2026-10-08T21:01:30.858772+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 9675,
+      "shell_pid_created_at": "1791489031.61"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M4EN4KC70J7C2Z9PPSE1DYV5",
+      "last_transition_at": "2026-10-08T21:01:35.495319+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "shell_pid": 15047,
+      "shell_pid_created_at": "1791492708.94"
+    }
+  }
+}

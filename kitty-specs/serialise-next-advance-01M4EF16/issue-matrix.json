@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#5099": {
+      "evidence_ref": "spec C-004: out of scope (one writer per checkout; unrelated to the run-cursor advance)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5112": {
+      "evidence_ref": "spec C-004: out of scope; a refusing stale path can make a retry loop spin on blocked; livelock guard tracked in #5112",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#5389": {
+      "evidence_ref": "closed precedent (run-index lock, src/runtime/next/run_index.py); cited as same-primitive prior art, owes this mission no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5682": {
+      "evidence_ref": "spec FR-001; CAS closes the bootstrap->plan window on both paths",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5853": {
+      "evidence_ref": "spec C-004: out of scope; context citation only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5854": {
+      "evidence_ref": "spec FR-001..FR-003; lane kitty/mission-serialise-next-advance-01M4EF16-lane-a",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5855": {
+      "evidence_ref": "spec C-004: out of scope; context citation only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
