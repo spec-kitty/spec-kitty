@@ -1,7 +1,7 @@
 """Retrospective / learning-capture seam for ``runtime.next.runtime_bridge`` (#2531 WP04).
 
 **Sole home of the self-contained retrospective/learning-capture cluster**:
-``_BufferingRuntimeEmitter``, ``_rich_hic_prompt``, ``_resolve_mission_id_for_terminus``,
+``RetrospectiveGateRefused``, ``_BufferingRuntimeEmitter``, ``_rich_hic_prompt``, ``_resolve_mission_id_for_terminus``,
 ``_build_retrospective_facilitator_callback``, ``_resolve_retrospective_policy_for_runtime``,
 ``_retrospective_blocks_completion``, ``_run_retrospective_learning_capture``,
 ``_classify_exc``, ``_remediation_hint``, ``_classify_and_emit_failure`` — moved
@@ -36,23 +36,53 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+class RetrospectiveGateRefused(Exception):
+    """The retrospective gate refused (or could not clear) a terminal advance.
+
+    The one typed refusal every failure of the engine's ``before_run_completed``
+    hook is mapped to, on the legacy and the composition path alike: the gate's
+    own :class:`MissionCompletionBlocked`, the policy-resolution error and an
+    arbitrary capture exception. The original error is ``__cause__`` and
+    ``cause``; ``guard_failures`` is the gate's ``code: detail`` when the cause
+    carries a gate decision, else empty.
+    """
+
+    def __init__(self, cause: BaseException) -> None:
+        self.cause = cause
+        self.guard_failures = _gate_guard_failures(cause)
+        super().__init__(str(cause))
+
+
+def _gate_guard_failures(cause: BaseException) -> list[str]:
+    """``["<code>: <detail>"]`` for a cause that carries a gate decision, else ``[]``."""
+    reason = getattr(getattr(cause, "decision", None), "reason", None)
+    code = getattr(reason, "code", None)
+    if code is None:
+        return []
+    return [f"{code}: {getattr(reason, 'detail', '')}"]
+
+
 class _BufferingRuntimeEmitter:
-    """Records runtime emit calls in order and replays them on flush.
+    """Records runtime emit calls in order and replays them on a one-shot flush.
 
-    Used on the legacy DAG dispatch path when the retrospective gate is
-    opted in: the engine's ``next_step()`` synchronously calls the
-    emitter's ``emit_mission_run_completed`` (and its sync side-effects:
-    remote dispatch, queueing, etc.) the moment a terminal advance lands.
-    A naive rollback that only restores local files would leave those
-    sync events fired and unretractable.
+    The decision-log emitter disposition (ADR ``2026-09-06-2`` (c)): the engine
+    emits every runtime event -- decision requests, lane/state moments,
+    ``MissionRunCompleted`` and its sync side-effects -- into this buffer during
+    the advance, and :func:`runtime_bridge._dn_decision_materialize` flushes the
+    buffer into the ``DecisionGitLog``-wrapped engine emitter
+    (``ctx.emitter_for_engine``) only once the advance has returned a result and
+    the abort-only ``before_run_completed`` gate has passed. So decision events
+    are durably recorded through the wrap in original order, and an advance that
+    the engine refuses (a stale/lock-contended plan) or the gate aborts emits
+    nothing: the buffer is discarded, never flushed.
 
-    The buffer captures every emit call in order. After the engine
-    returns, the bridge either flushes the buffer to the real emitter
-    (gate allowed) or drops it (gate blocked). The ``flush`` is a single
-    one-shot replay; subsequent calls flush nothing.
+    It performs NO file capture, truncation or rollback of
+    ``run.events.jsonl`` / ``state.json`` -- the engine owns those writes under
+    its run-cursor lock, and the abort-only gate raises before the completion
+    write (FR-009/FR-010/FR-011). This buffer only orders the emitter replay.
 
-    Implements the ``RuntimeEventEmitter`` Protocol structurally — every
-    emit method records ``(method_name, payload)`` and returns ``None``.
+    Implements the ``RuntimeEventEmitter`` Protocol structurally -- every emit
+    method records ``(method_name, payload)`` and returns ``None``.
     """
 
     def __init__(self) -> None:
@@ -87,8 +117,8 @@ class _BufferingRuntimeEmitter:
         self._record("emit_decision_timeout_expired", payload)
 
     def seed_from_snapshot(self, snapshot: Any) -> None:
-        # Pass-through for SyncRuntimeEventEmitter compatibility; not
-        # buffered because seed is idempotent and side-effect-free.
+        # Pass-through for SyncRuntimeEventEmitter compatibility; not buffered
+        # because seed is idempotent and side-effect-free.
         del snapshot
 
     def call_count(self) -> int:
@@ -102,8 +132,8 @@ class _BufferingRuntimeEmitter:
     def flush(self, target: Any) -> None:
         """Replay all buffered calls into ``target`` and mark as flushed.
 
-        Re-flushing is a no-op so the same buffer can safely be passed
-        through multiple paths without double-emitting.
+        Re-flushing is a no-op so the same buffer can safely be passed through
+        multiple paths without double-emitting.
         """
         if self._flushed:
             return
@@ -112,9 +142,6 @@ class _BufferingRuntimeEmitter:
             if method is None:
                 continue
             method(payload)
-        # Also seed phase state on the target from any buffered events that
-        # imply phase transitions, since the buffered emitter did not run
-        # the SyncRuntimeEventEmitter's _enter_phase logic.
         self._calls.clear()
         self._flushed = True
 

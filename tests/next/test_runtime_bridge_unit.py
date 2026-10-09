@@ -22,6 +22,7 @@ from kernel.locks import LockAcquireTimeout
 from tests._factories import provision_test_charter
 from tests._perf_helpers import assert_timing_budget
 from tests.lane_test_utils import write_single_lane_manifest
+from tests.runtime._next_mission_scaffold import analysis_is_current
 from runtime.next.decision import DecisionKind
 from runtime.next._internal_runtime import DiscoveryContext
 from runtime.next import runtime_bridge_decision_mapping as decision_mapping
@@ -172,9 +173,9 @@ class TestRuntimeTemplateKey:
         repo_root = _scaffold_project(tmp_path)
 
         import runtime.next.runtime_bridge_io as runtime_bridge_io
-        import specify_cli
+        from charter.activation.mission_type_profile_repository import builtin_missions_root
 
-        builtin_root = Path(specify_cli.__file__).resolve().parent / "missions"
+        builtin_root = builtin_missions_root().resolve()
 
         # Force deterministic discovery context for this test so user-global
         # ~/.kittify content cannot shadow the builtin fallback tier.
@@ -246,13 +247,13 @@ class TestWorkflowRuntimeTemplate:
         )
 
         from runtime.next import runtime_bridge
-        from runtime.next import runtime_bridge_retrospective
+        from runtime.next._internal_runtime.events import NullEmitter
         from runtime.next.decision import DecisionKind
 
         monkeypatch.setattr(
             runtime_bridge,
             "runtime_emitter_for_mission",
-            lambda **_: runtime_bridge_retrospective._BufferingRuntimeEmitter(),
+            lambda **_: NullEmitter(),
         )
 
         runtime_bridge.decide_next_via_runtime(
@@ -301,9 +302,9 @@ class TestWorkflowRuntimeTemplate:
         repo_root = _scaffold_project(tmp_path)
 
         import runtime.next.runtime_bridge_io as runtime_bridge_io
-        import specify_cli
+        from charter.activation.mission_type_profile_repository import builtin_missions_root
 
-        builtin_root = Path(specify_cli.__file__).resolve().parent / "missions"
+        builtin_root = builtin_missions_root().resolve()
         user_home = tmp_path / "home"
         global_runtime = user_home / ".kittify" / "missions" / "software-dev" / "mission-runtime.yaml"
         global_runtime.parent.mkdir(parents=True)
@@ -495,7 +496,7 @@ class TestWPIteration:
 
         # Advance runtime to implement step
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
-        step_order = ["discovery", "specify", "plan", "tasks", "implement"]
+        step_order = ["discovery", "specify", "plan", "tasks", "analyze", "implement"]
         for _ in range(len(step_order)):
             snapshot = _read_snapshot(Path(run_ref.run_dir))
             if snapshot.issued_step_id == "implement":
@@ -929,14 +930,15 @@ class TestFullLoop:
 
         seen_steps = []
         for _i in range(40):  # 9 steps need more iterations
-            decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
+            decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root, analysis_currency=analysis_is_current)
             if decision.kind == DecisionKind.terminal:
                 break
             if decision.step_id:
                 seen_steps.append(decision.step_id)
 
         assert decision.kind == DecisionKind.terminal
-        # Should have visited at least discovery and specify
+        # Should have visited at least discovery and specify, and the analyze gate (WP07)
+        assert "analyze" in seen_steps
         assert "discovery" in seen_steps
 
     def test_repeated_poll_idempotency(self, tmp_path: Path) -> None:

@@ -61,6 +61,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
 
 import yaml
+from charter.activation.mission_type_profile_repository import builtin_missions_root
+from charter.pack_paths import PackRootNotFound
 from mission_runtime import (
     ActionContextError,
     MissionArtifactKind,
@@ -84,6 +86,8 @@ from runtime.next._internal_runtime.schema import (
 from runtime.next import run_index
 from runtime.next import runtime_bridge_guards as _guards
 from runtime.next import runtime_bridge_identity as _identity
+from runtime.next.decision import AnalysisCurrency
+from runtime.next.runtime_bridge_cores import ANALYSIS_CURRENCY_FACT, ANALYZE_STEP_ID
 from runtime.next.run_index import FEATURE_RUNS_FILENAME
 from runtime.next.run_index import RunDirOutsideRepoError as RunDirOutsideRepoError  # re-export
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
@@ -135,6 +139,34 @@ class _FeatureRunEntry(TypedDict, total=False):
     mission_key: str
     mission_id: str | None
     mission_slug: str
+
+
+class BuiltinMissionsRootUnavailable(MissionRuntimeError):
+    """The built-in pack's ``missions/`` directory cannot be located.
+
+    Fail closed (FR-018, B8): the built-in tier of the runtime-template search
+    is ``packs/built-in/missions``; when :func:`builtin_missions_root` cannot
+    resolve it the runtime refuses rather than planning from nothing.
+    """
+
+    error_code = "BUILTIN_MISSIONS_ROOT_UNAVAILABLE"
+
+
+def resolve_builtin_missions_root() -> Path:
+    """The pack-shipped ``missions/`` directory, or a named refusal.
+
+    The one accessor the runtime's built-in tier and ``mission run`` share
+    (``charter.activation.mission_type_profile_repository.builtin_missions_root``).
+
+    Raises:
+        BuiltinMissionsRootUnavailable: no built-in pack root can be located.
+    """
+    try:
+        return Path(builtin_missions_root()).resolve()
+    except PackRootNotFound as exc:
+        raise BuiltinMissionsRootUnavailable(
+            f"Cannot locate the built-in pack missions directory ({exc}); reinstall spec-kitty or set SPEC_KITTY_PACKS_ROOT to a pack root."
+        ) from exc
 
 
 class RunIdentityMigrationRequired(MissionRuntimeError):
@@ -423,11 +455,7 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     docstring). A genuinely declared-but-broken org pack still raises a
     loud UserWarning regardless.
     """
-    import specify_cli  # noqa: PLC0415
-
-    # Runtime bridge uses the legacy runtime templates under specify_cli/missions.
-    # The doctrine mission catalog is not behaviorally equivalent yet.
-    package_root = Path(specify_cli.__file__).resolve().parent / "missions"
+    package_root = resolve_builtin_missions_root()
 
     from charter.drg import resolve_org_roots  # noqa: PLC0415 — lazy, mirrors existing pattern
 
@@ -489,19 +517,12 @@ def _candidate_templates_for_root(root: Path, mission_type: str) -> list[Path]:
 
 
 def _builtin_missions_root() -> Path:
-    """The package-shipped ``missions/`` directory.
+    """The pack-shipped ``missions/`` directory (``packs/built-in/missions``).
 
-    Same expression ``_build_discovery_context`` (WP04) uses for
-    ``builtin_roots`` — recomputed locally rather than imported from there to
-    avoid coupling to a function this WP does not own (plan.md IC-06's
-    `owned_files` note: WP04 owns `_build_discovery_context`, this WP owns
-    `_template_key_for_file`/`_resolve_runtime_template_in_root`). Both
-    expressions must stay in sync by construction — there is exactly one
-    place `specify_cli`'s package-relative missions directory is defined.
+    Same accessor ``_build_discovery_context`` uses for ``builtin_roots``, so the
+    two cannot disagree about where the built-in tier lives.
     """
-    import specify_cli  # noqa: PLC0415
-
-    return (Path(specify_cli.__file__).resolve().parent / "missions").resolve()
+    return resolve_builtin_missions_root()
 
 
 def _is_builtin_missions_dir(parent: Path) -> bool:
@@ -1359,9 +1380,11 @@ def guard_failure_artifact_paths(
     docs-glob message, which names a glob pattern rather than a single
     checkable file) contribute no entry at all.
     """
-    from runtime.next.runtime_bridge_cores import MISSING_ARTIFACT_MESSAGE  # noqa: PLC0415
+    from runtime.next.runtime_bridge_cores import ANALYSIS_STALE_MESSAGE, MISSING_ARTIFACT_MESSAGE  # noqa: PLC0415
 
-    missing_artifact_prefix = MISSING_ARTIFACT_MESSAGE.format(name="")
+    # WP07: a stale-analysis failure names the input artifact that moved, so it
+    # resolves to that artifact's path exactly like a missing-artifact failure.
+    artifact_prefixes = (MISSING_ARTIFACT_MESSAGE.format(name=""), ANALYSIS_STALE_MESSAGE.format(name=""))
     # Invariant: *mission_family* here must be the family whose guards produced
     # *guard_failures*. The presence vocabulary is resolved per family, so if the
     # path-resolution family ever diverges from the guard-evaluation family, a
@@ -1377,12 +1400,29 @@ def guard_failure_artifact_paths(
     )
     tags: set[str] = set()
     for failure in guard_failures:
-        candidate = failure[len(missing_artifact_prefix) :] if failure.startswith(missing_artifact_prefix) else failure
+        candidate = next((failure[len(prefix) :] for prefix in artifact_prefixes if failure.startswith(prefix)), failure)
         if candidate in known_tags:
             tags.add(candidate)
     if not tags:
         return {}
     return artifact_search_paths(feature_dir, mission_family=mission_family, repo_root=repo_root, names=tags, owned=owned)
+
+
+def gather_analysis_currency(analysis_currency: AnalysisCurrency | None) -> dict[str, Any]:
+    """Gather (never decide) the analysis-currency fact of the ``analyze`` guard (WP07, B5).
+
+    Runs the injected callable once. No callable, or one that raises, gathers
+    ``unavailable`` so the guard fails closed (``ANALYSIS_CURRENCY_UNAVAILABLE``)
+    instead of passing as "not evaluated".
+    """
+    if analysis_currency is None:
+        return {"status": "unavailable", "stale_inputs": ()}
+    try:
+        verdict = analysis_currency()
+    except (OSError, ValueError, RuntimeError) as exc:  # the check's own failure families (I/O, malformed inputs, ActionContextError)
+        _logger.warning("analysis-currency check failed; treating the analysis report as unevaluable: %s", exc)
+        return {"status": "unavailable", "stale_inputs": ()}
+    return {"status": verdict.status, "stale_inputs": tuple(verdict.stale_inputs)}
 
 
 def gather_artifact_presence(
@@ -1393,6 +1433,7 @@ def gather_artifact_presence(
     legacy_step_id: str | None = None,
     repo_root: Path | None = None,
     owned: OwnedCheckout | None = None,
+    analysis_currency: AnalysisCurrency | None = None,
 ) -> ArtifactPresenceSnapshot:
     """Gather (never decide) the facts the two CLI-level guards read today.
 
@@ -1492,6 +1533,10 @@ def gather_artifact_presence(
         "publication_approved": bool(_composition._publication_approved(feature_dir)),
         "has_generated_docs": has_generated_docs,
     }
+    if mission_family == MISSION_TYPE_SOFTWARE_DEV and step_id == ANALYZE_STEP_ID:
+        # B5: the verdict is computed only for the analyze step, so every other
+        # step's snapshot is byte-identical and the cores module stays pure.
+        status_facts[ANALYSIS_CURRENCY_FACT] = gather_analysis_currency(analysis_currency)
 
     blocking_artifact_names: frozenset[str] | None = None
     if _expected_artifacts_manifest_resolves(mission_family, repo_root):

@@ -1,0 +1,226 @@
+{
+  "documentation": {
+    "steps": [
+      {
+        "agent_profile": "researcher-robbie",
+        "contract_ref": null,
+        "depends_on": [],
+        "id": "discover",
+        "route": "composition"
+      },
+      {
+        "agent_profile": "researcher-robbie",
+        "contract_ref": null,
+        "depends_on": [
+          "discover"
+        ],
+        "id": "audit",
+        "route": "composition"
+      },
+      {
+        "agent_profile": "architect-alphonso",
+        "contract_ref": null,
+        "depends_on": [
+          "audit"
+        ],
+        "id": "design",
+        "route": "composition"
+      },
+      {
+        "agent_profile": "implementer-ivan",
+        "contract_ref": null,
+        "depends_on": [
+          "design"
+        ],
+        "id": "generate",
+        "route": "composition"
+      },
+      {
+        "agent_profile": "reviewer-renata",
+        "contract_ref": null,
+        "depends_on": [
+          "generate"
+        ],
+        "id": "validate",
+        "route": "composition"
+      },
+      {
+        "agent_profile": "reviewer-renata",
+        "contract_ref": null,
+        "depends_on": [
+          "validate"
+        ],
+        "id": "publish",
+        "route": "composition"
+      },
+      {
+        "agent_profile": "reviewer-renata",
+        "contract_ref": null,
+        "depends_on": [
+          "publish"
+        ],
+        "id": "accept",
+        "route": "composition"
+      }
+    ]
+  },
+  "plan": {
+    "steps": [
+      {
+        "agent_profile": null,
+        "contract_ref": null,
+        "depends_on": [],
+        "id": "specify",
+        "route": "legacy"
+      },
+      {
+        "agent_profile": null,
+        "contract_ref": null,
+        "depends_on": [
+          "specify"
+        ],
+        "id": "research",
+        "route": "legacy"
+      },
+      {
+        "agent_profile": null,
+        "contract_ref": null,
+        "depends_on": [
+          "research"
+        ],
+        "id": "plan",
+        "route": "legacy"
+      },
+      {
+        "agent_profile": null,
+        "contract_ref": null,
+        "depends_on": [
+          "plan"
+        ],
+        "id": "review",
+        "route": "legacy"
+      }
+    ]
+  },
+  "research": {
+    "steps": [
+      {
+        "agent_profile": "researcher-robbie",
+        "contract_ref": null,
+        "depends_on": [],
+        "id": "scoping",
+        "route": "composition"
+      },
+      {
+        "agent_profile": "researcher-robbie",
+        "contract_ref": null,
+        "depends_on": [
+          "scoping"
+        ],
+        "id": "methodology",
+        "route": "composition"
+      },
+      {
+        "agent_profile": "researcher-robbie",
+        "contract_ref": null,
+        "depends_on": [
+          "methodology"
+        ],
+        "id": "gathering",
+        "route": "composition"
+      },
+      {
+        "agent_profile": "researcher-robbie",
+        "contract_ref": null,
+        "depends_on": [
+          "gathering"
+        ],
+        "id": "synthesis",
+        "route": "composition"
+      },
+      {
+        "agent_profile": "reviewer-renata",
+        "contract_ref": null,
+        "depends_on": [
+          "synthesis"
+        ],
+        "id": "output",
+        "route": "composition"
+      },
+      {
+        "agent_profile": null,
+        "contract_ref": null,
+        "depends_on": [
+          "output"
+        ],
+        "id": "accept",
+        "route": "legacy"
+      }
+    ]
+  },
+  "software-dev": {
+    "steps": [
+      {
+        "agent_profile": null,
+        "contract_ref": null,
+        "depends_on": [],
+        "id": "discovery",
+        "route": "legacy"
+      },
+      {
+        "agent_profile": null,
+        "contract_ref": null,
+        "depends_on": [
+          "discovery"
+        ],
+        "id": "specify",
+        "route": "legacy"
+      },
+      {
+        "agent_profile": null,
+        "contract_ref": null,
+        "depends_on": [
+          "specify"
+        ],
+        "id": "plan",
+        "route": "legacy"
+      },
+      {
+        "agent_profile": null,
+        "contract_ref": null,
+        "depends_on": [
+          "plan"
+        ],
+        "id": "tasks",
+        "route": "legacy"
+      },
+      {
+        "agent_profile": null,
+        "contract_ref": null,
+        "depends_on": [
+          "tasks"
+        ],
+        "id": "implement",
+        "route": "legacy"
+      },
+      {
+        "agent_profile": null,
+        "contract_ref": null,
+        "depends_on": [
+          "implement"
+        ],
+        "id": "review",
+        "route": "legacy"
+      },
+      {
+        "agent_profile": null,
+        "contract_ref": null,
+        "depends_on": [
+          "review"
+        ],
+        "id": "accept",
+        "route": "legacy"
+      }
+    ]
+  }
+}
