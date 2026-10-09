@@ -11,6 +11,18 @@
       "title": null,
       "verdict": "in-mission",
       "wp": "WP01"
+    },
+    "#5971": {
+      "evidence_ref": "Baseline strict mypy failure reproduced on 2912dfcb54923787374afa0e52f80a964d588dc5; reported and claimed in https://github.com/spec-kitty/spec-kitty/issues/5971; narrow touched-helper typing fix in WP01 after committed RED.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
     }
   },
   "schema_version": 1

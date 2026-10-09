@@ -11,6 +11,8 @@ Checks:
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
+from typing import Protocol, TypeVar
 
 from charter.offering.drg.models import DRGEdge, DRGGraph, NodeKind, Relation
 
@@ -219,7 +221,9 @@ def validate_dangling_references(graph: DRGGraph) -> list[str]:
     callers build the merge from byte-identical inputs, and stating the claim as
     a uniqueness rather than a predicate is what let two of them ship a clean
     bill for an unclean graph. State the predicate: if you are adding a caller,
-    ask whether *your* merge was complete.
+    ask whether *your* merge was complete. This runtime completeness rule
+    does not prohibit standalone authoring checks: those deliberately enforce
+    a single pack's declared closure against built-ins, not runtime assembly.
 
     Exposed rather than copied so there is one definition of "dangling" —
     a second, private-to-doctor restatement is how the three drifted kind maps
@@ -242,7 +246,29 @@ def validate_dangling_references(graph: DRGGraph) -> list[str]:
     return errors
 
 
-def dangling_endpoints(graph: DRGGraph) -> list[DRGEdge]:
+class EndpointEdge(Protocol):
+    """Read-only endpoint contract; relation semantics are not required."""
+
+    @property
+    def source(self) -> str: ...
+
+    @property
+    def target(self) -> str: ...
+
+
+_EdgeT = TypeVar("_EdgeT", bound=EndpointEdge, covariant=True)
+
+
+class EndpointGraph(Protocol[_EdgeT]):
+    """Ordered endpoint view over the caller's chosen known-node universe."""
+
+    @property
+    def edges(self) -> Sequence[_EdgeT]: ...
+
+    def node_urns(self) -> set[str]: ...
+
+
+def dangling_endpoints(graph: EndpointGraph[_EdgeT]) -> list[_EdgeT]:
     """Return each edge whose source and/or target is not a known node URN.
 
     Structured SSOT for "dangling edge" detection (charter-synthesize-

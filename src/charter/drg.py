@@ -83,7 +83,10 @@ from charter.offering.drg import (
     merge_layers,
     validate_dangling_references,
 )
+from charter.offering.drg.validator import EndpointEdge, EndpointGraph, dangling_endpoints
 from charter.offering.drg.merge import (
+    EndpointResolutionError,
+    resolve_edge_endpoint,
     OrgDRGConflict,
     OrgDRGConflictError,
     merge_three_layers,
@@ -117,6 +120,11 @@ from charter.offering.drg.query import ResolvedContext, resolve_context
 from charter.offering.drg.project_scan import scan_project_artifacts
 
 __all__ = [
+    "EndpointEdge",
+    "EndpointGraph",
+    "EndpointResolutionError",
+    "dangling_endpoints",
+    "resolve_edge_endpoint",
     "merge_three_layers",
     "ArtifactKind",
     "CORE_KIND_PLURALS",

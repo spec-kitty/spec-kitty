@@ -89,7 +89,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 from charter.offering.artifact_kinds import ArtifactKind
-from charter.offering.drg.merge import _EndpointResolutionError, _resolve_edge_endpoint
+from charter.drg import EndpointResolutionError, resolve_edge_endpoint
 from charter.offering.drg.override_policy import (
     PACK_POLICY_FILENAME,
     OverridePolicyError,
@@ -557,7 +557,7 @@ def _plural_to_urn_kind(plural: str) -> str | None:
     dangling. ``None`` for a plural that names no artifact kind.
     """
     try:
-        return ArtifactKind.from_plural(plural).value
+        return str(ArtifactKind.from_plural(plural))
     except KeyError:
         return None
 
@@ -1450,7 +1450,7 @@ def _qualify_fragment_endpoint(
     """Qualify one ``drg/fragment.yaml`` endpoint to a ``kind:id`` URN (#5494).
 
     Rules 1 (fragment-local bare id) and 2 (fully-qualified URN) are the
-    canonical runtime resolver's own — :func:`_resolve_edge_endpoint` is
+    canonical runtime resolver's own — :func:`resolve_edge_endpoint` is
     called with an empty built-in index rather than re-implemented here.
 
     Rule 3 (a bare id bound against the built-in layer) is replaced by its
@@ -1465,8 +1465,8 @@ def _qualify_fragment_endpoint(
     (no kind to borrow) or an endpoint the resolver refuses as malformed.
     """
     try:
-        resolved: str = _resolve_edge_endpoint(raw, node_id_to_urn, ())
-    except _EndpointResolutionError:
+        resolved: str = resolve_edge_endpoint(raw, node_id_to_urn, ())
+    except EndpointResolutionError:
         if bare_fallback_kind is None or ":" in raw:
             return None
         return f"{bare_fallback_kind}:{raw}"
