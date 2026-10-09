@@ -6,7 +6,7 @@ main: operating-procedures is data-driven into the DRG
 (``_emit_operating_procedure_edges``,
 ``src/doctrine/drg/migration/extractor.py``) with a fail-closed doctor check
 (``_run_operating_procedures_check``,
-``src/specify_cli/cli/commands/_doctrine_collect.py``); step ``description``
+``src/specify_cli/cli/commands/_charter_pack_collect.py``); step ``description``
 renders (``format_inline_named_body``,
 ``src/charter/context_renderers/profile_sections.py``); styleguide/toolguide
 pointer-only delivery is a *documented, deliberate* NFR-001 token-budget
@@ -55,7 +55,7 @@ all stays outside what these binds catch.
 ``test_directive_tactic_operating_procedures_are_emitted_as_drg_edges`` binds
 the **emit** half: it runs the single-authority extractor
 (``extract_artifact_edges``, mirroring the tmp_path pack-fixture pattern used
-throughout ``tests/doctrine/drg/migration/test_extractor.py``) over a minimal
+throughout ``tests/charter_offering/drg/migration/test_extractor.py``) over a minimal
 fixture pack and asserts the three body-delivering channels really do land as
 ``agent_profile --requires--> {directive,tactic,procedure}`` DRG edges — not
 merely assumed from reading the source.
@@ -155,7 +155,7 @@ def _fixture_suggested_doctrine_graph() -> DRGGraph:
 
     Mirrors the shape ``render_profile_suggested_doctrine`` walks in
     production (WP01, #3063 Family A: ``agent_profile --suggests--> paradigm``)
-    — see ``tests/doctrine/drg/test_profile_suggests_delivery.py`` for the
+    — see ``tests/charter_offering/drg/test_profile_suggests_delivery.py`` for the
     real-graph equivalent this synthesizes a minimal stand-in for.
     """
     return DRGGraph(
@@ -228,7 +228,7 @@ def _fixture_profile() -> AgentProfile:
 
 
 def _fixture_service() -> SimpleNamespace:
-    """A ``DoctrineService``-shaped stub: every catalog resolves, deterministically."""
+    """A ``ActiveCharterService``-shaped stub: every catalog resolves, deterministically."""
     return SimpleNamespace(
         directives=_StubCatalogRepo({"DIRECTIVE_999": SimpleNamespace(intent="Do the fixture thing.")}),
         tactics=_StubCatalogRepo({"fixture-tactic": SimpleNamespace(name="Fixture Tactic", purpose="A fixture tactic body.", steps=[])}),
@@ -518,27 +518,27 @@ def test_directive_tactic_operating_procedures_are_emitted_as_drg_edges(
     (``extract_artifact_edges`` — C-004, no re-implementation), not merely
     assumed from reading the source. Mirrors the tmp_path pack-fixture
     pattern used by ``test_procedure_reference_reason_roundtrips`` et al. in
-    ``tests/doctrine/drg/migration/test_extractor.py``.
+    ``tests/charter_offering/drg/migration/test_extractor.py``.
     """
-    doctrine_root = tmp_path / "pack"
-    (doctrine_root / "directives").mkdir(parents=True)
-    (doctrine_root / "tactics").mkdir(parents=True)
-    (doctrine_root / "procedures").mkdir(parents=True)
-    (doctrine_root / "agent_profiles").mkdir(parents=True)
+    offering_root = tmp_path / "pack"
+    (offering_root / "directives").mkdir(parents=True)
+    (offering_root / "tactics").mkdir(parents=True)
+    (offering_root / "procedures").mkdir(parents=True)
+    (offering_root / "agent_profiles").mkdir(parents=True)
 
-    (doctrine_root / "directives" / "bind-fixture.directive.yaml").write_text(
+    (offering_root / "directives" / "bind-fixture.directive.yaml").write_text(
         "schema_version: '1.0'\nid: bind-fixture\ntitle: Bind Fixture Directive\n",
         encoding="utf-8",
     )
-    (doctrine_root / "tactics" / "bind-fixture.tactic.yaml").write_text(
+    (offering_root / "tactics" / "bind-fixture.tactic.yaml").write_text(
         "schema_version: '1.0'\nid: bind-fixture\nname: Bind Fixture Tactic\n",
         encoding="utf-8",
     )
-    (doctrine_root / "procedures" / "bind-fixture.procedure.yaml").write_text(
+    (offering_root / "procedures" / "bind-fixture.procedure.yaml").write_text(
         "schema_version: '1.0'\nid: bind-fixture\nname: Bind Fixture Procedure\npurpose: test\n",
         encoding="utf-8",
     )
-    (doctrine_root / "agent_profiles" / "bind-fixture.agent.yaml").write_text(
+    (offering_root / "agent_profiles" / "bind-fixture.agent.yaml").write_text(
         "\n".join(
             [
                 "profile-id: bind-fixture",
@@ -557,7 +557,7 @@ def test_directive_tactic_operating_procedures_are_emitted_as_drg_edges(
         encoding="utf-8",
     )
 
-    _nodes, edges = extract_artifact_edges(doctrine_root)
+    _nodes, edges = extract_artifact_edges(offering_root)
     edge_triples = {(edge.source, edge.target, edge.relation) for edge in edges}
     profile_urn = artifact_to_urn("agent_profile", "bind-fixture")
 
@@ -619,24 +619,24 @@ def test_direct_citation_channels_are_emitted_by_enumeration_over_the_delivery_r
         "direct-citation channels -- update this test alongside the roster"
     )
 
-    doctrine_root = tmp_path / "pack"
-    (doctrine_root / "directives").mkdir(parents=True)
-    (doctrine_root / "tactics").mkdir(parents=True)
-    (doctrine_root / "procedures").mkdir(parents=True)
-    (doctrine_root / "agent_profiles").mkdir(parents=True)
-    (doctrine_root / "directives" / "bind-fixture.directive.yaml").write_text(
+    offering_root = tmp_path / "pack"
+    (offering_root / "directives").mkdir(parents=True)
+    (offering_root / "tactics").mkdir(parents=True)
+    (offering_root / "procedures").mkdir(parents=True)
+    (offering_root / "agent_profiles").mkdir(parents=True)
+    (offering_root / "directives" / "bind-fixture.directive.yaml").write_text(
         "schema_version: '1.0'\nid: bind-fixture\ntitle: Bind Fixture Directive\n",
         encoding="utf-8",
     )
-    (doctrine_root / "tactics" / "bind-fixture.tactic.yaml").write_text(
+    (offering_root / "tactics" / "bind-fixture.tactic.yaml").write_text(
         "schema_version: '1.0'\nid: bind-fixture\nname: Bind Fixture Tactic\n",
         encoding="utf-8",
     )
-    (doctrine_root / "procedures" / "bind-fixture.procedure.yaml").write_text(
+    (offering_root / "procedures" / "bind-fixture.procedure.yaml").write_text(
         "schema_version: '1.0'\nid: bind-fixture\nname: Bind Fixture Procedure\npurpose: test\n",
         encoding="utf-8",
     )
-    (doctrine_root / "agent_profiles" / "bind-fixture.agent.yaml").write_text(
+    (offering_root / "agent_profiles" / "bind-fixture.agent.yaml").write_text(
         "\n".join(
             [
                 "profile-id: bind-fixture",
@@ -655,7 +655,7 @@ def test_direct_citation_channels_are_emitted_by_enumeration_over_the_delivery_r
         encoding="utf-8",
     )
 
-    _nodes, edges = extract_artifact_edges(doctrine_root)
+    _nodes, edges = extract_artifact_edges(offering_root)
     edge_triples = {(edge.source, edge.target, edge.relation) for edge in edges}
     profile_urn = artifact_to_urn("agent_profile", "bind-fixture")
 

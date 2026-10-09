@@ -1,15 +1,15 @@
-"""FR-010: the CHARTER_PACK_CONFIG_INVALID remediation body survives ``--json``.
+"""FR-010: the ACTIVE_CHARTER_CONFIG_INVALID remediation body survives ``--json``.
 
 Mission ``upgrade-atomicity-recovery-01KZWSHC`` / WP11 / #3337.
 
-``CharterPackConfigError`` (``kernel.errors.KittyInternalConsistencyError``
-subclass) carries a JSON-stable ``.code`` (``"CHARTER_PACK_CONFIG_INVALID"``)
+``ActiveCharterConfigError`` (``kernel.errors.KittyInternalConsistencyError``
+subclass) carries a JSON-stable ``.code`` (``"ACTIVE_CHARTER_CONFIG_INVALID"``)
 and a human-readable ``.body`` with the remediation steps. ``str(exc)`` returns
 only the ``code`` — so the generic ``except Exception -> _emit_json({"error":
 str(e)})`` funnel in ``_run_create_core_phase`` DROPS the remediation body,
 leaving scripted ``--json`` callers with an opaque code and no fix instructions.
 
-These tests pin the dedicated ``except CharterPackConfigError`` branch: the
+These tests pin the dedicated ``except ActiveCharterConfigError`` branch: the
 ``--json`` failure envelope must carry the remediation ``.body`` (not just the
 code). The body text is supplied by the raising test double so the assertion is
 decoupled from the WP12-owned prose at ``core/mission_creation.py``.
@@ -36,9 +36,9 @@ _REMEDIATION_BODY = (
 
 def _raise_charter_config_error(**_kwargs: object) -> None:
     """Stand-in for ``create_mission_core`` that fails the charter-pack gate."""
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
 
-    raise CharterPackConfigError(_REMEDIATION_BODY)
+    raise ActiveCharterConfigError(_REMEDIATION_BODY)
 
 
 def _run_core_phase_json(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> dict[str, object]:
@@ -79,11 +79,11 @@ def test_json_envelope_exposes_stable_error_code(monkeypatch: pytest.MonkeyPatch
     # The stable machine code accompanies the body so scripted callers can
     # branch on it (NFR-007-style stable error_code contract).
     envelope = _run_core_phase_json(monkeypatch, tmp_path)
-    assert envelope.get("error_code") == "CHARTER_PACK_CONFIG_INVALID"
+    assert envelope.get("error_code") == "ACTIVE_CHARTER_CONFIG_INVALID"
 
 
 def test_json_envelope_error_is_not_bare_code(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # Regression guard: the pre-fix generic funnel emitted {"error":
-    # "CHARTER_PACK_CONFIG_INVALID"} (str(exc) == code), dropping the body.
+    # "ACTIVE_CHARTER_CONFIG_INVALID"} (str(exc) == code), dropping the body.
     envelope = _run_core_phase_json(monkeypatch, tmp_path)
-    assert envelope.get("error") != "CHARTER_PACK_CONFIG_INVALID"
+    assert envelope.get("error") != "ACTIVE_CHARTER_CONFIG_INVALID"

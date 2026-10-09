@@ -273,14 +273,14 @@ def test_legacy_config_loads_without_binding_ref(tmp_path: object) -> None:
     config_path = root / ".kittify" / "config.yaml"
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Write a pre-062 config (only provider + project_slug + doctrine)
+    # Write a pre-062 config (only provider + project_slug + ownership)
     yaml = YAML()
     payload = {
         "tracker": {
             "provider": "linear",
             "project_slug": "old-proj",
             "workspace": None,
-            "doctrine": {
+            "ownership": {
                 "mode": "external_authoritative",
                 "field_owners": {},
             },
@@ -316,7 +316,7 @@ def test_unknown_field_passthrough(tmp_path: object) -> None:
             "project_slug": "proj",
             "future_field": 42,
             "another_unknown": "hello",
-            "doctrine": {"mode": "external_authoritative", "field_owners": {}},
+            "ownership": {"mode": "external_authoritative", "field_owners": {}},
         }
     }
     with config_path.open("w", encoding="utf-8") as f:
@@ -333,6 +333,20 @@ def test_unknown_field_passthrough(tmp_path: object) -> None:
         raw = yaml.load(f)
     assert raw["tracker"]["future_field"] == 42
     assert raw["tracker"]["another_unknown"] == "hello"
+
+
+def test_retired_doctrine_key_is_not_read_as_ownership() -> None:
+    """The retired ``tracker.doctrine`` key is no ownership source (FR-011).
+
+    It is kept as an unknown key (written back unchanged), which is safe only
+    because the CLI-root ``LEGACY_CHARTER_STATE`` gate refuses such a project
+    before any tracker command runs (``tests/specify_cli/migration/test_legacy_charter_gate.py``).
+    """
+    config = TrackerProjectConfig.from_dict({"provider": "beads", "doctrine": {"mode": "split_ownership", "field_owners": {"title": "spec_kitty"}}})
+
+    assert config.ownership_mode == "external_authoritative"
+    assert config.ownership_field_owners == {}
+    assert config._extra == {"doctrine": {"mode": "split_ownership", "field_owners": {"title": "spec_kitty"}}}
 
 
 def test_all_new_fields_together(tmp_path: object) -> None:

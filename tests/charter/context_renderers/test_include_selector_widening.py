@@ -1,6 +1,6 @@
 """`--include` selector widening for glossary_pack + anti_pattern (WP04 / #2981).
 
-Red-first: on `main` the `_render_doctrine_artifact_include` renderers dict has no
+Red-first: on `main` the `_render_offering_artifact_include` renderers dict has no
 `glossary_pack` or `anti_pattern` entry, so both fall through to the caller's
 "Unsupported --include selector kind" error even though they are legitimate
 charter-activatable kinds. After WP04 every charter-activatable kind is a
@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 
 from charter.activation.context_renderers.template_include import (
-    _render_doctrine_artifact_include,
+    _render_offering_artifact_include,
 )
 from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactKind
 from charter.offering.glossary_packs.models import GlossaryPack, GlossaryTerm
@@ -58,7 +58,7 @@ class _EmptyService:
 
 
 def test_glossary_pack_selector_renders() -> None:
-    out = _render_doctrine_artifact_include(_ServiceWithGlossary(), "glossary_pack", "spec-kitty-core")
+    out = _render_offering_artifact_include(_ServiceWithGlossary(), "glossary_pack", "spec-kitty-core")
     assert out is not None
     assert "Glossary pack spec-kitty-core" in out
     assert "Mission: A unit of work." in out
@@ -66,7 +66,7 @@ def test_glossary_pack_selector_renders() -> None:
 
 def test_glossary_pack_missing_id_is_not_found_not_unsupported() -> None:
     with pytest.raises(ValueError, match="No glossary_pack found for selector"):
-        _render_doctrine_artifact_include(_ServiceWithGlossary(), "glossary_pack", "does-not-exist")
+        _render_offering_artifact_include(_ServiceWithGlossary(), "glossary_pack", "does-not-exist")
 
 
 # ── T021: anti_pattern recognised (not-found, never "unsupported") ────────────
@@ -75,7 +75,7 @@ def test_glossary_pack_missing_id_is_not_found_not_unsupported() -> None:
 def test_anti_pattern_selector_is_recognised_not_found() -> None:
     """`anti_pattern` has no service repo/files → recognised not-found form."""
     with pytest.raises(ValueError, match="No anti_pattern found for selector"):
-        _render_doctrine_artifact_include(_EmptyService(), "anti_pattern", "x")
+        _render_offering_artifact_include(_EmptyService(), "anti_pattern", "x")
 
 
 # ── T024: S1 — every charter-activatable kind is a recognised selector kind ───
@@ -87,7 +87,7 @@ def test_every_activatable_kind_is_recognised(kind: str) -> None:
     "Unsupported --include selector kind"). Each resolves or is a not-found.
     """
     try:
-        result = _render_doctrine_artifact_include(_EmptyService(), kind, "missing-id")
+        result = _render_offering_artifact_include(_EmptyService(), kind, "missing-id")
     except ValueError as exc:
         assert "found for selector" in str(exc)  # recognised not-found
     else:
@@ -98,6 +98,6 @@ def test_every_activatable_kind_is_recognised(kind: str) -> None:
 @pytest.mark.parametrize("kind", ["template", "asset"])
 def test_non_activatable_kinds_return_none_unsupported(kind: str) -> None:
     """`template`/`asset` are not charter-activatable → still return None."""
-    assert _render_doctrine_artifact_include(_EmptyService(), kind, "x") is None
+    assert _render_offering_artifact_include(_EmptyService(), kind, "x") is None
     # sanity: these are genuinely excluded from the activatable set
     assert ArtifactKind(kind) not in CHARTER_ACTIVATABLE_KINDS

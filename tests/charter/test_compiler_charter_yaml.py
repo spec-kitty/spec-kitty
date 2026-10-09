@@ -27,12 +27,26 @@ from tests.upgrade.preview_support.snapshot import assert_unchanged, net_delta, 
 
 pytestmark = pytest.mark.fast
 
+_PRESET_HEADER = "name: default\ndescription: fixture\n"
+
+
+def _seed_preset(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: str | None) -> Path:
+    """Point the built-in pack root at a tmp pack whose ``default`` preset is *body* (absent when ``None``)."""
+    packs_root = tmp_path / "packs-root"
+    presets = packs_root / "built-in" / "presets"
+    presets.mkdir(parents=True)
+    seed = presets / "default.yaml"
+    if body is not None:
+        seed.write_text(body, encoding="utf-8")
+    monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+    return seed
+
 
 @pytest.mark.parametrize("pointer", [False, True])
 @pytest.mark.parametrize("body", [b"null\n", b"~ # keep\n", b"---\n...\n", b"42: user-value\n"])
 def test_provision_supported_yaml_documents(tmp_path: Path, pointer: bool, body: bytes) -> None:
     from charter.activation.compiler import provision_mission_type_activations
-    from charter.activation.default_pack import load_default_mission_type_activations
+    from charter.activation.compiler import default_preset_mission_types
 
     config = tmp_path / ".kittify/config.yaml"
     config.parent.mkdir()
@@ -44,7 +58,7 @@ def test_provision_supported_yaml_documents(tmp_path: Path, pointer: bool, body:
     assert provision_mission_type_activations(tmp_path) is True
     persisted = YAML().load(target.read_bytes())
     assert isinstance(persisted, dict)
-    assert persisted["mission_type_activations"] == load_default_mission_type_activations()
+    assert persisted["mission_type_activations"] == default_preset_mission_types()
     if b"42:" in body:
         assert target.read_bytes().startswith(body)
         assert persisted[42] == "user-value"
@@ -61,7 +75,7 @@ def test_provision_supported_yaml_documents(tmp_path: Path, pointer: bool, body:
 @pytest.mark.parametrize("pointer", [False, True])
 def test_provision_preserves_complete_authored_bytes(tmp_path: Path, pointer: bool) -> None:
     from charter.activation.compiler import provision_mission_type_activations
-    from charter.activation.default_pack import load_default_mission_type_activations
+    from charter.activation.compiler import default_preset_mission_types
 
     config = tmp_path / ".kittify/config.yaml"
     config.parent.mkdir()
@@ -81,7 +95,7 @@ def test_provision_preserves_complete_authored_bytes(tmp_path: Path, pointer: bo
     assert provision_mission_type_activations(tmp_path) is True
 
     raw = target.read_bytes()
-    assert YAML().load(raw)["mission_type_activations"] == load_default_mission_type_activations()
+    assert YAML().load(raw)["mission_type_activations"] == default_preset_mission_types()
     assert raw.startswith(authored), "Provisioning reformatted unowned authored spans"
     if pointer:
         assert (config.read_bytes(), config.stat().st_mode, config.stat().st_mtime_ns) == config_before
@@ -108,7 +122,7 @@ def test_provision_preserves_complete_authored_bytes(tmp_path: Path, pointer: bo
 )
 def test_provision_round_trip_input_classes(tmp_path: Path, pointer: bool, body: bytes) -> None:
     from charter.activation.compiler import prepare_mission_type_activations, provision_mission_type_activations
-    from charter.activation.default_pack import load_default_mission_type_activations
+    from charter.activation.compiler import default_preset_mission_types
 
     config = tmp_path / ".kittify/config.yaml"
     config.parent.mkdir()
@@ -119,7 +133,7 @@ def test_provision_round_trip_input_classes(tmp_path: Path, pointer: bool, body:
     before = snapshot({"project": tmp_path})
     prepared = prepare_mission_type_activations(tmp_path)
     assert_unchanged(before, snapshot({"project": tmp_path}))
-    assert YAML().load(prepared.write.desired_bytes)["mission_type_activations"] == load_default_mission_type_activations()
+    assert YAML().load(prepared.write.desired_bytes)["mission_type_activations"] == default_preset_mission_types()
     assert provision_mission_type_activations(tmp_path)
     assert target.read_bytes() == prepared.write.desired_bytes
     original = YAML().load(body)
@@ -149,7 +163,7 @@ def test_provision_round_trip_input_classes(tmp_path: Path, pointer: bool, body:
 @pytest.mark.parametrize("activation", [None, "[]", "[custom-mission, research]"])
 def test_prepared_provisioning_exact_delta_and_repeats(tmp_path: Path, pointer: bool, activation: str | None) -> None:
     from charter.activation.compiler import prepare_mission_type_activations
-    from charter.activation.default_pack import load_default_mission_type_activations
+    from charter.activation.compiler import default_preset_mission_types
     from charter.activation.pack_context import PackContext
 
     config = tmp_path / ".kittify/config.yaml"
@@ -166,7 +180,7 @@ def test_prepared_provisioning_exact_delta_and_repeats(tmp_path: Path, pointer: 
     prepared = prepare_mission_type_activations(tmp_path)
 
     assert_unchanged(before, snapshot({"project": tmp_path}))
-    expected = load_default_mission_type_activations() if activation is None else YAML().load(activation)
+    expected = default_preset_mission_types() if activation is None else YAML().load(activation)
     assert prepared.mission_type_activations == tuple(expected)
     assert prepared.write.target == target
     assert prepared.apply() is (activation is None)
@@ -196,9 +210,9 @@ def test_existing_key_never_reads_seed(tmp_path: Path, monkeypatch: pytest.Monke
     target.write_text("mission_type_activations: []\n", encoding="utf-8")
 
     def forbidden() -> list[str]:
-        pytest.fail("Existing activation must not read the default pack")
+        pytest.fail("Existing activation must not read the default preset")
 
-    monkeypatch.setattr(compiler, "load_default_mission_type_activations", forbidden)
+    monkeypatch.setattr(compiler, "default_preset_mission_types", forbidden)
     before = snapshot({"project": tmp_path})
     assert compiler.prepare_mission_type_activations(tmp_path).apply() is False
     assert_unchanged(before, snapshot({"project": tmp_path}))
@@ -207,7 +221,7 @@ def test_existing_key_never_reads_seed(tmp_path: Path, monkeypatch: pytest.Monke
 @pytest.mark.parametrize("race", ["config", "target", "same-bytes", "mode", "seed", "parent", "prepared-bytes"])
 def test_provisioning_refuses_changed_inputs_before_writes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, race: str) -> None:
     from dataclasses import replace
-    from charter.activation import compiler, default_pack
+    from charter.activation import compiler
 
     project = tmp_path / "project"
     config = project / ".kittify/config.yaml"
@@ -217,9 +231,7 @@ def test_provisioning_refuses_changed_inputs_before_writes(tmp_path: Path, monke
     target = parent / "charter.yaml"
     target.write_text("metadata: {}\n", encoding="utf-8")
     config.write_text("charter: policy/charter.yaml\n", encoding="utf-8")
-    seed = tmp_path / "default.yaml"
-    seed.write_bytes(default_pack._default_pack_yaml_path(None).read_bytes())
-    monkeypatch.setattr(default_pack, "_default_pack_yaml_path", lambda _root: seed)
+    seed = _seed_preset(tmp_path, monkeypatch, (Path(__file__).resolve().parents[2] / "packs/built-in/presets/default.yaml").read_text(encoding="utf-8"))
     prepared = compiler.prepare_mission_type_activations(project)
     if race == "config":
         config.write_text("charter: other.yaml\n", encoding="utf-8")
@@ -260,22 +272,29 @@ def test_invalid_authored_activation_is_preserved(tmp_path: Path, body: str, poi
     assert_unchanged(before, snapshot({"project": tmp_path}))
 
 
-@pytest.mark.parametrize("seed_body", [None, "[broken", "{}", "mission_type_activations: []\n", "mission_type_activations: scalar\n"])
+@pytest.mark.parametrize(
+    "seed_body",
+    [
+        None,
+        "[broken",
+        "{}",
+        _PRESET_HEADER,
+        _PRESET_HEADER + "mission_type_activations: []\n",
+        _PRESET_HEADER + "mission_type_activations: scalar\n",
+    ],
+)
 def test_invalid_seed_is_not_empty_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, seed_body: str | None) -> None:
-    from charter.activation import compiler, default_pack
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation import compiler
 
     config = tmp_path / "project/.kittify/config.yaml"
     config.parent.mkdir(parents=True)
     config.write_text("vcs: {type: git}\n", encoding="utf-8")
-    seed = tmp_path / "default.yaml"
-    if seed_body is not None:
-        seed.write_text(seed_body, encoding="utf-8")
-    monkeypatch.setattr(default_pack, "_default_pack_yaml_path", lambda _root: seed)
+    seed = _seed_preset(tmp_path, monkeypatch, seed_body)
     before = snapshot({"sandbox": tmp_path})
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID") as caught:
+    with pytest.raises(compiler.DefaultPresetMissingError) as caught:
         compiler.prepare_mission_type_activations(config.parent.parent)
-    assert "non-empty" in caught.value.body
+    assert caught.value.code == "DEFAULT_PRESET_MISSING"
+    assert str(seed) in caught.value.body
     assert_unchanged(before, snapshot({"sandbox": tmp_path}))
 
 

@@ -235,10 +235,10 @@ class TestFormatCatalogMissStanza:
         assert "tactic:ghost-tactic" in joined
         assert "Cause: missing_artifact" in joined
         # Missing-artifact stanza must mention BOTH possible causes.
-        assert "charter validate .kittify/doctrine" in joined
+        assert "charter validate" in joined
         assert "project, org, and built-in" in joined
 
-    def test_schema_failure_stanza_cites_charter_validate(self) -> None:
+    def test_schema_failure_stanza_cites_doctrine_validate(self) -> None:
         diagnosis = CatalogMissDiagnosis(
             cause=CatalogMissCause.SCHEMA_VALIDATION_SUSPECTED
         )
@@ -249,7 +249,7 @@ class TestFormatCatalogMissStanza:
         )
         joined = "\n".join(lines)
         assert "Cause: schema_validation_suspected" in joined
-        assert "spec-kitty charter validate .kittify/doctrine" in joined
+        assert "spec-kitty charter validate" in joined
         assert "Pydantic validation" in joined
 
     def test_indent_is_respected(self) -> None:
@@ -386,7 +386,7 @@ class TestRendererIntegration:
 
         assert "styleguide:totally-distinct-name" in joined
         assert "Cause: missing_artifact" in joined
-        assert "charter validate .kittify/doctrine" in joined
+        assert "charter validate" in joined
         assert "project, org, and built-in" in joined
 
         miss = [
@@ -414,7 +414,7 @@ class TestRendererIntegration:
         # The actionable hint pointing at the validate command must be
         # present so an operator hit by a schema-drop has a clear next
         # step (this is the RISK-3 contract).
-        assert "spec-kitty charter validate .kittify/doctrine" in joined
+        assert "spec-kitty charter validate" in joined
 
         miss = [
             w for w in captured if issubclass(w.category, CharterCatalogMissWarning)

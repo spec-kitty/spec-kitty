@@ -597,8 +597,8 @@
     "malformed_config_invalid_yaml": {
       "outcome": {
         "error_code": null,
-        "exc_type": "CharterPackConfigError",
-        "message": "CHARTER_PACK_CONFIG_INVALID"
+        "exc_type": "ActiveCharterConfigError",
+        "message": "ACTIVE_CHARTER_CONFIG_INVALID"
       },
       "post": {
         "branches": [

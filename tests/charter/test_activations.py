@@ -39,11 +39,11 @@ pytestmark = [pytest.mark.unit]
 def test_activation_entry_constructs_with_minimal_inputs() -> None:
     entry = ActivationEntry(
         activation_context={"action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
     )
     assert entry.activation_context == {"action": "implement"}
-    assert entry.doctrine_pack_id == "project"
+    assert entry.charter_pack_id == "project"
     assert entry.artifact_id == "caveman-comments"
     assert entry.artifact_kind is None
 
@@ -51,7 +51,7 @@ def test_activation_entry_constructs_with_minimal_inputs() -> None:
 def test_activation_entry_accepts_full_payload() -> None:
     entry = ActivationEntry(
         activation_context={"mission_type": "software-dev", "action": "implement"},
-        doctrine_pack_id="very-serious-developers",
+        charter_pack_id="very-serious-developers",
         artifact_id="caveman-comments",
         artifact_kind="styleguides",
     )
@@ -62,7 +62,7 @@ def test_activation_entry_forbids_unknown_top_level_fields() -> None:
     with pytest.raises(ValidationError):
         ActivationEntry(  # type: ignore[call-arg]
             activation_context={"action": "implement"},
-            doctrine_pack_id="project",
+            charter_pack_id="project",
             artifact_id="caveman-comments",
             extra_field="nope",
         )
@@ -77,7 +77,7 @@ def test_invalid_mission_type_is_rejected() -> None:
     with pytest.raises(ValidationError):
         ActivationEntry(
             activation_context={"mission_type": "dev", "action": "implement"},
-            doctrine_pack_id="project",
+            charter_pack_id="project",
             artifact_id="x",
         )
 
@@ -86,7 +86,7 @@ def test_invalid_action_is_rejected() -> None:
     with pytest.raises(ValidationError):
         ActivationEntry(
             activation_context={"mission_type": "software-dev", "action": "compile"},
-            doctrine_pack_id="project",
+            charter_pack_id="project",
             artifact_id="x",
         )
 
@@ -102,7 +102,7 @@ def test_invalid_artifact_kind_is_rejected() -> None:
     with pytest.raises(ValidationError):
         ActivationEntry(
             activation_context={"action": "implement"},
-            doctrine_pack_id="project",
+            charter_pack_id="project",
             artifact_id="x",
             artifact_kind="totally-bogus-kind",
         )
@@ -118,7 +118,7 @@ def test_singular_artifact_kind_is_accepted_and_normalised() -> None:
     """
     entry = ActivationEntry(
         activation_context={"action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="x",
         artifact_kind="styleguide",
     )
@@ -167,7 +167,7 @@ def test_valid_artifact_kinds_are_accepted(kind: str, expected: str) -> None:
     normalised to the canonical plural."""
     entry = ActivationEntry(
         activation_context={"action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="x",
         artifact_kind=kind,
     )
@@ -182,7 +182,7 @@ def test_valid_artifact_kinds_are_accepted(kind: str, expected: str) -> None:
 def test_resolver_matches_exact_context() -> None:
     entry = ActivationEntry(
         activation_context={"mission_type": "software-dev", "action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="x",
     )
     matched = resolve_for_context([entry], mission_type="software-dev", action="implement")
@@ -192,7 +192,7 @@ def test_resolver_matches_exact_context() -> None:
 def test_resolver_skips_non_matching_action() -> None:
     entry = ActivationEntry(
         activation_context={"mission_type": "software-dev", "action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="x",
     )
     matched = resolve_for_context([entry], mission_type="software-dev", action="review")
@@ -203,7 +203,7 @@ def test_resolver_skips_non_matching_action() -> None:
 def test_resolver_wildcard_tokens_match_every_context(wildcard: str) -> None:
     entry = ActivationEntry(
         activation_context={"mission_type": wildcard, "action": wildcard},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="x",
     )
     matched = resolve_for_context([entry], mission_type="documentation", action="review")
@@ -213,7 +213,7 @@ def test_resolver_wildcard_tokens_match_every_context(wildcard: str) -> None:
 def test_resolver_absent_slot_is_wildcard() -> None:
     entry = ActivationEntry(
         activation_context={"action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="x",
     )
     matched = resolve_for_context([entry], mission_type="documentation", action="implement")
@@ -230,7 +230,7 @@ def test_charter_loop_action_tokens_are_accepted(action: str) -> None:
     """The charter-loop verbs are the short dotted tokens of data-model.md §7."""
     entry = ActivationEntry(
         activation_context={"action": action},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="x",
     )
     assert entry.activation_context == {"action": action}
@@ -243,7 +243,7 @@ def test_module_path_shaped_action_tokens_are_rejected(action: str) -> None:
     with pytest.raises(ValidationError, match="activation_context"):
         ActivationEntry(
             activation_context={"action": action},
-            doctrine_pack_id="project",
+            charter_pack_id="project",
             artifact_id="x",
         )
 
@@ -259,7 +259,7 @@ def test_module_path_shaped_action_tokens_are_rejected(action: str) -> None:
 def test_charter_loop_action_renders_operator_prose(action: str, prose: str) -> None:
     entry = ActivationEntry(
         activation_context={"action": action},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="caveman-comments",
         artifact_kind="styleguides",
     )

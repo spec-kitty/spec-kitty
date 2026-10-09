@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation.consistency_check import _load_config_yaml_mapping
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -16,7 +16,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def test_unreadable_config_mapping_names_file(tmp_path: Path, contents: bytes) -> None:
     config = tmp_path / "config.yaml"
     config.write_bytes(contents)
-    with pytest.raises(CharterPackConfigError) as caught:
+    with pytest.raises(ActiveCharterConfigError) as caught:
         _load_config_yaml_mapping(config)
     assert str(config) in caught.value.body
 
@@ -24,7 +24,7 @@ def test_unreadable_config_mapping_names_file(tmp_path: Path, contents: bytes) -
 def test_directory_config_mapping_names_file(tmp_path: Path) -> None:
     config = tmp_path / "config.yaml"
     config.mkdir()
-    with pytest.raises(CharterPackConfigError) as caught:
+    with pytest.raises(ActiveCharterConfigError) as caught:
         _load_config_yaml_mapping(config)
     assert str(config) in caught.value.body
 

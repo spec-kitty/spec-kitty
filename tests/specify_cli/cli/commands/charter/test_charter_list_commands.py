@@ -157,7 +157,7 @@ class TestListShowAvailable:
         """--show-available calls list_available and shows doctrine entries not activated."""
         # Mock list_available to return a known set
         with patch(
-            "charter.activation.pack_manager.CharterPackManager.list_available",
+            "charter.activation.pack_manager.ActiveCharterManager.list_available",
             return_value=frozenset(["doctrine-entry-1", "doctrine-entry-2"]),
         ):
             result = _invoke_list(empty_project_root, "--show-available")
@@ -168,7 +168,7 @@ class TestListShowAvailable:
     def test_show_available_hides_already_activated(self, project_with_directive: Path) -> None:
         """Already-activated artifacts don't appear in the 'Available' column."""
         with patch(
-            "charter.activation.pack_manager.CharterPackManager.list_available",
+            "charter.activation.pack_manager.ActiveCharterManager.list_available",
             return_value=frozenset(["python-style-guide", "other-directive"]),
         ):
             result = _invoke_list(project_with_directive, "--show-available")
@@ -183,7 +183,7 @@ class TestListShowAvailable:
 # ---------------------------------------------------------------------------
 #
 # The human table already renders already-typed, already-structured data from
-# ``CharterPackManager`` / ``discover_templates``. ``--json`` reuses the exact
+# ``ActiveCharterManager`` / ``discover_templates``. ``--json`` reuses the exact
 # same manager calls and serializes the same rows -- not a re-derivation. The
 # error envelope reuses ``_emit_error`` from ``_common.py`` verbatim: shape is
 # ``{"result": "error", "success": false, "error": message}``.
@@ -249,10 +249,10 @@ class TestListJson:
         self, empty_project_root: Path
     ) -> None:
         """``--show-available --json`` adds an ``available`` list per kind,
-        reusing ``CharterPackManager.list_available`` (same call the human
+        reusing ``ActiveCharterManager.list_available`` (same call the human
         table's third column uses)."""
         with patch(
-            "charter.activation.pack_manager.CharterPackManager.list_available",
+            "charter.activation.pack_manager.ActiveCharterManager.list_available",
             return_value=frozenset(["doctrine-entry-1", "doctrine-entry-2"]),
         ):
             result = _invoke_list(empty_project_root, "--show-available", "--json")
@@ -325,7 +325,7 @@ class TestListJson:
         --json`` must be reported through the shared ``_emit_error`` envelope
         -- not leaked as unstructured stdout text."""
         with patch(
-            "charter.activation.pack_manager.CharterPackManager.list_available_detailed",
+            "charter.activation.pack_manager.ActiveCharterManager.list_available_detailed",
             side_effect=ValueError("boom"),
         ):
             result = _invoke_list(empty_project_root, "--all", "--json")
@@ -345,7 +345,7 @@ class TestListJson:
 # ``charter list``'s own headline path (``ProjectContext.from_repo`` ->
 # ``PackContext.from_config`` -> ``pack_context._load_config``) had NO
 # exception boundary at all: a non-mapping ``.kittify/config.yaml`` raised
-# ``CharterPackConfigError`` (a ``KittyInternalConsistencyError``) uncaught,
+# ``ActiveCharterConfigError`` (a ``KittyInternalConsistencyError``) uncaught,
 # through every entry path (plain ``list``, ``--show-available``, ``--all``),
 # both ``--json`` and rich-console modes -- exit 1 with EMPTY stdout and a raw
 # traceback on stderr. That is exactly the fail-quiet-becomes-traceback
@@ -363,7 +363,7 @@ class TestListJson:
 
 #: Non-mapping top-level YAML shapes. Every one of these parses without a
 #: YAML error but is not a ``dict``, so ``isinstance(data, dict)`` fails and
-#: ``PackContext.from_config`` raises ``CharterPackConfigError``.
+#: ``PackContext.from_config`` raises ``ActiveCharterConfigError``.
 _NON_MAPPING_CONFIG_YAML: dict[str, str] = {
     "string": "just-a-plain-string-not-a-mapping\n",
     "list": "- a\n- b\n",
@@ -418,9 +418,9 @@ class TestListNonMappingConfigGuard:
         assert payload["success"] is False, payload
 
         message = payload["error"]
-        # Surface .body, not just str(exc) -- CHARTER_PACK_CONFIG_INVALID
+        # Surface .body, not just str(exc) -- ACTIVE_CHARTER_CONFIG_INVALID
         # alone tells the consumer nothing.
-        assert message != "CHARTER_PACK_CONFIG_INVALID", (
+        assert message != "ACTIVE_CHARTER_CONFIG_INVALID", (
             f"diagnostic must carry the .body detail, not the bare code: {payload!r}"
         )
         assert "config.yaml" in message and "mapping" in message, (

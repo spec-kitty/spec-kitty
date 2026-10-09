@@ -1,0 +1,296 @@
+{
+  "base_sha": "0d4c7583e535dc4224598ce4abe654e5b6883936",
+  "charter_list": [
+    {
+      "activated": null,
+      "kind": "agent-profile"
+    },
+    {
+      "activated": [
+        "001-architectural-integrity-standard",
+        "024-locality-of-change"
+      ],
+      "kind": "directive"
+    },
+    {
+      "activated": null,
+      "kind": "glossary-pack"
+    },
+    {
+      "activated": null,
+      "kind": "mission-step-contract"
+    },
+    {
+      "activated": [
+        "software-dev"
+      ],
+      "kind": "mission-type"
+    },
+    {
+      "activated": null,
+      "kind": "paradigm"
+    },
+    {
+      "activated": null,
+      "kind": "procedure"
+    },
+    {
+      "activated": null,
+      "kind": "skill"
+    },
+    {
+      "activated": null,
+      "kind": "styleguide"
+    },
+    {
+      "activated": [
+        "acceptance-test-first",
+        "adr-drafting-workflow",
+        "adversarial-qa-handoff",
+        "aggregate-boundary-design",
+        "ammerse-impact-analysis",
+        "analysis-extract-before-interpret",
+        "anti-corruption-layer",
+        "architecture-diagram-review-checklist",
+        "atdd-adversarial-acceptance",
+        "atomic-design-review-checklist",
+        "atomic-state-ownership",
+        "autonomous-operation-protocol",
+        "avoid-gold-plating",
+        "bdd-scenario-formulation",
+        "black-box-integration-testing",
+        "bounded-context-canvas-fill",
+        "bounded-context-identification",
+        "c4-zoom-in-architecture-documentation",
+        "chain-of-responsibility-rule-pipeline",
+        "change-apply-smallest-viable-diff",
+        "code-documentation-analysis",
+        "code-review-incremental",
+        "compositional-stream-boundaries",
+        "connascence-analysis",
+        "context-boundary-inference",
+        "context-mapping-classification",
+        "cross-cutting-state-via-store",
+        "decision-marker-capture",
+        "deepening-opportunity-assessment",
+        "dependency-hygiene",
+        "development-bdd",
+        "documentation-curation-audit",
+        "domain-event-capture",
+        "easy-to-change",
+        "eisenhower-prioritisation",
+        "entity-value-object-classification",
+        "five-paradigm-parallel-debugging",
+        "focused-function-complexity-check",
+        "forensic-repository-audit",
+        "formalized-constraint-testing",
+        "function-over-form-testing",
+        "generated-code-stewardship",
+        "glossary-curation-interview",
+        "input-validation-fail-fast",
+        "interface-variation-design",
+        "language-driven-design",
+        "mutation-testing-workflow",
+        "no-parallel-duplicate-test-runs",
+        "occurrence-classification-workflow",
+        "premortem-risk-identification",
+        "problem-decomposition",
+        "quality-gate-verification",
+        "reasons-canvas-fill",
+        "reasons-canvas-review",
+        "refactoring-change-function-declaration",
+        "refactoring-combine-functions-into-transform",
+        "refactoring-conditional-to-strategy",
+        "refactoring-consolidate-conditional-expression",
+        "refactoring-encapsulate-record",
+        "refactoring-encapsulate-variable",
+        "refactoring-extract-class-by-responsibility-split",
+        "refactoring-extract-first-order-concept",
+        "refactoring-guard-clauses-before-polymorphism",
+        "refactoring-inline-temp",
+        "refactoring-introduce-null-object",
+        "refactoring-move-field",
+        "refactoring-move-method",
+        "refactoring-replace-magic-number-with-symbolic-constant",
+        "refactoring-replace-temp-with-query",
+        "refactoring-retry-pattern",
+        "refactoring-state-pattern-for-behavior",
+        "refactoring-strangler-fig",
+        "reference-architectural-patterns",
+        "requirements-validation-workflow",
+        "reverse-speccing",
+        "review-intent-and-risk-first",
+        "safe-to-fail-experiment",
+        "secure-design-checklist",
+        "secure-regex-catastrophic-backtracking",
+        "stakeholder-alignment",
+        "stopping-conditions",
+        "strategic-domain-classification",
+        "supply-chain-install-safety",
+        "tdd-red-green-refactor",
+        "terminology-extraction-mapping",
+        "test-boundaries-by-responsibility",
+        "test-minimisation",
+        "test-pyramid-progression",
+        "test-readability-clarity-check",
+        "test-to-system-reconstruction",
+        "testing-select-appropriate-level",
+        "traceable-decisions",
+        "usage-examples-sync",
+        "work-package-completion-validation",
+        "zombies-tdd"
+      ],
+      "kind": "tactic"
+    },
+    {
+      "activated": null,
+      "kind": "toolguide"
+    }
+  ],
+  "effective": {
+    "kinds": {
+      "agent_profiles": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "directives": {
+        "extra": [],
+        "form": "explicit",
+        "ids": [
+          "DIRECTIVE_001",
+          "DIRECTIVE_024"
+        ]
+      },
+      "glossary_packs": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "mission_step_contracts": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "paradigms": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "procedures": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "styleguides": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "tactics": {
+        "extra": [],
+        "form": "explicit",
+        "ids": [
+          "acceptance-test-first",
+          "adr-drafting-workflow",
+          "adversarial-qa-handoff",
+          "aggregate-boundary-design",
+          "ammerse-impact-analysis",
+          "analysis-extract-before-interpret",
+          "anti-corruption-layer",
+          "architecture-diagram-review-checklist",
+          "atdd-adversarial-acceptance",
+          "atomic-design-review-checklist",
+          "atomic-state-ownership",
+          "autonomous-operation-protocol",
+          "avoid-gold-plating",
+          "bdd-scenario-formulation",
+          "black-box-integration-testing",
+          "bounded-context-canvas-fill",
+          "bounded-context-identification",
+          "c4-zoom-in-architecture-documentation",
+          "chain-of-responsibility-rule-pipeline",
+          "change-apply-smallest-viable-diff",
+          "code-documentation-analysis",
+          "code-review-incremental",
+          "compositional-stream-boundaries",
+          "connascence-analysis",
+          "context-boundary-inference",
+          "context-mapping-classification",
+          "cross-cutting-state-via-store",
+          "decision-marker-capture",
+          "deepening-opportunity-assessment",
+          "dependency-hygiene",
+          "development-bdd",
+          "documentation-curation-audit",
+          "domain-event-capture",
+          "easy-to-change",
+          "eisenhower-prioritisation",
+          "entity-value-object-classification",
+          "five-paradigm-parallel-debugging",
+          "focused-function-complexity-check",
+          "forensic-repository-audit",
+          "formalized-constraint-testing",
+          "function-over-form-testing",
+          "generated-code-stewardship",
+          "glossary-curation-interview",
+          "input-validation-fail-fast",
+          "interface-variation-design",
+          "language-driven-design",
+          "mutation-testing-workflow",
+          "no-parallel-duplicate-test-runs",
+          "occurrence-classification-workflow",
+          "premortem-risk-identification",
+          "problem-decomposition",
+          "quality-gate-verification",
+          "reasons-canvas-fill",
+          "reasons-canvas-review",
+          "refactoring-change-function-declaration",
+          "refactoring-combine-functions-into-transform",
+          "refactoring-conditional-to-strategy",
+          "refactoring-consolidate-conditional-expression",
+          "refactoring-encapsulate-record",
+          "refactoring-encapsulate-variable",
+          "refactoring-extract-class-by-responsibility-split",
+          "refactoring-extract-first-order-concept",
+          "refactoring-guard-clauses-before-polymorphism",
+          "refactoring-inline-temp",
+          "refactoring-introduce-null-object",
+          "refactoring-move-field",
+          "refactoring-move-method",
+          "refactoring-replace-magic-number-with-symbolic-constant",
+          "refactoring-replace-temp-with-query",
+          "refactoring-retry-pattern",
+          "refactoring-state-pattern-for-behavior",
+          "refactoring-strangler-fig",
+          "reference-architectural-patterns",
+          "requirements-validation-workflow",
+          "reverse-speccing",
+          "review-intent-and-risk-first",
+          "safe-to-fail-experiment",
+          "secure-design-checklist",
+          "secure-regex-catastrophic-backtracking",
+          "stakeholder-alignment",
+          "stopping-conditions",
+          "strategic-domain-classification",
+          "supply-chain-install-safety",
+          "tdd-red-green-refactor",
+          "terminology-extraction-mapping",
+          "test-boundaries-by-responsibility",
+          "test-minimisation",
+          "test-pyramid-progression",
+          "test-readability-clarity-check",
+          "test-to-system-reconstruction",
+          "testing-select-appropriate-level",
+          "traceable-decisions",
+          "usage-examples-sync",
+          "work-package-completion-validation",
+          "zombies-tdd"
+        ]
+      },
+      "toolguides": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      }
+    },
+    "mission_types": [
+      "software-dev"
+    ],
+    "skills": []
+  },
+  "fixture": "mixed_stale_and_custom"
+}

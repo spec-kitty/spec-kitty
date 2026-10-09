@@ -67,7 +67,7 @@ def _write_config(repo_root: Path, data: dict[str, object]) -> None:
 
 def _write_project_doctrine_profile(repo_root: Path, profile_id: str = _PROJECT_ID) -> None:
     """Write a project-doctrine profile under the charter synthesis path."""
-    profiles_dir = repo_root / ".kittify" / "doctrine" / "agent_profiles"
+    profiles_dir = repo_root / ".kittify" / "charter-packs" / "agent_profiles"
     profiles_dir.mkdir(parents=True, exist_ok=True)
     source = Path("packs/built-in/agent_profiles/reviewer-renata.agent.yaml")
     text = source.read_text(encoding="utf-8")
@@ -201,7 +201,7 @@ class TestListActivationFilter:
         _write_config(
             tmp_path,
             {
-                "doctrine": {
+                "charter_packs": {
                     "org": {
                         "packs": [
                             {"name": "acme", "local_path": str(org_root)},

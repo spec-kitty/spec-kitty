@@ -56,7 +56,7 @@ def test_validate_ignores_retrospective_events_in_shared_status_log(tmp_path: Pa
             "applied_by": {"kind": "agent", "id": "agent", "profile_id": None},
             "kind": "synthesize_directive",
             "proposal_id": "01HXYZ0123456789ABCDEFGHJN",
-            "provenance_ref": ".kittify/doctrine/directive/.provenance/example.yaml",
+            "provenance_ref": ".kittify/charter-packs/directive/.provenance/example.yaml",
             "target_urn": "doctrine:directive:example",
         },
     }

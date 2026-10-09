@@ -17,7 +17,7 @@ Coverage (per the WP04 task file → "T021 Unit tests"):
 * Catalog miss: an ID that the repository does not carry surfaces the
   placeholder body + fetch stanza (no crash).
 
-The renderers are pure functions over a ``DoctrineService``-shaped
+The renderers are pure functions over an ``ActiveCharterService``-shaped
 object; tests stub the repository surface rather than load the real
 shipped tree so failures isolate to the renderer logic.
 """
@@ -35,7 +35,7 @@ from charter.activation.context import (
     _default_agent_profile_repository,
     _jsonable_artifact_value,
     _load_agent_profile,
-    _render_doctrine_artifact_include,
+    _render_offering_artifact_include,
 )
 from charter.activation.context_renderers.artifact_bodies import (
     _format_full_artifact_payload_body,
@@ -59,19 +59,19 @@ from charter.activation.context_renderers.selection_block import (
 )
 from charter.activation.context_renderers.token_budget import _PROFILE_INLINE_BODY_LIMIT_CHARS
 from charter.activation.profile_resolution import _reset_agent_profile_cache
-from charter.activation.schemas import DoctrineSelectionConfig
+from charter.activation.schemas import GovernanceCharterConfig
 from charter.offering.pack_skills.models import PackSkill
 
 pytestmark = pytest.mark.fast
 
 
 # ---------------------------------------------------------------------------
-# Stub doubles for the DoctrineService repositories
+# Stub doubles for the ActiveCharterService repositories
 # ---------------------------------------------------------------------------
 
 
 class _StubRepo:
-    """Minimal repository stub mirroring :meth:`BaseDoctrineRepository.get`."""
+    """Minimal repository stub mirroring :meth:`BaseArtifactRepository.get`."""
 
     def __init__(
         self,
@@ -89,7 +89,7 @@ class _StubRepo:
 
 
 class _StubService:
-    """Minimal DoctrineService stand-in carrying the 5 selection repos."""
+    """Minimal ActiveCharterService stand-in carrying the 5 selection repos."""
 
     def __init__(
         self,
@@ -218,7 +218,7 @@ class TestEmptySelection:
         assert _render_selected_mission_step_contracts([], _StubService()) == []
 
     def test_selection_block_returns_empty_string_when_all_empty(self) -> None:
-        selection = DoctrineSelectionConfig()
+        selection = GovernanceCharterConfig()
         assert _render_selection_block(selection, _StubService()) == ""
 
 
@@ -412,7 +412,7 @@ class TestFetchSelectorRecovery:
         sg = _DummyStyleguide(title="Caveman", principles=["Prefer concrete names."])
         service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
 
-        text = _render_doctrine_artifact_include(service, "styleguide", "caveman-comments")
+        text = _render_offering_artifact_include(service, "styleguide", "caveman-comments")
 
         assert text is not None
         assert "Styleguide caveman-comments: Caveman" in text
@@ -420,7 +420,7 @@ class TestFetchSelectorRecovery:
 
     def test_unknown_doctrine_artifact_include_fails_closed(self) -> None:
         with pytest.raises(ValueError, match="No styleguide found"):
-            _render_doctrine_artifact_include(
+            _render_offering_artifact_include(
                 _StubService(),
                 "styleguide",
                 "does-not-exist",
@@ -436,7 +436,7 @@ class TestFetchSelectorRecovery:
         )
         service = _StubService(procedures=_StubRepo(items={"review-before-merge": procedure}))
 
-        text = _render_doctrine_artifact_include(
+        text = _render_offering_artifact_include(
             service, "procedure", "review-before-merge"
         )
 
@@ -509,12 +509,12 @@ class TestFetchSelectorRecovery:
             ("skill", "ship", "builtin:spec-kitty.consolidate"),
         )
         for kind, artifact_id, marker in cases:
-            text = _render_doctrine_artifact_include(service, kind, artifact_id)
+            text = _render_offering_artifact_include(service, kind, artifact_id)
             assert text is not None
             assert "Full artifact:" in text
             assert marker in text
         # A skill that exists is rendered, not reported as "not found" (#5193).
-        assert "Skill ship: Ship" in _render_doctrine_artifact_include(service, "skill", "ship")
+        assert "Skill ship: Ship" in _render_offering_artifact_include(service, "skill", "ship")
 
     def test_directive_and_tactic_include_recovers_fields_outside_inline_summary(
         self,
@@ -541,7 +541,7 @@ class TestFetchSelectorRecovery:
         )
         monkeypatch.setattr(
             context_module,
-            "_build_doctrine_service",
+            "_build_offering_service",
             lambda repo_root, org_roots=None: service,
         )
 
@@ -568,7 +568,7 @@ class TestFetchSelectorRecovery:
         service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
         monkeypatch.setattr(
             context_module,
-            "_build_doctrine_service",
+            "_build_offering_service",
             lambda repo_root, org_roots=None: service,
         )
 
@@ -601,7 +601,7 @@ class TestFetchSelectorRecovery:
         )
         monkeypatch.setattr(
             context_module,
-            "_build_doctrine_service",
+            "_build_offering_service",
             lambda repo_root, org_roots=None: service,
         )
 
@@ -618,7 +618,7 @@ class TestFetchSelectorRecovery:
     ) -> None:
         monkeypatch.setattr(
             context_module,
-            "_build_doctrine_service",
+            "_build_offering_service",
             lambda repo_root, org_roots=None: _StubService(),
         )
 
@@ -635,7 +635,7 @@ class TestFetchSelectorRecovery:
     ) -> None:
         monkeypatch.setattr(
             context_module,
-            "_build_doctrine_service",
+            "_build_offering_service",
             lambda repo_root, org_roots=None: _StubService(),
         )
 
@@ -659,7 +659,7 @@ class TestFetchSelectorRecovery:
         service = _StubService(styleguides=_StubRepo(items={"caveman-comments": sg}))
         monkeypatch.setattr(
             context_module,
-            "_build_doctrine_service",
+            "_build_offering_service",
             lambda repo_root, org_roots=None: service,
         )
 
@@ -869,7 +869,7 @@ class TestCombinedSelectionBlock:
             directives=_StubRepo(items={"DIRECTIVE_999": directive}),
             tactics=_StubRepo(items={"threat-model-first": tactic}),
         )
-        selection = DoctrineSelectionConfig(
+        selection = GovernanceCharterConfig(
             selected_paradigms=["structured-prompt-driven-development"],
             selected_directives=["DIRECTIVE_999"],
             selected_tactics=["threat-model-first"],
@@ -906,7 +906,7 @@ class TestCombinedSelectionBlock:
             agent_profiles=_StubRepo(items={"ap-id": ap}),
             mission_step_contracts=_StubRepo(items={"msc-id": contract}),
         )
-        selection = DoctrineSelectionConfig(
+        selection = GovernanceCharterConfig(
             selected_styleguides=["sg-id"],
             selected_toolguides=["tg-id"],
             selected_procedures=["proc-id"],
@@ -926,7 +926,7 @@ class TestCombinedSelectionBlock:
     def test_only_populated_kinds_emit_headers(self) -> None:
         sg = _DummyStyleguide(title="SG", principles=["a"])
         service = _StubService(styleguides=_StubRepo(items={"sg-id": sg}))
-        selection = DoctrineSelectionConfig(selected_styleguides=["sg-id"])
+        selection = GovernanceCharterConfig(selected_styleguides=["sg-id"])
         block = _render_selection_block(selection, service)
         assert _SELECTED_STYLEGUIDES_HEADER in block
         assert _SELECTED_TOOLGUIDES_HEADER not in block

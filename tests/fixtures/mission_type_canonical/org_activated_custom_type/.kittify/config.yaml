@@ -2,9 +2,9 @@
 # no `.kittify/missions/` directory at all (mission-type-canonical-source-01M302V9,
 # WP01/T001 -- SC-001 / #3831).
 #
-# `charter_packs.org.packs` is the canonical org-pack declaration block
-# (org_pack_config.py CR-04; the older `doctrine.org.packs` spelling is a
-# retired/legacy alias that still resolves but emits a deprecation warning).
+# `charter_packs.org.packs` is the org-pack declaration block (org_pack_config.py).
+# The retired `doctrine.org.packs` spelling is no longer read: `spec-kitty upgrade`
+# rewrites it, and the CLI refuses an unmigrated project (LEGACY_CHARTER_STATE).
 charter_packs:
   org:
     packs:

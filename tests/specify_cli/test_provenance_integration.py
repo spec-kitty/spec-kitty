@@ -1,4 +1,4 @@
-"""Integration tests for WP07: provenance, doctor doctrine, and lint advisories.
+"""Integration tests for WP07: provenance, doctor charter-packs, and lint advisories.
 
 Covers T037 of mission ``layered-doctrine-org-layer-01KRNPEE``.
 
@@ -6,7 +6,7 @@ These tests exercise the full org-layer flow end-to-end:
 
 * `charter context --json` surfaces ``source`` provenance per artifact and an
   ``org_charter`` block.
-* `spec-kitty doctor doctrine` reports configured packs, version, and counts.
+* `spec-kitty doctor charter-packs` reports configured packs, version, and counts.
 * `charter lint` registers org-layer advisory checkers and surfaces a finding
   when an org pack overrides a shipped artifact.
 """
@@ -20,8 +20,8 @@ from ruamel.yaml import YAML
 
 from specify_cli.charter_runtime.lint import LintEngine
 from specify_cli.charter_runtime.lint.engine import _ALL_CHECKS, _CHECK_MAP
-from charter.offering.drg.org_pack_config import OrgPackConfig, PackRegistry, save_pack_registry
-from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
+from tests._support.org_pack_config import write_org_packs
+from charter.activation.org_charter_loader import load_org_charter_json_block
 
 pytestmark = [pytest.mark.integration]
 
@@ -55,7 +55,7 @@ def _directive(directive_id: str, title: str) -> dict:
 
 
 class TestProvenanceServiceIntegration:
-    """End-to-end provenance via the shared ``DoctrineService`` factory."""
+    """End-to-end provenance via the shared ``CharterOfferingService`` factory."""
 
     def test_org_overrides_builtin_provenance_resolves_to_org(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -81,9 +81,9 @@ class TestProvenanceServiceIntegration:
             _directive("ORG-001", "Org-only Directive"),
         )
 
-        from charter.offering.service import DoctrineService
+        from charter.offering.service import CharterOfferingService
 
-        service = DoctrineService(org_roots=[org_root])
+        service = CharterOfferingService(org_roots=[org_root])
 
         assert service.directives.get_provenance("DIRECTIVE_001") == "org"
         assert service.directives.get_provenance("ORG-001") == "org"
@@ -106,8 +106,8 @@ class TestOrgCharterJsonBlock:
         assert block["packs"] == []
 
 
-class TestDoctorDoctrineCommand:
-    """`spec-kitty doctor doctrine` reports configured packs."""
+class TestDoctorCharterPacksCommand:
+    """`spec-kitty doctor charter-packs` reports configured packs."""
 
     def test_no_org_configured(self, tmp_path: Path) -> None:
         from specify_cli.cli.commands.doctor import (
@@ -166,7 +166,7 @@ class TestLintOrgOverridesAdvisory:
         assert "org_charter_deviation" in _CHECK_MAP
 
     def test_org_overrides_checker_emits_advisory(self, tmp_path: Path, monkeypatch) -> None:
-        """Patch ``DoctrineService`` factories to point at controllable directories."""
+        """Patch ``CharterOfferingService`` factories to point at controllable directories."""
         # Build the shipped + org snapshots used by both services.
         built_in_root = tmp_path / "built-in"
         _write_yaml(
@@ -181,27 +181,24 @@ class TestLintOrgOverridesAdvisory:
         # Configure the registry on the synthetic repo root.
         repo_root = tmp_path / "repo"
         repo_root.mkdir()
-        save_pack_registry(
-            repo_root,
-            PackRegistry(packs=[OrgPackConfig(name="acme", local_path=org_root)]),
-        )
+        write_org_packs(repo_root, [{"name": "acme", "local_path": org_root}])
 
-        # Patch the lazy ``DoctrineService`` builders inside the checker so
+        # Patch the lazy ``CharterOfferingService`` builders inside the checker so
         # they consume the synthetic shipped/project roots.  We swap the
         # underlying resolver before invoking ``checker.run``.
         from specify_cli.charter_runtime.lint.checks import org_layer
 
-        def _fake_resolve_doctrine_root() -> Path:
+        def _fake_resolve_offering_root() -> Path:
             return built_in_root
 
         def _fake_resolve_project_root(_root: Path) -> Path | None:
             return None
 
         monkeypatch.setattr(
-            "charter.activation.catalog.resolve_doctrine_root", _fake_resolve_doctrine_root
+            "charter.activation.catalog.resolve_offering_root", _fake_resolve_offering_root
         )
         monkeypatch.setattr(
-            "charter.activation._doctrine_paths.resolve_project_root", _fake_resolve_project_root
+            "charter.activation._project_root_candidates.resolve_project_root", _fake_resolve_project_root
         )
 
         checker = org_layer.OrgOverridesBuiltinChecker(repo_root=repo_root)

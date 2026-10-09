@@ -109,7 +109,7 @@ ADOPTED: dict[str, tuple[tuple[str, ...], int, str]] = {
     "doctor contracts": ((), 2, "outside"),
     "doctor coordination": ((), 1, "outside"),
     "doctor cutover": ((), 1, "outside"),
-    "doctor doctrine": ((), 1, "outside"),
+    "doctor charter-packs": ((), 1, "outside"),
     "doctor env-file": ((), 1, "outside"),
     "doctor identity": ((), 1, "outside"),
     "doctor invocation-pairing": ((), 1, "outside"),
@@ -125,7 +125,6 @@ ADOPTED: dict[str, tuple[tuple[str, ...], int, str]] = {
     "doctor tool-surfaces": ((), 2, "outside"),
     "doctor topology": ((), 1, "outside"),
     "doctor workspaces": ((), 1, "outside"),
-    "doctrine mission-type list": ((), 1, "badconfig"),
     "glossary conflicts": (("--strictness", "invalid"), 1, "outside"),
     "glossary list": ((), 1, "outside"),
     "glossary validate": (("missing",), 2, "outside"),
@@ -174,15 +173,19 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
     "agent tasks validate-workflow": (("missing",), 1, "outside"),
     "agent tracer-append": (("--mission", "missing", "--category", "missing", "--entry", "missing", "--actor", "missing"), 1, "outside"),
     "auth doctor": ((), 1, "outside"),
+    "charter activate": (("--preset", "missing"), 1, "outside"),
     "charter bundle validate": ((), 2, "outside"),
     "charter context": ((), 1, "outside"),
     "charter generate": ((), 1, "outside"),
     "charter interview": ((), 1, "outside"),
     "charter lint": ((), 1, "outside"),
     "charter list": ((), 1, "badconfig"),
-    "charter pack apply": (("missing",), 1, "outside"),
+    "charter pack asset list": ((), 0, "total"),
+    "charter pack asset path": (("missing",), 1, "outside"),
+    "charter pack assemble": (("missing", "missing"), 1, "outside"),
     "charter pack list": ((), 0, "total"),
     "charter pack path": (("missing",), 1, "outside"),
+    "charter pack validate": (("missing",), 1, "outside"),
     "charter resynthesize": ((), 1, "outside"),
     "charter status": ((), 1, "outside"),
     "charter sync": ((), 1, "outside"),
@@ -190,10 +193,6 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
     "doctor bytecode": ((), 1, "corrupt-bytecode"),
     "doctor channel": ((), 0, "total"),
     "doctor decisions": (("--mission", "missing"), 1, "outside"),
-    "doctrine asset list": ((), 0, "total"),
-    "doctrine asset path": (("missing",), 1, "outside"),
-    "doctrine pack assemble": (("missing", "missing"), 1, "outside"),
-    "doctrine pack validate": (("missing",), 1, "outside"),
     "implement": (("missing",), 2, "outside"),
     "issue-matrix migrate": ((), 1, "outside"),
     "lint": (("missing.py",), 1, "outside"),
@@ -217,9 +216,9 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
 # G0 clarification: total/read-only result commands exercise real result arms.
 # Do not invent a domain error or label them nonparseable merely for lacking one.
 TOTAL_RESULT_EVIDENCE: dict[str, str] = {
-    "charter pack list": "charter/pack.py:69; fixed built-in pack catalog; no modeled domain-error arm",
+    "charter pack asset list": "charter/pack_asset.py:127; read-only catalog enumeration; empty catalog is a result",
+    "charter pack list": "charter/pack.py:103; offering pack listing (built-in, org packs); zero org packs is a result",
     "doctor channel": "_channel_doctor.py:63; total environment-channel report; no modeled error arm",
-    "doctrine asset list": "_doctrine_asset.py:125; read-only catalog enumeration; empty catalog is a result",
     "moments drain status": "moments.py:273; effective drain/ledger posture snapshot; no external operation",
     "moments status": "moments.py:91; effective local policy snapshot; no external operation",
     "tracker providers": "tracker.py:549; fixed provider roster; no modeled domain-error arm",
@@ -312,10 +311,15 @@ DEFERRED: dict[str, tuple[tuple[str, ...], str, str]] = {
         "outside",
         "agent/tests.py:44; empty stdout; unhandled RuntimeError; Follow-up: #4664",
     ),
-    "charter pack consistency-check": (
+    "charter consistency-check": (
         (),
         "badconfig",
-        "charter/pack.py:37; empty stdout; unhandled CharterPackConfigError; Follow-up: #4664",
+        "charter/consistency_check.py:21; empty stdout; unhandled ActiveCharterConfigError; Follow-up: #4664",
+    ),
+    "charter pack regenerate-graph": (
+        ("--check",),
+        "emptydoctrine",
+        "charter/pack_tooling.py:65; human diagnostic on stdout; Follow-up: #4664",
     ),
     "charter preflight": (
         (),
@@ -336,11 +340,6 @@ DEFERRED: dict[str, tuple[tuple[str, ...], str, str]] = {
         ("missing",),
         "outside",
         "docs.py:175; empty stdout; human diagnostic on stderr; Follow-up: #4664",
-    ),
-    "doctrine regenerate-graph": (
-        ("--check",),
-        "emptydoctrine",
-        "doctrine.py:245; human diagnostic on stdout; Follow-up: #4664",
     ),
     "events tail": (
         ("--mission", "missing"),
@@ -593,7 +592,7 @@ def prepare_case(kind: str, directory: Path, monkeypatch: pytest.MonkeyPatch) ->
         (charter / "charter.yaml").write_bytes(bytes(range(256)))
     elif kind == "emptydoctrine":
         # A real invalid pack; only its location is redirected, not validation.
-        monkeypatch.setattr("specify_cli.cli.commands.doctrine._doctrine_root", lambda: directory)
+        monkeypatch.setattr("specify_cli.cli.commands.charter.pack_tooling._built_in_pack_root", lambda: directory)
     elif kind == "loopback-refused":
         # The command is itself an offline failure drill. Keep its production
         # transport/error handling but avoid opening even a loopback connection.

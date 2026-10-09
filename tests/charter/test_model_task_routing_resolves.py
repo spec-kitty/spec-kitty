@@ -23,7 +23,7 @@ These tests assert resolution via two independent, non-fakeable routes:
    string appears somewhere.
 2. The real charter compiler (:func:`charter.activation.compiler.compile_charter`)
    against the project's own interview answers and a real
-   ``charter.offering.service.DoctrineService`` rooted at ``src/doctrine`` -- proves
+   ``charter.offering.service.CharterOfferingService`` rooted at ``src/doctrine`` -- proves
    the resolved reference carries the tactic's actual body (``purpose``),
    which is what ``charter context`` surfaces downstream, not merely an id
    string dropped into ``references.yaml`` by hand.
@@ -41,7 +41,7 @@ from charter.offering.drg.loader import load_built_in_graph
 from charter.offering.drg.models import DRGGraph, Relation
 from charter.offering.drg.query import resolve_transitive_refs
 from charter.offering.drg.validator import assert_valid
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -70,12 +70,12 @@ def _load_shipped_graph() -> DRGGraph:
     return graph
 
 
-def _real_doctrine_service() -> DoctrineService:
+def _real_doctrine_service() -> CharterOfferingService:
     # Built-in pack content relocated to ``packs/built-in`` (relocate-builtin-doctrine-packs).
     # No explicit built-in root: the per-kind repositories self-resolve the flattened
     # ``packs/built-in/<kind>`` layout via the WP04 seam (as production does); passing an
     # explicit root would force the retired ``<root>/<kind>/built-in`` layout.
-    return DoctrineService()
+    return CharterOfferingService()
 
 
 def test_model_task_routing_tactic_reachable_via_drg_traversal() -> None:
@@ -119,7 +119,7 @@ def test_autonomous_operation_protocol_reachable_via_drg_traversal() -> None:
 def test_charter_references_surface_model_task_routing_body() -> None:
     """The compiled charter references (the source ``charter context`` reads)
     must carry each tactic's real body -- proving resolution flows through
-    the DRG + DoctrineService, never a hand-written references.yaml row."""
+    the DRG + CharterOfferingService, never a hand-written references.yaml row."""
     interview = read_interview_answers(ANSWERS_PATH)
     assert interview is not None, "expected the project's real interview answers to load"
 
@@ -127,7 +127,7 @@ def test_charter_references_surface_model_task_routing_body() -> None:
         mission=interview.mission,
         interview=interview,
         repo_root=REPO_ROOT,
-        doctrine_service=_real_doctrine_service(),
+        charter_service=_real_doctrine_service(),
     )
 
     by_id = {ref.id: ref for ref in compiled.references}

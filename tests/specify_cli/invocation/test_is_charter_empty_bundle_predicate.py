@@ -5,8 +5,8 @@ corrected, org-pack-safe"; ``kitty-specs/charter-pack-usage-journey-01KYWWTF/
 tasks/WP01-dispatch-net-predicate.md``):
 
 - empty project -> net fires (generic-agent).
-- ``charter pack apply minimal`` WITHOUT a compile -> net still fires -- the
-  **#3104 fix**. Before this WP, applying a pack made the composite predicate
+- ``charter activate --preset minimal --no-compile`` -> net still fires -- the
+  **#3104 fix**. Before this WP, applying a preset made the composite predicate
   flip to "configured" with no bundle and no routable profile, so an
   unmatched request hard-failed with a bare ``ROUTER_NO_MATCH`` -- worse than
   the fully empty project it was meant to guard.
@@ -24,7 +24,7 @@ Cases 1-3 drive the REAL dispatch seam end-to-end (`spec-kitty dispatch` CLI
 -> ``ProfileInvocationExecutor.invoke`` -> ``resolve_generic_fallback`` /
 ``ActionRouter.route``) against the real built-in agent-profile catalog, not
 ``is_charter_empty`` in isolation. Case 2 in particular is built via the REAL
-`spec-kitty charter pack apply minimal` command (the fixture-realism guard --
+`spec-kitty charter activate --preset minimal --no-compile` command (the fixture-realism guard --
 a hand-crafted ``activated_agent_profiles: []`` would make the predicate
 return ``False`` and silently defeat the #3104 proof).
 """
@@ -138,10 +138,11 @@ def _dispatch_json(project: Path, args: list[str]) -> dict[str, object]:
 
 
 def _apply_minimal_via_real_cli(project: Path) -> Result:
-    """Apply the shipped ``minimal`` charter pack via the REAL `pack apply` command.
+    """Apply the built-in ``minimal`` preset via the REAL `charter activate --preset` command.
 
     Fixture-realism guard (WP01 T003): this is the actual
-    ``spec-kitty charter pack apply minimal`` command, not a hand-authored
+    ``spec-kitty charter activate --preset minimal --no-compile`` command (it
+    replaced ``charter pack apply minimal``, #3732), not a hand-authored
     config.yaml -- a hand-crafted ``activated_agent_profiles: []`` would
     become ``frozenset()`` (not ``None``) and make the #3104 proof a false
     green (the predicate would already return ``False`` on that dimension
@@ -149,7 +150,7 @@ def _apply_minimal_via_real_cli(project: Path) -> Result:
     """
     return runner.invoke(
         charter_app,
-        ["pack", "apply", "minimal", "--repo-root", str(project)],
+        ["activate", "--preset", "minimal", "--no-compile", "--repo-root", str(project)],
         catch_exceptions=False,
     )
 
@@ -178,7 +179,7 @@ def test_journey2_apply_minimal_without_compile_still_falls_back_not_router_no_m
 ) -> None:
     """THE #3104 REGRESSION TEST.
 
-    Before this WP: `charter pack apply minimal` wrote ``activated_directives``/
+    Before this WP: applying the `minimal` preset wrote ``activated_directives``/
     ``activated_tactics`` into config.yaml with no compiled bundle and no
     agent-profile activation. The pre-#3104-fix composite predicate treated
     that as "configured" (a non-empty URN set), so the generic-agent net
@@ -195,8 +196,8 @@ def test_journey2_apply_minimal_without_compile_still_falls_back_not_router_no_m
 
     config_path = tmp_path / ".kittify" / "config.yaml"
     written = YAML(typ="safe").load(config_path.read_text(encoding="utf-8"))
-    # Fixture-realism guard: the real `minimal` pack declares no
-    # `activated_agent_profiles` key at all (src/charter/activation/packs/minimal.yaml) --
+    # Fixture-realism guard: the real `minimal` preset declares no
+    # `activated_agent_profiles` key at all (packs/built-in/presets/minimal.yaml) --
     # confirm the produced config carries no such key, so this scenario truly
     # exercises the three-state `None` (not a stand-in `frozenset()`).
     assert "activated_agent_profiles" not in written
@@ -270,7 +271,7 @@ def test_org_pack_present_no_bundle_keeps_net_off(tmp_path: Path) -> None:
     pack_root.mkdir(parents=True)
     _write_config(
         tmp_path,
-        {"doctrine": {"org": {"packs": [{"name": "orgzilla-governance-pack", "local_path": str(pack_root)}]}}},
+        {"charter_packs": {"org": {"packs": [{"name": "orgzilla-governance-pack", "local_path": str(pack_root)}]}}},
     )
     assert not (tmp_path / ".kittify" / "charter" / "charter.yaml").exists()
 

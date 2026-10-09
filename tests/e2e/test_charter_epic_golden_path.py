@@ -14,7 +14,7 @@ Tranche-2 invariants this test enforces:
   produced `charter.md` so `charter bundle validate` immediately
   succeeds, with no `git add` between the two commands.
 - **#839 / FR-015** — `charter synthesize` succeeds on a fresh project
-  via the public CLI without hand-seeding `.kittify/doctrine/`.
+  via the public CLI without hand-seeding `.kittify/charter-packs/`.
 - **#842 / FR-003/FR-004** — covered `--json` commands emit a strict
   JSON envelope on stdout (`json.loads(stdout)` succeeds) under any
   SaaS state.
@@ -24,7 +24,7 @@ Tranche-2 invariants this test enforces:
 
 Hard rules (always-true, NFR-007):
 
-- The test never touches `.kittify/doctrine/` directly.
+- The test never touches `.kittify/charter-packs/` directly.
 - The test never edits `.kittify/metadata.yaml` by hand.
 - The test never runs `git add charter.md` (or any `.kittify/charter/`
   artifact) between `charter generate` and `charter bundle validate`.
@@ -441,7 +441,7 @@ def _run_charter_flow(project: Path, run_cli: RunCli) -> None:
       with NO intervening `git add`.
     - **#839 / FR-015**: `charter synthesize` succeeds on a fresh
       project using the default adapter, without hand-seeding
-      `.kittify/doctrine/`.
+      `.kittify/charter-packs/`.
 
     All subcommands run with `SPEC_KITTY_TEST_MODE=1`; hosted sync/auth
     behavior is covered in the dedicated SaaS and sync suites. This golden
@@ -479,10 +479,10 @@ def _run_charter_flow(project: Path, run_cli: RunCli) -> None:
     # WP06 made this work end-to-end: a fresh project with no
     # LLM-authored YAML under `.kittify/charter/generated/` falls back
     # to the documented "fresh_project_seed" mode that materialises a
-    # minimal `.kittify/doctrine/` tree (T031). We do NOT hand-seed
-    # `.kittify/doctrine/` anywhere in this test.
-    doctrine_path = project / ".kittify" / "doctrine"
-    assert not doctrine_path.exists(), "Test pre-condition: .kittify/doctrine/ must not exist before `charter synthesize` runs (we do not hand-seed it)."
+    # minimal `.kittify/charter-packs/` tree (T031). We do NOT hand-seed
+    # `.kittify/charter-packs/` anywhere in this test.
+    doctrine_path = project / ".kittify" / "charter-packs"
+    assert not doctrine_path.exists(), "Test pre-condition: .kittify/charter-packs/ must not exist before `charter synthesize` runs (we do not hand-seed it)."
 
     cmd = ["charter", "synthesize", "--json"]
     completed = run_cli(project, *cmd)
@@ -492,7 +492,7 @@ def _run_charter_flow(project: Path, run_cli: RunCli) -> None:
     _assert_signals_success(payload, fr_id="FR-015")
 
     assert doctrine_path.is_dir(), (
-        "FR-015 / #839: .kittify/doctrine/ must exist after `charter synthesize` "
+        "FR-015 / #839: .kittify/charter-packs/ must exist after `charter synthesize` "
         "on a fresh project (no hand seeding allowed). If this fires, the "
         "WP06 fresh-project synthesize fix has regressed."
     )
@@ -804,7 +804,7 @@ def test_charter_epic_golden_path(
     Consolidated tranche-2 acceptance test (WP07 capstone). Exercises the
     full operator chain `init -> charter interview -> charter generate ->
     charter bundle validate -> charter synthesize -> next` against a
-    fresh project, with NO hand seeding of `.kittify/doctrine/`, NO
+    fresh project, with NO hand seeding of `.kittify/charter-packs/`, NO
     edits to `.kittify/metadata.yaml`, and NO `git add` of charter
     artifacts between generate and validate.
 
@@ -820,7 +820,7 @@ def test_charter_epic_golden_path(
       (no `git add` allowed between generate and bundle validate).
     - WP06 / #839: relies on `charter synthesize` succeeding on a
       fresh project via the public CLI (default adapter, no hand
-      seeding of `.kittify/doctrine/`).
+      seeding of `.kittify/charter-packs/`).
 
     NFR-007 budget: this whole test must complete in under 120 seconds
     on CI. The `@pytest.mark.timeout(120)` marker enforces that. If

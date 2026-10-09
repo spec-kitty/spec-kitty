@@ -33,7 +33,7 @@ from specify_cli import app as _typer_app
 # Resolve the underlying Click command tree.
 # ---------------------------------------------------------------------------
 # ``specify_cli`` exposes a Typer app. Sibling tests (e.g.
-# ``test_doctrine_cli_removed.py``) import that Typer app directly and let
+# ``test_decision_command_shape_consistency.py``) import that Typer app directly and let
 # Typer's CliRunner handle the conversion. For introspection we want the
 # Click command tree, which Typer can give us via ``get_command``.
 
@@ -137,9 +137,7 @@ def test_help_output_never_mentions_feature_alias() -> None:
     root-routed invoke, and both are intentionally out of scope for this
     invariant: the usage line's prog name (the leaf name instead of the
     full command path), and ancestor group-callback side output — e.g.
-    the deprecated ``doctrine`` group's CR-02 deprecation banner
-    (``cli/commands/doctrine.py::_deprecation_warning``) and the
-    ``tracker`` group's rollout-gate callback
+    the ``tracker`` group's rollout-gate callback
     (``cli/commands/tracker.py::tracker_callback``). Neither can mask a
     ``--feature`` regression: the prog name is not an option flag, the
     group-callback text is static side output, and the leaf's Options

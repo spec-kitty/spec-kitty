@@ -1,7 +1,7 @@
 """Tests for PathGuard (FR-016, NFR-008, US-7, R-10, T008).
 
 Verifies:
-1. Write under .kittify/doctrine/ succeeds (allowed).
+1. Write under .kittify/charter-packs/ succeeds (allowed).
 2. Write under .kittify/charter/ succeeds (allowed).
 3. Write under src/charter/offering/ raises PathGuardViolation BEFORE touching filesystem.
 4. Write under repo_root directly (not in allowlist) raises PathGuardViolation.
@@ -43,9 +43,9 @@ def _make_guard(repo_root: Path, extra: tuple[str, ...] = ()) -> PathGuard:
 
 class TestAllowedWrites:
     def test_write_text_under_kittify_doctrine_succeeds(self, tmp_path: Path) -> None:
-        """write_text under .kittify/doctrine/ is allowed by default."""
+        """write_text under .kittify/charter-packs/ is allowed by default."""
         guard = _make_guard(tmp_path)
-        target_dir = tmp_path / ".kittify" / "doctrine" / "directive"
+        target_dir = tmp_path / ".kittify" / "charter-packs" / "directive"
         target_dir.mkdir(parents=True, exist_ok=True)
         target_file = target_dir / "001-test.directive.yaml"
 
@@ -63,9 +63,9 @@ class TestAllowedWrites:
         assert target_file.exists()
 
     def test_write_bytes_under_kittify_doctrine_succeeds(self, tmp_path: Path) -> None:
-        """write_bytes under .kittify/doctrine/ is allowed."""
+        """write_bytes under .kittify/charter-packs/ is allowed."""
         guard = _make_guard(tmp_path)
-        target_dir = tmp_path / ".kittify" / "doctrine" / "tactic"
+        target_dir = tmp_path / ".kittify" / "charter-packs" / "tactic"
         target_dir.mkdir(parents=True, exist_ok=True)
         target_file = target_dir / "test.tactic.yaml"
 
@@ -82,12 +82,12 @@ class TestAllowedWrites:
     def test_replace_between_allowed_paths_succeeds(self, tmp_path: Path) -> None:
         """replace between two allowed paths succeeds (atomic promote)."""
         guard = _make_guard(tmp_path)
-        staging_dir = tmp_path / ".kittify" / "charter" / ".staging" / "run1" / "doctrine"
+        staging_dir = tmp_path / ".kittify" / "charter" / ".staging" / "run1" / "charter-packs"
         staging_dir.mkdir(parents=True)
         src = staging_dir / "test.directive.yaml"
         src.write_text("body: ok")
 
-        live_dir = tmp_path / ".kittify" / "doctrine" / "directive"
+        live_dir = tmp_path / ".kittify" / "charter-packs" / "directive"
         live_dir.mkdir(parents=True)
         dst = live_dir / "001-test.directive.yaml"
 
@@ -168,10 +168,10 @@ class TestForbiddenWrites:
     def test_path_traversal_is_blocked(self, tmp_path: Path) -> None:
         """Path traversal (../) cannot bypass the guard."""
         guard = _make_guard(tmp_path)
-        # Attempt: .kittify/doctrine/../../src/charter/offering/evil.yaml
+        # Attempt: .kittify/charter-packs/../../src/charter/offering/evil.yaml
         # After resolution this lands outside the allowlist.
 
-        traversal = tmp_path / ".kittify" / "doctrine" / ".." / ".." / "src" / "charter" / "offering" / "evil.yaml"
+        traversal = tmp_path / ".kittify" / "charter-packs" / ".." / ".." / "src" / "charter" / "offering" / "evil.yaml"
         # The guard resolves paths via Path.resolve() before comparison.
         traversal.parent.mkdir(parents=True, exist_ok=True)
 

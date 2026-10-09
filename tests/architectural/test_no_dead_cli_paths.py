@@ -64,17 +64,22 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
 #: Any slash-joined literal naming a ``graph.yaml`` -- the monolith, or a
 #: ``<kind>.graph.yaml`` / ``*.graph.yaml`` fragment -- directly inside a
-#: ``doctrine`` directory. Deliberately broader than the exact built-in
-#: string: the defect class is "names a doctrine-directory DRG graph file", and
-#: a gate keyed only on ``src/doctrine/graph.yaml`` is evaded by rewording the
-#: prefix or by naming a fragment instead of the monolith (#2715). The live
-#: fragments sit at ``packs/built-in/<kind>.graph.yaml``, which has no
-#: ``doctrine/`` segment and so never matches.
-_GRAPH_MONOLITH_RE = re.compile(r"[\w./<>*-]*doctrine/(?:[\w<>*-]+\.)?graph\.yaml")
+#: ``doctrine`` or ``charter-packs`` directory. Deliberately broader than the
+#: exact built-in string: the defect class is "names a DRG graph file under the
+#: retired ``doctrine`` tree or the live ``charter-packs`` project tier", and a
+#: gate keyed only on one literal is evaded by rewording the prefix or by
+#: naming a fragment instead of the monolith (#2715). The retired monolith path
+#: ``doctrine/graph.yaml`` is kept in the alternation so a stray revival is
+#: still caught (the charter-pack cutover, #3732, moved the live project tier
+#: off it). The live built-in fragments sit at ``packs/built-in/<kind>.graph.yaml``,
+#: which has no ``doctrine/`` or ``charter-packs/`` segment and so never matches.
+_GRAPH_MONOLITH_RE = re.compile(r"[\w./<>*-]*(?:doctrine|charter-packs)/(?:[\w<>*-]+\.)?graph\.yaml")
 
 #: Discriminator A1. The project tier really does write a single
-#: ``graph.yaml`` under ``.kittify/doctrine/``; that path is live, not dead.
-_PROJECT_TIER_PATH = ".kittify/doctrine/graph.yaml"
+#: ``graph.yaml`` under ``.kittify/charter-packs/`` (the charter-pack cutover,
+#: #3732, renamed this root from ``.kittify/doctrine/``); that path is live, not
+#: dead.
+_PROJECT_TIER_PATH = ".kittify/charter-packs/graph.yaml"
 
 #: Discriminator A2. An agent profile's avoidance boundary names a path in
 #: order to *forbid* it. Rewriting such a mention inverts the sentence.
@@ -364,15 +369,18 @@ def test_project_tier_graph_path_would_false_red_without_its_discriminator() -> 
     kept_paths = {site.path for site in scan.violations} | {site.path for site in scan.forbidding_mentions}
     excluded = sorted(naive_paths - kept_paths)
     assert excluded == [
-        # Direct-authored artifact registration writes the live project overlay;
-        # this is the same project-tier path, not a retired built-in monolith.
-        "src/charter/activation/project_registration.py",
+        # Prose naming the live project overlay ``.kittify/charter-packs/graph.yaml``;
+        # this is the live project-tier path, not a retired built-in monolith.
+        # Shrank by two under the charter-pack cutover (#3732): the write site in
+        # project_registration.py and the state surface in state/contract.py now
+        # build the path from kernel.charter_pack_paths constants
+        # (PROJECT_GRAPH_FILENAME / PROJECT_PACK_ROOT_POSIX) instead of a literal,
+        # so the literal no longer appears in either file.
         "src/charter/activation/synthesizer/manifest.py",
         "src/charter/activation/synthesizer/project_drg.py",
         "src/charter/offering/drg/merge.py",
         "src/glossary/drg_builder.py",
         "src/specify_cli/charter_runtime/freshness/computer.py",
-        "src/specify_cli/state/contract.py",
     ], f"A1's effect set moved -- widening it needs a reason, not a regex tweak: {excluded}"
 
 
@@ -493,7 +501,7 @@ def test_shipped_prose_would_false_red_without_the_path_shape_discriminator() ->
     # failure message, so it is not part of the pinned identity.
     #
     # 2026-07-29 (PR #3070 landing pass, WP05 doctrine-delivery-reachability):
-    # widened by one entry for `src/specify_cli/cli/commands/_doctrine_asset.py`
+    # widened by one entry for `src/specify_cli/cli/commands/charter/pack_asset.py`
     # — its module docstring reads "...resolve shipped/overlay doctrine assets",
     # genuine English prose (no `<segment>/` immediately precedes `shipped/`),
     # not a `<kind>/shipped/` pack-layer path reference.
@@ -501,7 +509,7 @@ def test_shipped_prose_would_false_red_without_the_path_shape_discriminator() ->
     assert excluded == [
         "src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml",
         "src/runtime/next/_internal_runtime/planner.py",
-        "src/specify_cli/cli/commands/_doctrine_asset.py",
+        "src/specify_cli/cli/commands/charter/pack_asset.py",
     ], f"B1's effect set moved -- widening it needs a reason: {_render(scan.prose)}"
 
 

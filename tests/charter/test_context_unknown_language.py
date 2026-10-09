@@ -459,7 +459,7 @@ class TestDropScopeFilteredIds:
 
     def test_unknown_project_drops_only_scope_filtered_ids(self, tmp_path: Path) -> None:
         """RED (pins the fix): only the service's scope-filtered ids leave the language-scoped slots."""
-        from charter.activation.action_doctrine_bundle import _drop_scope_filtered_ids
+        from charter.activation.action_governance_bundle import _drop_scope_filtered_ids
 
         _write_compiled_languages(tmp_path, "[unknown]")
 
@@ -475,7 +475,7 @@ class TestDropScopeFilteredIds:
 
     def test_recognised_project_drops_scope_filtered_ids(self, tmp_path: Path) -> None:
         """RED (pins the fix): a recognised language also drops scope-filtered ids (re-pinned 2026-09-29, #5357)."""
-        from charter.activation.action_doctrine_bundle import _drop_scope_filtered_ids
+        from charter.activation.action_governance_bundle import _drop_scope_filtered_ids
 
         _write_compiled_languages(tmp_path, "[python]")
 
@@ -485,13 +485,13 @@ class TestDropScopeFilteredIds:
 
     def test_no_language_signal_is_untouched(self, tmp_path: Path) -> None:
         """GREEN control (pins unchanged behaviour): no language signal admits all ids (FR-014)."""
-        from charter.activation.action_doctrine_bundle import _drop_scope_filtered_ids
+        from charter.activation.action_governance_bundle import _drop_scope_filtered_ids
 
         assert _drop_scope_filtered_ids(self._IDS, _service(), tmp_path) is self._IDS
 
     def test_empty_bundle_short_circuits(self, tmp_path: Path) -> None:
         """GREEN control (pins unchanged behaviour): a typeless (empty) bundle is returned as is."""
-        from charter.activation.action_doctrine_bundle import _drop_scope_filtered_ids
+        from charter.activation.action_governance_bundle import _drop_scope_filtered_ids
 
         empty: dict[str, tuple[str, ...]] = {}
 
@@ -501,7 +501,7 @@ class TestDropScopeFilteredIds:
 @pytest.mark.fast
 def test_overlay_reusing_a_scope_filtered_builtin_id_stays_in_the_bundle(tmp_path: Path) -> None:
     """RED (pins F1): a project overlay reusing a built-in scoped id, without a scope, is not dropped for a Rust project."""
-    from charter.activation.action_doctrine_bundle import _drop_scope_filtered_ids
+    from charter.activation.action_governance_bundle import _drop_scope_filtered_ids
     from charter.offering.tactics.repository import TacticRepository
 
     shipped = tmp_path / "built-in"

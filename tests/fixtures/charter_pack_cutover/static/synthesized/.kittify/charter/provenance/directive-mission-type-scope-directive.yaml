@@ -1,0 +1,19 @@
+adapter_id: fixture
+adapter_notes: fixture:de89a2ca9be2
+adapter_version: 1.0.0
+artifact_content_hash: 
+  8fe2111d7c9b9b145c9912050d552e016841af0fb22a5bf02929bc09c1ecb4c0
+artifact_kind: directive
+artifact_slug: mission-type-scope-directive
+artifact_urn: directive:PROJECT_001
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-01-01T01:02:13.562058+00:00'
+inputs_hash: de89a2ca9be2973572a02ee4e86e345c1ce59325874f2f03810697286507aab7
+produced_at: '2026-10-06T22:00:18.007661+00:00'
+schema_version: '2'
+source_input_ids: []
+source_section: mission_type
+source_urns: []
+synthesis_run_id: 01KPE222CD1MMCYEGB3ZCY51VR
+synthesizer_version: 4.0.0rc6

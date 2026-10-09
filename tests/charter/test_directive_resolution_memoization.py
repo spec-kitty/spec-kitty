@@ -60,7 +60,7 @@ def _colliding_layers(tmp_path: Path) -> tuple[Path, list[Path]]:
     it lands on the representable ``original`` stem -- the exact N-stems
     x L-layers shape this WP eliminates.
 
-    Returns ``(doctrine_root, org_roots)`` for direct keyword-argument use --
+    Returns ``(offering_root, org_roots)`` for direct keyword-argument use --
     a mixed-type kwargs dict unpacked via ``**`` defeats mypy's per-parameter
     checking of `resolve_config_id`'s keyword-only signature.
     """
@@ -79,9 +79,9 @@ def test_single_resolution_pass_scans_each_layer_at_most_once(tmp_path: Path, sc
     walk, so every layer gets scanned once per round-trip check instead of
     once for the whole pass.
     """
-    doctrine_root, org_roots = _colliding_layers(tmp_path)
+    offering_root, org_roots = _colliding_layers(tmp_path)
 
-    resolved_stem = resolve_config_id("directive:CHOSEN-POLICY", doctrine_root=doctrine_root, org_roots=org_roots)
+    resolved_stem = resolve_config_id("directive:CHOSEN-POLICY", offering_root=offering_root, org_roots=org_roots)
 
     assert resolved_stem == "original"
     distinct_layers = set(scan_calls)
@@ -101,18 +101,18 @@ def test_fresh_resolution_after_file_change_observes_new_content(tmp_path: Path)
     """
     directory = tmp_path / "org" / "directives"
     _directive(directory, "policy", "OLD-POLICY")
-    doctrine_root = tmp_path / "builtin"
+    offering_root = tmp_path / "builtin"
     org_roots = [tmp_path / "org"]
 
-    assert resolve_config_id("directive:OLD-POLICY", doctrine_root=doctrine_root, org_roots=org_roots) == "policy"
+    assert resolve_config_id("directive:OLD-POLICY", offering_root=offering_root, org_roots=org_roots) == "policy"
 
     # Overwrite the same file with new content (bumps mtime, changes the
     # declared id) -- simulating an on-disk edit between resolutions.
     _directive(directory, "policy", "NEW-POLICY")
 
-    assert resolve_config_id("directive:NEW-POLICY", doctrine_root=doctrine_root, org_roots=org_roots) == "policy"
+    assert resolve_config_id("directive:NEW-POLICY", offering_root=offering_root, org_roots=org_roots) == "policy"
     with pytest.raises(UnknownArtifactIdError):
-        resolve_config_id("directive:OLD-POLICY", doctrine_root=doctrine_root, org_roots=org_roots)
+        resolve_config_id("directive:OLD-POLICY", offering_root=offering_root, org_roots=org_roots)
 
 
 # ---------------------------------------------------------------------------
@@ -123,17 +123,17 @@ def test_fresh_resolution_after_file_change_observes_new_content(tmp_path: Path)
 
 def test_malformed_urn_without_separator_raises() -> None:
     with pytest.raises(ValueError, match="Malformed URN"):
-        resolve_config_id("no-colon-here", doctrine_root=Path("/nonexistent"))
+        resolve_config_id("no-colon-here", offering_root=Path("/nonexistent"))
 
 
 def test_malformed_urn_with_empty_artifact_id_raises() -> None:
     with pytest.raises(ValueError, match="Malformed URN"):
-        resolve_config_id("directive:", doctrine_root=Path("/nonexistent"))
+        resolve_config_id("directive:", offering_root=Path("/nonexistent"))
 
 
 def test_urn_with_unknown_kind_raises() -> None:
     with pytest.raises(ValueError, match="unknown kind"):
-        resolve_config_id("notakind:DIRECTIVE_001", doctrine_root=Path("/nonexistent"))
+        resolve_config_id("notakind:DIRECTIVE_001", offering_root=Path("/nonexistent"))
 
 
 def test_non_directive_kind_returns_first_matching_stem(tmp_path: Path) -> None:
@@ -147,7 +147,7 @@ def test_non_directive_kind_returns_first_matching_stem(tmp_path: Path) -> None:
     tactics.mkdir(parents=True)
     (tactics / "adversarial-squad.tactic.yaml").write_text('schema_version: "1.0"\nid: TACTIC_ADVERSARIAL\ntitle: Adversarial squad\nintent: Review.\n')
 
-    stem = resolve_config_id("tactic:TACTIC_ADVERSARIAL", doctrine_root=tmp_path / "builtin", org_roots=[org])
+    stem = resolve_config_id("tactic:TACTIC_ADVERSARIAL", offering_root=tmp_path / "builtin", org_roots=[org])
 
     assert stem == "adversarial-squad"
 
@@ -174,11 +174,11 @@ def parsed_files(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
 
 
 def test_shared_resolution_pass_parses_each_file_once(tmp_path: Path, parsed_files: list[Path]) -> None:
-    doctrine_root, org_roots = _colliding_layers(tmp_path)
+    offering_root, org_roots = _colliding_layers(tmp_path)
     shared = ResolutionPass()
 
     for _ in range(3):
-        assert resolve_config_id("directive:CHOSEN-POLICY", doctrine_root=doctrine_root, org_roots=org_roots, resolution_pass=shared) == "original"
+        assert resolve_config_id("directive:CHOSEN-POLICY", offering_root=offering_root, org_roots=org_roots, resolution_pass=shared) == "original"
 
     # The scan also covers the shipped built-in directives; what matters is
     # that no file is parsed twice across the three resolutions.
@@ -188,11 +188,11 @@ def test_shared_resolution_pass_parses_each_file_once(tmp_path: Path, parsed_fil
 
 def test_independent_resolutions_reparse(tmp_path: Path, parsed_files: list[Path]) -> None:
     """Without a shared pass each top-level call reads the files afresh (FR-002)."""
-    doctrine_root, org_roots = _colliding_layers(tmp_path)
+    offering_root, org_roots = _colliding_layers(tmp_path)
 
-    resolve_config_id("directive:CHOSEN-POLICY", doctrine_root=doctrine_root, org_roots=org_roots)
+    resolve_config_id("directive:CHOSEN-POLICY", offering_root=offering_root, org_roots=org_roots)
     first_call = len(parsed_files)
-    resolve_config_id("directive:CHOSEN-POLICY", doctrine_root=doctrine_root, org_roots=org_roots)
+    resolve_config_id("directive:CHOSEN-POLICY", offering_root=offering_root, org_roots=org_roots)
 
     assert first_call >= 3
     assert len(parsed_files) == 2 * first_call
@@ -201,12 +201,12 @@ def test_independent_resolutions_reparse(tmp_path: Path, parsed_files: list[Path
 def test_a_new_resolution_pass_observes_on_disk_changes(tmp_path: Path) -> None:
     directory = tmp_path / "org" / "directives"
     _directive(directory, "policy", "OLD-POLICY")
-    doctrine_root = tmp_path / "builtin"
+    offering_root = tmp_path / "builtin"
     org_roots = [tmp_path / "org"]
 
-    assert resolve_config_id("directive:OLD-POLICY", doctrine_root=doctrine_root, org_roots=org_roots, resolution_pass=ResolutionPass()) == "policy"
+    assert resolve_config_id("directive:OLD-POLICY", offering_root=offering_root, org_roots=org_roots, resolution_pass=ResolutionPass()) == "policy"
     _directive(directory, "policy", "NEW-POLICY")
 
-    assert resolve_config_id("directive:NEW-POLICY", doctrine_root=doctrine_root, org_roots=org_roots, resolution_pass=ResolutionPass()) == "policy"
+    assert resolve_config_id("directive:NEW-POLICY", offering_root=offering_root, org_roots=org_roots, resolution_pass=ResolutionPass()) == "policy"
     with pytest.raises(UnknownArtifactIdError):
-        resolve_config_id("directive:OLD-POLICY", doctrine_root=doctrine_root, org_roots=org_roots, resolution_pass=ResolutionPass())
+        resolve_config_id("directive:OLD-POLICY", offering_root=offering_root, org_roots=org_roots, resolution_pass=ResolutionPass())

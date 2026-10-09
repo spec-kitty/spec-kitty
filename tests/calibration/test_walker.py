@@ -231,7 +231,7 @@ def test_overlay_loading_does_not_break_when_file_absent(tmp_path: Path) -> None
     src_dir.mkdir(parents=True)
     _copy_built_in_graph_source(src_dir)
 
-    # No .kittify/doctrine/overlays/ directory → should not raise
+    # No .kittify/charter-packs/overlays/ directory → should not raise
     findings = walk_mission(mission_key="software-dev", repo_root=tmp_path)
     assert len(findings) == 6
 
@@ -242,7 +242,7 @@ def test_overlay_add_edge_extends_resolved_scope(tmp_path: Path) -> None:
     src_dir.mkdir(parents=True)
     _copy_built_in_graph_source(src_dir)
 
-    overlays_dir = tmp_path / ".kittify" / "doctrine" / "overlays"
+    overlays_dir = tmp_path / ".kittify" / "charter-packs" / "overlays"
     overlays_dir.mkdir(parents=True)
 
     # Add a scope edge from software-dev/specify to a tactic that is not yet scoped

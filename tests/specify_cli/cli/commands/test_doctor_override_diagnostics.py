@@ -1,6 +1,6 @@
-"""WP08 (#2082): ``doctor doctrine`` flags unsanctioned built-in DRG overrides.
+"""WP08 (#2082): ``doctor charter-packs`` flags unsanctioned built-in DRG overrides.
 
-C-005 red-first through the **public** ``doctor doctrine --json`` surface (NOT
+C-005 red-first through the **public** ``doctor charter-packs --json`` surface (NOT
 the promoted predicate API — that is WP07's surface). C-007 realistic org-pack
 fixtures: a real on-disk ``drg/fragment.yaml`` pack layout (read by
 ``load_org_drg``) overriding a real shipped built-in URN. NFR-001 no-org-packs
@@ -9,7 +9,7 @@ regression (the finding path stays unreachable without org packs).
 The governance boundary under test (FR-010 / FR-012):
 
 * an ``org:``-provenance override of a built-in DRG node that is NOT sanctioned
-  by ``.kittify/doctrine/replaceable-builtins.yaml`` is flagged and flips the
+  by ``.kittify/charter-packs/replaceable-builtins.yaml`` is flagged and flips the
   report unhealthy (RC=1);
 * a sanctioning allowlist entry (with a reason, since the target is a built-in
   *directive*) clears the finding;
@@ -107,21 +107,19 @@ def _write_org_override_pack(
 
 
 def _write_config(repo_root: Path, pack_root: Path) -> None:
-    """Write the canonical ``doctrine.org.packs`` config that ``load_org_drg`` reads."""
+    """Write the canonical ``charter_packs.org.packs`` config that ``load_org_drg`` reads."""
     _write_packs_config(repo_root, [("acme-org", pack_root)])
 
 
 def _write_packs_config(
     repo_root: Path,
     packs: list[tuple[str, Path]],
-    *,
-    top_key: str = "doctrine",
 ) -> None:
-    """Write several packs under ``doctrine.org.packs`` or ``charter_packs.org.packs``."""
+    """Write several packs under ``charter_packs.org.packs``."""
     kittify = repo_root / ".kittify"
     kittify.mkdir(exist_ok=True)
     entries = "".join(f'      - name: {name}\n        local_path: "{root}"\n' for name, root in packs)
-    (kittify / "config.yaml").write_text(f"{top_key}:\n  org:\n    packs:\n{entries}")
+    (kittify / "config.yaml").write_text(f"charter_packs:\n  org:\n    packs:\n{entries}")
 
 
 def _sanction_text(*entries: tuple[str, str]) -> str:
@@ -139,25 +137,25 @@ def _write_allowlist(repo_root: Path, *, reason: str) -> None:
 
 
 def _write_consumer_file(repo_root: Path, text: str) -> None:
-    doctrine_dir = repo_root / ".kittify" / "doctrine"
+    doctrine_dir = repo_root / ".kittify" / "charter-packs"
     doctrine_dir.mkdir(parents=True, exist_ok=True)
     (doctrine_dir / "replaceable-builtins.yaml").write_text(text)
 
 
 def _run_doctrine_json(repo_root: Path) -> tuple[int, dict[str, object]]:
-    """Drive ``doctor doctrine --json`` and return ``(exit_code, payload)``."""
+    """Drive ``doctor charter-packs --json`` and return ``(exit_code, payload)``."""
     from specify_cli.cli.commands.doctor import app as doctor_app
 
     with patch(
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=repo_root,
     ):
-        result = runner.invoke(doctor_app, ["doctrine", "--json"])
+        result = runner.invoke(doctor_app, ["charter-packs", "--json"])
     try:
         payload = json.loads(result.output)
     except json.JSONDecodeError as exc:  # pragma: no cover - failure diagnostic
         pytest.fail(
-            f"doctor doctrine --json did not produce valid JSON: {exc}\n"
+            f"doctor charter-packs --json did not produce valid JSON: {exc}\n"
             f"output: {result.output!r}"
         )
     return result.exit_code, payload
@@ -273,7 +271,7 @@ def _override_fragment(urn_kind: str) -> object:
 
 def test_unsanctioned_findings_flags_unlisted_directive(tmp_path: Path) -> None:
     """The extracted helper flags an unlisted built-in directive override."""
-    from specify_cli.cli.commands._doctrine_collect import (
+    from specify_cli.cli.commands._charter_pack_collect import (
         _adjudicate_with_policy,
         _unsanctioned_findings,
     )
@@ -302,7 +300,7 @@ def test_unsanctioned_findings_flags_unlisted_directive(tmp_path: Path) -> None:
 
 def test_unsanctioned_findings_clears_sanctioned_directive(tmp_path: Path) -> None:
     """A directive override with a non-empty reason clears via the helper."""
-    from specify_cli.cli.commands._doctrine_collect import (
+    from specify_cli.cli.commands._charter_pack_collect import (
         _adjudicate_with_policy,
         _unsanctioned_findings,
     )
@@ -338,14 +336,14 @@ _UNHEALTHY_MESSAGE = "expected RC=1 / unhealthy"
 
 
 def _run_doctrine_human(repo_root: Path) -> tuple[int, str]:
-    """Drive the human ``doctor doctrine`` surface and return ``(exit_code, output)``."""
+    """Drive the human ``doctor charter-packs`` surface and return ``(exit_code, output)``."""
     from specify_cli.cli.commands.doctor import app as doctor_app
 
     with patch(
         "specify_cli.cli.commands.doctor.locate_project_root",
         return_value=repo_root,
     ):
-        result = runner.invoke(doctor_app, ["doctrine"])
+        result = runner.invoke(doctor_app, ["charter-packs"])
     return result.exit_code, result.output
 
 
@@ -412,7 +410,7 @@ def test_pack_root_sanction_beats_stale_consumer_allowlist(tmp_path: Path) -> No
 
 def test_pack_root_sanction_via_charter_packs_key(tmp_path: Path) -> None:
     pack = _write_org_override_pack(tmp_path, sanction=_sanction_text((_BUILT_IN_DIRECTIVE_URN, _REASON)))
-    _write_packs_config(tmp_path, [("acme-org", pack)], top_key="charter_packs")
+    _write_packs_config(tmp_path, [("acme-org", pack)])
 
     exit_code, payload = _run_doctrine_json(tmp_path)
 
@@ -728,7 +726,7 @@ def test_legacy_template_stays_red_and_prints_actionable_hint(tmp_path: Path) ->
     assert f"- urn: {_BUILT_IN_DIRECTIVE_URN}" in output
     assert f"reason: {_LEGACY_REASON}" in output
     assert "cp " not in output
-    assert "> .kittify/doctrine/replaceable-builtins.yaml" not in output
+    assert "> .kittify/charter-packs/replaceable-builtins.yaml" not in output
 
 
 def test_malformed_legacy_template_gives_no_hint_and_no_error(tmp_path: Path) -> None:
@@ -756,7 +754,7 @@ def test_generic_hint_names_both_remedies(tmp_path: Path) -> None:
 
     _, output = _run_doctrine_human(tmp_path)
 
-    assert ".kittify/doctrine/replaceable-builtins.yaml" in output
+    assert ".kittify/charter-packs/replaceable-builtins.yaml" in output
     assert "pack-root" in output or "pack root" in output
 
 
@@ -782,7 +780,7 @@ def test_rich_markup_in_paths_and_reasons_is_printed_literally(tmp_path: Path) -
 # -- FR-012 no-org-packs output unchanged -----------------------------------
 
 _NO_PACKS_HUMAN = """\
-No org doctrine configured.
+No org charter packs configured.
 Add a 'charter_packs.org' block to .kittify/config.yaml to register a pack.
 
 Selections (active globally-selected artifacts):
@@ -838,10 +836,10 @@ def test_unsanctioned_human_block_characterisation(tmp_path: Path) -> None:
     assert "Unsanctioned built-in override(s) — 1 not allowlisted" in output
     assert f"{_BUILT_IN_DIRECTIVE_URN} (directive)" in output
     assert (
-        "Add the URN to .kittify/doctrine/replaceable-builtins.yaml (with a reason for directives), have the overriding pack "
+        "Add the URN to .kittify/charter-packs/replaceable-builtins.yaml (with a reason for directives), have the overriding pack "
         "ship it in its pack-root replaceable-builtins.yaml, or remove the org override."
     ) in output
-    assert "Only org-tier overrides are adjudicated; project-tier (.kittify/doctrine/) overrides are intentionally ungoverned (FR-012)." in output
+    assert "Only org-tier overrides are adjudicated; project-tier (.kittify/charter-packs/) overrides are intentionally ungoverned (FR-012)." in output
 
 
 # -- NFR-001 bounded I/O ------------------------------------------------------
@@ -923,18 +921,3 @@ def test_legacy_entry_lines_use_shared_renderer_and_reason_rule() -> None:
     assert _legacy_entry_lines({"urn": "tactic:t", "kind": "tactic"}, {}) == ["replaceable_builtins:", "- urn: tactic:t"]
 
 
-def test_legacy_organisation_packs_deprecation_warns_at_most_once(tmp_path: Path) -> None:
-    import warnings
-
-    from specify_cli.cli.commands._doctrine_collect import _collect_org_layer_data
-
-    pack = _write_org_override_pack(tmp_path, sanction=None)
-    (tmp_path / ".kittify").mkdir(exist_ok=True)
-    (tmp_path / ".kittify" / "config.yaml").write_text(f'organisation_packs:\n  - name: acme-org\n    path: "{pack}"\n')
-
-    with warnings.catch_warnings(record=True) as caught:
-        warnings.simplefilter("always")
-        _collect_org_layer_data(tmp_path)
-
-    legacy = [w for w in caught if issubclass(w.category, DeprecationWarning) and "organisation_packs" in str(w.message)]
-    assert len(legacy) <= 1

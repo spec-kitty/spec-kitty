@@ -48,7 +48,7 @@ from charter.offering.drg.org_pack_loader import OrgDRGFragment
 # ---------------------------------------------------------------------------
 # As of WP11 the doctrine ``NodeKind`` enum does not include a member for
 # ``mission_step_contract``; mission steps are surfaced through the
-# ``DoctrineService.mission_step_contracts`` repository (a non-DRG path) and
+# ``ActiveCharterService.mission_step_contracts`` repository (a non-DRG path) and
 # the WP11 activation filter targets future DRG-resolved mission-step
 # fragments. To exercise the filter today without changing ``NodeKind``
 # (out of scope for WP11), tests below mint mission-step-like nodes

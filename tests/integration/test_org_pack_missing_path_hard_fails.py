@@ -1,7 +1,7 @@
 """Org pack missing-path hard-fail ATDD (Slice F WP06).
 
 Scenario 1 exception path / FR-004: when an operator configures an
-``organisation_packs:`` entry whose ``local_path`` does not exist, the
+``charter_packs.org.packs`` entry whose ``local_path`` does not exist, the
 runtime hard-fails with a named, operator-actionable error.
 
 Mirrors Mission B FR-015 (missing org pack hard-fail). No silent fallback.
@@ -24,10 +24,11 @@ def tmp_repo_with_dangling_pack(tmp_path: Path) -> Path:
     (kittify / "config.yaml").write_text(
         dedent(
             f"""\
-            organisation_packs:
-              - name: acme-compliance
-                source: local_path
-                path: {tmp_path}/does-not-exist/dangling-pack
+            charter_packs:
+              org:
+                packs:
+                  - name: acme-compliance
+                    local_path: {tmp_path}/does-not-exist/dangling-pack
             """
         )
     )

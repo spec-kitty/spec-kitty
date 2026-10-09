@@ -167,10 +167,17 @@ WP02_PATH_TOKEN_ONLY_REFERRERS: tuple[str, ...] = (
     *(path for path in WP02_RELATED_FRONTMATTER_REFERRERS if path not in _WP02_RELEASED_RELATED_REFERRERS),
     "docs/plans/doctrine/org-doctrine-layer-architecture-review.md",
     "docs/plans/refactor/slice-f-mission-debrief.md",
-    "src/charter/offering/README.md",
+    # src/charter/offering/README.md is intentionally NOT frozen here: the
+    # charter-pack cutover (#3732) rewrote its intro and dependency-direction
+    # prose (renaming the package and restructuring sentences), so its diff
+    # against the pre-rename base is a genuine content rewrite, not a
+    # path-token flip. Same documented escape as the two moved-on docs above.
     "src/charter/offering/directives/README.md",
     "src/charter/offering/paradigms/README.md",
-    "src/charter/offering/schemas/README.md",
+    # src/charter/offering/schemas/README.md is intentionally NOT frozen here:
+    # the cutover (#3732) added an `activation-preset.schema.yaml` table row for
+    # the new presets feature, so its diff against the pre-rename base changes
+    # the line count — a real content addition, not a path-token flip.
     "src/charter/offering/tactics/README.md",
     "src/charter/offering/templates/README.md",
     "tests/architectural/test_no_dead_doctrine_paths.py",
@@ -204,16 +211,24 @@ def _git_show(rel_path: str, base_commit: str) -> str:
 def _context_sources_consolidation_expected(rel_path: str, old_lines: list[str]) -> list[str]:
     text = "\n".join(old_lines)
     text = text.replace(_OLD_GLOSSARY_PATH, "context/charter.md")
+    # Canonical profile-load skill renames (#3732), also applied by
+    # _flip_path_token on the non-consolidation path.
+    text = text.replace("ad-hoc-profile-load", "spk-charter-profile-load")
+    text = text.replace("spk-doctrine-profile-load", "spk-charter-profile-load")
     if rel_path == "docs/api/agent_profiles/human-in-charge.md":
         text = text.replace(
-            "(`context-sources.doctrine-layers` is empty)",
-            "(the profile declares no `directive-references` / `tactic-references`)",
+            "No doctrine layers are loaded (`context-sources.doctrine-layers` is empty)",
+            "No directives or tactics are loaded (the profile declares no `directive-references` / `tactic-references`)",
         )
     return text.splitlines()
 
 
 def _flip_path_token(line: str, *, allow_source_topology: bool) -> str:
     allowed = line.replace(_OLD_GLOSSARY_PATH, "context/charter.md")
+    # The retired ad-hoc profile-load skill id is renamed to its canonical
+    # charter-family name across every referrer identically (#3732); it is a
+    # universal token flip of the same character as the glossary-path flip.
+    allowed = allowed.replace("ad-hoc-profile-load", "spk-charter-profile-load")
     if allow_source_topology:
         allowed = allowed.replace("src/doctrine/", "src/charter/offering/")
         allowed = allowed.replace("from doctrine", "from charter.offering")
@@ -252,9 +267,23 @@ _LATER_WAVE_DOC_REPLACEMENTS: dict[str, tuple[tuple[str, str], ...]] = {
     # C4 pointers moved to the living diagrams under docs/architecture/diagrams/.
     "docs/plans/engineering-notes/drg-completeness-2843-research.md": (("doc_status: active", "doc_status: deprecated"),),
     "docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md": (("doc_status: draft", "doc_status: deprecated"),),
-    "src/charter/offering/README.md": (
-        ("`docs/architecture/02_containers/", "`docs/architecture/diagrams/02_containers/"),
-        ("`docs/architecture/03_components/", "`docs/architecture/diagrams/03_components/"),
+    # Charter-pack cutover (#3732) renames the mission touched beyond the
+    # glossary-path flip. Each pair is applied to the post-flip base line, so
+    # every other line of the file still has to be a pure path-token flip.
+    # (src/charter/offering/README.md is removed from the frozen set above: its
+    # intro prose was rewritten, not token-flipped.)
+    "docs/api/agent_profiles/curator-carla.md": (("doctrine layers", "charter offering layers"),),
+    "docs/api/agent_profiles/doctrine-daphne.md": (("doctrine pack", "Charter Pack"),),
+    "src/charter/offering/directives/README.md": (("in the doctrine", "in the charter"),),
+    "src/charter/offering/paradigms/README.md": (("in the doctrine", "in the charter"),),
+    "src/charter/offering/tactics/README.md": (("in the doctrine glossary", "in the charter glossary"),),
+    "src/charter/offering/templates/README.md": (("doctrine glossary", "charter glossary"),),
+    "tests/architectural/test_no_dead_doctrine_paths.py": (
+        ("_DOCTRINE_ROOT", "_OFFERING_ROOT"),
+        ("scan_doctrine_cross_links", "scan_built_in_cross_links"),
+        ("test_every_built_in_doctrine_cross_link_resolves", "test_every_built_in_cross_link_resolves"),
+        ("spk-doctrine-show-me", "spk-practice-show-me"),
+        ("skills/spec-kitty-spdd-reasons/SKILL.md", "skills/spk-charter-spdd-reasons/references/reasons-canvas-workflow.md"),
     ),
 }
 

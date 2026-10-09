@@ -326,6 +326,43 @@ def test_still_resolves_via_org_pack_is_left_entirely_untouched(tmp_path: Path) 
     assert charter["activated_tactics"] == ["widget-polish"]
 
 
+@pytest.mark.parametrize(
+    "org_config",
+    [
+        "doctrine:\n  org:\n    packs:\n    - name: internal\n      local_path: packs/internal\n",
+        "doctrine:\n  org:\n    local_path: packs\n    subdir: internal\n",
+        "organisation_packs:\n- name: internal\n  path: packs/internal\n",
+    ],
+    ids=["doctrine-org-packs", "doctrine-org-single-pack", "organisation-packs"],
+)
+def test_org_pack_declared_under_a_retired_key_still_counts(tmp_path: Path, org_config: str) -> None:
+    """The retired org keys can still be on disk when this engine's ``detect()`` runs (#3732 FR-011).
+
+    The org-pack registry no longer reads them, so the check reads them itself:
+    an id an org pack declared there still carries is left untouched.
+    """
+    retirement = (Retirement(kind_key="activated_tactics", stem="widget-polish", reference_prefix="TACTIC"),)
+    pack_dir = tmp_path / "packs" / "internal" / "tactics"
+    pack_dir.mkdir(parents=True)
+    (pack_dir / "widget-polish.tactic.yaml").write_text("id: widget-polish\n", encoding="utf-8")
+    _write(tmp_path / _CONFIG_RELATIVE_PATH, "activated_tactics:\n- widget-polish\n" + org_config)
+
+    assert detect_retirements(tmp_path, retirement, include_answers_surface=True) is False
+
+
+def test_retired_org_key_without_the_id_does_not_count(tmp_path: Path) -> None:
+    """Control: a retired-key org pack that does not carry the id leaves the retirement due."""
+    retirement = (Retirement(kind_key="activated_tactics", stem="widget-polish", reference_prefix="TACTIC"),)
+    (tmp_path / "packs" / "internal" / "tactics").mkdir(parents=True)
+    _write(
+        tmp_path / _CONFIG_RELATIVE_PATH,
+        "activated_tactics:\n- widget-polish\norganisation_packs:\n- name: internal\n  path: packs/internal\n- not-a-mapping\n"
+        "doctrine:\n  org:\n    packs:\n    - name: no-local-path\n    - not-a-mapping\n",
+    )
+
+    assert detect_retirements(tmp_path, retirement, include_answers_surface=True) is True
+
+
 def test_org_pack_check_ignores_a_different_kind_directory(tmp_path: Path) -> None:
     """A same-name file under the WRONG kind directory must not count as resolving."""
     retirement = (Retirement(kind_key="activated_tactics", stem="widget-polish", reference_prefix="TACTIC"),)

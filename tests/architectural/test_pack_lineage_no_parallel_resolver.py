@@ -1,14 +1,14 @@
 """Architectural guardrail (T013, C-002/NFR-001): no parallel lineage resolver.
 
-``charter.activation.org_extends.resolve_extends_order`` is the single canonical
+``charter.offering.packs.extends.resolve_extends_order`` is the single canonical
 resolver for lineage-chain topology (cycle detection, missing-base
-detection, base-first ordering). ``src/specify_cli/doctrine/pack_lineage.py``
+detection, base-first ordering). ``src/charter/offering/packs/pack_lineage.py``
 adapts ``pack_id``-keyed edges into the name-keyed shape that resolver
 already consumes (see that module's docstring) -- it must never grow its own
 graph-walking logic.
 
 This guard AST-scans every ``pack_*.py`` module under
-``src/specify_cli/doctrine/`` (the pack-module surface pack_lineage.py
+``src/charter/offering/packs/`` (the pack-module surface pack_lineage.py
 belongs to) for two things:
 
 1. **Positive**: ``pack_lineage.py`` actually calls
@@ -19,7 +19,7 @@ belongs to) for two things:
    or self-recursion accumulating results via ``.append``/``.insert``)
    without delegating to ``resolve_extends_order``. That is exactly the
    shape of the retired ``org_charter._resolve_chain`` walker this mission
-   forbids reintroducing (see ``org_extends.py``'s own module docstring,
+   forbids reintroducing (see ``charter/offering/packs/extends.py``'s own module docstring,
    C-005/R-10).
 
 Falsifiability (non-vacuousness): the guard is proven to actually
@@ -41,7 +41,7 @@ import pytest
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_PACK_MODULES_ROOT = _REPO_ROOT / "src" / "specify_cli" / "doctrine"
+_PACK_MODULES_ROOT = _REPO_ROOT / "src" / "charter" / "offering" / "packs"
 _CANONICAL_RESOLVER = "resolve_extends_order"
 _ACCUMULATOR_CALLS = {"append", "insert", "extend"}
 
@@ -126,7 +126,7 @@ def find_order_producing_traversals(tree: ast.Module) -> list[str]:
     return offenders
 
 
-def test_pack_lineage_routes_only_through_org_extends() -> None:
+def test_pack_lineage_routes_only_through_extends() -> None:
     """Positive check: pack_lineage.py's lineage resolution calls resolve_extends_order."""
     pack_lineage_path = _PACK_MODULES_ROOT / "pack_lineage.py"
     assert pack_lineage_path.is_file(), f"expected {pack_lineage_path} to exist"
@@ -134,7 +134,7 @@ def test_pack_lineage_routes_only_through_org_extends() -> None:
     tree = ast.parse(pack_lineage_path.read_text(encoding="utf-8"))
     assert calls_resolve_extends_order(tree), (
         "pack_lineage.py must route lineage resolution through "
-        "charter.activation.org_extends.resolve_extends_order (C-002/NFR-001) -- no "
+        "charter.offering.packs.extends.resolve_extends_order (C-002/NFR-001) -- no "
         "call to the canonical resolver was found."
     )
 
@@ -152,7 +152,7 @@ def test_no_pack_module_defines_a_second_walker() -> None:
         "Found order-producing traversal(s) that do not delegate to "
         f"resolve_extends_order -- a second lineage resolver: {offenders}. "
         "Lineage resolution must route only through "
-        "charter.activation.org_extends.resolve_extends_order (C-002/NFR-001)."
+        "charter.offering.packs.extends.resolve_extends_order (C-002/NFR-001)."
     )
 
 
@@ -182,7 +182,7 @@ def _sneaky_recursive_resolve(node, edges, acc=None):
 """
 
 _LEGITIMATE_ADAPTER_LOOP = """
-from charter.activation.org_extends import resolve_extends_order
+from charter.offering.packs.extends import resolve_extends_order
 
 def resolve_pack_lineage_order(start_pack_id, parent_edges, pack_names):
     name_edges = {}

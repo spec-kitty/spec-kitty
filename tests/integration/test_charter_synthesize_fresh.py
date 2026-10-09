@@ -2,7 +2,7 @@
 
 These integration tests lock in Spec Assumption A2: the public CLI
 ``spec-kitty charter synthesize`` succeeds on a fresh project (no
-hand-seeded ``.kittify/doctrine/``, no LLM-authored YAML under
+hand-seeded ``.kittify/charter-packs/``, no LLM-authored YAML under
 ``.kittify/charter/generated/``) and produces the minimal artifact set
 documented in T031.
 """
@@ -95,7 +95,7 @@ def _run_synthesize(project: Path, *args: str) -> object:
 def test_synthesize_on_fresh_project_via_public_cli(tmp_path: Path) -> None:
     """Full chain on tmp_path: init -> interview -> generate -> synthesize.
 
-    No hand seeding of ``.kittify/doctrine/``. The public CLI surface MUST
+    No hand seeding of ``.kittify/charter-packs/``. The public CLI surface MUST
     succeed and produce the minimal artifact set documented in T031.
     """
     _git_init(tmp_path)
@@ -103,9 +103,9 @@ def test_synthesize_on_fresh_project_via_public_cli(tmp_path: Path) -> None:
     _run_generate(tmp_path)
 
     # Pre-condition: doctrine tree does NOT exist yet (no hand seeding).
-    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    doctrine_dir = tmp_path / ".kittify" / "charter-packs"
     assert not doctrine_dir.exists(), (
-        "Test pre-condition violated: .kittify/doctrine/ already exists"
+        "Test pre-condition violated: .kittify/charter-packs/ already exists"
     )
 
     # Pre-condition: no agent-authored YAML under generated/.
@@ -126,9 +126,9 @@ def test_synthesize_on_fresh_project_via_public_cli(tmp_path: Path) -> None:
     )
 
     # Minimal artifact set per T031:
-    # 1. .kittify/doctrine/ directory exists.
+    # 1. .kittify/charter-packs/ directory exists.
     assert doctrine_dir.is_dir(), (
-        "FR-015: .kittify/doctrine/ must exist after charter synthesize"
+        "FR-015: .kittify/charter-packs/ must exist after charter synthesize"
     )
     # 2. PROVENANCE.md is present (records the seed source).
     provenance = doctrine_dir / "PROVENANCE.md"
@@ -144,7 +144,7 @@ def test_synthesize_on_fresh_project_via_public_cli(tmp_path: Path) -> None:
     assert payload.get("result") == "success"
     assert payload.get("success") is True
     assert payload.get("mode") == "fresh_project_seed"
-    assert ".kittify/doctrine/PROVENANCE.md" in payload.get("files_written", [])
+    assert ".kittify/charter-packs/PROVENANCE.md" in payload.get("files_written", [])
     assert ".kittify/charter/synthesis-manifest.yaml" in payload.get("files_written", [])
 
     manifest_path = tmp_path / ".kittify" / "charter" / "synthesis-manifest.yaml"
@@ -223,7 +223,7 @@ def test_synthesize_dry_run_on_fresh_project_does_not_fall_through(
     _write_minimal_interview(tmp_path)
     _run_generate(tmp_path)
 
-    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    doctrine_dir = tmp_path / ".kittify" / "charter-packs"
     # Pre-condition: doctrine tree does NOT exist (verifying fresh state).
     assert not doctrine_dir.exists()
 
@@ -241,7 +241,7 @@ def test_synthesize_dry_run_on_fresh_project_does_not_fall_through(
     assert payload.get("result") == "dry_run"
     assert payload.get("success") is True
     assert payload.get("mode") == "fresh_project_seed_dry_run"
-    assert ".kittify/doctrine/PROVENANCE.md" in payload.get("files_planned", [])
+    assert ".kittify/charter-packs/PROVENANCE.md" in payload.get("files_planned", [])
     assert ".kittify/charter/synthesis-manifest.yaml" in payload.get("files_planned", [])
 
     # WP02 / FR-002 contracted-fields presence:
@@ -255,7 +255,7 @@ def test_synthesize_dry_run_on_fresh_project_does_not_fall_through(
 
     # Dry-run MUST NOT write anything to disk.
     assert not doctrine_dir.exists(), (
-        "dry-run on fresh project must not materialize .kittify/doctrine/"
+        "dry-run on fresh project must not materialize .kittify/charter-packs/"
     )
 
 
@@ -270,7 +270,7 @@ def test_synthesize_is_idempotent(tmp_path: Path) -> None:
     _write_minimal_interview(tmp_path)
     _run_generate(tmp_path)
 
-    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    doctrine_dir = tmp_path / ".kittify" / "charter-packs"
 
     # First run.
     r1 = _run_synthesize(tmp_path)
@@ -340,7 +340,7 @@ def test_synthesize_fresh_seed_unlinks_preexisting_graph(tmp_path: Path) -> None
     project-local ``graph.yaml`` so the freshness XOR invariant holds.
 
     Repro of the terminal "invalid" trap: a project carries a committed
-    ``.kittify/doctrine/graph.yaml`` from a prior synthesis era, but
+    ``.kittify/charter-packs/graph.yaml`` from a prior synthesis era, but
     ``generated/`` is now empty so synthesize takes the fresh-seed path and
     writes a ``built_in_only: true`` manifest. If it leaves graph.yaml behind,
     ``compute_freshness`` classifies the synthesized DRG as ``invalid`` with no
@@ -353,7 +353,7 @@ def test_synthesize_fresh_seed_unlinks_preexisting_graph(tmp_path: Path) -> None
     _run_generate(tmp_path)
 
     # Seed a stale project-local graph.yaml (the orphan residue).
-    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    doctrine_dir = tmp_path / ".kittify" / "charter-packs"
     doctrine_dir.mkdir(parents=True, exist_ok=True)
     stale_graph = doctrine_dir / "graph.yaml"
     stale_graph.write_text("schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8")
@@ -390,7 +390,7 @@ def test_synthesize_preserves_registered_direct_project_artifacts(tmp_path: Path
     source_bytes = {path: path.read_bytes() for path in sources.values()}
     sidecars = tmp_path / ".kittify/charter/provenance"
     provenance_bytes = {path: path.read_bytes() for path in sidecars.glob("*.yaml")}
-    tracked = [tmp_path / ".kittify/charter/synthesis-manifest.yaml", tmp_path / ".kittify/doctrine/graph.yaml"]
+    tracked = [tmp_path / ".kittify/charter/synthesis-manifest.yaml", tmp_path / ".kittify/charter-packs/graph.yaml"]
     before_dry_run = {path: path.read_bytes() for path in tracked}
     preview = _run_synthesize(tmp_path, "--dry-run", "--json")
     assert preview.exit_code == 0, preview.stdout
@@ -402,10 +402,10 @@ def test_synthesize_preserves_registered_direct_project_artifacts(tmp_path: Path
     assert sorted((a.kind, tmp_path / a.path) for a in manifest.artifacts) == sorted(sources.items())
     assert not manifest.built_in_only
     verify(manifest, tmp_path)
-    assert (tmp_path / ".kittify/doctrine/graph.yaml").is_file()
+    assert (tmp_path / ".kittify/charter-packs/graph.yaml").is_file()
     assert {path: path.read_bytes() for path in source_bytes} == source_bytes
     assert {path: path.read_bytes() for path in provenance_bytes} == provenance_bytes
-    assert "intentionally empty" not in (tmp_path / ".kittify/doctrine/PROVENANCE.md").read_text()
+    assert "intentionally empty" not in (tmp_path / ".kittify/charter-packs/PROVENANCE.md").read_text()
     freshness = compute_freshness(tmp_path).synthesized_drg
     assert freshness.state == "fresh", freshness
     payload = json.loads(result.stdout)

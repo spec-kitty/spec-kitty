@@ -1203,7 +1203,7 @@ class TestFileLineTupleArmIsImportAgnostic:
         assert len(_scan_python_source(source, "scratch/a.py")) >= 1
 
     def test_flags_raw_tuple_in_non_substrate_file(self) -> None:
-        # Mirrors test_kernel_no_doctrine_import.py: ast + pathlib + pytest only.
+        # Mirrors test_kernel_no_charter_offering_import.py: ast + pathlib + pytest only.
         source = "import ast\nfrom pathlib import Path\nimport pytest\n" + self._SEED
         assert len(_scan_python_source(source, "scratch/a.py")) >= 1
 
@@ -1561,7 +1561,7 @@ def test_ct7_raw_tuple_in_non_substrate_file_is_flagged() -> None:
 
 
 def test_real_kernel_gate_has_no_unexempted_line_pin() -> None:
-    """#3206 pointed regression pin: the REAL ``test_kernel_no_doctrine_import.py``
+    """#3206 pointed regression pin: the REAL ``test_kernel_no_charter_offering_import.py``
     (whose ``(path, lineno)`` exemptions were the original CT7 target, migrated
     to ContentDescriptors by WP03) produces no finding the pinned-empty
     :data:`_POSITIONAL_ANCHOR_EXEMPTIONS` leaves unexpected.
@@ -1569,7 +1569,7 @@ def test_real_kernel_gate_has_no_unexempted_line_pin() -> None:
     The whole-universe gate above already covers this file; this test adds a
     named failure for the #3206 site and fails if the kernel gate moves.
     """
-    kernel_gate = _ARCH_ROOT / "test_kernel_no_doctrine_import.py"
+    kernel_gate = _ARCH_ROOT / "test_kernel_no_charter_offering_import.py"
     assert kernel_gate.exists(), "the #3206 import-lineno gate moved — repoint this test"
     findings = _scan_python_file(kernel_gate)
     assert _unexempted(findings, _POSITIONAL_ANCHOR_EXEMPTIONS) == []

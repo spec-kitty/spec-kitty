@@ -392,7 +392,7 @@ class TestPersistRoundTrip:
 
         persist(graph, staging_dir, guard)
 
-        written_path = staging_dir / "doctrine" / "graph.yaml"
+        written_path = staging_dir / "charter-packs" / "graph.yaml"
         assert written_path.exists()
 
         loaded = load_graph(written_path)
@@ -416,7 +416,7 @@ class TestPersistRoundTrip:
         staging_dir.mkdir()
         persist(graph, staging_dir, guard)
 
-        loaded = load_graph(staging_dir / "doctrine" / "graph.yaml")
+        loaded = load_graph(staging_dir / "charter-packs" / "graph.yaml")
         # Merge and validate: edges in project may reference shipped nodes.
         merged = merge_layers(shipped, loaded)
         errors = validate_graph(merged)
@@ -429,7 +429,7 @@ class TestPersistRoundTrip:
         staging_dir = tmp_path / "staging"
         staging_dir.mkdir()
         persist(graph, staging_dir, guard)
-        assert (staging_dir / "doctrine").is_dir()
+        assert (staging_dir / "charter-packs").is_dir()
 
     def test_persisted_yaml_is_valid_yaml(self, tmp_path: Path) -> None:
         shipped = _make_shipped_graph()
@@ -440,7 +440,7 @@ class TestPersistRoundTrip:
         staging_dir.mkdir()
         persist(graph, staging_dir, guard)
 
-        yaml_text = (staging_dir / "doctrine" / "graph.yaml").read_text()
+        yaml_text = (staging_dir / "charter-packs" / "graph.yaml").read_text()
         yaml = YAML(typ="safe")
         loaded = yaml.load(yaml_text)
         assert isinstance(loaded, dict)
@@ -519,7 +519,7 @@ class TestKindAdmission:
 # ---------------------------------------------------------------------------
 
 def _write_profile(root: Path, name: str, profile_id: str, display: str | None = "Reviewer Rhonda") -> Path:
-    profiles_dir = root / ".kittify" / "doctrine" / "agent_profiles"
+    profiles_dir = root / ".kittify" / "charter-packs" / "agent_profiles"
     profiles_dir.mkdir(parents=True, exist_ok=True)
     path = profiles_dir / f"{name}.agent.yaml"
     body = f"profile-id: {profile_id}\n"
@@ -552,7 +552,7 @@ class TestProjectProfileWalk:
     def test_walk_is_recursive_and_sorted(self, tmp_path: Path) -> None:
         from charter.offering.drg.project_scan import walk_project_agent_profile_nodes
 
-        profiles_dir = tmp_path / ".kittify" / "doctrine" / "agent_profiles"
+        profiles_dir = tmp_path / ".kittify" / "charter-packs" / "agent_profiles"
         (profiles_dir / "nested").mkdir(parents=True, exist_ok=True)
         (profiles_dir / "zeta.agent.yaml").write_text("profile-id: zeta\nname: Zeta\n", encoding="utf-8")
         (profiles_dir / "nested" / "alpha.agent.yaml").write_text(
@@ -614,7 +614,7 @@ class TestComposeProjectProfileNodes:
         """NFR-002: the SAME profile-id in two authored files fails loud (naming
         both), rather than one silently winning — a dropped overlay node is the
         governance-invisible defect the walk exists to prevent."""
-        profiles_dir = tmp_path / ".kittify" / "doctrine" / "agent_profiles"
+        profiles_dir = tmp_path / ".kittify" / "charter-packs" / "agent_profiles"
         (profiles_dir / "a").mkdir(parents=True, exist_ok=True)
         (profiles_dir / "b").mkdir(parents=True, exist_ok=True)
         (profiles_dir / "a" / "dup.agent.yaml").write_text(

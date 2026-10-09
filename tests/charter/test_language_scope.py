@@ -286,7 +286,7 @@ def _packaged_default_answer() -> str:
 
 
 def _write_overlay_artifact(repo_root: Path, *, kind_dir: str, name: str, languages: list[str]) -> None:
-    directory = repo_root / ".kittify" / "doctrine" / kind_dir
+    directory = repo_root / ".kittify" / "charter-packs" / kind_dir
     directory.mkdir(parents=True, exist_ok=True)
     (directory / f"{name}.{kind_dir}.yaml").write_text(
         f"id: {name}\napplies_to_languages: {languages!r}\n".replace("'", ""),

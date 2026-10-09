@@ -68,10 +68,10 @@ RESERVED = "durable"
 
 
 def _resolve_lint_asset_path() -> Path:
-    """Resolve the shipped structural-lint asset via ``DoctrineService.assets``."""
-    from charter.offering.service import DoctrineService
+    """Resolve the shipped structural-lint asset via ``CharterOfferingService.assets``."""
+    from charter.offering.service import CharterOfferingService
 
-    return DoctrineService().assets.resolve_path("common-docs-structural-lint")
+    return CharterOfferingService().assets.resolve_path("common-docs-structural-lint")
 
 
 _LINT_ASSET_PATH = _resolve_lint_asset_path()

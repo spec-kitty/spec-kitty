@@ -305,7 +305,7 @@ spec-kitty charter context --action specify --json
 ## Visual Communication (recommended)
 
 Apply the visual doctrine when a non-trivial actor flow, domain lifecycle,
-rule, or concept boundary is clearer visually. Load `spk-doctrine-show-me` and
+rule, or concept boundary is clearer visually. Load `spk-practice-show-me` and
 add the smallest useful diagram. Prefer an inline Mermaid diagram; use PlantUML
 only when its richer layout or DSL materially helps. Keep the visual focused on
 product intent—do not introduce implementation architecture into the
@@ -496,7 +496,7 @@ Typical shapes: "rename X to Y", "the Blue feature is now the Red feature",
 "change the terminology from X to Y", "move package A to package B", "replace
 ACME with GlobalCorp everywhere in docs and UI".
 
-**If yes or uncertain**: load the `spec-kitty-bulk-edit-classification` skill
+**If yes or uncertain**: load the `spk-practice-bulk-edit` skill
 and follow it. You will set `change_mode: bulk_edit` in `meta.json` after
 `mission create` and produce an `occurrence_map.yaml` during plan. The user
 does not need to know these field names — the skill teaches you the workflow.

@@ -440,7 +440,7 @@ class TestConfigEnvFilePointer:
         monkeypatch.setenv("SPEC_KITTY_HOME", str(state_home))
         (repo_dir / ".kittify" / "config.yaml").write_text(
             "env_file: ${SPEC_KITTY_HOME}/.kitty.env\n"
-            "doctrine:\n"
+            "charter_packs:\n"
             "  org:\n"
             "    packs: []\n",
             encoding="utf-8",

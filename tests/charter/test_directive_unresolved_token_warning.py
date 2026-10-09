@@ -1,6 +1,6 @@
 """#4240 -- a stale/mistyped ``activated_directives`` entry that neither
 resolves via URN nor names a known catalog id is silently best-effort
-normalized by ``DoctrineService.directives`` (``charter.activation.resolver``)
+normalized by ``ActiveCharterService.directives`` (``charter.activation.resolver``)
 and can co-activate an unrelated directive. This is legacy-compat behavior,
 not a bug to fix outright (C-003: the resolution *result* must not change) --
 but the silence is a gap. A per-token WARNING must fire on that
@@ -28,7 +28,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from charter.activation.pack_context import PackContext
-from charter.activation.resolver import DoctrineService
+from charter.activation.resolver import ActiveCharterService
 
 pytestmark = pytest.mark.fast
 
@@ -60,7 +60,7 @@ def test_unresolvable_token_warns_once_naming_token_and_normalized_form(tmp_path
     ctx = _ctx_activating(tmp_path, frozenset({"999-ghost-directive"}))
 
     with caplog.at_level(logging.WARNING):
-        gated = DoctrineService(inner, pack_context=ctx).directives
+        gated = ActiveCharterService(inner, pack_context=ctx).directives
 
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert len(warnings) == 1
@@ -87,7 +87,7 @@ def test_resolvable_token_emits_no_warning(tmp_path: Path, caplog: pytest.LogCap
     ctx = _ctx_activating(tmp_path, tokens)
 
     with caplog.at_level(logging.WARNING):
-        gated = DoctrineService(inner, pack_context=ctx).directives
+        gated = ActiveCharterService(inner, pack_context=ctx).directives
 
     warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert warnings == []

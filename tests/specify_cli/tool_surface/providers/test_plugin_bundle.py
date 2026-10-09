@@ -642,7 +642,7 @@ def _selected_skill_preparation(
     doctrine = builder.assess(
         ("codex",),
         AssessmentInputs(root, projected=installation, consent=consent),
-        kinds=(ToolSurfaceKind.DOCTRINE_SKILL,),
+        kinds=(ToolSurfaceKind.CHARTER_SKILL,),
     ).assessments[0]
     assert doctrine == installation.project_skills
     managed = next(p for p in providers if isinstance(p, ManagedSkillsProvider))

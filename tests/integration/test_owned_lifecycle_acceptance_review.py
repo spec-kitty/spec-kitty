@@ -290,12 +290,12 @@ class TestUs3As5OwnedReviewBaseUnavailable:
 
 
 def _governance_with_marker(root: Path, marker: str) -> None:
-    """A project-local mission-type governance override (the ``.kittify/doctrine`` tier) carrying ``marker``.
+    """A project-local mission-type governance override (the ``.kittify/charter-packs`` tier) carrying ``marker``.
 
     The implement and review prompts render this profile's ``selected_directives``
     ("Mission-Type Governance Profile"), read from the root the prompt was built for.
     """
-    profile = root / ".kittify" / "doctrine" / "mission_types" / "software-dev"
+    profile = root / ".kittify" / "charter-packs" / "mission_types" / "software-dev"
     profile.mkdir(parents=True, exist_ok=True)
     (profile / "governance-profile.yaml").write_text(
         f"id: software-dev\nmission_type: software-dev\nselected_directives: [{marker}]\n",

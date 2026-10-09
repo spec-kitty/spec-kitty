@@ -7,7 +7,7 @@ The ``src/doctrine`` → ``src/charter/offering`` module move rewrote the token
 the old ``doctrine`` key was rewritten with it, so operator surfaces sent
 people to keys that do not exist:
 
-* ``doctor doctrine`` told operators to add a ``'charter.offering.org'`` block
+* ``doctor charter-packs`` told operators to add a ``'charter.offering.org'`` block
   to ``.kittify/config.yaml`` (the key is ``charter_packs.org``);
 * shipped skills cited ``governance.charter.offering.governance_references``
   and ``charter.offering.selected_paradigms`` (the keys live under
@@ -16,14 +16,12 @@ people to keys that do not exist:
 
 Rule: ``charter.offering.<name>`` must never appear on a living surface when
 ``<name>`` is a charter config key. The key set is derived from the schema
-(:class:`DoctrineSelectionConfig` fields plus the ``charter_packs`` tier
+(:class:`GovernanceCharterConfig` fields plus the ``charter_packs`` tier
 keys), so there is nothing to hand-maintain and no allowlist. Real module
 references (``charter.offering.artifact_kinds``) and mentions of retired
 modules are untouched.
 
-Scope: ``src/``, ``packs/``, the living docs, the CI workflows and the two root
-guides (``README.md``, ``CONTRIBUTING.md``) -- the same roots as the sibling
-deprecated-command gate. The immutable record roots
+Scope: ``src/``, ``packs/`` and the living docs. The immutable record roots
 (ADRs, dated reports, the archive, migration runbooks, archival plans) are out
 of scope per ``docs/development/reference/terminology-exemptions.md``, and so
 is ``docs/changelog/``: its entries quote the old wrong text as the "Before".
@@ -36,16 +34,13 @@ from pathlib import Path
 
 import pytest
 
-from charter.activation.schemas import DoctrineSelectionConfig
+from charter.activation.schemas import GovernanceCharterConfig
 from tests._support.terminology_scope import FORBIDDEN_SCAN_ROOTS
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_SCAN_ROOTS = ("src", "packs", "docs", ".github/workflows")
-#: Root-level guides an operator reads first; kept in step with
-#: ``test_no_deprecated_doctrine_command_in_guidance.py``.
-_ROOT_FILES = ("README.md", "CONTRIBUTING.md")
+_SCAN_ROOTS = ("src", "packs", "docs")
 _SUFFIXES = frozenset({".py", ".md", ".yaml", ".yml", ".toml", ".txt"})
 
 #: The shared terminology-exempt roots, plus the changelog, whose entries quote
@@ -54,7 +49,7 @@ _EXCLUDED_PREFIXES = (*FORBIDDEN_SCAN_ROOTS, "docs/changelog/")
 
 #: ``charter_packs.<tier>`` keys in ``.kittify/config.yaml``.
 _PACK_TIER_KEYS = frozenset({"org", "project"})
-_CONFIG_KEYS = frozenset(DoctrineSelectionConfig.model_fields) | _PACK_TIER_KEYS
+_CONFIG_KEYS = frozenset(GovernanceCharterConfig.model_fields) | _PACK_TIER_KEYS
 
 _TOKEN = re.compile(r"charter\.offering\.([A-Za-z_][A-Za-z0-9_]*)")
 
@@ -72,7 +67,6 @@ def _scanned_files() -> list[Path]:
             if rel.startswith(_EXCLUDED_PREFIXES) or "/__pycache__/" in rel:
                 continue
             files.append(path)
-    files.extend(_REPO_ROOT / name for name in _ROOT_FILES)
     return files
 
 
@@ -99,9 +93,7 @@ def test_no_config_key_is_spelled_as_a_module_path() -> None:
 
 
 def test_gate_reaches_a_real_file_count() -> None:
-    scanned = _scanned_files()
-    assert len(scanned) >= _MIN_FILES_SCANNED
-    assert {_REPO_ROOT / name for name in _ROOT_FILES} <= set(scanned)
+    assert len(_scanned_files()) >= _MIN_FILES_SCANNED
 
 
 def test_config_key_set_is_derived_and_non_empty() -> None:

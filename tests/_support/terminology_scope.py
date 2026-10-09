@@ -48,9 +48,8 @@ FORBIDDEN_SCAN_ROOTS = (
     # in tests/architectural/test_no_dead_src_path_literals.py; this
     # mirrors that classification rather than inventing a third, divergent
     # exemption list. Guarded by
-    # test_docs_reports_exemption_is_not_published_as_live_docs in
-    # tests/contract/test_terminology_guards.py, which fails loudly if
-    # docs/docfx.json ever publishes reports/ as live docs.
+    # test_docs_reports_exemption_is_not_published_as_live_docs below, which
+    # fails loudly if docs/docfx.json ever publishes reports/ as live docs.
     # See spec.md R6 / #5187 (nightly-drift-reds-01M3M14S).
     "docs/reports/",
 )

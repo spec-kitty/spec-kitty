@@ -10,7 +10,7 @@ there would either entangle this change with an unrelated repo-wide
 reformat, or require a local ``# fmt: off`` carve-out neither this fix nor
 that file's own history uses. This file is a normal, ruff-formatted file.
 
-Both fixtures below declare a project-level DRG overlay (``.kittify/doctrine/
+Both fixtures below declare a project-level DRG overlay (``.kittify/charter-packs/
 graph.yaml``) adding one new node plus one ``requires`` edge FROM a real,
 already-activated built-in directive node (``directive:DIRECTIVE_001``) TO
 the new node -- so the id is reached purely via DRG-transitive closure (never
@@ -72,7 +72,7 @@ def _write_project_drg_overlay(repo: Path, *, kind: str, ghost_id: str) -> None:
     real ``load_validated_graph`` merge accepts, so the transitive walk
     reaches ``<kind>:<ghost_id>`` with no backing on-disk artifact.
     """
-    overlay_dir = repo / ".kittify" / "doctrine"
+    overlay_dir = repo / ".kittify" / "charter-packs"
     overlay_dir.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
     yaml.default_flow_style = False

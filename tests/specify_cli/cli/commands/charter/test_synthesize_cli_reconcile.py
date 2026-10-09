@@ -162,7 +162,7 @@ def _dump_graph(path: Path, data: dict[str, Any]) -> None:
 
 
 def _graph_path(repo_root: Path) -> Path:
-    return repo_root / ".kittify" / "doctrine" / "graph.yaml"
+    return repo_root / ".kittify" / "charter-packs" / "graph.yaml"
 
 
 def _inject_backed_legacy_content(tmp_path: Path) -> None:
@@ -172,7 +172,7 @@ def _inject_backed_legacy_content(tmp_path: Path) -> None:
     a genuine "preserved-but-untargeted" case with a real backing artifact
     file, so it is never orphaned.
     """
-    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    doctrine_dir = tmp_path / ".kittify" / "charter-packs"
     graph_path = _graph_path(tmp_path)
     graph = _load_graph(graph_path)
     graph["nodes"].append({"urn": _LEGACY_URN, "kind": "tactic", "label": "Legacy Preference Order Tactic (3270)"})
@@ -195,7 +195,7 @@ def _inject_backed_legacy_content(tmp_path: Path) -> None:
     # orphaned -- mirroring what a real prior synthesis run would have
     # written for it (probing is manifest+provenance-driven, not a raw
     # filename guess; a bare content-file copy alone reads as orphaned).
-    rel_content = ".kittify/doctrine/tactic/legacy-preference-order-3270.tactic.yaml"
+    rel_content = ".kittify/charter-packs/tactic/legacy-preference-order-3270.tactic.yaml"
     rel_prov = ".kittify/charter/provenance/tactic-legacy-preference-order-3270.yaml"
     content_hash = hashlib.sha256(legacy_artifact.read_bytes()).hexdigest()  # noqa: TID251 -- test-only fixture hash, not a production owner
 

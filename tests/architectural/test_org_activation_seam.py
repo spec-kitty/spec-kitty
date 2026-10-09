@@ -3,7 +3,7 @@
 The charter activation filter is the single doorway through which org-pack
 agent profiles may reach dispatch routing, governance context, and host
 projection. The canonical seam is :func:`resolve_activated_org_profiles`
-(WP02) / :func:`_build_activation_aware_doctrine_service`
+(WP02) / :func:`_build_active_charter_service`
 (``charter/context.py``) — both apply the three-state
 ``PackContext.activated_agent_profiles`` gate so a *de-activated* org
 profile never reaches a routing/projection surface.
@@ -66,8 +66,8 @@ _RESOLVE_ORG_ROOTS = "resolve_org_roots"
 # The activation seam symbols an org-honouring surface should route through.
 _SEAM_SYMBOLS = (
     "resolve_activated_org_profiles",
-    "_build_activation_aware_doctrine_service",
-    "build_activation_aware_doctrine_service",
+    "_build_active_charter_service",
+    "build_active_charter_service",
 )
 
 

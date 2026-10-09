@@ -47,24 +47,23 @@ def test_activation_aware_profile_map_returns_cached(monkeypatch: pytest.MonkeyP
     def _must_not_build(*_a: object, **_k: object) -> object:  # pragma: no cover - guard
         raise AssertionError("service was rebuilt despite a cached map")
 
-    monkeypatch.setattr(context, "_build_activation_aware_doctrine_service", _must_not_build)
+    monkeypatch.setattr(context, "_build_active_charter_service", _must_not_build)
     try:
         assert context._activation_aware_profile_map(repo_root, []) is sentinel
     finally:
         context._ACTIVATION_AWARE_PROFILE_MAPS.pop(repo_root, None)
 
 
-def test_resolve_org_layer_dir_falls_back_to_nested(tmp_path: Path) -> None:
-    """No flat ``<pack>/<plural>/`` dir → the legacy nested ``<base>/org`` path (FR-013)."""
+def test_resolve_org_layer_dir_is_the_flat_plural_dir(tmp_path: Path) -> None:
+    """The org layer is the flat ``<pack>/<plural>/`` dir, whether or not it exists (FR-013)."""
     kind = _resolve_kind("agent-profile")
-    # tmp_path has neither the flat nor nested dir; the fallback path is returned as-is.
-    result = _resolve_org_layer_dir(tmp_path, kind, "agent_profiles")
-    assert result == tmp_path / "agent_profiles" / "org"
+    assert kind is not None
+    assert _resolve_org_layer_dir(tmp_path, kind) == tmp_path / kind.plural
 
 
-def test_resolve_org_layer_dir_prefers_flat(tmp_path: Path) -> None:
-    """When the flat ``<pack>/<plural>/`` dir exists it wins over the nested fallback."""
+def test_resolve_org_layer_dir_ignores_the_retired_nested_layout(tmp_path: Path) -> None:
+    """A nested ``<pack>/doctrine/<plural>/org/`` dir is not read (FR-011)."""
     kind = _resolve_kind("agent-profile")
-    flat = tmp_path / kind.plural
-    flat.mkdir(parents=True)
-    assert _resolve_org_layer_dir(tmp_path, kind, "agent_profiles") == flat
+    assert kind is not None
+    (tmp_path / "doctrine" / kind.plural / "org").mkdir(parents=True)
+    assert _resolve_org_layer_dir(tmp_path, kind) == tmp_path / kind.plural
