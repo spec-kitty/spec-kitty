@@ -204,7 +204,6 @@ def test_enumerate_excludes_data_only_packages(lib: ModuleType) -> None:
     packages = set(lib.enumerate_src_packages())
     for data_pkg in (
         "charter.activation.corpus",
-        "charter.activation.packs",
         "specify_cli.skills.data",
     ):
         assert data_pkg not in packages

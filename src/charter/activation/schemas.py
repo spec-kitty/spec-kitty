@@ -364,8 +364,8 @@ class CharterYaml(BaseModel):
 
     ⚠ Activation is FLAT AT THE ROOT (paula BLOCKER-1) — the ten
     ``activated_*`` / ``mission_type_activations`` fields below are NOT
-    nested under an ``activation:`` key, matching
-    ``src/charter/activation/packs/default.yaml:5-38``, so
+    nested under an ``activation:`` key, matching the activation presets
+    (``packs/built-in/presets/<name>.yaml``), so
     ``pack_context._read_activated_*`` / ``_read_list_key`` and
     ``activation_engine.commit_plan`` read/write them unchanged.
     ``model_config`` forbids extra fields, which doubles as the structural
@@ -374,9 +374,9 @@ class CharterYaml(BaseModel):
     ``extra="forbid"`` rejects it).
 
     Each ``activated_*`` field is three-state (charter contract G3):
-    ``None`` == absent key == default-pack fallback/seed
-    (``load_default_pack_activation_ids``); ``[]`` == explicit fail-closed
-    empty; a non-empty list == the activated set.
+    ``None`` == absent key == the kind is unrestricted (every available
+    artifact of it is effective); ``[]`` == explicit fail-closed empty; a
+    non-empty list == the activated set.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")

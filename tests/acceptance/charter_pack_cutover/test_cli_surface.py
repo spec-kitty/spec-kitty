@@ -21,7 +21,7 @@ from click.testing import Result
 
 from ._requirements import REPO_ROOT
 from ._support import covers, describe, output_of, pending_until, read_json_output, run_cli
-from .legacy_fixtures import build_doctrine_command_fixture, project_from_template, upgraded_copy, write_doctrine_pack
+from .legacy_fixtures import MISSION_TYPES, build_doctrine_command_fixture, finish, project_from_template, upgraded_copy, write_doctrine_pack
 
 FIXTURES_ROOT = REPO_ROOT / "tests" / "fixtures" / "charter_pack_cutover"
 CLI_BEFORE = FIXTURES_ROOT / "cli_before.json"
@@ -120,7 +120,6 @@ def json_key_set(payload: object) -> list[str]:
 #: Literal markers (test_traceability requires a literal WP id at every call site).
 _FR006_PENDING = {"WP15": pending_until("WP15", "charter home of a former doctrine leaf (FR-006)")}
 _FR007_PENDING = {
-    "WP13": pending_until("WP13", "`charter pack apply` removed (FR-005)"),
     "WP15": pending_until("WP15", "old spelling removed with its charter home (FR-006)"),
     "WP16": pending_until("WP16", "`spec-kitty doctrine` group removed (FR-007)"),
 }
@@ -205,6 +204,9 @@ class Removed:
     old: tuple[str, ...]
     new: tuple[str, ...]
     pending: str
+    #: Run the replacement on a project with no org pack: the doctrine-command fixture declares an
+    #: org pack it never fetches, and a preset's id check reads the whole offering (PRESET_ID_UNRESOLVED).
+    plain_control: bool = False
 
 
 def _removed_rows() -> list[Removed]:
@@ -214,7 +216,11 @@ def _removed_rows() -> list[Removed]:
             rows.append(Removed(leaf.key, leaf.old, leaf.new, "WP15"))
         else:
             rows.append(Removed(leaf.key, leaf.old, leaf.new, "WP16"))
-    rows.append(Removed("charter_pack_apply", ("charter", "pack", "apply", "minimal"), ("charter", "activate", "--preset", "minimal", "--force"), "WP13"))
+    rows.append(
+        Removed(
+            "charter_pack_apply", ("charter", "pack", "apply", "minimal"), ("charter", "activate", "--preset", "minimal", "--force"), "WP13", plain_control=True
+        )
+    )
     return rows
 
 
@@ -233,7 +239,7 @@ def _expected_replacement_exit(row: Removed) -> int:
 @pytest.mark.git_repo
 @pytest.mark.parametrize(
     "row",
-    [pytest.param(r, id=r.key, marks=_FR007_PENDING[r.pending]) for r in _removed_rows()],
+    [pytest.param(r, id=r.key, marks=_FR007_PENDING.get(r.pending, ())) for r in _removed_rows()],
 )
 def test_fr007_old_spelling_exits_2(row: Removed, tmp_path: Path) -> None:
     project = build_doctrine_command_fixture(tmp_path / "doctrine-commands")
@@ -243,7 +249,8 @@ def test_fr007_old_spelling_exits_2(row: Removed, tmp_path: Path) -> None:
     # Control: the replacement runs on the same fixture (a hidden alias would exit 0 above). A
     # former leaf must exit with the code recorded for it at base (SC-004; `doctor doctrine` exits 1
     # on this fixture because its org pack is not fetched); the other rows exit 0.
-    new = run_cli(list(row.new), project)
+    control = finish(tmp_path / "plain", {"mission_type_activations": MISSION_TYPES}) if row.plain_control else project
+    new = run_cli(list(row.new), control)
     assert UNKNOWN_COMMAND not in output_of(new), describe(new)
     assert new.exit_code == _expected_replacement_exit(row), describe(new)
 
@@ -281,7 +288,6 @@ def _scan_src(names: Sequence[str], modules: Sequence[str], root: Path) -> list[
 
 
 @covers("FR-005")
-@pending_until("WP13", "preset registry modules retired")
 def test_fr005_registry_modules_not_importable(tmp_path: Path) -> None:
     # Positive control for the scan: a planted definition is found.
     planted = tmp_path / "planted"
@@ -304,7 +310,6 @@ def _retired_reader_findings(root: Path) -> list[str]:
 
 
 @covers("FR-005")
-@pending_until("WP13", "no reader of the retired default.yaml surfaces")
 def test_fr005_no_default_yaml_reader_outside_migration_data(tmp_path: Path) -> None:
     planted = tmp_path / "planted"
     planted.mkdir()

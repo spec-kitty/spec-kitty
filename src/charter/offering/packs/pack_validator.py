@@ -95,6 +95,8 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.packs.pack_descriptor import load_pack_descriptor
+from charter.offering.packs.retired_fields import RETIRED_PACK_FIELD, RetiredPackFieldError
 from charter.offering.drg.merge import _EndpointResolutionError, _resolve_edge_endpoint
 from charter.offering.drg.override_policy import (
     PACK_POLICY_FILENAME,
@@ -526,6 +528,9 @@ def validate_pack(
         errors.extend(sanction_errors)
         advisories.extend(sanction_advisories)
 
+    # The authored pack.yaml descriptor (a retired field is RETIRED_PACK_FIELD, #3732).
+    errors.extend(_validate_pack_descriptor(pack_dir))
+
     # FR-019: activation presets under presets/ (format, id resolution, kind gate).
     errors.extend(_validate_presets(pack_dir))
 
@@ -626,6 +631,49 @@ def _validate_presets(pack_dir: Path) -> list[ValidationIssue]:
                 _preset_issue(path, f"preset {path.name}: {ACTIVATED_KINDS_KEY} omits {', '.join(omitted)}, which the preset lists ids for", "preset_kind_gate")
             )
     return issues
+
+
+# ---------------------------------------------------------------------------
+# Authored pack.yaml descriptor
+# ---------------------------------------------------------------------------
+
+#: The authored descriptor's file name and ``artifact_type``.
+_PACK_DESCRIPTOR_FILENAME = "pack.yaml"
+_PACK_DESCRIPTOR_ARTIFACT_TYPE = "pack"
+
+
+def _descriptor_issue(path: Path, message: str, category: str, artifact_id: str | None = None) -> ValidationIssue:
+    return ValidationIssue(
+        severity="error",
+        artifact_type=_PACK_DESCRIPTOR_ARTIFACT_TYPE,
+        artifact_id=artifact_id,
+        file=str(path),
+        message=message,
+        category=category,
+    )
+
+
+def _validate_pack_descriptor(pack_dir: Path) -> list[ValidationIssue]:
+    """Validate the pack's authored ``pack.yaml``, when it has one.
+
+    A retired field is one ``RETIRED_PACK_FIELD`` error naming the file, the
+    field and its replacement (the message of
+    :class:`~charter.offering.packs.retired_fields.RetiredPackFieldError`); any
+    other schema failure is ``schema_invalid`` and an unparseable or unreadable
+    file is ``parse_error``.
+    """
+    path = pack_dir / _PACK_DESCRIPTOR_FILENAME
+    if not path.is_file():
+        return []
+    try:
+        load_pack_descriptor(path)
+    except RetiredPackFieldError as exc:
+        return [_descriptor_issue(path, f"{RETIRED_PACK_FIELD}: {exc}", RETIRED_PACK_FIELD, artifact_id=exc.field)]
+    except ValidationError as exc:
+        return [_descriptor_issue(path, f"{_PACK_DESCRIPTOR_FILENAME} schema validation failed: {exc.errors()[0].get('msg', exc)}", "schema_invalid")]
+    except (YAMLError, OSError) as exc:
+        return [_descriptor_issue(path, f"unreadable {_PACK_DESCRIPTOR_FILENAME}: {exc}", "parse_error")]
+    return []
 
 
 # ---------------------------------------------------------------------------

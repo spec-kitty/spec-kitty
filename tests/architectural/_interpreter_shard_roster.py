@@ -337,7 +337,6 @@ INTERPRETER_SHARDS: tuple[InterpreterShard, ...] = (
             "tests/specify_cli/saas_client",
             "tests/specify_cli/test_bare_prose_false_negative_sample.py",
             "tests/specify_cli/test_brief_pair_atomicity.py",
-            "tests/specify_cli/test_charter_pack_registry.py",
             "tests/specify_cli/test_command_template_cleanliness.py",
             "tests/specify_cli/test_delete_scalar.py",
             "tests/specify_cli/test_documentation_template_resolution.py",

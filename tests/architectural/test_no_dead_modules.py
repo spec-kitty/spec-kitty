@@ -461,13 +461,13 @@ _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
         # pack-metadata-manifest-unification (#3500-#3503 / ADR 2026-08-16-1,
         # 2026-08-16): this is a deliberately library-first schema slice. The
         # unified-schema *models* land here; their production wiring (org/fetched
-        # writers, the pack_id-keyed resolver cutover, the lineage/accompanies
-        # production callers) is the deferred integration WP, tracked in #3518.
-        # These two modules are the not-yet-wired adapters awaiting that WP; the
+        # writers, the pack_id-keyed resolver cutover, the lineage production
+        # callers) is the deferred integration WP, tracked in #3518. This module
+        # is the not-yet-wired adapter awaiting that WP (pack_descriptor is wired
+        # since #3732 WP13: pack_validator reads pack.yaml through it); the
         # AST ratchet test_pack_lineage_no_parallel_resolver.py + the schema/
         # identity/counts unit suites exercise them meanwhile. Moved from
         # specify_cli.doctrine by charter-pack-cutover-01M491G6 WP04 (#3732).
-        "charter.offering.packs.pack_descriptor",
         "charter.offering.packs.pack_lineage",
         # specify_cli.cli.commands.charter._charter_write_root removed
         # (#4785 WP03+WP04): activate.py/deactivate.py (WP03) and

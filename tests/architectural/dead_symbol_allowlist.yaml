@@ -450,21 +450,7 @@ entries:
     integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
     suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
 - module: charter.offering.packs.pack_lineage
-  name: UnresolvedDoctrinePackError
-  category: category_a_slice_f_deferred
-  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
-    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
-    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
-    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
-- module: charter.offering.packs.pack_lineage
   name: UnresolvedPackParentError
-  category: category_a_slice_f_deferred
-  rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
-    schema/lineage/hash public API, declared now but not wired to production callers until the deferred
-    integration WP (#3518). Library-first slice; the AST ratchet + schema/identity/counts/lineage unit
-    suites exercise these meanwhile. Operator-confirmed deferred-API landing.'
-- module: charter.offering.packs.pack_lineage
-  name: resolve_accompanying_doctrine_pack
   category: category_a_slice_f_deferred
   rationale: 'pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the unified pack-manifest
     schema/lineage/hash public API, declared now but not wired to production callers until the deferred
@@ -1460,8 +1446,6 @@ widened_grandfathered_470:
     name: set_iteration_mode
   - module: specify_cli.doc_analysis.doc_state
     name: update_documentation_state
-  - module: charter.offering.packs.pack_descriptor
-    name: PackDescriptor
   - module: specify_cli.dossier.hasher
     name: WP_DESCRIPTIVE_PROJECTION_FIELDS
   - module: specify_cli.dossier.hasher

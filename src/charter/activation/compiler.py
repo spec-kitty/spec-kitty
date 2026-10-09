@@ -1571,8 +1571,8 @@ class WholeKindUnresolvedError(RuntimeError):
     Raised by :func:`compile_charter` instead of writing a catalog whose section
     for that kind would be silently empty. It stays a :class:`RuntimeError` so a
     caller that predates it keeps failing closed, but each command that reaches
-    the compiler translates it deliberately: ``charter generate`` and
-    ``charter pack apply --compile`` report it and exit non-zero, while
+    the compiler translates it deliberately: ``charter generate`` reports it
+    and exits non-zero, while
     ``charter activate``/``deactivate`` (whose config write already succeeded)
     downgrade it to a "catalog not recompiled" notice.
 

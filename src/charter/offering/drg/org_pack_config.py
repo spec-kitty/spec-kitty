@@ -121,7 +121,7 @@ def _warn_legacy_org_pack_doctrine_key_once() -> None:
     warnings.warn(
         "'.kittify/config.yaml' uses the legacy 'doctrine.org.packs' key; "
         "reading it as 'charter_packs.org.packs'. Update config.yaml (or "
-        "run `spec-kitty charter pack apply`) to adopt the canonical key.",
+        "run `spec-kitty upgrade`) to adopt the canonical key.",
         LegacyOrgPackDoctrineKeyWarning,
         stacklevel=3,
     )

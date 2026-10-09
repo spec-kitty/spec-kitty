@@ -239,8 +239,7 @@ def _resolve_recorded_mission_type(repo_root: Path, answers_path: Path) -> str:
     """Resolve the project's recorded mission type from its SSOT (#4908).
 
     ONLY for the catalog-recompile call sites (``charter activate``/
-    ``deactivate``'s ``recompile_catalog``, ``charter pack apply --compile``'s
-    ``_compile_bundle_after_merge``) -- they pass
+    ``deactivate``'s ``recompile_catalog``) -- it passes
     ``prefer_recorded_mission=True`` to :func:`_load_interview_for_generate`
     because a recompile is explicitly NOT a mission change and must not
     silently reset the project's mission. Before #4908 that combination
@@ -323,8 +322,8 @@ def _load_interview_for_generate(
     an unresolved mission (no ``--mission-type``, no loaded interview data)
     falls back to the ALREADY-COMPILED ``charter.yaml`` ``catalog.mission``
     via :func:`_resolve_recorded_mission_type` -- the correct behavior for
-    the internal recompile call sites (``recompile_catalog``,
-    ``_compile_bundle_after_merge``), which must never change the recorded
+    the internal recompile call site (``recompile_catalog``), which must
+    never change the recorded
     mission as a recompile side effect. It defaults to ``False`` for the
     user-facing ``charter generate`` CLI command, which instead re-derives
     the mission from interview answers or the ``"software-dev"`` default via

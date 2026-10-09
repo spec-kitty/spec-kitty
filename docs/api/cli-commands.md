@@ -448,8 +448,8 @@ _Charter management commands_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ activate      Activate a doctrine artifact by kind and ID (FR-004), with     │
-│               optional cascade.                                              │
+│ activate      Activate a doctrine artifact by kind and ID (FR-004), or apply │
+│               a pack's preset.                                               │
 │ deactivate    Deactivate a doctrine artifact by kind and ID (FR-005), with   │
 │               optional cascade.                                              │
 │ new           Scaffold a stub doctrine artifact YAML (FR-016).               │
@@ -482,7 +482,18 @@ _Charter management commands_
 ```
  Usage: spec-kitty charter activate [OPTIONS] [KIND] [ARTIFACT_ID]
 
- Activate a doctrine artifact by kind and ID (FR-004), with optional cascade.
+ Activate a doctrine artifact by kind and ID (FR-004), or apply a pack's
+ preset.
+
+ Two forms:
+
+   spec-kitty charter activate KIND ARTIFACT_ID [--cascade SCOPE]
+
+   spec-kitty charter activate [--pack PACK] --preset PRESET [--force] [--json]
+
+ A preset replaces every activation key it governs: keys it lists are
+ written (plus the org's required ids), keys it leaves out are removed.
+ A change to a customised key is refused without --force.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │   kind             [KIND]         Activation kind (e.g. directive,           │
@@ -530,6 +541,21 @@ _Charter management commands_
 │                                                `charter activate             │
 │                                                --resynthesize`.              │
 │                                                [default: compile]            │
+│ --preset                                 TEXT  Apply this activation preset  │
+│                                                of the pack with replace      │
+│                                                semantics instead of          │
+│                                                activating one artifact.      │
+│ --pack                                   TEXT  Pack whose preset --preset    │
+│                                                applies (built-in, an org     │
+│                                                pack name). Only with         │
+│                                                --preset.                     │
+│                                                [default: built-in]           │
+│ --force                                        Apply the preset even when it │
+│                                                changes a customised          │
+│                                                activation key. Only with     │
+│                                                --preset.                     │
+│ --json                                         Output the applied preset as  │
+│                                                JSON. Only with --preset.     │
 │ --help          -h                             Show this message and exit.   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -877,7 +903,7 @@ _Mission type commands (activated types only)._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
 │                       the project layer. When omitted, the stub lands under  │
-│                       .kittify/doctrine/.                                    │
+│                       .kittify/charter-packs/.                               │
 │ --help  -h            Show this message and exit.                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -908,11 +934,13 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 
  Scaffold a minimal org pack or render from a template.
 
- Without ``--template``, creates three files under *pack-path*::
+ Without ``--template``, creates four files under *pack-path*::
 
-     org-charter.yaml   — governance policy stub
-     drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
-     README.md          — authoring quickstart
+     org-charter.yaml     — governance policy stub
+     drg/fragment.yaml    — DRG extension stub (with pydantic_model:
+ frontmatter)
+     presets/starter.yaml — example activation preset
+     README.md            — authoring quickstart
 
  With ``--template``, copies the full template tree (minus
  ``.templateignore``),
@@ -930,7 +958,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 │ --force                     Overwrite an existing pack directory.            │
 │ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
 │                             optional #branch). When omitted, scaffolds the   │
-│                             minimal three-file pack.                         │
+│                             minimal four-file pack.                          │
 │ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
 │                             (required with --template).                      │
 │ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
@@ -948,7 +976,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 
  Validate an org doctrine pack using schema and DRG checks (FR-006).
 
- Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
+ Calls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`
  loader.  Prints per-file findings with file paths.  Exits non-zero when
  at least one error is found.
 
@@ -980,53 +1008,10 @@ _Charter pack management commands._
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ consistency-check  Run consistency check against activated doctrine          │
 │                    artifacts (FR-011).                                       │
-│ list               List the built-in charter packs shipped with spec-kitty   │
-│                    (#3064).                                                  │
-│ path               Resolve a built-in charter pack name to its shipped       │
-│                    filesystem path (#3064).                                  │
-│ apply              Apply a built-in charter pack's activation keys into      │
-│                    .kittify/config.yaml (#3064).                             │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter pack apply
-
-```
- Usage: spec-kitty charter pack apply [OPTIONS] NAME
-
- Apply a built-in charter pack's activation keys into .kittify/config.yaml
- (#3064).
-
- User Customization Preservation: by default this is an additive merge —
- a ``config.yaml`` key the pack declares is only written when it is
- currently absent. An already-present key (even an empty list a user
- explicitly authored) is left untouched unless ``--force`` is passed, in
- which case every key the pack declares is overwritten.
-
- Pass ``--compile`` to also chain the existing compile seam
- (``spec-kitty charter generate --no-from-interview``) so
- ``.kittify/charter/charter.yaml`` is produced in the same step. That
- flag requires a git repository (inherited from ``generate``); the
- default merge (no ``--compile``) stays a pure, git-agnostic additive
- merge (C-004).
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    name      TEXT  Built-in pack name to apply (e.g. 'default',            │
-│                      'minimal').                                             │
-│                      [required]                                              │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force              Overwrite activation keys already present in            │
-│                      config.yaml (default: leave them untouched).            │
-│ --compile            Also compile the merged activation into                 │
-│                      .kittify/charter/charter.yaml by chaining the existing  │
-│                      `spec-kitty charter generate --no-from-interview` seam  │
-│                      (no new compiler is introduced). Requires a git         │
-│                      repository -- inherits `charter generate`'s             │
-│                      git-worktree requirement. The default merge (without    │
-│                      this flag) stays git-agnostic.                          │
-│ --json               Output as JSON.                                         │
-│ --help     -h        Show this message and exit.                             │
+│ list               List the packs of the project's offering and the presets  │
+│                    each ships (FR-004).                                      │
+│ path               Print a pack's root, or with --preset the preset file     │
+│                    (FR-006).                                                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1048,7 +1033,7 @@ _Charter pack management commands._
 ```
  Usage: spec-kitty charter pack list [OPTIONS]
 
- List the built-in charter packs shipped with spec-kitty (#3064).
+ List the packs of the project's offering and the presets each ships (FR-004).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Output as JSON.                                            │
@@ -1059,19 +1044,21 @@ _Charter pack management commands._
 ## spec-kitty charter pack path
 
 ```
- Usage: spec-kitty charter pack path [OPTIONS] NAME
+ Usage: spec-kitty charter pack path [OPTIONS] PACK
 
- Resolve a built-in charter pack name to its shipped filesystem path (#3064).
+ Print a pack's root, or with --preset the preset file (FR-006).
 
- Fails closed (exit 1) on an unknown pack name, naming it and the valid set.
+ Fails closed (exit 1) with PACK_NOT_FOUND or PRESET_NOT_FOUND, listing the
+ valid names.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    name      TEXT  Built-in pack name (e.g. 'default', 'minimal').         │
+│ *    pack      TEXT  Pack name (built-in, an org pack name, or project).     │
 │                      [required]                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Output as JSON.                                            │
-│ --help  -h        Show this message and exit.                                │
+│ --preset          TEXT  Print this preset's file instead of the pack root.   │
+│ --json                  Output as JSON.                                      │
+│ --help    -h            Show this message and exit.                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1190,7 +1177,7 @@ _Charter pack management commands._
  Validate and promote agent-generated project-local doctrine artifacts.
 
  Reads the charter interview answers, resolves synthesis targets from the
- DRG + doctrine, and writes all artifacts to ``.kittify/doctrine/``.
+ DRG + doctrine, and writes all artifacts to ``.kittify/charter-packs/``.
 
  Doctrine generation is performed by the LLM harness (Claude Code, Codex,
  Cursor, etc.) via the spec-kitty-charter-doctrine skill. This command
@@ -1203,10 +1190,10 @@ _Charter pack management commands._
  command short-circuits the adapter pipeline and materializes the
  **minimal artifact set** the runtime requires:
 
- 1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s
+ 1. ``.kittify/charter-packs/`` — directory marker. ``DoctrineService``'s
     project-root resolver (``src/charter/activation/_doctrine_paths.py``) is a
     presence-only check; an empty directory is a valid project layer.
- 2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the
+ 2. ``.kittify/charter-packs/PROVENANCE.md`` — human-readable record of the
     fresh-project seed path, citing #839.
 
  The runtime falls back to the built-in doctrine (``packs/built-in/``) for
@@ -2642,7 +2629,7 @@ _Mission type commands._
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --pack          PATH  Scaffold inside a doctrine pack directory instead of   │
 │                       the project layer. When omitted, the stub lands under  │
-│                       .kittify/doctrine/.                                    │
+│                       .kittify/charter-packs/.                               │
 │ --help  -h            Show this message and exit.                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -2673,11 +2660,13 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 
  Scaffold a minimal org pack or render from a template.
 
- Without ``--template``, creates three files under *pack-path*::
+ Without ``--template``, creates four files under *pack-path*::
 
-     org-charter.yaml   — governance policy stub
-     drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)
-     README.md          — authoring quickstart
+     org-charter.yaml     — governance policy stub
+     drg/fragment.yaml    — DRG extension stub (with pydantic_model:
+ frontmatter)
+     presets/starter.yaml — example activation preset
+     README.md            — authoring quickstart
 
  With ``--template``, copies the full template tree (minus
  ``.templateignore``),
@@ -2695,7 +2684,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 │ --force                     Overwrite an existing pack directory.            │
 │ --template            TEXT  Local template directory or git URL (HTTPS/SSH;  │
 │                             optional #branch). When omitted, scaffolds the   │
-│                             minimal three-file pack.                         │
+│                             minimal four-file pack.                          │
 │ --org-name            TEXT  Validated org/pack identity for {{ORG_NAME}}     │
 │                             (required with --template).                      │
 │ --local-path          TEXT  Value for {{LOCAL_PATH}} (default: pack).        │
@@ -2713,7 +2702,7 @@ _Manage org-layer doctrine pack authoring (init, validate)._
 
  Validate an org doctrine pack using schema and DRG checks (FR-006).
 
- Calls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`
+ Calls the WP06 :func:`charter.offering.packs.pack_validator.validate_pack`
  loader.  Prints per-file findings with file paths.  Exits non-zero when
  at least one error is found.
 
@@ -4189,48 +4178,7 @@ _Inspect mission types for this project._
 ## spec-kitty mission close
 
 ```
- Usage: spec-kitty mission close [OPTIONS]
 
- Close a mission. Wraps FR-016 lifecycle teardown.
-
- Without ``--discard``: fail-closed precondition (FR-004/FR-005, #4765) —
- refuses (non-zero exit, no writes) unless the mission has a recorded merge
- baseline (``is_mission_merged``). An all-terminal-but-unmerged mission
- (e.g. every work package cancelled) still refuses here; use ``--discard``
- to abandon it. Once merged: runs the merge-completion teardown — persists
- the mission retrospective to its durable home and tears down the
- coordination worktree. Idempotent after a successful ``spec-kitty
- consolidate``
- (which already ran the same teardown); useful when the teardown was
- skipped (e.g. the legacy plain-git/GitHub merge path) or interrupted.
- NOTE: on a merged mission without a retrospective, this generates one
- (``kitty-specs/<slug>/retrospective.yaml``) plus a ``RetrospectiveCaptured``
- event and commits both — it is not a pure no-op in that case. Tolerates a
- mission left with an orphaned ``coordination_branch`` marker (FR-013,
- #2745) — no traceback, the mission slug is rendered once.
-
- With ``--discard``: abandon the mission mid-flight. Deletes the
- coordination branch and every lane branch named in
- ``lanes.json``, then tears down the coordination worktree and the
- operator-visible lane worktrees. Requires confirmation unless
- ``--force`` is also passed. The coordination + lane branches are
- deleted with ``git branch -D`` (force-delete) because mid-flight
- abandonment by definition leaves uncommitted or unmerged work.
-
- Implements FR-016 from
- ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug (auto-detected from cwd if omitted)    │
-│ --discard                Discard the mission mid-flight: delete the          │
-│                          coordination branch + all lane branches and tear    │
-│                          down all worktrees. Without --discard, requires     │
-│                          that the mission has already been merged (no-op     │
-│                          cleanup otherwise).                                 │
-│ --force                  Skip the confirmation prompt when --discard is set. │
-│ --json                   Emit a JSON envelope instead of a rich panel.       │
-│ --help     -h            Show this message and exit.                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty mission create
