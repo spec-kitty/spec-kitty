@@ -1,6 +1,8 @@
 {
+  "accept_commit": "27490a3845f228a0d65ac9360e03d9b03dac9d8a",
   "acceptance_history": [
     {
+      "accept_commit": "27490a3845f228a0d65ac9360e03d9b03dac9d8a",
       "acceptance_mode": "pr",
       "accepted_at": "2026-10-09T08:14:48.935832+00:00",
       "accepted_by": "system",
