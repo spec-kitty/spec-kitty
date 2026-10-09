@@ -54,7 +54,7 @@ def _execute_with_recorded_order(*, emit_raises: bool) -> list[str]:
         if emit_raises:
             raise RuntimeError("emit failed")
 
-    st = SimpleNamespace(owned=None, main_repo_root="/repo", mission_slug="m", feature_dir=Path("/repo/kitty-specs/m"), self_review_fallback=False)
+    st = SimpleNamespace(owned=None, main_repo_root=Path("/repo"), mission_slug="m", feature_dir=Path("/repo/kitty-specs/m"), self_review_fallback=False)
     with (
         patch.object(tasks, "feature_status_lock", lambda root, slug: _Lock()),
         patch.object(tasks_move_task_executor, "_mt_emit_transitions", side_effect=_emit),

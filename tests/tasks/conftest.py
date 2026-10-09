@@ -116,7 +116,7 @@ def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:
         capture_output=True,
     )
     subprocess.run(
-        ["git", "commit", "-m", f"Add spec for feature {mission_slug}"],
+        ["git", "commit", "-m", f"Add spec for mission {mission_slug}"],
         cwd=project,
         check=True,
         capture_output=True,

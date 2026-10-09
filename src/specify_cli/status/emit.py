@@ -31,7 +31,7 @@ Shell order (critical -- do not reorder; contract ``emit-pipeline.md`` §2,
 flat/primary column). This module is the flat/primary composition shell;
 validation and event construction are NOT here but in the status-owned
 pipeline ``status/transition_pipeline.py::prepare_transition`` (FR-005):
-    1. feature_status_lock(resolve_status_lock_root(...), feature_dir.name)
+    1. feature_status_lock(resolve_status_lock_root(...), mission_lock_key(feature_dir))
     2. Derive from_lane from the reduced log for this WP -- once (NFR-004)
     4. prepare_transition(...)  (alias-resolve, gates, validate, build)
     5. store.append_event_stream_atomic_verified -> reducer.materialize -> lane mirror
@@ -83,6 +83,7 @@ from . import store as _store
 from . import reducer as _reducer
 from .adapters import fire_resolved_binding_fanout, fire_saas_fanout
 from .locking import feature_status_lock
+from .mission_write import mission_lock_key
 from .transition_pipeline import PreparedTransition, prepare_transition
 
 if TYPE_CHECKING:
@@ -970,11 +971,11 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
     # never lands in a stale worktree-local copy.
     canonical_feature_dir: Path = canonicalize_feature_dir(request_feature_dir)
 
-    # Step 1: acquire. The lock is keyed on the mission directory NAME
-    # (FR-004): colliding slugs no longer over-serialize and a bare legacy
-    # slug serializes against its ordinary writers.
+    # Step 1: acquire. The lock is keyed on ``mission_lock_key`` (FR-004): colliding
+    # slugs no longer over-serialize, and the primary and coordination directories of
+    # one Mission take one lock file, the one ``BookkeepingTransaction`` takes.
     lock_root = _feature_status_lock_root(canonical_feature_dir, request.repo_root)
-    with feature_status_lock(lock_root, canonical_feature_dir.name):
+    with feature_status_lock(lock_root, mission_lock_key(canonical_feature_dir, repo_root=lock_root)):
         # T023: mission_id (ULID) from meta.json is the canonical machine-facing
         # identity for new events; None for legacy/pre-3.1.1 missions.
         mission_id = _load_mission_id(canonical_feature_dir)
@@ -1150,7 +1151,7 @@ def emit_status_transition_batch(
         _check_batch_request_identity(request, feature_dir=feature_dir, mission_slug=mission_slug, wp_id=wp_id)
 
     lock_root = _feature_status_lock_root(feature_dir, requests[0].repo_root)
-    with feature_status_lock(lock_root, feature_dir.name):
+    with feature_status_lock(lock_root, mission_lock_key(feature_dir, repo_root=lock_root)):
         mission_id = _load_mission_id(feature_dir)
         # One reduce of the write surface (NFR-004) feeds both the batch's
         # starting ``from_lane`` and its in-lock dependency verdict (FR-013).
@@ -1260,7 +1261,7 @@ def emit_inner_state_changed(
     )
 
     lock_root = _feature_status_lock_root(feature_dir, repo_root)
-    with feature_status_lock(lock_root, feature_dir.name):
+    with feature_status_lock(lock_root, mission_lock_key(feature_dir, repo_root=lock_root)):
         _store.append_annotations_atomic_verified(feature_dir, [event])
         try:
             _reducer.materialize(feature_dir)

@@ -92,7 +92,7 @@ def _commit_feature_file(
     # protected-branch bookkeeping authorization. If a project legitimately
     # plans on a protected branch, WP05's placement projection routes the
     # commit; this caller does not duplicate that decision (T010).
-    commit_msg = f"Add {artifact_type} for feature {mission_slug}"
+    commit_msg = f"Add {artifact_type} for mission {mission_slug}"
     effective_worktree = worktree_root or repo_root
     seam_target = create_time_target if create_time_target is not None else placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.SPEC)
     safe_commit(

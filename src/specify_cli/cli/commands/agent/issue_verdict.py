@@ -54,7 +54,7 @@ from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.status import (
     BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
     FeatureStatusLockTimeoutError,
-    feature_status_lock,
+    mission_write_lock,
 )
 from specify_cli.tasks.issue_matrix import (
     ISSUE_MATRIX_JSON_FILENAME,
@@ -283,9 +283,10 @@ def _locked_reread_splice_and_write(
     reused here, UNCHANGED, as both the re-read surface and the write target
     (binding correction, lost-update fix: never split read/write dirs, and
     never re-resolve ``write_dir`` a second time inside this locked splice).
-    The lock key is ``matrix_dir.name`` -- the mission directory name,
-    matching #4858's ``matrix_dir.name`` convention (never a bare mission
-    slug; see ``feature_status_lock_path``'s FR-004 / C-003 contract).
+    The lock is :func:`~specify_cli.status.mission_write_lock` for ``matrix_dir``,
+    keyed on the Mission's canonical lock key: the same key for the primary and
+    the coordination directory of one Mission (mission-writer-followups FR-005),
+    where ``matrix_dir.name`` named two lock files.
 
     The re-read (:func:`_load_raw_rows`) AND the write+commit both happen
     while the lock is held -- a re-read placed outside the lock would still
@@ -301,7 +302,7 @@ def _locked_reread_splice_and_write(
     (:func:`do_issue_verdict`) translates it into a structured
     :class:`IssueVerdictError` rather than falling back to an unlocked write.
     """
-    with feature_status_lock(repo_root, matrix_dir.name, timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS):
+    with mission_write_lock(matrix_dir, repo_root=repo_root, timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS):
         fresh_rows = _load_raw_rows(matrix_dir / ISSUE_MATRIX_JSON_FILENAME)
         _splice_issue_row(fresh_rows, issue_ref, updated_entry)
         # WP10 cycle 2 fold (N1): pass the ALREADY-RESOLVED ``matrix_dir``

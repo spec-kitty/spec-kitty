@@ -21,8 +21,8 @@ from __future__ import annotations
 from specify_cli.core.constants import WORKTREES_DIR
 import logging
 import subprocess
-from collections.abc import Callable
-from contextlib import AbstractContextManager
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from kernel.clock import now_utc
 from kernel.git import GitCommandError, status_entries
 from pathlib import Path
@@ -63,7 +63,14 @@ from specify_cli.git.commit_helpers import (
 )
 from specify_cli.lanes.branch_naming import coord_mission_dir_name
 from specify_cli.status import reducer as _reducer
-from specify_cli.status.mission_write import STATUS_ROLLBACK_REFUSED, RollbackPoint, append_refusal_to_error, appended_event_ids, rollback_events_log
+from specify_cli.status.mission_write import (
+    STATUS_ROLLBACK_REFUSED,
+    RollbackPoint,
+    append_refusal_to_error,
+    appended_event_ids,
+    registered_hold,
+    rollback_events_log,
+)
 from specify_cli.status.locking import (
     FeatureStatusLockTimeoutError,
     feature_status_lock,
@@ -92,13 +99,14 @@ from specify_cli.coordination.legacy_resolution import (
     _coordination_branch_from_meta,
     _emit_legacy_warning_once,
     _is_legacy_mission,
-    _mission_specs_dir_name,
     _resolve_legacy_lane_destination,
+    _transaction_lock_key,
     _validate_safe_segment,
     _warrants_legacy_warning,
 )
 from specify_cli.coordination.legacy_resolution import (
     _legacy_warning_marker_path as _legacy_warning_marker_path,
+    _mission_specs_dir_name as _mission_specs_dir_name,
 )
 
 # WP09 (T052 / C-010): the confined-artifact orchestration helpers moved to
@@ -422,6 +430,21 @@ def _preflight_policy_verdict(
     return WorkflowMutationPolicy.assert_allowed(change_set, coord_available=coord_available, owned=owned)
 
 
+@contextmanager
+def _transaction_hold(lock_root: Path, key: str, mission_slug: str, timeout: float, *, main_root: Path | None = None) -> Iterator[Path]:
+    """The transaction's Mission lock hold, registered like ``mission_write_lock`` so a nested entry keeps the key.
+
+    An owned-checkout transaction locks under ``owned_root`` while a nested ``mission_lock_key`` lookup resolves
+    the main repo root, so the hold is registered under *main_root* as well (plan A4).
+    """
+    with (
+        feature_status_lock(lock_root, key, timeout=timeout) as held,
+        registered_hold(lock_root, mission_slug, key),
+        registered_hold(main_root if main_root is not None else lock_root, mission_slug, key),
+    ):
+        yield held
+
+
 class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
     """The single chokepoint for coordination-branch writes.
 
@@ -564,7 +587,13 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # transaction object; on any setup failure below, release it before
         # propagating the domain error.
         lock_root = owned.owned_root if owned is not None else repo_root
-        lock_cm = feature_status_lock(lock_root, _mission_specs_dir_name(mission_slug, mid8), timeout=timeout)
+        lock_cm = _transaction_hold(
+            lock_root,
+            _transaction_lock_key(owned.repository_root if owned is not None else repo_root, mission_slug, mid8),
+            mission_slug,
+            timeout,
+            main_root=repo_root,
+        )
         try:
             lock_cm.__enter__()
         except FeatureStatusLockTimeoutError as exc:

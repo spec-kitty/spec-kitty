@@ -87,6 +87,7 @@ from specify_cli.core.subtask_rows import (
     authored_subtask_roster,
 )
 from specify_cli.core.owned_mission import require_unstaged_index
+from specify_cli.status import mission_lock_key
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
 #: WP prompt directories carry a README that is not a work package.
@@ -315,7 +316,7 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
 
     del ports  # Stable phase signature; event-only apply has no commit port.
     lock_root = st.owned.owned_root if st.owned is not None else st.main_repo_root
-    lock = _tasks.feature_status_lock(lock_root, st.feature_dir.name)
+    lock = _tasks.feature_status_lock(lock_root, mission_lock_key(st.feature_dir, repo_root=lock_root))
     with lock:
         if not st.tasks_md.exists():
             _tasks._output_error(st.json_output, f"tasks.md not found: {st.tasks_md}")

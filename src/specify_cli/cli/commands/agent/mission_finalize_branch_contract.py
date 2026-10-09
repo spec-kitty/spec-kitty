@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import typer
 
@@ -156,12 +157,22 @@ def _persist_recovered_pr_bound_contract(
     if not meta.get("pr_bound") or meta.get("target_branch") == planning_branch:
         return False
 
-    meta["target_branch"] = planning_branch
-    meta["merge_target_branch"] = merge_target_branch
-    from specify_cli.mission_metadata import write_meta
+    from specify_cli.mission_metadata import locked_update_meta
 
-    write_meta(planning_dir, meta)
-    return True
+    recovered = False
+
+    def _recover(fresh: dict[str, Any]) -> bool:
+        # Judged again on the meta.json read under the lock: another writer may have repaired it meanwhile.
+        nonlocal recovered
+        if not fresh.get("pr_bound") or fresh.get("target_branch") == planning_branch:
+            return False
+        fresh["target_branch"] = planning_branch
+        fresh["merge_target_branch"] = merge_target_branch
+        recovered = True
+        return True
+
+    locked_update_meta(planning_dir, _recover)
+    return recovered
 
 
 def _enforce_branch_contract_write_ownership(

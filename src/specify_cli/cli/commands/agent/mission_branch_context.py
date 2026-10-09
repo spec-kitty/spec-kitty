@@ -146,7 +146,7 @@ def _inject_branch_contract(
     branch_matches_target = resolved_current_branch == match_reference
     branch_strategy_summary = (
         f"Current branch at workflow start: {resolved_current_branch}. "
-        f"Planning/base branch for this feature: {planning_base_branch}. "
+        f"Planning/base branch for this mission: {planning_base_branch}. "
         f"Completed changes must merge into {merge_target_branch}."
     )
     runtime_vars["now_utc_iso"] = now_utc_iso

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import functools
 import time
+from typing import Any
 from pathlib import Path
 
 from rich.markup import escape
@@ -22,6 +23,7 @@ from specify_cli.coordination.coherence import (
     is_toolchain_generated_churn,
 )
 from specify_cli.core.git_ops import run_command
+from specify_cli.core.paths import MissionMetaReadError
 from kernel.git import GitCommandError
 from specify_cli.git.bookkeeping_commit import (
     commit_merge_bookkeeping,
@@ -125,20 +127,24 @@ def _flatten_coordination_metadata_after_branch_delete(run: _MergeRunState) -> N
     one carries no ``coordination_branch`` key, so this is an idempotent no-op
     that leaves ``topology`` / ``flattened`` untouched.
     """
-    from specify_cli.mission_metadata import flatten_coordination_metadata, load_meta_or_empty
+    from specify_cli.mission_metadata import flatten_coordination_metadata
 
     feature_dir = run.target_feature_dir
-    meta = load_meta_or_empty(feature_dir)
-    if "coordination_branch" not in meta:
+    if not (feature_dir / "meta.json").exists():
         return
 
     # Canonical three-mutation flatten (#3219 / FR-015 / D-PLAN-17), converged
     # onto the ONE shared primitive -- parity with ``doctor coordination --fix``
     # / ``mission close --discard``, and closes the double-write window the
     # former two-call (clear + separate topology/flattened write) shape here
-    # invited. ``coordination_branch`` presence above means meta.json exists,
-    # so ``flatten_coordination_metadata`` cannot raise here.
-    flatten_coordination_metadata(feature_dir)
+    # invited. The primitive decides under the Mission write lock whether
+    # there is anything to flatten (an empty snapshot means a non-coord or
+    # already-flattened Mission), so no unlocked pre-read gates the write.
+    try:
+        if not flatten_coordination_metadata(feature_dir):
+            return
+    except MissionMetaReadError:
+        return  # unreadable meta.json: nothing to flatten, and a completed merge is never aborted for it
 
     meta_path = feature_dir / "meta.json"
     if not _paths_have_status_changes(run.main_repo, [meta_path]):
@@ -543,16 +549,29 @@ def _clear_landed_single_branch_mission_branch(run: _MergeRunState) -> None:
     the mission lands a protected mission branch.
     """
     from specify_cli.lanes.single_branch_landing import lands_mission_branch
-    from specify_cli.mission_metadata import load_meta_or_empty, write_meta
+    from specify_cli.mission_metadata import locked_update_meta
 
     if not lands_mission_branch(run.main_repo, run.lanes_manifest):
         return
     feature_dir = run.target_feature_dir
-    meta = load_meta_or_empty(feature_dir)
-    if "mission_branch" not in meta:
+    if not (feature_dir / "meta.json").exists():
         return
-    del meta["mission_branch"]
-    write_meta(feature_dir, meta, validate=False)
+    cleared = False
+
+    def drop_mission_branch(meta: dict[str, Any]) -> bool:
+        nonlocal cleared
+        if "mission_branch" not in meta:
+            return False
+        del meta["mission_branch"]
+        cleared = True
+        return True
+
+    try:
+        locked_update_meta(feature_dir, drop_mission_branch, validate=False)
+    except MissionMetaReadError:
+        return  # unreadable meta.json: nothing to clear, and a completed merge is never aborted for it
+    if not cleared:
+        return
     meta_path = feature_dir / "meta.json"
     try:
         commit_merge_bookkeeping(

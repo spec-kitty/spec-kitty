@@ -21,7 +21,6 @@ value: a mission that lost its ``coordination_branch`` is SINGLE_BRANCH/LANES *a
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -32,6 +31,7 @@ from mission_runtime import MissionTopology, classify_topology, routes_through_c
 
 from specify_cli.lanes import CorruptLanesError, read_lanes_json
 from specify_cli.lanes.compute import has_code_lanes
+from specify_cli.mission_metadata import locked_update_meta
 
 logger = logging.getLogger(__name__)
 
@@ -127,12 +127,6 @@ def topology_from_meta(meta: Mapping[str, Any], feature_dir: Path) -> MissionTop
     return unstamped_runtime_topology(_derive_topology(dict(meta), feature_dir))
 
 
-def _write_meta_canonical(meta_path: Path, meta: dict[str, Any]) -> None:
-    """Persist ``meta`` in the canonical sorted-key form (matches ``backfill_identity``)."""
-    content = json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
-    meta_path.write_text(content, encoding="utf-8")
-
-
 def read_topology(feature_dir: Path) -> MissionTopology:
     """PURE read of a mission's :class:`MissionTopology` — never persists (#1814).
 
@@ -205,6 +199,15 @@ class TopologyBackfillResult:
     action: TopologyBackfillAction
     topology: str | None = None
     reason: str | None = None
+
+
+def _stamp_topology(meta: dict[str, Any], topology: MissionTopology) -> bool:
+    """Stamp *topology* (and the default ``flattened`` flag) onto a fresh *meta* unless one is stored; report whether it changed."""
+    if stored_topology(meta) is not None:
+        return False
+    meta[TOPOLOGY_KEY] = topology.value
+    meta.setdefault(FLATTENED_KEY, False)
+    return True
 
 
 def backfill_mission_topology(feature_dir: Path, *, dry_run: bool = False, runtime_reading: bool = False) -> TopologyBackfillResult:
@@ -302,9 +305,9 @@ def backfill_mission_topology(feature_dir: Path, *, dry_run: bool = False, runti
                 )
 
     if not dry_run:
-        meta[TOPOLOGY_KEY] = topology.value
-        meta.setdefault(FLATTENED_KEY, False)
-        _write_meta_canonical(meta_path, meta)
+        # Written on a fresh read under the Mission write lock; a topology a concurrent writer
+        # stored meanwhile is never overwritten.
+        locked_update_meta(feature_dir, lambda fresh: _stamp_topology(fresh, topology), validate=False, fallback_to_dir_name=True)
 
     return TopologyBackfillResult(
         feature_dir=feature_dir,
@@ -414,7 +417,7 @@ def restamp_single_branch_with_code_lanes(repo_root: Path, *, dry_run: bool = Fa
     Returns:
         List of :class:`RestampResult`, one per mission directory visited.
     """
-    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+    from specify_cli.core.paths import MissionMetaReadError
 
     results: list[RestampResult] = []
     for feature_dir in _kitty_specs_mission_dirs(repo_root, mission_slug=mission_slug):
@@ -472,9 +475,12 @@ def restamp_single_branch_with_code_lanes(repo_root: Path, *, dry_run: bool = Fa
             continue
 
         if not dry_run:
-            meta = load_meta_fail_closed(feature_dir) or {}
-            meta[TOPOLOGY_KEY] = MissionTopology.LANES.value
-            _write_meta_canonical(feature_dir / "meta.json", meta)
+            locked_update_meta(
+                feature_dir,
+                lambda fresh: fresh.update({TOPOLOGY_KEY: MissionTopology.LANES.value}),
+                validate=False,
+                fallback_to_dir_name=True,
+            )
         results.append(RestampResult(feature_dir, slug, "restamped"))
 
     return results

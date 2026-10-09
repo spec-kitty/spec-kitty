@@ -9,13 +9,17 @@ LLMs and scripts should NEVER manually edit YAML frontmatter.
 
 from __future__ import annotations
 
+import io
 import re
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.constructor import DuplicateKeyError
+
+from kernel.atomic import atomic_write
 
 # The additive PID-reuse identity baseline (C-007), historically co-written
 # alongside ``shell_pid`` at claim-write time (D3b); WP05
@@ -193,31 +197,22 @@ class FrontmatterManager:
             frontmatter: Dictionary of frontmatter fields
             body: Body text (everything after frontmatter)
         """
-        # Normalize frontmatter (sort keys, clean values)
+        file_path.write_text(self.render(frontmatter, body), encoding="utf-8")
+
+    def render(self, frontmatter: dict[str, Any], body: str) -> str:
+        """Render *frontmatter* and *body* as the text :meth:`write` puts in a markdown file.
+
+        Args:
+            frontmatter: Dictionary of frontmatter fields (normalized: keys sorted, values cleaned)
+            body: Body text, emitted verbatim after the closing ``---``
+        """
         normalized = self._normalize_frontmatter(frontmatter)
-
-        # Write to string buffer first
-        import io
-
         buffer = io.StringIO()
         buffer.write("---\n")
         self.yaml.dump(normalized, buffer)
         buffer.write("---\n")
         buffer.write(body)
-
-        # Write to file
-        file_path.write_text(buffer.getvalue(), encoding="utf-8")
-
-    def update_fields(self, file_path: Path, updates: dict[str, Any]) -> None:
-        """Update multiple fields in frontmatter.
-
-        Args:
-            file_path: Path to markdown file
-            updates: Dictionary of field updates
-        """
-        frontmatter, body = self.read(file_path)
-        frontmatter.update(updates)
-        self.write(file_path, frontmatter, body)
+        return buffer.getvalue()
 
     def get_field(self, file_path: Path, field: str, default: Any = None) -> Any:
         """Get a single field from frontmatter.
@@ -370,9 +365,38 @@ def write_frontmatter(file_path: Path, frontmatter: dict[str, Any], body: str) -
     _manager.write(file_path, frontmatter, body)
 
 
-def update_fields(file_path: Path, updates: dict[str, Any]) -> None:
-    """Update multiple fields in frontmatter."""
-    _manager.update_fields(file_path, updates)
+def locked_update_frontmatter(
+    wp_path: Path,
+    mutate: Callable[[dict[str, Any]], bool | None],
+    *,
+    feature_dir: Path,
+    repo_root: Path | None = None,
+    fallback_to_dir_name: bool = False,
+) -> dict[str, Any]:
+    """Read-modify-write a work package's frontmatter under the Mission write lock; return what was written.
+
+    The lock is :func:`~specify_cli.status.mission_write.mission_write_lock` for *feature_dir*, keyed on the
+    Mission's canonical lock key, so every writer of one Mission converges on one lock file and nests
+    re-entrantly on a thread that already holds it. The frontmatter and the body are read INSIDE the lock;
+    *mutate* edits that fresh frontmatter dict in place and the file is replaced atomically with the body
+    exactly as it was read. *mutate* is only called here (never stored); it returns ``False`` to say nothing
+    changed and skip the write, any other value writes.
+
+    *fallback_to_dir_name* is for the healing migrations (see
+    :func:`~specify_cli.status.mission_write.mission_write_lock`): a Mission whose coordination key cannot
+    be read is locked on its directory name.
+
+    Raises:
+        FrontmatterError: *wp_path* is missing, has no frontmatter, or the frontmatter is malformed.
+    """
+    # Lazy: ``specify_cli.status`` imports this module, so the lock door cannot be a module-scope import.
+    from specify_cli.status import mission_write_lock
+
+    with mission_write_lock(feature_dir, repo_root=repo_root, fallback_to_dir_name=fallback_to_dir_name):
+        frontmatter, body = _manager.read(wp_path)
+        if mutate(frontmatter) is not False:
+            atomic_write(wp_path, _manager.render(frontmatter, body))
+        return frontmatter
 
 
 def get_field(file_path: Path, field: str, default: Any = None) -> Any:
@@ -417,7 +441,7 @@ __all__ = [
     "FrontmatterManager",
     "read_frontmatter",
     "write_frontmatter",
-    "update_fields",
+    "locked_update_frontmatter",
     "get_field",
     "validate_frontmatter",
     "normalize_file",

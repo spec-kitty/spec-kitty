@@ -312,7 +312,7 @@ class TestIssue4974AcceptConcurrentVerdict:
                 timeout=timeout,
             )
 
-        monkeypatch.setattr("specify_cli.acceptance.matrix.feature_status_lock", _timeout_lock)
+        monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _timeout_lock)
 
         result = _run_accept(repo_root, _MISSION_SLUG, monkeypatch)
 
@@ -368,7 +368,7 @@ class TestIssue4974AcceptConcurrentVerdict:
         fire; neither may observe the lock held."""
         repo_root, feature_dir = _seed_fixture(tmp_path, monkeypatch)
 
-        from specify_cli.acceptance.matrix import feature_status_lock as _real_feature_status_lock
+        from specify_cli.status.locking import feature_status_lock as _real_feature_status_lock
         from specify_cli.acceptance.matrix import populate_criteria_from_review_evidence as _real_populate_criteria
 
         lock_held = {"value": False}
@@ -392,7 +392,7 @@ class TestIssue4974AcceptConcurrentVerdict:
             observed_while_enforcing.append(lock_held["value"])
             return cast("list[NegativeInvariant]", _real_enforce_negative_invariants(repo_root_arg, invariants, **kwargs))
 
-        monkeypatch.setattr("specify_cli.acceptance.matrix.feature_status_lock", _tracking_lock)
+        monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _tracking_lock)
         monkeypatch.setattr("specify_cli.acceptance.matrix.populate_criteria_from_review_evidence", _populate_spy)
         monkeypatch.setattr("specify_cli.acceptance.matrix.enforce_negative_invariants", _enforce_spy)
 

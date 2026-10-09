@@ -255,7 +255,7 @@ def _commit_to_branch(
     from specify_cli.coordination.commit_router import commit_for_mission
     from specify_cli.git.protection_policy import ProtectionPolicy
 
-    commit_msg = f"Add {artifact_type} for feature {mission_slug}"
+    commit_msg = f"Add {artifact_type} for mission {mission_slug}"
     protection_root = owned.repository_root if owned is not None else repo_root
     policy = ProtectionPolicy.resolve(protection_root)
     router_result = commit_for_mission(
@@ -930,7 +930,7 @@ def _run_documentation_gap_analysis(
                 repo_root=_gap_protection_root,
                 mission_slug=mission_slug,
                 files=(gap_analysis_output, meta_file),
-                message=f"Add gap analysis for feature {mission_slug}",
+                message=f"Add gap analysis for mission {mission_slug}",
                 policy=_gap_policy,
                 kind=MissionArtifactKind.PRIMARY_METADATA,
                 target_branch=target_branch,
@@ -990,7 +990,7 @@ def _detect_and_configure_generators(
                     repo_root=_gen_protection_root,
                     mission_slug=mission_slug,
                     files=(meta_file,),
-                    message=f"Update generator config for feature {mission_slug}",
+                    message=f"Update generator config for mission {mission_slug}",
                     policy=_gen_policy,
                     kind=MissionArtifactKind.PRIMARY_METADATA,
                     target_branch=target_branch,

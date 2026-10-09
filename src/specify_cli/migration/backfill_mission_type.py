@@ -31,7 +31,6 @@ nothing else.
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,6 +39,7 @@ from typing import Any, Literal
 from charter.activation.mission_type_key import canonical_mission_type_key
 from charter.activation.mission_type_profile_repository import MissionTypeProfileRepository
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+from specify_cli.mission_metadata import locked_update_meta
 from specify_cli.mission import MissionNotFoundError
 
 logger = logging.getLogger(__name__)
@@ -88,10 +88,12 @@ def _profile_resolves(repo: MissionTypeProfileRepository, key: str) -> bool:
     return repo.get(key) is not None
 
 
-def _write_meta_canonical(meta_path: Path, meta: dict[str, Any]) -> None:
-    """Persist ``meta`` in the canonical sorted-key form (matches ``backfill_topology``)."""
-    content = json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
-    meta_path.write_text(content, encoding="utf-8")
+def _record_mission_type(meta: dict[str, Any], key: str) -> bool:
+    """Set ``mission_type`` on a fresh *meta* unless the key is already present; report whether it changed."""
+    if MISSION_TYPE_KEY in meta:
+        return False
+    meta[MISSION_TYPE_KEY] = key
+    return True
 
 
 def backfill_mission_mission_type(
@@ -164,8 +166,9 @@ def backfill_mission_mission_type(
             )
 
         if not dry_run:
-            meta[MISSION_TYPE_KEY] = key
-            _write_meta_canonical(meta_path, meta)
+            # Written on a fresh read under the Mission write lock; a key a concurrent writer
+            # recorded meanwhile is never overwritten (AC-2a).
+            locked_update_meta(feature_dir, lambda fresh: _record_mission_type(fresh, key), validate=False, fallback_to_dir_name=True)
 
         return MissionTypeBackfillResult(
             feature_dir=feature_dir,

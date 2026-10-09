@@ -1159,6 +1159,16 @@ def _preserve_or_capture_planning_commit_sha(
     )
 
 
+# FR-013 (mission-writer-followups / #5885): finalize's bookkeeping subject
+# became "Add tasks for mission <slug>". The pre-change wording is kept here as
+# a NAMED legacy constant so the drift check below still recognises a Mission
+# finalized BEFORE the rename as finalize's own bookkeeping (no false drift).
+# The ``LEGACY`` in the name is the structural exemption the operator-text scan
+# (tests/specify_cli/test_no_for_feature_operator_text.py) keys on, so this is
+# the single sanctioned "for feature" string that survives the rename.
+_LEGACY_FINALIZE_BOOKKEEPING_SUBJECT = "Add tasks for feature {mission_slug}"
+
+
 def _finalize_bookkeeping_commit_message(mission_slug: str) -> str:
     """Single source for finalize's own bookkeeping commit subject line.
 
@@ -1167,7 +1177,12 @@ def _finalize_bookkeeping_commit_message(mission_slug: str) -> str:
     only` checks for when distinguishing a real planning amendment from
     finalize's own prior re-run commits (#4178 / research.md D7(b)).
     """
-    return f"Add tasks for feature {mission_slug}"
+    return f"Add tasks for mission {mission_slug}"
+
+
+def _legacy_finalize_bookkeeping_commit_message(mission_slug: str) -> str:
+    """The pre-rename finalize bookkeeping subject (FR-013 back-compat only)."""
+    return _LEGACY_FINALIZE_BOOKKEEPING_SUBJECT.format(mission_slug=mission_slug)
 
 
 def _drift_is_finalize_bookkeeping_only(
@@ -1183,8 +1198,10 @@ def _drift_is_finalize_bookkeeping_only(
     amendment landing mid-execution — not finalize's own prior bookkeeping
     commits advancing the tip on every re-run, which happens unconditionally
     once execution has begun (``planning_commit_sha`` stays frozen while the
-    branch keeps moving under finalize's own ``"Add tasks for feature ..."``
-    commits). Verified (research.md D7): ``_compute_and_write_lanes``
+    branch keeps moving under finalize's own ``"Add tasks for mission ..."``
+    commits (and, for Missions finalized before the #5885 rename, the legacy
+    ``"Add tasks for feature ..."`` subject — FR-013). Verified (research.md
+    D7): ``_compute_and_write_lanes``
     resolves this run's decision before ``_commit_finalize_artifacts`` lands
     that commit, so a re-finalize with no operator amendment in between still
     sees ``branch_tip != sha`` purely from a PRIOR run's own bookkeeping
@@ -1195,7 +1212,10 @@ def _drift_is_finalize_bookkeeping_only(
     hiding a genuine drift signal is worse than an occasional over-warn.
     """
 
-    expected = _finalize_bookkeeping_commit_message(mission_slug)
+    accepted = {
+        _finalize_bookkeeping_commit_message(mission_slug),
+        _legacy_finalize_bookkeeping_commit_message(mission_slug),
+    }
     result = subprocess.run(
         ["git", "log", "--format=%s", f"{recorded_sha}..{branch_tip}"],
         cwd=str(repo_root),
@@ -1206,7 +1226,7 @@ def _drift_is_finalize_bookkeeping_only(
     if result.returncode != 0:
         return False
     subjects = [line for line in result.stdout.splitlines() if line]
-    return bool(subjects) and all(subject == expected for subject in subjects)
+    return bool(subjects) and all(subject in accepted for subject in subjects)
 
 
 def _report_planning_sha_decision(

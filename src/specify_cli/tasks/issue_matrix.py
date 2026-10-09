@@ -543,7 +543,10 @@ def scaffold_issue_matrix(
         ``None`` when ``spec.md`` references no GH issues (no file created)
         or the write was refused/failed (best-effort, never blocking).
     """
-    from mission_runtime import MissionArtifactKind, TopologySurface, coord_read_dir_for, declared_read_surface
+    from mission_runtime import MissionArtifactKind, coord_read_dir_for
+
+    # Lazy: ``specify_cli.status`` reaches back into this module's package through its own imports.
+    from specify_cli.status import mission_write_lock
 
     if owned is not None:
         from mission_runtime import placement_seam
@@ -551,6 +554,35 @@ def scaffold_issue_matrix(
         issue_matrix_dir = placement_seam(repo_root, mission_slug, owned=owned).read_dir(MissionArtifactKind.ISSUE_MATRIX)
     else:
         issue_matrix_dir = coord_read_dir_for(repo_root, mission_slug, MissionArtifactKind.ISSUE_MATRIX) or feature_dir
+    # FR-004: the exists check and the write are ONE hold of the Mission write lock, so a verdict recorded
+    # between them is never overwritten by the placeholder map.
+    with mission_write_lock(feature_dir, repo_root=repo_root):
+        return _scaffold_issue_matrix_locked(
+            issue_matrix_dir,
+            spec_md_path,
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            policy=policy,
+            target_branch=target_branch,
+            owned=owned,
+            fold_into_caller_commit=fold_into_caller_commit,
+        )
+
+
+def _scaffold_issue_matrix_locked(
+    issue_matrix_dir: Path,
+    spec_md_path: Path,
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    policy: ProtectionPolicyLike,
+    target_branch: str | None,
+    owned: OwnedCheckout | None,
+    fold_into_caller_commit: bool,
+) -> Path | None:
+    """The body of :func:`scaffold_issue_matrix`: runs with the Mission write lock held (FR-004)."""
+    from mission_runtime import MissionArtifactKind, TopologySurface, declared_read_surface
+
     json_path = issue_matrix_dir / ISSUE_MATRIX_JSON_FILENAME
     if json_path.exists() or (issue_matrix_dir / ISSUE_MATRIX_MD_FILENAME).exists():
         # Respect existing content (JSON or legacy .md) -- idempotent re-runs

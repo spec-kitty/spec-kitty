@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 import pytest
 
-from kernel.atomic import atomic_write, substantively_equal
+from kernel.atomic import atomic_write, notify_file_written, notify_written, observe_writes, stop_observing_writes, substantively_equal
 
 pytestmark = pytest.mark.fast
 
@@ -401,3 +401,57 @@ class TestAtomicWriteCleanupSuppressesOSError:
 
         with pytest.raises(OSError, match="forced replace failure"):
             atomic_write(target, "content")
+
+
+# ---------------------------------------------------------------------------
+# Write observers (mission-writer-followups WP04: the finalize write ledger)
+# ---------------------------------------------------------------------------
+
+
+def test_observer_hears_every_atomic_write_and_stops_when_removed(tmp_path: Path) -> None:
+    heard: list[tuple[Path, bytes]] = []
+    token = observe_writes(lambda path, content: heard.append((path, content)))
+    atomic_write(tmp_path / "a.txt", "alpha")
+    stop_observing_writes(token)
+    atomic_write(tmp_path / "b.txt", "beta")
+
+    assert heard == [(tmp_path / "a.txt", b"alpha")]
+
+
+def test_notify_written_tells_the_observer_and_is_silent_without_one(tmp_path: Path) -> None:
+    notify_written(tmp_path / "x", b"nobody listens")  # no observer: nothing happens
+    heard: list[tuple[Path, bytes]] = []
+    token = observe_writes(lambda path, content: heard.append((path, content)))
+    try:
+        notify_written(tmp_path / "x", b"bytes")
+    finally:
+        stop_observing_writes(token)
+    assert heard == [(tmp_path / "x", b"bytes")]
+
+
+def test_notify_file_written_reads_the_file_only_when_an_observer_is_installed(tmp_path: Path) -> None:
+    missing = tmp_path / "never-created"
+    notify_file_written(missing)  # no observer: the file is not even read
+    target = tmp_path / "log.jsonl"
+    target.write_bytes(b"row\n")
+    heard: list[tuple[Path, bytes]] = []
+    token = observe_writes(lambda path, content: heard.append((path, content)))
+    try:
+        notify_file_written(target)
+    finally:
+        stop_observing_writes(token)
+    assert heard == [(target, b"row\n")]
+
+
+def test_a_nested_observer_is_chained_with_the_outer_one(tmp_path: Path) -> None:
+    outer: list[Path] = []
+    inner: list[Path] = []
+    outer_token = observe_writes(lambda path, _content: outer.append(path))
+    inner_token = observe_writes(lambda path, _content: inner.append(path))
+    atomic_write(tmp_path / "both.txt", "x")
+    stop_observing_writes(inner_token)
+    atomic_write(tmp_path / "outer-only.txt", "y")
+    stop_observing_writes(outer_token)
+
+    assert inner == [tmp_path / "both.txt"]
+    assert outer == [tmp_path / "both.txt", tmp_path / "outer-only.txt"]

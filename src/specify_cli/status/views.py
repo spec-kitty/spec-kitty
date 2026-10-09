@@ -16,6 +16,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from kernel.atomic import notify_written
 from specify_cli.mission_metadata import resolve_mission_identity
 
 from .lifecycle import DERIVED_LIFECYCLE_FILENAME, generate_lifecycle_json
@@ -418,3 +419,4 @@ def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:
     tmp_path = path.with_suffix(".json.tmp")
     tmp_path.write_text(json_str, encoding="utf-8")
     os.replace(str(tmp_path), str(path))
+    notify_written(path, json_str.encode("utf-8"))

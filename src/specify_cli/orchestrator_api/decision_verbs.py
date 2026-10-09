@@ -644,7 +644,6 @@ def answer_decision(
 
     from mission_runtime import MissionArtifactKind as _MissionArtifactKind
     from mission_runtime import placement_seam as _placement_seam
-    from runtime.next.decision import decide_next
     from runtime.next.next_invocation_lifecycle import (
         AmbiguousPendingDecisionError,
         NoPendingDecisionError,
@@ -655,6 +654,7 @@ def answer_decision(
     )
     from runtime.next.runtime_bridge import answer_decision_via_runtime, get_or_start_run
     from runtime.next.runtime_bridge_engine import _read_snapshot
+    from specify_cli.cli.commands.next_cmd import decide_next
     from specify_cli.mission import get_mission_type
 
     # Mirrors ``next_cmd.py``'s ``_handle_answer`` exactly: the

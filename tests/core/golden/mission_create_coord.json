@@ -128,7 +128,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature coord-coord-documentation-<MID8#1>"
+                "Add scaffold for mission coord-coord-documentation-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/coord-coord-documentation-<MID8#1>/meta.json",
@@ -302,7 +302,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature coord-force-recreate-<MID8#1>"
+                "Add scaffold for mission coord-force-recreate-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/coord-force-recreate-<MID8#1>/meta.json",
@@ -476,7 +476,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature coord-coord-plain-<MID8#1>"
+                "Add scaffold for mission coord-coord-plain-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/coord-coord-plain-<MID8#1>/meta.json",
@@ -653,7 +653,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature coord-coord-pr-bound-<MID8#1>"
+                "Add scaffold for mission coord-coord-pr-bound-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/coord-coord-pr-bound-<MID8#1>/meta.json",
@@ -833,7 +833,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature coord-coord-retention-<MID8#1>"
+                "Add scaffold for mission coord-coord-retention-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/coord-coord-retention-<MID8#1>/meta.json",
@@ -1007,7 +1007,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature coord-coord-summary-<MID8#1>"
+                "Add scaffold for mission coord-coord-summary-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/coord-coord-summary-<MID8#1>/meta.json",
@@ -1190,7 +1190,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature coord-lanes-with-coord-documentation-<MID8#1>"
+                "Add scaffold for mission coord-lanes-with-coord-documentation-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/coord-lanes-with-coord-documentation-<MID8#1>/meta.json",
@@ -1364,7 +1364,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature coord-lanes-with-coord-plain-<MID8#1>"
+                "Add scaffold for mission coord-lanes-with-coord-plain-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/coord-lanes-with-coord-plain-<MID8#1>/meta.json",
@@ -1541,7 +1541,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature coord-lanes-with-coord-pr-bound-<MID8#1>"
+                "Add scaffold for mission coord-lanes-with-coord-pr-bound-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/coord-lanes-with-coord-pr-bound-<MID8#1>/meta.json",
@@ -1721,7 +1721,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature coord-lanes-with-coord-retention-<MID8#1>"
+                "Add scaffold for mission coord-lanes-with-coord-retention-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/coord-lanes-with-coord-retention-<MID8#1>/meta.json",
@@ -1895,7 +1895,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature coord-lanes-with-coord-summary-<MID8#1>"
+                "Add scaffold for mission coord-lanes-with-coord-summary-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/coord-lanes-with-coord-summary-<MID8#1>/meta.json",

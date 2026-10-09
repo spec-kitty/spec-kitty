@@ -85,7 +85,7 @@ def validate_plan_filled(
     if not is_unfilled:
         return
 
-    feature_display = f" for feature '{mission_slug}'" if mission_slug else ""
+    feature_display = f" for mission '{mission_slug}'" if mission_slug else ""
     marker_list = "\n  - ".join(markers[:5])  # Show first 5 markers
     more_markers = f"\n  ... and {len(markers) - 5} more" if len(markers) > 5 else ""
 

@@ -15,6 +15,7 @@ import textwrap
 from collections.abc import Iterator
 from contextlib import redirect_stdout
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -814,3 +815,78 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
     # Fails soft to zero org roots -- resolution still proceeds, it just
     # can't trust the broken declaration.
     assert ctx.org_roots == []
+
+
+# ---------------------------------------------------------------------------
+# WP06 (FR-020, B8): pack accessor and locked meta write
+# ---------------------------------------------------------------------------
+
+
+def test_loader_discovery_context_uses_the_pack_accessor(tmp_path: Path) -> None:
+    from charter.activation.mission_type_profile_repository import builtin_missions_root
+    from specify_cli.mission_loader.command import _build_discovery_context
+
+    assert _build_discovery_context(tmp_path).builtin_roots == [builtin_missions_root().resolve()]
+
+
+def test_ensure_feature_metadata_edits_an_existing_meta_under_the_write_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.mission_loader import command as command_module
+
+    feature_dir = tmp_path / "kitty-specs" / "locked-mission"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_id": "01KQABCDEFGHJKMNPQRSTVWXYZ"}), encoding="utf-8")
+    calls: list[Path] = []
+    real = command_module.locked_update_meta
+
+    def _spy(fd: Path, mutate: Any, **kwargs: Any) -> dict[str, Any]:
+        calls.append(fd)
+        return real(fd, mutate, **kwargs)
+
+    monkeypatch.setattr(command_module, "locked_update_meta", _spy)
+    command_module._ensure_feature_metadata(feature_dir, "erp-q3-rollout")
+
+    assert calls == [feature_dir]
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert meta["mission_id"] == "01KQABCDEFGHJKMNPQRSTVWXYZ"
+    assert (meta["mission_type"], meta["mission_key"], meta["mission"]) == ("erp-q3-rollout",) * 3
+
+
+def test_ensure_feature_metadata_creates_a_first_meta(tmp_path: Path) -> None:
+    from specify_cli.mission_loader.command import _ensure_feature_metadata
+
+    feature_dir = tmp_path / "kitty-specs" / "fresh-mission"
+    _ensure_feature_metadata(feature_dir, "erp-q3-rollout")
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert meta["mission_type"] == "erp-q3-rollout"
+
+
+def test_first_meta_write_does_not_lose_a_concurrent_creator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-020: the first ``meta.json`` write is read-modify-write under the Mission lock.
+
+    Writer A (the loader) has read an empty meta and is paused before it writes;
+    writer B (a locked creator) adds ``mission_id``. Neither field may be lost.
+    """
+    from specify_cli.mission_loader.command import _ensure_feature_metadata
+    from specify_cli.mission_metadata import load_meta_or_empty, write_meta
+    from specify_cli.status.mission_write import mission_write_lock
+    from tests._meta_overlap import run_overlap
+
+    feature_dir = tmp_path / "kitty-specs" / "racing-mission"
+    feature_dir.mkdir(parents=True)
+
+    def writer_b() -> None:
+        with mission_write_lock(feature_dir):
+            data = load_meta_or_empty(feature_dir)
+            data["mission_id"] = "01KQABCDEFGHJKMNPQRSTVWXYZ"
+            write_meta(feature_dir, data, validate=False)
+
+    errors = run_overlap(monkeypatch, lambda: _ensure_feature_metadata(feature_dir, "erp-q3-rollout"), writer_b)
+
+    assert errors == []
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert meta["mission_type"] == "erp-q3-rollout"
+    assert meta["mission_id"] == "01KQABCDEFGHJKMNPQRSTVWXYZ"

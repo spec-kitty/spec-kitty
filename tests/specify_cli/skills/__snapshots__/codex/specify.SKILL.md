@@ -272,8 +272,6 @@ Workflow:
    as complete; otherwise it returns `phase_complete=false` with a
    `blocked_reason` mentioning "committed AND substantive".
 
-Reference: `kitty-specs/charter-e2e-827-followups-01KQAJA0/contracts/specify-plan-commit-boundary.md`.
-
 ## DO NOT
 
 - Do not mix functional, non-functional, and constraint requirements in one list.
@@ -518,7 +516,7 @@ breakage that DIRECTIVE_035 exists to prevent.
 2. Commits creation metadata; `spec.md` remains untracked until it is substantive and explicitly committed
 3. No worktree created during specify
 
-**Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <handle>`. The `--mission` handle can be the mission's `mission_id` (ULID), `mid8` (first 8 chars), or `mission_slug`; the resolver disambiguates by `mission_id` and returns a structured error on ambiguity (no silent fallback). Your agent will call `spec-kitty agent action implement WP## --agent <name>` for each WP. Each lane gets exactly one worktree, for example `.worktrees/<human-slug>-<mid8>-lane-a/` (e.g. `.worktrees/checkout-upsell-flow-01J6XW9K-lane-a/`).
+**Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <handle>`. The `--mission` handle can be the mission's `mission_id` (ULID), `mid8` (first 8 chars), or `mission_slug`; the resolver disambiguates by `mission_id` and returns a structured error on ambiguity (no silent fallback). On a software-dev mission `next` issues the `/spec-kitty.analyze` step first (the required analysis gate), and only once the analysis report is current does it hand out `spec-kitty agent action implement WP## --agent <name>` for each WP. Each lane gets exactly one worktree, for example `.worktrees/<human-slug>-<mid8>-lane-a/` (e.g. `.worktrees/checkout-upsell-flow-01J6XW9K-lane-a/`).
 
 ## Location
 

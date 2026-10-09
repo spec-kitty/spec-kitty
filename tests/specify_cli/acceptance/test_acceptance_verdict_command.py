@@ -970,7 +970,7 @@ class TestConcurrencyGateSpies:
             calls.append((repo_root_arg, lock_key, timeout))
             return feature_status_lock(repo_root_arg, lock_key, timeout=timeout)
 
-        monkeypatch.setattr(matrix_module, "feature_status_lock", _spy_lock)
+        monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _spy_lock)
 
         try:
             acceptance_verdict(
@@ -1015,7 +1015,7 @@ class TestConcurrencyGateSpies:
             return _OrderTrackingContext(cm, order)
 
         monkeypatch.setattr(av_command, "enforce_negative_invariants", _spy_enforce)
-        monkeypatch.setattr(matrix_module, "feature_status_lock", _spy_lock)
+        monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _spy_lock)
 
         try:
             acceptance_verdict(
@@ -1061,7 +1061,7 @@ class TestConcurrencyGateSpies:
         # Both must be spied to observe the full ``read -> enter -> read ->
         # write`` order.
         monkeypatch.setattr(av_command, "read_acceptance_matrix", _spy_read)
-        monkeypatch.setattr(matrix_module, "feature_status_lock", _spy_lock)
+        monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _spy_lock)
         monkeypatch.setattr(matrix_module, "read_acceptance_matrix", _spy_read)
         monkeypatch.setattr(matrix_module, "write_and_commit_acceptance_matrix", _spy_write)
 
@@ -1137,7 +1137,7 @@ class TestConcurrencyGateSpies:
             write_calls.append(args)
             return write_and_commit_acceptance_matrix(*args, **kwargs)  # type: ignore[arg-type]
 
-        monkeypatch.setattr(matrix_module, "feature_status_lock", _timeout_lock)
+        monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _timeout_lock)
         monkeypatch.setattr(matrix_module, "write_and_commit_acceptance_matrix", _spy_write)
 
         with pytest.raises(typer.Exit) as exc_info:

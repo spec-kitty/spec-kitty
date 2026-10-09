@@ -165,6 +165,7 @@ from specify_cli.cli.commands.agent.mission_finalize_validation import (
 from specify_cli.cli.commands.agent.mission_finalize_bootstrap import (
     _BootstrapState as _BootstrapState,
     _apply_bootstrap_fields as _apply_bootstrap_fields,
+    _apply_finalize_delta as _apply_finalize_delta,
     _apply_ownership_inference as _apply_ownership_inference,
     _assert_no_write_in_validate_only as _assert_no_write_in_validate_only,
     _bootstrap_one_wp as _bootstrap_one_wp,
@@ -173,6 +174,7 @@ from specify_cli.cli.commands.agent.mission_finalize_bootstrap import (
     _emit_validate_only_report as _emit_validate_only_report,
     _enforce_charter_activation_gate as _enforce_charter_activation_gate,
     _flush_frontmatter_writes as _flush_frontmatter_writes,
+    _flush_one_frontmatter_write as _flush_one_frontmatter_write,
     _gather_validation_frontmatter as _gather_validation_frontmatter,
     _lane_computation_empty_input_error as _lane_computation_empty_input_error,
     _project_lane_inputs as _project_lane_inputs,
@@ -188,6 +190,7 @@ from specify_cli.cli.commands.agent.mission_finalize_bootstrap import (
 )
 from specify_cli.cli.commands.agent.mission_finalize_planning_pin import (
     PlanningCommitResolution as PlanningCommitResolution,
+    _LEGACY_FINALIZE_BOOKKEEPING_SUBJECT as _LEGACY_FINALIZE_BOOKKEEPING_SUBJECT,
     _PLANNING_REFRESH_STATUS_BY_ACTION as _PLANNING_REFRESH_STATUS_BY_ACTION,
     _PrimaryPinRefreshCommit as _PrimaryPinRefreshCommit,
     _add_planning_commit_to_validation_report as _add_planning_commit_to_validation_report,
@@ -198,6 +201,7 @@ from specify_cli.cli.commands.agent.mission_finalize_planning_pin import (
     _finalize_bookkeeping_commit_message as _finalize_bookkeeping_commit_message,
     _finalize_pin_refresh_commit_outcome as _finalize_pin_refresh_commit_outcome,
     _guard_lanes_bytes_unchanged_before_commit as _guard_lanes_bytes_unchanged_before_commit,
+    _legacy_finalize_bookkeeping_commit_message as _legacy_finalize_bookkeeping_commit_message,
     _planning_changed_since_pin as _planning_changed_since_pin,
     _planning_commit_payload as _planning_commit_payload,
     _planning_commit_refresh_payload as _planning_commit_refresh_payload,
@@ -238,6 +242,10 @@ from specify_cli.cli.commands.agent.mission_finalize_lanes import (
 )
 from specify_cli.cli.commands.agent.mission_finalize_commit import (
     OwnedCheckoutCandidateOutsidePlanningError as OwnedCheckoutCandidateOutsidePlanningError,
+    FinalizeWriteLedger as FinalizeWriteLedger,
+    WRITE_SCOPE_KEPT_WARNING as WRITE_SCOPE_KEPT_WARNING,
+    _META_CHANGED_BY_ANOTHER_WRITER as _META_CHANGED_BY_ANOTHER_WRITER,
+    _bytes_or_none as _bytes_or_none,
     _COORD_CANDIDATE_KINDS as _COORD_CANDIDATE_KINDS,
     _CommitOutcome as _CommitOutcome,
     _CoordCandidateDirt as _CoordCandidateDirt,
@@ -264,7 +272,14 @@ from specify_cli.cli.commands.agent.mission_finalize_commit import (
     _restore_status_surface as _restore_status_surface,
     _revert_unpersisted_target_branch_override as _revert_unpersisted_target_branch_override,
     _run_commit_pipeline as _run_commit_pipeline,
+    _report_write_scope_kept as _report_write_scope_kept,
     _snapshot_mission_write_scope as _snapshot_mission_write_scope,
+    _undo_finalize_write_scope as _undo_finalize_write_scope,
+    _undo_one_path as _undo_one_path,
+    _ACTIVE_LEDGER as _ACTIVE_LEDGER,
+    active_write_ledger as active_write_ledger,
+    begin_write_ledger as begin_write_ledger,
+    end_write_ledger as end_write_ledger,
     _warn_missing_meta as _warn_missing_meta,
 )
 
@@ -961,6 +976,14 @@ class _FinalizeOwnershipGates:
     lane_wp_bodies: dict[str, str]
 
 
+def _lock_root_of(ctx: _FinalizeContext) -> Path:
+    """The root every Mission lock of this run is taken against: the owned fact's repository root, else the command's.
+
+    Known up front, so the lock key never consults the repository-root resolver (the owned-checkout pin).
+    """
+    return ctx.owned.repository_root if ctx.owned is not None else ctx.repo_root
+
+
 def _run_finalize_ownership_gates(
     ctx: _FinalizeContext,
     gates: _FinalizeRequirementGates,
@@ -994,7 +1017,7 @@ def _run_finalize_ownership_gates(
     _surface_post_integration_acceptance_warnings(state, json_output=json_output)
 
     _validate_owned_files_not_in_mission_specs(state.inmemory_frontmatter, json_output=json_output)
-    _flush_frontmatter_writes(state, validate_only=validate_only)
+    _flush_frontmatter_writes(state, validate_only=validate_only, repo_root=_lock_root_of(ctx))
 
     # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011).
     # #3221: the regeneration is a write to a tracked file, so in
@@ -1006,6 +1029,7 @@ def _run_finalize_ownership_gates(
         ctx.mission_slug,
         validate_only=validate_only,
         json_output=json_output,
+        repo_root=_lock_root_of(ctx),
     )
 
     wp_frontmatters, wp_bodies = _gather_validation_frontmatter(gates.wp_files, state)
@@ -1191,6 +1215,7 @@ def finalize_tasks(
     # the run's first status write; restored from the except handlers below.
     status_surface = StatusSurfaceGuard()
     status_leftover: StatusSurfaceLeftover | None = None
+    kept_files: list[Path] = []
     owned_derived_dir: Path | None = None
     owned_derived_snapshot: dict[Path, bytes] = {}
     # FR-007 (WP13 T074): bound before ``try`` so the except handlers below
@@ -1200,6 +1225,8 @@ def finalize_tasks(
     # envelope omits the key exactly as a non-owned run's does).
     owned: OwnedCheckout | None = None
     envelope_token = _OWNED_ENVELOPE_EXTRAS.set(None)
+    # Every file this run writes is recorded as it is written; the except handlers restore only those, by compare-and-swap.
+    write_ledger, ledger_token, observer_token = begin_write_ledger()
     try:
         ctx = _resolve_finalize_context(
             feature,
@@ -1417,6 +1444,7 @@ def finalize_tasks(
             meta_original_text,
             meta_json_persisted=meta_json_persisted,
             meta_commit_progress=meta_commit_progress,
+            written_text=write_ledger.text_for(meta_path_for_revert) if meta_path_for_revert is not None else None,
         )
         # FR-015/NFR-001: only undo the mission-directory writes when the
         # finalize commit never landed. ``commit_landed`` (set inside
@@ -1426,15 +1454,19 @@ def finalize_tasks(
         # field excludes it. A LATER, unrelated failure after a real commit
         # must never unwind an already-durable finalize.
         if mission_write_scope_dir is not None and not commit_landed.landed:
-            status_leftover = _restore_status_surface(status_surface)
-            _restore_mission_write_scope_beside_status(status_surface, mission_write_scope_snapshot, mission_write_scope_dir)
-            if owned_derived_dir is not None:
-                _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
+            status_leftover, kept_files = _undo_finalize_write_scope(
+                status_surface,
+                mission_write_scope_snapshot,
+                mission_write_scope_dir,
+                owned_derived_snapshot=owned_derived_snapshot,
+                owned_derived_dir=owned_derived_dir,
+            )
         # SK3466-RR-003: the ORIGINAL error already emitted its own
         # diagnostic before raising typer.Exit above; this is a best-effort,
         # ADDITIONAL note if the meta.json revert itself also failed.
         _report_target_branch_revert_failure(revert_error, json_output=json_output)
         _report_status_surface_leftover(status_leftover, json_output=json_output)
+        _report_write_scope_kept(kept_files, json_output=json_output)
         raise
     except Exception as e:
         revert_error = _revert_unpersisted_target_branch_override(
@@ -1442,13 +1474,18 @@ def finalize_tasks(
             meta_original_text,
             meta_json_persisted=meta_json_persisted,
             meta_commit_progress=meta_commit_progress,
+            written_text=write_ledger.text_for(meta_path_for_revert) if meta_path_for_revert is not None else None,
         )
         if mission_write_scope_dir is not None and not commit_landed.landed:
-            status_leftover = _restore_status_surface(status_surface)
-            _restore_mission_write_scope_beside_status(status_surface, mission_write_scope_snapshot, mission_write_scope_dir)
-            if owned_derived_dir is not None:
-                _restore_mission_write_scope(owned_derived_snapshot, owned_derived_dir)
-        _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output, status_leftover=status_leftover)
+            status_leftover, kept_files = _undo_finalize_write_scope(
+                status_surface,
+                mission_write_scope_snapshot,
+                mission_write_scope_dir,
+                owned_derived_snapshot=owned_derived_snapshot,
+                owned_derived_dir=owned_derived_dir,
+            )
+        _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output, status_leftover=status_leftover, kept_files=kept_files)
         raise typer.Exit(1) from None
     finally:
+        end_write_ledger(ledger_token, observer_token)
         _OWNED_ENVELOPE_EXTRAS.reset(envelope_token)

@@ -152,7 +152,7 @@ def test_finalize_tasks_commit_lands_on_target_not_refused(coord_repo: Path) -> 
         repo_root=coord_repo,
         mission_slug=MISSION_DIRNAME,
         files=(tasks_file,),
-        message=f"Add tasks for feature {MISSION_DIRNAME}",
+        message=f"Add tasks for mission {MISSION_DIRNAME}",
         policy=ProtectionPolicy.resolve(coord_repo),
         kind=MissionArtifactKind.TASKS_INDEX,
         target_branch=TARGET,
@@ -1208,3 +1208,23 @@ def test_emit_tasks_started_propagates_a_write_dir_refusal(tmp_path: Path) -> No
 
     with patch("mission_runtime.placement_seam", return_value=mock_seam), pytest.raises(RuntimeError, match="COORDINATION_WORKTREE_UNMATERIALIZED"):
         _emit_tasks_started("fixture", _BootstrapState(), validate_only=False, repo_root=tmp_path, owned=None)
+
+
+# ---------------------------------------------------------------------------
+# WP10 / T061 (FR-012, #5885): the finalize-tasks CLI entry point writes a
+# bookkeeping commit whose subject says "for mission", never "for feature".
+# RED on the pre-fix tree (``_finalize_bookkeeping_commit_message`` returned
+# "Add tasks for feature <slug>").
+# ---------------------------------------------------------------------------
+
+
+def test_finalize_tasks_cli_commit_subject_says_mission(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Drive the REAL finalize-tasks entry point and read its commit subject."""
+    coord = make_coord_mission(tmp_path, MissionTopology.COORD, slug="wp10-t061")
+    _write_coord_finalize_fixture(coord)
+
+    _run_real_finalize(monkeypatch, coord)
+
+    subjects = _git_stdout(coord.repo_root, "log", "--all", "--format=%s")
+    assert "Add tasks for mission " in subjects, f"finalize-tasks must write a 'for mission' bookkeeping subject; subjects=\n{subjects}"
+    assert "Add tasks for feature " not in subjects, f"finalize-tasks must not emit the legacy 'for feature' subject; subjects=\n{subjects}"

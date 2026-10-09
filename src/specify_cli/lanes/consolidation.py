@@ -271,7 +271,7 @@ def consolidate_lane_into_mission(
             success=False,
             lane_id=lane_id,
             merged_into="",
-            errors=["No lanes.json found for this feature"],
+            errors=["No lanes.json found for this mission"],
         )
 
     lane = next(
@@ -375,7 +375,7 @@ def integrate_mission_into_target(
                 success=False,
                 mission_branch="",
                 target_branch="",
-                errors=["No lanes.json found for this feature"],
+                errors=["No lanes.json found for this mission"],
             )
 
     mission_branch = lanes_manifest.mission_branch

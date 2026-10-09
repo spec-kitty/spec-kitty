@@ -228,8 +228,8 @@ def run_enhanced_verify(
         output_data["feature_analysis"] = feature_status
 
         if not json_output:
-            console.print("\n[cyan]4. Current Feature Status[/cyan]")
-            console.print(f"   Feature: {mission_slug}")
+            console.print("\n[cyan]4. Current Mission Status[/cyan]")
+            console.print(f"   Mission: {mission_slug}")
             console.print(f"   State: {feature_status['state'].upper()}")
 
             # Status indicators

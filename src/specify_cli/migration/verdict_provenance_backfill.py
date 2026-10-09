@@ -77,6 +77,7 @@ from specify_cli.status import (
     event_sourced_review_result,
     feature_status_lock,
     is_changes_requested,
+    mission_lock_key,
 )
 from specify_cli.status._unsafe import append_events_atomic_verified
 from specify_cli.workspace.root_resolver import resolve_status_lock_root
@@ -404,14 +405,15 @@ def backfill_verdict_provenance(feature_dir: Path) -> BackfillOutcome:
     mission_id = _resolve_mission_id(feature_dir)
     # fsm-write-path-integrity WP01 (FR-002, writer family 6): the whole
     # discover -> ``slot_present`` read -> append sequence runs under ONE
-    # acquisition of the mission status lock (keyed on ``feature_dir.name``).
+    # acquisition of the mission status lock (keyed on ``mission_lock_key``).
     # ``event_sourced_review_result`` reads the event log, so leaving it
     # outside the lock is a TOCTOU against a concurrent verdict writer; the
     # backfill is a one-shot migration, so holding the lock across the review
     # artifact reads too is cheap. No ``nullcontext()`` degrade at this site
     # (conscious choice): the lock root resolver never fails. No git subprocess
     # runs inside the section (NFR-001).
-    with feature_status_lock(resolve_status_lock_root(feature_dir), feature_dir.name):
+    lock_root = resolve_status_lock_root(feature_dir)
+    with feature_status_lock(lock_root, mission_lock_key(feature_dir, repo_root=lock_root)):
         events, appended_wp_ids = _collect_backfill_events(feature_dir, mission_id)
         if events:
             append_events_atomic_verified(feature_dir, events)

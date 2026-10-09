@@ -31,12 +31,60 @@ import contextlib
 import os
 import tempfile
 from collections.abc import Callable
+from contextvars import ContextVar, Token
 from pathlib import Path
 
 __all__ = [
     "atomic_write",
+    "notify_file_written",
+    "notify_written",
+    "observe_writes",
+    "stop_observing_writes",
     "substantively_equal",
 ]
+
+#: The observer the current context installed with :func:`observe_writes`, told about each file written.
+_WRITE_OBSERVER: ContextVar[Callable[[Path, bytes], None] | None] = ContextVar("kernel_atomic_write_observer", default=None)
+
+
+def observe_writes(observer: Callable[[Path, bytes], None]) -> Token[Callable[[Path, bytes], None] | None]:
+    """Tell *observer* ``(path, bytes)`` after every :func:`atomic_write` (and :func:`notify_written`) in this context.
+
+    For a caller that must know exactly which files, and which bytes, one operation wrote (the finalize
+    write ledger). An observer already installed keeps hearing about every write too. Returns the token :func:`stop_observing_writes` takes.
+    """
+    outer = _WRITE_OBSERVER.get()
+
+    def both(path: Path, content: bytes) -> None:
+        if outer is not None:
+            outer(path, content)
+        observer(path, content)
+
+    return _WRITE_OBSERVER.set(both)
+
+
+def stop_observing_writes(token: Token[Callable[[Path, bytes], None] | None]) -> None:
+    """Remove the observer :func:`observe_writes` installed."""
+    _WRITE_OBSERVER.reset(token)
+
+
+def notify_file_written(path: Path) -> None:
+    """Tell the installed observer, if any, the bytes *path* holds now; the file is read only when an observer is installed.
+
+    For a writer that appends in place: call it inside the same lock hold as the append, so the recorded
+    bytes cannot include another writer's later append.
+    """
+    observer = _WRITE_OBSERVER.get()
+    if observer is not None:
+        observer(path, path.read_bytes())
+
+
+def notify_written(path: Path, content: bytes) -> None:
+    """Tell the installed observer, if any, that *path* now holds *content* (for writers that do not use :func:`atomic_write`)."""
+    observer = _WRITE_OBSERVER.get()
+    if observer is not None:
+        observer(path, content)
+
 
 # A volatile-field projection: given decoded text and a set of volatile keys,
 # return the "substantive content" form that two semantically-identical renders
@@ -73,6 +121,7 @@ def atomic_write(path: Path, content: str | bytes, *, mkdir: bool = False) -> No
             f.write(raw)
         # fd is now closed by the context manager
         Path(tmp_path).replace(path)
+        notify_written(path, raw)
     except BaseException:
         with contextlib.suppress(OSError):
             os.close(fd)

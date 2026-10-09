@@ -733,7 +733,7 @@ def test_lane_claim_allocates_the_worktree_and_commits_the_claim(repo: Path) -> 
     text = flat(result.output)
     for expected in (
         "→ VCS locked to git in meta.json",
-        "Detect feature context (Feature: demo-mission)",
+        "Detect mission context (Mission: demo-mission)",
         "Validate planning state (Lane: lane-a)",
         f"Resolve execution workspace (Lane lane-a: {LANE_WORKTREE})",
         "→ Mission branch: kitty/mission-demo-mission",

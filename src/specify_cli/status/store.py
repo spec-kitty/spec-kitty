@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.paths import is_windows
+from kernel.atomic import notify_file_written, notify_written
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import (
     MissionMetaReadError,
@@ -310,6 +311,7 @@ def append_event(feature_dir: Path, event: StatusEvent) -> None:
     line = serialize_event_line(event.to_dict())
     with path.open("a", encoding="utf-8") as fh:
         fh.write(line + "\n")
+    notify_file_written(path)
 
 
 def _event_matches_expected(actual: StatusEvent, expected: StatusEvent) -> bool:
@@ -407,6 +409,7 @@ def append_raw_rows_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
             os.fsync(fh.fileno())
         os.replace(tmp_path, path)
         replaced = True
+        notify_written(path, (existing + additions).encode("utf-8"))
         _fsync_directory(path.parent)
     finally:
         if not replaced:

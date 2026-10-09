@@ -426,7 +426,8 @@ def coord_status_lock(repo_root: Path, coord_feature_dir: Path) -> Iterator[Path
 
     The ONE definition of the lock the coord arm holds across emit -> commit
     (:func:`_emit_on_coord_then_commit`): the Mission write lock for the coord
-    feature dir (keyed on its name under *repo_root*'s git common dir), bounded
+    feature dir (keyed on ``mission_lock_key``, the one key the primary dir and the
+    transaction share, under *repo_root*'s git common dir), bounded
     by ``BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS`` (read at call time). The commit
     router takes it through this helper when it commits a coord-resident status
     log, so it can never sweep a transition's appended-but-uncommitted row

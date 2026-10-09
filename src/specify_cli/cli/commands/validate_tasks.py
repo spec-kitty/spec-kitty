@@ -75,10 +75,10 @@ def validate_tasks(
                         feature_dirs.extend([d for d in wt_specs.iterdir() if d.is_dir()])
 
         if not feature_dirs:
-            console.print("[yellow]No feature directories found.[/yellow]")
+            console.print("[yellow]No mission directories found.[/yellow]")
             raise typer.Exit(0)
 
-        console.print(f"[cyan]Checking task metadata for {len(feature_dirs)} features...[/cyan]")
+        console.print(f"[cyan]Checking task metadata for {len(feature_dirs)} missions...[/cyan]")
         console.print()
 
         total_mismatches = 0
@@ -122,10 +122,10 @@ def validate_tasks(
         MissionArtifactKind.WORK_PACKAGE_TASK
     )
     if not planning_dir.exists():
-        console.print(f"[red]Error:[/red] Feature directory not found: {planning_dir}")
+        console.print(f"[red]Error:[/red] Mission directory not found: {planning_dir}")
         raise typer.Exit(1)
 
-    console.print(f"[cyan]Validating task metadata for feature:[/cyan] {mission_slug}")
+    console.print(f"[cyan]Validating task metadata for mission:[/cyan] {mission_slug}")
     console.print()
 
     mismatches, fixed = _validate_feature_tasks(

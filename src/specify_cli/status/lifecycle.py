@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.clock import UTC, Clock, DEFAULT_CLOCK, datetime, from_epoch, parse_iso, timedelta
+from kernel.atomic import notify_written
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status.lifecycle_events import (
     FOLLOW_UP_RECORDED,
@@ -484,8 +485,7 @@ def generate_lifecycle_json(
 
     out_path = output_dir / DERIVED_LIFECYCLE_FILENAME
     tmp_path = out_path.with_suffix(".json.tmp")
-    tmp_path.write_text(
-        json.dumps(lifecycle.to_dict(), sort_keys=True, indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    lifecycle_json = json.dumps(lifecycle.to_dict(), sort_keys=True, indent=2, ensure_ascii=False) + "\n"
+    tmp_path.write_text(lifecycle_json, encoding="utf-8")
     os.replace(str(tmp_path), str(out_path))
+    notify_written(out_path, lifecycle_json.encode("utf-8"))

@@ -446,7 +446,7 @@ class WorkPackage:
         feature_dir = self.status_dir or self.path.parent.parent
         if not has_event_log(feature_dir):
             raise CanonicalStatusNotFoundError(
-                f"Canonical status not found for feature '{self.feature}'. "
+                f"Canonical status not found for mission '{self.feature}'. "
                 f"Run 'spec-kitty agent mission finalize-tasks --mission "
                 f"{self.feature}' to bootstrap the event log."
             )
@@ -603,7 +603,7 @@ def locate_work_package(
 
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():
-        raise TaskCliError(f"Feature '{feature}' has no tasks directory at {tasks_root}.")
+        raise TaskCliError(f"Mission '{feature}' has no tasks directory at {tasks_root}.")
 
     # Use exact WP ID matching with word boundary to avoid WP04 matching WP04b
     # Matches: WP04.md, WP04-something.md, WP04_something.md

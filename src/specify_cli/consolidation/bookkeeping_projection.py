@@ -588,22 +588,30 @@ def _project_status_bookkeeping_to_target(
     )
     source_events_bytes = _read_optional_bytes(source_events_path)
     source_status_bytes = _read_optional_bytes(source_status_path)
-    original_events_bytes = _read_optional_bytes(trusted_target_events_path)
-    original_status_bytes = _read_optional_bytes(trusted_target_status_path)
-    # FR-005: union the event log (source ∪ original) instead of blind-overwriting,
-    # and rematerialize status.json from the unioned events (a derived reduced
-    # snapshot) rather than blind-copying the coord copy.
-    union_events_bytes = _union_event_logs(source_events_bytes, original_events_bytes)
-    try:
-        if union_events_bytes is not None:
-            trusted_target_events_path.write_bytes(union_events_bytes)
-            trusted_target_status_path.write_bytes(_rematerialize_status_snapshot(union_events_bytes, trusted_target_events_path.parent))
-        elif source_status_bytes is not None:
-            trusted_target_status_path.write_bytes(source_status_bytes)
-    except OSError:
-        _restore_optional_bytes(trusted_target_events_path, original_events_bytes)
-        _restore_optional_bytes(trusted_target_status_path, original_status_bytes)
-        raise
+    # FR-008 (#5883): the target status-log read-modify-write (read the current
+    # target log, union the coord source into it, rewrite it) runs under the
+    # Mission write lock, so a concurrent locked writer of this Mission is never
+    # erased by a stale rewrite. The lock is re-entrant per thread, so a caller
+    # that already holds it (the bookkeeping transaction) does not deadlock.
+    from specify_cli.status import mission_write_lock
+
+    with mission_write_lock(trusted_target_events_path.parent, repo_root=main_repo):
+        original_events_bytes = _read_optional_bytes(trusted_target_events_path)
+        original_status_bytes = _read_optional_bytes(trusted_target_status_path)
+        # FR-005: union the event log (source ∪ original) instead of blind-overwriting,
+        # and rematerialize status.json from the unioned events (a derived reduced
+        # snapshot) rather than blind-copying the coord copy.
+        union_events_bytes = _union_event_logs(source_events_bytes, original_events_bytes)
+        try:
+            if union_events_bytes is not None:
+                trusted_target_events_path.write_bytes(union_events_bytes)
+                trusted_target_status_path.write_bytes(_rematerialize_status_snapshot(union_events_bytes, trusted_target_events_path.parent))
+            elif source_status_bytes is not None:
+                trusted_target_status_path.write_bytes(source_status_bytes)
+        except OSError:
+            _restore_optional_bytes(trusted_target_events_path, original_events_bytes)
+            _restore_optional_bytes(trusted_target_status_path, original_status_bytes)
+            raise
 
     if checkpoint_sha is not None and coord_ref is not None:
         # S-B/FR-004: bring EVERY post-checkpoint coord commit's non-status files

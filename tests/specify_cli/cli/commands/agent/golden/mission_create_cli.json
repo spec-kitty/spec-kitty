@@ -40,7 +40,7 @@
         "base_branch": "main",
         "branch_context": {
           "base_branch": "main",
-          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this mission: main. Completed changes must merge into main.",
           "current_branch": "main",
           "expected_checkout_branch": "main",
           "matches_target": true,
@@ -49,7 +49,7 @@
           "target_branch": "main"
         },
         "branch_matches_target": true,
-        "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+        "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this mission: main. Completed changes must merge into main.",
         "commit_to_target": null,
         "coordination_branch": "kitty/mission-gold-coord-ok-<MID8#1>",
         "coordination_branch_created": true,
@@ -87,7 +87,7 @@
         "runtime_vars": {
           "base_branch": "main",
           "branch_matches_target": true,
-          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this mission: main. Completed changes must merge into main.",
           "current_branch": "main",
           "merge_target_branch": "main",
           "now_utc_iso": "<TS>",
@@ -154,7 +154,7 @@
         "base_branch": "feat-x",
         "branch_context": {
           "base_branch": "feat-x",
-          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
           "current_branch": "feat-x",
           "expected_checkout_branch": "feat-x",
           "matches_target": true,
@@ -163,7 +163,7 @@
           "target_branch": "feat-x"
         },
         "branch_matches_target": true,
-        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
         "commit_to_target": null,
         "coordination_branch": "kitty/mission-gold-no-origin-head-<MID8#1>",
         "coordination_branch_created": true,
@@ -200,7 +200,7 @@
         "runtime_vars": {
           "base_branch": "feat-x",
           "branch_matches_target": true,
-          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
           "current_branch": "feat-x",
           "merge_target_branch": "feat-x",
           "now_utc_iso": "<TS>",
@@ -251,7 +251,7 @@
         "base_branch": "feat-x",
         "branch_context": {
           "base_branch": "feat-x",
-          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
           "current_branch": "feat-x",
           "expected_checkout_branch": "feat-x",
           "matches_target": true,
@@ -260,7 +260,7 @@
           "target_branch": "feat-x"
         },
         "branch_matches_target": true,
-        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
         "commit_to_target": null,
         "coordination_branch": null,
         "coordination_branch_created": false,
@@ -296,7 +296,7 @@
         "runtime_vars": {
           "base_branch": "feat-x",
           "branch_matches_target": true,
-          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
           "current_branch": "feat-x",
           "merge_target_branch": "feat-x",
           "now_utc_iso": "<TS>",
@@ -347,7 +347,7 @@
         "base_branch": "owned-topic",
         "branch_context": {
           "base_branch": "owned-topic",
-          "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this feature: owned-topic. Completed changes must merge into owned-topic.",
+          "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this mission: owned-topic. Completed changes must merge into owned-topic.",
           "current_branch": "owned-topic",
           "expected_checkout_branch": "owned-topic",
           "matches_target": true,
@@ -356,7 +356,7 @@
           "target_branch": "owned-topic"
         },
         "branch_matches_target": true,
-        "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this feature: owned-topic. Completed changes must merge into owned-topic.",
+        "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this mission: owned-topic. Completed changes must merge into owned-topic.",
         "canonical_repo_root": "<TMP>/repo",
         "commit_to_target": null,
         "coordination_branch": null,
@@ -394,7 +394,7 @@
         "runtime_vars": {
           "base_branch": "owned-topic",
           "branch_matches_target": true,
-          "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this feature: owned-topic. Completed changes must merge into owned-topic.",
+          "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this mission: owned-topic. Completed changes must merge into owned-topic.",
           "current_branch": "owned-topic",
           "merge_target_branch": "owned-topic",
           "now_utc_iso": "<TS>",
@@ -446,7 +446,7 @@
         "base_branch": "main",
         "branch_context": {
           "base_branch": "main",
-          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this mission: main. Completed changes must merge into main.",
           "current_branch": "main",
           "expected_checkout_branch": "main",
           "matches_target": true,
@@ -455,7 +455,7 @@
           "target_branch": "main"
         },
         "branch_matches_target": true,
-        "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+        "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this mission: main. Completed changes must merge into main.",
         "commit_to_target": null,
         "coordination_branch": "kitty/mission-gold-prbound-primary-<MID8#1>",
         "coordination_branch_created": true,
@@ -492,7 +492,7 @@
         "runtime_vars": {
           "base_branch": "main",
           "branch_matches_target": true,
-          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this mission: main. Completed changes must merge into main.",
           "current_branch": "main",
           "merge_target_branch": "main",
           "now_utc_iso": "<TS>",
@@ -544,7 +544,7 @@
         "base_branch": "feat-x",
         "branch_context": {
           "base_branch": "feat-x",
-          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
           "current_branch": "feat-x",
           "expected_checkout_branch": "feat-x",
           "matches_target": true,
@@ -553,7 +553,7 @@
           "target_branch": "feat-x"
         },
         "branch_matches_target": true,
-        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
         "commit_to_target": null,
         "coordination_branch": "kitty/mission-gold-prbound-protected-<MID8#1>",
         "coordination_branch_created": true,
@@ -590,7 +590,7 @@
         "runtime_vars": {
           "base_branch": "feat-x",
           "branch_matches_target": true,
-          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
           "current_branch": "feat-x",
           "merge_target_branch": "feat-x",
           "now_utc_iso": "<TS>",
@@ -642,7 +642,7 @@
         "base_branch": "feat-x",
         "branch_context": {
           "base_branch": "feat-x",
-          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
           "current_branch": "feat-x",
           "expected_checkout_branch": "feat-x",
           "matches_target": true,
@@ -651,7 +651,7 @@
           "target_branch": "feat-x"
         },
         "branch_matches_target": true,
-        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
         "commit_to_target": null,
         "coordination_branch": "kitty/mission-gold-prbound-default-<MID8#1>",
         "coordination_branch_created": true,
@@ -688,7 +688,7 @@
         "runtime_vars": {
           "base_branch": "feat-x",
           "branch_matches_target": true,
-          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
           "current_branch": "feat-x",
           "merge_target_branch": "feat-x",
           "now_utc_iso": "<TS>",
@@ -739,7 +739,7 @@
         "base_branch": "feat-x",
         "branch_context": {
           "base_branch": "feat-x",
-          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
           "current_branch": "feat-x",
           "expected_checkout_branch": "feat-x",
           "matches_target": true,
@@ -748,7 +748,7 @@
           "target_branch": "feat-x"
         },
         "branch_matches_target": true,
-        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
         "commit_to_target": null,
         "coordination_branch": null,
         "coordination_branch_created": false,
@@ -784,7 +784,7 @@
         "runtime_vars": {
           "base_branch": "feat-x",
           "branch_matches_target": true,
-          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
           "current_branch": "feat-x",
           "merge_target_branch": "feat-x",
           "now_utc_iso": "<TS>",
@@ -835,7 +835,7 @@
         "base_branch": "main",
         "branch_context": {
           "base_branch": "main",
-          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this mission: main. Completed changes must merge into main.",
           "current_branch": "main",
           "expected_checkout_branch": "main",
           "matches_target": true,
@@ -844,7 +844,7 @@
           "target_branch": "main"
         },
         "branch_matches_target": true,
-        "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+        "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this mission: main. Completed changes must merge into main.",
         "commit_to_target": null,
         "coordination_branch": "kitty/mission-gold-default-primary-<MID8#1>",
         "coordination_branch_created": true,
@@ -882,7 +882,7 @@
         "runtime_vars": {
           "base_branch": "main",
           "branch_matches_target": true,
-          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "branch_strategy_summary": "Current branch at workflow start: main. Planning/base branch for this mission: main. Completed changes must merge into main.",
           "current_branch": "main",
           "merge_target_branch": "main",
           "now_utc_iso": "<TS>",
@@ -936,7 +936,7 @@
         "main"
       ],
       "envelope": {
-        "error": "Invalid feature slug 'Not A Valid Slug!'. Must be kebab-case (lowercase letters, numbers, hyphens only).\n\nValid examples:\n  - user-auth\n  - fix-bug-123\n  - 068-feature-name\n  - new-dashboard\n\nInvalid examples:\n  - User-Auth (uppercase)\n  - user_auth (underscores)",
+        "error": "Invalid mission slug 'Not A Valid Slug!'. Must be kebab-case (lowercase letters, numbers, hyphens only).\n\nValid examples:\n  - user-auth\n  - fix-bug-123\n  - 068-feature-name\n  - new-dashboard\n\nInvalid examples:\n  - User-Auth (uppercase)\n  - user_auth (underscores)",
         "spec_kitty_version": {
           "present": true,
           "type": "str"
@@ -968,7 +968,7 @@
         "base_branch": "feat-x",
         "branch_context": {
           "base_branch": "feat-x",
-          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
           "current_branch": "feat-x",
           "expected_checkout_branch": "feat-x",
           "matches_target": true,
@@ -977,7 +977,7 @@
           "target_branch": "feat-x"
         },
         "branch_matches_target": true,
-        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+        "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
         "commit_to_target": null,
         "coordination_branch": null,
         "coordination_branch_created": false,
@@ -1013,7 +1013,7 @@
         "runtime_vars": {
           "base_branch": "feat-x",
           "branch_matches_target": true,
-          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this feature: feat-x. Completed changes must merge into feat-x.",
+          "branch_strategy_summary": "Current branch at workflow start: feat-x. Planning/base branch for this mission: feat-x. Completed changes must merge into feat-x.",
           "current_branch": "feat-x",
           "merge_target_branch": "feat-x",
           "now_utc_iso": "<TS>",
@@ -1085,7 +1085,7 @@
         "base_branch": "owned-topic",
         "branch_context": {
           "base_branch": "owned-topic",
-          "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this feature: owned-topic. Completed changes must merge into owned-topic.",
+          "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this mission: owned-topic. Completed changes must merge into owned-topic.",
           "current_branch": "owned-topic",
           "expected_checkout_branch": "owned-topic",
           "matches_target": true,
@@ -1094,7 +1094,7 @@
           "target_branch": "owned-topic"
         },
         "branch_matches_target": true,
-        "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this feature: owned-topic. Completed changes must merge into owned-topic.",
+        "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this mission: owned-topic. Completed changes must merge into owned-topic.",
         "canonical_repo_root": "<TMP>/repo",
         "commit_to_target": null,
         "coordination_branch": null,
@@ -1132,7 +1132,7 @@
         "runtime_vars": {
           "base_branch": "owned-topic",
           "branch_matches_target": true,
-          "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this feature: owned-topic. Completed changes must merge into owned-topic.",
+          "branch_strategy_summary": "Current branch at workflow start: owned-topic. Planning/base branch for this mission: owned-topic. Completed changes must merge into owned-topic.",
           "current_branch": "owned-topic",
           "merge_target_branch": "owned-topic",
           "now_utc_iso": "<TS>",
@@ -1203,7 +1203,7 @@
         "base_branch": "main",
         "branch_context": {
           "base_branch": "main",
-          "branch_strategy_summary": "Current branch at workflow start: kitty/mission-gold-protected-ok-<MID8#1>. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "branch_strategy_summary": "Current branch at workflow start: kitty/mission-gold-protected-ok-<MID8#1>. Planning/base branch for this mission: main. Completed changes must merge into main.",
           "current_branch": "kitty/mission-gold-protected-ok-<MID8#1>",
           "expected_checkout_branch": "kitty/mission-gold-protected-ok-<MID8#1>",
           "matches_target": true,
@@ -1212,7 +1212,7 @@
           "target_branch": "main"
         },
         "branch_matches_target": true,
-        "branch_strategy_summary": "Current branch at workflow start: kitty/mission-gold-protected-ok-<MID8#1>. Planning/base branch for this feature: main. Completed changes must merge into main.",
+        "branch_strategy_summary": "Current branch at workflow start: kitty/mission-gold-protected-ok-<MID8#1>. Planning/base branch for this mission: main. Completed changes must merge into main.",
         "commit_to_target": null,
         "coordination_branch": null,
         "coordination_branch_created": false,
@@ -1248,7 +1248,7 @@
         "runtime_vars": {
           "base_branch": "main",
           "branch_matches_target": true,
-          "branch_strategy_summary": "Current branch at workflow start: kitty/mission-gold-protected-ok-<MID8#1>. Planning/base branch for this feature: main. Completed changes must merge into main.",
+          "branch_strategy_summary": "Current branch at workflow start: kitty/mission-gold-protected-ok-<MID8#1>. Planning/base branch for this mission: main. Completed changes must merge into main.",
           "current_branch": "kitty/mission-gold-protected-ok-<MID8#1>",
           "merge_target_branch": "main",
           "now_utc_iso": "<TS>",

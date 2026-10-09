@@ -161,7 +161,7 @@ def test_origin_commit_failure_preserves_evidence_without_creation_fanout(tmp_pa
     finally:
         reset_origin_consumer()
     attempts = record.read_text(encoding="utf-8").splitlines()
-    assert [line.split(" for feature ")[0] for line in attempts] == ["Add scaffold", "Add origin-ticket binding"]
+    assert [line.split(" for mission ")[0] for line in attempts] == ["Add scaffold", "Add origin-ticket binding"]
     assert not emitted
     assert _git(tmp_path, "rev-parse", "HEAD").stdout == original_head
     # Re-pinned (coord-artifact-single-home-01M3V4BE WP06, T032): the default

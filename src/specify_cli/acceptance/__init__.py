@@ -16,11 +16,11 @@ from uuid import uuid4
 from charter.encoding_recovery import recover as _recover_encoding
 from kernel.paths import to_posix
 from specify_cli.core.agent_config import get_auto_commit_default
-from specify_cli.core.paths import load_meta_fail_closed, read_target_branch_from_meta
+from specify_cli.core.paths import read_target_branch_from_meta
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
 from specify_cli.mission import Mission, MissionError, get_mission_for_feature
-from specify_cli.mission_metadata import record_acceptance, resolve_mission_identity, write_meta
+from specify_cli.mission_metadata import locked_update_meta, record_acceptance, resolve_mission_identity
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import EVENTS_FILENAME, SNAPSHOT_FILENAME, StoreError
 
@@ -1127,7 +1127,7 @@ def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list
     """Load canonical WP states from status.events.jsonl; append issues on failure."""
     events_path = feature_dir / EVENTS_FILENAME
     _missing_msg = (
-        f"No canonical state found for feature '{feature}'. "
+        f"No canonical state found for mission '{feature}'. "
         "Cannot validate acceptance without status.events.jsonl. "
         f"Run 'spec-kitty agent mission finalize-tasks --mission {feature}' to bootstrap the event log."
     )
@@ -1141,7 +1141,7 @@ def _collect_snapshot_wps(feature: str, feature_dir: Path, activity_issues: list
         event_stream = read_event_stream(feature_dir)
         snapshot = reduce(event_stream.transitions, event_stream.annotations)
     except StoreError as exc:
-        raise AcceptanceError(f"Status event log is corrupted for feature '{feature}': {exc}") from exc
+        raise AcceptanceError(f"Status event log is corrupted for mission '{feature}': {exc}") from exc
     if not snapshot.work_packages:
         activity_issues.append(_missing_msg)
     return snapshot.work_packages
@@ -1694,6 +1694,26 @@ def _staged_paths(repo_root: Path, rel_path: str) -> tuple[GitPath, ...]:
         raise TaskCliError(str(exc)) from exc
 
 
+def _stamp_accept_commit(feature_dir: Path, accept_commit: str) -> bool:
+    """Stamp *accept_commit* into ``meta.json`` (and the newest history entry) under the Mission lock.
+
+    Returns ``False`` when the Mission has no ``meta.json`` (nothing to stamp, nothing to commit).
+    A corrupt ``meta.json`` raises the typed ``MissionMetaReadError`` (FR-007 route).
+    """
+
+    def mutate(meta: dict[str, Any]) -> None:
+        meta["accept_commit"] = accept_commit
+        history = meta.get("acceptance_history", [])
+        if history:
+            history[-1]["accept_commit"] = accept_commit
+
+    try:
+        locked_update_meta(feature_dir, mutate)
+    except FileNotFoundError:
+        return False
+    return True
+
+
 def _commit_acceptance_meta(
     summary: AcceptanceSummary,
     actor_name: str,
@@ -1763,24 +1783,16 @@ def _commit_acceptance_meta(
     except TaskCliError:
         accept_commit = None
 
-    if accept_commit:
-        # FR-007 route: ``route-unwrapped`` census site -- corruption surfaces
-        # as the typed ``MissionMetaReadError`` and PROPAGATES (swallowing it
-        # would silently skip stamping ``accept_commit`` into meta.json).
-        _meta = load_meta_fail_closed(summary.feature_dir)
-        if _meta is not None:
-            _meta["accept_commit"] = accept_commit
-            _history = _meta.get("acceptance_history", [])
-            if _history:
-                _history[-1]["accept_commit"] = accept_commit
-            write_meta(summary.feature_dir, _meta)
-            run_git(["add", meta_rel], cwd=repo_root, check=True)
-            if _staged_paths(repo_root, meta_rel):
-                run_git(
-                    ["commit", "-m", f"Record acceptance commit for {mission_slug}", "--", meta_rel],
-                    cwd=repo_root,
-                    check=True,
-                )
+    # Corruption surfaces as the typed ``MissionMetaReadError`` and PROPAGATES
+    # (swallowing it would silently skip stamping ``accept_commit`` into meta.json).
+    if accept_commit and _stamp_accept_commit(summary.feature_dir, accept_commit):
+        run_git(["add", meta_rel], cwd=repo_root, check=True)
+        if _staged_paths(repo_root, meta_rel):
+            run_git(
+                ["commit", "-m", f"Record acceptance commit for {mission_slug}", "--", meta_rel],
+                cwd=repo_root,
+                check=True,
+            )
 
     return parent_commit, accept_commit, True
 
@@ -1833,40 +1845,32 @@ def _commit_acceptance_meta_via_router(
 
     accept_commit: str | None = router_result.commit_hash
 
-    if accept_commit:
-        # FR-007 route: ``route-unwrapped`` census site -- see the sibling
-        # ``_commit_acceptance_meta``; the typed error PROPAGATES.
-        _meta = load_meta_fail_closed(meta_path.parent)
-        if _meta is not None:
-            _meta["accept_commit"] = accept_commit
-            _history = _meta.get("acceptance_history", [])
-            if _history:
-                _history[-1]["accept_commit"] = accept_commit
-            write_meta(meta_path.parent, _meta)
-            # Second commit: record the accept_commit SHA back into meta.json.
-            # T088 (D8): its result was discarded entirely before this WP --
-            # now warn (never raise; this write is best-effort bookkeeping on
-            # top of an already-successful acceptance commit) when a surface
-            # did not land cleanly.
-            second_result = commit_for_mission(
-                repo_root=repo_root,
-                mission_slug=mission_slug,
-                files=(meta_path,),
-                message=f"Record acceptance commit for {mission_slug}",
-                policy=policy,
-                # meta.json → PRIMARY_METADATA (write-surface-coherence WP02 / T009).
-                kind=MissionArtifactKind.PRIMARY_METADATA,
-            )
-            for surface in second_result.surfaces:
-                if surface.status not in ("committed", "unchanged"):
-                    logger.warning(
-                        "accept: recording accept_commit on %s (%s) for %s did not land (%s): %s",
-                        surface.surface,
-                        surface.branch,
-                        mission_slug,
-                        surface.status,
-                        surface.diagnostic or "no diagnostic available",
-                    )
+    # See the sibling ``_commit_acceptance_meta``; the typed error PROPAGATES.
+    if accept_commit and _stamp_accept_commit(meta_path.parent, accept_commit):
+        # Second commit: record the accept_commit SHA back into meta.json.
+        # T088 (D8): its result was discarded entirely before this WP --
+        # now warn (never raise; this write is best-effort bookkeeping on
+        # top of an already-successful acceptance commit) when a surface
+        # did not land cleanly.
+        second_result = commit_for_mission(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            files=(meta_path,),
+            message=f"Record acceptance commit for {mission_slug}",
+            policy=policy,
+            # meta.json → PRIMARY_METADATA (write-surface-coherence WP02 / T009).
+            kind=MissionArtifactKind.PRIMARY_METADATA,
+        )
+        for surface in second_result.surfaces:
+            if surface.status not in ("committed", "unchanged"):
+                logger.warning(
+                    "accept: recording accept_commit on %s (%s) for %s did not land (%s): %s",
+                    surface.surface,
+                    surface.branch,
+                    mission_slug,
+                    surface.status,
+                    surface.diagnostic or "no diagnostic available",
+                )
 
     return parent_commit, accept_commit, True
 

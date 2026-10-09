@@ -137,7 +137,7 @@ def test_commit_to_branch_still_commits_changed_artifact(tmp_path: Path) -> None
         json_output=True,
     )
 
-    assert _run_git(tmp_path, "log", "-1", "--pretty=%s") == "Add plan for feature 001-demo"
+    assert _run_git(tmp_path, "log", "-1", "--pretty=%s") == "Add plan for mission 001-demo"
 
 
 def test_commit_to_branch_hook_rejection_surfaces_as_error_not_unchanged(tmp_path: Path) -> None:

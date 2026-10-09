@@ -68,7 +68,9 @@ def test_decide_next_wrapper_forwards_the_fact_only_when_present(tmp_path: Path,
     next_cmd.decide_next("claude", _SLUG, "success", tmp_path)
     next_cmd.decide_next("claude", _SLUG, "success", fact.repository_root, owned=fact)
 
-    assert calls == [
+    # WP07: the wrapper always injects the analysis-currency check; only the ownership fact is conditional.
+    assert all(callable(kwargs["analysis_currency"]) for _, kwargs in calls)
+    assert [(args, {k: v for k, v in kwargs.items() if k != "analysis_currency"}) for args, kwargs in calls] == [
         (("claude", _SLUG, "success", tmp_path), {}),
         (("claude", _SLUG, "success", fact.repository_root), {"owned": fact}),
     ]
@@ -367,7 +369,9 @@ def test_run_query_mode_hands_the_fact_to_the_runtime_only_when_owned(tmp_path: 
     next_cmd._run_query_mode("claude", _SLUG, tmp_path, True, None, None)
     next_cmd._run_query_mode("claude", _SLUG, fact.repository_root, True, None, None, owned=fact)
 
-    assert calls == [
+    # WP07: every query also carries the injected analysis-currency check; only the ownership fact is conditional.
+    assert all(callable(kwargs["analysis_currency"]) for _, kwargs in calls)
+    assert [(args, {k: v for k, v in kwargs.items() if k != "analysis_currency"}) for args, kwargs in calls] == [
         (("claude", _SLUG, tmp_path), {}),
         (("claude", _SLUG, fact.repository_root), {"owned": fact}),
     ]

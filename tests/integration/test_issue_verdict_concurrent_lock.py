@@ -129,7 +129,7 @@ class TestLockCompositionGateSpies:
             calls.append((repo_root_arg, lock_key, timeout))
             return feature_status_lock(repo_root_arg, lock_key, timeout=timeout)
 
-        monkeypatch.setattr(iv_command, "feature_status_lock", _spy_lock)
+        monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _spy_lock)
 
         result = do_issue_verdict(
             mission=mission_slug,
@@ -177,7 +177,7 @@ class TestLockCompositionGateSpies:
             order.append("write")
             return real_write(**kwargs)
 
-        monkeypatch.setattr(iv_command, "feature_status_lock", _spy_lock)
+        monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _spy_lock)
         monkeypatch.setattr(iv_command, "_load_raw_rows", _spy_load)
         monkeypatch.setattr(iv_command, "write_issue_matrix", _spy_write)
 
@@ -232,7 +232,7 @@ class TestLockCompositionGateSpies:
             write_calls.append(kwargs)
             return real_write(**kwargs)
 
-        monkeypatch.setattr(iv_command, "feature_status_lock", _timeout_lock)
+        monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _timeout_lock)
         monkeypatch.setattr(iv_command, "write_issue_matrix", _spy_write)
 
         with pytest.raises(IssueVerdictError) as excinfo:

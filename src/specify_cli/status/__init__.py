@@ -407,10 +407,13 @@ from .mission_write import (
     appended_event_ids,
     capture_rollback_point,
     locked_rewrite_text,
+    mission_lock_key,
     mission_write_lock,
+    registered_hold,
     rollback_events_log,
     rollback_io_failure,
     rollback_status_artifacts,
+    transaction_lock_key,
 )
 
 
@@ -702,10 +705,13 @@ __all__ = [
     "appended_event_ids",
     "capture_rollback_point",
     "locked_rewrite_text",
+    "mission_lock_key",
     "mission_write_lock",
+    "registered_hold",
     "rollback_events_log",
     "rollback_io_failure",
     "rollback_status_artifacts",
+    "transaction_lock_key",
     "write_checkout_claim_lock",
 ]
 
