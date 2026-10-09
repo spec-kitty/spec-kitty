@@ -101,6 +101,7 @@ CLAUSE_B_SEGMENTS: frozenset[str] = frozenset({"charter-packs", "org-charter.yam
 DRAIN_OWNERS: frozenset[str] = frozenset({"WP04", "WP05", "WP14", "WP25"})
 
 _CUTOVER_MIGRATION = "src/specify_cli/upgrade/migrations/m_4_0_0rc6_charter_pack_cutover.py"
+_LEGACY_LAYOUT_PREDICATE = "src/specify_cli/migration/legacy_charter_layout.py"
 _DEAD_SKILL_FALLBACK = (
     "frozen upgrade migration: a dead parents[3] / 'doctrine' / 'skills' fallback that points at the "
     "deleted src/doctrine/ tree, not at the project layer; WP25 deletes the fallback or keeps the file listed"
@@ -109,6 +110,10 @@ _DEAD_SKILL_FALLBACK = (
 #: Closed, by-file exemptions (no globs). Each value is the reason.
 FILE_EXEMPTIONS: dict[str, str] = {
     _CUTOVER_MIGRATION: ("the FR-012 cutover migration (created by WP11) reads and moves the retired .kittify/doctrine/ tree, so it must spell the legacy segment"),
+    _LEGACY_LAYOUT_PREDICATE: (
+        "the legacy charter-layout predicate (created by WP11) shared by the cutover migration and the "
+        "FR-011 CLI-root gate (WP14) names the retired .kittify/doctrine/ root it detects; WP25's FR-018 gate exempts it too"
+    ),
     "src/specify_cli/upgrade/migrations/m_2_1_2_fix_glossary_context_skill.py": _DEAD_SKILL_FALLBACK,
     "src/specify_cli/upgrade/migrations/m_2_1_2_fix_orchestrator_api_skill.py": _DEAD_SKILL_FALLBACK,
     "src/specify_cli/upgrade/migrations/m_2_1_2_fix_runtime_next_skill.py": _DEAD_SKILL_FALLBACK,
@@ -118,9 +123,6 @@ FILE_EXEMPTIONS: dict[str, str] = {
     "src/specify_cli/upgrade/migrations/m_3_2_0rc35_fix_prompt_file_workaround.py": _DEAD_SKILL_FALLBACK,
 }
 
-#: The only exemption whose file may be missing: WP11 creates it. Remove this
-#: tolerance when WP11 lands the module.
-EXEMPTIONS_TOLERATED_MISSING: frozenset[str] = frozenset({_CUTOVER_MIGRATION})
 
 #: Non-vacuity: the gate must have scanned at least this many ``src`` files.
 #: Live count at landing (2026-10-07): 1,393; recorded with a margin so a
@@ -555,8 +557,6 @@ def test_allowlist_entries_name_a_drain_owner() -> None:
 def test_file_exemptions_exist() -> None:
     """Staleness for the by-file exemptions: each file exists (WP10 keeps every migration module)."""
     for rel in FILE_EXEMPTIONS:
-        if rel in EXEMPTIONS_TOLERATED_MISSING:
-            continue  # WP11 creates the cutover migration module.
         assert (_REPO_ROOT / rel).is_file(), f"exempted file {rel} is gone: remove its exemption"
     assert (_REPO_ROOT / AUTHORITY_REL_PATH).is_file()
 

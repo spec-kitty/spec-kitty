@@ -396,8 +396,11 @@ class MigrationRunner:
                 "failed",
             )
 
-        # Record in metadata
-        if not dry_run:
+        # Record in metadata. A failed ``runs_first`` migration is not recorded:
+        # its refusal writes nothing (charter-pack cutover contract, collision
+        # preflight), only a ``success`` record ever settles it, and its
+        # content-driven ``detect()`` re-selects it on the next run anyway.
+        if not dry_run and (result.success or not migration.runs_first):
             self._record_migration_result(
                 metadata,
                 self.kittify_dir,
