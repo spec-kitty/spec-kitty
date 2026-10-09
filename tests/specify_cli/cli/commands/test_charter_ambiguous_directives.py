@@ -8,7 +8,7 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 from charter.activation.kind_vocabulary import ArtifactKind
 from charter.offering.pack_paths import built_in_dir
 from specify_cli.cli.commands.charter import app
@@ -61,7 +61,7 @@ def test_ambiguous_directive_keeps_siblings_and_reports_json(tmp_path: Path, mon
     assert paradigm in saved["activated_paradigms"]
     if required:
         assert tactic in saved["activated_tactics"]
-    delivered = build_activation_aware_doctrine_service(tmp_path).directives
+    delivered = build_active_charter_service(tmp_path).directives
     assert "DIRECTIVE_001" in delivered
     assert "TEAM-SEC" not in delivered
     assert "COMPANY-SEC" not in delivered
@@ -78,7 +78,7 @@ def test_ambiguous_directive_keeps_siblings_and_reports_json(tmp_path: Path, mon
 
 def test_generate_rejects_ambiguous_required_directive_without_interview(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    directory = tmp_path / ".kittify/doctrine/directive"
+    directory = tmp_path / ".kittify/charter-packs/directive"
     directory.mkdir(parents=True)
     (directory / "025-boy-scout-rule.directive.yaml").write_text(
         'schema_version: "1.0"\nid: REQUIRED-POLICY\ntitle: Required\nintent: Require review.\nenforcement: required\n'

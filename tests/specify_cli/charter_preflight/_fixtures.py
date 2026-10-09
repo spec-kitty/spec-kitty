@@ -220,8 +220,8 @@ def _resolve_bundle_hash(
 
 
 def seed_graph(repo: Path) -> Path:
-    """Create ``.kittify/doctrine/graph.yaml`` (a minimal valid graph)."""
-    graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
+    """Create ``.kittify/charter-packs/graph.yaml`` (a minimal valid graph)."""
+    graph_path = repo / ".kittify" / "charter-packs" / "graph.yaml"
     graph_path.parent.mkdir(parents=True, exist_ok=True)
     graph_path.write_text("schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8")
     return graph_path

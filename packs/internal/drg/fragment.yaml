@@ -189,7 +189,7 @@ nodes:
     title: "Write an executive debrief"
     body_path: skills/report-debrief.skill.yaml
 edges:
-  # Reference-not-duplicate: the landing runbook refines built-in doctrine that
+  # Reference-not-duplicate: the landing runbook refines built-in Charter Pack doctrine that
   # already ships publicly, rather than re-authoring it. Targets are
   # fully-qualified <kind>:<id> DRG URNs (singular kind), verified present in
   # packs/built-in/.
@@ -243,7 +243,7 @@ edges:
   - source: branded-document-generation
     target: "asset:spec-kitty-branded-pdf"
     relation: requires
-  # Repository-specific refinements of repository-agnostic built-in doctrine.
+  # Repository-specific refinements of repository-agnostic built-in Charter Pack artifacts.
   # Each internal node refines the built-in artefact it specialises.
   - source: spec-kitty-arch-gate-adjudication
     target: "procedure:post-merge-arch-gate-adjudication"

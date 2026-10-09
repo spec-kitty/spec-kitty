@@ -305,11 +305,11 @@ def prepare_project_skill_activations(repo_root: Path, *, installed_pack_skills:
     holds: a skill that is in force and cannot be rendered (no namespace, a DRG that does not
     load, a record that does not load, a sibling id conflict) is never silently skipped.
 
-    Otherwise resolves the doctrine service, the merged built-in + org-chain DRG and both
+    Otherwise resolves the active charter service, the merged built-in + org-chain DRG and both
     namespaces, and delegates to :func:`_prepare_skill_activations`.
     """
     from charter.activation._drg_helpers import load_validated_graph
-    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.active_charter_service_builder import build_active_charter_service
     from charter.activation.drg_activation import load_org_drg
     from charter.activation.org_pack_discovery import read_org_skill_namespace
     from charter.offering.drg.org_pack_config import resolve_existing_org_roots
@@ -317,7 +317,7 @@ def prepare_project_skill_activations(repo_root: Path, *, installed_pack_skills:
     established = in_force if in_force is not None else establish_in_force_skill_ids(repo_root, installed_pack_skills=installed_pack_skills)
     if established.is_empty:
         return []
-    service = build_activation_aware_doctrine_service(repo_root)
+    service = build_active_charter_service(repo_root)
     source, load_problems = _load_skill_source(service)
     graph = load_validated_graph(
         repo_root,

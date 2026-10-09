@@ -59,8 +59,8 @@ class FixPromptFileWorkaroundMigration(BaseMigration):
         errors: list[str] = []
 
         try:
-            doctrine_root = files("charter.offering")
-            canonical_path = doctrine_root.joinpath(
+            offering_root = files("charter.offering")
+            canonical_path = offering_root.joinpath(
                 "skills", _SKILL_NAME, "SKILL.md"
             )
             new_content = canonical_path.read_text(encoding="utf-8")

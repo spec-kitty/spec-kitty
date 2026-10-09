@@ -8,7 +8,7 @@ best-effort ``try/except``: if the built-in root cannot be resolved
 content dir (:class:`~charter.offering.pack_paths.BuiltInContentDirNotAvailable`), the
 charter-catalog *render* path degrades to the org/project roots instead of
 raising. (The authoritative *load* path in ``charter.offering.base`` fails closed on
-``PackRootNotFound`` instead -- see ``tests/doctrine/test_loader_fail_closed.py``;
+``PackRootNotFound`` instead -- see ``tests/charter_offering/test_loader_fail_closed.py``;
 this render path is intentionally the softer sibling.)
 
 This pins that fail-soft branch, which is otherwise only exercised on a broken
@@ -60,7 +60,7 @@ def test_scan_roots_degrades_when_built_in_dir_unresolvable(
 
     result = _scan_roots(
         ArtifactKind.TACTIC,
-        _doctrine_root=Path("/nonexistent"),
+        _offering_root=Path("/nonexistent"),
         org_roots=None,
         layer_roots=None,
     )
@@ -83,7 +83,7 @@ def test_scan_roots_still_returns_org_root_when_built_in_unresolvable(
 
     result = _scan_roots(
         ArtifactKind.TACTIC,
-        _doctrine_root=Path("/nonexistent"),
+        _offering_root=Path("/nonexistent"),
         org_roots=[tmp_path],
         layer_roots=None,
     )
@@ -169,12 +169,12 @@ class TestOrgScanDirsHelper:
         (directives_dir / f"{stem}.directive.yaml").write_text(
             "id: FLAT_ONLY_FIXTURE_DIRECTIVE\n", encoding="utf-8"
         )
-        doctrine_root = tmp_path / "doctrine-root-unused"
+        offering_root = tmp_path / "doctrine-root-unused"
 
         urn = resolve_artifact_urn(
             ArtifactKind.DIRECTIVE,
             stem,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=[org_root],
         )
 
@@ -234,12 +234,12 @@ class TestOrgScanDirsHelper:
         (legacy_dir / f"{stem}.directive.yaml").write_text(
             "id: DIRECTIVE_LEGACY\n", encoding="utf-8"
         )
-        doctrine_root = tmp_path / "doctrine-root-unused"
+        offering_root = tmp_path / "doctrine-root-unused"
 
         urn = resolve_artifact_urn(
             ArtifactKind.DIRECTIVE,
             stem,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=[org_root],
         )
 
@@ -298,12 +298,12 @@ class TestOrgScanDirsHelper:
             if root_order == "flat_root_first"
             else [legacy_root, flat_root]
         )
-        doctrine_root = tmp_path / "doctrine-root-unused"
+        offering_root = tmp_path / "doctrine-root-unused"
 
         urn = resolve_artifact_urn(
             ArtifactKind.DIRECTIVE,
             stem,
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=org_roots,
         )
 
@@ -312,14 +312,16 @@ class TestOrgScanDirsHelper:
 
 class TestLayerCandidateDirHelper:
     def test_project_layer_uses_project_kind_dirs_mapping(self, tmp_path: Path) -> None:
-        expected = tmp_path / "doctrine" / kind_vocabulary.PROJECT_KIND_DIRS.get(
+        # The project layer root is the project pack root: kind dirs join straight onto it.
+        expected = tmp_path / kind_vocabulary.PROJECT_KIND_DIRS.get(
             ArtifactKind.TACTIC, ArtifactKind.TACTIC.plural
         )
         assert _layer_candidate_dir(ArtifactKind.TACTIC, "project", tmp_path) == expected
 
-    def test_non_project_layer_uses_plural_subdir(self, tmp_path: Path) -> None:
-        expected = tmp_path / "doctrine" / ArtifactKind.TACTIC.plural / "org"
-        assert _layer_candidate_dir(ArtifactKind.TACTIC, "org", tmp_path) == expected
+    def test_non_project_layer_has_no_candidate(self, tmp_path: Path) -> None:
+        """The retired nested ``<pack>/doctrine/<plural>/<layer>`` layout is not read (FR-011)."""
+        (tmp_path / "doctrine" / ArtifactKind.TACTIC.plural / "org").mkdir(parents=True)
+        assert _layer_candidate_dir(ArtifactKind.TACTIC, "org", tmp_path) is None
 
 
 class TestLayerScanDirsHelper:
@@ -331,8 +333,13 @@ class TestLayerScanDirsHelper:
 
     def test_existing_layer_dir_returned_as_recursive(self, tmp_path: Path) -> None:
         """WP02: layer dirs recurse via the shared authority (C-001)."""
-        candidate = tmp_path / "doctrine" / ArtifactKind.TACTIC.plural / "org"
+        candidate = _layer_candidate_dir(ArtifactKind.TACTIC, "project", tmp_path)
+        assert candidate is not None
         candidate.mkdir(parents=True)
-        assert _layer_scan_dirs(ArtifactKind.TACTIC, {"org": tmp_path}) == [
+        assert _layer_scan_dirs(ArtifactKind.TACTIC, {"project": tmp_path}) == [
             (candidate, True)
         ]
+
+    def test_a_nested_org_layer_dir_is_not_scanned(self, tmp_path: Path) -> None:
+        (tmp_path / "doctrine" / ArtifactKind.TACTIC.plural / "org").mkdir(parents=True)
+        assert _layer_scan_dirs(ArtifactKind.TACTIC, {"org": tmp_path}) == []

@@ -14,7 +14,7 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.skills.catalog import PackSkillCatalogError, resolve_project_skill_catalog
 from specify_cli.skills.manifest import load_manifest
@@ -92,7 +92,7 @@ def test_required_skills_of_two_org_packs_union_into_default_in_force(tmp_path: 
         encoding="utf-8",
     )
 
-    assert set(build_activation_aware_doctrine_service(project).skills) == {"a", "b", "shared"}
+    assert set(build_active_charter_service(project).skills) == {"a", "b", "shared"}
 
 
 def test_refused_projection_leaves_config_and_disk_coherent_with_a_recovery_message(tmp_path: Path) -> None:
@@ -103,7 +103,7 @@ def test_refused_projection_leaves_config_and_disk_coherent_with_a_recovery_mess
     project = tmp_path / "project"
     project.mkdir()
     support.write_config(project, pack, extra=AGENTS + "activated_skills: []\n", project_namespace="a-b")
-    support.write_skill(project / ".kittify" / "doctrine", "c")  # project namespace "a-b" -> a-b-c (collision)
+    support.write_skill(project / ".kittify" / "charter-packs", "c")  # project namespace "a-b" -> a-b-c (collision)
 
     code, output = _activate(project, "skill", "b-c")
     assert code == 0, output

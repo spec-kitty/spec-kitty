@@ -45,6 +45,7 @@ from charter.drg import (
 )
 from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
 from charter.mission_steps import MissionStepContract, MissionStepContractRepository
+from kernel.charter_pack_paths import project_pack_root
 from specify_cli.mission_metadata import resolve_mission_identity
 
 if TYPE_CHECKING:
@@ -71,7 +72,7 @@ _IN_PROGRESS_TO_FOR_REVIEW = "in_progress->for_review"
 _FOR_REVIEW_TO_IN_REVIEW = "for_review->in_review"
 _IN_REVIEW_TO_APPROVED = "in_review->approved"
 _MSC_URN_PREFIX = "mission_step_contract"
-_PROJECT_CONTRACTS_SUBPATH = (".kittify", "doctrine", "mission_step_contracts")
+_PROJECT_CONTRACTS_DIRNAME = "mission_step_contracts"
 _NO_COVERAGE = "NO_COVERAGE"
 
 # Lane-edge → owning action (FR-008, data-model.md §6). Half A gates **only**
@@ -171,7 +172,7 @@ def _build_repository(repo_root: Path) -> MissionStepContractRepository:
     while never gating anything (User Story 3).
     """
     return MissionStepContractRepository(
-        project_dir=repo_root.joinpath(*_PROJECT_CONTRACTS_SUBPATH),
+        project_dir=project_pack_root(repo_root) / _PROJECT_CONTRACTS_DIRNAME,
         org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
     )
 

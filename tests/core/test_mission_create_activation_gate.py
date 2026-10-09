@@ -11,7 +11,7 @@ mission-create path (the CLI ``agent mission create`` command, the ticket-first
 This suite pins that create-boundary contract directly:
 
 * an EMPTY activation set (absent key OR authored ``[]``) blocks creation with
-  an actionable ``CharterPackConfigError`` naming the provisioning remedy; and
+  an actionable ``ActiveCharterConfigError`` naming the provisioning remedy; and
 * a PROVISIONED set lets creation pass the gate.
 """
 
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 from specify_cli.core.mission_creation import create_mission_core
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -49,15 +49,15 @@ def test_absent_activation_key_blocks_creation_with_actionable_error(
 ) -> None:
     """A project whose ``config.yaml`` omits ``mission_type_activations`` (the
     genuinely-absent-key, unprovisioned case) cannot host a mission: creation
-    fails closed with ``CharterPackConfigError`` and an actionable message."""
+    fails closed with ``ActiveCharterConfigError`` and an actionable message."""
     _init_git_repo(tmp_path)
     _write_activations(tmp_path, "vcs:\n  type: git\n")  # no activations key
 
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID") as exc:
+    with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID") as exc:
         create_mission_core(tmp_path, "no-types-mission", allow_worktree_context=True)
 
     # The actionable remediation lives in the structured error's ``body``
-    # (``str()`` renders only the stable ``CHARTER_PACK_CONFIG_INVALID`` code).
+    # (``str()`` renders only the stable ``ACTIVE_CHARTER_CONFIG_INVALID`` code).
     body = exc.value.body
     assert "at least one activated mission type" in body
     assert "spec-kitty init" in body
@@ -70,7 +70,7 @@ def test_authored_empty_activation_list_blocks_creation(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
     _write_activations(tmp_path, "mission_type_activations: []\n")
 
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+    with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID"):
         create_mission_core(tmp_path, "empty-types-mission", allow_worktree_context=True)
 
 

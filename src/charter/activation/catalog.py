@@ -1,4 +1,4 @@
-"""Doctrine catalog loading for deterministic governance validation."""
+"""Offering catalog loading for deterministic governance validation."""
 
 from __future__ import annotations
 
@@ -17,9 +17,9 @@ from charter.offering.yaml_utils import parse_shipped_yaml
 from kernel.paths import get_package_asset_root as _get_package_asset_root
 
 __all__ = [
-    "DoctrineCatalog",
-    "load_doctrine_catalog",
-    "resolve_doctrine_root",
+    "OfferingCatalog",
+    "load_offering_catalog",
+    "resolve_offering_root",
 ]
 
 
@@ -27,8 +27,8 @@ _log = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class DoctrineCatalog:
-    """Deterministic doctrine catalog derived from on-disk doctrine assets.
+class OfferingCatalog:
+    """Deterministic offering catalog derived from the on-disk built-in artifacts.
 
     ``domains_present`` records which built-in artifact domains have a ``built-in/``
     subdirectory on disk.  A domain that is present but has an empty ``built-in/``
@@ -48,12 +48,12 @@ class DoctrineCatalog:
     agent_profiles: frozenset[str]
     domains_present: frozenset[str] = frozenset()
 
-def load_doctrine_catalog(
+def load_offering_catalog(
     *,
     include_proposed: bool = False,
     active_languages: list[str] | tuple[str, ...] | None = None,
-) -> DoctrineCatalog:
-    """Load doctrine catalogs from package assets with development fallbacks.
+) -> OfferingCatalog:
+    """Load the offering catalog from package assets with development fallbacks.
 
     Only canonised ``packs/built-in/<kind>/`` artifacts participate in the
     catalog. ``include_proposed`` is accepted for call-site compatibility but
@@ -61,19 +61,19 @@ def load_doctrine_catalog(
     ``_proposed/`` subdirectory to opt into post-relocation (mission
     doctrine-built-in-seam-consolidation-01KYW3TX, WP02).
 
-    ``DoctrineCatalog.domains_present`` records which artifact domains have a
+    ``OfferingCatalog.domains_present`` records which artifact domains have a
     ``packs/built-in/<kind>/`` directory on disk.  The resolver uses this to
     distinguish between "domain not deployed in this install" (safe to skip
     validation) and "domain present but built-in set is empty" (every
     selection is invalid).
     """
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     # Built-in artifact content was flattened out of ``src/charter/offering/<kind>/built-in``
     # into ``packs/built-in/<kind>`` (relocation mission); resolve it through the
     # shared ``built_in_dir`` seam per-kind (mission
     # doctrine-built-in-seam-consolidation-01KYW3TX, WP02) rather than a local
-    # variable joined by hand. ``doctrine_root`` is still used for template sets,
-    # which remain under ``src/doctrine``. Fail-closed: a missing pack root raises
+    # variable joined by hand. ``offering_root`` is still passed for template sets
+    # (resolved through ``MissionTemplateRepository``). Fail-closed: a missing pack root raises
     # rather than silently yielding empty catalogs (the BLOCKER guard).
     normalized_languages = None if active_languages is None else normalize_languages(active_languages)
 
@@ -97,7 +97,7 @@ def load_doctrine_catalog(
     if directives_present:
         domains_present.add("directives")
 
-    template_sets, template_sets_present = _load_template_sets_with_presence(doctrine_root)
+    template_sets, template_sets_present = _load_template_sets_with_presence(offering_root)
     if template_sets_present:
         domains_present.add("template_sets")
 
@@ -147,7 +147,7 @@ def load_doctrine_catalog(
     if profiles_present:
         domains_present.add("agent_profiles")
 
-    return DoctrineCatalog(
+    return OfferingCatalog(
         paradigms=frozenset(sorted(paradigms)),
         directives=frozenset(sorted(directives)),
         template_sets=frozenset(sorted(template_sets)),
@@ -160,25 +160,25 @@ def load_doctrine_catalog(
     )
 
 
-def resolve_doctrine_root() -> Path:
-    """Resolve the doctrine package root in installed and development layouts."""
+def resolve_offering_root() -> Path:
+    """Resolve the ``charter.offering`` package root in installed and development layouts."""
     try:
-        doctrine_pkg = importlib.resources.files("charter.offering")
-        doctrine_root = Path(str(doctrine_pkg))
-        if doctrine_root.is_dir():
-            return doctrine_root
+        offering_pkg = importlib.resources.files("charter.offering")
+        offering_root = Path(str(offering_pkg))
+        if offering_root.is_dir():
+            return offering_root
     except (ModuleNotFoundError, TypeError):
-        _log.debug("doctrine: importlib.resources lookup failed, trying dev layout")
+        _log.debug("offering: importlib.resources lookup failed, trying dev layout")
 
     # ``catalog.py`` lives one level deeper than before (moved into
     # ``charter/activation/`` by mission charter-activation-split-01M16ZSE,
     # MAP-A MOVE), hence the extra ``.parent``.
     dev_root = Path(__file__).parent.parent / "offering"
     if dev_root.is_dir():
-        _log.debug("doctrine: resolved via dev layout at %s", dev_root)
+        _log.debug("offering: resolved via dev layout at %s", dev_root)
         return dev_root
 
-    # 3. Installed layout: doctrine is not a separate package on PyPI.
+    # 3. Installed layout: the offering is not a separate package on PyPI.
     #    Fall back to the parent of the resolved missions root so that callers
     #    can still discover missions/ (via get_package_asset_root) and receive
     #    empty sets for paradigms/directives which don't ship in the wheel.
@@ -194,12 +194,12 @@ def resolve_doctrine_root() -> Path:
     #    other would silently reintroduce a wrong root here.
     try:
         result = _get_package_asset_root().parent
-        _log.debug("doctrine: resolved via package asset root fallback")
+        _log.debug("offering: resolved via package asset root fallback")
         return result
     except FileNotFoundError:
         pass
 
-    raise FileNotFoundError("Cannot locate doctrine root. Ensure doctrine assets are packaged.")
+    raise FileNotFoundError("Cannot locate the charter.offering root. Ensure the built-in artifacts are packaged.")
 
 
 def _load_yaml_id_catalog(
@@ -347,7 +347,7 @@ def _load_yaml_id_catalog_with_presence(
     return ids, present
 
 
-def _load_template_sets_with_presence(_doctrine_root: Path) -> tuple[set[str], bool]:
+def _load_template_sets_with_presence(_offering_root: Path) -> tuple[set[str], bool]:
     """Load available template set IDs, also reporting domain presence.
 
     Returns:

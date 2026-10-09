@@ -622,7 +622,7 @@ class TestValidateMaterializationDrift:
 
     def test_urn_charter_prefix_canonical(self, tmp_path: Path) -> None:
         """CR-05 counterpart: the canonical ``charter:directive:...``
-        ``target_urn`` (what ``doctrine_synthesizer.apply`` now emits)
+        ``target_urn`` (what ``charter_pack_synthesizer.apply`` now emits)
         materializes drift-free identically to the legacy form above.
         """
         self._assert_materializes_clean_with_target_urn(tmp_path, "charter:directive:example")

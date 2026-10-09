@@ -4,7 +4,7 @@
 # ../../governance-profile.yaml (selected_*). No planning-specific doctrine is
 # scoped to the 'research' action alone, so every list is intentionally empty. A known
 # action with an empty grain resolves to an empty set WITHOUT error
-# (doctrine.missions.action_index.load_action_index). Type-grain and action-grain
+# (charter.offering.missions.action_index.load_action_index). Type-grain and action-grain
 # are kept disjoint (FR-013) — do not repeat type-grain selections here.
 action: research
 directives: []

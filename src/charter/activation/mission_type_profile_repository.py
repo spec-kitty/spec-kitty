@@ -2,9 +2,9 @@
 
 A project may override a mission type's governance **without editing the project
 charter or shipped doctrine** (FR-011) by dropping a
-``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` file.  That
+``.kittify/charter-packs/mission_types/<type>/governance-profile.yaml`` file.  That
 override is resolved through the *existing* ``doctrine/base.py`` builtin → org →
-project overlay (field-merge + :class:`~charter.offering.base.DoctrineLayerCollisionWarning`)
+project overlay (field-merge + :class:`~charter.offering.base.ArtifactLayerCollisionWarning`)
 — **not** a bespoke second merge.  :class:`MissionTypeProfileRepository` is the
 adapter that lets :class:`~charter.activation.mission_type_profiles.MissionTypeProfile` ride
 that stack.
@@ -38,18 +38,19 @@ from __future__ import annotations
 from pathlib import Path
 
 from charter.activation.mission_type_profiles import MissionTypeProfile
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 from charter.offering.pack_paths import built_in_missions_root as _pack_paths_built_in_missions_root
+from kernel.charter_pack_paths import project_pack_root
 
 __all__ = ["MissionTypeProfileRepository", "builtin_missions_root"]
 
 #: Shipped built-in profiles live at
 #: ``src/charter/offering/missions/<type>/governance-profile.yaml``; project overrides
-#: mirror that shape under ``.kittify/doctrine/mission_types/<type>/``.
+#: mirror that shape under ``.kittify/charter-packs/mission_types/<type>/``.
 _GOVERNANCE_PROFILE_GLOB = "governance-profile.yaml"
 
-#: Project override root relative to the repository root.
-_PROJECT_OVERRIDE_PARTS: tuple[str, ...] = (".kittify", "doctrine", "mission_types")
+#: Project override directory relative to the project pack root.
+_PROJECT_OVERRIDE_DIRNAME = "mission_types"
 
 
 def builtin_missions_root() -> Path:
@@ -69,7 +70,7 @@ def builtin_missions_root() -> Path:
     return _pack_paths_built_in_missions_root()
 
 
-class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
+class MissionTypeProfileRepository(BaseArtifactRepository[MissionTypeProfile]):
     """Load mission-type governance profiles through the builtin → org → project overlay.
 
     Both the shipped and project layers nest each profile under a per-type
@@ -100,13 +101,13 @@ class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
         """Build a repository whose project layer reads *repo_root*'s override dir.
 
         The project overlay is
-        ``<repo_root>/.kittify/doctrine/mission_types/<type>/governance-profile.yaml``.
+        ``<repo_root>/.kittify/charter-packs/mission_types/<type>/governance-profile.yaml``.
         The directory need not exist — an absent overlay simply yields the
-        shipped baseline (see :meth:`~charter.offering.base.BaseDoctrineRepository._load`).
+        shipped baseline (see :meth:`~charter.offering.base.BaseArtifactRepository._load`).
         """
         return cls(
             org_dirs=org_dirs,
-            project_dir=repo_root.joinpath(*_PROJECT_OVERRIDE_PARTS),
+            project_dir=project_pack_root(repo_root) / _PROJECT_OVERRIDE_DIRNAME,
         )
 
     @staticmethod

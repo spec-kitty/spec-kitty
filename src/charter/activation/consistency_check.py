@@ -14,7 +14,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter.bundle import CHARTER_YAML
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.charter_yaml_io import load_charter_yaml
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import (
@@ -23,8 +23,8 @@ from charter.activation.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
 )
-from charter.activation.pack_context import CharterPackConfigError, PackContext, resolve_charter_yaml_pointer
-from charter.activation.pack_manager import YAML_KEY_MAP, CharterPackManager
+from charter.activation.pack_context import ActiveCharterConfigError, PackContext, resolve_charter_yaml_pointer
+from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 
 if TYPE_CHECKING:  # pragma: no cover -- static-typing only, see lazy-import note below.
     from charter.drg import DRGEdge, DRGGraph
@@ -80,7 +80,7 @@ class CharterYamlCorruptError(RuntimeError):
     when a resolved ``charter.yaml`` is present but unparseable, not a
     mapping, or missing a valid ``catalog.references`` list. (The SIBLING
     activation-list read, :func:`_load_raw_activation_lists`, fails closed
-    with :class:`charter.activation.pack_context.CharterPackConfigError` instead --
+    with :class:`charter.activation.pack_context.ActiveCharterConfigError` instead --
     reused directly rather than re-invented, since a dangling ``charter:``
     pointer is exactly the condition ``PackContext.from_config`` (WP02)
     already raises that same exception for.) Deliberately distinct from the
@@ -169,7 +169,7 @@ class ConsistencyReport:
             kind violations, duplicates, config<->derived parity
             divergences, or verification failures were found.
         unknown_references: IDs activated for a kind that do not exist in doctrine.
-        missing_from_doctrine: IDs referenced by DRG edges but absent from the
+        missing_from_offering: IDs referenced by DRG edges but absent from the
             target kind's activation set.
         kind_violations: IDs that appear in the wrong kind's activation set, or
             duplicate IDs within a single activation set.
@@ -240,7 +240,7 @@ class ConsistencyReport:
 
     coherent: bool
     unknown_references: list[str] = field(default_factory=list)
-    missing_from_doctrine: list[str] = field(default_factory=list)
+    missing_from_offering: list[str] = field(default_factory=list)
     kind_violations: list[str] = field(default_factory=list)
     reference_id_divergences: list[str] = field(default_factory=list)
     graph_kind_gaps: list[str] = field(default_factory=list)
@@ -256,7 +256,7 @@ class ConsistencyReport:
             {
                 "coherent": self.coherent,
                 "unknown_references": self.unknown_references,
-                "missing_from_doctrine": self.missing_from_doctrine,
+                "missing_from_offering": self.missing_from_offering,
                 "kind_violations": self.kind_violations,
                 "reference_id_divergences": self.reference_id_divergences,
                 "graph_kind_gaps": self.graph_kind_gaps,
@@ -306,7 +306,7 @@ def _load_config_yaml_mapping(config_path: Path) -> dict[str, Any]:
     try:
         data = yaml.load(config_path.read_text(encoding="utf-8")) or {}
     except (OSError, UnicodeDecodeError, YAMLError) as exc:
-        raise CharterPackConfigError(f"Cannot read configuration {config_path}: {exc}") from exc
+        raise ActiveCharterConfigError(f"Cannot read configuration {config_path}: {exc}") from exc
     return data if isinstance(data, dict) else {}
 
 
@@ -323,7 +323,7 @@ def _load_raw_activation_source(repo_root: Path) -> dict[str, Any]:
       pre-relocation behavior, unchanged).
     * Pointer present -> ``charter.yaml`` MUST resolve to a readable
       mapping; a dangling pointer or unparseable/non-mapping ``charter.yaml``
-      is a fail-loud :class:`CharterPackConfigError` (#2530 re-homed onto
+      is a fail-loud :class:`ActiveCharterConfigError` (#2530 re-homed onto
       charter.yaml), never a silent fallback to the legacy config-embedded
       keys.
     """
@@ -334,13 +334,13 @@ def _load_raw_activation_source(repo_root: Path) -> dict[str, Any]:
     if charter_path is None:
         return config_data
     if not charter_path.exists():
-        raise CharterPackConfigError(f".kittify/config.yaml 'charter:' pointer names {charter_path}, which does not exist.")
+        raise ActiveCharterConfigError(f".kittify/config.yaml 'charter:' pointer names {charter_path}, which does not exist.")
     try:
         loaded = load_charter_yaml(charter_path)
     except Exception as exc:  # noqa: BLE001  # re-raised as a typed, fail-closed signal.
-        raise CharterPackConfigError(f"Invalid YAML in {charter_path}: {exc}") from exc
+        raise ActiveCharterConfigError(f"Invalid YAML in {charter_path}: {exc}") from exc
     if not isinstance(loaded, dict):
-        raise CharterPackConfigError(f"{charter_path} root must be a mapping.")
+        raise ActiveCharterConfigError(f"{charter_path} root must be a mapping.")
     return dict(loaded)
 
 
@@ -366,9 +366,9 @@ def _load_raw_activation_lists(ctx: ProjectContext) -> dict[str, list[str] | Non
     return result
 
 
-def _collect_all_doctrine_ids(
+def _collect_all_offering_ids(
     ctx: ProjectContext,
-    manager: CharterPackManager,
+    manager: ActiveCharterManager,
 ) -> dict[str, frozenset[str]]:
     """Return a mapping of CLI kind → frozenset of doctrine IDs (loaded once).
 
@@ -399,7 +399,7 @@ def _split_urn(urn: str) -> tuple[str, str]:
 
 def _check_unknown_references(
     activated_by_kind: dict[str, frozenset[str] | None],
-    all_doctrine_ids: dict[str, frozenset[str]],
+    all_offering_ids: dict[str, frozenset[str]],
     unknown_references: list[str],
     suggestions: list[str],
 ) -> None:
@@ -408,7 +408,7 @@ def _check_unknown_references(
         activated = _get_activation_set(activated_by_kind, kind)
         if activated is None:
             continue
-        known_ids = all_doctrine_ids.get(kind, frozenset())
+        known_ids = all_offering_ids.get(kind, frozenset())
         for activated_id in sorted(activated):
             if activated_id not in known_ids:
                 unknown_references.append(f"{kind}/{activated_id}")
@@ -418,10 +418,10 @@ def _check_unknown_references(
 def _check_drg_cross_kind_refs(
     ctx: ProjectContext,
     activated_by_kind: dict[str, frozenset[str] | None],
-    missing_from_doctrine: list[str],
+    missing_from_offering: list[str],
     suggestions: list[str],
 ) -> None:
-    """Populate *missing_from_doctrine* for cross-kind DRG edge gaps (FR-012).
+    """Populate *missing_from_offering* for cross-kind DRG edge gaps (FR-012).
 
     Background: The DRG uses numeric URN IDs (e.g. ``directive:DIRECTIVE_001``)
     while config.yaml uses human-readable IDs (e.g.
@@ -449,7 +449,7 @@ def _check_drg_cross_kind_refs(
             _inspect_drg_edge(
                 edge,
                 activated_by_kind,
-                missing_from_doctrine,
+                missing_from_offering,
                 suggestions,
                 reported_kind_pairs,
             )
@@ -461,7 +461,7 @@ def _check_drg_cross_kind_refs(
 def _inspect_drg_edge(
     edge: object,
     activated_by_kind: dict[str, frozenset[str] | None],
-    missing_from_doctrine: list[str],
+    missing_from_offering: list[str],
     suggestions: list[str],
     reported_kind_pairs: set[tuple[str, str]],
 ) -> None:
@@ -491,8 +491,8 @@ def _inspect_drg_edge(
     reported_kind_pairs.add(pair_key)
 
     entry = f"{tgt_cli_kind}/<all>"
-    if entry not in missing_from_doctrine:
-        missing_from_doctrine.append(entry)
+    if entry not in missing_from_offering:
+        missing_from_offering.append(entry)
         suggestions.append(
             f"{tgt_cli_kind}/<all>: Kind '{tgt_cli_kind}' is referenced by "
             f"activated '{src_cli_kind}' artifacts via DRG edges but its "
@@ -520,7 +520,7 @@ def _check_duplicates(
 
 def _check_kind_violations(
     activated_by_kind: dict[str, frozenset[str] | None],
-    all_doctrine_ids: dict[str, frozenset[str]],
+    all_offering_ids: dict[str, frozenset[str]],
     unknown_references: list[str],
     kind_violations: list[str],
 ) -> None:
@@ -529,13 +529,13 @@ def _check_kind_violations(
         activated = _get_activation_set(activated_by_kind, kind)
         if activated is None:
             continue
-        own_ids = all_doctrine_ids.get(kind, frozenset())
+        own_ids = all_offering_ids.get(kind, frozenset())
         for artifact_id in sorted(activated):
             _check_kind_violation_for_artifact(
                 kind,
                 artifact_id,
                 own_ids,
-                all_doctrine_ids,
+                all_offering_ids,
                 unknown_references,
                 kind_violations,
             )
@@ -545,7 +545,7 @@ def _check_kind_violation_for_artifact(
     kind: str,
     artifact_id: str,
     own_ids: frozenset[str],
-    all_doctrine_ids: dict[str, frozenset[str]],
+    all_offering_ids: dict[str, frozenset[str]],
     unknown_references: list[str],
     kind_violations: list[str],
 ) -> None:
@@ -554,7 +554,7 @@ def _check_kind_violation_for_artifact(
         return  # Already flagged; avoid double-reporting.
     if artifact_id in own_ids:
         return  # Correct kind.
-    other_kind = _find_owning_kind(artifact_id, kind, all_doctrine_ids)
+    other_kind = _find_owning_kind(artifact_id, kind, all_offering_ids)
     if other_kind is not None:
         kind_violations.append(f"{kind}/{artifact_id}: ID belongs to kind '{other_kind}', not '{kind}'.")
 
@@ -562,10 +562,10 @@ def _check_kind_violation_for_artifact(
 def _find_owning_kind(
     artifact_id: str,
     exclude_kind: str,
-    all_doctrine_ids: dict[str, frozenset[str]],
+    all_offering_ids: dict[str, frozenset[str]],
 ) -> str | None:
     """Return the first kind (other than *exclude_kind*) whose id set contains *artifact_id*."""
-    for other_kind, other_ids in all_doctrine_ids.items():
+    for other_kind, other_ids in all_offering_ids.items():
         if other_kind == exclude_kind:
             continue
         if artifact_id in other_ids:
@@ -719,14 +719,14 @@ def _check_reference_id_parity(
     if references_by_kind is None:
         return  # No compiled reference set yet -- nothing to check against.
 
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     pack_context = ctx.require_pack_context()
     org_roots = list(pack_context.pack_roots[1:])
 
     _check_reference_id_forward_parity(
         raw_activated_by_kind,
         references_by_kind,
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
         org_roots=org_roots,
         reference_id_divergences=reference_id_divergences,
         suggestions=suggestions,
@@ -743,7 +743,7 @@ def _check_reference_id_forward_parity(
     raw_activated_by_kind: dict[str, list[str] | None],
     references_by_kind: dict[str, frozenset[str]],
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     org_roots: list[Path],
     reference_id_divergences: list[str],
     suggestions: list[str],
@@ -767,7 +767,7 @@ def _check_reference_id_forward_parity(
         known_ref_ids = references_by_kind.get(kind_enum.value, frozenset())
         for stem in sorted(set(raw_list)):
             try:
-                urn = resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots)
+                urn = resolve_artifact_urn(kind_enum, stem, offering_root=offering_root, org_roots=org_roots)
             except UnknownArtifactIdError:
                 continue  # Already reported by _check_unknown_references.
             _, _, canonical_id = urn.partition(":")
@@ -816,7 +816,7 @@ def _resolve_graph_kind_parity_stem(
     stem: str,
     surviving_urns: frozenset[str],
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     org_roots: list[Path],
     graph_kind_gaps: list[str],
     verification_errors: list[str],
@@ -836,7 +836,7 @@ def _resolve_graph_kind_parity_stem(
     Exception`` would silently misreport a real bug as ordinary drift.
     """
     try:
-        urn = resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots)
+        urn = resolve_artifact_urn(kind_enum, stem, offering_root=offering_root, org_roots=org_roots)
     except UnknownArtifactIdError as exc:
         verification_errors.append(f"{cli_kind}/{stem}: {exc}")
         suggestions.append(
@@ -924,7 +924,7 @@ def _check_graph_kind_parity(
         return
 
     surviving_urns = frozenset(node.urn for node in activated_drg.nodes)
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     org_roots = list(pack_context.org_roots)
 
     for cli_kind in _CLI_KIND_TO_DRG_SINGULAR:
@@ -938,7 +938,7 @@ def _check_graph_kind_parity(
                 kind_enum,
                 stem,
                 surviving_urns,
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 org_roots=org_roots,
                 graph_kind_gaps=graph_kind_gaps,
                 verification_errors=verification_errors,
@@ -947,19 +947,19 @@ def _check_graph_kind_parity(
 
 
 # ---------------------------------------------------------------------------
-# Shared gate resources (T009, #3808): one DRG load + one DoctrineService
+# Shared gate resources (T009, #3808): one DRG load + one ActiveCharterService
 # build per ``run_consistency_check`` invocation, shared by the three
 # DRG-backed always-on gates below (``_check_unreconciled_tensions`` /
 # ``_check_enforcement_lattice`` / ``_check_decision_documentation_on_implement``)
 # instead of each independently calling ``load_validated_graph()`` (and, for
-# the latter two, ``_build_doctrine_service()``) -- the DRG loaded 3x per run
+# the latter two, ``_build_offering_service()``) -- the DRG loaded 3x per run
 # before this WP.
 # ---------------------------------------------------------------------------
 
 
 @dataclass
 class _GateResources:
-    """Per-``run_consistency_check`` cache: the DRG graph + ``DoctrineService``
+    """Per-``run_consistency_check`` cache: the DRG graph + ``ActiveCharterService``
     directives, each loaded/built at most once and shared by the three
     DRG-backed gates below (#3808 dedup).
 
@@ -1000,13 +1000,13 @@ class _GateResources:
         return self._full_drg
 
     def directives(self) -> DirectiveRepository:
-        """Return the ``DoctrineService.directives`` repository, built at most once."""
+        """Return the ``ActiveCharterService.directives`` repository, built at most once."""
         if not self._directives_loaded:
             self._directives_loaded = True
-            from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
+            from charter.activation.active_charter_service_builder import _build_offering_service  # noqa: PLC0415
 
             try:
-                self._directives = _build_doctrine_service(self.repo_root, org_roots=list(self.pack_context.org_roots)).directives
+                self._directives = _build_offering_service(self.repo_root, org_roots=list(self.pack_context.org_roots)).directives
             except Exception as exc:  # noqa: BLE001  # memoized; re-raised below to every caller in this run.
                 self._directives_error = exc
         if self._directives_error is not None:
@@ -1065,7 +1065,7 @@ def _resolve_full_drg(repo_root: Path) -> DRGGraph:
 
 
 def _resolve_directives(repo_root: Path, pack_context: PackContext) -> DirectiveRepository:
-    """Build the ``DoctrineService.directives`` repository, reusing the active
+    """Build the ``ActiveCharterService.directives`` repository, reusing the active
     :class:`_GateResources` cache when established (#3808); otherwise builds
     directly -- unchanged standalone behavior for scan_* callers outside
     ``run_consistency_check``.
@@ -1077,17 +1077,17 @@ def _resolve_directives(repo_root: Path, pack_context: PackContext) -> Directive
     resources = _GATE_RESOURCES.get()
     if resources is not None:
         return resources.directives()
-    from charter.activation.doctrine_service_builder import _build_doctrine_service  # noqa: PLC0415
+    from charter.activation.active_charter_service_builder import _build_offering_service  # noqa: PLC0415
 
     # Explicit local annotation (not a bare `return ...`): under this file's
     # `charter.*` mypy override (pyproject.toml [[tool.mypy.overrides]],
-    # follow_imports="skip"), `_build_doctrine_service(...).directives`
+    # follow_imports="skip"), `_build_offering_service(...).directives`
     # resolves to Any at the call site -- see `_GateResources.directives`'s
     # same pattern above, where storing through an annotated field has the
     # same Any-narrowing effect. A bare `return` here would trip
     # mypy's `no-any-return` (this module carries zero pre-existing mypy
     # findings; this narrows the value instead of suppressing the check).
-    directives: DirectiveRepository = _build_doctrine_service(repo_root, org_roots=list(pack_context.org_roots)).directives
+    directives: DirectiveRepository = _build_offering_service(repo_root, org_roots=list(pack_context.org_roots)).directives
     return directives
 
 
@@ -1566,7 +1566,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         A frozen ConsistencyReport with coherence flag and categorised findings.
     """
     unknown_references: list[str] = []
-    missing_from_doctrine: list[str] = []
+    missing_from_offering: list[str] = []
     kind_violations: list[str] = []
     reference_id_divergences: list[str] = []
     graph_kind_gaps: list[str] = []
@@ -1576,10 +1576,10 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     decision_documentation_on_implement_violations: list[str] = []
     suggestions: list[str] = []
 
-    manager = CharterPackManager()
+    manager = ActiveCharterManager()
     try:
         raw_activated_by_kind = _load_raw_activation_lists(ctx)
-    except CharterPackConfigError as exc:
+    except ActiveCharterConfigError as exc:
         # #2530 re-homed onto charter.yaml (IC-04): a dangling/unreadable
         # `charter:` pointer target must fail closed with a
         # verification_errors finding, never raise past this entry point
@@ -1610,7 +1610,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         # warning (SC-001).
         #
         # T009 (#3808): the three calls below share ONE DRG load (and, for
-        # the latter two, one DoctrineService build) via the
+        # the latter two, one ActiveCharterService build) via the
         # ``_gate_resources_scope`` cache -- down from three independent
         # loads pre-refactor.
         with _gate_resources_scope(ctx):
@@ -1641,12 +1641,12 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
             suggestions=suggestions,
         )
 
-    all_doctrine_ids = _collect_all_doctrine_ids(ctx, manager)
+    all_offering_ids = _collect_all_offering_ids(ctx, manager)
 
-    _check_unknown_references(activated_by_kind, all_doctrine_ids, unknown_references, suggestions)
-    _check_drg_cross_kind_refs(ctx, activated_by_kind, missing_from_doctrine, suggestions)
+    _check_unknown_references(activated_by_kind, all_offering_ids, unknown_references, suggestions)
+    _check_drg_cross_kind_refs(ctx, activated_by_kind, missing_from_offering, suggestions)
     _check_duplicates(raw_activated_by_kind, kind_violations)
-    _check_kind_violations(activated_by_kind, all_doctrine_ids, unknown_references, kind_violations)
+    _check_kind_violations(activated_by_kind, all_offering_ids, unknown_references, kind_violations)
     _check_reference_id_parity(
         ctx,
         raw_activated_by_kind,
@@ -1656,7 +1656,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     )
     _check_graph_kind_parity(ctx, raw_activated_by_kind, graph_kind_gaps, verification_errors, suggestions)
     # T009 (#3808): as in the implicit-all-active branch above, these three
-    # calls share ONE DRG load (and one DoctrineService build) via the
+    # calls share ONE DRG load (and one ActiveCharterService build) via the
     # ``_gate_resources_scope`` cache.
     with _gate_resources_scope(ctx):
         _check_unreconciled_tensions(ctx, unreconciled_tensions, verification_errors, suggestions)
@@ -1677,7 +1677,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     # advisory signals.
     coherent = not (
         unknown_references
-        or missing_from_doctrine
+        or missing_from_offering
         or kind_violations
         or reference_id_divergences
         or graph_kind_gaps
@@ -1688,7 +1688,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     return ConsistencyReport(
         coherent=coherent,
         unknown_references=unknown_references,
-        missing_from_doctrine=missing_from_doctrine,
+        missing_from_offering=missing_from_offering,
         kind_violations=kind_violations,
         reference_id_divergences=reference_id_divergences,
         graph_kind_gaps=graph_kind_gaps,

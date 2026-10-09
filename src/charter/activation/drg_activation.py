@@ -33,6 +33,7 @@ from pathlib import Path
 from charter.offering.api import ArtifactKind
 from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL
 from charter.offering.drg.merge import merge_three_layers
+from kernel.charter_pack_paths import pack_drg_fragment, project_pack_root
 from charter.offering.drg.models import DRGGraph
 from charter.offering.drg.org_pack_config import load_pack_registry
 from charter.offering.drg.org_pack_loader import (
@@ -42,7 +43,7 @@ from charter.offering.drg.org_pack_loader import (
     load_org_pack,
 )
 
-from .catalog import resolve_doctrine_root
+from .catalog import resolve_offering_root
 from .kind_vocabulary import (
     MissionTypeNotAnArtifactKind,
     UnknownArtifactIdError,
@@ -130,9 +131,8 @@ def load_org_drg(
         as the I/O fault it is, never masked as a parse error, and this
         per-pack degrade keeps the mission-step composition path tolerant of
         exactly the condition it tolerated before that seam). Config faults
-        (``NotImplementedError`` for an unsupported
-        ``source:``, env-var / subdir-escape errors) are raised before the
-        per-pack loop and still fail loud; endpoint / dangling-governance faults
+        (env-var / subdir-escape errors) are raised before the per-pack loop
+        and still fail loud; endpoint / dangling-governance faults
         are surfaced downstream by ``load_validated_graph`` and are unaffected.
         ``strict=True`` NEVER degrades, whatever ``degrade_malformed`` is.
 
@@ -151,16 +151,12 @@ def load_org_drg(
         ``strict=False`` and ``degrade_malformed=True``, in which case only
         that pack is skipped (with a ``WARNING``). Never masked as a parse
         error (#4200 defect 2).
-    NotImplementedError:
-        When a pack declares ``source: url`` or ``source: package`` —
-        only ``local_path`` is shipped in this mission (NEW-1). Raised before
-        the per-pack loop, so ``degrade_malformed`` never suppresses it.
     """
     registry = load_pack_registry(repo_root)
     fragments: list[OrgDRGFragment] = []
     for layer_index, pack in enumerate(registry.packs, start=1):
         pack_root = pack.effective_root(repo_root)
-        if not strict and not (pack_root / "drg" / "fragment.yaml").exists():
+        if not strict and not pack_drg_fragment(pack_root).exists():
             continue
         if strict or not degrade_malformed:
             fragments.append(load_org_pack(pack.name, pack_root, layer_index))
@@ -295,7 +291,7 @@ def _resolve_activated_urns_for_kind(
     node_kind: str,
     activated_ids: frozenset[str] | None,
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     org_roots: list[Path],
     layer_roots: dict[str, Path] | None = None,
 ) -> frozenset[str] | None:
@@ -333,7 +329,7 @@ def _resolve_activated_urns_for_kind(
     urns: set[str] = set()
     for stem in activated_ids:
         try:
-            urns.add(resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots))
+            urns.add(resolve_artifact_urn(kind_enum, stem, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots))
         except UnknownArtifactIdError:
             continue  # Skip-with-report (contract): _check_unknown_references reports it.
     return frozenset(urns)
@@ -346,20 +342,20 @@ def _resolve_activated_urns_by_kind(
 
     Called once per :func:`filter_graph_by_activation` invocation -- never
     per node -- so resolution is O(kinds x stems), not O(nodes x stems x
-    filesystem-walk). ``doctrine_root`` is sourced from
-    :func:`charter.activation.catalog.resolve_doctrine_root` (the same source the
+    filesystem-walk). ``offering_root`` is sourced from
+    :func:`charter.activation.catalog.resolve_offering_root` (the same source the
     surviving compiler ``references.yaml`` projection uses), never
     ``pack_context.pack_roots[0]`` (research.md D2 install-layout guard).
     """
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     org_roots = list(pack_context.org_roots)
     return {
         node_kind: _resolve_activated_urns_for_kind(
             node_kind,
             getattr(pack_context, per_kind_field, None),
-            doctrine_root=doctrine_root,
+            offering_root=offering_root,
             org_roots=org_roots,
-            layer_roots={"project": pack_context.repo_root / ".kittify"},
+            layer_roots={"project": project_pack_root(pack_context.repo_root)},
         )
         for node_kind, per_kind_field in _SINGULAR_TO_PER_KIND_FIELD.items()
     }
@@ -460,7 +456,7 @@ def filter_graph_by_activation(
 
     See module docstring for the FR-006 / FR-018 binding and the WP11 T069
     invariant: this filter applies only to charter-mediated resolution.
-    Direct doctrine-API callers (``DoctrineService.<repo>.get(...)``,
+    Direct doctrine-API callers (``ActiveCharterService.<repo>.get(...)``,
     ``MissionTemplateRepository.get(...)``) are exempt.
     """
     resolved_urns_by_kind = _resolve_activated_urns_by_kind(pack_context)

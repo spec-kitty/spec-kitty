@@ -2,7 +2,7 @@
 title: Extend your charter for an unsupported language
 description: What "Languages unknown" means, how to add tech-specific guidelines to your local charter, and what review reports for non-Python missions.
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/external/tech-lead-evaluator.md
 type: how-to
 related:
@@ -71,7 +71,7 @@ Recognized languages are written to `catalog.languages` in `.kittify/charter/cha
 ## Add tech-specific guidelines to your local charter
 
 1. Scaffold a project-level styleguide or toolguide for your language. The stub lands under
-   `.kittify/doctrine/`:
+   `.kittify/charter-packs/`:
 
    ```bash
    spec-kitty charter new styleguide zig-conventions
@@ -80,7 +80,7 @@ Recognized languages are written to `catalog.languages` in `.kittify/charter/cha
 2. Fill in the placeholders, then validate it:
 
    ```bash
-   spec-kitty charter validate .kittify/doctrine
+   spec-kitty charter validate .kittify/charter-packs
    ```
 
 3. Activate it:
@@ -96,8 +96,8 @@ Recognized languages are written to `catalog.languages` in `.kittify/charter/cha
    expectations) in `.kittify/charter/charter.md`. See
    [How to Set Up Project Governance](setup-governance.md).
 
-To share the same guidelines across several repositories, package them as an org doctrine pack. See
-[How to Create an Org Doctrine Pack](create-an-org-doctrine-pack.md).
+To share the same guidelines across several repositories, package them as an org Charter Pack. See
+[How to Create an Org Charter Pack](create-an-org-doctrine-pack.md).
 
 ## Regenerate after correcting the interview
 

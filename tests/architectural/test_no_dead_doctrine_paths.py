@@ -2,7 +2,7 @@
 must resolve on disk.
 
 Narrowed (mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
-WP01, FR-001) to Gate C alone -- the only ``_DOCTRINE_ROOT``-scoped gate of
+WP01, FR-001) to Gate C alone -- the only ``_OFFERING_ROOT``-scoped gate of
 the three this file used to carry. Gate A and Gate B (both ``src/``-wide, not
 doctrine-scoped) moved to ``test_no_dead_cli_paths.py``; Gate D
 (``docs/``-scoped) moved to ``test_dead_builtin_doc_paths.py``. This file
@@ -37,7 +37,7 @@ from pathlib import Path
 import pytest
 
 from tests.architectural._dead_path_scan import (
-    _DOCTRINE_ROOT,
+    _OFFERING_ROOT,
     _PACKS_ROOT,
     Site,
     _read_lines,
@@ -113,7 +113,7 @@ def _escapes_boundary(
     Crucially, this is a per-link *union* test, not a per-root test: a link
     from ``src/charter/offering/**`` into ``packs/built-in/**`` (or the reverse) is
     NOT a boundary escape when both trees are members of *boundary_roots* --
-    ``scan_doctrine_cross_links_shipped()`` treats both shipped roots as one
+    ``scan_built_in_cross_links_shipped()`` treats both shipped roots as one
     corpus, so the escape/no-escape verdict must agree with that model
     regardless of which single root a link happened to be scanned under.
     """
@@ -150,7 +150,7 @@ def _classify_link(
     return ("unresolved", site)
 
 
-def scan_doctrine_cross_links(
+def scan_built_in_cross_links(
     root: Path, boundary_roots: tuple[Path, ...] | None = None
 ) -> CrossLinkScan:
     """Resolve every relative markdown cross-link under *root*.
@@ -206,7 +206,7 @@ def scan_doctrine_cross_links(
     )
 
 
-def scan_doctrine_cross_links_shipped() -> CrossLinkScan:
+def scan_built_in_cross_links_shipped() -> CrossLinkScan:
     """Gate C over the shipped doctrine markdown: ``src/charter/offering/`` merged with
     ``packs/built-in/``.
 
@@ -220,10 +220,10 @@ def scan_doctrine_cross_links_shipped() -> CrossLinkScan:
     exempting a genuinely broken cross-tree link from resolution checking
     instead of surfacing it as ``unresolved``.
     """
-    boundary_roots = (_DOCTRINE_ROOT, _PACKS_ROOT)
+    boundary_roots = (_OFFERING_ROOT, _PACKS_ROOT)
     src, pack = (
-        scan_doctrine_cross_links(_DOCTRINE_ROOT, boundary_roots),
-        scan_doctrine_cross_links(_PACKS_ROOT, boundary_roots),
+        scan_built_in_cross_links(_OFFERING_ROOT, boundary_roots),
+        scan_built_in_cross_links(_PACKS_ROOT, boundary_roots),
     )
     return CrossLinkScan(
         unresolved=tuple(sorted(src.unresolved + pack.unresolved)),
@@ -238,31 +238,31 @@ def scan_doctrine_cross_links_shipped() -> CrossLinkScan:
 # ---------------------------------------------------------------------------
 
 
-def test_every_built_in_doctrine_cross_link_resolves() -> None:
+def test_every_built_in_cross_link_resolves() -> None:
     """SC-008: relative cross-links in built-in doctrine markdown resolve."""
-    scan = scan_doctrine_cross_links_shipped()
+    scan = scan_built_in_cross_links_shipped()
     assert not scan.unresolved, "Broken relative cross-links in doctrine markdown:\n" + _render(scan.unresolved)
 
 
 def test_code_example_links_would_false_red_without_their_discriminator() -> None:
     """NFR-003 proof for discriminator C1, with its effect set pinned."""
-    scan = scan_doctrine_cross_links_shipped()
+    scan = scan_built_in_cross_links_shipped()
     excluded = sorted({(site.path, site.text) for site in scan.code_examples})
     # Relocated (mission relocate-builtin-doctrine-packs-01KYT87F): the toolguide
     # markdown moved to the flattened ``packs/built-in/toolguides/`` home; the
     # SKILL.md stays under ``src/charter/offering/skills/`` (skills did not move).
-    # ``spk-doctrine-show-me`` carries byte-pinned portable copies of both
+    # ``spk-practice-show-me`` carries byte-pinned portable copies of both
     # guides, so their fenced link examples intentionally appear twice.
     assert excluded == [
         ("packs/built-in/toolguides/MERMAID_DIAGRAMMING.md", "diagram.svg"),
         ("packs/built-in/toolguides/PLANTUML_DIAGRAMMING.md", "diagram.svg"),
-        ("src/charter/offering/skills/spec-kitty-spdd-reasons/SKILL.md", "../spec.md#x"),
+        ("src/charter/offering/skills/spk-charter-spdd-reasons/references/reasons-canvas-workflow.md", "../spec.md#x"),
         (
-            "src/charter/offering/skills/spk-doctrine-show-me/assets/MERMAID_DIAGRAMMING.md",
+            "src/charter/offering/skills/spk-practice-show-me/assets/MERMAID_DIAGRAMMING.md",
             "diagram.svg",
         ),
         (
-            "src/charter/offering/skills/spk-doctrine-show-me/assets/PLANTUML_DIAGRAMMING.md",
+            "src/charter/offering/skills/spk-practice-show-me/assets/PLANTUML_DIAGRAMMING.md",
             "diagram.svg",
         ),
     ], f"C1's effect set moved: {excluded}"
@@ -270,7 +270,7 @@ def test_code_example_links_would_false_red_without_their_discriminator() -> Non
 
 def test_placeholder_links_would_false_red_without_their_discriminator() -> None:
     """NFR-003 proof for discriminator C2, with its effect set pinned."""
-    scan = scan_doctrine_cross_links_shipped()
+    scan = scan_built_in_cross_links_shipped()
     excluded = sorted({(site.path, site.text) for site in scan.placeholders})
     assert excluded == [
         ("src/charter/offering/templates/guides/HOW-TO.template.md", "../explanation/{topic}.md"),
@@ -301,7 +301,7 @@ def test_boundary_escaping_link_would_false_red_without_its_discriminator(tmp_pa
         "See [glossary](../../docs/context/charter.md#term).\n",
         encoding="utf-8",
     )
-    scan = scan_doctrine_cross_links(root)
+    scan = scan_built_in_cross_links(root)
     assert scan.boundary_escapes, (
         "C3 excludes nothing, so it cannot be proven. Either the escaping-link "
         "case no longer applies (delete C3) or the pattern stopped matching it."
@@ -326,7 +326,7 @@ def test_gate_c_boundary_discriminator_does_not_swallow_an_in_boundary_violation
         "See [here](./sibling.md).\n",
         encoding="utf-8",
     )
-    scan = scan_doctrine_cross_links(root)
+    scan = scan_built_in_cross_links(root)
     assert [site.text for site in scan.boundary_escapes] == ["../../docs/context/charter.md#term"]
     assert [site.text for site in scan.unresolved] == ["./missing.md"]
 
@@ -342,7 +342,7 @@ def test_gate_c_boundary_discriminator_treats_sibling_shipped_roots_as_in_bounda
     above only plants a broken link inside a *single* root, which is why the
     sibling-tree gap survived cycle 1: a link from one shipped root into the
     other escaped the boundary of whichever root it was scanned under, even
-    though ``scan_doctrine_cross_links_shipped()`` merges both roots into one
+    though ``scan_built_in_cross_links_shipped()`` merges both roots into one
     corpus. This test builds two sibling roots (mimicking ``src/doctrine`` and
     ``packs/built-in``) and plants three links in root A: one to a *real* file
     in root B (must resolve -- neither ``boundary_escape`` nor
@@ -362,7 +362,7 @@ def test_gate_c_boundary_discriminator_treats_sibling_shipped_roots_as_in_bounda
         "See [truly outside](../outside.md).\n",
         encoding="utf-8",
     )
-    scan = scan_doctrine_cross_links(root_a, boundary_roots=(root_a, root_b))
+    scan = scan_built_in_cross_links(root_a, boundary_roots=(root_a, root_b))
     assert [site.text for site in scan.unresolved] == ["../root_b/missing.md"], (
         "A broken link into a sibling SHIPPED root must surface as unresolved -- "
         "it must not be exempted as a boundary_escape just because it was scanned "
@@ -408,7 +408,7 @@ def test_boundary_escape_live_count_has_a_floor() -> None:
     this, but high enough that a collapse toward zero -- a wholesale
     silencing move -- still fails.
     """
-    scan = scan_doctrine_cross_links_shipped()
+    scan = scan_built_in_cross_links_shipped()
     assert len(scan.boundary_escapes) >= 12, (
         f"C3's live boundary_escapes count fell to {len(scan.boundary_escapes)} from a "
         "measured 18 (post-B1-fix). This bucket is Gate C's only live check on these "
@@ -430,14 +430,14 @@ def test_cross_link_scope_is_pinned() -> None:
     relocated ``packs/built-in/`` markdown (toolguides, pack READMEs).
     """
     in_scope: set[str] = set()
-    for root in (_DOCTRINE_ROOT, _PACKS_ROOT):
+    for root in (_OFFERING_ROOT, _PACKS_ROOT):
         skipped = root / _DEPLOYMENT_RELATIVE_SUBTREE
         in_scope |= {
             _rel(path, root)
             for path in root.rglob("*.md")
             if skipped not in path.parents
         }
-    assert _DOCTRINE_ROOT.is_dir() and _PACKS_ROOT.is_dir()
+    assert _OFFERING_ROOT.is_dir() and _PACKS_ROOT.is_dir()
     assert not any(path.startswith("src/charter/offering/missions/") for path in in_scope)
     # Pinned near the live combined count (159 = 141 under src/doctrine + 18 under
     # packs/built-in), not at a token floor. The exclusion is subtree-shaped, so
@@ -462,7 +462,7 @@ def test_gate_c_rejects_a_planted_broken_link(tmp_path: Path) -> None:
         "See [gone](./missing.md).\nSee [here](./sibling.md).\nWrite `[see spec](../spec.md#x)` like this.\nFill in [topic]({topic}.md).\n",
         encoding="utf-8",
     )
-    scan = scan_doctrine_cross_links(tmp_path)
+    scan = scan_built_in_cross_links(tmp_path)
     assert [site.text for site in scan.unresolved] == ["./missing.md"]
     assert [site.text for site in scan.code_examples] == ["../spec.md#x"]
     assert [site.text for site in scan.placeholders] == ["{topic}.md"]
@@ -476,6 +476,6 @@ def test_gate_c_fence_discriminator_does_not_swallow_live_links(tmp_path: Path) 
         "```\n[in fence](./nope.md)\n```\n[after fence](./also-nope.md)\n",
         encoding="utf-8",
     )
-    scan = scan_doctrine_cross_links(tmp_path)
+    scan = scan_built_in_cross_links(tmp_path)
     assert [site.text for site in scan.unresolved] == ["./also-nope.md"]
     assert [site.text for site in scan.code_examples] == ["./nope.md"]

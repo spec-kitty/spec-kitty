@@ -5,8 +5,8 @@ Exposes activated mission types for the current project via:
 * ``spec-kitty charter mission-type list [--json]``
   Lists all mission types that are activated in this project (charter-filtered).
 
-  Unlike ``spec-kitty doctrine mission-type list`` (WP13 / FR-013), this
-  command returns only types that are explicitly activated for the project.
+  By default this command returns only types that are explicitly activated
+  for the project; ``--include-inactive`` also lists every registered type.
 
 Implementation notes
 --------------------
@@ -30,7 +30,7 @@ import typer
 from specify_cli.cli.console import console
 from rich.table import Table
 
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 from specify_cli.cli.json_contract import json_error, json_output_guard
 
 from charter.activation.mission_type_profiles import (
@@ -135,12 +135,12 @@ def mission_type_error_boundary(json_output: bool) -> Iterator[None]:
     try:
         with json_output_guard(json_output):
             yield
-    except (CharterPackConfigError, ValueError, OSError) as exc:
-        message = exc.body if isinstance(exc, CharterPackConfigError) else str(exc)
+    except (ActiveCharterConfigError, ValueError, OSError) as exc:
+        message = exc.body if isinstance(exc, ActiveCharterConfigError) else str(exc)
         if json_output:
             code = "invalid_mission_type"
-            if isinstance(exc, CharterPackConfigError):
-                code = "CHARTER_PACK_CONFIG_INVALID"
+            if isinstance(exc, ActiveCharterConfigError):
+                code = exc.code
             elif isinstance(exc, UnknownMissionTypeError):
                 code = "unknown_mission_type"
             console.emit_json(json_error(code, message))
@@ -204,9 +204,7 @@ def charter_mission_type_list(
         "--include-inactive",
         help=(
             "Also list mission types registered in the built-in/org/project "
-            "layers but NOT activated for this project (activation-blind). "
-            "The canonical replacement for `spec-kitty doctrine mission-type "
-            "list` (CR-02, mission charter-code-topology-01M152G1 S4)."
+            "layers but NOT activated for this project (activation-blind)."
         ),
     ),
 ) -> None:
@@ -215,10 +213,9 @@ def charter_mission_type_list(
     By default, returns only mission types that are explicitly activated in
     this project's charter. Pass ``--include-inactive`` to also see every
     type registered in the built-in/org/project layers regardless of
-    activation state -- the deprecated ``spec-kitty doctrine mission-type
-    list`` group covered this before CR-02; this flag is its canonical
-    replacement, not a straight alias (activation state still distinguishes
-    the two row classes -- see ACTION SEQUENCE below).
+    activation state (it replaced the removed doctrine-group listing; it is
+    not a straight alias: activation state still distinguishes the two row
+    classes -- see ACTION SEQUENCE below).
 
     Output columns (table): ID, SOURCE, DISPLAY NAME, ACTION SEQUENCE. A
     non-activated ``--include-inactive`` row shows ``(not activated)`` in

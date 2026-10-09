@@ -20,7 +20,7 @@ steps:
   - title: Load local language and decisions
     actor: agent
     description: >
-      Read the relevant project glossary, charter selections, doctrine context,
+      Read the relevant project glossary, active charter, doctrine context,
       ADRs, and nearby design docs before asking questions. If the answer can be
       discovered from repository evidence, inspect that evidence instead of
       asking the human.

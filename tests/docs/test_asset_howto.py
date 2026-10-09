@@ -4,8 +4,9 @@
 downstream reader cannot follow. The remedy is only real if the published
 how-to's commands actually run. This is the doc-as-test that keeps them running:
 it reads the **asset section of the published how-to**
-(``docs/doctrine/create-a-doctrine-artifact.md``), lifts the manifest example and
-the ``spec-kitty doctrine asset path`` invocation *out of the doc*, replays them
+(``docs/development/how-to/create-a-doctrine-artifact.md``), lifts the manifest example and
+the asset directory and the ``spec-kitty charter pack asset path`` invocation
+*out of the doc*, replays them
 against a **fresh project**, and asserts the documented command resolves the
 project-tier blob. If the doc drifts (the manifest shape changes, the example id
 is renamed, the resolve command is edited) the extraction or the resolution
@@ -26,7 +27,8 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.doctrine import app as doctrine_app
+from kernel.charter_pack_paths import project_pack_path
+from specify_cli.cli.commands.charter import charter_app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -46,8 +48,11 @@ _HOWTO = (
 _YAML_BLOCK = re.compile(r"```yaml\n(?P<body>.*?)\n```", re.DOTALL)
 
 #: The documented resolve command, e.g.
-#: ``spec-kitty doctrine asset path team-release-checklist``.
-_RESOLVE_CMD = re.compile(r"spec-kitty doctrine asset path\s+(?P<asset_id>[a-z0-9-]+)")
+#: ``spec-kitty charter pack asset path team-release-checklist``.
+_RESOLVE_CMD = re.compile(r"spec-kitty charter pack asset path\s+(?P<asset_id>[a-z0-9-]+)")
+
+#: The documented ``mkdir -p <project asset dir>`` step (Step A of the recipe).
+_ASSET_DIR_CMD = re.compile(r"mkdir -p (?P<asset_dir>\.kittify/\S+)")
 
 
 def _read_howto() -> str:
@@ -92,7 +97,7 @@ def test_documented_asset_flow_resolves_in_a_fresh_project(
 
     Executes the documented authoring sequence exactly as a downstream operator
     would copy it: place the blob, write the sidecar manifest, then run the
-    documented ``spec-kitty doctrine asset path <id>``. The command must resolve
+    documented ``spec-kitty charter pack asset path <id>``. The command must resolve
     the project-tier blob and exit 0 (SC-008 / A-7).
     """
     text = _read_howto()
@@ -106,13 +111,18 @@ def test_documented_asset_flow_resolves_in_a_fresh_project(
     resolve_ids = {m.group("asset_id") for m in _RESOLVE_CMD.finditer(text)}
     assert asset_id in resolve_ids, (
         f"manifest id {asset_id!r} is never resolved by a documented "
-        f"'spec-kitty doctrine asset path' command; found {sorted(resolve_ids)}"
+        f"'spec-kitty charter pack asset path' command; found {sorted(resolve_ids)}"
     )
 
-    # Fresh project: the project-tier asset directory the resolver reads is
-    # .kittify/doctrine/assets/ (the single hoisted kind mapping, A-5).
+    # Fresh project: the documented asset directory must be the project pack's
+    # assets/ directory, the one the resolver reads (kernel.charter_pack_paths).
+    dir_match = _ASSET_DIR_CMD.search(text)
+    assert dir_match, "the how-to has no `mkdir -p .kittify/...` step for the asset directory"
     project = tmp_path / "fresh-project"
-    assets_dir = project / ".kittify" / "doctrine" / "assets"
+    assets_dir = project / dir_match.group("asset_dir")
+    assert assets_dir == project_pack_path(project, "assets"), (
+        f"the how-to places assets in {dir_match.group('asset_dir')!r}, not the project pack's assets/ directory"
+    )
     blob_path = assets_dir / blob_rel
     blob_path.parent.mkdir(parents=True, exist_ok=True)
     blob_path.write_text("# placeholder blob for the how-to proof\n", encoding="utf-8")
@@ -126,16 +136,14 @@ def test_documented_asset_flow_resolves_in_a_fresh_project(
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(project))
 
     result = runner.invoke(
-        doctrine_app,
-        ["asset", "path", asset_id],
+        charter_app,
+        ["pack", "asset", "path", asset_id],
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
-    # CR-02 (mission charter-code-topology-01M152G1 S4): `doctrine_app` now
-    # carries a deprecation-notice `@app.callback()` that writes to stderr
-    # (`err=True`) -- parse `.stdout` (stdout only), matching what a real
-    # `$(spec-kitty doctrine asset path ...)` shell capture already gets
-    # (bash `$(...)` never captures stderr), not `.output` (Click 8.2+'s
+    # Parse `.stdout` (stdout only), matching what a real
+    # `$(spec-kitty charter pack asset path ...)` shell capture gets (bash
+    # `$(...)` never captures stderr), not `.output` (Click 8.2+'s
     # stdout+stderr merge).
     resolved = Path(result.stdout.strip())
     assert resolved == blob_path.resolve() or resolved == blob_path, (

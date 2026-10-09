@@ -13,7 +13,7 @@ Authoritative grounding:
 LM-1 — the masking landmine
 ----------------------------
 This working checkout carries a *local*, uncommitted
-``.git/info/exclude`` entry (``.kittify/doctrine/``, ``.kittify/charter/provenance/``)
+``.git/info/exclude`` entry (``.kittify/charter-packs/``, ``.kittify/charter/provenance/``)
 that hides doctrine churn from ``git status`` in day-to-day development. The
 *committed* ``.gitignore`` tracks those artifacts (with targeted negations for
 ``directive/``, ``tactic/``, ``styleguide/``, ``procedure/``, ``overlays/``,
@@ -25,7 +25,7 @@ The fixture below sidesteps the mask by cloning this repo's current commit
 into a throwaway temp directory. ``.git/info/exclude`` lives outside version
 control and is per-checkout — a fresh ``git clone`` never inherits it — so the
 clone observes exactly the committed ``.gitignore`` state, where
-``.kittify/doctrine/**`` and ``.kittify/charter/*`` are genuinely git-tracked.
+``.kittify/charter-packs/**`` and ``.kittify/charter/*`` are genuinely git-tracked.
 ``_assert_doctrine_is_git_tracked`` asserts this precondition explicitly so a
 future regression in the fixture itself (e.g. someone "simplifying" it back
 to the live checkout) fails loudly instead of silently passing vacuously.
@@ -39,6 +39,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation.context import build_charter_context
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT_POSIX
 
 # Real subprocess git clones/checkouts against a throwaway temp repo: not a
 # pure-logic test, and structurally incompatible with mutmut's forked sandbox.
@@ -64,7 +65,7 @@ def _clone_doctrine_tracked_repo(dest: Path) -> Path:
     A fresh ``git clone`` gets a fresh, empty ``.git/info/exclude`` — the
     local mask that hides doctrine churn in this working checkout is never
     copied. The clone therefore observes the committed ``.gitignore`` state,
-    where ``.kittify/doctrine/**`` and ``.kittify/charter/*`` are tracked.
+    where ``.kittify/charter-packs/**`` and ``.kittify/charter/*`` are tracked.
 
     The committed ``charter.yaml`` now carries the WP04 (C-A1)
     ``mission_type_activations`` provisioning key (emitted by the charter
@@ -87,9 +88,9 @@ def _assert_doctrine_is_git_tracked(repo: Path) -> None:
     Reviewer guidance for this WP is explicit: a green cleanliness assertion
     against a fixture that doesn't actually track doctrine is a false pass.
     """
-    tracked_doctrine = _run_git(["ls-files", ".kittify/doctrine"], cwd=repo).stdout.strip().splitlines()
+    tracked_doctrine = _run_git(["ls-files", PROJECT_PACK_ROOT_POSIX], cwd=repo).stdout.strip().splitlines()
     assert tracked_doctrine, (
-        "Fixture is vacuous: .kittify/doctrine/** is not git-tracked in the "
+        f"Fixture is vacuous: {PROJECT_PACK_ROOT_POSIX}/** is not git-tracked in the "
         "cloned repo. LM-1 requires a doctrine-tracked fixture for this guard "
         "to mean anything."
     )
@@ -98,7 +99,7 @@ def _assert_doctrine_is_git_tracked(repo: Path) -> None:
 
     exclude_path = repo / ".git" / "info" / "exclude"
     exclude_text = exclude_path.read_text(encoding="utf-8") if exclude_path.exists() else ""
-    assert ".kittify/doctrine" not in exclude_text, (
+    assert PROJECT_PACK_ROOT_POSIX not in exclude_text, (
         "Fixture leaked the LM-1 local exclude mask into the clone; the "
         "cleanliness assertion below would be vacuous."
     )

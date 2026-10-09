@@ -1,11 +1,11 @@
 """T001 (ATDD/C-004): a hand-authored project-tier agent_profile is cascade-reachable.
 
 The defect (M6 / #3038): authoring
-``.kittify/doctrine/agent_profiles/<name>.agent.yaml`` loads and validates as a
+``.kittify/charter-packs/agent_profiles/<name>.agent.yaml`` loads and validates as a
 profile today, but never becomes an ``agent_profile:<id>`` DRG node in the
 project overlay ``graph.yaml`` the charter cascade reads. This test drives the
 project-overlay emission path end-to-end and asserts the node lands in
-``.kittify/doctrine/graph.yaml`` and is reachable via
+``.kittify/charter-packs/graph.yaml`` and is reachable via
 ``load_validated_graph(project_root)``.
 
 RED on the pre-fix tree: ``emit_project_layer`` neither accepts ``project_root``
@@ -31,7 +31,7 @@ _PROFILE_URN = "agent_profile:reviewer-rhonda"
 
 
 def _author_project_profile(root: Path) -> None:
-    profiles_dir = root / ".kittify" / "doctrine" / "agent_profiles"
+    profiles_dir = root / ".kittify" / "charter-packs" / "agent_profiles"
     profiles_dir.mkdir(parents=True, exist_ok=True)
     (profiles_dir / "reviewer-rhonda.agent.yaml").write_text(
         "profile-id: reviewer-rhonda\nname: Reviewer Rhonda\n",
@@ -58,10 +58,10 @@ def test_hand_authored_project_profile_is_cascade_reachable(tmp_path: Path) -> N
 
     # Persist into the live project doctrine tree so cascade can read it. The
     # persist writes ``<staging>/doctrine/graph.yaml``; anchoring staging at
-    # ``<root>/.kittify`` lands it at ``<root>/.kittify/doctrine/graph.yaml``.
+    # ``<root>/.kittify`` lands it at ``<root>/.kittify/charter-packs/graph.yaml``.
     guard = PathGuard(repo_root=tmp_path)
     persist(overlay, tmp_path / ".kittify", guard)
-    graph_path = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+    graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
     assert graph_path.exists()
     assert _PROFILE_URN in graph_path.read_text(encoding="utf-8")
 

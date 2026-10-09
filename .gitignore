@@ -94,24 +94,28 @@ kitty-specs/**/.kittify/dossiers/
 kitty-specs/*/.kittify/dossiers/*/snapshot-latest.json
 .kittify/charter/context-state.json
 
-# Doctrine artifacts are version-controlled — that is the point of
-# `spec-kitty agent retrospect synthesize --apply` writing them. Use
-# `/**` (not the bare directory) so the doctrine directory itself stays
-# traversable for whitelists; then re-include the canonical artifact
-# subdirectories (directive/, tactic/, procedure/, overlays/). Tracked
-# upstream as Priivacy-ai/spec-kitty#1166.
-.kittify/doctrine/**
-!.kittify/doctrine/directive/
-!.kittify/doctrine/directive/**
-!.kittify/doctrine/tactic/
-!.kittify/doctrine/tactic/**
-!.kittify/doctrine/styleguide/
-!.kittify/doctrine/styleguide/**
-!.kittify/doctrine/procedure/
-!.kittify/doctrine/procedure/**
-!.kittify/doctrine/overlays/
-!.kittify/doctrine/overlays/**
-!.kittify/doctrine/graph.yaml
+# Project charter pack artifacts are version-controlled — that is the point
+# of `spec-kitty agent retrospect synthesize --apply` writing them. Use
+# `/**` (not the bare directory) so the project charter pack root itself
+# stays traversable for whitelists; then re-include the canonical artifact
+# subdirectories (directive/, tactic/, styleguide/, procedure/, overlays/)
+# and graph.yaml. Tracked upstream as Priivacy-ai/spec-kitty#1166.
+# Mission charter-pack-cutover (#3732, FR-016/FR-012 "Ignore rules"): these
+# are the rules of the retired project layer root, carried over with only the
+# prefix rewritten; what is tracked is unchanged. Files already tracked under
+# the retired root stay tracked until the cutover migration moves them.
+.kittify/charter-packs/**
+!.kittify/charter-packs/directive/
+!.kittify/charter-packs/directive/**
+!.kittify/charter-packs/tactic/
+!.kittify/charter-packs/tactic/**
+!.kittify/charter-packs/styleguide/
+!.kittify/charter-packs/styleguide/**
+!.kittify/charter-packs/procedure/
+!.kittify/charter-packs/procedure/**
+!.kittify/charter-packs/overlays/
+!.kittify/charter-packs/overlays/**
+!.kittify/charter-packs/graph.yaml
 
 # Generated glossary entity pages — never commit
 .kittify/charter/compiled/glossary/

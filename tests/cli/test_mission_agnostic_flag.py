@@ -13,7 +13,7 @@ its own, and ``_build_app`` applies it to the whole registered tree. These
 tests pin the mechanism at three levels: the observed command path, the
 whole-tree invariant the skill text implies, and the option semantics
 themselves — mirroring the contract/CLI drift seam of
-``tests/doctrine/mission_step_contracts/test_declared_commands_parse.py``
+``tests/charter_offering/mission_step_contracts/test_declared_commands_parse.py``
 (#4031), which found the identical drift class for step-contract commands.
 """
 

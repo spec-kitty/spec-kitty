@@ -34,5 +34,5 @@ now the sole authority for cross-artifact relationships.
 
 ## Glossary Reference
 
-See [Tactic](../../../docs/context/charter.md#tactic) in the doctrine glossary
+See [Tactic](../../../docs/context/charter.md#tactic) in the charter glossary
 context.

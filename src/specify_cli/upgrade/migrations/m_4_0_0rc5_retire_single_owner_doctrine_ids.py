@@ -25,7 +25,8 @@ Retirement table (research.md R-11, spec.md FR-009)
 Exposed as :data:`RETIREMENTS`, a tuple of
 ``_retired_activation.Retirement`` records, because WP09's DRG-consistency
 test imports this table directly rather than re-deriving it. Verified
-against ``src/charter/activation/packs/default.yaml`` and this repo's own
+against the then-shipped default charter pack (retired by #3732; its lists are
+frozen in ``_charter_pack_cutover_snapshots``) and this repo's own
 ``.kittify/charter/charter.yaml`` / ``.kittify/charter/interview/
 answers.yaml`` (the activated_*/selected_* key names and catalog id:
 prefixes cited in the WP prompt):

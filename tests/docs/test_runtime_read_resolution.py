@@ -39,7 +39,7 @@ from ruamel.yaml import YAML
 
 from charter.activation.context_renderers import render_authority_paths
 from charter.activation.context_renderers.authority_paths import DEFAULT_AUTHORITY_PATHS
-from charter.activation.schemas import DoctrineSelectionConfig
+from charter.activation.schemas import GovernanceCharterConfig
 from scripts.generate_contextive_glossaries import (
     resolve_glossary_contexts_dir,
 )
@@ -102,20 +102,20 @@ class TestAuthorityPathDefaultsResolveNewHomes:
     def test_adr_default_resolves_docs_adr_3x(self, tmp_path: Path) -> None:
         """Read 1: only the NEW ADR home exists → renderer surfaces it."""
         _mkdir(tmp_path, NEW_ADR_DIR)
-        result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
+        result = render_authority_paths(tmp_path, GovernanceCharterConfig())
         assert f"{NEW_ADR_DIR}/" in result
 
     def test_glossary_default_resolves_docs_context(self, tmp_path: Path) -> None:
         """Read 2 (the spec's missed 4th read): only NEW glossary home exists."""
         _mkdir(tmp_path, NEW_CONTEXT_DIR)
-        result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
+        result = render_authority_paths(tmp_path, GovernanceCharterConfig())
         assert f"{NEW_CONTEXT_DIR}/" in result
 
     def test_old_homes_no_longer_resolve(self, tmp_path: Path) -> None:
         """WP08 dropped the dual-read: the legacy homes are no longer defaults."""
         _mkdir(tmp_path, OLD_ADR_DIR)
         _mkdir(tmp_path, OLD_CONTEXT_DIR)
-        result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
+        result = render_authority_paths(tmp_path, GovernanceCharterConfig())
         assert f"{OLD_ADR_DIR}/" not in result
         assert f"{OLD_CONTEXT_DIR}/" not in result
 
@@ -225,7 +225,7 @@ def _charter_authority_paths() -> list[str]:
     ``.kittify/charter/governance.yaml`` is gitignored and regenerated from
     ``charter.md`` by ``spec-kitty charter sync``; ``charter.md`` is therefore
     the durable, tracked source of the authority-path values that flow into the
-    runtime ``DoctrineSelectionConfig``.
+    runtime ``GovernanceCharterConfig``.
     """
     charter_md = _REPO_ROOT / ".kittify" / "charter" / "charter.md"
     text = charter_md.read_text(encoding="utf-8")
@@ -268,7 +268,7 @@ class TestGovernanceAuthorityPathsRepointed:
         """
         _mkdir(tmp_path, NEW_CONTEXT_DIR)
         _mkdir(tmp_path, NEW_ADR_DIR)
-        selection = DoctrineSelectionConfig(authority_paths=_charter_authority_paths())
+        selection = GovernanceCharterConfig(authority_paths=_charter_authority_paths())
         result = render_authority_paths(tmp_path, selection)
         assert f"{NEW_CONTEXT_DIR}/" in result
         assert f"{NEW_ADR_DIR}/" in result

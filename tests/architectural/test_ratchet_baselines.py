@@ -744,7 +744,7 @@ def test_runtime_ledger_shrink_is_reported(monkeypatch: pytest.MonkeyPatch, pack
         ("test_doctrine_census", "ORPHAN_REACHED_EXCEPTIONS", "orphan_reached_exceptions"),
     ],
 )
-def test_doctrine_pair_allowlist_growth_fails_and_shrink_is_reported(
+def test_offering_pair_allowlist_growth_fails_and_shrink_is_reported(
     monkeypatch: pytest.MonkeyPatch,
     module_name: str,
     symbol: str,

@@ -52,6 +52,8 @@ from charter.offering.drg.loader import DRGLoadError, load_graph_or_dir, merge_l
 from charter.offering.drg.models import DRGEdge, DRGGraph
 from charter.offering.drg.validator import validate_graph
 
+from kernel.charter_pack_paths import PROJECT_PACK_DIRNAME
+
 from .errors import ProjectDRGValidationError
 
 if TYPE_CHECKING:
@@ -181,16 +183,16 @@ def validate(
         enough for a CLI panel that names the dangling URN, the offending
         artifact, and the source reference that triggered it (US-5).
     """
-    overlay_doctrine_dir = staging_dir / "doctrine"
+    overlay_pack_dir = staging_dir / PROJECT_PACK_DIRNAME
 
     # --- Step 1: Load the staged overlay -----------------------------------
     try:
-        project_overlay = load_graph_or_dir(overlay_doctrine_dir)
+        project_overlay = load_graph_or_dir(overlay_pack_dir)
     except DRGLoadError as exc:
         raise ProjectDRGValidationError(
             errors=(
                 f"Could not load staged project overlay from "
-                f"{overlay_doctrine_dir}: {exc}",
+                f"{overlay_pack_dir}: {exc}",
             ),
             merged_graph_summary=(
                 f"staging_dir={staging_dir}, "
@@ -199,7 +201,7 @@ def validate(
         ) from exc
     except Exception as exc:  # noqa: BLE001
         raise ProjectDRGValidationError(
-            errors=(f"Unexpected error loading overlay {overlay_doctrine_dir}: {exc}",),
+            errors=(f"Unexpected error loading overlay {overlay_pack_dir}: {exc}",),
             merged_graph_summary=(
                 f"staging_dir={staging_dir}"
             ),

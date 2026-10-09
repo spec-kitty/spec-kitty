@@ -2,7 +2,7 @@
 title: Charter CLI Reference
 description: Narrative reference for the core charter interview/generate/sync/synthesize subcommands, verified against live --help output.
 doc_status: active
-updated: '2026-07-20'
+updated: '2026-10-08'
 related:
 - docs/context/charter-overview.md
 - docs/context/governance-files.md
@@ -128,11 +128,11 @@ uv run spec-kitty charter generate --from-interview --template-set documentation
 
 **Description**: Validate and promote agent-generated project-local doctrine artifacts. Reads the
 charter interview answers, resolves synthesis targets from the DRG + doctrine, and writes all
-artifacts to `.kittify/doctrine/`.
+artifacts to `.kittify/charter-packs/`.
 
 On a fresh project where `.kittify/charter/generated/` is missing or empty, this command
 materializes the minimal artifact set (directory marker and `PROVENANCE.md`) without running the
-full adapter pipeline. The runtime falls back to built-in doctrine until a full synthesis run
+full adapter pipeline. The runtime falls back to the built-in Charter Pack until a full synthesis run
 completes.
 
 | Flag | Description | Default |
@@ -334,6 +334,6 @@ uv run spec-kitty charter bundle validate --json
 - [How Charter Works](../context/charter-overview.md)
 - [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md)
 - [Governance Files Reference](../context/governance-files.md)
-- [Charter Pack Usage Journey](../architecture/charter-pack-usage-journey.md) — the `charter pack
-  apply` → `charter generate` two-step and the dispatch safety net (`charter pack` flags: see the
+- [Activation Preset Usage Journey](../architecture/charter-pack-usage-journey.md) — the `charter
+  activate --preset` → `charter generate` two-step and the dispatch safety net (`charter pack` flags: see the
   generated [CLI Command Reference](cli-commands.md#spec-kitty-charter-pack))

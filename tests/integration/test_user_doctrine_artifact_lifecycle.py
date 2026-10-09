@@ -49,7 +49,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 _FETCH_CMD_RE = re.compile(
     r"spec-kitty\s+charter\s+context\b|"
     r"spec-kitty\s+doctrine\b|"
-    r"DoctrineService\(",
+    r"ActiveCharterService\(",
     re.IGNORECASE,
 )
 _WHEN_DOING_RE = re.compile(
@@ -119,9 +119,9 @@ def _write_project_styleguide(repo_root: Path, *, styleguide_id: str, body: str)
     """Drop a user-authored styleguide into the project doctrine layer.
 
     The path layout matches the synthesized project-doctrine convention
-    (``.kittify/doctrine/<kind>/<id>.<kind>.yaml``).
+    (``.kittify/charter-packs/<kind>/<id>.<kind>.yaml``).
     """
-    target_dir = repo_root / ".kittify" / "doctrine" / "styleguide"
+    target_dir = repo_root / ".kittify" / "charter-packs" / "styleguide"
     target_dir.mkdir(parents=True, exist_ok=True)
     target = target_dir / f"{styleguide_id}.styleguide.yaml"
     target.write_text(body, encoding="utf-8")
@@ -166,7 +166,7 @@ whose body cites the styleguide id.
 ### DIRECTIVE_CAVEMAN_WRAPPER — Caveman Comment Wrapper (severity: warn)
 
 When you write a code comment, apply the ``caveman-comments`` styleguide.
-The styleguide body lives at ``.kittify/doctrine/styleguide/``.
+The styleguide body lives at ``.kittify/charter-packs/styleguide/``.
 
 ## Doctrine Selection
 
@@ -199,7 +199,7 @@ available_tools: [git, spec-kitty, pytest]
 activations:
   - activation_context:
       action: write_comment
-    doctrine_pack_id: project
+    charter_pack_id: project
     artifact_id: caveman-comments
     artifact_kind: styleguide
 ```
@@ -238,7 +238,7 @@ _CHARTER_YAML_SELECTING_STYLEGUIDE = textwrap.dedent(
     """\
     schema_version: '2.0.0'
     governance:
-      doctrine:
+      charter:
         selected_styleguides:
           - caveman-comments
     catalog:
@@ -256,7 +256,7 @@ _CHARTER_YAML_CONTEXT_SCOPED_ACTIVATION = textwrap.dedent(
       activations:
         - activation_context:
             action: write_comment
-          doctrine_pack_id: project
+          charter_pack_id: project
           artifact_id: caveman-comments
           artifact_kind: styleguide
     """
@@ -307,7 +307,7 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
     in the implement prompt — either by embedding the body inline or by
     emitting a fetch + when-doing stanza naming the styleguide id.
 
-    Fails today because ``DoctrineSelectionConfig`` has no
+    Fails today because ``GovernanceCharterConfig`` has no
     ``selected_styleguides`` field — the extractor never sees the
     declaration, so the resolver never renders it. After Mission B WP04
     (global selection schema + renderer), this test passes.
@@ -338,7 +338,7 @@ def test_case_1_project_styleguide_appears_in_implement_prompt(
         "The implement charter context MUST surface the project-selected styleguide "
         "`caveman-comments` — either by ID + body or by ID + fetch command + "
         "canonical when-doing conditional. Today the resolver ignores "
-        "`selected_styleguides` because `DoctrineSelectionConfig` has no such field "
+        "`selected_styleguides` because `GovernanceCharterConfig` has no such field "
         "(see src/charter/activation/schemas.py). Mission B WP04 adds the field and the "
         "matching renderer (_render_selected_styleguides). See "
         "docs/development/mission-b-proposed-scope.md → WP04."
@@ -427,7 +427,7 @@ def test_case_1_selected_styleguides_field_round_trips(
     """The charter declares ``selected_styleguides: [caveman-comments]``. The
     persisted, authoritative charter surface MUST carry the field with the
     styleguide id preserved AND the canonical loader MUST surface it as a
-    populated ``DoctrineSelectionConfig.selected_styleguides``.
+    populated ``GovernanceCharterConfig.selected_styleguides``.
 
     #2773 consolidated the compiled bundle into the git-tracked, authoritative
     ``.kittify/charter/charter.yaml``; the prose->triad ``governance.yaml``
@@ -436,7 +436,7 @@ def test_case_1_selected_styleguides_field_round_trips(
     ``charter.activation.sync.load_governance_config``. This test therefore round-trips
     through the authoritative reader instead of the retired ``governance.yaml``
     derivative — the real invariant it always pinned is that
-    ``DoctrineSelectionConfig.selected_styleguides`` exists and carries the
+    ``GovernanceCharterConfig.selected_styleguides`` exists and carries the
     declared id.
     """
     from charter.activation.sync import ensure_charter_bundle_fresh, load_governance_config
@@ -466,7 +466,7 @@ def test_case_1_selected_styleguides_field_round_trips(
     )
 
     # The canonical reader MUST surface the field as a populated
-    # DoctrineSelectionConfig.selected_styleguides (the field's existence and
+    # GovernanceCharterConfig.selected_styleguides (the field's existence and
     # round-trip is the real invariant this test always pinned).
     governance = load_governance_config(repo_root)
     assert "caveman-comments" in governance.charter.selected_styleguides, (
@@ -485,7 +485,7 @@ def test_case_1_styleguide_render_includes_trigger_stanza(
     project_with_caveman_styleguide: Path,
 ) -> None:
     """A charter that declares an ``activations:`` registry entry of
-    ``(activation_context: {action: write_comment}, doctrine_pack_id: project,
+    ``(activation_context: {action: write_comment}, charter_pack_id: project,
     artifact_id: caveman-comments)`` MUST cause the implement prompt to carry
     an explicit *when-doing* stanza naming the artifact and instructing the
     agent to fetch it.

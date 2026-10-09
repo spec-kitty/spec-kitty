@@ -9,6 +9,8 @@ from typing import Any
 
 import typer
 
+from charter.packs import RetiredPackFieldError
+
 from specify_cli.task_utils import TaskCliError
 
 from specify_cli.cli.commands.charter._app import charter_app, console
@@ -26,24 +28,24 @@ import specify_cli.cli.commands.charter as _charter_pkg
 __all__ = ["generate"]
 
 
-def _build_doctrine_service_with_org_layer(
+def _build_active_charter_service_with_org_layer(
     repo_root: Path,
     *,
     interview: Any = None,
     prefer_interview: bool = False,
 ) -> Any:
-    """Return an activation-filtered ``DoctrineService`` for charter generation.
+    """Return an activation-filtered ``ActiveCharterService`` for charter generation.
 
     FR-002/FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA
     WP01): thin call-through to the single canonical builder,
-    :func:`charter.activation.doctrine_service_builder.build_activation_aware_doctrine_service`
+    :func:`charter.activation.active_charter_service_builder.build_active_charter_service`
     — replaces the former inline "build raw, then best-effort wrap" pattern
     that lived here (and independently in
     ``specify_cli.charter_runtime.lint.checks.org_layer`` and
     ``specify_cli.doctrine_service_factory``, C-001). The unified builder
     always self-resolves org roots and always computes ``active_languages``,
     and it always returns the activation-aware
-    :class:`charter.activation.resolver.DoctrineService` wrapper — it never falls back
+    :class:`charter.activation.resolver.ActiveCharterService` wrapper — it never falls back
     to a raw, unwrapped service, closing the fail-open gap FR-002 named at
     this site (the previous code's ``pack_context`` resolution was wrapped in
     a bare ``except Exception: pass`` that silently degraded to an
@@ -54,9 +56,9 @@ def _build_doctrine_service_with_org_layer(
     regenerate resolves the doctrine references under the SAME re-derived
     languages ``compile_charter`` stamps into ``catalog.languages``.
     """
-    from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+    from charter.activation.active_charter_service_builder import build_active_charter_service
 
-    return build_activation_aware_doctrine_service(repo_root, interview=interview, prefer_interview=prefer_interview)
+    return build_active_charter_service(repo_root, interview=interview, prefer_interview=prefer_interview)
 
 
 def _is_inside_git_worktree(repo_root: Path) -> bool:
@@ -237,8 +239,7 @@ def _resolve_recorded_mission_type(repo_root: Path, answers_path: Path) -> str:
     """Resolve the project's recorded mission type from its SSOT (#4908).
 
     ONLY for the catalog-recompile call sites (``charter activate``/
-    ``deactivate``'s ``recompile_catalog``, ``charter pack apply --compile``'s
-    ``_compile_bundle_after_merge``) -- they pass
+    ``deactivate``'s ``recompile_catalog``) -- it passes
     ``prefer_recorded_mission=True`` to :func:`_load_interview_for_generate`
     because a recompile is explicitly NOT a mission change and must not
     silently reset the project's mission. Before #4908 that combination
@@ -321,8 +322,8 @@ def _load_interview_for_generate(
     an unresolved mission (no ``--mission-type``, no loaded interview data)
     falls back to the ALREADY-COMPILED ``charter.yaml`` ``catalog.mission``
     via :func:`_resolve_recorded_mission_type` -- the correct behavior for
-    the internal recompile call sites (``recompile_catalog``,
-    ``_compile_bundle_after_merge``), which must never change the recorded
+    the internal recompile call site (``recompile_catalog``), which must
+    never change the recorded
     mission as a recompile side effect. It defaults to ``False`` for the
     user-facing ``charter generate`` CLI command, which instead re-derives
     the mission from interview answers or the ``"software-dev"`` default via
@@ -389,6 +390,33 @@ def _structured_error_fields(error: Exception) -> dict[str, Any] | None:
     return None
 
 
+def _error_code(error: Exception) -> str | None:
+    """The ``contracts/errors.md`` code *error* carries, if it is a coded error.
+
+    A retired pack field (#3732) names ``RETIRED_PACK_FIELD`` so the text line
+    reads ``Error (RETIRED_PACK_FIELD): <file>: field ...``.
+    """
+    if isinstance(error, RetiredPackFieldError):
+        return error.code
+    return None
+
+
+def _provision_mission_types_or_exit(repo_root: Path, *, json_output: bool) -> None:
+    """Seed ``mission_type_activations`` (additive); a missing ``default`` preset exits 1.
+
+    ``DEFAULT_PRESET_MISSING`` is a broken install: it is rendered with its code
+    (``Error (DEFAULT_PRESET_MISSING): ...`` or the ``--json`` envelope) rather
+    than as an unexpected error.
+    """
+    from charter.activation.compiler import DefaultPresetMissingError, provision_mission_type_activations
+
+    try:
+        provision_mission_type_activations(repo_root)
+    except DefaultPresetMissingError as e:
+        _emit_error(console, json_output=json_output, message=e.body, code=e.code)
+        raise typer.Exit(code=1) from e
+
+
 @charter_app.command()
 def generate(
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults"),
@@ -422,7 +450,6 @@ def generate(
     """
     from charter.activation.compiler import (
         compile_charter,
-        provision_mission_type_activations,
         write_compiled_charter,
     )
     from charter.activation.pack_context import PackContext
@@ -487,7 +514,7 @@ def generate(
             profile=profile,
         )
 
-        from specify_cli.doctrine.org_charter import validate_org_required_directive_stems
+        from charter.activation.org_charter import validate_org_required_directive_stems
 
         validate_org_required_directive_stems(repo_root)
 
@@ -495,11 +522,11 @@ def generate(
         # SOLE mission-type activation authority. Construction returns an empty
         # set on an absent key; a project with no activated types offers none
         # (mission-CREATE then fails closed). Emit it
-        # into the activation authority FIRST (additive/idempotent, built-in
-        # set from default.yaml) so `generate` self-heals a pre-provisioning
+        # into the activation authority FIRST (additive/idempotent, seeded from
+        # the built-in pack's `default` preset) so `generate` self-heals a pre-provisioning
         # pointer charter instead of crashing on the very key it is about to
         # (re)generate.
-        provision_mission_type_activations(repo_root)
+        _provision_mission_types_or_exit(repo_root, json_output=json_output)
 
         # FR-001/FR-002 (WP02): `.kittify/config.yaml` `activated_*` is the
         # activation authority the compiled reference set derives from --
@@ -523,7 +550,7 @@ def generate(
             interview=interview_data,
             template_set=template_set,
             repo_root=repo_root,
-            doctrine_service=_build_doctrine_service_with_org_layer(
+            charter_service=_build_active_charter_service_with_org_layer(
                 repo_root,
                 interview=interview_data,
                 prefer_interview=rederive_languages,
@@ -624,7 +651,7 @@ def generate(
         _emit_error(console, json_output=json_output, message=str(e))
         raise typer.Exit(code=1) from e
     except (FileExistsError, TaskCliError, ValueError, RuntimeError) as e:
-        _emit_error(console, json_output=json_output, message=str(e), extra=_structured_error_fields(e))
+        _emit_error(console, json_output=json_output, message=str(e), extra=_structured_error_fields(e), code=_error_code(e))
         raise typer.Exit(code=1) from e
     except Exception as e:
         _emit_error(console, json_output=json_output, message=str(e), unexpected=True)

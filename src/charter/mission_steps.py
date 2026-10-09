@@ -2,9 +2,9 @@
 
 This module is the charter-layer proxy for runtime callers that historically
 imported from ``charter.offering.mission_step_contracts`` (now retired). The
-runtime → charter → doctrine boundary (ADR 2026-03-27-1, tightened by
+runtime → charter → charter.offering boundary (ADR 2026-03-27-1, tightened by
 mission ``charter-mediated-doctrine-selection-01KRTZCA``) requires runtime
-modules under ``src/specify_cli/`` to reach doctrine artifacts only through
+modules under ``src/specify_cli/`` to reach charter offering artifacts only through
 charter facades.
 
 WP01 of mission ``charter-doctrine-mission-type-configuration-01KSWJVX``

@@ -372,7 +372,7 @@ class TestUs3KindSlug:
     ) -> None:
         """Bounded resynthesis must not drop untouched project-layer graph nodes."""
         repo = repo_with_prior_synthesis
-        graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
+        graph_path = repo / ".kittify" / "charter-packs" / "graph.yaml"
         before_graph = load_graph(graph_path)
         before_nodes = {node.urn for node in before_graph.nodes}
         before_edges = {
@@ -654,7 +654,7 @@ class TestResynthesizeValidationWiring:
         """FR-008: resynthesis must validate before mutating the live tree."""
         repo = repo_with_prior_synthesis
         manifest_path = repo / MANIFEST_PATH
-        graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
+        graph_path = repo / ".kittify" / "charter-packs" / "graph.yaml"
         manifest_before = manifest_path.read_text(encoding="utf-8")
         graph_before = graph_path.read_text(encoding="utf-8")
 
@@ -688,7 +688,7 @@ class TestResynthesizeValidationWiring:
             d for d in staging_root.iterdir() if d.is_dir() and d.name.endswith(".failed")
         )
         assert failed_dirs, "Expected a .failed staging directory when validation rejects resynthesis"
-        assert (failed_dirs[0] / "doctrine" / "graph.yaml").exists()
+        assert (failed_dirs[0] / "charter-packs" / "graph.yaml").exists()
 
 
 # ---------------------------------------------------------------------------

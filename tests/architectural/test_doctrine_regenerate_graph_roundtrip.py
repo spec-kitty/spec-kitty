@@ -2,7 +2,7 @@
 
 This is the shared behavior baseline that WP08 (campsite Sonar / literal hoist),
 WP09 (extractor complexity refactor) and WP10 (remaining complexity closeout) rely
-on: ``spec-kitty doctrine regenerate-graph --check`` regenerates the DRG into a temp
+on: ``spec-kitty charter pack regenerate-graph --check`` regenerates the DRG into a temp
 directory and byte-compares it against the committed
 ``packs/built-in/**/*.graph.yaml`` fragments (14 today), exiting non-zero when stale.
 
@@ -35,7 +35,7 @@ _GOLDEN_ROOT = _REPO_ROOT / "packs" / "built-in"
 
 
 def _regenerate_graph_check() -> subprocess.CompletedProcess[str]:
-    """Invoke ``spec-kitty doctrine regenerate-graph --check`` as a subprocess.
+    """Invoke ``spec-kitty charter pack regenerate-graph --check`` as a subprocess.
 
     Prefer the ``spec-kitty`` console script; fall back to ``python -m specify_cli``
     so a PATH without the shim still exercises the real CLI. Hard-fail (never skip)
@@ -43,13 +43,14 @@ def _regenerate_graph_check() -> subprocess.CompletedProcess[str]:
     """
     spec_kitty = shutil.which("spec-kitty")
     if spec_kitty is not None:
-        argv = [spec_kitty, "doctrine", "regenerate-graph", "--check"]
+        argv = [spec_kitty, "charter", "pack", "regenerate-graph", "--check"]
     else:
         argv = [
             sys.executable,
             "-m",
             "specify_cli",
-            "doctrine",
+            "charter",
+            "pack",
             "regenerate-graph",
             "--check",
         ]
@@ -64,7 +65,7 @@ def _regenerate_graph_check() -> subprocess.CompletedProcess[str]:
         )
     except (OSError, subprocess.SubprocessError) as exc:  # pragma: no cover - env failure
         pytest.fail(
-            "Could not invoke `spec-kitty doctrine regenerate-graph --check` "
+            "Could not invoke `spec-kitty charter pack regenerate-graph --check` "
             f"({argv[0]}): {exc}. The golden round-trip is a hard precondition — "
             "it must run, not skip. Run `pip install -e .` and retry."
         )
@@ -83,7 +84,7 @@ def test_regenerate_graph_check_is_byte_identical() -> None:
     """C7 / FR-009 / FR-010: `regenerate-graph --check` exits 0 (DRG byte-identical)."""
     result = _regenerate_graph_check()
     assert result.returncode == 0, (
-        "`spec-kitty doctrine regenerate-graph --check` exited "
+        "`spec-kitty charter pack regenerate-graph --check` exited "
         f"{result.returncode} — the DRG graph source is NOT byte-identical to the "
         "committed golden. A doctrine change altered regeneration output (behavior "
         "drift, C-006 violation) or the golden fragments are stale.\n"

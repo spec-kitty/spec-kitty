@@ -34,7 +34,7 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from charter.activation.catalog import load_doctrine_catalog
+from charter.activation.catalog import load_offering_catalog
 from charter.activation.compiler import (
     ConfigActivatedRoots,
     compile_charter,
@@ -46,7 +46,7 @@ from charter.activation.interview import (
     default_interview,
     write_interview_answers,
 )
-from charter.activation.catalog import resolve_doctrine_root
+from charter.activation.catalog import resolve_offering_root
 from charter.activation.kind_vocabulary import UnknownArtifactIdError
 from charter.activation.pack_context import PackContext
 
@@ -143,7 +143,7 @@ def test_no_pack_context_and_no_repo_root_defaults_to_all_builtins_active() -> N
     filtering paradigms/procedures/agent profiles.
     """
     interview = _interview_with(selected_directives=["DIRECTIVE_003"], selected_paradigms=[])
-    catalog = load_doctrine_catalog()
+    catalog = load_offering_catalog()
 
     compiled = compile_charter(mission="software-dev", interview=interview)
 
@@ -461,7 +461,7 @@ def test_org_only_paradigm_activated_in_config_resolves_via_org_roots(tmp_path: 
     interview = _interview_with(selected_directives=[], selected_paradigms=[])
     pack_context = dataclasses.replace(
         _base_pack_context(tmp_path),
-        pack_roots=(resolve_doctrine_root(), org_root),
+        pack_roots=(resolve_offering_root(), org_root),
         activated_directives=frozenset(),
         activated_paradigms=frozenset({"org-only-paradigm"}),
     )
@@ -486,7 +486,7 @@ def test_org_only_paradigm_without_org_roots_would_have_raised(tmp_path: Path) -
     interview = _interview_with(selected_directives=[], selected_paradigms=[])
     pack_context = dataclasses.replace(
         _base_pack_context(tmp_path),
-        pack_roots=(resolve_doctrine_root(),),  # no org root -- stem stays unresolvable
+        pack_roots=(resolve_offering_root(),),  # no org root -- stem stays unresolvable
         activated_directives=frozenset(),
         activated_paradigms=frozenset({"org-only-paradigm"}),
     )

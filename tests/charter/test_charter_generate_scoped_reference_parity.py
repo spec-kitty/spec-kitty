@@ -19,7 +19,7 @@ NOT an internal helper function) against a fixture repo that activates the six
 drupal-conventions, php/twig-scoped -- C-002: proves the general mechanism, not six
 special cases), then feeds the result through ``run_consistency_check`` directly
 (spec.md Acceptance Scenario 3), rather than
-``tests/doctrine/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent``,
+``tests/charter_offering/test_activation_parity_guard.py::test_this_project_charter_pack_is_coherent``,
 which is hardcoded to this checkout's own ``_REPO_ROOT`` and cannot be conditioned on
 an arbitrary fixture path.
 
@@ -179,7 +179,7 @@ def test_charter_generate_preserves_language_scope_filtered_activated_references
     assert report.coherent, (
         f"run_consistency_check reported the fixture NOT coherent: "
         f"unknown_references={report.unknown_references!r} "
-        f"missing_from_doctrine={report.missing_from_doctrine!r} "
+        f"missing_from_offering={report.missing_from_offering!r} "
         f"reference_id_divergences={report.reference_id_divergences!r} "
         f"graph_kind_gaps={report.graph_kind_gaps!r}"
     )

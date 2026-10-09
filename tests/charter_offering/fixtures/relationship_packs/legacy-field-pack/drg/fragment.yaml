@@ -1,0 +1,17 @@
+# Negative fixture — this pack carries a valid (edge-authored) fragment so the
+# pack itself loads, but ships an agent-profile artifact that STILL uses the
+# deprecated `specializes-from:` FIELD form (see
+# ../profiles/legacy-specialist.agent.yaml). WP06's field-rejection test points
+# at that artifact: once the field is retired it must fail closed. The fragment
+# here is intentionally edge-only so the *pack loader* is not what rejects it —
+# the rejection is the artifact field, validated by WP06.
+pack_name: legacy-field-pack
+source_kind: local_path
+source_ref: tests/charter_offering/fixtures/relationship_packs/legacy-field-pack
+layer_index: 1
+provenance_marker: org
+nodes:
+  - id: legacy-base
+    kind: agent_profiles
+    title: "Legacy Base (fixture)"
+edges: []

@@ -32,13 +32,13 @@ def _stub_graph(label: str) -> SimpleNamespace:
 
 
 def _write_project_graph(repo_root: Path, payload: dict[str, Any]) -> Path:
-    """Write a JSON DRG to ``.kittify/doctrine/drg.json``.
+    """Write a JSON DRG to ``.kittify/charter-packs/drg.json``.
 
     We pick the JSON candidate (rather than ``graph.yaml``) so the test
     does not depend on a YAML parser, but ``load_merged_drg`` checks both
     in the documented order.
     """
-    drg_dir = repo_root / ".kittify" / "doctrine"
+    drg_dir = repo_root / ".kittify" / "charter-packs"
     drg_dir.mkdir(parents=True, exist_ok=True)
     path = drg_dir / "drg.json"
     path.write_text(json.dumps(payload), encoding="utf-8")
@@ -153,7 +153,7 @@ class TestProjectDRGFileFormats:
     def test_drg_json_resolves_as_merged(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A valid JSON DRG at ``.kittify/doctrine/drg.json`` resolves to
+        """A valid JSON DRG at ``.kittify/charter-packs/drg.json`` resolves to
         ``MERGED``. We stub ``DRGGraph.model_validate`` to avoid pulling in
         the full doctrine schema for a unit-level test.
         """

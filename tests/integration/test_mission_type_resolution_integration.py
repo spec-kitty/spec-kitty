@@ -1,7 +1,7 @@
 """Integration: a real mission of each type resolves domain-appropriate
 governance with ZERO software-dev doctrine (contract C5 / WP12).
 
-Where ``tests/doctrine/test_mission_type_governance_isolation.py`` asserts the
+Where ``tests/charter_offering/test_mission_type_governance_isolation.py`` asserts the
 isolation invariant on the resolver in isolation, this test stages a **real
 mission on disk** — a ``kitty-specs/<slug>/meta.json`` declaring the mission
 type — and drives the resolution through the same ``meta.json`` read path a live

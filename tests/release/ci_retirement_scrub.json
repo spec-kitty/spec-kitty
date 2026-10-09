@@ -185,7 +185,7 @@
         "src/charter/offering/**",
         "src/specify_cli/core/**",
         "src/specify_cli/coordination/**",
-        "src/specify_cli/doctrine_synthesizer/**",
+        "src/specify_cli/charter_pack_synthesizer/**",
         "src/specify_cli/status/**",
         "src/specify_cli/tool_surface/**",
         "src/specify_cli/zeitgeist_client/**"
@@ -275,7 +275,7 @@
         "kitty-specs/**/acceptance-matrix.json",
         ".kittify/charter/**",
         ".kittify/glossaries/**",
-        ".kittify/doctrine/**",
+        ".kittify/charter-packs/**",
         "contracts/**"
       ],
       "note": "Doctrine corpus + mission data leaves (#3008), plus the contracts/ tree, which stays out of the wheel; non-src, no --cov subject."

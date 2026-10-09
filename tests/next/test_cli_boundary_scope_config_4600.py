@@ -16,7 +16,7 @@ degraded to legacy governance and emitted a normal ``kind=step`` decision with
 exit 0, rendering a prompt with the wrong charter context. That is the exact
 #4600 brick-class the mission claims to close, missed on this reader.
 
-After the fix the reader raises the fail-loud ``CharterPackConfigError`` whose
+After the fix the reader raises the fail-loud ``ActiveCharterConfigError`` whose
 body names the offending file and the decode/parse cause; the ``next`` prompt
 boundary surfaces that body as a ``kind=blocked`` decision -- non-zero exit, the
 file named, no Python traceback, and no raw exception class name leaked.
@@ -44,15 +44,15 @@ runner = CliRunner()
 # The three ways the underlying fault could leak into operator output if the
 # boundary were not fail-loud: a raw decode/parse exception, the domain
 # exception's class name, or its internal machine code
-# (``str(CharterPackConfigError)`` yields the code, not the file-naming body --
+# (``str(ActiveCharterConfigError)`` yields the code, not the file-naming body --
 # so a naive re-raise regresses the acceptance bar even though it "raises the
 # right type").
 _FORBIDDEN_LEAKS = (
     "Traceback",
     "UnicodeDecodeError",
     "YAMLError",
-    "CharterPackConfigError",
-    "CHARTER_PACK_CONFIG_INVALID",
+    "ActiveCharterConfigError",
+    "ACTIVE_CHARTER_CONFIG_INVALID",
 )
 
 

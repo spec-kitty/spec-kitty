@@ -30,7 +30,6 @@ from specify_cli.tracker.config import (
     TrackerProjectConfig,
     load_tracker_config,
     require_repo_root,
-    _warn_legacy_ownership_key_once,
 )
 from specify_cli.identity.project import ensure_identity
 from specify_cli.core.saas_sync_config import is_saas_sync_enabled, saas_sync_disabled_message
@@ -377,7 +376,7 @@ def _service(*, allow_unbound: bool = False, root: Path | None = None) -> Tracke
     return TrackerService(repo_root)
 
 
-def _doctrine_modes() -> tuple[str, ...]:
+def _ownership_modes() -> tuple[str, ...]:
     return (
         "external_authoritative",
         "spec_kitty_authoritative",
@@ -701,12 +700,6 @@ def bind_command(
         "--ownership-mode",
         help="Ownership mode: external_authoritative | spec_kitty_authoritative | split_ownership",
     ),
-    doctrine_mode: str | None = typer.Option(
-        None,
-        "--doctrine-mode",
-        help="Deprecated alias for --ownership-mode",
-        hidden=True,
-    ),
     field_owners: list[str] = typer.Option(
         [],
         "--field-owner",
@@ -777,13 +770,10 @@ def bind_command(
                 )
                 raise typer.Exit(code=1)
 
-            selected_mode = ownership_mode or doctrine_mode or "external_authoritative"
-            if doctrine_mode is not None and ownership_mode is None:
-                _warn_legacy_ownership_key_once()
-
+            selected_mode = ownership_mode or "external_authoritative"
             mode = selected_mode.strip().lower()
-            if mode not in set(_doctrine_modes()):
-                raise TrackerServiceError(f"Invalid ownership mode '{selected_mode}'. Expected one of: {', '.join(_doctrine_modes())}")
+            if mode not in set(_ownership_modes()):
+                raise TrackerServiceError(f"Invalid ownership mode '{selected_mode}'. Expected one of: {', '.join(_ownership_modes())}")
 
             parsed_field_owners = parse_kv_pairs(field_owners)
             parsed_credentials = parse_kv_pairs(credentials)
@@ -971,7 +961,7 @@ def status_command(
         # Local-specific fields
         else:
             typer.echo(f"- workspace: {payload.get('workspace')}")
-            typer.echo(f"- doctrine_mode: {payload.get('doctrine_mode')}")
+            typer.echo(f"- ownership_mode: {payload.get('ownership_mode')}")
             typer.echo(f"- db_path: {payload.get('db_path')}")
             typer.echo(f"- issue_count: {payload.get('issue_count')}")
             typer.echo(f"- mapping_count: {payload.get('mapping_count')}")

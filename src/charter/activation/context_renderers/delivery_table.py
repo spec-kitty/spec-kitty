@@ -1,7 +1,7 @@
 """The NodeKind delivery table -- which action-bundle slot each kind feeds.
 
 Every :class:`~charter.offering.drg.models.NodeKind` the DRG can resolve must have a
-recorded verdict: which :class:`_ActionDoctrineBundle` list (if any) it feeds,
+recorded verdict: which :class:`_ActionGovernanceBundle` list (if any) it feeds,
 and which reachability gate governs it. :func:`_classify_artifact_urns`
 partitions a resolved action's artifact URNs into that slot-keyed mapping,
 using :func:`action_bundle_bucket` / :func:`action_bundle_gate` as the total
@@ -23,7 +23,7 @@ Design notes
   surface delivers on this path. The ten still-excluded kinds each have a
   delivery home elsewhere or are not bundle artefacts.
 * Totality is enforced, not trusted: ``tests/charter/test_action_bundle_delivery.py``
-  and ``tests/doctrine/drg/test_unknown_kind_fails_loudly.py`` redden on any
+  and ``tests/charter_offering/drg/test_unknown_kind_fails_loudly.py`` redden on any
   ``NodeKind``-keyed dict that omits a member, and on a kind whose delivery
   row is missing raising anything other than the stated ``LookupError``.
 
@@ -32,7 +32,7 @@ WP04 (mission doctrine-delivery-activation): relocated verbatim from
 modules import these names directly from ``charter.activation.context``
 (``tests/charter/test_action_bundle_delivery.py``,
 ``tests/charter/test_context_display_charter_md.py``,
-``tests/doctrine/drg/test_unknown_kind_fails_loudly.py``) -- ``charter.activation.context``
+``tests/charter_offering/drg/test_unknown_kind_fails_loudly.py``) -- ``charter.activation.context``
 re-exports the full public surface (including ``_Gate``, accessed there as
 ``context._Gate``) so those import paths keep resolving unchanged.
 """
@@ -76,7 +76,7 @@ class _Gate(Enum):
 class _KindDelivery(NamedTuple):
     """One row of the NodeKind delivery table: the ``slot`` and ``gate`` columns.
 
-    ``slot`` is the :class:`_ActionDoctrineBundle` list the kind feeds (``None``
+    ``slot`` is the :class:`_ActionGovernanceBundle` list the kind feeds (``None``
     = not delivered, with a stated reason). ``gate`` is total over ``NodeKind``
     so ``TEMPLATE``'s exclusion carries a reason rather than being ASSET's
     untreated twin (B-1a).
@@ -137,7 +137,7 @@ _ACTION_BUNDLE_DELIVERY_BY_KIND: dict[NodeKind, _KindDelivery] = {
 #: without a reason reddens rather than passing as an unexplained blank. It is a
 #: documented, intentional partial (an audit sidecar, never read via ``[kind]``
 #: on a delivered kind); the totality guard exempts it in
-#: ``tests/doctrine/drg/test_kind_mapping_totality.py::_EXEMPT_GET_PARTIALS``.
+#: ``tests/charter_offering/drg/test_kind_mapping_totality.py::_EXEMPT_GET_PARTIALS``.
 _DELIVERY_REASON_BY_KIND: dict[NodeKind, str] = {
     NodeKind.PARADIGM: "delivered via the charter selection block, not the action bundle",
     NodeKind.AGENT_PROFILE: "delivered through the profile channel (FR-020), not the action bundle",
@@ -145,7 +145,7 @@ _DELIVERY_REASON_BY_KIND: dict[NodeKind, str] = {
     NodeKind.ANTI_PATTERN: (
         "validation-tier topology only (rejects edges) -- never a delivered bundle artefact"
     ),
-    NodeKind.TEMPLATE: "template-file selection (C-004), not a doctrine bundle artefact",
+    NodeKind.TEMPLATE: "template-file selection (C-004), not an action governance bundle artefact",
     NodeKind.SKILL: "a pack skill is rendered into project skill roots by the skill installer, not delivered in the action bundle",
     NodeKind.ACTION: "an action node is the resolution root, not a delivered artefact",
     NodeKind.MISSION_TYPE: "a mission-type node is graph structure, not a delivered artefact",
@@ -215,7 +215,7 @@ def _classify_artifact_urns(
 
     WP02 (Decision Record 2, FR-014): ``project_directives`` is three-state
     (``None`` / ``frozenset()`` / non-empty) at THIS boundary too, mirroring
-    :func:`~charter.activation.action_doctrine_bundle._load_action_doctrine_bundle`'s
+    :func:`~charter.activation.action_governance_bundle._load_action_governance_bundle`'s
     own three-state handling of its caller-facing fields. The production
     caller never passes ``None`` here -- it converts once, at assignment,
     before calling in -- but this function stays correct standing alone
@@ -271,7 +271,7 @@ def _classify_artifact_urns(
     # guard anywhere in this function (only project_directives does, below) --
     # these two lines are therefore defense-in-depth / a documented no-op
     # guard against a caller passing None, not load-bearing after WP02 (the
-    # real caller, _load_action_doctrine_bundle, converts None to a concrete
+    # real caller, _load_action_governance_bundle, converts None to a concrete
     # catalog-default set once, before calling in).
     selected_tactics = selected_tactics or set()
     selected_paradigms = selected_paradigms or set()

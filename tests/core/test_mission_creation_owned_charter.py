@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 from mission_runtime import MissionTopology
 from specify_cli.core.mission_creation import create_mission_core
 from specify_cli.core.owned_mission import resolve_owned_create_root
@@ -47,7 +47,7 @@ def test_owned_checkout_controls_charter_and_template(tmp_path, monkeypatch, own
         raise TemplateReached
 
     monkeypatch.setattr("specify_cli.runtime.resolver.resolve_configured_template", resolve_template)
-    expected = TemplateReached if owned_active else CharterPackConfigError
+    expected = TemplateReached if owned_active else ActiveCharterConfigError
     owned_create_root = resolve_owned_create_root(repository_root, owned)
     with pytest.raises(expected):
         create_mission_core(

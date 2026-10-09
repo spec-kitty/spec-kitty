@@ -53,7 +53,7 @@ _REPO_ROOT = _repo_root()
 _SEED_PATH: Path = _REPO_ROOT / ".kittify" / "glossaries" / "spec_kitty_core.yaml"
 _BUILT_IN_DIR: Path = _REPO_ROOT / "packs" / "built-in" / "glossary_packs"
 _PACK_ID = "spec-kitty-core"
-_DOCTRINE_MD_PATH: Path = _REPO_ROOT / "docs" / "context" / "charter.offering.md"
+_RETIRED_GLOSSARY_MD_PATH: Path = _REPO_ROOT / "docs" / "context" / "charter.offering.md"
 _CHARTER_MD_PATH: Path = _REPO_ROOT / "docs" / "context" / "charter.md"
 
 _RETIRED_GOVERNING_SURFACE = "doctrine"
@@ -81,7 +81,7 @@ def _load_seed_terms() -> list[dict[str, Any]]:
 
 
 def _slugify_heading(text: str) -> str:
-    """Mirror ``tests/doctrine/test_glossary_link_integrity.py``'s GitHub-compatible slugger."""
+    """Mirror ``tests/charter_offering/test_glossary_link_integrity.py``'s GitHub-compatible slugger."""
     heading = re.sub(r"\s+#+\s*$", "", text.strip())
     heading = heading.replace("`", "").lower()
     heading = re.sub(r"[^a-z0-9 _-]", "", heading)
@@ -135,7 +135,7 @@ def charter_md_headings() -> list[str]:
 
 def test_authority_3_file_moved_to_charter_md() -> None:
     """OC-40: ``docs/context/charter.offering.md`` is renamed to ``docs/context/charter.md``."""
-    assert not _DOCTRINE_MD_PATH.exists(), "docs/context/charter.offering.md must be git-mv'd to docs/context/charter.md (T003)"
+    assert not _RETIRED_GLOSSARY_MD_PATH.exists(), "docs/context/charter.offering.md must be git-mv'd to docs/context/charter.md (T003)"
     assert _CHARTER_MD_PATH.exists(), "docs/context/charter.md (glossary authority 3) does not exist yet (T003)"
 
 
@@ -267,7 +267,7 @@ def test_charter_canon_entry_covers_required_senses() -> None:
 # ---------------------------------------------------------------------------
 # Link closure: every relative link inside the new charter Canon section
 # resolves to a real anchor in charter.md (defense-in-depth alongside the
-# generic tests/doctrine/test_glossary_link_integrity.py sweep).
+# generic tests/charter_offering/test_glossary_link_integrity.py sweep).
 # ---------------------------------------------------------------------------
 
 _LINK_RE = re.compile(r"\[[^\]]+\]\(#([^)]+)\)")

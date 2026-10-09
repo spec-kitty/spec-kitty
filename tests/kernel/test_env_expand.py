@@ -2,7 +2,7 @@
 
 Covers C-EXP-1, C-EXP-2 from contracts/env-expander.md (WP01 T005).
 C-EXP-4 (org_pack_config delegation, byte-preserved fail-loud) is covered in
-tests/doctrine/test_org_pack_delegation.py. C-EXP-3 (get_packs_root_default)
+tests/charter_offering/test_org_pack_delegation.py. C-EXP-3 (get_packs_root_default)
 is covered in tests/kernel/test_packs_root_default.py. C-EXP-5 (no upward
 import) is covered in
 tests/architectural/test_kernel_env_expand_no_upward_import.py.

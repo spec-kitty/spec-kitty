@@ -22,17 +22,15 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
+from charter.activation.effective_set import resolve_effective_sets
+from charter.activation.kind_vocabulary import resolve_selected_id_to_stem
 from charter.activation.pack_context import PackContext
-from specify_cli.upgrade.migrations.m_unify_charter_activation import (
-    UnifyCharterActivationMigration,
-    load_default_pack_ids,
-    resolve_selected_id_to_stem,
-)
+from specify_cli.upgrade.migrations.m_unify_charter_activation import UnifyCharterActivationMigration
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # Real built-in artifacts used across fixtures (must exist in this repo's own
-# doctrine tree — resolve_doctrine_root() is never mocked in this file, it
+# doctrine tree — resolve_offering_root() is never mocked in this file, it
 # always resolves the real packaged/dev doctrine content, matching the WP01
 # test style).
 _DIRECTIVE_010_STEM = "010-specification-fidelity-requirement"
@@ -232,21 +230,22 @@ def test_apply_reports_unresolved_id_without_failing(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# LAND-BLOCKER — absent-key built-in preservation at the real call site
+# FR-015 / #4400 — absent-key preservation and fail-closed at the real call site
 # ---------------------------------------------------------------------------
 
 
-def test_apply_absent_key_preserves_real_builtins_not_bare_list(tmp_path: Path) -> None:
-    """Reviewer caveat: promoting into an absent activated_directives key must
-    materialize the REAL shipped built-in set (from packs/default.yaml via
-    load_default_pack_ids()), not just the newly-promoted answers-only id.
+def test_apply_absent_key_preserves_the_effective_set_not_bare_list(tmp_path: Path) -> None:
+    """Promoting into an absent activated_directives key must seed everything
+    effective while the key was absent, not just the newly-promoted id.
 
-    Regression guard for the exact WP06 LAND-BLOCKER, exercised through this
-    migration's real call site (not the primitive in isolation).
+    Exercised through this migration's real call site (not the primitive in
+    isolation); the oracle is the effective-set seam read before the run.
     """
     # No 'activated_directives' key at all in config.yaml (absent-key state).
     _write(_kittify_config(tmp_path), "vcs:\n  type: git\n")
     _write(_answers_path(tmp_path), f"selected_directives:\n  - {_DIRECTIVE_010_CANONICAL}\n")
+    effective_before = resolve_effective_sets(tmp_path, ["activated_directives"])["activated_directives"]
+    assert effective_before.resolved and len(effective_before.ids) > 1, "control: a narrowing is observable"
 
     m = UnifyCharterActivationMigration()
     result = m.apply(tmp_path)
@@ -255,165 +254,117 @@ def test_apply_absent_key_preserves_real_builtins_not_bare_list(tmp_path: Path) 
     data = _load(_kittify_config(tmp_path))
     committed = data["activated_directives"]
 
-    real_builtins = load_default_pack_ids().get("activated_directives", [])
-    assert real_builtins, "sanity: packs/default.yaml must ship a non-empty built-in directive set"
-    assert committed != [_DIRECTIVE_010_STEM], (
-        "must not collapse to a bare list containing only the promoted id"
-    )
-    assert set(real_builtins).issubset(set(committed))
+    assert committed != [_DIRECTIVE_010_STEM], "must not collapse to a bare list containing only the promoted id"
+    assert effective_before.ids <= set(committed)
     assert _DIRECTIVE_010_STEM in committed
 
-    # Cross-check via the real three-state resolver (PackContext), matching
-    # the WP06 primitive test's own regression style.
+    # Cross-check via the real three-state resolver (PackContext).
     ctx = PackContext.from_config(tmp_path)
     assert ctx.activated_directives is not None
-    for builtin_id in real_builtins:
-        assert builtin_id in ctx.activated_directives
+    assert effective_before.ids <= set(ctx.activated_directives)
     assert _DIRECTIVE_010_STEM in ctx.activated_directives
 
 
+def test_apply_unresolvable_effective_set_leaves_key_absent_and_warns(tmp_path: Path) -> None:
+    """US5 AS-2: a declared org pack that does not exist makes the set unresolvable."""
+    _write(
+        _kittify_config(tmp_path),
+        "vcs:\n  type: git\ncharter_packs:\n  org:\n    packs:\n      - name: gone\n        local_path: org-packs/does-not-exist\n",
+    )
+    _write(_answers_path(tmp_path), f"selected_directives:\n  - {_DIRECTIVE_010_CANONICAL}\n")
+
+    result = UnifyCharterActivationMigration().apply(tmp_path)
+
+    assert result.success is True
+    assert "activated_directives" not in _load(_kittify_config(tmp_path))
+    assert any("activated_directives" in warning and "does-not-exist" in warning for warning in result.warnings), result.warnings
+
+
+def test_dry_run_reports_keys_it_would_leave_absent(tmp_path: Path) -> None:
+    """The preview matches a real run: an unresolvable absent key is listed as left absent, not promoted."""
+    config_path = _kittify_config(tmp_path)
+    _write(
+        config_path,
+        "vcs:\n  type: git\ncharter_packs:\n  org:\n    packs:\n      - name: gone\n        local_path: org-packs/does-not-exist\n",
+    )
+    _write(_answers_path(tmp_path), f"selected_directives:\n  - {_DIRECTIVE_010_CANONICAL}\n")
+    before = config_path.read_bytes()
+
+    result = UnifyCharterActivationMigration().apply(tmp_path, dry_run=True)
+
+    assert result.success is True
+    assert config_path.read_bytes() == before
+    assert result.changes_made == ["dry-run: nothing would be promoted"]
+    assert any(w.startswith("dry-run: activated_directives was left absent") and "does-not-exist" in w for w in result.warnings), result.warnings
+
+
+def test_dry_run_lists_promotions_of_resolved_keys(tmp_path: Path) -> None:
+    _write(_kittify_config(tmp_path), "activated_directives:\n  - 001-architectural-integrity-standard\n")
+    _write(_answers_path(tmp_path), f"selected_directives:\n  - {_DIRECTIVE_010_CANONICAL}\n")
+
+    result = UnifyCharterActivationMigration().apply(tmp_path, dry_run=True)
+
+    assert len(result.changes_made) == 1 and result.changes_made[0].startswith("dry-run: would promote")
+    assert "activated_directives" in result.changes_made[0]
+    assert not result.warnings
+
+
 # ---------------------------------------------------------------------------
-# resolve_selected_id_to_stem / load_default_pack_ids — unit coverage
+# resolve_selected_id_to_stem — unit coverage
 # ---------------------------------------------------------------------------
 
 
 def test_resolve_selected_id_to_stem_already_stem() -> None:
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
     from charter.offering.artifact_kinds import ArtifactKind
 
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     stem = resolve_selected_id_to_stem(
-        ArtifactKind.DIRECTIVE, _DIRECTIVE_010_STEM, doctrine_root=doctrine_root
+        ArtifactKind.DIRECTIVE, _DIRECTIVE_010_STEM, offering_root=offering_root
     )
     assert stem == _DIRECTIVE_010_STEM
 
 
 def test_resolve_selected_id_to_stem_canonical_form() -> None:
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
     from charter.offering.artifact_kinds import ArtifactKind
 
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     stem = resolve_selected_id_to_stem(
-        ArtifactKind.DIRECTIVE, _DIRECTIVE_010_CANONICAL, doctrine_root=doctrine_root
+        ArtifactKind.DIRECTIVE, _DIRECTIVE_010_CANONICAL, offering_root=offering_root
     )
     assert stem == _DIRECTIVE_010_STEM
 
 
 def test_resolve_selected_id_to_stem_unresolvable_returns_none() -> None:
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
     from charter.offering.artifact_kinds import ArtifactKind
 
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     stem = resolve_selected_id_to_stem(
-        ArtifactKind.DIRECTIVE, _MALFORMED_ID, doctrine_root=doctrine_root
+        ArtifactKind.DIRECTIVE, _MALFORMED_ID, offering_root=offering_root
     )
     assert stem is None
 
 
-def test_load_default_pack_ids_matches_shipped_default_yaml() -> None:
-    ids = load_default_pack_ids()
-    assert "activated_directives" in ids
-    assert _DIRECTIVE_010_STEM in ids["activated_directives"]
-    assert "activated_paradigms" in ids
-    assert _PARADIGM_DDD in ids["activated_paradigms"]
-
-
-# ---------------------------------------------------------------------------
-# charter.activation.default_pack.load_default_pack_activation_ids — shared-loader
-# coverage (squad finding #2530: org_charter.py's ``_load_default_pack_ids``
-# and this migration's ``load_default_pack_ids`` were near-identical
-# independent readers of the same ``src/charter/activation/packs/default.yaml`` file;
-# both now delegate to this one canonical charter-layer helper).
-# ---------------------------------------------------------------------------
-
-
-def test_load_default_pack_ids_is_a_pure_reexport_of_shared_helper() -> None:
-    """This migration's public ``load_default_pack_ids`` name is kept for
-    backward compatibility (``interview.py`` and this file both import it
-    from here) but must carry no independent implementation — it must
-    delegate to the shared ``charter.activation.default_pack`` loader verbatim."""
-    from charter.activation.default_pack import load_default_pack_activation_ids
-
-    assert load_default_pack_ids() == load_default_pack_activation_ids()
-
-
-def test_load_default_pack_activation_ids_returns_real_per_kind_builtin_stems() -> None:
-    """The shared helper returns the real per-kind built-in stem sets from
-    the shipped ``src/charter/activation/packs/default.yaml`` — every one of the 8
-    charter activation kinds ships a non-empty built-in set, and spot-checked
-    ids are the config-stem form (not the canonical ``id:`` form)."""
-    from charter.activation.default_pack import load_default_pack_activation_ids
-
-    ids = load_default_pack_activation_ids()
-
-    for kind_key in (
-        "activated_directives",
-        "activated_tactics",
-        "activated_styleguides",
-        "activated_toolguides",
-        "activated_paradigms",
-        "activated_procedures",
-        "activated_agent_profiles",
-        "activated_mission_step_contracts",
-    ):
-        assert kind_key in ids and ids[kind_key], (
-            f"shipped default.yaml must ship a non-empty built-in set for {kind_key}"
-        )
-
-    assert _DIRECTIVE_010_STEM in ids["activated_directives"]
-    assert _DIRECTIVE_010_CANONICAL not in ids["activated_directives"], (
-        "default.yaml ships config-stem ids, not canonical id: form"
-    )
-    assert _PARADIGM_DDD in ids["activated_paradigms"]
-
-
-def test_load_default_pack_activation_ids_missing_file_returns_empty(tmp_path: Path) -> None:
-    """An absent ``packs/default.yaml`` under the supplied root degrades to
-    ``{}`` rather than raising -- callers treat that as "no real default
-    available" (see the WP06 absent-key LAND-BLOCKER note)."""
-    from charter.activation.default_pack import load_default_pack_activation_ids
-
-    assert load_default_pack_activation_ids(charter_pkg_root=tmp_path) == {}
-
-
-def test_load_default_pack_activation_ids_filters_non_list_values(tmp_path: Path) -> None:
-    """Only list-valued top-level keys are returned -- a scalar/mapping key
-    (e.g. a future ``schema_version:`` entry) is silently excluded rather
-    than raising, matching the pre-dedup behaviour of both original readers."""
-    from charter.activation.default_pack import load_default_pack_activation_ids
-
-    packs_dir = tmp_path / "packs"
-    packs_dir.mkdir(parents=True)
-    (packs_dir / "default.yaml").write_text(
-        "schema_version: 1\n"
-        "activated_directives:\n"
-        "  - 001-architectural-integrity-standard\n",
-        encoding="utf-8",
-    )
-
-    ids = load_default_pack_activation_ids(charter_pkg_root=tmp_path)
-
-    assert ids == {"activated_directives": ["001-architectural-integrity-standard"]}
-
-
 def test_ambiguous_answer_is_reported_without_dropping_resolvable_sibling(monkeypatch: pytest.MonkeyPatch) -> None:
-    from charter.activation.catalog import resolve_doctrine_root
+    from charter.activation.catalog import resolve_offering_root
     from charter.activation.kind_vocabulary import ArtifactKind, UnrepresentableDirectiveIdError
     from specify_cli.upgrade.migrations import m_unify_charter_activation as migration
 
     original = migration.resolve_selected_id_to_stem
 
-    def resolve_with_ambiguity(kind: ArtifactKind, raw_id: str, *, doctrine_root: Path) -> str | None:
+    def resolve_with_ambiguity(kind: ArtifactKind, raw_id: str, *, offering_root: Path) -> str | None:
         if raw_id == "AMBIGUOUS-POLICY":
             raise UnrepresentableDirectiveIdError("Ambiguous policy filename")
-        return original(kind, raw_id, doctrine_root=doctrine_root)
+        return original(kind, raw_id, offering_root=offering_root)
 
     monkeypatch.setattr(migration, "resolve_selected_id_to_stem", resolve_with_ambiguity)
     stems, unresolved = migration._answers_only_ids_for_kind(
         ArtifactKind.DIRECTIVE,
         answers_data={"selected_directives": ["AMBIGUOUS-POLICY", _DIRECTIVE_010_CANONICAL]},
         config_data={"activated_directives": []},
-        doctrine_root=resolve_doctrine_root(),
+        offering_root=resolve_offering_root(),
     )
     assert stems == [_DIRECTIVE_010_STEM]
     assert unresolved == ["AMBIGUOUS-POLICY"]

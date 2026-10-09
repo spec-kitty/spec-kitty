@@ -1,0 +1,19 @@
+adapter_id: fixture
+adapter_notes: fixture:72e0d2357538
+adapter_version: 1.0.0
+artifact_content_hash: 
+  0b6762e6a6fca528617ce40d620b8356d1d30214c2e006316181ddc56a06a284
+artifact_kind: directive
+artifact_slug: neutrality-posture-directive
+artifact_urn: directive:PROJECT_002
+corpus_snapshot_id: (none)
+evidence_bundle_hash:
+generated_at: '2026-01-01T00:32:07.336501+00:00'
+inputs_hash: 72e0d2357538e93df074d31dc36a0e8b327874ef8018fb56f528b92f158fac8a
+produced_at: '2026-10-06T22:00:18.009588+00:00'
+schema_version: '2'
+source_input_ids: []
+source_section: neutrality_posture
+source_urns: []
+synthesis_run_id: 01KPE222CD1MMCYEGB3ZCY51VR
+synthesizer_version: 4.0.0rc6

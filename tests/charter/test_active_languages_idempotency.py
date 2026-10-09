@@ -4,7 +4,7 @@ Root cause (verified, see ``charter.activation.language_scope.infer_repo_languag
 ``charter.activation.compiler.compile_charter`` docstrings for the full contract):
 ``compile_charter`` used to independently re-scan the interview text on every
 compile and unconditionally stamp the (possibly empty) result into
-``catalog.languages``. ``charter.activation.doctrine_service_builder``'s language gate
+``catalog.languages``. ``charter.activation.active_charter_service_builder``'s language gate
 (via ``infer_repo_languages``) then read that persisted empty list back as
 authoritative "admit none" on the *next* run -- even though the compile that
 produced it had no real language signal at all. A fresh repo's first

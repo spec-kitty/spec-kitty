@@ -2,12 +2,12 @@
 
 Proves the wiring between the `charter interview` command and
 ``charter.activation.activation_engine.promote_activations`` (via
-``m_unify_charter_activation.resolve_selected_id_to_stem`` /
-``load_default_pack_ids``) — the captured `selected_paradigms` /
-`selected_directives` must be append-promoted into
+``charter.activation.kind_vocabulary.resolve_selected_id_to_stem`` and the
+effective-set seam ``charter.activation.effective_set``) — the captured
+`selected_paradigms` / `selected_directives` must be append-promoted into
 ``.kittify/config.yaml``'s ``activated_*`` keys after every interview run,
-without dropping any pre-existing built-in when the key was previously
-absent (the WP06 LAND-BLOCKER, exercised here at the live CLI call site).
+without dropping anything that was effective while the key was absent
+(FR-015 / #4400, exercised here at the live CLI call site).
 """
 
 from __future__ import annotations
@@ -20,13 +20,13 @@ from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import app as charter_app
-from specify_cli.upgrade.migrations.m_unify_charter_activation import load_default_pack_ids
+from charter.activation.effective_set import resolve_effective_sets
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 runner = CliRunner()
 
-# Real built-in artifacts (this module never mocks resolve_doctrine_root()).
+# Real built-in artifacts (this module never mocks resolve_offering_root()).
 _DIRECTIVE_010_STEM = "010-specification-fidelity-requirement"
 _DIRECTIVE_010_CANONICAL = "DIRECTIVE_010"
 _PARADIGM_DDD = "domain-driven-design"
@@ -58,8 +58,8 @@ def test_interview_promotes_selections_preserving_builtins_on_absent_key(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """No pre-existing config.yaml (absent-key state): promotion must union in
-    the real built-in directive/paradigm set, not just the newly-selected ids.
+    """No pre-existing config.yaml (absent-key state): promotion must seed the
+    effective directive/paradigm set, not just the newly-selected ids.
     """
     _git_init(tmp_path)
     # Hermetic against a stray ``.kittify`` marker anywhere above ``tmp_path``
@@ -70,6 +70,10 @@ def test_interview_promotes_selections_preserving_builtins_on_absent_key(
     # promoted config.yaml would land there instead of under tmp_path.
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     monkeypatch.chdir(tmp_path)
+    effective = resolve_effective_sets(tmp_path, ["activated_directives", "activated_paradigms"])
+    effective_directives = effective["activated_directives"].ids
+    effective_paradigms = effective["activated_paradigms"].ids
+    assert len(effective_directives) > 1 and len(effective_paradigms) > 1, "control: a narrowing is observable"
     result = runner.invoke(
         charter_app,
         [
@@ -84,9 +88,6 @@ def test_interview_promotes_selections_preserving_builtins_on_absent_key(
     assert result.exit_code == 0, f"interview failed: stdout={result.stdout!r}"
 
     config = _read_config(tmp_path)
-    real_builtin_directives = load_default_pack_ids().get("activated_directives", [])
-    real_builtin_paradigms = load_default_pack_ids().get("activated_paradigms", [])
-    assert real_builtin_directives and real_builtin_paradigms
 
     committed_directives = config["activated_directives"]
     committed_paradigms = config["activated_paradigms"]
@@ -94,9 +95,9 @@ def test_interview_promotes_selections_preserving_builtins_on_absent_key(
     # Selected ids present.
     assert _DIRECTIVE_010_STEM in committed_directives
     assert _PARADIGM_DDD in committed_paradigms
-    # Built-ins NOT dropped (the absent-key LAND-BLOCKER, at this call site).
-    assert set(real_builtin_directives).issubset(set(committed_directives))
-    assert set(real_builtin_paradigms).issubset(set(committed_paradigms))
+    # Nothing effective before is dropped (FR-015, at this call site).
+    assert effective_directives <= set(committed_directives)
+    assert effective_paradigms <= set(committed_paradigms)
 
 
 def test_interview_normalizes_canonical_form_directive_id(

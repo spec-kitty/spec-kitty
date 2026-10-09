@@ -91,7 +91,7 @@ def _clear_builtin_mission_type_ids_cache() -> Iterator[None]:
     """Reset the process-wide ``functools.cache`` before and after each test.
 
     Mirrors the C-010 seam fixture in
-    ``tests/doctrine/missions/test_builtin_mission_type_ids.py`` — a
+    ``tests/charter_offering/missions/test_builtin_mission_type_ids.py`` — a
     monkeypatched root must not leak a cached value into another test
     (including other modules under ``-n auto``).
     """

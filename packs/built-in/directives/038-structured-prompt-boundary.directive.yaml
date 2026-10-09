@@ -2,21 +2,21 @@ schema_version: "1.0"
 id: DIRECTIVE_038
 title: Structured Prompt Change-Boundary
 intent: >
-  When the SPDD/REASONS doctrine pack is active, an implementation must remain
+  When the SPDD/REASONS artifacts are active, an implementation must remain
   inside the approved canvas's Requirements, Operations, Norms, and Safeguards
   unless a deviation is explicitly recorded. Applies to implement and review
-  actions on projects whose charter selection includes the SPDD paradigm,
+  actions on projects whose active charter includes the SPDD paradigm,
   either REASONS canvas tactic, or this directive.
 enforcement: lenient-adherence
 scope: >
-  Applies to implement and review actions on missions whose project charter
-  selection includes paradigm structured-prompt-driven-development, tactic
+  Applies to implement and review actions on missions whose project active
+  charter includes paradigm structured-prompt-driven-development, tactic
   reasons-canvas-fill, tactic reasons-canvas-review, or directive DIRECTIVE_038.
   Does not apply to projects that have not opted in via charter.
 explicit_allowances:
   - Documented approved deviation captured in kitty-specs/<mission>/reasons-canvas.md "Deviations" subsection.
   - Glossary update follow-up that resolves a terminology conflict surfaced by review.
-  - Charter follow-up that revises the active doctrine selection.
+  - Charter follow-up that revises the active charter.
   - Follow-up mission that addresses out-of-bounds work as a separate deliverable.
 references:
   - type: paradigm

@@ -16,7 +16,7 @@ duplicate), then removes the ``context-sources`` block. Bare-string
 (no ``NodeKind``), so they are dropped with a logged note rather than
 silently vanished. The data-moving branch (ids present in ``context-sources``
 but absent from ``*-references``) is exercised by
-``tests/doctrine/agent_profiles/test_context_sources_migration.py`` — the 25
+``tests/charter_offering/agent_profiles/test_context_sources_migration.py`` — the 25
 shipped profiles already duplicate every id onto ``*-references`` (the migration
 is deletion-only for them), so a divergent user-profile fixture is the only
 falsifiable witness of the merge.

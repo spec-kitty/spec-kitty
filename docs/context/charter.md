@@ -293,7 +293,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | Charter-level list of `(activation_context, doctrine_pack_id, artifact_id)` tuples expressing which doctrine artifacts activate in which contexts. Lives on the charter (not on the artifact) so different projects can activate the same shared artifact in different contexts without forking it. Both project charter and org charter may declare entries; org-declared entries propagate to consumers via the standard org-charter pre-fill. |
+| **Definition** | Charter-level list of `(activation_context, charter_pack_id, artifact_id)` tuples expressing which doctrine artifacts activate in which contexts. Lives on the charter (not on the artifact) so different projects can activate the same shared artifact in different contexts without forking it. Both project charter and org charter may declare entries; org-declared entries propagate to consumers via the standard org-charter pre-fill. |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
@@ -700,7 +700,7 @@ flip; see mission `retire-doctrine-term-01M0JMK9`).
 
 | | |
 |---|---|
-| **Definition** | A doctrine artifact ID referenced by a charter selection (e.g. `selected_directives: [foo]`) that does not resolve to any known artifact in the shipped pack, any configured org pack, or the project-layer doctrine tree. Catalog misses are reported as errors by `spec-kitty doctor doctrine` and by the `test_no_dead_symbols.py` gate when the referencing code reaches into the doctrine catalog. |
+| **Definition** | A doctrine artifact ID referenced by a charter selection (e.g. `selected_directives: [foo]`) that does not resolve to any known artifact in the shipped pack, any configured org pack, or the project-layer doctrine tree. Catalog misses are reported as errors by `spec-kitty doctor charter-packs` and by the `test_no_dead_symbols.py` gate when the referencing code reaches into the doctrine catalog. |
 | **Context** | Doctrine |
 | **Status** | canonical |
 | **Applicable to** | `2.x` |

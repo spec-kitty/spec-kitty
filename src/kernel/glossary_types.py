@@ -1,9 +1,9 @@
 """Glossary primitive types.
 
-Zero external dependencies — stdlib only. Consumed by doctrine, charter,
-and specify_cli. Lives in kernel so the dependency direction stays clean:
+Zero external dependencies — stdlib only. Consumed by charter (including
+charter.offering) and specify_cli. Lives in kernel so the dependency direction
+stays clean:
 
-    kernel  <-  doctrine
     kernel  <-  charter
     kernel  <-  specify_cli
 """

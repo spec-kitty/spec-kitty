@@ -115,7 +115,7 @@ Parse frontmatter for:
 ### 2a. Load Agent Profile
 
 Before proceeding with the review, load the agent profile from the WP frontmatter
-using the `/ad-hoc-profile-load` skill (or `spec-kitty agent profile list` to browse
+using the `/spk-charter-profile-load` skill (or `spec-kitty agent profile list` to browse
 available profiles). Apply the profile's reviewer guidance and self-review gates for
 the rest of this review session.
 
@@ -128,11 +128,11 @@ implementer profile anyway and note the oversight in your review comments.
 
 ### REASONS Canvas Comparison (active for this project)
 
-This project's charter selected the SPDD/REASONS doctrine pack. Use the
+This project's active charter includes the SPDD/REASONS artifacts. Use the
 mission's REASONS canvas as a comparison surface for this work package.
 
 **1. Load the canvas.** Read `kitty-specs/<mission>/reasons-canvas.md`. If it
-is missing, invoke the `spec-kitty-spdd-reasons` skill to author it before
+is missing, invoke the `spk-charter-spdd-reasons` skill to author it before
 completing review. Do not auto-approve in the absence of a canvas.
 
 **2. Trace the diff.**
@@ -152,7 +152,7 @@ completing review. Do not auto-approve in the absence of a canvas.
 | approved_with_deviation | Divergence is acceptable; reviewer adds a Deviations entry. | APPROVE + canvas update |
 | canvas_update_needed | Code reality reveals the canvas was wrong. | APPROVE conditionally; open canvas update task |
 | glossary_update_needed | Term drift surfaced. | APPROVE conditionally; open glossary update task |
-| charter_follow_up | Charter selection should change. | APPROVE conditionally; open charter follow-up |
+| charter_follow_up | The active charter should change. | APPROVE conditionally; open charter follow-up |
 | follow_up_mission | Out-of-scope work surfaced. | APPROVE current scope; open follow-up mission |
 | scope_drift_block | Out-of-bounds undocumented work. | REJECT |
 | safeguard_violation_block | Safeguard rule violated. | REJECT |
@@ -312,7 +312,7 @@ implementer profile so the next implementation cycle starts with the right conte
    A rejection must carry its rationale (`--review-feedback-file`); a rejection without
    one is accepted locally but never propagates to the team (see `move-task --help`).
 
-The implementing agent will then load the correct profile via `/ad-hoc-profile-load`
+The implementing agent will then load the correct profile via `/spk-charter-profile-load`
 and resume work with the proper agent profile and self-review gates.
 
 **Next step**: `spec-kitty next --agent <name>` will advance to the next phase.

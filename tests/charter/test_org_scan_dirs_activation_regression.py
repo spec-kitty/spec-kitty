@@ -105,8 +105,8 @@ def _activate_stem(
     This is the "equivalent programmatic ``plan_activation``/``commit_activation``
     call" T001 step 5 names as an alternative to driving the ``charter activate``
     CLI end-to-end: it exercises the same single-write activation seam
-    ``CharterPackManager.activate`` (``pack_manager.py``) delegates to, without
-    needing a full ``ProjectContext``. ``CharterPackManager.activate``'s own
+    ``ActiveCharterManager.activate`` (``pack_manager.py``) delegates to, without
+    needing a full ``ProjectContext``. ``ActiveCharterManager.activate``'s own
     artifact-availability check (``_resolve_org_layer_dir``) is an independent
     resolution path already unaffected by this mission's ``_org_scan_dirs`` fix
     (it already tolerates the flat layout) -- a successful ``charter activate``
@@ -144,8 +144,8 @@ def _pack_context(
     """Build the ``PackContext`` reflecting a committed activation state.
 
     ``pack_roots[0]`` is a deliberately unused placeholder -- the resolution
-    gate sources the built-in ``doctrine_root`` from
-    ``charter.activation.catalog.resolve_doctrine_root()``, never ``pack_roots[0]``
+    gate sources the built-in ``offering_root`` from
+    ``charter.activation.catalog.resolve_offering_root()``, never ``pack_roots[0]``
     (research.md D2 install-layout guard, see
     ``charter.drg._resolve_activated_urns_by_kind``'s own docstring); only
     ``PackContext.org_roots`` (``pack_roots[1:]``) is consumed here.

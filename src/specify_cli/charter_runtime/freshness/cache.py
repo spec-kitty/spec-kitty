@@ -150,7 +150,7 @@ def _hash_file_content(path: Path) -> str | None:
 def compute_cache_key(repo_root: Path) -> str | None:
     """Compute the composite ``FreshnessCacheKey`` over the THREE inputs
     ``computer._compute_synthesized_drg`` reads: the charter bundle, the
-    synthesized-DRG graph file (via ``computer._doctrine_graph_path``), and
+    synthesized-DRG graph file (via ``computer._project_pack_graph_path``), and
     the synthesis manifest (via ``computer._synthesis_manifest_path``).
 
     Returns ``None`` (fail-closed) when ANY of the three cannot be computed
@@ -168,7 +168,7 @@ def compute_cache_key(repo_root: Path) -> str | None:
         return None
 
     # Sibling module within charter_runtime/freshness/ — see module docstring.
-    graph_hash = _hash_file_content(_computer._doctrine_graph_path(repo_root))
+    graph_hash = _hash_file_content(_computer._project_pack_graph_path(repo_root))
     if graph_hash is None:
         return None
 

@@ -35,7 +35,7 @@ Designer Dagmar translates user needs and product requirements into wireframes, 
 Inside Claude Code, Codex, or another configured harness, you don't run a CLI command to attach this profile to your session. Instead:
 
 - **Let routing pick it**: describe what you need in natural language (for example, "design a wireframe for the settings screen" or "audit this page for accessibility") and `spec-kitty dispatch` routes the request to the matching profile automatically.
-- **Ask for it by name**: if your harness supports ad-hoc profile loading, request Designer Dagmar explicitly — see the `ad-hoc-profile-load` skill for the mechanic.
+- **Ask for it by name**: if your harness supports ad-hoc profile loading, request Designer Dagmar explicitly — see the `spk-charter-profile-load` skill for the mechanic.
 
 ## See also
 

@@ -14,10 +14,10 @@ Mirrors the discovery pattern in
 The :func:`test_skill_docs_profile_subcommands_are_registered` guard (FR-018)
 additionally scans shipped skill docs for ``spec-kitty agent profile <sub>``
 tokens and asserts every ``<sub>`` is a registered command on the ``profile``
-Typer app. This locks the ``ad-hoc-profile-load`` skill against re-introducing
+Typer app. This locks the ``spk-charter-profile-load`` skill against re-introducing
 references to non-existent profile subcommands (FR-017).
 
-The :func:`test_doctrine_source_snippets_are_registered` guard (FR-011/FR-012)
+The :func:`test_offering_source_snippets_are_registered` guard (FR-011/FR-012)
 scans all ``spec-kitty …`` command snippets inside bash fences in the doctrine
 SOURCE (``src/charter/offering/skills/**/*.md``,
 ``src/charter/offering/missions/mission-steps/**/*.md``) and asserts every extracted
@@ -218,11 +218,12 @@ def test_retired_check_residual_option_is_absent(reference_text: str) -> None:
 # ---------------------------------------------------------------------------
 
 #: Shipped skill docs that name ``spec-kitty agent profile <sub>`` commands.
-#: At minimum the ad-hoc-profile-load SKILL.md (the source template — generated
+#: At minimum the spk-charter-profile-load SKILL.md and its mechanics reference (the source template — generated
 #: agent copies under ``.claude/`` etc. propagate from it on upgrade, so they
 #: are intentionally out of scope here per C-006).
 _SKILL_DOCS = (
-    _REPO_ROOT / "src" / "charter" / "offering" / "skills" / "ad-hoc-profile-load" / "SKILL.md",
+    _REPO_ROOT / "src" / "charter" / "offering" / "skills" / "spk-charter-profile-load" / "SKILL.md",
+    _REPO_ROOT / "src" / "charter" / "offering" / "skills" / "spk-charter-profile-load" / "references" / "profile-load-mechanics.md",
 )
 
 #: Match ``spec-kitty agent profile <sub>`` where ``<sub>`` is a command token
@@ -258,8 +259,7 @@ def test_skill_docs_profile_subcommands_are_registered() -> None:
     orphans: list[tuple[str, str]] = []
     scanned_any = False
     for doc in _SKILL_DOCS:
-        if not doc.exists():
-            continue
+        assert doc.is_file(), f"skill doc missing: {doc.relative_to(_REPO_ROOT)}"
         scanned_any = True
         text = doc.read_text(encoding="utf-8")
         for match in _PROFILE_CMD_RE.finditer(text):
@@ -288,7 +288,7 @@ def test_skill_docs_profile_subcommands_are_registered() -> None:
 #: ``.claude/``, ``.amazonq/``, etc. are intentionally excluded — they
 #: propagate from SOURCE on ``spec-kitty upgrade`` and must not be separately
 #: maintained.
-_DOCTRINE_SOURCE_GLOBS: tuple[str, ...] = (
+_OFFERING_SOURCE_GLOBS: tuple[str, ...] = (
     "src/charter/offering/skills/**/*.md",
     "src/charter/offering/missions/mission-steps/**/*.md",
 )
@@ -362,14 +362,14 @@ def _extract_command_path(line: str) -> tuple[str, ...] | None:
     return tuple(path)
 
 
-def _doctrine_source_snippets(
+def _offering_source_snippets(
     repo_root: Path,
 ) -> Iterator[tuple[str, tuple[str, ...], str]]:
     """Yield ``(relative_path, command_path, original_line)`` for every
     ``spec-kitty …`` invocation found inside a bash fence in the doctrine
     SOURCE files.
     """
-    for glob_pat in _DOCTRINE_SOURCE_GLOBS:
+    for glob_pat in _OFFERING_SOURCE_GLOBS:
         for filepath in sorted(repo_root.glob(glob_pat)):
             text = filepath.read_text(encoding="utf-8")
             rel = str(filepath.relative_to(repo_root))
@@ -424,7 +424,7 @@ def _is_registered_path(
     return False
 
 
-def test_doctrine_source_snippets_are_registered() -> None:
+def test_offering_source_snippets_are_registered() -> None:
     """Every ``spec-kitty …`` snippet in doctrine SOURCE bash fences must name
     a registered Typer command path.
 
@@ -450,7 +450,7 @@ def test_doctrine_source_snippets_are_registered() -> None:
     registered_commands: set[tuple[str, ...]] = {e.path for e in entries if e.kind == "command"}
 
     failures: list[tuple[str, tuple[str, ...], str]] = []
-    for rel, path, raw_line in _doctrine_source_snippets(_REPO_ROOT):
+    for rel, path, raw_line in _offering_source_snippets(_REPO_ROOT):
         if (rel, path) in _SNIPPET_DRIFT_ALLOWLIST:
             continue
         if not _is_registered_path(path, registered, registered_commands):

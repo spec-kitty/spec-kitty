@@ -60,11 +60,11 @@ class NodeKind(StrEnum):
     # -- Retiring runtime glossary-term nodes (deleted in Mission C) ---------
     # ``GLOSSARY_SCOPE`` and ``GLOSSARY`` are the *runtime* glossary-term node
     # kinds. They are slated for deletion in Mission C; keep them fenced off
-    # from the doctrine-owned kind below so that deletion is a clean, isolated
+    # from the offering-owned kind below so that deletion is a clean, isolated
     # excision and does not disturb ``GLOSSARY_PACK``.
     GLOSSARY_SCOPE = "glossary_scope"
     GLOSSARY = "glossary"           # URN prefix: "glossary:<id>"
-    # -- Doctrine-owned node (keep) -----------------------------------------
+    # -- Offering-owned node (keep) -----------------------------------------
     # ``GLOSSARY_PACK`` is a first-order, charter-activatable doctrine kind
     # addressed by the underscore URN ``glossary_pack:<id>``. It is NOT part of
     # the retiring runtime term nodes above and survives Mission C.
@@ -151,7 +151,7 @@ class Relation(StrEnum):
 #: Canonical relation-description registry (single authority, FR-012/A2).
 #: Covers all 15 ``Relation`` members (FR-005/FR-007, mission
 #: ``drg-relation-parity-activation-gate-01KY48PD``); completeness is
-#: enforced by ``tests/doctrine/drg/test_models.py``. This is the ONE seam
+#: enforced by ``tests/charter_offering/drg/test_models.py``. This is the ONE seam
 #: that both a future ``describe(relation)`` call site and the doc-parity
 #: check (``docs/architecture/doctrine-relationships.md``) read from -- do
 #: not duplicate this mapping anywhere else.

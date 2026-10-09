@@ -205,7 +205,7 @@ def build_operational_context(
 
     This is a **pure assembler**: it packages the values its caller passes and
     nothing else.  It does NOT read runtime, global, or environment state, and
-    it does NOT import ``specify_cli`` or ``doctrine`` runtime.  Callers are
+    it does NOT import ``specify_cli`` or ``charter.offering`` runtime.  Callers are
     responsible for resolving the runtime facts (which model, profile, role,
     activity, and tech stack are active) and passing them in as data — this is
     what keeps the ``charter.*`` layer free of upward dependencies (C-006).

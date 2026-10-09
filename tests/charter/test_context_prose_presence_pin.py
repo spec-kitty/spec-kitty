@@ -157,7 +157,7 @@ def _build(tmp_path: Path) -> CharterContextResult:
     with (
         patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=sync_result),
         patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.activation.catalog.resolve_doctrine_root", return_value=tmp_path),
+        patch("charter.activation.catalog.resolve_offering_root", return_value=tmp_path),
         patch("charter.offering.drg.validator.assert_valid"),
     ):
         return build_charter_context(tmp_path, action="implement", depth=2, mission_type="software-dev")

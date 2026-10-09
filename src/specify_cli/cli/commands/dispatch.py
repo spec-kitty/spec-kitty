@@ -83,9 +83,9 @@ def _render_empty_charter_warning(payload: InvocationPayload) -> None:
     console.print(
         Panel(
             "No charter activations found in this project -- routed to the generic agent.\n"
-            "To set a governance baseline, run (see all packs with "
+            "To set a governance baseline, run (see all presets with "
             "`spec-kitty charter pack list`):\n"
-            "  spec-kitty charter pack apply minimal\n"
+            "  spec-kitty charter activate --preset minimal\n"
             "This activates config entries -- it does not by itself make an "
             "unmatched request route to a specialist; you may still need an "
             "explicit --profile <name>.",

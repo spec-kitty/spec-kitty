@@ -134,7 +134,7 @@ class TestLibraryApi:
         an ERROR") — no new exception handling is added to reconcile.py itself
         (tracer-design-decisions.md Decision 3). Routes the T002 typo'd fixture
         through the real `ManifestRegistry.load_manifest()` (by monkeypatching
-        `_doctrine_repository`, the same seam T002 uses) for the seeded
+        `_offering_template_repository`, the same seam T002 uses) for the seeded
         mission's own mission type, so this test genuinely exercises
         `load_manifest()`'s own exception handling, not a bypass of it: pre-T006
         the typo is silently swallowed (manifest=None, PARITY); post-T006 the
@@ -142,7 +142,7 @@ class TestLibraryApi:
         (Decision 3: the indexer adds no catch of its own) up to this
         pre-existing reconcile.py wrapper.
 
-        WP01 (#3770) relocated the `_doctrine_repository` seam from
+        WP01 (#3770) relocated the `_offering_template_repository` seam from
         `specify_cli.dossier.manifest` into `charter.activation.manifest_loader`
         alongside the load+cache logic that owns it, so the monkeypatch below
         targets the new module.
@@ -171,7 +171,7 @@ class TestLibraryApi:
             def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
                 return ConfigResult(content=content, origin="test-fixture", parsed=parsed)
 
-        monkeypatch.setattr(manifest_loader_module, "_doctrine_repository", lambda: _FakeRepository())
+        monkeypatch.setattr(manifest_loader_module, "_offering_template_repository", lambda: _FakeRepository())
 
         result = reconcile_mission_dossier(slug, repo_root=tmp_path, mission_type=_DEFAULT_MISSION_TYPE)
 

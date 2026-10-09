@@ -13,7 +13,7 @@ Follow the `executive-debrief-generation` procedure. It carries the rules and th
 5. Verify every page of the result, review it, and fix faults at the source, never in the PDF.
 6. Place the output as the hand-off rule below says.
 
-Find the asset paths with `spec-kitty doctrine asset path <id>` (ids: `debrief-collector`, `debrief-renderer`, `spec-kitty-branded-pdf`).
+Find the asset paths with `spec-kitty charter pack asset path <id>` (ids: `debrief-collector`, `debrief-renderer`, `spec-kitty-branded-pdf`).
 
 ## The reference check (non-negotiable)
 

@@ -72,7 +72,7 @@ _DOCTORS = [
     ("contracts", "doctor", 2, ()),
     ("invocation-pairing", "doctor", 1, ()),
     ("ops", "doctor", 1, ()),
-    ("doctrine", "doctor", 1, ()),
+    ("charter-packs", "doctor", 1, ()),
     ("cutover", "doctor", 1, ()),
     ("review-cycle-reconcile", "doctor", 1, ()),
     ("skills", "doctor", 2, ()),

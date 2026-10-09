@@ -61,7 +61,7 @@ _NONE_PATH_COMMANDS: list[tuple[str, object, int, tuple[str, ...]]] = [
     # Same defect class in doctor.py — closed together.
     ("invocation-pairing", doctor_mod, 1, ()),
     ("ops", doctor_mod, 1, ()),
-    ("doctrine", doctor_mod, 1, ()),
+    ("charter-packs", doctor_mod, 1, ()),
     ("cutover", doctor_mod, 1, ()),
     ("review-cycle-reconcile", doctor_mod, 1, ()),
     # Same defect class in sibling modules — each owns its own locate seam.
