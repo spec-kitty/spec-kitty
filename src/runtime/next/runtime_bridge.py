@@ -1250,6 +1250,10 @@ def _engine_advance_refused_decision(ctx: DecideNextContext, exc: Exception) -> 
     path's refusal shape -- a named reason, never a silent re-apply of
     ``success`` through ``next_step`` (#5854)."""
     logger.debug("engine-path advance refused for %s: %s", ctx.mission_slug, type(exc).__name__, exc_info=True)
+    if isinstance(exc, LockAcquireTimeout):
+        reason = f"Run is busy (another advance holds the run cursor); nothing was advanced, re-query and retry: {exc}"
+    else:
+        reason = f"Run cursor advanced concurrently; refusing to re-apply a stale result: {type(exc).__name__}: {exc}"
     return _mapping._materialize_decision(
         _cores.DecisionEnvelope(
             kind=DecisionKind.blocked,
@@ -1258,7 +1262,7 @@ def _engine_advance_refused_decision(ctx: DecideNextContext, exc: Exception) -> 
             mission=ctx.mission_type,
             mission_state=ctx.current_step_id or "unknown",
             timestamp=ctx.now,
-            reason=(f"Run cursor advanced concurrently; refusing to re-apply a stale result: {type(exc).__name__}: {exc}"),
+            reason=reason,
             progress=ctx.progress,
             origin=ctx.origin,
             run_id=ctx.run_ref.run_id,

@@ -17,6 +17,8 @@ from typing import Any
 
 import pytest
 
+from kernel.locks import LockAcquireTimeout
+
 from tests._factories import provision_test_charter
 from tests._perf_helpers import assert_timing_budget
 from tests.lane_test_utils import write_single_lane_manifest
@@ -2440,7 +2442,17 @@ class TestResolveWpWorkspaceBeforePersistingTheAdvance:
         assert self._run_bytes(ctx) == before, "state.json / run.events.jsonl must be byte-identical"
 
     @pytest.mark.regression
-    def test_stale_engine_advance_refuses_blocked_and_never_replans_via_next_step(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    @pytest.mark.parametrize(
+        ("raised", "reason_fragment"),
+        [
+            (lambda rb: rb._engine_adapter.StaleAdvancePlan("the run moved on"), "advanced concurrently"),
+            (lambda rb: LockAcquireTimeout(path="state.json.lock"), "Run is busy"),
+        ],
+        ids=["stale-plan", "lock-timeout"],
+    )
+    def test_stale_engine_advance_refuses_blocked_and_never_replans_via_next_step(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, raised: Any, reason_fragment: str
+    ) -> None:
         """Inverted (#5854): a stale engine-path advance must REFUSE with a
         ``blocked`` Decision and never fall back to ``runtime_next_step`` (which
         would re-apply ``success`` and could complete a step this caller never
@@ -2451,7 +2463,7 @@ class TestResolveWpWorkspaceBeforePersistingTheAdvance:
         next_step_calls: list[int] = []
 
         def _stale(*_a: Any, **_k: Any) -> Any:
-            raise rb._engine_adapter.StaleAdvancePlan("the run moved on")
+            raise raised(rb)
 
         def _counting_next_step(*args: Any, **kwargs: Any) -> Any:  # pragma: no cover - must not run
             next_step_calls.append(1)
@@ -2463,6 +2475,7 @@ class TestResolveWpWorkspaceBeforePersistingTheAdvance:
         decision = rb._dn_decision_materialize(ctx)
 
         assert decision.kind == DecisionKind.blocked
+        assert decision.reason is not None and reason_fragment in decision.reason
         assert next_step_calls == [], "the stale advance must not re-plan through next_step"
         assert self._run_bytes(ctx) == before, "a refused advance must write nothing"
 
