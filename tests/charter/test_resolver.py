@@ -832,7 +832,7 @@ def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_doctrine_service_paradigms_filtered_by_pack_context() -> None:
+def test_active_charter_service_paradigms_filtered_by_pack_context() -> None:
     """ActiveCharterService.paradigms applies pack_context.activated_paradigms filter."""
     from unittest.mock import MagicMock
     from charter.activation.pack_context import PackContext
@@ -855,7 +855,7 @@ def test_doctrine_service_paradigms_filtered_by_pack_context() -> None:
     assert "ddd" not in result
 
 
-def test_doctrine_service_paradigms_unfiltered_when_pack_context_none() -> None:
+def test_active_charter_service_paradigms_unfiltered_when_pack_context_none() -> None:
     """ActiveCharterService.paradigms returns all when pack_context is None."""
     from unittest.mock import MagicMock
 
@@ -870,7 +870,7 @@ def test_doctrine_service_paradigms_unfiltered_when_pack_context_none() -> None:
     assert "test-first" in result
 
 
-def test_doctrine_service_procedures_filtered_by_pack_context() -> None:
+def test_active_charter_service_procedures_filtered_by_pack_context() -> None:
     """ActiveCharterService.procedures applies pack_context.activated_procedures filter."""
     from unittest.mock import MagicMock
     from charter.activation.pack_context import PackContext
@@ -893,7 +893,7 @@ def test_doctrine_service_procedures_filtered_by_pack_context() -> None:
     assert "bdd" not in result
 
 
-def test_doctrine_service_getattr_delegates_to_inner() -> None:
+def test_active_charter_service_getattr_delegates_to_inner() -> None:
     """Unknown attributes on ActiveCharterService are forwarded to the inner service."""
     from unittest.mock import MagicMock
 

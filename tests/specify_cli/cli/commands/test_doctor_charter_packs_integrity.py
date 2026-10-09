@@ -130,7 +130,7 @@ def _invoke_doctrine_json(project_root: Path, built_in_root: Path) -> tuple[int,
     return result.exit_code, payload
 
 
-def test_doctor_doctrine_json_rc1_on_synthetic_cross_grain_collision(
+def test_doctor_charter_packs_json_rc1_on_synthetic_cross_grain_collision(
     kittify_project: Path, tmp_path: Path
 ) -> None:
     """A built-in type/action URN collision flips `doctor charter-packs --json` to RC=1."""
@@ -155,7 +155,7 @@ def test_doctor_doctrine_json_rc1_on_synthetic_cross_grain_collision(
     assert any("099-fake-directive" in str(err) for err in org_drg.get("errors", []))
 
 
-def test_doctor_doctrine_human_renders_loud_collision_line(
+def test_doctor_charter_packs_human_renders_loud_collision_line(
     kittify_project: Path, tmp_path: Path
 ) -> None:
     """The human (non-``--json``) surface prints a loud cross-grain block too."""
@@ -184,7 +184,7 @@ def test_doctor_doctrine_human_renders_loud_collision_line(
     assert "099-fake-directive-human" in result.output
 
 
-def test_doctor_doctrine_json_rc0_on_disjoint_builtin_tree(
+def test_doctor_charter_packs_json_rc0_on_disjoint_builtin_tree(
     kittify_project: Path, tmp_path: Path
 ) -> None:
     """A disjoint synthetic built-in tree leaves the report healthy (RC=0, no finding)."""

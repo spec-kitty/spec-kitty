@@ -2,7 +2,7 @@
 
 WP09 / Mission B analysis-report finding U1 demands a snapshot test so the
 operator-facing format of the Selections block stays byte-stable.  The
-snapshot lives at ``tests/cli/__snapshots__/doctor_doctrine_selections.txt``;
+snapshot lives at ``tests/cli/__snapshots__/doctor_charter_packs_selections.txt``;
 any change to its bytes MUST be deliberate (regenerate via the
 ``UPDATE_SNAPSHOTS=1`` env-var) and reviewed as part of the same commit.
 
@@ -43,7 +43,7 @@ from specify_cli.cli.commands.doctor import (
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-SNAPSHOT_PATH: Path = Path(__file__).parent / "__snapshots__" / "doctor_doctrine_selections.txt"
+SNAPSHOT_PATH: Path = Path(__file__).parent / "__snapshots__" / "doctor_charter_packs_selections.txt"
 
 
 def _seed_project_charter(repo_root: Path) -> None:
@@ -119,7 +119,7 @@ def _render_fixture(repo_root: Path) -> str:
     return "\n".join(lines) + "\n"
 
 
-def test_doctor_doctrine_selections_snapshot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_doctor_charter_packs_selections_snapshot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The rendered Selections section MUST match the pinned snapshot byte-for-byte."""
     _seed_project_charter(tmp_path)
     _seed_org_pack(tmp_path)

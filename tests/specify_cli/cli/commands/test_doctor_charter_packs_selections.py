@@ -8,7 +8,7 @@ These tests cover the *functional* contract:
 - the JSON output carries a structured ``selections`` block.
 
 The byte-exact format is pinned separately by
-``tests/cli/test_doctor_doctrine_selections_snapshot.py``.
+``tests/cli/test_doctor_charter_packs_selections_snapshot.py``.
 """
 
 from __future__ import annotations
@@ -60,7 +60,7 @@ def _write_kittify_skeleton(repo_root: Path) -> None:
     (repo_root / ".kittify" / "config.yaml").write_text("doctrine: {}\n", encoding="utf-8")
 
 
-def test_doctor_doctrine_renders_selections_header(tmp_path: Path) -> None:
+def test_doctor_charter_packs_renders_selections_header(tmp_path: Path) -> None:
     """The Selections section header MUST appear in the human-readable output."""
     _write_kittify_skeleton(tmp_path)
     _write_governance_with_selections(tmp_path)
@@ -72,7 +72,7 @@ def test_doctor_doctrine_renders_selections_header(tmp_path: Path) -> None:
     assert "Selections (active globally-selected artifacts)" in result.stdout
 
 
-def test_doctor_doctrine_empty_kinds_render_as_none(tmp_path: Path) -> None:
+def test_doctor_charter_packs_empty_kinds_render_as_none(tmp_path: Path) -> None:
     """Kinds with no selection MUST surface as ``(none)`` so the audit is complete."""
     _write_kittify_skeleton(tmp_path)
     _write_governance_with_selections(tmp_path)
@@ -87,7 +87,7 @@ def test_doctor_doctrine_empty_kinds_render_as_none(tmp_path: Path) -> None:
     assert "tactics: (none)" in result.stdout
 
 
-def test_doctor_doctrine_lists_declared_project_selections(tmp_path: Path) -> None:
+def test_doctor_charter_packs_lists_declared_project_selections(tmp_path: Path) -> None:
     """A project-charter-declared selection surfaces with its id."""
     _write_kittify_skeleton(tmp_path)
     _write_governance_with_selections(tmp_path)
@@ -103,7 +103,7 @@ def test_doctor_doctrine_lists_declared_project_selections(tmp_path: Path) -> No
     assert "source:" in result.stdout
 
 
-def test_doctor_doctrine_json_includes_selections_block(tmp_path: Path) -> None:
+def test_doctor_charter_packs_json_includes_selections_block(tmp_path: Path) -> None:
     """``--json`` MUST carry the same data in a structured ``selections`` key."""
     _write_kittify_skeleton(tmp_path)
     _write_governance_with_selections(tmp_path)
@@ -144,7 +144,7 @@ def _write_retired_governance_key(repo_root: Path) -> Path:
     return path
 
 
-def test_doctor_doctrine_reports_a_retired_governance_key(tmp_path: Path) -> None:
+def test_doctor_charter_packs_reports_a_retired_governance_key(tmp_path: Path) -> None:
     """#3732 FR-011: a retired ``governance.doctrine`` is reported (human), never dropped in silence.
 
     The CLI-root gate does not read ``charter.yaml``, so this diagnostic is reachable.
@@ -161,7 +161,7 @@ def test_doctor_doctrine_reports_a_retired_governance_key(tmp_path: Path) -> Non
     assert path.name in text, result.stdout
 
 
-def test_doctor_doctrine_json_reports_a_retired_governance_key(tmp_path: Path) -> None:
+def test_doctor_charter_packs_json_reports_a_retired_governance_key(tmp_path: Path) -> None:
     _write_kittify_skeleton(tmp_path)
     path = _write_retired_governance_key(tmp_path)
 
@@ -178,7 +178,7 @@ def test_doctor_doctrine_json_reports_a_retired_governance_key(tmp_path: Path) -
     assert payload["profile_health"]["healthy"] is False
 
 
-def test_doctor_doctrine_canonical_key_has_no_retired_key_finding(tmp_path: Path) -> None:
+def test_doctor_charter_packs_canonical_key_has_no_retired_key_finding(tmp_path: Path) -> None:
     """Control: the canonical key yields no finding."""
     _write_kittify_skeleton(tmp_path)
     _write_governance_with_selections(tmp_path)

@@ -68,7 +68,7 @@ def test_overlay_unset_is_byte_identical(tmp_path: Path) -> None:
     assert _PROFILE_ID not in ids
 
 
-def test_doctrine_service_overlay_dir_directs_project_dir(tmp_path: Path) -> None:
+def test_active_charter_service_overlay_dir_directs_project_dir(tmp_path: Path) -> None:
     """NFR-002: overlay set ⇒ repo project_dir is the overlay; unset ⇒ ``_project_dir``."""
     overlay = tmp_path / _PROJECT_OVERLAY
     overlay.mkdir(parents=True)

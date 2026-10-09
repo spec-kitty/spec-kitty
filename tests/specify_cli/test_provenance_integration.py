@@ -106,7 +106,7 @@ class TestOrgCharterJsonBlock:
         assert block["packs"] == []
 
 
-class TestDoctorDoctrineCommand:
+class TestDoctorCharterPacksCommand:
     """`spec-kitty doctor charter-packs` reports configured packs."""
 
     def test_no_org_configured(self, tmp_path: Path) -> None:

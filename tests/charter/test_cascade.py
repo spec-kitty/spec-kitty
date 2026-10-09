@@ -47,7 +47,7 @@ pytestmark = pytest.mark.unit
 #: ``tests/charter_offering/drg/migration/test_extractor.py::DOCTRINE_ROOT`` (this file
 #: is two directories shallower: ``tests/charter/test_cascade.py`` ->
 #: ``tests/charter`` -> ``tests`` -> repo root).
-_DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[2] / "src" / "charter" / "offering"
+_OFFERING_ROOT: Path = Path(__file__).resolve().parents[2] / "src" / "charter" / "offering"
 
 
 # ---------------------------------------------------------------------------
@@ -537,7 +537,7 @@ def freshly_extracted_graph() -> DRGGraph:
     the committed snapshot of it; the two are byte-identical today by
     construction of the ``test_extractor_projection.py`` guard above.
     """
-    return generate_reference_graph_with_overlay(_DOCTRINE_ROOT)
+    return generate_reference_graph_with_overlay(_OFFERING_ROOT)
 
 
 @pytest.mark.parametrize("mission_type_urn", _GOVERNANCE_BEARING_MISSION_TYPE_URNS)

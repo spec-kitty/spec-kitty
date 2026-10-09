@@ -231,7 +231,7 @@ def test_collect_profile_health_surfaces_invalid_project_profile(
     assert report.healthy is False
 
 
-def test_doctor_doctrine_json_reports_false_healthy_fixed(
+def test_doctor_charter_packs_json_reports_false_healthy_fixed(
     repo_with_invalid_project_profile: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -265,7 +265,7 @@ def test_doctor_doctrine_json_reports_false_healthy_fixed(
     assert invalid[0]["profile_id"] == "broken-bart"
 
 
-def test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles(
+def test_doctor_charter_packs_human_renders_degraded_pack_and_invalid_profiles(
     repo_with_invalid_project_profile: Path,
 ) -> None:
     """Human render shows a degraded pack header + invalid profiles by layer/path/error.
@@ -315,7 +315,7 @@ def test_doctor_doctrine_human_renders_degraded_pack_and_invalid_profiles(
     assert "(project)" in output, output
 
 
-def test_doctor_doctrine_human_and_json_share_one_report(
+def test_doctor_charter_packs_human_and_json_share_one_report(
     repo_with_invalid_project_profile: Path,
 ) -> None:
     """Human + JSON derive from the same CharterPackHealthReport (no parallel assembly)."""
@@ -344,7 +344,7 @@ def test_doctor_doctrine_human_and_json_share_one_report(
 
 
 @pytest.mark.performance
-def test_doctor_doctrine_within_budget(
+def test_doctor_charter_packs_within_budget(
     repo_with_invalid_project_profile: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -481,7 +481,7 @@ def test_collect_profile_health_surfaces_inline_ref_and_keeps_siblings(
 
 
 @pytest.mark.integration
-def test_doctor_doctrine_json_inline_ref_unhealthy_and_rc1(
+def test_doctor_charter_packs_json_inline_ref_unhealthy_and_rc1(
     repo_with_inline_ref_org_profile: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -527,7 +527,7 @@ def test_doctor_doctrine_json_inline_ref_unhealthy_and_rc1(
 
 
 @pytest.mark.integration
-def test_doctor_doctrine_json_healthy_exits_zero(
+def test_doctor_charter_packs_json_healthy_exits_zero(
     repo_with_invalid_project_profile: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

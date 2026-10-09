@@ -349,7 +349,7 @@ class TestGraphlessPackInChainDegradesPerRoot:
     to this runtime path** -- the action-doctrine-bundle seam now threads
     ``load_org_drg(repo_root, strict=False)``, so a *present* fragment is read
     and (when malformed) fails loud. That fragment-is-read behaviour is pinned
-    by ``test_action_doctrine_bundle_org_fragment.py`` and
+    by ``test_action_governance_bundle_org_fragment.py`` and
     ``test_org_pack_chain_delivery.py``; this test deliberately ships *no*
     fragment so it isolates the pure graphless-root per-root-degrade case.
     """

@@ -69,7 +69,7 @@ def _resolve_built_in_directive_id(repo_root: Path) -> str:
     raise RuntimeError("no shipped directive found")
 
 
-def test_doctor_doctrine_text_shows_collisions(tmp_path: Path) -> None:
+def test_doctor_charter_packs_text_shows_collisions(tmp_path: Path) -> None:
     """When an org pack shadows a shipped directive, `doctor charter-packs` lists it."""
     real_repo = Path(__file__).resolve().parents[4]
     built_in_id = _resolve_built_in_directive_id(real_repo)
@@ -96,7 +96,7 @@ def test_doctor_doctrine_text_shows_collisions(tmp_path: Path) -> None:
     assert "shadowed" in result.stdout
 
 
-def test_doctor_doctrine_text_reports_no_collisions_when_pack_disjoint(tmp_path: Path) -> None:
+def test_doctor_charter_packs_text_reports_no_collisions_when_pack_disjoint(tmp_path: Path) -> None:
     """A pack whose directives have novel IDs produces no collision lines."""
     pack_dir = tmp_path / "pack"
     _write_directive(
@@ -114,7 +114,7 @@ def test_doctor_doctrine_text_reports_no_collisions_when_pack_disjoint(tmp_path:
     assert "none — every artifact resolves from a single layer" in result.stdout
 
 
-def test_doctor_doctrine_json_emits_collisions_array(tmp_path: Path) -> None:
+def test_doctor_charter_packs_json_emits_collisions_array(tmp_path: Path) -> None:
     """The --json output includes a `collisions` array describing each shadowed id."""
     real_repo = Path(__file__).resolve().parents[4]
     built_in_id = _resolve_built_in_directive_id(real_repo)

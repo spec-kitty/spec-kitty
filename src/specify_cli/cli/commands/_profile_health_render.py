@@ -61,7 +61,7 @@ __all__ = [
 #: the audit ends on the "who can drive" surface), so it is spelled as
 #: ``ArtifactKind`` members rather than derived; its membership is pinned to
 #: ``SELECTION_OVERLAYABLE_KIND_FIELDS`` by
-#: ``tests/cli/test_doctor_doctrine_selections_snapshot.py`` (#5538).
+#: ``tests/cli/test_doctor_charter_packs_selections_snapshot.py`` (#5538).
 _SELECTION_KIND_PLURALS: tuple[str, ...] = tuple(
     kind.plural
     for kind in (
@@ -197,7 +197,7 @@ def _emit_charter_packs_human(
     _render_org_layer_section(repo_root, console)
 
     # FR-018 / WP09 T050: render the Selections section verbatim so the
-    # snapshot test in tests/cli/test_doctor_doctrine_selections_snapshot.py
+    # snapshot test in tests/cli/test_doctor_charter_packs_selections_snapshot.py
     # can pin the operator-facing format byte-for-byte.
     console.print()
     for line in _render_selection_block_lines(selection_block):
@@ -437,7 +437,7 @@ def _render_selection_block_lines(
     """Render the Selections block as a list of pinned-format lines.
 
     The exact layout is pinned by the snapshot test
-    ``tests/cli/test_doctor_doctrine_selections_snapshot.py``.  Every
+    ``tests/cli/test_doctor_charter_packs_selections_snapshot.py``.  Every
     change to spacing, punctuation, or per-kind ordering MUST update the
     snapshot fixture in the same commit.
     """

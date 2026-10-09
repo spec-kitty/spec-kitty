@@ -171,7 +171,7 @@ _LANGUAGE_SCOPED_KIND = "tactics"
 _KEY_ATTR_BY_PROP: dict[str, str] = {"agent_profiles": "profile_id"}
 
 
-def test_active_languages_resolution_identical_across_entry_points(repo_root: Path) -> None:
+def test_active_languages_always_resolved_by_the_unified_builder(repo_root: Path) -> None:
     """FR-008 axis 1: ``active_languages`` is always computed, identically.
 
     MINOR 4 cycle-2 fix: reads the resolved value off a raw repository via
@@ -193,7 +193,7 @@ def test_active_languages_resolution_identical_across_entry_points(repo_root: Pa
     assert list(repo_a._active_languages) == expected  # noqa: SLF001
 
 
-def test_org_roots_resolution_identical_across_entry_points(repo_root: Path) -> None:
+def test_org_roots_always_self_resolved_by_the_unified_builder(repo_root: Path) -> None:
     """FR-008 axis 2: ``org_roots`` is always self-resolved, identically.
 
     MINOR 4 cycle-2 fix: compares the per-kind org directories a raw

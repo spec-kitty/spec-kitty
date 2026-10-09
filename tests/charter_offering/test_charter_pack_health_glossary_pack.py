@@ -356,4 +356,4 @@ class TestDoctorCharterPacksPerformance:
         _invoke_charter_packs_json(bare_repo_root)
         elapsed = time.perf_counter() - start
 
-        assert_timing_budget(elapsed, 2.0, name="doctor_doctrine_json")
+        assert_timing_budget(elapsed, 2.0, name="doctor_charter_packs_json")

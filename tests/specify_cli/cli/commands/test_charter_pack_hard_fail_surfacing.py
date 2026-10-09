@@ -14,7 +14,7 @@ graph the merge layer refused to assemble came back::
 Two tests existed on either side of the seam and neither owned it: WP08 pinned
 the merge-layer refusal (``tests/charter_offering/test_drg_merge.py``) and a later WP
 pinned the collector's *non-raising* dangling-endpoint path
-(``test_doctor_doctrine_org_layer.py``). Nothing exercised a collector against
+(``test_doctor_charter_packs_org_layer.py``). Nothing exercised a collector against
 a merge that actually raised. That untested join is the root cause, so these
 tests live at the CLI surface the operator reads.
 
@@ -131,7 +131,7 @@ def _doctor_charter_packs_json(repo_root: Path) -> tuple[int, dict[str, object]]
 
 
 @pytest.mark.parametrize(("dangling", "unresolved", "expect_healthy"), _MONOTONICITY_TABLE)
-def test_doctor_charter_packs_health_is_monotonic_in_org_pack_defects(
+def test_doctor_charter_packs_is_monotonic_in_org_pack_defects(
     tmp_path: Path,
     dangling: bool,
     unresolved: bool,

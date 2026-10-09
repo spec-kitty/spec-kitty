@@ -21,7 +21,7 @@ a dangling endpoint to an error exactly when it merged the complete graph.**
 ``charter lint`` is the one caller that must NOT (it merges against a
 deliberately EMPTY built-in, so the check genuinely cannot run there).
 
-These tests mirror ``test_doctor_doctrine_org_layer`` ::
+These tests mirror ``test_doctor_charter_packs_org_layer`` ::
 
     test_collect_org_layer_data_reports_a_dangling_org_endpoint
     test_collect_org_layer_data_reports_no_dangling_endpoint_when_clean

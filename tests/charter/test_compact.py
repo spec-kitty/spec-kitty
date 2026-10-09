@@ -11,6 +11,7 @@ from charter.activation.compact import (
     render_compact_view,
 )
 from charter.activation.resolver import GovernanceResolutionError
+from kernel.charter_pack_paths import project_pack_root
 
 
 pytestmark = pytest.mark.fast
@@ -90,23 +91,23 @@ def test_render_compact_view_reports_governance_resolution_errors(
     assert "missing directive" in compact.text
 
 
-def test_render_compact_view_labels_doctrine_directory_as_layer_root(
+def test_render_compact_view_labels_project_pack_root_as_layer_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    offering_root = tmp_path / ".kittify" / "doctrine"
+    pack_root = project_pack_root(tmp_path)
     monkeypatch.setattr(
         "charter.activation.compact.resolve_project_root",
-        lambda _repo_root: offering_root,
+        lambda _repo_root: pack_root,
     )
 
     compact = render_compact_view(tmp_path, section_anchors=())
 
-    assert f"Project layer root: {offering_root}" in compact.text
+    assert f"Project layer root: {pack_root}" in compact.text
     assert "Project root:" not in compact.text
 
 
-def test_render_compact_view_omits_missing_doctrine_layer_root(
+def test_render_compact_view_omits_missing_project_layer_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

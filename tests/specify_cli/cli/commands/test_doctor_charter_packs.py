@@ -38,7 +38,7 @@ def _project(root: Path, *, org_pack: bool) -> Path:
     return root
 
 
-def test_json_keys_equal_the_recorded_doctor_doctrine_keys(tmp_path: Path) -> None:
+def test_json_keys_equal_the_keys_recorded_before_the_rename(tmp_path: Path) -> None:
     project = _project(tmp_path, org_pack=True)
     with contextlib.chdir(project):
         result = runner.invoke(doctor_app, ["charter-packs", "--json"])

@@ -215,7 +215,7 @@ def _make_mock_inner_with_profiles(
     return mock_inner
 
 
-def test_doctrine_service_agent_profiles_no_pack_context_returns_all() -> None:
+def test_active_charter_service_agent_profiles_no_pack_context_returns_all() -> None:
     """``pack_context=None`` → ``agent_profiles`` returns the full unfiltered dict.
 
     This is the backward-compat contract: callers that do not supply a
@@ -232,7 +232,7 @@ def test_doctrine_service_agent_profiles_no_pack_context_returns_all() -> None:
     assert set(result.keys()) == {"alpha", "beta"}
 
 
-def test_doctrine_service_agent_profiles_none_field_returns_all() -> None:
+def test_active_charter_service_agent_profiles_none_field_returns_all() -> None:
     """``pack_context.activated_agent_profiles=None`` → full unfiltered dict.
 
     The ``None`` sentinel means "key absent from config.yaml" → all built-in
@@ -252,7 +252,7 @@ def test_doctrine_service_agent_profiles_none_field_returns_all() -> None:
     assert set(result.keys()) == {"alpha", "beta"}
 
 
-def test_doctrine_service_agent_profiles_empty_frozenset_returns_empty() -> None:
+def test_active_charter_service_agent_profiles_empty_frozenset_returns_empty() -> None:
     """``pack_context.activated_agent_profiles=frozenset()`` → empty dict.
 
     The empty frozenset sentinel means "key present but empty list in
@@ -276,7 +276,7 @@ def test_doctrine_service_agent_profiles_empty_frozenset_returns_empty() -> None
     )
 
 
-def test_doctrine_service_agent_profiles_specific_ids_returns_subset() -> None:
+def test_active_charter_service_agent_profiles_specific_ids_returns_subset() -> None:
     """``pack_context.activated_agent_profiles={ids}`` → only those IDs returned.
 
     Profiles whose ID is NOT in the activated set must be excluded.

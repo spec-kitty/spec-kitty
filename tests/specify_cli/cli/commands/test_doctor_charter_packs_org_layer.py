@@ -414,7 +414,7 @@ def _build_kittify_config_for_test(
     )
 
 
-def test_doctor_doctrine_json_includes_org_drg_key_when_packs_configured(
+def test_doctor_charter_packs_json_includes_org_drg_key_when_packs_configured(
     tmp_repo_with_org_pack: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -453,7 +453,7 @@ def test_doctor_doctrine_json_includes_org_drg_key_when_packs_configured(
     )
 
 
-def test_doctor_doctrine_json_includes_org_drg_key_when_no_packs(
+def test_doctor_charter_packs_json_includes_org_drg_key_when_no_packs(
     tmp_repo_without_org_pack: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

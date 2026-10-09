@@ -165,14 +165,14 @@ def _scoped_action_graph(*node_urns: str) -> DRGGraph:
     return DRGGraph(
         schema_version="1.0",
         generated_at="2026-09-03T00:00:00+00:00",
-        generated_by="test_action_doctrine_bundle_activation",
+        generated_by="test_action_governance_bundle_activation",
         nodes=nodes,
         edges=edges,
     )
 
 
 def _register_org_pack(repo_root: Path, org_root: Path, *, name: str = "test-org") -> None:
-    """Mirror test_action_doctrine_bundle_org_fragment.py's ``_register_pack``."""
+    """Mirror test_action_governance_bundle_org_fragment.py's ``_register_pack``."""
     kit = repo_root / ".kittify"
     kit.mkdir(parents=True, exist_ok=True)
     (kit / "config.yaml").write_text(
