@@ -9,6 +9,7 @@ Subtasks: T038, T039
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -629,6 +630,22 @@ def _fake_copy_pkg(project_path: Path) -> TemplateCopyResult:
 
 class TestWP01InitCoherence:
     """WP01 regressions: init must be file-creation-only."""
+
+    def test_cursor_installs_project_canonical_skills(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        """Fresh Cursor init repairs shared project skills after agent setup."""
+        app = _make_init_app(monkeypatch)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(_init_module, "get_local_repo_root", lambda override_path=None: None)
+        monkeypatch.setattr(_init_module, "copy_specify_base_from_package", _fake_copy_pkg)
+
+        result = CliRunner().invoke(app, ["init", "cursor-skills-proj", "--ai", "cursor", "--non-interactive"])
+
+        assert result.exit_code == 0, f"init failed: {result.output}"
+        project = tmp_path / "cursor-skills-proj"
+        manifest = json.loads((project / ".kittify" / "skills-manifest.json").read_text())
+        cursor_entries = [entry for entry in manifest["entries"] if entry["agent_key"] == "cursor"]
+        assert cursor_entries
+        assert all((project / entry["installed_path"]).is_file() for entry in cursor_entries)
 
     def test_init_does_not_create_git_dir(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """T1.1: init must not create a .git/ directory in the project."""
