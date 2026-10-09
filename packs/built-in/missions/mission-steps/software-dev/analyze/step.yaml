@@ -5,6 +5,7 @@ prompt_template: prompt.md
 agent_profile: null
 guidance: null
 delegates_to: []
-depends_on: []
+depends_on:
+- tasks
 sequence_index: null
 in_action_sequence: false

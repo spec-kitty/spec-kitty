@@ -12,9 +12,7 @@
 schema_version: "1.0"
 mission_type: "software-dev"
 # manifest_version is a sync-namespace identity key (feeds NamespaceRef), not
-# a content-freshness counter; do not bump on content-only changes -- see
-# kitty-specs/expected-artifacts-manifest-repair-01KZY498/tracer-design-decisions.md
-# Decision 2.
+# a content-freshness counter; do not bump on content-only changes.
 manifest_version: "1"
 
 # Artifacts required regardless of mission step
@@ -65,11 +63,13 @@ required_by_step:
       blocking: true
 
   implement:
-    # Implement step has no filesystem requirement: _evaluate_wp_iteration_guard
-    # only checks WP status (wp_advance_ready), never analysis-report.md on
-    # disk. Reconciled to match guard behavior (C-001) -- the guard is not
-    # touched here even though this reads like the guard may be the actual
-    # bug; see tracer-approach.md.
+    # Implement has no filesystem requirement of its own:
+    # _evaluate_wp_iteration_guard only checks WP status (wp_advance_ready),
+    # never analysis-report.md on disk. The analysis report is gated one step
+    # earlier, at the `analyze` step (an analysis-currency check, not a
+    # filesystem-presence check), so by the time implement runs a current
+    # analysis report is already guaranteed. The implement guard itself is
+    # intentionally left unchanged.
     []
 
   review:

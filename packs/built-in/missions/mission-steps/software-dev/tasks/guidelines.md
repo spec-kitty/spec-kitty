@@ -39,4 +39,4 @@ These guidelines govern the quality and correctness standards for work-package d
 ## Phase Discipline
 
 - This action produces `kitty-specs/<mission>/tasks.md` and `kitty-specs/<mission>/tasks/WP##*.md`. It does NOT begin implementation, create worktrees, or move WP status beyond `planned`.
-- After tasks generation, hand off to `spec-kitty agent mission finalize-tasks` for dependency validation and lane assignment, then to `/spec-kitty.implement` for execution.
+- After tasks generation, hand off to `spec-kitty agent mission finalize-tasks` for dependency validation and lane assignment, then run `/spec-kitty.analyze` — the required readiness gate — before `/spec-kitty.implement`. `/spec-kitty.implement` refuses to claim a work package (`analysis_report_required`) until an `analysis-report.md` exists, and editing the spec, plan, tasks or charter after analyze makes that report stale (re-run `/spec-kitty.analyze`).

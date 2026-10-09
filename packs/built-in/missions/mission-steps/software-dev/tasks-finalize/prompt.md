@@ -12,9 +12,9 @@ them, update WP frontmatter, and commit all task artifacts to the target branch.
 
 ---
 
-## 📍 WORKING DIRECTORY: Stay in planning repository
+## 📍 WORKING DIRECTORY: Stay in the repository root checkout
 
-**IMPORTANT**: This step works in the planning repository. NO worktrees created.
+**IMPORTANT**: This step works in the repository root checkout. NO worktrees created.
 
 ## User Input
 
@@ -137,9 +137,9 @@ Example `create_intent` frontmatter for a planned-new-file entry:
 
 ```yaml
 owned_files:
-  - "src/specify_cli/new_module.py"
+  - "src/app/new_module.py"
 create_intent:
-  - "src/specify_cli/new_module.py"  # will be created by this WP
+  - "src/app/new_module.py"  # will be created by this WP
 ```
 
 ### 4. Verify
@@ -160,7 +160,15 @@ Provide a concise outcome summary:
 - Parallelization highlights
 - MVP scope recommendation
 - Finalization status (dependencies parsed, X WP files updated, committed to target branch)
-- Next suggested command (e.g., `/spec-kitty.analyze` or `/spec-kitty.implement`)
+
+**Required next step — run `/spec-kitty.analyze` before `/spec-kitty.implement`.**
+`/spec-kitty.analyze` persists an `analysis-report.md` and reviews spec/plan/tasks
+consistency; `/spec-kitty.implement` refuses to claim a work package
+(`analysis_report_required`) until that report exists — analyze is not optional, it
+is the readiness gate implement enforces. The report is current only while the
+spec, plan, tasks and charter are unchanged: editing any of them after analyze
+makes the report stale, and implement refuses again until you re-run
+`/spec-kitty.analyze`.
 
 ## Output
 
@@ -172,4 +180,5 @@ After completing this step:
 - Requirement references are validated against spec.md
 - Task artifacts are committed to the target branch
 
-**Next step**: `spec-kitty next --agent <name>` will advance to implementation.
+**Next step**: run `/spec-kitty.analyze` — the required pre-implementation gate —
+then `/spec-kitty.implement`.

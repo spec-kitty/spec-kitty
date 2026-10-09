@@ -3,8 +3,6 @@ description: Create a work package manifest
 ---
 # /spec-kitty.tasks-outline - Create Work Package Manifest
 
-**Version**: 3.2.0
-
 ## Purpose
 
 Create `wps.yaml` — the structured work package manifest that defines WP metadata,
@@ -17,10 +15,10 @@ manifest by `finalize-tasks`.
 ## ⚠️ CRITICAL: THIS IS THE MOST IMPORTANT PLANNING WORK
 
 **You are creating the blueprint for implementation**. The quality of work packages determines:
-- How easily agents can implement the feature
+- How easily agents can implement the mission
 - How parallelizable the work is
 - How reviewable the code will be
-- Whether the feature succeeds or fails
+- Whether the mission succeeds or fails
 
 **QUALITY OVER SPEED**: Take your time to understand the full scope deeply,
 break work into clear pieces, and write detailed guidance.
@@ -33,7 +31,7 @@ break work into clear pieces, and write detailed guidance.
 
 **Do NOT cd anywhere**. Stay in the repository root checkout.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, pass `--mission <handle>` to every command that accepts `--mission`.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -69,7 +67,7 @@ Read from `mission_dir` (only those present):
 - **Required**: plan.md (tech architecture, stack), spec.md (user stories & priorities)
 - **Optional**: data-model.md (entities), contracts/ (API schemas), research.md (decisions), quickstart.md (validation scenarios)
 
-Scale your effort to the feature: simple UI tweaks deserve lighter coverage, multi-system releases require deeper decomposition.
+Scale your effort to the mission: simple UI tweaks deserve lighter coverage, multi-system releases require deeper decomposition.
 
 ### 3. Derive Fine-Grained Subtasks
 
@@ -211,7 +209,7 @@ After completing this step:
 - `prompt_file` fields are absent or `null` (filled by `tasks-packages`)
 - No WP prompt files have been created yet
 
-**Next step**: `spec-kitty next --agent <name>` will advance to work package generation.
+**Next step**: run `/spec-kitty.tasks-packages` to materialize the WP prompt files. These tasks sub-steps are stages of the top-level `tasks` action, not separate steps that `spec-kitty next` issues.
 
 ## Work Package Sizing Guidelines
 

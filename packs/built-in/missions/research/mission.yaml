@@ -113,15 +113,3 @@ commands:
     prompt: "Review findings for validity, completeness, and proper documentation"
   accept:
     prompt: "Validate research completeness and readiness for publication"
-
-# Task type definitions for agent profile suggestion
-task_types:
-  research:
-    agent_role: researcher
-    description: "Research work packages"
-  analyze:
-    agent_role: researcher
-    description: "Analysis work packages"
-  report:
-    agent_role: writer
-    description: "Report writing work packages"

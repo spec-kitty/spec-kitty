@@ -3,8 +3,6 @@ description: Translate implementation concerns into work packages
 ---
 # /spec-kitty.tasks - Generate Work Packages
 
-**Version**: 0.11.0+
-
 <!-- spdd:reasons-block:start -->
 
 ### REASONS Guidance — Tasks
@@ -22,10 +20,10 @@ rather than dividing it implicitly.
 ## ⚠️ CRITICAL: THIS IS THE MOST IMPORTANT PLANNING WORK
 
 **You are creating the blueprint for implementation**. The quality of work packages determines:
-- How easily agents can implement the feature
+- How easily agents can implement the mission
 - How parallelizable the work is
 - How reviewable the code will be
-- Whether the feature succeeds or fails
+- Whether the mission succeeds or fails
 
 **QUALITY OVER SPEED**: This is NOT the time to save tokens or rush. Take your time to:
 - Understand the full scope deeply
@@ -55,9 +53,9 @@ rather than dividing it implicitly.
 
 **Do NOT cd anywhere**. Stay in the repository root checkout.
 
-**Worktrees created later**: After tasks are finalized, run your agent loop: `spec-kitty next --agent <agent> --mission <handle>`. Your agent will call `spec-kitty agent action implement WP## --agent <name>` for each WP. `finalize_tasks` computes the execution lanes, and each lane gets exactly one worktree.
+**Worktrees created later**: After tasks are finalized, `spec-kitty next --agent <agent> --mission <handle>` issues the analyze step first (the required `/spec-kitty.analyze` gate), then hands out `spec-kitty agent action implement WP## --agent <name>` for each WP. `finalize_tasks` computes the execution lanes, and each lane gets exactly one worktree.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, pass `--mission <handle>` to every command that accepts `--mission`.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -119,7 +117,7 @@ Prompts do not rediscover mission context. Commands do.
 3. **Load design documents** from `mission_dir` (only those present):
    - **Required**: plan.md (tech architecture, stack), spec.md (user stories & priorities)
    - **Optional**: data-model.md (entities), contracts/ (API schemas), research.md (decisions), quickstart.md (validation scenarios)
-   - Scale your effort to the feature: simple UI tweaks deserve lighter coverage, multi-system releases require deeper decomposition.
+   - Scale your effort to the mission: simple UI tweaks deserve lighter coverage, multi-system releases require deeper decomposition.
 
 4. **Derive fine-grained subtasks** (IDs `T001`, `T002`, ...):
    - Parse plan/spec to enumerate concrete implementation steps, tests (only if explicitly requested), migrations, and operational work.
@@ -130,7 +128,7 @@ Prompts do not rediscover mission context. Commands do.
 
    Per-WP subtask rows in `tasks.md` are **reference rows**, not checkboxes. Subtask
    completion is **solely event-sourced** — the reduced event-log snapshot is the
-   authority (#2816 IC-10 / FR-016); there is **no `- [ ]` box to tick**. Emit each
+   authority; there is **no `- [ ]` box to tick**. Emit each
    `Txxx` as a plain reference row under its work package:
 
    ```markdown
@@ -163,9 +161,9 @@ Prompts do not rediscover mission context. Commands do.
    - **Just right** (3-7 subtasks, 200-500 lines): Agent can hold entire context, implements thoroughly
 
    **NUMBER OF WPs**: Let the work dictate the count
-   - Simple feature (5-10 subtasks total): 2-3 WPs
-   - Medium feature (20-40 subtasks): 5-8 WPs
-   - Complex feature (50+ subtasks): 10-20 WPs ← **This is OK!**
+   - Simple mission (5-10 subtasks total): 2-3 WPs
+   - Medium mission (20-40 subtasks): 5-8 WPs
+   - Complex mission (50+ subtasks): 10-20 WPs ← **This is OK!**
    - **Better to have 20 focused WPs than 5 overwhelming WPs**
 
    **GROUPING PRINCIPLES**:
@@ -175,7 +173,7 @@ Prompts do not rediscover mission context. Commands do.
    - Name with succinct goal (e.g., "User Story 1 – Real-time chat happy path")
    - Record metadata: priority, success criteria, risks, dependencies, included subtasks
 
-6. **Write `tasks.md`** following the tasks template structure defined below in this prompt (**do NOT write instructions to read a template file from `.kittify/`**):
+6. **Write `tasks.md`** following the canonical tasks template structure (`tasks-template.md`, resolved through the command's template resolver — write the content directly, do not emit instructions to read a template file):
    - **Location**: Write to `mission_dir/tasks.md` (use the absolute mission_dir path from step 1)
    - Populate the Work Package sections (setup, foundational, per-story, polish) with the `WPxx` entries
    - Under each work package include:
@@ -196,9 +194,9 @@ Prompts do not rediscover mission context. Commands do.
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
      - Full path example: `mission_dir/tasks/WP01-create-html-page.md` (use ABSOLUTE path from mission_dir variable)
-     - Follow the WP prompt template structure defined below in this prompt (**do NOT write instructions to read a template file from `.kittify/`**) to capture:
+     - Follow the canonical WP prompt template structure (`task-prompt-template.md`, resolved through the command's template resolver — write the content directly, do not emit instructions to read a template file) to capture:
      - Frontmatter with `work_package_id`, `subtasks` array, `dependencies`, `planning_base_branch`, `merge_target_branch`, `branch_strategy`, `owned_files`, `authoritative_surface`, `execution_mode`, `agent_profile`, `role`, `agent`, `model` (optional), and history entry
-       - **`## ⚡ Do This First: Load Agent Profile`** — REQUIRED, must be the first body section (before Objective). Instructs the implementing agent to load the assigned profile via `/ad-hoc-profile-load` before reading anything else. See `task-prompt-template.md` for the exact block.
+       - **`## ⚡ Do This First: Load Agent Profile`** — REQUIRED, must be the first body section (before Objective). Instructs the implementing agent to load the assigned profile via the `spk-doctrine-profile-load` skill before reading anything else. See `task-prompt-template.md` for the exact block.
        - Objective, context, detailed guidance per subtask
        - A Branch Strategy section that repeats the planning branch, final merge target, and explains that execution worktrees are allocated per computed lane from `lanes.json`
        - Test strategy (only if requested)
@@ -276,8 +274,8 @@ Prompts do not rediscover mission context. Commands do.
    - MVP scope recommendation (usually Work Package 1)
    - Prompt generation stats (files written, directory structure, any skipped items with rationale)
    - Finalization status (dependencies parsed, X WP files updated, committed to target branch)
-   - Next suggested command (e.g., `/spec-kitty.analyze` or `/spec-kitty.implement`)
-   - **Implementation handoff offer** (see Step 10 below)
+   - Next required step: `/spec-kitty.analyze` — the readiness gate that must run before `/spec-kitty.implement`
+   - **Implementation handoff offer** (see the Implementation Handoff section below)
 
 Context for work-package planning: (refer to the User Input section above)
 
@@ -304,11 +302,17 @@ subtasks: ["T001", "T002"]
 ---
 ```
 
-**Include the correct implementation command**:
-- No dependencies: `spec-kitty agent action implement WP01 --agent <name>`
-- With dependencies: `spec-kitty agent action implement WP02 --agent <name>`
+**Include the implementation command** in each WP prompt:
 
-The WP prompt must show the correct command so agents don't branch from the wrong base.
+```bash
+spec-kitty agent action implement <WP-id> --agent <name> --mission <mission-slug>
+```
+
+The command is the same whether or not the WP has dependencies — agents never
+choose a base branch manually (`finalize-tasks` computes lanes from the declared
+dependencies). Dependencies are a *claim gate*, not a different command: a WP
+whose `dependencies` are not all `approved` or `done` refuses to be claimed, so
+record the dependencies accurately in frontmatter rather than hand-picking a base.
 
 ## Requirement Reference Mapping (MANDATORY)
 
@@ -334,7 +338,7 @@ lowercase). A refusal lists `parsed_spec_ids` and gives each rejected ref one re
 `<mission-slug>#<ID>`; it never blocks and never counts as coverage. Use `--replace` to
 overwrite a WP's refs (e.g., to correct a bad mapping).
 
-## Issue-Matrix Approval Heads-Up (non-gating, #3469)
+## Issue-Matrix Approval Heads-Up (non-gating)
 
 If a WP prompt cites a GitHub issue number (`#NNNN`), a bare/unmarked reference will
 later require an issue-matrix row before that work package can be approved. A
@@ -342,83 +346,6 @@ context-only citation (e.g. `Follow-up:`, `see #`, `parent`, `epic`) or a PR/com
 reference (`PR #NNNN`, a `/pull/NNNN` URL) is non-gating and needs no row; if an issue
 genuinely owes the mission no work, it can later be recorded with the `not-applicable`
 verdict. This is informational only — it does not gate `/spec-kitty.tasks`.
-
-## Work Package Sizing Guidelines (CRITICAL)
-
-### Ideal WP Size
-
-**Target: 3-7 subtasks per WP**
-- Results in 200-500 line prompt files
-- Agent can hold entire context in working memory
-- Clear scope - easy to review
-- Parallelizable - multiple agents can work simultaneously
-
-**Examples of well-sized WPs**:
-- WP01: Foundation Setup (5 subtasks, ~300 lines)
-  - T001: Create database schema
-  - T002: Set up migration system
-  - T003: Create base models
-  - T004: Add validation layer
-  - T005: Write foundation tests
-
-- WP02: User Authentication (6 subtasks, ~400 lines)
-  - T006: Implement login endpoint
-  - T007: Implement logout endpoint
-  - T008: Add session management
-  - T009: Add password reset flow
-  - T010: Write auth tests
-  - T011: Add rate limiting
-
-### Maximum WP Size
-
-**Hard limit: 10 subtasks, ~700 lines**
-- Beyond this, agents start making mistakes
-- Prompts become overwhelming
-- Reviews take too long
-- Integration risk increases
-
-**If you need more than 10 subtasks**: SPLIT into multiple WPs.
-
-### Number of WPs: No Arbitrary Limit
-
-**DO NOT limit based on WP count. Limit based on SIZE.**
-
-- ✅ **20 WPs of 5 subtasks each** = 100 subtasks, manageable prompts
-- ❌ **5 WPs of 20 subtasks each** = 100 subtasks, overwhelming 1400-line prompts
-
-**Feature complexity scales with subtask count, not WP count**:
-- Simple feature: 10-15 subtasks → 2-4 WPs
-- Medium feature: 30-50 subtasks → 6-10 WPs
-- Complex feature: 80-120 subtasks → 15-20 WPs ← **Totally fine!**
-- Very complex: 150+ subtasks → 25-30 WPs ← **Also fine!**
-
-**The goal is manageable WP size, not minimizing WP count.**
-
-### When to Split a WP
-
-**Split if ANY of these are true**:
-- More than 10 subtasks
-- Prompt would exceed 700 lines
-- Multiple independent concerns mixed together
-- Different phases or priorities mixed
-- Agent would need to switch contexts multiple times
-
-**How to split**:
-- By phase: Foundation WP01, Implementation WP02, Testing WP03
-- By component: Database WP01, API WP02, UI WP03
-- By user story: Story 1 WP01, Story 2 WP02, Story 3 WP03
-- By type of work: Code WP01, Tests WP02, Migration WP03, Docs WP04
-
-### When to Merge WPs
-
-**Merge if ALL of these are true**:
-- Each WP has <3 subtasks
-- Combined would be <7 subtasks
-- Both address the same concern/component
-- No natural parallelization opportunity
-- Implementation is highly coupled
-
-**Don't merge just to hit a WP count target!**
 
 ## Task Generation Rules
 
@@ -438,7 +365,7 @@ verdict. This is informational only — it does not gate `/spec-kitty.tasks`.
    - Maximum 10 subtasks per WP (700 line prompts)
    - Keep each work package laser-focused on a single goal
    - Avoid mixing unrelated concerns
-   - **Let complexity dictate WP count**: 20+ WPs is fine for complex features
+   - **Let complexity dictate WP count**: 20+ WPs is fine for complex missions
 
 3. **Prioritisation & dependencies**:
    - Sequence work packages: setup → foundational → story phases (priority order) → polish.
@@ -461,139 +388,7 @@ verdict. This is informational only — it does not gate `/spec-kitty.tasks`.
 
 6. **Think like a reviewer**: Any vague requirement should be tightened until a reviewer can objectively mark it done or not done.
 
-## Step-by-Step Process
-
-### Step 1: Detect Mission Context
-
-Resolve the mission slug from explicit user direction, current branch, or current directory path.
-
-If ambiguous, run `check-prerequisites` once without `--mission`, parse the JSON candidate list, and select one explicit mission slug.
-
-### Step 2: Setup
-
-Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks --mission <mission-slug>` and capture `mission_dir`.
-
-### Step 3: Load Design Documents
-
-Read from `mission_dir`:
-- spec.md (required)
-- plan.md (required)
-- data-model.md (optional)
-- research.md (optional)
-- contracts/ (optional)
-
-### Step 4: Derive ALL Subtasks
-
-Create complete list of subtasks with IDs T001, T002, etc.
-
-**Don't worry about count yet - capture EVERYTHING needed.**
-
-### Step 5: Group into Work Packages
-
-**SIZING ALGORITHM**:
-
-```
-For each cohesive unit of work:
-  1. List related subtasks
-  2. Count subtasks
-  3. Estimate prompt lines (subtasks × 50 lines avg)
-
-  If subtasks <= 7 AND estimated lines <= 500:
-    ✓ Good WP size - create it
-
-  Else if subtasks > 10 OR estimated lines > 700:
-    ✗ Too large - split into 2+ WPs
-
-  Else if subtasks < 3 AND can merge with related WP:
-    → Consider merging (but don't force it)
-```
-
-**Examples**:
-
-**Good sizing**:
-- WP01: Database Foundation (5 subtasks, ~300 lines) ✓
-- WP02: User Authentication (7 subtasks, ~450 lines) ✓
-- WP03: Admin Dashboard (6 subtasks, ~400 lines) ✓
-
-**Too large - MUST SPLIT**:
-- ❌ WP01: Entire Backend (25 subtasks, ~1500 lines)
-  - ✓ Split into: DB Layer (5), Business Logic (6), API Layer (7), Auth (7)
-
-**Too small - CONSIDER MERGING**:
-- WP01: Add config file (2 subtasks, ~100 lines)
-- WP02: Add logging (2 subtasks, ~120 lines)
-  - ✓ Merge into: WP01: Infrastructure Setup (4 subtasks, ~220 lines)
-
-### Step 6: Write tasks.md
-
-Create work package sections with:
-- Summary (goal, priority, test criteria)
-- Included subtasks (reference list of `Txxx` ids, tracked via `mark-status`)
-- Implementation notes
-- Parallel opportunities
-- Dependencies
-- **Estimated prompt size** (e.g., "~400 lines")
-
-### Step 7: Generate WP Prompt Files
-
-For each WP, generate `mission_dir/tasks/WPxx-slug.md` using the template.
-
-**CRITICAL VALIDATION**: After generating each prompt:
-1. Count lines in the prompt
-2. If >700 lines: GO BACK and split the WP
-3. If >1000 lines: **STOP - this will fail** - you MUST split it
-
-**Self-check**:
-- Subtask count: 3-7? ✓ | 8-10? ⚠️ | 11+? ❌ SPLIT
-- Estimated lines: 200-500? ✓ | 500-700? ⚠️ | 700+? ❌ SPLIT
-- Can implement in one session? ✓ | Multiple sessions needed? ❌ SPLIT
-
-### Step 8: Finalize Tasks
-
-Run the resolver-returned `finalize_tasks` command to:
-- Parse dependencies
-- Update frontmatter
-- Validate (cycles, invalid refs)
-- Commit to target branch
-
-**DO NOT run git commit after this** - finalize-tasks commits automatically.
-Check JSON output for "commit_created": true and "commit_hash" to verify.
-
-### Step 8a: Assign Agent Profiles
-
-After `finalize-tasks` completes, review all available doctrine-provided and user-created agent profiles and assign the most relevant profile to each work package.
-
-List available profiles:
-```bash
-spec-kitty agent profile list --json
-```
-
-> Only a read-only harness that cannot invoke the CLI may inspect profiles under
-> `packs/built-in/agent_profiles/` and any user-defined profile directory.
-> This degraded fallback can diverge because organization/project overlays,
-> `specializes_from` lineage, and `enhances`/`overrides` semantics are not applied;
-> state that limitation when selecting a profile this way.
-
-For each work package, select the best-matching profile based on:
-- `task_type` (implement / review / plan / specify / research)
-- `authoritative_surface` and `owned_files` (what domain the WP touches)
-- Subtask content (what skills are required)
-
-Update each WP prompt file's frontmatter **directly** (do NOT re-run `finalize-tasks`) with:
-- `agent_profile`: the profile identifier (e.g., `"implementer-ivan"`, `"architect-alphonso"`, `"curator-carla"`)
-- `role`: the role within the profile (e.g., `"implementer"`, `"reviewer"`)
-- `agent`: the CLI agent/tool identifier (e.g., `"claude"`, `"codex"`, `"copilot"`)
-- `model`: the model identifier (optional, e.g., `"claude-sonnet-4-6"`)
-
-### Step 9: Report
-
-Provide summary with:
-- WP count and subtask tallies
-- **Size distribution** (e.g., "6 WPs ranging from 250-480 lines")
-- **Size validation** (e.g., "✓ All WPs within ideal range" OR "⚠️ WP05 is 820 lines - consider splitting")
-- Parallelization opportunities
-- MVP scope
-- Next command
+## Implementation Handoff
 
 ### Step 10: Implementation Handoff Offer
 
@@ -603,6 +398,12 @@ After reporting, ask the user directly:
 > This will dispatch implementing and reviewing agents for every WP, handle rejection cycles, and merge all lanes when done.
 >
 > **Required pre-implementation gate:** `/spec-kitty.analyze` must run before any WP implementation. It persists an `analysis-report.md` and reviews spec/plan/task consistency; the implement gate refuses to start (`analysis_report_required`) until that report exists. This is not optional — it is the readiness gate `/spec-kitty.implement` enforces.
+
+**Staleness rule:** the analysis report is current only while the spec, plan,
+tasks and charter are unchanged. Editing any of the spec, plan, tasks or charter
+after `/spec-kitty.analyze` makes the report stale, and `/spec-kitty.implement`
+refuses again until you re-run `/spec-kitty.analyze`. Run analyze last, after the
+planning artifacts have settled.
 
 - If the user says **yes**: first ensure `/spec-kitty.analyze` has been run for this mission (run it now if `analysis-report.md` is missing — implementation cannot claim a WP without it), then invoke the `spec-kitty-implement-review` skill with the mission slug. The user may also specify which agents to use for implementation and review (e.g., "yes, use sonnet for implementing and opus for reviewing").
 - If the user says **no** or wants to do it manually: end here and let them run `/spec-kitty.implement` at their own pace — reminding them that `/spec-kitty.analyze` is a required prerequisite the implement gate enforces.
@@ -713,4 +514,4 @@ A rushed job with vague, oversized WPs causes:
 - Agents getting stuck
 - Implementation taking 2-3x longer
 - Rework and review cycles
-- Feature failure
+- Mission failure

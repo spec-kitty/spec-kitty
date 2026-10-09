@@ -2,7 +2,7 @@
 #
 # Pinned by `tests/missions/test_mission_type_profile_resolution.py`.
 # Schema: `charter.mission_type_profiles.MissionTypeProfile`
-# Contract: kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/contracts/mission-type-profile.md
+# Contract: kitty-specs/<mission>/contracts/mission-type-profile.md
 #
 # `template_set: software-dev-default` preserves backwards compatibility for
 # the 23-test ATDD suite at
@@ -14,7 +14,7 @@
 # INVARIANT: `id == mission_type` for every governance-profile.yaml — shipped or
 # a project override at `.kittify/doctrine/mission_types/<type>/`. A project
 # override MUST repeat `id: <type>` or field-merge would skip it silently.
-# WP06/07/08 carry this same invariant into the other three shipped profiles.
+# The other three shipped profiles carry this same invariant.
 id: software-dev
 mission_type: software-dev
 template_set: software-dev-default

@@ -931,6 +931,20 @@ def _read_literal_primary_meta(repo_root: Path, mission_slug: str) -> Mapping[st
     return meta
 
 
+def literal_primary_meta(repo_root: Path, dir_name: str) -> Mapping[str, object]:
+    """The ``meta.json`` of the LITERAL primary directory ``kitty-specs/<dir_name>/``; ``{}`` when it proves nothing.
+
+    The public, read-only sibling of :func:`_read_literal_primary_meta` for the Mission write
+    lock key (mission-writer-followups WP01, plan A4): the key is read from the canonical
+    primary copy and never from a lane worktree's copy. One metadata read, no handle
+    canonicalisation, no coordination probing and no Git. An absent, malformed or unreadable
+    file, and a *dir_name* that is not one safe path segment, yield ``{}``.
+    """
+    if not _is_safe_segment(dir_name):
+        return {}
+    return _read_literal_primary_meta(repo_root, dir_name)
+
+
 def _declared_mid8(meta: Mapping[str, object], mission_slug: str) -> str:
     """The mid8 a ``meta.json`` DECLARES, or ``""``: ``mid8`` first, then ``mission_id``.
 
@@ -1873,12 +1887,18 @@ def mission_write_lock_dir(repo_root: Path, mission_handle: str) -> Path:
     consult Git, so resolve it BEFORE entering any status-lock scope. A handle
     that resolves to nothing falls back to the handle itself: there is then no
     Mission content to protect.
+
+    The returned directory is named by ``mission_lock_key`` (plan D1), so a bare-directory
+    coordination Mission resolves the coordination name whichever directory the handle named.
     """
+    from specify_cli.status import mission_lock_key
+
     try:
         dir_name = candidate_feature_dir_for_mission(repo_root, mission_handle).name
     except (ActionContextError, StatusReadPathNotFound, FileNotFoundError):
         dir_name = mission_handle
-    return repo_root.joinpath(KITTY_SPECS_DIR, dir_name)
+    resolved = repo_root.joinpath(KITTY_SPECS_DIR, dir_name)
+    return repo_root.joinpath(KITTY_SPECS_DIR, mission_lock_key(resolved, repo_root=repo_root))
 
 
 # ``coord_feature_dir``, ``probe_coord_state`` and ``CoordState`` are the WP01
@@ -1918,6 +1938,7 @@ __all__ = [
     "StatusReadPathNotFound",
     "candidate_feature_dir_for_mission",
     "coord_feature_dir",
+    "literal_primary_meta",
     "mission_dir_aliases",
     "mission_write_lock_dir",
     "probe_coord_state",
