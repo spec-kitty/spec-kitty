@@ -27,10 +27,13 @@ construction, mirroring the sibling run-INDEX lock
    adds no raw ``fcntl``/``msvcrt``/``filelock`` of its own, so
    ``tests/architectural/test_lock_primitive_ban.py`` stays green.
 3. **Commit-span hold only (NFR-001/NFR-002).** The caller acquires this lock
-   JUST around the commit read-validate-append-write and releases it
-   immediately after the snapshot write; it is never held across composition
-   executor dispatch. The bounded ``timeout_s`` is comfortably below the 60 s
-   stale-reclaim ceiling (:data:`kernel.locks.STALE_AFTER_S_DEFAULT`).
+   around the read-validate-append-write (for ``next_step``, the plan too) and
+   releases it right after the snapshot write; it is never held across
+   composition executor dispatch. The hold is not always sub-second: it also
+   spans emitter calls made during the commit (the decision-log emitter makes
+   git commits) and the ``before_run_completed`` retrospective capture. The
+   bounded ``timeout_s`` is comfortably below the 60 s stale-reclaim ceiling
+   (:data:`kernel.locks.STALE_AFTER_S_DEFAULT`).
 
 Lock ordering (C-002, no deadlock): ``get_or_start_run`` releases the run-index
 lock before the bootstrap read, and this run-cursor lock is only acquired later,
@@ -53,8 +56,9 @@ __all__ = [
 
 _STATE_FILENAME = "state.json"
 _LOCK_SUFFIX = ".lock"
-#: Bounded wait for the run-cursor lock. Comfortably above the sub-second hold
-#: of a snapshot re-read + event append + atomic replace, well under the 60 s
+#: Bounded wait for the run-cursor lock. Comfortably above the typical hold of
+#: a snapshot re-read + event append + atomic replace (longer when an emitter
+#: makes git commits under the lock), well under the 60 s
 #: stale-lock ceiling. Matches ``run_index._LOCK_TIMEOUT_S``. Read at call time
 #: so a test may monkeypatch it for a deterministic held-lock-blocks probe.
 _LOCK_TIMEOUT_S = 10.0
