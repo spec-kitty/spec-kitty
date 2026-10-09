@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-09T20:25:53.081726+00:00",
+  "flattened": false,
+  "friendly_name": "Scoped shadow workspaces: write-boundary design spike (#3129/#2334)",
+  "mid8": "01M4H5FQ",
+  "mission_id": "01M4H5FQP29C8NAK5QPHN0MCQW",
+  "mission_number": null,
+  "mission_slug": "scoped-shadow-workspace-write-boundary-01M4H5FQ",
+  "mission_type": "research",
+  "purpose_context": "This mission advances Scoped shadow workspaces: write-boundary design spike (#3129/#2334) on issue-3129-shadow-workspace-design-spike so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Design decision material for the write-boundary topology question behind #3129 and #2334",
+  "slug": "scoped-shadow-workspace-write-boundary-01M4H5FQ",
+  "target_branch": "issue-3129-shadow-workspace-design-spike",
+  "topology": "single_branch"
+}
