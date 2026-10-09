@@ -41,13 +41,24 @@ from pathlib import Path
 __all__ = ["resolve_pytest_command"]
 
 
-def _declares_test_extra(pyproject: Path) -> bool:
+def _test_dependency_flags(pyproject: Path) -> list[str]:
+    """Return the ``uv run`` flags that install the project's test dependencies.
+
+    ``[project.optional-dependencies].test`` -> ``--extra test``;
+    otherwise a PEP 735 ``[dependency-groups].test`` -> ``--group test``
+    (the extra wins when both exist: it is the long-standing declaration).
+    Neither, or an unreadable/malformed pyproject -> no flag.
+    """
     try:
         with pyproject.open("rb") as stream:
-            project = tomllib.load(stream).get("project", {})
+            data = tomllib.load(stream)
     except (OSError, tomllib.TOMLDecodeError):
-        return False
-    return "test" in project.get("optional-dependencies", {})
+        return []
+    if "test" in data.get("project", {}).get("optional-dependencies", {}):
+        return ["--extra", "test"]
+    if "test" in data.get("dependency-groups", {}):
+        return ["--group", "test"]
+    return []
 
 
 def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> list[str]:
@@ -57,7 +68,7 @@ def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> li
 
     1. ``uv`` is on ``PATH`` **and** ``<repo_root>/pyproject.toml`` exists ->
        Run ``python -m pytest`` in the project's own managed virtualenv.
-       Request ``--extra test`` when that extra is declared, so pytest is
+       Request ``--extra test`` (or ``--group test``) when declared, so pytest is
        installed there without rejecting projects that have no such extra.
     2. Otherwise -> ``[sys.executable, "-m", "pytest", *pytest_args]``, the
        universal fallback used when ``uv`` is unavailable, or when
@@ -65,7 +76,7 @@ def resolve_pytest_command(pytest_args: Sequence[str], *, repo_root: Path) -> li
        at its root — a named edge case: the AND's second leg).
     """
     if shutil.which("uv") is not None and (repo_root / "pyproject.toml").is_file():
-        extra = ["--extra", "test"] if _declares_test_extra(repo_root / "pyproject.toml") else []
+        extra = _test_dependency_flags(repo_root / "pyproject.toml")
         return [
             "uv",
             "run",
