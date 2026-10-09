@@ -156,8 +156,8 @@ exclude = [
     "src/*/pyproject.toml",
 ]
 # Include all non-Python files (templates, configs, etc.)
-# Runtime command templates are package assets under specify_cli/missions;
-# charter/offering/missions holds the governance/action-bundle side of the surface.
+# Runtime command templates now live under packs/built-in/missions (shipped as pack
+# assets); charter/offering/missions holds the governance/action-bundle side of the surface.
 artifacts = [
     "src/specify_cli/**/*.md",
     "src/specify_cli/**/*.yaml",
