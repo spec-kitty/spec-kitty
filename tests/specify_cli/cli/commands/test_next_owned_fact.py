@@ -320,6 +320,20 @@ def test_print_decision_json_adds_the_stale_copy_key_only_for_owned_runs(
     assert (owned["answered"], owned["answer"]) == ("input:x", "yes")
 
 
+def test_print_decision_json_includes_commit_warning_without_stderr(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    next_cmd._print_decision(_Decision(), True, "input:x", "yes", commit_warnings=["Decision log commit failed; events may be uncommitted."])
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    assert json.loads(captured.out) == {
+        "kind": "query",
+        "answered": "input:x",
+        "answer": "yes",
+        "warnings": ["Decision log commit failed; events may be uncommitted."],
+    }
+
+
 def test_print_decision_human_warns_on_stderr_only_for_owned_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     fact = _fact(tmp_path)
     warned: list[OwnedCheckout] = []
