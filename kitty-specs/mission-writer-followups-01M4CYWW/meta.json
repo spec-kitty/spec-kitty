@@ -1,0 +1,33 @@
+{
+  "accept_commit": "e9d6080490de0ad808060320ad910a621226580a",
+  "acceptance_history": [
+    {
+      "accept_commit": "e9d6080490de0ad808060320ad910a621226580a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-09T10:30:52.964207+00:00",
+      "accepted_by": "claude-takeover",
+      "accepted_from_commit": "bb6fb1be0c470fbd0ed72ae2271d8e24eefa593e"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-09T10:30:52.964207+00:00",
+  "accepted_by": "claude-takeover",
+  "accepted_from_commit": "bb6fb1be0c470fbd0ed72ae2271d8e24eefa593e",
+  "contracts": "none",
+  "contracts_rationale": "No Mission-local contract artifacts and no external interface change: the new runtime error codes ANALYSIS_REPORT_MISSING/ANALYSIS_REPORT_STALE ride the existing decision.py error_code field, and the orchestrator-api contract is untouched.",
+  "created_at": "2026-10-08T05:13:40.799767+00:00",
+  "flattened": false,
+  "friendly_name": "Every Mission-file writer takes the lock, and the runtime never cuts a log it cannot prove is its own",
+  "mid8": "01M4CYWW",
+  "mission_id": "01M4CYWW2JE17MK86TMYDR0FYH",
+  "mission_number": null,
+  "mission_slug": "mission-writer-followups-01M4CYWW",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "PR 5890 added one Mission write lock and a verified rollback, but its scout found more Mission-file writers that still read and write without the lock, the gate has three documented holes, and the runtime rolls its run log back with the same unverified truncate. Running that Mission also surfaced planning friction: generated commits say 'feature', and implement refuses on an analyze step the tasks prompts and spec-kitty next never offer. This Mission closes all three so parallel agents never lose a write and the planning flow tells the operator every required step.",
+  "purpose_tldr": "Close the follow-ups to concurrent-mission-writers: the last unlocked Mission-file writers, the runtime run-log truncate, and planning-flow friction around the analyze step and feature wording.",
+  "slug": "mission-writer-followups-01M4CYWW",
+  "status_phase": "1",
+  "target_branch": "issue-5883-mission-writer-followups",
+  "topology": "single_branch"
+}

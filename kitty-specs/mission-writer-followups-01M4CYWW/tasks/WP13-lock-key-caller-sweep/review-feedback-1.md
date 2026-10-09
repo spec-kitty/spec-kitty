@@ -1,0 +1,19 @@
+# WP13 review feedback (cycle 1)
+
+Verdict: changes requested. The behaviour is right. Every per-Mission `feature_status_lock` caller outside WP04's matrix files now passes `mission_lock_key`. The lock-order tests pass 5 of 5, and the mutation (`retro_status_lock` back on `feature_dir.name`) fails 4 tests, deadlock test included. The blast radius passes: 5350 passed, 16 skipped, 2 xfailed. The blocker is the NFR-005 / Definition-of-done quality bar: mypy reports new issues on changed files, and the WP adds new suppressions.
+
+## Blocking (NFR-005: "mypy reports no new issues; no new `noqa` or `type: ignore`")
+
+Commands used: `uv run --frozen mypy <changed src files> tests/status/test_mission_lock_order.py`, plus a per-file run. The comparison is against base `96b5cefa1`.
+
+1. `src/specify_cli/status/mission_write.py:142` and `:143` (`_primary_meta`): `Returning Any from function declared to return "Mapping[str, object]"` (no-any-return). This is new. Under `follow_imports = "skip"`, `load_meta_or_empty` and `literal_primary_meta` widen to `Any`. Bind the value to a typed local before returning it, as `_read_literal_primary_meta` already does (`meta: Mapping[str, object] = ...`, with a comment).
+2. `tests/status/test_mission_lock_order.py:424` (`_holds_transaction_lock`): no-any-return. Bind `holds_status_lock(...)` to a `bool` local.
+3. `tests/status/test_mission_lock_order.py:443`: `Module "specify_cli.migration.rebuild_state" does not explicitly export attribute "os"` (attr-defined). Patch the stdlib directly instead: `monkeypatch.setattr(os, "replace", _replace)`. The test still observes the replace.
+4. `tests/status/test_mission_lock_order.py:176` and `:401`: two new `# type: ignore[arg-type]` on `module._seed_coord_surface(request)`. They are also reported as `unused-ignore` when the test file is checked alone. Remove them: build the request with `typing.cast("_SeedRequest", SimpleNamespace(...))`, or with a small typed helper, so that no suppression is needed.
+
+## Non-blocking observations (record them; no change required in this WP)
+
+- **Owned checkout with a legacy slug: the key can diverge (pre-existing, WP01 code).** The setup is an owned linked worktree, a legacy `060-test` slug with a resolvable mid8, and no `kitty-specs/060-test/meta.json` in the repository root checkout. In that case `transaction_lock_key(owned_root, "060-test", "01COORD0")` returns `060-test-01COORD0`, while `mission_lock_key(owned/kitty-specs/060-test, repo_root=owned_root)` returns `060-test`. The cause is the `mission_lock_dir_name` fallback when the meta is empty. This was the same at base. Modern slugs that embed the mid8 are unaffected. Suggest a follow-up issue: the fallback should read the owned checkout's own meta, or return the directory name.
+- **The `_primary_meta` shortcut is narrower than the commit message says.** `owned_root` is a linked worktree (its `.git` is a file), so lock callers that use `lock_root = owned.owned_root` still go through `literal_primary_meta` → `get_main_repo_root`. The shortcut only applies to callers that pass `owned.repository_root` (the lifecycle emit). There is no subprocess either way (a stat and a file read), so NFR-003 holds. The shortcut also skips `literal_primary_meta`'s safe-segment check (`name == ".."`). It is read-only and harmless, but consider keeping the check.
+- **A4 gap.** A hold taken through `mission_write_lock(mission_write_lock_dir(...))` registers only `(root, key)`, not the primary directory name. A nested primary-directory caller that ran after an in-hold `flatten_coordination_metadata` would take a second lock. No current call path does this (flatten runs only in mission_type, the coordination doctor and teardown), so it is not blocking.
+- The `workflow_executor.py:1889` call is unchanged (`mission_write_lock(feature_dir, ...)`). `feature_dir` is a function parameter, so that is acceptable under A6 Rule 3.

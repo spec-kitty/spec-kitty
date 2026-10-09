@@ -1,0 +1,566 @@
+{
+  "event_count": 137,
+  "last_event_id": "01M4G26HSYA5XG7MVPSF55M8Z4",
+  "materialized_at": "2026-10-09T10:09:05.342138+00:00",
+  "mission_number": "",
+  "mission_slug": "mission-writer-followups-01M4CYWW",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 17,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4DAKC14M12C85645S4P4K5N",
+      "last_transition_at": "2026-10-08T08:38:10.724961+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "mission_lock_key + core doors (mission_write_lock, capture guard, mission_write_lock_dir, transaction lock site, coord_status_lock via mission_write_lock); red-first 32cc1fbbb; 18 new tests; blast radius 4908 passed, make test-fast 2464 passed",
+        "Cycle 2: B1 transaction key shares routing decision (red 32cc.. then fixed), S1 legacy no-mid8 bare key, note1 transaction hold registered, note2 pinned by test; blast 5497 passed, test-fast 2468 passed",
+        "Cycle 2 approved by Opus reviewer: B1 transaction key shares the door's routing decision (flat backfilled + bare-directory equality pinned), S1 legacy no-mid8 bare key, transaction hold registered, worktree repo_root reads the main checkout meta; 5 mutations killed; 22/22 x5; status/coordination/lanes 3148 passed. Remaining direct feature_status_lock(.name) callers and owned-checkout hold registration are WP13."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP01:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 10616,
+      "shell_pid_created_at": "1791448096.05",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4DK5ZXNRX9XAQP18ZZXXPXB",
+      "last_transition_at": "2026-10-08T11:08:09.525624+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "locked_update_meta + locked setters + CAS restore_meta_text; dead setters removed; accept restamps locked. Red-first 940775817 (6 overlaps fail), 5x green, mutation check fails 6/6. Handoffs: outside owned_files edited tests/specify_cli/test_feature_metadata.py, test_mission_metadata_change_mode.py, tests/architectural/_load_meta_census.py (comment), test_status_events_writes_gate.py (lock census), bulk-edit SKILL.md example. Pre-existing red: MissionLockKeyUnresolved dead-symbol gate (WP01).",
+        "Approved: locked_update_meta + 8 locked setters (flatten takes the lock itself, sole-owner ratchet), CAS restore_meta_text, accept restamps via _stamp_accept_commit, dead setters removed. Reviewer mutation (no-op mission_write_lock) fails all 6 overlaps; 15/15 x5; 836 targeted passed; warm path zero subprocess; ruff/format/mypy clean (3 mypy errors pre-existing untouched lines). Non-blocking: timed-event pause, NFR-003 test permits rev-parse instead of warming, flatten rekey window, SKILL.md loses str coercion."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 27571,
+      "shell_pid_created_at": "1791457173.32",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4DRX3R0218Q0SP9DGBPHAJG",
+      "last_transition_at": "2026-10-08T12:48:09.984444+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "All four subtasks done: doc-state, consolidation and migration meta.json writers take the Mission lock (locked_update_meta or write_meta in a mission_write_lock region). Red-first overlap + lock-acquisition tests, 5/5 repeats, mutation-checked. Adds opt-in fallback_to_dir_name for healing migrations on legacy coordination missions without a mid8. Deviations: mission_write.py, mission_metadata.py, test_status_events_writes_gate.py census, WP02 test + bulk-edit SKILL.md edited outside owned_files.",
+        "Cycle 1 addressed: planning-only bake tests rewritten against the locked path (missing meta now raises, no stub); lock coverage added for scratch bake (primary key, lock released before git), planning-only assignment, backfill_mission_ids, update_documentation_state; fallback_to_dir_name callers listed in docstring; comment/banner fixed; dead _write_meta_canonical removed.",
+        "Cycle 2 approved: bake seam tests rewritten against locked path (missing meta no longer fabricated); lock coverage adds update_documentation_state, planning-only bake, backfill_mission_ids and scratch-checkout bake (primary key, released before git); fallback_to_dir_name docstring lists all 9 call sites (verified by grep); _write_meta_canonical removed, census updated. Targeted 442 passed; ruff/format clean; mypy no new."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 30619,
+      "shell_pid_created_at": "1791463334.41",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude-takeover",
+      "agent": "claude-takeover",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4FH08QVJTM9GT316B2SX15A",
+      "last_transition_at": "2026-10-09T05:08:33.659139+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Frontmatter, finalize and matrix writers take the Mission lock: locked_update_frontmatter (body byte-for-byte); map-requirements plan+write in one hold; finalize flush applies its field delta under the lock; write-scope and meta restores are compare-and-swap with kept-file reporting; matrix helpers/guard/issue-verdict/scaffold key through mission_write_lock; remaining frontmatter and tasks.md writers locked. Red-first and mutation checks recorded in the tracer; 5x repeats green.",
+        "Cycle 2: per-write ledger with CAS restore (foreign changes kept and reported), meta text captured in the writing hold, owned pin green (no resolver read for the lock key), owned-root threaded into baseline/cutover/review-cycle locks, bake flow tests follow main, scaffold_acceptance_matrix locked, ownership backfill fallback, status imports via package.",
+        "WP04 rework cycle 2 in the main checkout (stream A); claimed with move-task because WP07 holds the single-branch implement slot for stream B",
+        "WP04 rework cycle 2 in the main checkout (stream A); claimed with move-task because WP07 holds the single-branch implement slot for stream B",
+        "Cycle 3: owned finalize keys every lock on owned.repository_root (flush, status-surface recording, bootstrap transaction); second .git parser deleted; restore keeps and reports a foreign delete (red-first); status appends and vanished-WP fallback ledgered inside their holds; bake reads undo bytes in the hold; kernel observer tests; flatten heals with fallback.",
+        "Cycle 3 APPROVE: owned writers lock one hold (key before lock, canonical primary meta); finalize restore per-write CAS keeps+reports foreign changes/deletes; matrix helpers+verdict guard key via mission_write_lock; kernel/atomic observer minimal; empty-allowlist gate green; red-green intact; overlap 3/3 no flake"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 7473,
+      "shell_pid_created_at": "1791522478.71",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T058": "done"
+      }
+    },
+    "WP05": {
+      "actor": "claude-reviewer-runtime",
+      "agent": "claude-reviewer-runtime",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01M4EAXFQ44SHDRH791GDRYJA2",
+      "last_transition_at": "2026-10-08T18:02:56.612571+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Stream B (runtime/templates) claimed for a parallel worktree at /home/user/sk-stream-runtime; operator chose parallel streams 2026-10-08",
+        "Implementing in the stream-B worktree",
+        "Forced only because the parallel-stream claim was recorded with move-task, so no claim base exists; implementation commits 717ef0738..24cba0fe8 are on the branch (ff-merged from stream/runtime). Terminal retrospective gate as the engine's before_run_completed hook on all three legacy paths; speculative rollback deleted; RetrospectiveGateRefused adapter; transition-only capture.",
+        "Stream B rework cycle 1 in the stream/runtime worktree",
+        "Stream B rework cycle 1 in the stream/runtime worktree",
+        "Cycle 1 fix a0e342f8d (merged 30dbf5308): composition strict-retrospective test expects RetrospectiveGateRefused with __cause__ the policy error; composition foreign-append-during-gate case added. Forced only because the stream claim has no claim base.",
+        "Cycle 2 approved: the composition policy-error test now expects RetrospectiveGateRefused with its __cause__, and a foreign-append composition case was added; 68/68 green. The gate runs before any write on all legacy and composition paths, the refusal is typed and blocked, and a terminal re-poll does not re-gate. The 3 test_owned_next_runtime.py failures did not reproduce (26/26 serially and under -n4, on head and on base 68857d82d) and sit outside this diff."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP05:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 27038,
+      "shell_pid_created_at": "1791481836.95",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done"
+      }
+    },
+    "WP06": {
+      "actor": "claude-reviewer-runtime",
+      "agent": "claude-reviewer-runtime",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01M4EE155Q4W06R4TRWWZ8VZ4P",
+      "last_transition_at": "2026-10-08T18:57:22.615661+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Stream B (runtime/templates) in the stream/runtime worktree",
+        "Stream B (runtime/templates) in the stream/runtime worktree",
+        "Forced only because the stream claim has no claim base; commits 5b4a8c857..9651145e2 merged from stream/runtime. next reads built-in runtime templates from the pack via builtin_missions_root(); src runtime copies deleted; ledger 23->22; query mode reads the frozen template; per-type parity fixture recorded first.",
+        "Stream B WP06 rework cycle 1",
+        "Stream B WP06 rework cycle 1",
+        "Cycle 1 fixes 4145ca7dc, 20c248139 (merged): format fix; mission_loader first write checks, reads and writes in one mission_write_lock region with a red-first concurrent-creator test; software-dev pack comment path and 'mission completeness' wording. Forced only because the stream claim has no claim base.",
+        "Cycle 2 approved: loader first meta write locked (overlap test red with lock no-op'd, green 5/5), whole-repo ruff format clean, parity + terminology + layer rules + provenance green (307 passed), pack wording/comment restored, mypy/ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 5084,
+      "shell_pid_created_at": "1791485603.42",
+      "subtasks": {
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T029": "done",
+        "T059": "done"
+      }
+    },
+    "WP07": {
+      "actor": "claude-takeover",
+      "agent": "claude-takeover",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M4FH48KYKB7YF2SRKS7SNJHA",
+      "last_transition_at": "2026-10-09T05:10:44.606846+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Stream B (runtime/templates) in the stream/runtime worktree",
+        "Stream B (runtime/templates) in the stream/runtime worktree",
+        "Commits 3791553e4..bcd26113f merged from stream/runtime (106b79b30): analyze step between tasks and implement, currency check injected via next_cmd.decide_next, board override and query mode check currency, error codes ANALYSIS_REPORT_MISSING/STALE/CURRENCY_UNAVAILABLE, CLI-entry tests. Forced only because the stream claim has no claim base.",
+        "APPROVE cycle 1: analyze step tasks->analyze->implement; currency injected at next_cmd.decide_next, orchestrator-api routed through it; board override gates in decide+query modes; missing callable fails closed ANALYSIS_CURRENCY_UNAVAILABLE; cores stays pure (verdict in status_facts only for analyze/override); C-001 ledger intact at 22; FR-017 frozen run keeps tasks->implement; C6 analyze off action sequence; red-green provenance confirmed; all targeted tests green"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP07:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 8318,
+      "shell_pid_created_at": "1791522608.22",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T056": "done",
+        "T060": "done"
+      }
+    },
+    "WP08": {
+      "actor": "claude-takeover",
+      "agent": "claude-takeover",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude-wp08",
+      "lane": "approved",
+      "last_event_id": "01M4FM0G2MZYHDYJ6NPGF5AZ41",
+      "last_transition_at": "2026-10-09T06:01:06.900456+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Rule 1 (FR-008/A7): whole-file rewrites of status/run logs flagged (write_text/write_bytes/open w,r+/shutil.move/os.replace/atomic_write), src/runtime scanned; structural non-sinks = append 'a', exclusive-create 'x', tmp-then-replace of fresh content, Mission-lock region; merge driver excluded structurally. Rule 3 (FR-007/A6): feature_status_lock keys only mission_lock_key()/param/assigned; mission_write_lock/hold paths refuse .name/subscript/slug. Real-tree empty-allowlist fixes: bookkeeping_projection RMW under the Mission lock; auto_rebase hydrate exclusive create. HANDOFF: migration/mission_state._repair_quarantine_phase audit write wrapped in the Mission lock (not owned by WP08); note _repair_events_phase:1793 writes the real log unlocked but escapes Rule 1 because its target is a function parameter — a follow-up should bring the whole _repair_status_log_phases under one lock hold. Gate 92 passed; owning tests 115+82 passed; ruff/format/mypy clean.",
+        "APPROVE: Rules 1&3 non-vacuous (synthetic offenders + near-misses + self-mutation proofs); empty allowlist {primitive}; red-green verified empirically (3 findings pre-fix, 0 now); bookkeeping RMW under mission_write_lock, auto_rebase exclusive-create (no TOCTOU). open('x') non-sink is required by D5/FR-008 and hole-free; mission_state handoff fix sanctioned. Follow-up: _repair_events_phase:1793 unlocked status-log RMW (out of scope, file issue). 241 tests green; gates clean"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP08:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 24157,
+      "shell_pid_created_at": "1791525629.6",
+      "subtasks": {
+        "T034": "done",
+        "T036": "done"
+      }
+    },
+    "WP09": {
+      "actor": "claude-takeover",
+      "agent": "claude-takeover",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude-wp09",
+      "lane": "approved",
+      "last_event_id": "01M4FVJ5CT5XS76W5RN07RESDX",
+      "last_transition_at": "2026-10-09T08:13:05.818673+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T038-T040 done. C1: dropped --profile/--tool bootstrap inputs from all 17 built-in step contracts (the Locality exception). C2 software-dev contract wording fixed. Tasks-family prompts: FR-015 analyze-required + staleness in report/next-step of tasks, tasks-finalize, guidelines.md; deduped (removed duplicate Step-by-Step walkthrough + sizing section); fixed false next-advances claims; undefined-template refs point at the resolver (C6); feature->mission; removed provenance tokens and /ad-hoc-profile-load alias. tasks-finalize/step.yaml now depends on tasks-packages. Ratchet lowered by hand: tasks 57->29, tasks-packages 12->10, removed tasks-finalize entry. Did NOT apply C3 (--mission boilerplate, spans other WPs). WP17 HANDOFF: regenerate DRG graph + snapshots + pack-manifest hash for the step.yaml depends_on change (did not regenerate per operator rule). Tests: bootstrap+shipped+declared-parse 95 passed; targeted T040 batch + pins + ratchet 161 passed; ruff/format/mypy clean.",
+        "APPROVE: C1 drops profile/tool from all 17 contracts (bootstrap commands now parse); C2 software-dev contract fixes; FR-015 analyze+staleness added to tasks/tasks-finalize/guidelines (section-scoped, non-vacuous); false next-advances claims removed; C6 template resolver wording (step.yaml untouched); C8 ratchet only-lowered by hand; red-green clean; 167+ tests green; gates clean. Concern2 LEGITIMATE (roundtrip green, no red left). Concern1 C3 reword is a GAP owned by NO WP (WP16 does not own tasks-family) - orchestrator folds C3 into WP16. #5885 in-mission"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP09:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 31539,
+      "shell_pid_created_at": "1791533544.64",
+      "subtasks": {
+        "T038": "done",
+        "T039": "done",
+        "T040": "done"
+      }
+    },
+    "WP10": {
+      "actor": "claude-takeover",
+      "agent": "claude-takeover",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude-wp10",
+      "lane": "approved",
+      "last_event_id": "01M4FSAQG5DKM6ZP2K6Q7FEX4D",
+      "last_transition_at": "2026-10-09T07:34:05.061505+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "FR-012/013/014 + C-007. Builders (finalize pin, spec/plan setup, gap analysis, generator config, mission creation scaffold/origin-ticket) say 'for mission'. 16 CLI error/label sites say mission (task_utils, status/uninitialized_hint, acceptance, plan_validation, validate_tasks/encoding, mission_branch_context, lanes/consolidation, implement/detect, implement_phases, mission_creation_identity invalid-slug, cli/helpers, mission_type, verify_enhanced). FR-013: drift accepts legacy 'for feature' subject via named _LEGACY_FINALIZE_BOOKKEEPING_SUBJECT. FR-014 scan (tests/specify_cli/test_no_for_feature_operator_text.py) with offender-form coverage + 2 structural exemptions (LEGACY-named const; tracker/saas_*). commitlint accepts scaffold/gap-analysis/generator-config/origin-ticket-binding for both words. Handoffs touched (ownership-leeway): acceptance/__init__.py, mission_type.py, mission_setup_plan.py, implement_phases.py; WP06 assertion tests/next/test_next_command_integration.py updated; plus test_implement_characterization.py, test_feature_creation.py, test_slug_validator_unit.py, mission_create_cli.json, mission_create_refusals.json. FOLLOW-UP to file: FEATURE_CONTEXT_UNRESOLVED error code stays (machine contract, out of scope). Tests: batch1 254 passed / batch2 337 passed+2 skip / make test-fast 2500 passed. Pre-existing baseline mypy no-any-return at uninitialized_hint:73, consolidation:1101, acceptance:1147/1937 (untouched lines, string-only diffs).",
+        "APPROVE: 5 commit builders + ~15 CLI error strings say mission; FR-014 AST scan sound (mutation-checked, all forms caught, name-scoped LEGACY exemption acceptable, real tree 0 offenders); FR-013 drift accepts both subjects (3 cases green); commitlint both-words valid; red-green confirmed (15->0); scope string-bounded; gates clean (4 mypy pre-existing on untouched lines). #5885 in-mission. Follow-up: FEATURE_CONTEXT_UNRESOLVED rename deferred"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP10:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 21210,
+      "shell_pid_created_at": "1791531205.0",
+      "subtasks": {
+        "T044": "done",
+        "T045": "done",
+        "T046": "done",
+        "T047": "done",
+        "T061": "done"
+      }
+    },
+    "WP11": {
+      "actor": "claude-takeover",
+      "agent": "claude-takeover",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude-wp11",
+      "lane": "approved",
+      "last_event_id": "01M4G19BE25GN9V7PBAQQQXH6B",
+      "last_transition_at": "2026-10-09T09:53:08.546366+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "FR-021 done. topic branch (new), Mission (rewritten to unit-of-governed-delivery), Mission Run (one runtime execution keyed by run_id) and feature branch (alias of topic branch) now carry identical definitions across all four surfaces: docs/context markdown -> generated contextive, YAML seed, built-in pack (proven by parse harness), each with Do NOT use when / synonyms_to_avoid guards. R9/C11 fixes: stale Feature historical entry + mission_run_id->run_id; Lane Consolidation self-contradiction; 7->9 canonical lanes; conventions schema; contextive slug table + map comments; 'inside a mission run'->Mission (seed/pack work package + Effector); spec-driven feature->topic branch. Regenerated contextive + pack-manifest; no_legacy_terminology baseline only shrank; regenerate-graph roundtrip green. Tests: pack_parity+authority_parity+seed_validation (46), no_legacy+roundtrip (98), pack_boundary+link_integrity (35), tests/glossary (179p/1s) all green. No Python changed.",
+        "APPROVE: 4 surfaces byte-identical (topic branch/Mission/Mission Run/feature-branch-alias); generator check up-to-date; Mission-vs-Mission-Type SOUND (type meaning preserved in md+contextive, guards correct); all 8 R9/C11 inconsistencies fixed (7->9 lanes, Lane Consolidation, spec-driven:329); wire value feature-branch unchanged; regen scope = pack-manifest hash only; baseline shrank naturally; 177+2 tests green. #5885 in-mission"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP11:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 24485,
+      "shell_pid_created_at": "1791539547.41",
+      "subtasks": {
+        "T048": "done",
+        "T049": "done",
+        "T050": "done"
+      }
+    },
+    "WP12": {
+      "actor": "claude-takeover",
+      "agent": "claude-takeover",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude-wp12",
+      "lane": "approved",
+      "last_event_id": "01M4G26HSYA5XG7MVPSF55M8Z4",
+      "last_transition_at": "2026-10-09T10:09:05.342138+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "CHANGELOG [Unreleased] entries for the writer lock, runtime run-log gate, analyze step, canonical pack templates, prompt cleanup, mission wording and glossary; status-model.md Mission-write-lock section extended with the canonical key, locked helpers and gate Rule 4; mission-system SKILL.md stale task_types block removed; #5885 recorded fixed.",
+        "APPROVE: CHANGELOG [Unreleased] entries accurate to shipped behaviour + house style (no WP/FR ids, style gate green, correct issue attribution #5883/#5884/#5885); status-model Rule4 section matches the gate + real helper names; SKILL.md task_types fix accurate (0 hits in built-in mission.yaml); terminology clean; freshness bumped 2026-10-09; 258 tests green; docs-only. #5885 fixed"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP12:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 31333,
+      "shell_pid_created_at": "1791540502.18",
+      "subtasks": {
+        "T051": "done",
+        "T052": "done"
+      }
+    },
+    "WP13": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4DGNB3GA2TQ9WNT02WW9VZK",
+      "last_transition_at": "2026-10-08T10:24:06.768382+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Every per-Mission lock caller keys on mission_lock_key; coord_seed + owned-checkout holds registered; A7 rewrites pinned under lock; red-first 14/19 failed pre-fix; 5/5 repeats + 3 mutations fail as required; blast radius 8392+5401 passed; make test-fast 2492 passed",
+        "Changes requested: new mypy issues (mission_write.py:142/143, test :424/:443) and 2 new type: ignore in the test (NFR-005); behaviour, lock order and mutation verified",
+        "Review 1 addressed: mypy zero new vs 96b5cefa1, no new type: ignore; owned-worktree key agreement (red-first) fixed; mission_write_lock_dir hold found by primary dir (red-first); wording: direct-read shortcut only for repository_root callers whose .git is a directory. Targeted tests only.",
+        "Cycle 2 approved: mypy matches base (3 pre-existing in mission_write.py), no new suppressions; owned-worktree key fallback and mission_write_lock_dir primary alias verified, both mutation-killed; lock-order tests 26/26 x5; targeted suites 489 passed. Residual (no meta anywhere, explicit mid8) accepted: every real transaction caller derives mid8 via resolve_transaction_mid8 from meta or the slug tail, so the key equals the dir name without meta."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP13:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 19192,
+      "shell_pid_created_at": "1791454398.99",
+      "subtasks": {
+        "T005": "done",
+        "T053": "done",
+        "T054": "done"
+      }
+    },
+    "WP14": {
+      "actor": "claude-reviewer-runtime",
+      "agent": "claude-reviewer-runtime",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M4EEWF7HZ8CTSEXK1JS2PDG7",
+      "last_transition_at": "2026-10-08T19:12:17.649651+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Stream B (runtime/templates) in the stream/runtime worktree",
+        "Stream B (runtime/templates) in the stream/runtime worktree",
+        "69cdbeeb1 red parity test (4 failed pre-fix), 23372a49f pack mission.yaml byte-equal to src for all four types, wording fixes in both copies, mission_loader comment. Forced only because the stream claim has no claim base.",
+        "Approved: 4 pack mission.yaml byte-equal to src; parity test kills revert mutation; no behavioural reader of pack task_types/paths.deliverables (compiler embeds parsed dict only into uncommitted _LIBRARY; charter.yaml summary unchanged); whole-repo ruff format clean; terminology/provenance/manifest gates + 504 targeted green. Non-blocking: spec-kitty-mission-system SKILL.md still documents mission.yaml task_types."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP14:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28882,
+      "shell_pid_created_at": "1791486461.56",
+      "subtasks": {
+        "T028": "done",
+        "T055": "done"
+      }
+    },
+    "WP15": {
+      "actor": "claude-takeover",
+      "agent": "claude-takeover",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude-wp15",
+      "lane": "approved",
+      "last_event_id": "01M4FPVDTJH9FV74ABTWANC35S",
+      "last_transition_at": "2026-10-09T06:50:46.482633+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Rule 4 (FR-019/A5/D5) added: meta.json/tasks/WP*.md/tasks.md writers must be in a structural lock region, a self-locking named sink (restore_meta_text), or a function whose every same-module call site is in a region (fixpoint covers the emit lock + BookkeepingTransaction). Merge driver excluded by construction. Rule 2 (FR-006/A11) was already complete from WP08; added explicit escape offenders. Empty allowlist; synthetic offender/near-miss/self-mutation per rule; C-007 prompt_metadata stays green. HANDOFF (real-tree fix, not WP15-owned): core/mission_creation_meta.py _write_create_meta wrapped in mission_write_lock (was the one genuine unlocked meta.json writer, FR-020). Tests: test_mission_write_discipline 125 passed; mission-creation suites 243 passed. ruff/format/mypy/C901 clean.",
+        "APPROVE: Rules 2&4 non-vacuous (offenders+near-misses+self-mutation); Rule4 tier-2 self-locking correctly excludes write_meta/includes restore_meta_text; cross-module-unresolvable fails closed; empty allowlist incl _RULE4_EXCLUDED; C-007 prompt_metadata near-miss green; mission_creation_meta birth-write fix sound (fallback_to_dir_name required, re-entrant). Red-green verified empirically; 125+243 tests green; gates clean. #5883 fixed"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP15:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4448,
+      "shell_pid_created_at": "1791528607.07",
+      "subtasks": {
+        "T035": "done",
+        "T037": "done"
+      }
+    },
+    "WP16": {
+      "actor": "claude-takeover",
+      "agent": "claude-takeover",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude-wp16",
+      "lane": "approved",
+      "last_event_id": "01M4FXZMK9KWRDM8M8EHD4SY67",
+      "last_transition_at": "2026-10-09T08:55:24.522002+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP16 done. C3 applied to all nine prompts: reworded the boilerplate to \"every command that accepts --mission\" in the 7 that carry it (analyze, accept, implement, review, tasks, tasks-outline, tasks-packages); plan+specify already scope --mission via their Mission Handle Rule (no boilerplate line to reword) and stay clean of \"every spec-kitty command\". C4: accept no longer claims next advances to consolidate + \"merge\"->\"consolidate\"; specify handoff says next issues analyze; review/implement next lines carry --mission; review drops hosted-sync wording. C5: implement drops authority-pointer defaults + retired command-templates path, uses project lint/format cmds, target-branch merge-base, agent config list pointer, names analysis_report_required gate. C10: analyze staleness rule + recovery recipe outside checkout (DIRTY_WORKTREE). T042: READMEs, expected-artifacts (comment-only; implement comment points at analyze gate), governance-profile (slug->placeholder, WP id dropped), analyze/step.yaml depends_on [tasks]. C-003: dropped charter-e2e-827-followups-01KQAJA0 from plan+specify. Provenance ratchet lowered by hand (implement 3/1->2, plan 6->5, specify 5->4, governance 1/1->1, expected-artifacts entry removed). Tests: test_software_dev_prompt_sections 32 pass; ratchet+layout+manifest-parity 132 pass; prompt-fragment+analyze-surface+feature-flag 60 pass; command-template-cleanliness 89 pass; ruff/format/mypy clean on new test. WP17 HANDOFFS: (1) rendered specify/implement/etc snapshots (tests/specify_cli/regression/_twelve_agent_baseline/{claude,gemini}/specify.*, tests/specify_cli/skills/__snapshots__/codex/specify.SKILL.md) are stale from the prompt edits and need regeneration; (2) analyze/step.yaml depends_on + expected-artifacts.yaml comment edits — pack-manifest does not hash missions/ files and analyze is off the action sequence, so no *.graph.yaml change is expected, but if test_doctrine_regenerate_graph_roundtrip or pack-manifest regen flags them, WP17 regenerates (I did NOT run regenerate-graph). NOTE: did NOT restructure expected-artifacts required_by_step tasks_* keys (cross-WP risk; they mirror live guard branches consumed by ~15 non-owned tests) — comment-only reconciliation instead.",
+        "APPROVE: C3 landed across all 9 prompts (7 reworded, plan/specify already correct; guard tests over 7 and 9); C4/C5/C10 verified with quoted wording; expected-artifacts tasks_* keys correctly KEPT (live _CLI_TASKS_STEP_IDS, pinned by parity test - T042 'retired' meant DAG display collapse); red-green clean (31->32); C-003 ratchet only-lowers; concrete slug removed; gates clean. 3 specify snapshots now red = WP17 regen scope (claude/gemini twelve-agent + codex SKILL); graph roundtrip green. #5885 in-mission"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP16:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 7324,
+      "shell_pid_created_at": "1791536082.52",
+      "subtasks": {
+        "T041": "done",
+        "T042": "done"
+      }
+    },
+    "WP17": {
+      "actor": "claude-takeover",
+      "agent": "claude-takeover",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude-wp17",
+      "lane": "approved",
+      "last_event_id": "01M4FZVTQ6SNJYEYXQ561Q5YF9",
+      "last_transition_at": "2026-10-09T09:28:16.870762+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP17 complete. T057: SC-008 prompt-walk gate (tests/doctrine/test_software_dev_prompt_walk.py) with 4 checks over implement/review/accept/tasks-finalize prompts+contracts: (1) command paths + --options resolve against Click; (2) step-contract command: values render via _render_declared_command and parse; (3) 'spec-kitty next ... advance to X' claims match runtime successor order; (4) consumer paths resolve against a spec-kitty init fixture + explicit placeholder allowlist, no src/specify_cli leaks. Red-first via temp worktree at 68132c9bd (removed): 2 checks RED pre-cleanup, 11 passed GREEN now. T043: ratchet already tight (no growth/stale, prior WPs lowered entries); 3 stale specify snapshots regenerated via PYTEST_UPDATE_SNAPSHOTS=1 (added lines carry 0 provenance tokens, C-003), parity+renderer 301 passed; regenerate-graph a no-op (no manifest/graph diff); roundtrip+CLI-ref gates green. WP11 handoff: graph/manifest left consistent for WP11 to re-regenerate.",
+        "APPROVE: SC-008 gate non-vacuous (4 checks + 7 self-tests; red-first independently reproduced at 68132c9bd: 2 checks red); check3 flags non-step target + wrong successor, check4 flags src/specify_cli leaks, checks1-2 floor-guarded. Snapshots regen CLEAN (no new tokens; legit analyze-gate catch-up delta too). regenerate-graph+ratchet no-op confirmed (empty diff). conftest.py:83 mypy pre-existing on untouched file. 301+15+6 tests green; gates clean. #5885 in-mission"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP17:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 14559,
+      "shell_pid_created_at": "1791538055.25",
+      "subtasks": {
+        "T043": "done",
+        "T057": "done"
+      }
+    }
+  }
+}
