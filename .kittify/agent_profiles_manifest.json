@@ -34,12 +34,12 @@
       "tool_key": "claude"
     },
     {
-      "file_hash": "d530b0822fde2e35e4d1b1cb76a09dcd5ae403d7e5715245ac09de01536d7001",
+      "file_hash": "00adcaf20a1c0887d99344d1c310684db1be095d99e647a8524e3a7eb3e8d48e",
       "format": "claude-agent",
       "output_path": ".claude/agents/curator-carla.md",
       "profile_urn": "agent_profile:curator-carla",
       "projection_version": 1,
-      "source_hash": "5b389532a6646522f3d1bafb07f232fb6e39f43488d56e0f4be691e525cf9093",
+      "source_hash": "e12b8469266434d833978274b10b1b0bea34f96282553a5d3fd9c6145e363088",
       "source_layer": "builtin",
       "source_path": "${SPEC_KITTY_PACKS_ROOT}/built-in/agent_profiles/curator-carla.agent.yaml",
       "tool_key": "claude"
@@ -83,7 +83,7 @@
       "output_path": ".claude/agents/doctrine-daphne.md",
       "profile_urn": "agent_profile:doctrine-daphne",
       "projection_version": 1,
-      "source_hash": "6c1779acaa8c11438846a30f347bb636dae1a4521bf1297b038e3349ad3f54d9",
+      "source_hash": "9121635d67c58fa61e91d590ecb9bd8153d1511999529d9459f617ad64abe5db",
       "source_layer": "builtin",
       "source_path": "${SPEC_KITTY_PACKS_ROOT}/built-in/agent_profiles/doctrine-daphne.agent.yaml",
       "tool_key": "claude"
@@ -276,12 +276,12 @@
       "tool_key": "codex"
     },
     {
-      "file_hash": "b8337afc8eacac4f5588beaaad095ba23ff992c8d906e52acbb1910175bbe8a4",
+      "file_hash": "54131ebb2d89bb19671a3081a735477d0be99a7e6d5c7e36a327bbdc77ee832a",
       "format": "codex-agent",
       "output_path": ".codex/agents/curator-carla.toml",
       "profile_urn": "agent_profile:curator-carla",
       "projection_version": 1,
-      "source_hash": "5b389532a6646522f3d1bafb07f232fb6e39f43488d56e0f4be691e525cf9093",
+      "source_hash": "e12b8469266434d833978274b10b1b0bea34f96282553a5d3fd9c6145e363088",
       "source_layer": "builtin",
       "source_path": "${SPEC_KITTY_PACKS_ROOT}/built-in/agent_profiles/curator-carla.agent.yaml",
       "tool_key": "codex"
@@ -325,7 +325,7 @@
       "output_path": ".codex/agents/doctrine-daphne.toml",
       "profile_urn": "agent_profile:doctrine-daphne",
       "projection_version": 1,
-      "source_hash": "6c1779acaa8c11438846a30f347bb636dae1a4521bf1297b038e3349ad3f54d9",
+      "source_hash": "9121635d67c58fa61e91d590ecb9bd8153d1511999529d9459f617ad64abe5db",
       "source_layer": "builtin",
       "source_path": "${SPEC_KITTY_PACKS_ROOT}/built-in/agent_profiles/doctrine-daphne.agent.yaml",
       "tool_key": "codex"
