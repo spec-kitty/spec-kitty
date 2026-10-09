@@ -49,8 +49,9 @@ Deleted pins (FR-014)
 - ``_NORMALIZATION_DELTA``: the store-form vs node-form slug swing of the activation
   store (C-009); with no per-kind activation lists there is no store form to normalise,
   so it measures nothing.
-- ``_activated`` / ``_raw_activated_map`` and ``_profile_channel_ledger_text`` (with its
-  two section constants): helpers only the deleted pins and their removed tests used.
+- helpers ``_activated``, ``_raw_activated_map``, ``_profile_channel_ledger_text``:
+  used only by the deleted pins and their removed tests (with the latter's two section
+  constants).
 """
 
 from __future__ import annotations
