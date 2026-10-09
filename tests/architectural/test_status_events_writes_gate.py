@@ -143,10 +143,6 @@ KNOWN_DYNAMIC_EVENT_LOG_WRITE_SITES: frozenset[tuple[str, str, str]] = frozenset
         # #2804 gate-artifact restore after a squash merge (the log is one of
         # the preserved gate artifacts).
         ("specify_cli.consolidation.phase_advance", "write_bytes", "path"),
-        # finalize-tasks failure restore (#5641): puts a failed run's byte
-        # snapshot back over the Mission directory, and over the coordination
-        # worktree's, which holds ``status.events.jsonl``.
-        ("specify_cli.cli.commands.agent.mission_finalize_commit", "write_bytes", "path"),
     }
 )
 
