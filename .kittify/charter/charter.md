@@ -381,7 +381,7 @@ maintainer-only doctrine in `built-in` — it would be force-shipped to every
 consumer. The two packs also differ in shape: `internal/` uses a single
 `drg/fragment.yaml` (not sharded `*.graph.yaml`) plus an `org-charter.yaml`.
 Editing either pack trips the pack-manifest regen gate — run
-`spec-kitty doctrine regenerate-graph` after the edit.
+`spec-kitty charter pack regenerate-graph` after the edit.
 
 ### Development Workflow Requirements
 
