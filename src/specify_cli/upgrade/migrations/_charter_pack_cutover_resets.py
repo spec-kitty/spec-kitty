@@ -156,9 +156,16 @@ def _absent_meaning(key: str) -> str:
     return f"all {noun} available"
 
 
+def _pin_hint(rel: str, key: str, value: frozenset[str], what: str) -> str:
+    """Restore hint for a key that matched *what* and was un-pinned."""
+    ids = ", ".join(sorted(value))
+    return f"{rel}: {key} matched {what} and is now absent. To keep this exact list pinned, set {key}: [{ids}] in {rel}."
+
+
 def _classify_kind_gate(path: Path, rel: str, value: frozenset[str]) -> ResetAction:
     if value == DEFAULT_KIND_GATE:
-        return ResetAction(path, _KINDS_KEY, ResetOutcome.RESET, f"{rel}: {_KINDS_KEY} (matched the released default kind gate; now absent)")
+        line = f"{rel}: {_KINDS_KEY} (matched the released default kind gate; now absent)"
+        return ResetAction(path, _KINDS_KEY, ResetOutcome.RESET, line, _pin_hint(rel, _KINDS_KEY, value, "the released default kind gate"))
     if value == MINIMAL_KIND_GATE:
         line = f"{rel}: {_KINDS_KEY} [directives, tactics] (the released minimal kind gate; now absent)"
         hint = (
@@ -172,7 +179,8 @@ def _classify_kind_gate(path: Path, rel: str, value: frozenset[str]) -> ResetAct
 
 def _classify_list(path: Path, rel: str, key: str, value: frozenset[str]) -> ResetAction:
     if value in DEFAULT_SNAPSHOTS.get(key, ()):
-        return ResetAction(path, key, ResetOutcome.RESET, f"{rel}: {key} (matched a released default list; now absent, every built-in available)")
+        line = f"{rel}: {key} (matched a released default list; now absent, every built-in available)"
+        return ResetAction(path, key, ResetOutcome.RESET, line, _pin_hint(rel, key, value, "a released default list"))
     if value in MINIMAL_SNAPSHOTS.get(key, ()):
         return ResetAction(path, key, ResetOutcome.MATCHES_MINIMAL, f"{rel}: {key} matches preset minimal; not changed")
     return ResetAction(path, key, ResetOutcome.KEPT_FOR_REVIEW, f"{rel}: {key} customised; not changed")

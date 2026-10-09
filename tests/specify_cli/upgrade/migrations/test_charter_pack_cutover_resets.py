@@ -95,7 +95,10 @@ _STALE_CASES = [pytest.param(key, sorted(snapshot), id=f"{key}-{len(snapshot)}")
 @pytest.mark.parametrize(("key", "ids"), _STALE_CASES)
 def test_every_released_default_list_resets(tmp_path: Path, key: str, ids: list[str]) -> None:
     _write(tmp_path, CONFIG, "vcs:\n  type: git\n" + _block(key, ids) + "mission_type_activations:\n- software-dev\n")
-    report = _report(_apply_twice(tmp_path))
+    result = _apply_twice(tmp_path)
+    report = _report(result)
+    (hint,) = [w for w in result.warnings if "To keep this exact list pinned" in w]
+    assert hint.endswith(f"set {key}: [{', '.join(ids)}] in {CONFIG}."), "the released list is recoverable from the hint"
     data = _load(tmp_path / CONFIG)
     assert key not in data
     assert data == {"vcs": {"type": "git"}, "mission_type_activations": ["software-dev"]}
