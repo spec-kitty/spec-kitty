@@ -28,7 +28,7 @@ def _empty_buckets() -> dict[NodeKind, list[str]]:
 
 #: Legacy named fields, keyed by the field name so this table can never itself
 #: become a partial kind-keyed lookup (the failure mode
-#: ``tests/doctrine/drg/test_kind_mapping_totality.py`` exists to catch). It is
+#: ``tests/charter_offering/drg/test_kind_mapping_totality.py`` exists to catch). It is
 #: deliberately *not* the source of totality -- :func:`_empty_buckets` is. This
 #: only records which kinds additionally answer to a named attribute, so the
 #: two surfaces stay one truth.

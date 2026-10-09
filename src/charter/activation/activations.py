@@ -3,7 +3,7 @@
 This module defines the runtime surface for the *activation registry* —
 the operator-authored block in `governance.yaml` that pairs an
 ``activation_context`` (mission_type + action) with a specific
-``(doctrine_pack_id, artifact_id, artifact_kind)`` triple to fetch.
+``(charter_pack_id, artifact_id, artifact_kind)`` triple to fetch.
 
 Canonical vocabulary
 --------------------
@@ -51,7 +51,7 @@ from __future__ import annotations
 
 import json
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, model_validator
 
 from charter.offering.artifact_kinds import (
     CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR,
@@ -59,6 +59,7 @@ from charter.offering.artifact_kinds import (
     ArtifactKind,
 )
 from charter.offering.missions.mission_type_repository import builtin_mission_type_id_set
+from charter.offering.packs.retired_fields import SCOPE_ACTIVATION_ENTRY, reject_retired_fields
 
 __all__ = [
     "ActivationEntry",
@@ -133,7 +134,7 @@ _ACTION_WILDCARDS: frozenset[str] = frozenset({"any", "generic"})
 
 
 #: Allowed values for the optional ``artifact_kind`` disambiguator — the plural
-#: property names ``DoctrineService`` exposes for **every** artifact kind
+#: property names ``ActiveCharterService`` exposes for **every** artifact kind
 #: (``templates`` / ``assets`` are node-declarable org-pack DRG kinds; every
 #: other kind is a fetchable repository). Derived from the single
 #: :class:`ArtifactKind` authority so it can never drift from the enum
@@ -149,7 +150,7 @@ _ALLOWED_KINDS: frozenset[str] = frozenset(kind.plural for kind in ArtifactKind)
 
 
 #: Mapping of operator-friendly singular ``artifact_kind`` tokens to the
-#: canonical plural form used by ``DoctrineService`` repositories.  The
+#: canonical plural form used by ``ActiveCharterService`` repositories.  The
 #: contract example in ``contracts/activation-registry.md`` uses the
 #: singular form (``artifact_kind: styleguide``) and the rendered
 #: ``--include <kind>:<id>`` selector also uses the singular per the
@@ -199,7 +200,7 @@ class ActivationEntry(BaseModel):
           - activation_context:
               mission_type: software-dev   # optional, defaults to wildcard
               action: implement            # optional, defaults to wildcard
-            doctrine_pack_id: very-serious-developers
+            charter_pack_id: very-serious-developers
             artifact_id: caveman-comments
             artifact_kind: styleguides     # optional disambiguator
 
@@ -209,14 +210,31 @@ class ActivationEntry(BaseModel):
     explicit wildcard tokens ``any`` / ``generic`` — both forms match every
     concrete value. This keeps operator-authored entries terse while still
     allowing the explicit wildcard for clarity.
+
+    Retired field
+    -------------
+    ``charter_pack_id`` replaced an earlier field name (#3732, OD-1). An entry
+    that still carries the retired name is rejected with ``RETIRED_PACK_FIELD``
+    naming the replacement (the table lives in
+    ``charter.offering.packs.retired_fields``, scope
+    ``SCOPE_ACTIVATION_ENTRY``), for both the project
+    ``charter.yaml`` and an ``org-charter.yaml``; there is no alias (C-001).
     """
 
     model_config = ConfigDict(extra="forbid")
 
     activation_context: dict[str, str]
-    doctrine_pack_id: str
+    charter_pack_id: str
     artifact_id: str
     artifact_kind: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_retired_fields(cls, data: object) -> object:
+        # Located by scope only: the loader that read the file relocates the
+        # error to its path (``raise_retired_field_at``).
+        reject_retired_fields(data, scope=SCOPE_ACTIVATION_ENTRY, path=None)
+        return data
 
     @field_validator("activation_context")
     @classmethod
@@ -252,7 +270,7 @@ class ActivationEntry(BaseModel):
         if value is None:
             return None
         # Accept both the canonical plural form (``styleguides`` — the
-        # ``DoctrineService`` property name) and the operator-friendly
+        # ``ActiveCharterService`` property name) and the operator-friendly
         # singular form (``styleguide`` — used in the contract example
         # and in the rendered ``--include <kind>:<id>`` fetch selector).
         # Normalise to plural on the way in so internal lookups stay
@@ -260,7 +278,7 @@ class ActivationEntry(BaseModel):
         normalised = normalize_artifact_kind(value)
         if normalised not in _ALLOWED_KINDS:
             raise ValueError(
-                f"artifact_kind={value!r} is not a known DoctrineService kind. "
+                f"artifact_kind={value!r} is not a known ActiveCharterService kind. "
                 f"Accepted (plural): {sorted(_ALLOWED_KINDS)}. "
                 f"Accepted (singular alias): {sorted(_SINGULAR_TO_PLURAL_KIND)}."
             )
@@ -271,14 +289,14 @@ def _activation_identity_key(entry: ActivationEntry) -> tuple[str, str, str, str
     """Return the dedup identity key for an :class:`ActivationEntry`.
 
     Per data-model.md §5, the identity tuple for activation de-dup is
-    ``(activation_context, doctrine_pack_id, artifact_id, artifact_kind)``.
+    ``(activation_context, charter_pack_id, artifact_id, artifact_kind)``.
     ``activation_context`` is itself a ``dict[str, str]`` — we serialise
     it with sorted keys so structurally equal contexts produce identical
     hash keys regardless of insertion order.
 
     Relocated here (FR-003, WP01) from
-    ``specify_cli.doctrine.org_charter`` so the org-pack fold
-    (:func:`specify_cli.doctrine.org_charter._fold_policies`) and the
+    ``charter.activation.org_charter`` so the org-pack fold
+    (:func:`charter.activation.org_charter._fold_policies`) and the
     charter-layer resolve-time union
     (:func:`charter.activation.context._union_activations`) share ONE identity-key
     implementation and cannot drift. This module has no
@@ -287,7 +305,7 @@ def _activation_identity_key(entry: ActivationEntry) -> tuple[str, str, str, str
     """
     return (
         json.dumps(entry.activation_context, sort_keys=True),
-        entry.doctrine_pack_id,
+        entry.charter_pack_id,
         entry.artifact_id,
         entry.artifact_kind or "",
     )

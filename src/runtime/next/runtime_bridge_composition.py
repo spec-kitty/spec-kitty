@@ -56,6 +56,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from kernel.charter_pack_paths import project_pack_root
 from mission_runtime import OwnedCheckout
 
 from runtime.next import runtime_bridge_cores as _cores
@@ -73,12 +74,6 @@ from runtime.next import runtime_bridge_io as _io_seam
 # both, since a differently-named logger's effective level is not raised by
 # ``caplog.at_level(logging.INFO, logger="runtime.next.runtime_bridge")``.
 logger = logging.getLogger("runtime.next.runtime_bridge")
-
-# Duplicated from runtime_bridge.py (same precedent as runtime_bridge_io.py's
-# own KITTIFY_DIR — see that module's docstring): a top-level import of the
-# residual would be circular, and it is a plain constant, so redefining it
-# here is safe and matches the established WP05 pattern.
-KITTIFY_DIR = ".kittify"
 
 # ---------------------------------------------------------------------------
 # Composition dispatch (WP02 / mission software-dev-composition-rewrite-01KQ26CY)
@@ -248,7 +243,7 @@ def _resolve_runtime_contract_for_step(
         contract_ref = step.contract_ref.strip() if step.contract_ref else None
         if contract_ref:
             repository = MissionStepContractRepository(
-                project_dir=repo_root / KITTIFY_DIR / "doctrine" / "mission_step_contracts",
+                project_dir=project_pack_root(repo_root) / "mission_step_contracts",
                 org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
             )
             return lookup_contract(contract_ref, repository)

@@ -37,7 +37,7 @@ from charter.offering.artifact_kinds import ArtifactKind
 
 __all__ = [
     "ActivationReachabilityPartition",
-    "CharterPackConfigError",
+    "ActiveCharterConfigError",
     "PackContext",
     "charter_activated_urns",
     "explicit_activated_skills",
@@ -60,18 +60,22 @@ _ACTIVATION_KEY_PREFIX = "activated_"
 _CHARTER_POINTER_KEY = "charter"
 
 
-class CharterPackConfigError(KittyInternalConsistencyError):
-    """Raised when ``.kittify/config.yaml`` has invalid charter pack shape."""
+class ActiveCharterConfigError(KittyInternalConsistencyError):
+    """Raised when the active charter configuration has an invalid shape.
+
+    The active charter configuration is ``.kittify/config.yaml`` or the
+    ``charter.yaml`` it points to (#3732, ADR 2026-10-06-1 section 1).
+    """
 
     def __init__(self, body: str) -> None:
-        super().__init__("CHARTER_PACK_CONFIG_INVALID", body)
+        super().__init__("ACTIVE_CHARTER_CONFIG_INVALID", body)
 
 
 # ---------------------------------------------------------------------------
 # Built-in constants
 # ---------------------------------------------------------------------------
 
-#: All built-in artifact kinds (plural form used by DoctrineService). Derived
+#: All built-in artifact kinds (plural form used by ActiveCharterService). Derived
 #: from the single :class:`ArtifactKind` authority — exactly
 #: ``{kind.plural for kind in ArtifactKind}`` — so it can never drift from the
 #: enum (issue #5409; it now includes ``anti_patterns``). Value-equal to
@@ -225,7 +229,7 @@ class PackContext:
 
         Raises
         ------
-        CharterPackConfigError
+        ActiveCharterConfigError
             When an activation key has an invalid shape (e.g. a non-list
             value), or a ``charter:`` pointer is dangling / unreadable.
             An absent ``mission_type_activations`` key is NOT an error
@@ -291,11 +295,11 @@ def _yaml_loader() -> YAML:
     return yaml
 
 
-def _config_error(message: str) -> CharterPackConfigError:
-    return CharterPackConfigError(
+def _config_error(message: str) -> ActiveCharterConfigError:
+    return ActiveCharterConfigError(
         f"{message}\nRemediation: fix .kittify/config.yaml (or the charter.yaml "
         f"it points to) or run `spec-kitty upgrade` to restore the default "
-        f"charter pack shape."
+        f"active charter shape."
     )
 
 
@@ -631,7 +635,7 @@ def _read_activated_mission_types(data: dict[str, Any]) -> frozenset[str]:
 
     Why totality: ``PackContext`` is constructed on dozens of hot read /
     compose paths (runtime-bridge composition through
-    ``doctrine_service_builder``, invocation ``ProfileRegistry``, charter
+    ``active_charter_service_builder``, invocation ``ProfileRegistry``, charter
     listing, tool-surface projection, ``doctor``) that must not crash on an
     unprovisioned project. Reading an empty activation set is a valid, total
     outcome. The fail-closed "a mission requires at least one activated
@@ -722,7 +726,7 @@ def explicit_activated_skills(repo_root: Path) -> frozenset[str] | None:
 
     Unlike :attr:`PackContext.activated_skills` this never applies the absent-key
     default (the org-required set), so a caller can tell "the project lists these
-    skills" from "the org packs decide". Raises :class:`CharterPackConfigError` on a
+    skills" from "the org packs decide". Raises :class:`ActiveCharterConfigError` on a
     non-list value, exactly as :meth:`PackContext.from_config` does.
     """
     return _read_list_key(_load_charter_activation_source(repo_root, _load_config(repo_root)), "activated_skills")
@@ -743,9 +747,9 @@ def _absent_key_default(kind: ArtifactKind, repo_root: Path) -> frozenset[str] |
 def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, ...], tuple[Path, ...]]:
     """Resolve org pack names and root paths from config data.
 
-    Delegates to ``charter.offering.drg.org_pack_config.load_pack_registry``
-    so that legacy ``organisation_packs`` form and deprecation warnings
-    are handled consistently with the rest of the codebase.
+    Delegates to ``charter.offering.drg.org_pack_config.load_pack_registry``,
+    which reads only the canonical ``charter_packs.org.packs``: a config that
+    carries only a retired key yields no packs, never an error.
 
     Returns
     -------

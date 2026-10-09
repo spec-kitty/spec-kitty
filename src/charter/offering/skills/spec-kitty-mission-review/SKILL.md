@@ -11,7 +11,7 @@ description: >-
   spec-kitty-runtime-review), implement-review loop orchestration
   (use spec-kitty-implement-review), setup or repair (use
   spec-kitty-setup-doctor), or glossary maintenance
-  (use spec-kitty-glossary-context).
+  (use spk-charter-glossary).
 ---
 
 # spec-kitty-mission-review

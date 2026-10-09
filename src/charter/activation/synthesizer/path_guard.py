@@ -5,7 +5,7 @@ methods. Any attempted write outside the configured allowlist raises
 PathGuardViolation BEFORE the filesystem is touched (FR-016, US-7).
 
 The default allowlist covers:
-- .kittify/doctrine/   (synthesized content)
+- .kittify/charter-packs/   (synthesized content, the project charter pack root)
 - .kittify/charter/    (synthesis bookkeeping + staging)
 
 A lint-style test (tests/charter/synthesizer/test_path_guard.py) greps
@@ -22,6 +22,7 @@ import shutil
 from pathlib import Path
 from collections.abc import Sequence
 
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT_POSIX
 from kernel.resolution import resolve_rejecting_loops
 
 from .errors import PathGuardViolation
@@ -34,7 +35,7 @@ __all__ = [
 
 # Default allowed path prefixes (relative to repo_root, resolved to absolute).
 _DEFAULT_ALLOWLIST: tuple[str, ...] = (
-    ".kittify/doctrine",
+    PROJECT_PACK_ROOT_POSIX,
     ".kittify/charter",
 )
 

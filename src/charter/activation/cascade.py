@@ -38,7 +38,7 @@ Design (FR-013..016, data model §6, contracts C3.2/C3.3/C3.4)
 
 Layering
 --------
-Charter layer: this module imports only ``doctrine`` (the DRG models, query
+Charter layer: this module imports only ``charter.offering`` (the DRG models, query
 primitives, and the canonical :class:`ArtifactKind`). It never imports
 ``specify_cli`` (C-001) and performs no I/O — it is pure graph logic over data
 handed in by the caller (the CLI in WP12).
@@ -112,7 +112,7 @@ _REFERENCE_RELATIONS: frozenset[Relation] = frozenset(
 #: Recovery hint surfaced with the no-cascade warning (FR-013, Contract C3.2).
 _NO_CASCADE_HINT: str = (
     "Re-run with `--cascade <scope>` (e.g. `--cascade all` for every referenced "
-    "kind) to activate the referenced artifacts, or run `charter pack "
+    "kind) to activate the referenced artifacts, or run `charter "
     "consistency-check` to confirm the activation set is coherent."
 )
 

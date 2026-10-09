@@ -45,10 +45,8 @@ from specify_cli.template import (
     copy_specify_base_from_package,
     get_local_repo_root,
 )
-from specify_cli.provisioning.default_charter import (
-    DefaultCharterPackMissingError,
-    provision_default_mission_type_activations,
-)
+from charter.activation.compiler import DefaultPresetMissingError
+from specify_cli.provisioning.default_charter import provision_default_mission_type_activations
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 from specify_cli.skills.installer import install_skills_for_agent
 from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
@@ -657,7 +655,7 @@ def _get_package_templates_root() -> Path | None:
       kernel sibling-path primitive to ``packs/built-in/missions``, whose
       *actual* parent (``packs/built-in``) does **not** carry ``templates/``
       (that stays under ``src/charter/offering/templates``, untouched by this
-      mission). Falls back to :func:`charter.activation.catalog.resolve_doctrine_root`
+      mission). Falls back to :func:`charter.activation.catalog.resolve_offering_root`
       for this shape.
     """
     try:
@@ -669,11 +667,11 @@ def _get_package_templates_root() -> Path | None:
     if sibling_templates_dir.is_dir():
         return Path(sibling_templates_dir)
 
-    from charter.activation.catalog import resolve_doctrine_root  # noqa: PLC0415
+    from charter.activation.catalog import resolve_offering_root  # noqa: PLC0415
 
     try:
-        doctrine_root = resolve_doctrine_root()
-        templates_dir = doctrine_root / "templates"
+        offering_root = resolve_offering_root()
+        templates_dir = offering_root / "templates"
         if templates_dir.is_dir():
             return Path(templates_dir)
     except FileNotFoundError:
@@ -1430,19 +1428,16 @@ def init(  # noqa: C901
     # active from the very first lane claim.
     _wire_merge_driver_best_effort(project_path)
 
-    # Fresh-init provisioning (FR-009/010/011, NFR-004): seed
-    # mission_type_activations from the shipped default charter pack so a
-    # brand-new project always has an explicit, non-empty activation set.
-    # This is the load-bearing prerequisite for removing the config-absent
-    # implicit backfill elsewhere in the charter runtime (mission
-    # resolution-activation-foundation-01KZ9FKG, WP04) -- unlike the
-    # best-effort steps around it, this one fails closed (C-A4): a broken
-    # install missing default.yaml must stop init, never silently produce an
-    # empty or implicit mission-type set.
+    # Fresh-init provisioning (FR-003): seed mission_type_activations from the
+    # built-in pack's `default` preset, so skipping charter activation leaves
+    # the project exactly as `charter activate --preset default` would. Unlike
+    # the best-effort steps around it, this one fails closed: a broken install
+    # whose `default` preset is missing must stop init, never silently produce
+    # an empty or implicit mission-type set.
     try:
         provision_default_mission_type_activations(project_path)
-    except DefaultCharterPackMissingError as exc:
-        _console.print(f"[red]Error:[/red] {exc}")
+    except DefaultPresetMissingError as exc:
+        _console.print(f"Error ({exc.code}): {exc.body}", style="red", markup=False, soft_wrap=True)
         raise typer.Exit(1) from exc
 
     # Copy AGENTS.md from template source (not user project)

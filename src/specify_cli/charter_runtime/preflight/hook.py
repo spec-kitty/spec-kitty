@@ -109,7 +109,7 @@ def run_preflight_or_abort(
 
     Args:
         repo_root: Repository root used to load the config flag and to
-            resolve ``.kittify/charter/`` / ``.kittify/doctrine/`` paths.
+            resolve ``.kittify/charter/`` / ``.kittify/charter-packs/`` paths.
         consumer: Human-readable consumer name for log lines, e.g.
             ``"next"`` or ``"implement"``. Used only for observability.
         stderr: Optional stream override (mostly for tests). Defaults to

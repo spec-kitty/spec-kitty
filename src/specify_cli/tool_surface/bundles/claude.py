@@ -2,7 +2,7 @@
 
 Projects the canonical tool surfaces into Claude Code's plugin bundle layout
 (``.claude-plugin/``) and validates the result before publication. The bundle
-includes command skills, doctrine skills, agent profiles, hooks, and MCP config;
+includes command skills, charter skills, agent profiles, hooks, and MCP config;
 it deliberately **excludes** session-presence files (CLAUDE.md, AGENTS.md, rules
 / steering files), which are project-install surfaces, not bundle components.
 
@@ -72,7 +72,7 @@ _MANIFEST_NAME = "plugin.json"
 # Per-kind destination prefix inside the Claude Code bundle package.
 _CLAUDE_LAYOUT: dict[ToolSurfaceKind, str] = {
     ToolSurfaceKind.COMMAND_SKILL: "skills",
-    ToolSurfaceKind.DOCTRINE_SKILL: "skills",
+    ToolSurfaceKind.CHARTER_SKILL: "skills",
     ToolSurfaceKind.AGENT_PROFILE: "agents",
     ToolSurfaceKind.HOOK: "hooks",
     ToolSurfaceKind.NATIVE_CONFIG: "",
@@ -82,7 +82,7 @@ _CLAUDE_LAYOUT: dict[ToolSurfaceKind, str] = {
 _REQUIRED_KINDS: frozenset[ToolSurfaceKind] = frozenset(
     {
         ToolSurfaceKind.COMMAND_SKILL,
-        ToolSurfaceKind.DOCTRINE_SKILL,
+        ToolSurfaceKind.CHARTER_SKILL,
         ToolSurfaceKind.AGENT_PROFILE,
     }
 )
@@ -259,12 +259,12 @@ class ClaudeBundleProjector:
 
     @staticmethod
     def _profile_members(directory: Path, root: OperationRoot) -> tuple[tuple[StagedFile, ...], tuple[BundleObservation, ...]]:
-        from charter.activation.doctrine_service_builder import _build_activation_aware_doctrine_service
+        from charter.activation.active_charter_service_builder import _build_active_charter_service
         from ..profiles.projection import ProfileProjector
 
         source = _built_in_profiles_dir().resolve()
         observations = observe_tree(source)
-        repository = _build_activation_aware_doctrine_service(
+        repository = _build_active_charter_service(
             root.path,
             org_roots=[],
         ).agent_profile_repository

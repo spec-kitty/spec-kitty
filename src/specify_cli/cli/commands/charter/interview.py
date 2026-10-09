@@ -50,10 +50,12 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
     (e.g. ``selected_styleguides``); those are the config-seeded migration's
     job (``m_unify_charter_activation``, T023), not this per-interview-run
     wiring. Routes through the shared :func:`charter.activation.activation_engine.promote_activations`
-    primitive (WP06) — the same append-only, absent-key-built-in-safe seam the
-    migration uses — reusing (not duplicating) the WP01 ID-form resolver and
-    the default-pack loader via ``m_unify_charter_activation`` (T023's sibling
-    consumer).
+    primitive — the same append-only seam the migration uses — with the WP01
+    ID-form resolver (:func:`charter.activation.kind_vocabulary.resolve_selected_id_to_stem`).
+    An absent key is seeded from the effective set
+    (:func:`charter.activation.effective_set.resolve_effective_sets`, FR-015);
+    when that set cannot be resolved the key stays absent and a warning names
+    it (#4400).
 
     Best-effort / non-fatal by contract: the caller wraps this in a broad
     ``except`` so a promotion failure never blocks the interview answers
@@ -67,15 +69,11 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
     into ``config.yaml`` directly (unchanged pre-relocation behavior).
     """
     from charter.activation.activation_engine import promote_activations
-    from charter.activation.catalog import resolve_doctrine_root
-    from charter.activation.kind_vocabulary import UnrepresentableDirectiveIdError
+    from charter.activation.catalog import resolve_offering_root
+    from charter.activation.effective_set import resolve_effective_sets
+    from charter.activation.kind_vocabulary import UnrepresentableDirectiveIdError, resolve_selected_id_to_stem
     from charter.activation.pack_manager import resolve_activation_write_target
     from charter.drg import ArtifactKind
-
-    from specify_cli.upgrade.migrations.m_unify_charter_activation import (
-        load_default_pack_ids,
-        resolve_selected_id_to_stem,
-    )
 
     kind_to_selection: dict[ArtifactKind, list[str]] = {
         ArtifactKind.DIRECTIVE: list(interview_data.selected_directives),
@@ -83,12 +81,12 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
         ArtifactKind.PARADIGM: list(interview_data.selected_paradigms),
     }
 
-    from specify_cli.cli.commands.charter._layer_roots import (
+    from charter.activation.layer_roots import (
         resolve_layer_roots,
         resolve_org_root_chain,
     )
 
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     org_roots = resolve_org_root_chain(repo_root)
     layer_roots = resolve_layer_roots(repo_root)
     promotions: dict[str, list[str]] = {}
@@ -100,7 +98,7 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
                 stem = resolve_selected_id_to_stem(
                     kind,
                     raw_id,
-                    doctrine_root=doctrine_root,
+                    offering_root=offering_root,
                     org_roots=org_roots,
                     layer_roots=layer_roots,
                 )
@@ -119,14 +117,16 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
 
     target_path, config_data, save = resolve_activation_write_target(repo_root)
 
-    plans = promote_activations(
+    absent = [key for key in promotions if config_data.get(key) is None]
+    outcome = promote_activations(
         promotions,
         config_path=target_path,
         config_data=config_data,
         save=save,
-        default_ids=load_default_pack_ids(),
+        effective_sets=resolve_effective_sets(repo_root, absent) if absent else {},
     )
-    warnings.extend(warning for plan in plans for warning in plan.warnings)
+    warnings.extend(warning for plan in outcome.committed for warning in plan.warnings)
+    warnings.extend(outcome.left_absent_messages())
     return warnings
 
 
@@ -202,7 +202,7 @@ def interview(  # noqa: C901
         org_prefill_messages: list[str] = []
         org_prefill_warning: str | None = None
         try:
-            from specify_cli.doctrine.org_charter import apply_org_charter_to_interview
+            from charter.activation.org_charter import apply_org_charter_to_interview
 
             org_prefill_messages = apply_org_charter_to_interview(interview_data, repo_root)
             if not json_output:

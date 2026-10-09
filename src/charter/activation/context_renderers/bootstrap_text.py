@@ -9,13 +9,13 @@ appender (:func:`_append_guidelines_lines` — co-located here since
 constants exclusively consumed by this render.
 
 Cycle note: three collaborators used here (``_render_profile_sections``,
-``_select_reference_pointers``'s doctrine-root resolver
-``charter.activation.catalog.resolve_doctrine_root``, and the ``_ActionDoctrineBundle``
+``_select_reference_pointers``'s offering-root resolver
+``charter.activation.catalog.resolve_offering_root``, and the ``_ActionGovernanceBundle``
 type) stay in / are typed against ``charter.activation.context`` (profile-driven-
-rendering / catalog / action-doctrine-bundle clusters, relocated by a later
+rendering / catalog / action-governance-bundle clusters, relocated by a later
 WP). ``_render_profile_sections`` is imported function-locally to break the
 load-time cycle a top-level import would create (``charter.activation.context`` imports
-this module for its re-export shim); ``_ActionDoctrineBundle`` is imported
+this module for its re-export shim); ``_ActionGovernanceBundle`` is imported
 under ``TYPE_CHECKING`` only (a type-only reference never participates in the
 runtime import graph), mirroring the existing lazy-import precedent already
 used throughout ``charter.activation.context``.
@@ -44,8 +44,8 @@ from charter.offering.spdd_reasons import append_spdd_reasons_guidance, is_spdd_
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from charter.activation.context import _ActionDoctrineBundle
-    from charter.activation.schemas import DoctrineSelectionConfig
+    from charter.activation.context import _ActionGovernanceBundle
+    from charter.activation.schemas import GovernanceCharterConfig
     from charter.offering.agent_profiles import AgentProfile
 
 __all__ = [
@@ -85,7 +85,7 @@ class _ActionRenderRow(NamedTuple):
     """One Action Doctrine render row."""
 
     heading: str
-    ids_attr: str  # attribute on _ActionDoctrineBundle
+    ids_attr: str  # attribute on _ActionGovernanceBundle
     service_attr: str  # repository/dict on the service (absent for assets here)
     title_attr: str
     summary_attr: str | None
@@ -114,7 +114,7 @@ _ACTION_RENDER_ROWS: tuple[_ActionRenderRow, ...] = (
 
 def _render_action_doctrine_lines(
     lines: list[str],
-    doctrine_bundle: _ActionDoctrineBundle,
+    governance_bundle: _ActionGovernanceBundle,
     *,
     repo_root: Path | None,
 ) -> None:
@@ -136,17 +136,17 @@ def _render_action_doctrine_lines(
     away first, silently dropping profile-cited directives like DIRECTIVE_032
     even though swapping them never actually closed the budget gap.
     """
-    service = doctrine_bundle.service
-    all_action_ids: list[str] = [artifact_id for row in _ACTION_RENDER_ROWS for artifact_id in getattr(doctrine_bundle, row.ids_attr)]
+    service = governance_bundle.service
+    all_action_ids: list[str] = [artifact_id for row in _ACTION_RENDER_ROWS for artifact_id in getattr(governance_bundle, row.ids_attr)]
     org_source_map = _build_action_org_source_map(repo_root, all_action_ids) if repo_root is not None and all_action_ids else {}
     inline_urns: frozenset[str] = (
-        frozenset(_pd.requires_closure(doctrine_bundle.merged, doctrine_bundle.roots)) if doctrine_bundle.merged is not None else frozenset()
+        frozenset(_pd.requires_closure(governance_bundle.merged, governance_bundle.roots)) if governance_bundle.merged is not None else frozenset()
     )
     for row in _ACTION_RENDER_ROWS:
         _extend_named_artifact_lines(
             lines,
             row.heading,
-            getattr(doctrine_bundle, row.ids_attr),
+            getattr(governance_bundle, row.ids_attr),
             getattr(service, row.service_attr, None),
             row.title_attr,
             row.summary_attr,
@@ -159,12 +159,12 @@ def _render_action_doctrine_lines(
     # the generic ``_ActionRenderRow`` path -- that renderer emits a single
     # ``title``/``summary`` line and cannot express a term-surface list. The
     # dedicated glossary block emits surfaces-only + a fetch pointer (NFR-001).
-    _render_glossary_lines(lines, doctrine_bundle)
+    _render_glossary_lines(lines, governance_bundle)
 
 
 def _render_glossary_lines(
     lines: list[str],
-    doctrine_bundle: _ActionDoctrineBundle,
+    governance_bundle: _ActionGovernanceBundle,
 ) -> None:
     """Emit the glossary block: term surfaces (names) + a ``--include`` pointer.
 
@@ -174,10 +174,10 @@ def _render_glossary_lines(
     Emits nothing when the bundle carries no glossary ids, so a bundle without
     glossary delivery is byte-identical to the pre-WP01 render.
     """
-    pack_ids = getattr(doctrine_bundle, "glossary_pack_ids", ()) or ()
+    pack_ids = getattr(governance_bundle, "glossary_pack_ids", ()) or ()
     if not pack_ids:
         return
-    repo = getattr(doctrine_bundle.service, "glossary_packs", None)
+    repo = getattr(governance_bundle.service, "glossary_packs", None)
     rendered: list[str] = []
     for pack_id in pack_ids:
         pack = repo.get(pack_id) if repo is not None else None
@@ -208,7 +208,7 @@ def _append_block(lines: list[str], block: str) -> None:
 
 def _resolve_authority_block(
     repo_root: Path | None,
-    doctrine_selection: DoctrineSelectionConfig | None,
+    charter_config: GovernanceCharterConfig | None,
 ) -> str:
     """Render the authority-paths block, or "" when a prerequisite is absent.
 
@@ -219,14 +219,14 @@ def _resolve_authority_block(
     cannot make this function's return type look like ``Any`` to mypy.
     """
     block = ""
-    if repo_root is not None and doctrine_selection is not None:
-        block = render_authority_paths(repo_root, doctrine_selection)
+    if repo_root is not None and charter_config is not None:
+        block = render_authority_paths(repo_root, charter_config)
     return block
 
 
 def _resolve_reference_block(
     repo_root: Path | None,
-    doctrine_selection: DoctrineSelectionConfig | None,
+    charter_config: GovernanceCharterConfig | None,
 ) -> str:
     """Render the governance-references block, or "" when a prerequisite is absent.
 
@@ -234,8 +234,8 @@ def _resolve_reference_block(
     ``str`` literal rather than being returned directly from the call.
     """
     block = ""
-    if repo_root is not None and doctrine_selection is not None:
-        block = render_governance_references(repo_root, doctrine_selection.governance_references)
+    if repo_root is not None and charter_config is not None:
+        block = render_governance_references(repo_root, charter_config.governance_references)
     return block
 
 
@@ -270,16 +270,16 @@ def _render_bootstrap_text(
     charter_path: Path,
     action: str,
     summary: list[str],
-    doctrine_bundle: _ActionDoctrineBundle,
+    governance_bundle: _ActionGovernanceBundle,
     references: list[dict[str, str]],
     profile: AgentProfile | None = None,
     repo_root: Path | None = None,
-    doctrine_selection: DoctrineSelectionConfig | None = None,
+    charter_config: GovernanceCharterConfig | None = None,
     charter_content: str = "",
 ) -> str:
     """Render the full bootstrap charter context text."""
 
-    service = doctrine_bundle.service
+    service = governance_bundle.service
     lines: list[str] = [
         BOOTSTRAP_HEADER,
         f"  - Source: {charter_path}",
@@ -291,8 +291,8 @@ def _render_bootstrap_text(
 
     # WP04 (FR-003) — authority paths block, between Policy Summary and the
     # action-critical bodies (resolved-context anchor order, data-model.md §3).
-    _append_block(lines, _resolve_authority_block(repo_root, doctrine_selection))
-    _append_block(lines, _resolve_reference_block(repo_root, doctrine_selection))
+    _append_block(lines, _resolve_authority_block(repo_root, charter_config))
+    _append_block(lines, _resolve_reference_block(repo_root, charter_config))
 
     # WP04 (FR-001) — action-critical charter section bodies; an absent heading
     # emits a fetch stanza so the agent still has a recovery path.
@@ -308,38 +308,38 @@ def _render_bootstrap_text(
     _append_block(lines, profile_block)
 
     # WP04 (FR-005) — charter-level global selection rendering: the 5-kind block
-    # surfaces every ``DoctrineSelectionConfig.selected_<kind>`` (with org provenance).
-    selection_block = _render_selection_block(doctrine_selection, service, repo_root=repo_root)
+    # surfaces every ``GovernanceCharterConfig.selected_<kind>`` (with org provenance).
+    selection_block = _render_selection_block(charter_config, service, repo_root=repo_root)
     _append_block(lines, selection_block)
 
     # WP04 T023 — activation-registry hook (FR-007); renderer body is WP05's
     # surface (``charter.activation._activation_render``), this only ships the call site.
     activation_block = _render_activation_block(
-        doctrine_selection,
+        charter_config,
         repo_root,
         service,
-        mission_type=doctrine_bundle.mission,
+        mission_type=governance_bundle.mission,
         action=action,
     )
     _append_block(lines, activation_block)
 
     lines.append("")
     lines.append(f"Action Doctrine ({action}):")
-    _render_action_doctrine_lines(lines, doctrine_bundle, repo_root=repo_root)
+    _render_action_doctrine_lines(lines, governance_bundle, repo_root=repo_root)
 
-    _append_guidelines_lines(lines, doctrine_bundle.mission, action)
+    _append_guidelines_lines(lines, governance_bundle.mission, action)
 
     if is_spdd_reasons_active(charter_path.parent.parent.parent):
-        append_spdd_reasons_guidance(lines, doctrine_bundle.mission, action)
+        append_spdd_reasons_guidance(lines, governance_bundle.mission, action)
 
     lines.append("")
     lines.append(REFERENCE_DOCS_HEADER)
     # The reference-pointer resolver walks ``<root>/<kind>/`` for on-disk doctrine
     # docs. Mission relocate-builtin-doctrine-packs moved the built-in artefacts out
-    # of ``src/charter/offering/<kind>/`` into ``packs/built-in/<kind>/``; ``resolve_doctrine_root()``
-    # still points at the now-emptied ``src/doctrine`` tree (used for templates), so it
+    # of ``src/charter/offering/<kind>/`` into ``packs/built-in/<kind>/``; ``resolve_offering_root()``
+    # still points at the ``charter.offering`` package (used for templates), so it
     # resolves nothing and every pointer dies. Resolve the built-in pack root instead,
-    # mirroring how the DoctrineService repositories self-resolve ``packs/built-in/<kind>``.
+    # mirroring how the offering repositories self-resolve ``packs/built-in/<kind>``.
     # Lazy import: avoids a load-time cycle (see module docstring).
     from charter.offering.pack_paths import built_in_root  # noqa: PLC0415
 

@@ -54,8 +54,8 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "CharterBundleManifest": ("charter.bundle", "CharterBundleManifest"),
     "SCHEMA_VERSION": ("charter.bundle", "SCHEMA_VERSION"),
     # .catalog -> charter.activation.catalog
-    "DoctrineCatalog": ("charter.activation.catalog", "DoctrineCatalog"),
-    "load_doctrine_catalog": ("charter.activation.catalog", "load_doctrine_catalog"),
+    "OfferingCatalog": ("charter.activation.catalog", "OfferingCatalog"),
+    "load_offering_catalog": ("charter.activation.catalog", "load_offering_catalog"),
     # .compiler -> charter.activation.compiler
     "CompiledCharter": ("charter.activation.compiler", "CompiledCharter"),
     "CharterReference": ("charter.activation.compiler", "CharterReference"),
@@ -80,7 +80,7 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     # .schemas -> charter.activation.schemas
     "BranchStrategyConfig": ("charter.activation.schemas", "BranchStrategyConfig"),
     "CommitConfig": ("charter.activation.schemas", "CommitConfig"),
-    "DoctrineSelectionConfig": ("charter.activation.schemas", "DoctrineSelectionConfig"),
+    "GovernanceCharterConfig": ("charter.activation.schemas", "GovernanceCharterConfig"),
     "Directive": ("charter.activation.schemas", "Directive"),
     "DirectivesConfig": ("charter.activation.schemas", "DirectivesConfig"),
     "ExtractionMetadata": ("charter.activation.schemas", "ExtractionMetadata"),
@@ -100,10 +100,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "load_directives_config": ("charter.activation.sync", "load_directives_config"),
     "load_governance_config": ("charter.activation.sync", "load_governance_config"),
     "sync": ("charter.activation.sync", "sync"),
-    # .org_extends -> charter.activation.org_extends
-    "ExtendsBaseNotFoundError": ("charter.activation.org_extends", "ExtendsBaseNotFoundError"),
-    "ExtendsCycleError": ("charter.activation.org_extends", "ExtendsCycleError"),
-    "resolve_extends_order": ("charter.activation.org_extends", "resolve_extends_order"),
+    # .extends -> charter.offering.packs.extends
+    "ExtendsBaseNotFoundError": ("charter.offering.packs.extends", "ExtendsBaseNotFoundError"),
+    "ExtendsCycleError": ("charter.offering.packs.extends", "ExtendsCycleError"),
+    "resolve_extends_order": ("charter.offering.packs.extends", "resolve_extends_order"),
     # .mission_type_profiles -> charter.activation.mission_type_profiles
     "CrossGrainDoubleDeclarationError": (
         "charter.activation.mission_type_profiles",
@@ -156,8 +156,8 @@ __all__ = [
     "CANONICAL_MANIFEST",
     "CharterBundleManifest",
     "SCHEMA_VERSION",
-    "DoctrineCatalog",
-    "load_doctrine_catalog",
+    "OfferingCatalog",
+    "load_offering_catalog",
     "CompiledCharter",
     "CharterReference",
     "WriteBundleResult",
@@ -177,7 +177,7 @@ __all__ = [
     "CharterSection",
     "BranchStrategyConfig",
     "CommitConfig",
-    "DoctrineSelectionConfig",
+    "GovernanceCharterConfig",
     "Directive",
     "DirectivesConfig",
     "ExtractionMetadata",

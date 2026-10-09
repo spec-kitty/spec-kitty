@@ -1704,8 +1704,7 @@ def list_mission_types(
 
     Returns only mission types that are explicitly activated in this
     project's charter (activation-filtered).  For all doctrine-layer
-    types regardless of activation, use
-    ``spec-kitty charter mission-type list --include-inactive``.
+    types regardless of activation, use ``spec-kitty charter mission-type list --include-inactive``.
     """
     from specify_cli.cli.commands.charter.mission_type import (  # noqa: PLC0415
         charter_mission_type_list,

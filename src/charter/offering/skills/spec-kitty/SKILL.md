@@ -43,7 +43,7 @@ Do not answer directly before dispatching. The point is to load governance and
 record the Op before doing the work.
 
 When the user asks to show, explain, compare, map, or visualize the governed
-work—or when dense prose hides its structure—also load `spk-doctrine-show-me`.
+work—or when dense prose hides its structure—also load `spk-practice-show-me`.
 Use its smallest-useful-visual rule while keeping the dispatch lifecycle here
 authoritative.
 

@@ -1,4 +1,4 @@
-"""Portable provenance path normalizer (doctrine layer).
+"""Portable provenance path normalizer (charter offering).
 
 Single 3-class ``source_path`` normalizer shared by both provenance carriers
 -- the charter catalog (``charter.activation.compiler._doctrine_yaml_reference``) and
@@ -8,7 +8,7 @@ so a committed ``charter.yaml`` / ``agent_profiles_manifest.json`` never
 bakes in an operator- or platform-specific absolute filesystem path for a
 built-in-pack source (contracts/provenance-and-channel.md C-PRV-1..3/6).
 
-Lives at the doctrine layer (below ``charter``/``specify_cli`` in the
+Lives in ``charter.offering`` (below the ``charter`` facades/``specify_cli`` in the
 dependency stack) so ``charter`` can import this without an upward
 dependency violation -- mirrors how ``charter.offering.pack_paths`` and
 ``kernel.paths`` are already consumed from ``charter``.
@@ -59,7 +59,7 @@ _BUILT_IN_TOKEN_PREFIX = f"${{{_PACKS_ROOT_ENV_VAR_NAME}}}/{_BUILT_IN_SEGMENT}"
 def _resolve_built_in_root() -> Path | None:
     """Resolve the built-in pack root, tolerating an unavailable install.
 
-    A doctrine-layer caller (e.g. a test fixture with no packaged
+    An offering-side caller (e.g. a test fixture with no packaged
     ``packs/built-in`` sibling reachable from its anchor) must not hard-crash
     the normalizer -- classes (b)/(c) still need to work when the built-in
     tree genuinely cannot be located. Kernel's own resolver already warns

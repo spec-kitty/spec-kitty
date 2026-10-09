@@ -22,7 +22,7 @@ then a ``get_runner()`` retry.
 
 Degradation rule: the primitive executes without glossary checks only when
 the bootstrap fails — normally because ``import_module("glossary.attachment")``
-raises ``ImportError`` (pure-doctrine environments without the ``glossary``
+raises ``ImportError`` (offering-only environments without the ``glossary``
 package); ``_ensure_runner_registered`` swallows *any* exception raised while
 importing or registering the provider, so a broken provider degrades the same
 way.  "No runner registered" is not a steady state in a full install.
@@ -34,7 +34,7 @@ way.  "No runner registered" is not a steady state in a full install.
    (2026-09) ``execute_with_glossary`` has **zero production call sites** and
    no built-in step contract under ``packs/`` sets ``glossary_check``.  The
    default is therefore enforced nowhere in the live mission loop; the tests
-   in ``tests/doctrine/missions/test_glossary_hook.py`` pin the contract, not
+   in ``tests/charter_offering/missions/test_glossary_hook.py`` pin the contract, not
    live behaviour.  Wiring the hook into the step executor is a separate
    feature decision (tracked on #1868), not implied by this note.
 
@@ -104,7 +104,7 @@ def _ensure_runner_registered() -> type[GlossaryRunnerProtocol] | None:
     docstring).  On an empty registry it imports ``glossary.attachment``,
     registers ``GlossaryAwarePrimitiveRunner``, and retries ``get_runner()``.
     Returns ``None`` only when that bootstrap fails — in practice when
-    ``glossary.attachment`` is unimportable (pure-doctrine environments) —
+    ``glossary.attachment`` is unimportable (offering-only environments) —
     so the caller degrades to running the primitive without glossary checks.
     """
     runner_cls = get_runner()

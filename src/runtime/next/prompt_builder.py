@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 from pydantic import ValidationError
 from charter.activation.context import build_charter_context
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
 from charter.activation.scope import CharterScopeConflict, CharterScopeNotFound
 from charter.activation.scope_router import build_with_scope
 from charter.activation.mission_type_profiles import (
@@ -515,7 +515,7 @@ def _governance_context(
             # governance config does not cover this feature path. Falling back
             # to root governance would silently cross a trust boundary.
             raise
-        except CharterPackConfigError:
+        except ActiveCharterConfigError:
             # WP07/T040 (FR-012 error half / NFR-006): activation-resolution
             # failures are fail-closed. A malformed charter pack / dangling
             # 'charter:' pointer MUST surface to the operator, never degrade

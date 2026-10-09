@@ -8,6 +8,7 @@ fast when invalid doctrine files are introduced.
 
 | Schema | Validates |
 |--------|-----------|
+| `activation-preset.schema.yaml` | Activation preset YAML in a charter pack's `presets/<name>.yaml` (name, description, per-kind `activated_*` keys, `activated_kinds`, `mission_type_activations`); its kind enums are pinned to `ArtifactKind` by `tests/charter/presets/test_builtin_presets.py` |
 | `agent-profile.schema.yaml` | Agent profile YAML (6-section structure, directive refs, routing metadata) |
 | `directive.schema.yaml` | Directive YAML (id, title, intent, enforcement) — cross-artifact relationships live in the per-kind DRG fragments, `packs/built-in/<kind>.graph.yaml` |
 | `import-candidate.schema.yaml` | Curation import candidate YAML |

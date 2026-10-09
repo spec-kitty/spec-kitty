@@ -7,7 +7,7 @@ entry naming no procedure (fictional) or naming a node of the wrong kind (e.g. a
 tactic) loaded clean and then reached no consumer. This module is the single
 authority for the question "does an ``operating-procedures`` entry resolve to a
 real *procedure* node?" — read by the DRG extractor (build-time gate + guarded
-edge emission) and by ``doctor doctrine`` (diagnostic). It stays in-layer
+edge emission) and by ``doctor charter-packs`` (diagnostic). It stays in-layer
 (``doctrine``) and never imports upward into ``charter`` or ``specify_cli`` (C-004).
 
 The contract is *procedure-kind*: an entry must resolve to a ``procedure:`` node.
@@ -70,7 +70,7 @@ def collect_operating_procedure_entries(profiles_dir: Path) -> dict[str, list[st
 
     THE single authority for reading the ``collaboration.operating-procedures``
     field off built-in agent-profile YAML. The DRG extractor (edge emission +
-    fail-closed raise), ``doctor doctrine`` (diagnostic collector) and the
+    fail-closed raise), ``doctor charter-packs`` (diagnostic collector) and the
     architectural gate all delegate here so the walk — glob order, dict-shape
     guard, ``profile-id`` keying and the falsy-entry policy — can never diverge
     between them (C-004 single-authority).

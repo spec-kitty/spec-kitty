@@ -351,8 +351,10 @@ class MigrationRunner:
             Tuple of (MigrationResult, status) where status is one of
             ``applied``, ``skipped``, or ``failed``.
         """
-        # Skip if already applied
-        if metadata.has_migration(migration.migration_id):
+        # Skip if already applied -- unless a runs_first migration's structural
+        # predicate says the project carries its old state again (a pulled
+        # metadata.yaml or a merge brought it back), which re-selects it.
+        if metadata.has_migration(migration.migration_id) and not migration.reselect_when_recorded(self.project_path):
             return (
                 MigrationResult(
                     success=True,
@@ -434,8 +436,11 @@ class MigrationRunner:
                 "failed",
             )
 
-        # Record in metadata
-        if not dry_run:
+        # Record in metadata. A failed ``runs_first`` migration is not recorded:
+        # its refusal writes nothing (charter-pack cutover contract, collision
+        # preflight), only a ``success`` record ever settles it, and its
+        # content-driven ``detect()`` re-selects it on the next run anyway.
+        if not dry_run and (result.success or not migration.runs_first):
             self._record_migration_result(
                 metadata,
                 self.kittify_dir,
@@ -550,7 +555,7 @@ class MigrationRunner:
 
             # Apply migrations to worktree
             for migration in worktree_migrations:
-                if wt_metadata.has_migration(migration.migration_id):
+                if wt_metadata.has_migration(migration.migration_id) and not migration.reselect_when_recorded(worktree):
                     continue
 
                 # Same fail-closed handling as the main checkout in

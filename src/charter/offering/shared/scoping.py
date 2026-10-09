@@ -15,7 +15,7 @@ __all__ = [
 
 #: Reserved language value Spec Kitty itself writes for a project whose
 #: language it does not recognise.  Artifacts cannot target it (the
-#: ``doctrine validate`` guard rejects it) and it is stripped from both sides
+#: ``charter validate`` guard rejects it) and it is stripped from both sides
 #: of ``applies_to_languages_match``.  It is deliberately NOT a sentinel.
 UNKNOWN_LANGUAGE = "unknown"
 
@@ -23,7 +23,7 @@ UNKNOWN_LANGUAGE = "unknown"
 RESERVED_LANGUAGE_TOKENS: frozenset[str] = frozenset({UNKNOWN_LANGUAGE})
 
 #: Sentinel strings that should never appear as real language tokens.
-#: ``doctrine validate`` rejects artifacts that carry these at authoring time
+#: ``charter validate`` rejects artifacts that carry these at authoring time
 #: (T020 guard in ``_validate_single_artifact``).  At runtime, reaching
 #: ``applies_to_languages_match`` with one of these sentinels means the
 #: artifact bypassed validation (e.g. hand-edited or loaded without the CLI
@@ -85,7 +85,7 @@ def applies_to_languages_match(
     Defense-in-depth (T021): if ``artifact_languages`` contains a sentinel
     token (``any`` / ``all``) the artifact is treated as unscoped (always
     loads).  These tokens are rejected at authoring time by the
-    ``doctrine validate`` guard; reaching this function with them means the
+    ``charter validate`` guard; reaching this function with them means the
     artifact bypassed validation.  Treating them as unscoped is the correct
     fallback — silently filtering the artifact would cause harder-to-diagnose
     missing-content failures at runtime.

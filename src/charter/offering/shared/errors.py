@@ -13,7 +13,7 @@ The canonical ``migration_hint`` string must match::
 
 The trailing path is the DRG fragment for the *source* artifact's kind, which
 is where an edge with that source belongs. Mission #2680 sharded the former
-single doctrine-graph monolith into one ``<kind>.graph.yaml`` fragment per
+single DRG monolith into one ``<kind>.graph.yaml`` fragment per
 kind, and mission ``relocate-builtin-doctrine-packs-01KYT87F`` then relocated
 those shipped fragments from ``src/charter/offering/`` to the top-level
 ``packs/built-in/`` pack root — so a hint naming either the monolith or the

@@ -1,17 +1,16 @@
 """Shared org-pack config contract for ``.kittify/config.yaml``.
 
 The operator-facing config shape belongs below both ``charter`` and
-``specify_cli`` so every consumer sees the same configured packs. New writes
-use the canonical ``charter_packs.org.packs`` schema (CR-04, mission
-``charter-code-topology-01M152G1`` S4); the retired ``doctrine.org.packs``
-shape and the older top-level ``organisation_packs`` form are both read as
-legacy compatibility through this same parser so neither can drift
-independently. See :func:`load_pack_registry` for the full precedence order.
+``specify_cli`` so every consumer sees the same configured packs. The
+canonical ``charter_packs.org.packs`` schema is the only shape read.
+The retired pre-cutover org-pack keys are
+rewritten by ``spec-kitty upgrade``; an unmigrated project is refused at the
+CLI root (``LEGACY_CHARTER_STATE``, mission ``charter-pack-cutover-01M491G6``
+FR-011), so nothing here reads them.
 """
 
 from __future__ import annotations
 
-import functools
 import logging
 import warnings
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -27,41 +26,34 @@ from kernel.resolution import resolve_rejecting_loops
 logger = logging.getLogger(__name__)
 
 __all__ = [
-    "LegacyOrgPackDoctrineKeyWarning",
     "OrgPackConfig",
     "OrgPackEnvVarUnsetError",
     "OrgPackSubdirEscapeError",
-    "PackRegistry",
     "ensure_pack_identity",
     "load_pack_registry",
     "resolve_existing_org_roots",
     "resolve_org_dirs",
     "resolve_org_roots",
+    "require_declared_org_roots",
     "resolve_relative_path_within_root",
-    "save_pack_registry",
 ]
 
 SourceType = Literal["git", "https", "artifactory", "api"]
 
 _CONFIG_REL_PATH = Path(".kittify") / "config.yaml"
-_LEGACY_DEFAULT_PACK_NAME = "default"
+#: The ``name`` of the built-in pack (``packs/built-in/pack.yaml``); only it
+#: gets the fixed built-in ``pack_id`` from :func:`ensure_pack_identity`.
+_BUILTIN_PACK_NAME = "built-in"
 
-#: CR-04 (mission `charter-code-topology-01M152G1` S4): the canonical and
-#: legacy top-level ``.kittify/config.yaml`` selection keys for the org-pack
-#: registry block. Precedence is canonical -> legacy-doctrine -> legacy-flat
-#: (``organisation_packs``, handled separately below and unchanged by this
-#: CR). Precedent for the read-both/canonical-wins/warn-once shape:
-#: ``charter.activation.sync``'s CR-01 governance-selection-key compat
-#: (``src/charter/activation/sync.py:245-311``).
+#: The top-level ``.kittify/config.yaml`` key of the org-pack registry block.
 _CANONICAL_ORG_PACKS_KEY = "charter_packs"
-_LEGACY_ORG_PACKS_KEY = "doctrine"
 
 # Stable, well-known ULID for the built-in pack (idempotent, deterministic).
 # This is the canonical ULID specification doc-example value (timestamp
 # 2016-07-30, all-zero-then-``FG`` entropy) chosen deliberately as a fixed
 # constant — it is NOT freshly generated at runtime. It must stay byte-for-byte
 # identical to ``packs/built-in/pack.yaml``'s ``pack_id`` (bound by
-# tests/doctrine/test_pack_id_identity.py) so the two authorities cannot drift.
+# tests/charter_offering/test_pack_id_identity.py) so the two authorities cannot drift.
 _BUILTIN_PACK_ID = "01ARWG13C000000000000000FG"
 
 
@@ -96,34 +88,6 @@ class OrgPackEnvVarUnsetError(ValueError):
             "(or is itself a nested ${VAR} token — expansion is not recursive). "
             "Set the variable directly, or update local_path in .kittify/config.yaml."
         )
-
-
-class LegacyOrgPackDoctrineKeyWarning(UserWarning):
-    """Emitted once per process when ``.kittify/config.yaml`` still carries
-    the retired ``doctrine.org.packs`` block instead of the canonical
-    ``charter_packs.org.packs`` (CR-04, mission
-    ``charter-code-topology-01M152G1`` S4)."""
-
-
-@functools.lru_cache(maxsize=1)
-def _warn_legacy_org_pack_doctrine_key_once() -> None:
-    """Emit the CR-04 compat warning exactly once per process.
-
-    Gated by ``lru_cache`` rather than the ``warnings`` module's own de-dup
-    filter, because callers -- including this project's own test suite --
-    may run under a stricter ``filterwarnings`` configuration that would
-    turn a *repeated* warning into a hard failure instead of a silent
-    de-dup (precedent: ``charter.activation.sync._warn_legacy_governance_key_once``,
-    CR-01). Tests reset this gate via
-    ``_warn_legacy_org_pack_doctrine_key_once.cache_clear()``.
-    """
-    warnings.warn(
-        "'.kittify/config.yaml' uses the legacy 'doctrine.org.packs' key; "
-        "reading it as 'charter_packs.org.packs'. Update config.yaml (or "
-        "run `spec-kitty charter pack apply`) to adopt the canonical key.",
-        LegacyOrgPackDoctrineKeyWarning,
-        stacklevel=3,
-    )
 
 
 # WP01 (kernel-env-expansion-seam, T004): the pure transform and the two
@@ -174,7 +138,7 @@ def resolve_relative_path_within_root(root: Path, relative_path: str) -> Path:
 
     Shared containment primitive: :meth:`OrgPackConfig.effective_root` uses
     this for ``subdir`` containment, and
-    ``specify_cli.doctrine.pack_validator._check_asset_path_containment``
+    ``charter.offering.packs.pack_validator._check_asset_path_containment``
     reuses it for ASSET sidecar manifest ``path`` containment (FR-009 /
     NFR-005) — a single canonical escape-detection implementation rather than
     a hand-rolled resolve-then-``relative_to`` at each call site.
@@ -225,7 +189,7 @@ def _yaml() -> YAML:
 
 
 class OrgPackConfig(BaseModel):
-    """Single named org doctrine pack entry.
+    """Single named org charter pack entry.
 
     Identity
     --------
@@ -256,7 +220,6 @@ class OrgPackConfig(BaseModel):
     source_type: SourceType | None = None
     url: str | None = None
     ref: str | None = None
-    legacy_source: str | None = Field(default=None, exclude=True)
 
     @field_validator("local_path", mode="before")
     @classmethod
@@ -264,9 +227,9 @@ class OrgPackConfig(BaseModel):
         """Coerce to ``Path`` WITHOUT expanding ``~``/env-vars.
 
         The stored value must remain exactly what the operator wrote —
-        including any ``${VAR}``/``$VAR``/``~`` tokens, unexpanded — so
-        that :func:`save_pack_registry` round-trips it verbatim. Expansion
-        happens only at resolution time, in :meth:`effective_root`.
+        including any ``${VAR}``/``$VAR``/``~`` tokens, unexpanded, so
+        the model never freezes an expanded path. Expansion happens only at
+        resolution time, in :meth:`effective_root`.
         """
         return Path(str(value))
 
@@ -407,7 +370,7 @@ class OrgPackConfig(BaseModel):
 
 
 class PackRegistry(BaseModel):
-    """Ordered list of configured org doctrine packs."""
+    """Ordered list of configured org charter packs."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -436,24 +399,11 @@ class PackRegistry(BaseModel):
 def load_pack_registry(repo_root: Path, *, quiet: bool = False, strict: bool = False) -> PackRegistry:
     """Read configured org packs from ``repo_root/.kittify/config.yaml``.
 
-    Canonical shape:
-
-    ``charter_packs.org.packs[]`` with ``name`` and ``local_path``.
-
-    Legacy read shapes, in precedence order (CR-04, mission
-    ``charter-code-topology-01M152G1`` S4):
-
-    1. ``doctrine.org.packs[]`` -- same shape as the canonical block under
-       the retired top-level key. Read silently forward-mapped, with a
-       process-wide one-shot :class:`LegacyOrgPackDoctrineKeyWarning` (never
-       both keys warned about: a config carrying BOTH ``charter_packs`` and
-       ``doctrine`` reads the canonical block and says nothing about the
-       stale legacy one, mirroring CR-01's
-       ``apply_legacy_governance_selection_key_compat``).
-    2. Top-level ``organisation_packs[]`` with ``name`` and ``path``. This is
-       accepted only here so old fixtures/operators degrade consistently
-       across all consumers. Unchanged by CR-04 -- still an unconditional,
-       every-call ``DeprecationWarning``.
+    The one shape read: ``charter_packs.org.packs[]`` with ``name`` and
+    ``local_path``. The retired pre-cutover org-pack
+    keys are not read (``spec-kitty upgrade`` rewrites them; the CLI-root
+    ``LEGACY_CHARTER_STATE`` gate refuses a project that still has them), so a
+    config carrying only those yields an empty registry, never an error.
 
     ``quiet`` (default ``False``, preserves prior behaviour for every
     existing caller): governs ONLY the "file could not be parsed at all"
@@ -467,7 +417,7 @@ def load_pack_registry(repo_root: Path, *, quiet: bool = False, strict: bool = F
     ``quiet=True`` demotes that one signal to a DEBUG-level log line instead.
 
     This does NOT weaken diagnosis of a *genuinely* misconfigured org pack:
-    a config that DOES declare ``charter_packs.org`` or the legacy ``doctrine.org`` but
+    a config that DOES declare ``charter_packs.org`` but
     fails schema validation (below) stays a loud ``UserWarning``
     unconditionally, on every calling surface, regardless of ``quiet`` --
     that operator has demonstrably opted in to org packs and deserves to
@@ -499,22 +449,9 @@ def load_pack_registry(repo_root: Path, *, quiet: bool = False, strict: bool = F
     try:
         if strict:
             _require_well_shaped_org_config(data)
-        registry = _registry_from_org_packs_block(data, _CANONICAL_ORG_PACKS_KEY)
+        registry = _registry_from_org_packs_block(data)
         if registry is not None:
             return registry
-        legacy_registry = _registry_from_org_packs_block(data, _LEGACY_ORG_PACKS_KEY)
-        if legacy_registry is not None:
-            _warn_legacy_org_pack_doctrine_key_once()
-            return legacy_registry
-        legacy_flat_registry = _registry_from_legacy_organisation_packs(data)
-        if legacy_flat_registry is not None:
-            warnings.warn(
-                "Top-level organisation_packs is deprecated; use "
-                "charter_packs.org.packs[].local_path instead.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            return legacy_flat_registry
     except ValueError as exc:  # pydantic's ValidationError is a ValueError
         if strict:
             raise ValueError(f"Invalid org-pack config in .kittify/config.yaml: {exc}") from exc
@@ -530,7 +467,8 @@ def load_pack_registry(repo_root: Path, *, quiet: bool = False, strict: bool = F
 def _require_well_shaped_org_config(data: dict[str, Any]) -> None:
     """Strict mode: a canonical registry container of the wrong type is an error, not an absent registry.
 
-    Only the canonical ``charter_packs.org`` block is judged; the retired shapes are read as before.
+    Only the canonical ``charter_packs.org`` block is judged; a retired key is not read and so
+    never rejected here (the CLI-root ``LEGACY_CHARTER_STATE`` gate owns that).
     """
     section = data.get(_CANONICAL_ORG_PACKS_KEY)
     if section is not None and not isinstance(section, dict):
@@ -540,48 +478,12 @@ def _require_well_shaped_org_config(data: dict[str, Any]) -> None:
         raise ValueError(f"`{_CANONICAL_ORG_PACKS_KEY}.org` must be a mapping, got {type(org_block).__name__}")
 
 
-def save_pack_registry(repo_root: Path, registry: PackRegistry) -> None:
-    """Write the canonical ``charter_packs.org.packs`` block merge-safely.
-
-    CR-04 (mission ``charter-code-topology-01M152G1`` S4): writes only ever
-    target the canonical ``charter_packs`` key now. A pre-existing legacy
-    ``doctrine:`` section (if any) is left untouched -- this writer only
-    ever populated ``doctrine.org``, never any other ``doctrine.*`` key, so
-    there is nothing of this module's own to migrate away; an operator still
-    reading through the legacy key gets the CR-04 warn-once notice from
-    :func:`load_pack_registry` on their next read, independent of this
-    write.
-    """
-
-    config_path = _config_path(repo_root)
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    yaml = _yaml()
-    if config_path.exists() and config_path.read_text(encoding="utf-8").strip():
-        data = yaml.load(config_path.read_text(encoding="utf-8"))
-        if not isinstance(data, dict):
-            data = {}
-    else:
-        data = {}
-
-    charter_packs_section = data.get(_CANONICAL_ORG_PACKS_KEY)
-    if not isinstance(charter_packs_section, dict):
-        charter_packs_section = {}
-        data[_CANONICAL_ORG_PACKS_KEY] = charter_packs_section
-
-    charter_packs_section["org"] = {
-        "packs": [_pack_to_yaml_dict(pack) for pack in registry.packs]
-    }
-
-    with config_path.open("w", encoding="utf-8") as file:
-        yaml.dump(data, file)
-
-
 def resolve_org_roots(repo_root: Path, *, quiet: bool = False) -> list[Path]:
     """Return configured org doctrine local roots in declaration order.
 
     Each entry is the pack's ``effective_root`` — i.e. the ``local_path``
     normalised relative to ``repo_root`` and joined with ``subdir`` (when
-    present).  The ~9 ``DoctrineService`` consumers that call this function
+    present).  The ~9 ``ActiveCharterService`` consumers that call this function
     therefore inherit the ``subdir`` seam for free.
 
     ``quiet``: forwarded verbatim to :func:`load_pack_registry` — see its
@@ -593,6 +495,30 @@ def resolve_org_roots(repo_root: Path, *, quiet: bool = False) -> list[Path]:
     ]
 
 
+def require_declared_org_roots(repo_root: Path) -> list[Path]:
+    """Return every declared org pack root in declaration order, failing closed.
+
+    The fail-closed sibling of :func:`resolve_existing_org_roots`: the registry
+    is read strictly and every declared root must be a directory. Raises
+    ``ValueError`` naming the cause otherwise. It is the one precondition both
+    absent-key reasoners share: the effective-set seam
+    (``charter.activation.effective_set``) and ``charter activate --preset``
+    (``charter.activation.preset_application``, #3732 WP08), so neither checks
+    a set it could not fully read.
+    """
+    try:
+        packs = load_pack_registry(repo_root, quiet=True, strict=True).packs
+        named_roots = [(pack.name, pack.effective_root(repo_root)) for pack in packs]
+    except ValueError as exc:
+        raise ValueError(f"the org pack registry cannot be read: {exc}") from exc
+    for name, root in named_roots:
+        if not root.is_dir():
+            raise ValueError(
+                f"declared org pack {name!r} is not fetched: its root {root} is not a directory; run `spec-kitty charter fetch` to fetch it"
+            )
+    return [root for _, root in named_roots]
+
+
 def resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     """Return configured org doctrine local roots that exist on disk, in declaration order.
 
@@ -602,7 +528,7 @@ def resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     ``[r for r in resolve_org_roots(repo_root) if r.exists()]`` comprehension
     independently (previously duplicated in
     ``charter.activation.mission_type_profiles``, ``specify_cli.dossier.manifest``, and
-    ``charter.activation.doctrine_service_builder._self_resolve_existing_org_roots``).
+    ``charter.activation.active_charter_service_builder._self_resolve_existing_org_roots``).
 
     Deliberately silent (no logging): this primitive has no ``subdir``
     context to name in a useful WARNING, and every one of the call sites
@@ -662,81 +588,25 @@ def _load_yaml_data(config_path: Path) -> dict[str, Any]:
     return data
 
 
-def _registry_from_org_packs_block(data: dict[str, Any], top_key: str) -> PackRegistry | None:
-    """Read the ``<top_key>.org`` block (shape shared by canonical and legacy keys).
+def _registry_from_org_packs_block(data: dict[str, Any]) -> PackRegistry | None:
+    """Read the ``charter_packs.org`` block; ``None`` when the config has none.
 
-    CR-04: *top_key* is ``charter_packs`` (canonical) or ``doctrine`` (legacy
-    -- caller applies the warn-once notice). Both keys carry the identical
-    ``org.packs[]`` / ``org.local_path`` shape, so a single reader serves
-    both tiers rather than duplicating the parse logic per key.
+    A named ``packs[]`` list is the only form. An unnamed single-pack block
+    (``org.local_path`` without ``packs``) is a config error naming the
+    replacement, never read as an auto-named pack.
     """
-    top_section = data.get(top_key)
+    top_section = data.get(_CANONICAL_ORG_PACKS_KEY)
     org_block = top_section.get("org") if isinstance(top_section, dict) else None
     if not isinstance(org_block, dict):
         return None
     if "packs" in org_block:
         return PackRegistry.model_validate({"packs": org_block["packs"]})
     if "local_path" in org_block:
-        return PackRegistry(packs=[_build_legacy_single_pack(org_block)])
-    return PackRegistry()
-
-
-def _build_legacy_single_pack(org_block: dict[str, Any]) -> OrgPackConfig:
-    return OrgPackConfig(
-        name=_LEGACY_DEFAULT_PACK_NAME,
-        local_path=org_block["local_path"],
-        subdir=org_block.get("subdir"),
-        source_type=org_block.get("source_type"),
-        url=org_block.get("url"),
-        ref=org_block.get("ref"),
-    )
-
-
-def _registry_from_legacy_organisation_packs(
-    data: dict[str, Any],
-) -> PackRegistry | None:
-    raw_packs = data.get("organisation_packs")
-    if raw_packs is None:
-        return None
-    if not isinstance(raw_packs, list):
-        return PackRegistry()
-
-    packs: list[OrgPackConfig] = []
-    for raw in raw_packs:
-        if not isinstance(raw, dict):
-            continue
-        source = str(raw.get("source", "local_path"))
-        if source != "local_path":
-            raise NotImplementedError(
-                f"Org pack source {source!r} not yet implemented. "
-                "Use charter_packs.org.packs[].local_path for fetched local packs."
-            )
-        packs.append(
-            OrgPackConfig(
-                name=raw["name"],
-                local_path=raw["path"],
-                legacy_source=source,
-            )
+        raise ValueError(
+            f"`{_CANONICAL_ORG_PACKS_KEY}.org.local_path` is not a pack declaration; "
+            f"declare the pack as a named entry of `{_CANONICAL_ORG_PACKS_KEY}.org.packs[]` (name, local_path)"
         )
-    return PackRegistry(packs=packs)
-
-
-def _pack_to_yaml_dict(pack: OrgPackConfig) -> dict[str, Any]:
-    payload: dict[str, Any] = {
-        "name": pack.name,
-        "local_path": str(pack.local_path),
-    }
-    if pack.pack_id is not None:
-        payload["pack_id"] = pack.pack_id
-    if pack.subdir is not None:
-        payload["subdir"] = pack.subdir
-    if pack.source_type is not None:
-        payload["source_type"] = pack.source_type
-    if pack.url is not None:
-        payload["url"] = pack.url
-    if pack.ref is not None:
-        payload["ref"] = pack.ref
-    return payload
+    return PackRegistry()
 
 
 def ensure_pack_identity(pack: OrgPackConfig) -> OrgPackConfig:
@@ -761,7 +631,7 @@ def ensure_pack_identity(pack: OrgPackConfig) -> OrgPackConfig:
         return pack
 
     # Idempotent backfill for the built-in pack
-    if pack.name == _LEGACY_DEFAULT_PACK_NAME:
+    if pack.name == _BUILTIN_PACK_NAME:
         # Create a new instance with the stable built-in pack_id
         return OrgPackConfig(
             name=pack.name,

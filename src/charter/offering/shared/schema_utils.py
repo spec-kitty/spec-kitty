@@ -4,7 +4,7 @@ As of mission ``charter-mediated-doctrine-selection-01KRTZCA`` (WP07), the
 canonical home of :class:`SchemaUtilities` is :mod:`kernel.schema_utils`.
 This module preserves the historical import path
 ``from charter.offering.shared.schema_utils import SchemaUtilities`` so existing
-doctrine internals (``directives.validation``, ``tactics.validation``,
+offering internals (``directives.validation``, ``tactics.validation``,
 ``styleguides.validation``, ``toolguides.validation``, ``paradigms.validation``)
 keep working without churn.
 

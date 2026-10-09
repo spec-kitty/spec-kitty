@@ -1,7 +1,7 @@
 """Glossary pack repository (FR-004).
 
 ``GlossaryPackRepository`` inherits the shared three-source loading pattern
-from :class:`charter.offering.base.BaseDoctrineRepository` (built-in rglob + org glob
+from :class:`charter.offering.base.BaseArtifactRepository` (built-in rglob + org glob
 + project glob, field-level merge, provenance tagging) and globs
 ``*.glossary-pack.yaml``. No glob/merge logic is re-implemented here.
 """
@@ -11,11 +11,11 @@ from pathlib import Path
 
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.pack_paths import built_in_dir
-from charter.offering.base import BaseDoctrineRepository
+from charter.offering.base import BaseArtifactRepository
 from .models import GlossaryPack
 
 
-class GlossaryPackRepository(BaseDoctrineRepository[GlossaryPack]):
+class GlossaryPackRepository(BaseArtifactRepository[GlossaryPack]):
     """Repository for loading and managing glossary-pack YAML files."""
 
     def __init__(

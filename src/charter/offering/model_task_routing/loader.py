@@ -1,7 +1,7 @@
 """Runtime loader for the model-to-task_type routing catalog (FR-001).
 
 The catalog is plain Python **package data** -- it is NOT an activatable
-doctrine ``ArtifactKind``, and there is no "activation convention" here.
+charter offering ``ArtifactKind``, and there is no "activation convention" here.
 The ONLY default-resolution mechanism is :func:`importlib.resources.files`
 pointed at ``src/charter/offering/model_task_routing/catalog/model-to-task_type.yaml``
 (WP05's deliverable); :func:`load` also accepts an injectable

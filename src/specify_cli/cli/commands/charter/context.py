@@ -6,6 +6,8 @@ import json
 
 import typer
 
+from charter.activation.pack_context import ActiveCharterConfigError
+from charter.packs import RetiredPackFieldError
 from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
 
 from specify_cli.cli.helpers import git_resolution_failure_message
@@ -74,7 +76,7 @@ def context(
     from charter.activation.context_contract import CONTEXT_SCHEMA_VERSION
 
     from charter.drg import resolve_org_roots
-    from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
+    from charter.activation.org_charter_loader import load_org_charter_json_block
 
     try:
         repo_root = _charter_pkg.find_repo_root()
@@ -88,7 +90,7 @@ def context(
         # / ``build_charter_context_json`` must NOT receive this truncated
         # value — an explicit (already-truncated) ``org_root`` is honoured
         # verbatim by ``_resolve_action_bundle`` and never widens into the
-        # full chain (``charter.activation.action_doctrine_bundle._resolve_action_bundle``
+        # full chain (``charter.activation.action_governance_bundle._resolve_action_bundle``
         # docstring). Passing ``org_root=None`` through to those two calls
         # instead lets the charter-layer self-resolution walk the FULL
         # declaration-ordered org-pack chain via ``resolve_existing_org_roots``.
@@ -211,6 +213,15 @@ def context(
 
     except TaskCliError as e:
         _emit_error(console, json_output=json_output, message=str(e))
+        raise typer.Exit(code=1) from e
+    except RetiredPackFieldError as e:
+        # #3732: a pack file still carries a retired field; name the code, the
+        # file, the field and its replacement (contracts/errors.md).
+        _emit_error(console, json_output=json_output, message=str(e), code=e.code)
+        raise typer.Exit(code=1) from e
+    except ActiveCharterConfigError as e:
+        # #3732: e.g. the retired ``governance.doctrine`` key; the body names the remedy.
+        _emit_error(console, json_output=json_output, message=e.body, code=e.code)
         raise typer.Exit(code=1) from e
     except ValueError as e:
         _emit_error(console, json_output=json_output, message=str(e))

@@ -3,7 +3,7 @@
 The charter prompt renderer (``charter.activation.context._render_selected_artifacts``
 and friends) historically emitted a generic
 ``(catalog entry not found; verify charter selection)`` placeholder when an
-ID in the selection was not present in the loaded doctrine catalog. That
+ID in the selection was not present in the loaded offering catalog. That
 fallback hid three very different causes:
 
 1. **Typo** — the charter selected ``"caveman-comemnts"`` but the catalog
@@ -13,7 +13,7 @@ fallback hid three very different causes:
 3. **Schema validation failure** — an artifact YAML exists on disk but was
    silently dropped by the loader because Pydantic ``extra="forbid"``
    validation rejected it.  The loader emits a ``UserWarning`` (see
-   ``charter.offering.base.BaseDoctrineRepository._load_built_in_items``) but the
+   ``charter.offering.base.BaseArtifactRepository._load_built_in_items``) but the
    prompt renderer never sees the dropped artifact, so the user only
    discovers it via a downstream catalog-miss.
 
@@ -35,7 +35,7 @@ catalog-miss call sites in ``charter.activation.context``:
   is reserved for callers that already know the loader dropped the
   artifact (e.g. a validation report); the renderer cannot distinguish
   schema-drop from never-existed and therefore uses ``MISSING_ARTIFACT``
-  with a suggestion to run ``spec-kitty charter validate .kittify/doctrine``.
+  with a suggestion to run ``spec-kitty charter validate``.
 * :func:`classify_catalog_miss` — given the missing ID and the available
   catalog IDs, returns a :class:`CatalogMissDiagnosis` describing the
   cause + the closest-match suggestion (if any).
@@ -145,7 +145,7 @@ class CatalogMissCause(str, Enum):  # noqa: UP042 — keep str mixin for Py3.10 
             never have existed, OR it may have been silently dropped by
             the loader due to schema validation failure.  The renderer
             uses this value when it cannot distinguish the two — the
-            stanza then suggests running ``spec-kitty charter validate .kittify/doctrine``
+            stanza then suggests running ``spec-kitty charter validate``
             so the operator can surface any latent schema errors.
         SCHEMA_VALIDATION_SUSPECTED: Reserved for callers that already
             know the artifact YAML was rejected by Pydantic validation
@@ -337,7 +337,7 @@ def format_catalog_miss_stanza(
     prompt.
 
     Args:
-        selector_kind: Doctrine kind (e.g. ``"styleguide"``,
+        selector_kind: Artifact kind (e.g. ``"styleguide"``,
             ``"directive"``).
         artifact_id: The missing ID.
         diagnosis: The :class:`CatalogMissDiagnosis` from
@@ -362,7 +362,7 @@ def format_catalog_miss_stanza(
         lines.append(
             f"{indent}  Suggestion: the artifact YAML failed Pydantic "
             "validation and was dropped by the loader. Run "
-            "`spec-kitty charter validate .kittify/doctrine` to surface the schema error."
+            "`spec-kitty charter validate` to surface the schema error."
         )
     elif diagnosis.cause is CatalogMissCause.SCOPE_FILTERED:
         hint = diagnosis.suggestion or (
@@ -377,7 +377,7 @@ def format_catalog_miss_stanza(
         lines.append(
             f"{indent}  Suggestion: confirm the artifact exists "
             "(check project, org, and built-in layers) or run "
-            "`spec-kitty charter validate .kittify/doctrine` to check for a silent schema "
+            "`spec-kitty charter validate` to check for a silent schema "
             "validation drop."
         )
     return lines
@@ -411,7 +411,7 @@ def emit_catalog_miss_warning(
       miss is never silently hidden.
 
     Args:
-        selector_kind: Doctrine kind (e.g. ``"styleguide"``).
+        selector_kind: Artifact kind (e.g. ``"styleguide"``).
         artifact_id: The missing ID.
         diagnosis: The :class:`CatalogMissDiagnosis`.
         context: Optional caller context (e.g. profile ID for

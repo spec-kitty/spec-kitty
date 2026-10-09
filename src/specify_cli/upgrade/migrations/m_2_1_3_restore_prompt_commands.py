@@ -93,13 +93,13 @@ def _get_runtime_command_templates_dir() -> Path | None:
 
         # Typed pin: ``charter.*`` is ``follow_imports = "skip"`` in pyproject, so the
         # facade re-export is ``Any`` to mypy; the runtime type is ``Path``.
-        doctrine_steps: Path = (
+        offering_steps: Path = (
             MissionTemplateRepository.default_missions_root()
             / "mission-steps"
             / _MISSION_NAME
         )
-        if doctrine_steps.is_dir():
-            return doctrine_steps
+        if offering_steps.is_dir():
+            return offering_steps
     except (ImportError, MissionsRootNotFound):
         pass
 
@@ -135,9 +135,9 @@ def _resolve_script_type() -> str:
 
 def _resolve_template_path(templates_dir: Path, command: str) -> Path:
     """Support canonical mission-step prompts and legacy flat templates."""
-    doctrine_path = templates_dir / command / "prompt.md"
-    if doctrine_path.is_file():
-        return doctrine_path
+    prompt_path = templates_dir / command / "prompt.md"
+    if prompt_path.is_file():
+        return prompt_path
     return templates_dir / f"{command}.md"
 
 

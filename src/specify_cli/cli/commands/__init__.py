@@ -280,26 +280,6 @@ def _register_doctor(app: typer.Typer) -> None:
     app.add_typer(doctor_module.app, name="doctor", help="Project health diagnostics")
 
 
-def _register_doctrine(app: typer.Typer) -> None:
-    # CR-02 (mission charter-code-topology-01M152G1 S4): the `doctrine`
-    # group is a deprecated, hidden alias -- `spec-kitty doctrine <x>` still
-    # runs (it delegates to the exact same implementation, unchanged), but
-    # it no longer clutters `spec-kitty --help`'s top-level command list
-    # (`hidden=True`) and typer marks it `deprecated=True` for the rare
-    # caller who still finds it via `spec-kitty doctrine --help` directly.
-    # The module's own `@app.callback()` adds the operator-facing stderr
-    # notice every invocation prints.
-    from . import doctrine as doctrine_module
-
-    app.add_typer(
-        doctrine_module.app,
-        name="doctrine",
-        help="[DEPRECATED — use `spec-kitty charter`] Manage org-layer doctrine packs",
-        deprecated=True,
-        hidden=True,
-    )
-
-
 def _register_docs(app: typer.Typer) -> None:
     from . import docs as docs_module
 
@@ -619,7 +599,6 @@ _ALL_COMMAND_REGISTRARS: tuple[_CommandRegistrar, ...] = (
     _register_context,
     _register_cutover_guard,
     _register_doctor,
-    _register_doctrine,
     _register_docs,
     _register_events,
     _register_glossary,
@@ -674,7 +653,6 @@ _COMMAND_REGISTRARS: dict[str, _CommandRegistrar] = {
     "context": _register_context,
     "cutover-guard": _register_cutover_guard,
     "doctor": _register_doctor,
-    "doctrine": _register_doctrine,
     "docs": _register_docs,
     "events": _register_events,
     "glossary": _register_glossary,

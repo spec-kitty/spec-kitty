@@ -281,19 +281,19 @@ Each procedure describes a complete mini-workflow (e.g., a refactoring
 sequence, a test-first bug fix, a situational assessment).
 
 Procedures live in `packs/built-in/procedures/` (shipped) or
-`.kittify/procedures/` (project-local). Access via `DoctrineService`:
+`.kittify/procedures/` (project-local). Access via `ActiveCharterService`:
 
 ```python
 procedure = service.procedures.get("refactoring")
 # procedure.steps → ordered list of actions
 # procedure.prerequisites → what must be true before starting
 # All procedures: read packs/built-in/procedures/ (built-in) or
-# .kittify/doctrine/procedure/ (project layer, written by `spec-kitty charter new`)
+# .kittify/charter-packs/procedure/ (project layer, written by `spec-kitty charter new`)
 ```
 
 To validate project-layer doctrine artifacts:
 ```bash
-spec-kitty charter validate .kittify/doctrine
+spec-kitty charter validate .kittify/charter-packs
 ```
 
 ### Agent Profiles (Role-Based WP Assignment)
@@ -378,8 +378,8 @@ mission-step prompt:
 | Scope | Path | Purpose |
 |---|---|---|
 | Package | `packs/built-in/missions/mission-steps/<mission>/<step>/prompt.md` | Built-in default |
-| Project doctrine | `.kittify/doctrine/...` | Project-local doctrine overrides where supported |
-| Org doctrine | org doctrine pack | Shared organization doctrine where installed |
+| Project layer | `.kittify/charter-packs/...` | Project-local overrides where supported |
+| Org layer | org Charter Pack | Shared organization doctrine where installed |
 
 The package default is always the fallback. Legacy `command-templates` paths are
 pre-migration artifacts, not the current package layout.
