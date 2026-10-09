@@ -235,7 +235,7 @@ def load_manifest(mission_type: str, repo_root: Path | None = None) -> ExpectedA
             ``model_config = ConfigDict(extra="forbid")`` on both models).
             Carries typed ``mission_type`` and ``origin`` fields naming the
             resolved manifest's source (e.g.
-            ``"doctrine/software-dev/expected-artifacts.yaml"`` for the
+            ``"built-in/software-dev/expected-artifacts.yaml"`` for the
             built-in/project tiers; a descriptive org-tier label when no
             single file path is available), and chains the underlying
             ``pydantic.ValidationError`` via ``__cause__`` -- so
