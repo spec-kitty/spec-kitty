@@ -626,6 +626,5 @@ def answer_decision_via_runtime(
         # existing answer-error type (not a raw lock traceback). Nothing was
         # written; the answer can simply be retried.
         raise MissionRuntimeError(
-            f"Run for mission {mission_slug!r} is busy (another advance holds the run cursor); "
-            f"decision {decision_id!r} was not answered, retry shortly."
+            f"Run for mission {mission_slug!r} is busy (another advance holds the run cursor); decision {decision_id!r} was not answered, retry shortly."
         ) from exc
