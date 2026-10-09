@@ -75,20 +75,19 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
 )
 from specify_cli.cli.commands.agent.tasks_outline import (
     TASKS_MD_FILENAME,
+    history_wp_ids,
     TaskIdResolutionFormat,
     TaskIdResolutionOutcome,
     TaskIdResult,
     _INLINE_SUBTASKS_RE,
     _normalize_task_id_input,
-    _match_history_wp_heading,
-    _extract_pipe_table_wp_id,
-    _is_pipe_table_task_row,
-    _parse_pipe_table_header,
     _resolve_history_wp_id,
     _resolve_wp_id,
 )
 from specify_cli.core.subtask_rows import (
     SubtaskRosterResolutionError,
+    authored_roster_owner_map,
+    authored_roster_owners,
     authored_subtask_roster,
 )
 from specify_cli.core.owned_mission import require_unstaged_index
@@ -327,32 +326,38 @@ def _ms_commit(st: _MarkStatusState, ports: TasksPorts) -> None:
             _tasks.console.print(f"[yellow]Warning:[/yellow] Auto-commit exception: {e}")
 
 
-def _matching_wp_ids(feature_dir: Path, tasks_content: str, task_id: str) -> list[str]:
-    """Find every owning WP before a mark can mutate canonical state."""
-    owners: set[str] = set()
-    tasks_dir = feature_dir / "tasks"
-    for path in sorted(tasks_dir.glob("WP*.md")):
-        wp_id = path.stem.split("-", 1)[0].upper()
-        try:
-            roster = authored_subtask_roster(feature_dir, wp_id)
-        except (SubtaskRosterResolutionError, OSError, ValueError):
+def _owners_for_task(owner_map: dict[str, frozenset[str]], tasks_content: str, task_id: str) -> list[str]:
+    """Owning WPs of *task_id*: the authored rosters decide; ``tasks.md`` only when no roster does."""
+    return authored_roster_owners(owner_map, task_id) or history_wp_ids(tasks_content, task_id)
+
+
+def _resolve_task_owners(st: _MarkStatusState, tasks_content: str) -> None:
+    """Resolve and record (``st.task_wps``) the owning WP of every requested id.
+
+    Refuses BEFORE anything is written when an id is shared by several WPs and no
+    ``--wp`` was given, when ``--wp`` does not own the id, or when an authored
+    roster cannot be read (fail closed: skipping it could hide a second owner).
+    Bare ``WP<digits>`` ids are left to ``_resolve_wp_id``'s dedicated rejection.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    try:
+        owner_map = authored_roster_owner_map(st.feature_dir)
+    except SubtaskRosterResolutionError as exc:
+        _tasks._output_error(st.json_output, f"Cannot determine which work package owns the subtasks: {exc}")
+        raise typer.Exit(1) from exc
+    for task_id in st.task_ids:
+        if re.fullmatch(r"WP\d+", task_id, re.IGNORECASE):
             continue
-        if task_id.upper() in {entry.upper() for entry in roster}:
-            owners.add(wp_id)
-    current_wp: str | None = None
-    lines = tasks_content.splitlines()
-    for index, line in enumerate(lines):
-        current_wp = _match_history_wp_heading(line) or current_wp
-        if re.search(rf"\b{re.escape(task_id)}\b", line, re.IGNORECASE):
-            table_wp = _extract_pipe_table_wp_id(line, _parse_pipe_table_header(lines, index)) if _is_pipe_table_task_row(line, task_id) else None
-            owner = table_wp or current_wp
-            if owner is not None:
-                owners.add(owner)
-    if not owners:
-        fallback = _resolve_history_wp_id(tasks_content, task_id)
-        if fallback is not None:
-            owners.add(fallback)
-    return sorted(owners)
+        owners = _owners_for_task(owner_map, tasks_content, task_id)
+        if st.wp is None and len(owners) > 1:
+            _tasks._output_error(st.json_output, f"{task_id} occurs in {', '.join(owners)}; pass --wp to select one.")
+            raise typer.Exit(1)
+        if st.wp is not None and st.wp not in owners:
+            _tasks._output_error(st.json_output, f"{task_id} was not found in --wp {st.wp}.")
+            raise typer.Exit(1)
+        if owners:
+            st.task_wps[task_id] = st.wp or owners[0]
 
 
 def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
@@ -380,18 +385,7 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
             raise typer.Exit(1)
 
         content = st.tasks_md.read_text(encoding="utf-8")
-        for task_id in st.task_ids:
-            if not re.fullmatch(r"T\d+", task_id, re.IGNORECASE):
-                continue
-            owners = _matching_wp_ids(st.feature_dir, content, task_id)
-            if st.wp is None and len(owners) > 1:
-                _tasks._output_error(st.json_output, f"{task_id} occurs in {', '.join(owners)}; pass --wp to select one.")
-                raise typer.Exit(1)
-            if st.wp is not None and st.wp not in owners:
-                _tasks._output_error(st.json_output, f"{task_id} was not found in --wp {st.wp}.")
-                raise typer.Exit(1)
-            if owners:
-                st.task_wps[task_id] = st.wp or owners[0]
+        _resolve_task_owners(st, content)
         lines = content.split("\n")
         results: list[TaskIdResult] = []
         # Update all requested tasks in a single pass.

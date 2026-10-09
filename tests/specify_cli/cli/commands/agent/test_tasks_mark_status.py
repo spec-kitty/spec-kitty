@@ -89,13 +89,20 @@ def _result_by_id(payload: dict[str, Any], task_id: str) -> dict[str, Any]:
 
 def test_repeated_subtask_requires_wp_and_scoped_mark_is_idempotent(tmp_path: Path) -> None:
     slug = "5067-repeated"
-    mission_dir = _write_mission(tmp_path, slug, "# Tasks\n\n## WP01\nSubtasks: T001\n\n## WP02\nSubtasks: T001\n", wp_ids=("WP01", "WP02"))
-    for wp_id in ("WP01", "WP02"):
+    mission_dir = _write_mission(
+        tmp_path,
+        slug,
+        "# Tasks\n\n## WP01\nSubtasks: T001, T002\n\n## WP02\nSubtasks: T001\nReuses the fixture from T002 in WP01.\n",
+        wp_ids=("WP01", "WP02"),
+    )
+    rosters = {"WP01": ("T001", "T002"), "WP02": ("T001",)}
+    for wp_id, ids in rosters.items():
+        listed = "".join(f"  - {task_id}\n" for task_id in ids)
         (mission_dir / "tasks" / f"{wp_id}-test.md").write_text(
-            f"---\nwork_package_id: {wp_id}\nsubtasks:\n  - T001\n---\n", encoding="utf-8"
+            f"---\nwork_package_id: {wp_id}\nsubtasks:\n{listed}---\n", encoding="utf-8"
         )
 
-    def invoke(*extra: str) -> Any:
+    def invoke(*extra: str, task_id: str = "T001") -> Any:
         with (
             patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
             patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
@@ -103,7 +110,7 @@ def test_repeated_subtask_requires_wp_and_scoped_mark_is_idempotent(tmp_path: Pa
             patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
             patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
         ):
-            return runner.invoke(app, ["mark-status", "T001", "--status", "done", "--mission", slug, "--json", "--no-auto-commit", *extra])
+            return runner.invoke(app, ["mark-status", task_id, "--status", "done", "--mission", slug, "--json", "--no-auto-commit", *extra])
 
     ambiguous = invoke()
     assert ambiguous.exit_code == 1
@@ -118,6 +125,24 @@ def test_repeated_subtask_requires_wp_and_scoped_mark_is_idempotent(tmp_path: Pa
     again = invoke("--wp", "WP02")
     assert again.exit_code == 0, again.output
     assert json.loads(again.stdout)["summary"] == {"updated": 0, "already_satisfied": 1, "not_found": 0}
+    assert (mission_dir / "status.events.jsonl").read_text(encoding="utf-8") == events_before
+
+    # A prose mention of T002 under WP02 does not make WP02 an owner: the authored
+    # roster decides, so T002 resolves to WP01 without --wp, and --wp WP02 refuses.
+    not_owner = invoke("--wp", "WP02", task_id="T002")
+    assert not_owner.exit_code == 1
+    assert (mission_dir / "status.events.jsonl").read_text(encoding="utf-8") == events_before
+    prose_only = invoke(task_id="T002")
+    assert prose_only.exit_code == 0, prose_only.output
+    assert '"wp_id": "WP01"' in (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
+
+    # Fail closed: a roster that cannot be read could hide a second owner, so even a
+    # --wp-scoped mark refuses (naming the file) rather than skipping it.
+    events_before = (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
+    (mission_dir / "tasks" / "WP03-broken.md").write_text("---\nsubtasks: [T001\n---\n", encoding="utf-8")
+    unreadable = invoke("--wp", "WP02")
+    assert unreadable.exit_code == 1
+    assert "WP03-broken.md" in unreadable.output
     assert (mission_dir / "status.events.jsonl").read_text(encoding="utf-8") == events_before
 
 
