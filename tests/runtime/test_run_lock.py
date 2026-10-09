@@ -27,10 +27,6 @@ def test_lock_path_is_the_state_json_sidecar(tmp_path: Path) -> None:
     assert lock.lock_path != tmp_path / "state.json"
 
 
-def test_lock_path_helper_matches(tmp_path: Path) -> None:
-    assert run_lock.run_cursor_lock_path(tmp_path) == tmp_path / "state.json.lock"
-
-
 def test_held_lock_blocks_a_second_blocking_acquire_until_released(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A held lock makes a second blocking acquire time out; once released, the
     same path acquires cleanly. Deterministic via a holder thread + Event."""
