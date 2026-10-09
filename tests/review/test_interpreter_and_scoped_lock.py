@@ -18,6 +18,7 @@ catch the regression it guards against.
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 import threading
@@ -110,8 +111,10 @@ def _write_fake_uv(bin_dir: Path) -> None:
     fake_uv = bin_dir / "uv"
     fake_uv.write_text(
         "#!/usr/bin/env python3\n"
-        "import sys\n"
+        "import json, os, sys\n"
         "args = sys.argv[1:]\n"
+        "with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'env.json'), 'w') as env_fh:\n"
+        "    json.dump(dict(os.environ), env_fh)\n"
         "junit_path = next(a.split('=', 1)[1] for a in args if a.startswith('--junitxml='))\n"
         "with open(junit_path, 'w', encoding='utf-8') as fh:\n"
         '    fh.write(\'<testsuite><testcase classname="t" name="test_pass" /></testsuite>\')\n'
@@ -160,11 +163,18 @@ def test_pytest_lacking_sys_executable_still_yields_real_verdict_via_uv(
     # `sys` module directly -- `pre_review_gate.sys` was always just a proxy
     # for this same module object, never a module-local copy.
     monkeypatch.setattr(sys, "executable", str(broken_python))
+    # #2803: inherited interpreter-path variables must not reach the uv run,
+    # or the lane gate imports the primary checkout's code.
+    for key in ("PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV"):
+        monkeypatch.setenv(key, "/primary/checkout")
 
     result = pre_review_gate.run_scoped_tests_at_head(["test_sample.py"], repo_root=project_dir)
 
     assert result.ran is True
     assert result.current_failures == ()
+    seen_env = json.loads((bin_dir / "env.json").read_text(encoding="utf-8"))
+    assert seen_env["PWHEADLESS"] == "1"
+    assert not {"PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV"} & seen_env.keys()
 
 
 # ---------------------------------------------------------------------------
