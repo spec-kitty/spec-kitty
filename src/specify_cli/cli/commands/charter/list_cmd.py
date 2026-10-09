@@ -20,7 +20,7 @@ from charter.template_catalog import TemplateRef, TierRoot, discover_templates
 from kernel.errors import KittyInternalConsistencyError
 
 from specify_cli.cli.commands.charter._common import _emit_error
-from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
+from charter.activation.layer_roots import resolve_layer_roots
 
 __all__ = ["charter_list_app"]
 
@@ -56,7 +56,7 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
     Templates live mission-scoped under ``<missions_root>/<mission>/templates``
     and ``.../command-templates`` (WP18). The package missions root ships with
     the ``doctrine`` package. The project layer (when present) carries its own
-    missions tree under ``<project-doctrine-root>/doctrine/missions``; the org
+    missions tree under ``<project pack root>/missions``; the org
     layer (when present) carries a *flat* missions tree under
     ``<org_root>/missions`` — no ``doctrine/`` subdir (FR-006, matching what
     the resolver actually reads, WP03).
@@ -68,10 +68,11 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
 
     tier_roots: list[TierRoot] = []
 
-    # Project (override-tier) missions, if a project doctrine layer exists.
+    # Project (override-tier) missions, if a project pack exists. The project
+    # layer root is the project pack root itself (``.kittify/charter-packs/``).
     project_root = layer_roots.get("project")
     if project_root is not None:
-        missions = project_root / "doctrine" / "missions"
+        missions = project_root / "missions"
         if missions.is_dir():
             tier_roots.append(
                 TierRoot(

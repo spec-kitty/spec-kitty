@@ -37,7 +37,7 @@ from typing import Any, cast
 
 from kernel.atomic import substantively_equal as _substantively_equal_core
 from kernel.clock import now_utc_iso
-from kernel.doctrine_root import LEGACY_DOCTRINE_DIRNAME
+from kernel.charter_pack_paths import LEGACY_PROJECT_PACK_DIRNAME
 
 from charter.bundle import compute_bundle_content_hash
 from charter.activation.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
@@ -63,11 +63,11 @@ _KITTIFY_DIRNAME = ".kittify"
 #: CR-07 (mission ``charter-code-topology-01M152G1`` S4): this pipeline's
 #: live-tree writes only ever WRITE into this base -- M3 territory (the
 #: actual data move + write-side cutover to ``.kittify/charter-packs``), not
-#: M2's read-side dual-root reader (``kernel.doctrine_root``). Composed from
-#: the single shared ``LEGACY_DOCTRINE_DIRNAME`` source rather than a
+#: M2's read-side dual-root reader (``kernel.charter_pack_paths``). Composed from
+#: the single shared ``LEGACY_PROJECT_PACK_DIRNAME`` source rather than a
 #: re-spelled ``"doctrine"`` literal so a census over that constant finds
 #: every write site here too.
-_DOCTRINE_DIRNAME = LEGACY_DOCTRINE_DIRNAME
+_DOCTRINE_DIRNAME = LEGACY_PROJECT_PACK_DIRNAME
 _CHARTER_DIRNAME = "charter"
 _PROVENANCE_DIRNAME = "provenance"
 

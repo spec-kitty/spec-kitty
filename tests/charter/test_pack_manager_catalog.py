@@ -172,7 +172,8 @@ class TestListAvailableAcrossLayers:
             "DIRECTIVE_950",
         )
 
-        layer_roots = {"org": org_root, "project": project_root}
+        # The project layer root is the project pack root (the dir holding the kind dirs).
+        layer_roots = {"org": org_root, "project": project_root / "doctrine"}
         result = manager.list_available(ctx, kind="directive", layer_roots=layer_roots)
 
         assert "900-org-rule" in result
@@ -197,7 +198,7 @@ class TestListAvailableAcrossLayers:
         )
 
         result = manager.list_available(
-            ctx, kind="directive", layer_roots={"project": project_root}
+            ctx, kind="directive", layer_roots={"project": project_root / "doctrine"}
         )
 
         assert "950-project-rule" in result
@@ -367,7 +368,8 @@ class TestResolveLayerCandidate:
         candidate = _resolve_layer_candidate(
             "project", tmp_path, ArtifactKind.DIRECTIVE, "doctrine/directives", layered=True
         )
-        assert candidate == tmp_path / "doctrine" / "directive"
+        # ``root`` is the project pack root: the kind dir joins straight onto it.
+        assert candidate == tmp_path / "directive"
 
     def test_org_layer_layered_delegates_to_org_layer_resolver(self, tmp_path: Path) -> None:
         # No flat ``tmp_path/directives`` dir exists, so the org resolver's
@@ -426,12 +428,13 @@ class TestResolveLayerCandidate:
         """FR-005: a project's flat mission-type roster lives at
         ``.kittify/missions/mission_types/`` — a flat sibling of, not nested
         inside, ``.kittify/missions/<mission_name>/`` (CL-005). ``root`` here
-        is already ``repo_root / ".kittify"`` (see
-        ``specify_cli.cli.commands.charter._layer_roots.resolve_layer_roots``).
+        is the project pack root ``repo_root / ".kittify" / "charter-packs"``
+        (see ``charter.activation.layer_roots.resolve_layer_roots``).
         This supersedes the pre-FR-003/FR-005 ``else: continue`` behaviour
         this test used to pin — a flat (``layered=False``) kind in the
         project layer now resolves to a real directory instead of ``None``."""
+        kittify = tmp_path / ".kittify"
         candidate = _resolve_layer_candidate(
-            "project", tmp_path, None, "missions/mission_types", layered=False
+            "project", kittify / "charter-packs", None, "missions/mission_types", layered=False
         )
-        assert candidate == tmp_path / "missions" / "mission_types"
+        assert candidate == kittify / "missions" / "mission_types"

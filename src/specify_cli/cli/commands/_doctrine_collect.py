@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 from charter.bundle import CHARTER_YAML
 from charter.drg import ArtifactKind
+from kernel.charter_pack_paths import resolve_project_pack_read_root
 from ._profile_health_render import _SELECTION_KIND_PLURALS
 
 logger = logging.getLogger(__name__)
@@ -78,6 +79,12 @@ __all__ = [
 
 
 _ORG_ARTIFACT_DIRS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.core)
+
+
+def _project_pack_root_or_none(repo_root: Path) -> Path | None:
+    """Return the project pack root to read for *repo_root*, or ``None`` when absent."""
+    project_pack = resolve_project_pack_read_root(repo_root, quiet=True)
+    return project_pack if project_pack.exists() else None
 
 
 def _read_authored_pack_version(pack_root: Path) -> str | None:
@@ -241,8 +248,7 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
         from charter.drg import resolve_org_roots
 
         org_roots = resolve_org_roots(repo_root)
-        project_doctrine = repo_root / ".kittify" / "doctrine"
-        project_root = project_doctrine if project_doctrine.exists() else None
+        project_root = _project_pack_root_or_none(repo_root)
         inner = RawDoctrineService(
             org_roots=list(org_roots),
             project_root=project_root,
@@ -349,8 +355,7 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     invalid: list[SkippedGlossaryPack] = []
     try:
         org_roots = resolve_org_roots(repo_root)
-        project_doctrine = repo_root / ".kittify" / "doctrine"
-        project_root = project_doctrine if project_doctrine.exists() else None
+        project_root = _project_pack_root_or_none(repo_root)
         inner = RawDoctrineService(
             org_roots=list(org_roots), project_root=project_root
         )
@@ -613,8 +618,7 @@ def _collect_doctrine_collisions(repo_root: Path) -> list[dict[str, object]]:
     from charter.drg import resolve_org_roots
 
     org_roots = resolve_org_roots(repo_root)
-    project_doctrine = repo_root / ".kittify" / "doctrine"
-    project_root = project_doctrine if project_doctrine.exists() else None
+    project_root = _project_pack_root_or_none(repo_root)
 
     inner = RawDoctrineService(
         org_roots=list(org_roots),
@@ -1014,7 +1018,7 @@ def _resolve_artifact_source(
     can pin them byte-for-byte:
 
     * ``built-in`` — artifact comes from the built-in doctrine layer
-    * ``project`` — artifact lives under ``.kittify/doctrine/``
+    * ``project`` — artifact lives under the project pack root (``.kittify/charter-packs/``)
     * ``org`` — artifact lives in an org pack (per-pack attribution is
       not yet tracked at the repository layer; see ``_collect_org_source_map``
       in charter.activation.context for the same limitation)
@@ -1172,8 +1176,7 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
 
     # DoctrineService instance for provenance lookup.
     org_roots = resolve_org_roots(repo_root)
-    project_doctrine = repo_root / ".kittify" / "doctrine"
-    project_root = project_doctrine if project_doctrine.exists() else None
+    project_root = _project_pack_root_or_none(repo_root)
     inner = RawDoctrineService(
         org_roots=list(org_roots),
         project_root=project_root,

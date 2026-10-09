@@ -312,7 +312,8 @@ class TestOrgScanDirsHelper:
 
 class TestLayerCandidateDirHelper:
     def test_project_layer_uses_project_kind_dirs_mapping(self, tmp_path: Path) -> None:
-        expected = tmp_path / "doctrine" / kind_vocabulary.PROJECT_KIND_DIRS.get(
+        # The project layer root is the project pack root: kind dirs join straight onto it.
+        expected = tmp_path / kind_vocabulary.PROJECT_KIND_DIRS.get(
             ArtifactKind.TACTIC, ArtifactKind.TACTIC.plural
         )
         assert _layer_candidate_dir(ArtifactKind.TACTIC, "project", tmp_path) == expected

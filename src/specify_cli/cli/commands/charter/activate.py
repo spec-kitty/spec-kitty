@@ -62,7 +62,7 @@ from specify_cli.cli.commands.charter._charter_write_root import (
     CharterWriteRootError,
     resolve_charter_write_root,
 )
-from specify_cli.cli.commands.charter._layer_roots import (
+from charter.activation.layer_roots import (
     resolve_layer_roots,
     resolve_org_root_chain,
 )

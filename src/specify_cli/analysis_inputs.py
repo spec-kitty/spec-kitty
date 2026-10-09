@@ -20,6 +20,7 @@ from charter.activation.pack_context import resolve_charter_yaml_pointer
 from charter.bundle import CHARTER_MD, CHARTER_YAML
 from charter.drg import load_pack_registry
 from charter.pack_paths import PackRootNotFound, built_in_root
+from kernel.charter_pack_paths import resolve_project_pack_read_root
 from kernel.paths import get_package_asset_root
 
 
@@ -197,8 +198,9 @@ def collect_material_inputs(feature_dir: Path, repo_root: Path) -> dict[str, dic
     include(feature_dir / "tasks")
     # Only declarative subtrees: no charter context-state, synthesis manifest,
     # operation logs, runtime cache, status streams or generated task state.
-    for name in ("missions", "overrides", "doctrine", "templates", "command-templates"):
+    for name in ("missions", "overrides", "templates", "command-templates"):
         include(root / ".kittify" / name)
+    include(resolve_project_pack_read_root(root, quiet=True))
     for name in (CHARTER_MD.name, "interview/answers.yaml", "_LIBRARY"):
         include(charter_path.parent / name)
     for value in _declared_paths(charter):

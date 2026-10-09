@@ -6,6 +6,7 @@ serialises to JSON or renders to the console. Kept in their own module so
 """
 from __future__ import annotations
 
+from kernel.charter_pack_paths import resolve_project_pack_read_root
 from kernel.clock import date
 from pathlib import Path
 from typing import Any
@@ -208,7 +209,7 @@ def _collect_manifest_status(repo_root: Path) -> tuple[dict[str, Any], Any | Non
     from charter.activation.synthesizer.manifest import MANIFEST_PATH, load_yaml, verify
 
     manifest_path = repo_root / MANIFEST_PATH
-    doctrine_root = repo_root / ".kittify" / "doctrine"
+    doctrine_root = resolve_project_pack_read_root(repo_root, quiet=True)
     provenance_root = repo_root / ".kittify" / "charter" / "provenance"
     from charter.activation.kind_vocabulary import ArtifactKind, PROJECT_KIND_DIRS
 

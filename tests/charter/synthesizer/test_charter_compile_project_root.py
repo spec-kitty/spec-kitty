@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter.activation._doctrine_paths import resolve_project_root, _PROJECT_ROOT_CANDIDATES
+from charter.activation._doctrine_paths import resolve_project_root, _project_root_candidates
 from charter.activation.compiler import _default_doctrine_service
 
 
@@ -101,11 +101,19 @@ class TestResolveProjectRoot:
         result = resolve_project_root(tmp_path)
         assert result == kittify_doctrine
 
-    def test_candidate_order_is_kittify_src_flat(self) -> None:
-        """_PROJECT_ROOT_CANDIDATES tuple has the expected order."""
-        assert _PROJECT_ROOT_CANDIDATES[0] == ".kittify/doctrine"
-        assert _PROJECT_ROOT_CANDIDATES[1] == "src/charter/offering"
-        assert _PROJECT_ROOT_CANDIDATES[2] == "doctrine"
+    def test_candidate_order_is_kittify_src_flat(self, tmp_path: Path) -> None:
+        """The candidate list has the expected order: project pack root first."""
+        candidates = _project_root_candidates(tmp_path)
+        assert candidates[0] == tmp_path / ".kittify" / "charter-packs"
+        assert candidates[1] == tmp_path / "src" / "charter" / "offering"
+        assert candidates[2] == tmp_path / "doctrine"
+
+    def test_project_pack_root_resolves_when_present(self, tmp_path: Path) -> None:
+        """A migrated project resolves to ``.kittify/charter-packs/``, ahead of a stale legacy tree."""
+        project_pack = tmp_path / ".kittify" / "charter-packs"
+        project_pack.mkdir(parents=True)
+        (tmp_path / ".kittify" / "doctrine").mkdir()
+        assert resolve_project_root(tmp_path) == project_pack
 
 
 # ---------------------------------------------------------------------------
