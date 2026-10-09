@@ -118,12 +118,12 @@ class TestGetCommandTemplate:
         assert "my-mission" in result.origin
         assert "specify" in result.origin
 
-    def test_origin_format_matches_doctrine_path(self, tmp_path: Path):
+    def test_origin_format_matches_builtin_path(self, tmp_path: Path):
         self._write_command_template(tmp_path, "software-dev", "plan", "content")
         repo = MissionTemplateRepository(tmp_path)
         result = repo.get_command_template("software-dev", "plan")
         assert result is not None
-        assert result.origin == "doctrine/software-dev/command-templates/plan.md"
+        assert result.origin == "built-in/software-dev/command-templates/plan.md"
 
     def test_content_is_non_none(self, tmp_path: Path):
         self._write_command_template(tmp_path, "software-dev", "review", "review text")
@@ -169,7 +169,7 @@ class TestGetContentTemplate:
         repo = MissionTemplateRepository(tmp_path)
         result = repo.get_content_template("software-dev", "spec-template.md")
         assert result is not None
-        assert result.origin == "doctrine/software-dev/templates/spec-template.md"
+        assert result.origin == "built-in/software-dev/templates/spec-template.md"
 
 
 # ── list_command_templates ────────────────────────────────────────────────────
@@ -270,7 +270,7 @@ class TestGetActionIndex:
         result = repo.get_action_index("software-dev", "implement")
         assert result is not None
         assert result.content == yaml_text
-        assert result.origin == "doctrine/software-dev/actions/implement/index.yaml"
+        assert result.origin == "built-in/software-dev/actions/implement/index.yaml"
 
     def test_content_is_not_none(self, tmp_path: Path):
         self._write_index(tmp_path, "m", "act", "key: value\n")
@@ -342,7 +342,7 @@ class TestGetActionGuidelines:
         repo = MissionTemplateRepository(tmp_path)
         result = repo.get_action_guidelines("my-mission", "review")
         assert result is not None
-        assert result.origin == "doctrine/mission-steps/my-mission/review/guidelines.md"
+        assert result.origin == "built-in/mission-steps/my-mission/review/guidelines.md"
 
 
 # ── get_mission_config ────────────────────────────────────────────────────────
@@ -364,7 +364,7 @@ class TestGetMissionConfig:
         result = repo.get_mission_config("software-dev")
         assert result is not None
         assert result.content == yaml_text
-        assert result.origin == "doctrine/software-dev/mission.yaml"
+        assert result.origin == "built-in/software-dev/mission.yaml"
         assert result.parsed["key"] == "software-dev"
 
     def test_returns_none_on_invalid_yaml(self, tmp_path: Path):
@@ -394,7 +394,7 @@ class TestGetExpectedArtifacts:
         result = repo.get_expected_artifacts("software-dev")
         assert result is not None
         assert result.content == yaml_text
-        assert result.origin == "doctrine/software-dev/expected-artifacts.yaml"
+        assert result.origin == "built-in/software-dev/expected-artifacts.yaml"
         assert isinstance(result.parsed, dict)
 
     def test_malformed_manifest_fails_loud_distinct_from_absent(self, tmp_path: Path):

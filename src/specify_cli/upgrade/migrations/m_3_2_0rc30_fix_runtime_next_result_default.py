@@ -52,20 +52,10 @@ class FixRuntimeNextResultDefaultMigration(BaseMigration):
             )
             new_content = canonical_path.read_text(encoding="utf-8")
         except Exception:
-            fallback = (
-                Path(__file__).resolve().parents[3]
-                / "doctrine"
-                / "skills"
-                / _SKILL_NAME
-                / "SKILL.md"
+            return MigrationResult(
+                success=False,
+                errors=["Cannot locate canonical SKILL.md for runtime-next"],
             )
-            if fallback.is_file():
-                new_content = fallback.read_text(encoding="utf-8")
-            else:
-                return MigrationResult(
-                    success=False,
-                    errors=["Cannot locate canonical SKILL.md for runtime-next"],
-                )
 
         for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]):
             if not file_contains_any(info.path, _OLD_MARKERS):

@@ -101,7 +101,7 @@ class TemplateResult:
 
     @property
     def origin(self) -> str:
-        """Human-readable origin label (e.g. 'doctrine/software-dev/command-templates/implement.md')."""
+        """Human-readable origin label (e.g. 'built-in/software-dev/command-templates/implement.md')."""
         return self._origin
 
     @property
@@ -134,7 +134,7 @@ class ConfigResult:
 
     @property
     def origin(self) -> str:
-        """Human-readable origin label (e.g. 'doctrine/software-dev/mission.yaml')."""
+        """Human-readable origin label (e.g. 'built-in/software-dev/mission.yaml')."""
         return self._origin
 
     @property
@@ -263,7 +263,7 @@ class MissionTemplateRepository:
             return None
         try:
             content = path.read_text(encoding="utf-8")
-            origin = f"doctrine/{mission}/templates/{name}"
+            origin = f"built-in/{mission}/templates/{name}"
             return TemplateResult(content=content, origin=origin)
         except (OSError, UnicodeDecodeError):
             return None
@@ -338,7 +338,7 @@ class MissionTemplateRepository:
             parsed = cast(ParsedConfig | None, yaml.load(content))
             if parsed is None:
                 return None
-            origin = f"doctrine/{mission}/actions/{action}/index.yaml"
+            origin = f"built-in/{mission}/actions/{action}/index.yaml"
             return ConfigResult(content=content, origin=origin, parsed=parsed)
         except (OSError, UnicodeDecodeError, YAMLError):
             return None
@@ -362,7 +362,7 @@ class MissionTemplateRepository:
             return None
         try:
             content = path.read_text(encoding="utf-8")
-            origin = f"doctrine/mission-steps/{mission}/{action}/guidelines.md"
+            origin = f"built-in/mission-steps/{mission}/{action}/guidelines.md"
             return TemplateResult(content=content, origin=origin)
         except (OSError, UnicodeDecodeError):
             return None
@@ -385,7 +385,7 @@ class MissionTemplateRepository:
             parsed = cast(ParsedConfig | None, yaml.load(content))
             if parsed is None:
                 return None
-            origin = f"doctrine/{mission}/mission.yaml"
+            origin = f"built-in/{mission}/mission.yaml"
             return ConfigResult(content=content, origin=origin, parsed=parsed)
         except (OSError, UnicodeDecodeError, YAMLError):
             return None
@@ -432,7 +432,7 @@ class MissionTemplateRepository:
             raise MalformedManifestError(
                 path, TypeError(f"expected a YAML mapping, got {type(parsed).__name__}")
             )
-        origin = f"doctrine/{mission}/expected-artifacts.yaml"
+        origin = f"built-in/{mission}/expected-artifacts.yaml"
         return ConfigResult(content=content, origin=origin, parsed=parsed)
 
     # ------------------------------------------------------------------
@@ -466,8 +466,8 @@ class MissionTemplateRepository:
     def _command_template_origin(self, mission: str, name: str, path: Path) -> str:
         legacy = self._root / mission / "command-templates" / f"{name}.md"
         if path == legacy:
-            return f"doctrine/{mission}/command-templates/{name}.md"
-        return f"doctrine/mission-steps/{mission}/{name}/prompt.md"
+            return f"built-in/{mission}/command-templates/{name}.md"
+        return f"built-in/mission-steps/{mission}/{name}/prompt.md"
 
     def _content_template_path(self, mission: str, name: str) -> Path | None:
         """Return the path to a content template file.

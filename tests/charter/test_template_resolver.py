@@ -61,8 +61,8 @@ def test_resolve_content_template_with_project_context_uses_runtime_chain(
 
 def test_resolve_templates_without_project_context_use_doctrine_repo() -> None:
     repo = SimpleNamespace(
-        get_command_template=lambda mission, name: TemplateResult("command body", "doctrine/software-dev/command-templates/plan.md"),
-        get_content_template=lambda mission, name: TemplateResult("template body", "doctrine/software-dev/templates/spec-template.md"),
+        get_command_template=lambda mission, name: TemplateResult("command body", "built-in/software-dev/command-templates/plan.md"),
+        get_content_template=lambda mission, name: TemplateResult("template body", "built-in/software-dev/templates/spec-template.md"),
     )
 
     resolver = CharterTemplateResolver(repo=repo)
@@ -71,10 +71,10 @@ def test_resolve_templates_without_project_context_use_doctrine_repo() -> None:
     content = resolver.resolve_content_template("software-dev", "spec-template.md")
 
     assert command.content == "command body"
-    assert command.origin == "doctrine/software-dev/command-templates/plan.md"
+    assert command.origin == "built-in/software-dev/command-templates/plan.md"
     assert command.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
     assert content.content == "template body"
-    assert content.origin == "doctrine/software-dev/templates/spec-template.md"
+    assert content.origin == "built-in/software-dev/templates/spec-template.md"
     assert content.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
 
 

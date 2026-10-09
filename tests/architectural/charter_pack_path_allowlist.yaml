@@ -20,54 +20,9 @@
 # <pack>/doctrine/<plural>/<layer> org layout are gone (FR-011), the pack-relative
 # literals go through kernel.charter_pack_paths -> 7 entries, all WP25.
 
-charter_pack_path_baseline: 7
-charter_pack_path_literals:
-  - file: src/charter/offering/missions/repository.py
-    qualname: MissionTemplateRepository.get_content_template
-    literal: "doctrine/{}/templates/{}"
-    clause: a
-    owner: WP25
-    line: 266
-    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
-  - file: src/charter/offering/missions/repository.py
-    qualname: MissionTemplateRepository.get_action_index
-    literal: "doctrine/{}/actions/{}/index.yaml"
-    clause: a
-    owner: WP25
-    line: 341
-    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
-  - file: src/charter/offering/missions/repository.py
-    qualname: MissionTemplateRepository.get_action_guidelines
-    literal: "doctrine/mission-steps/{}/{}/guidelines.md"
-    clause: a
-    owner: WP25
-    line: 365
-    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
-  - file: src/charter/offering/missions/repository.py
-    qualname: MissionTemplateRepository.get_mission_config
-    literal: "doctrine/{}/mission.yaml"
-    clause: a
-    owner: WP25
-    line: 388
-    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
-  - file: src/charter/offering/missions/repository.py
-    qualname: MissionTemplateRepository.get_expected_artifacts
-    literal: "doctrine/{}/expected-artifacts.yaml"
-    clause: a
-    owner: WP25
-    line: 435
-    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
-  - file: src/charter/offering/missions/repository.py
-    qualname: MissionTemplateRepository._command_template_origin
-    literal: "doctrine/{}/command-templates/{}.md"
-    clause: a
-    owner: WP25
-    line: 469
-    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
-  - file: src/charter/offering/missions/repository.py
-    qualname: MissionTemplateRepository._command_template_origin
-    literal: "doctrine/mission-steps/{}/{}/prompt.md"
-    clause: a
-    owner: WP25
-    line: 470
-    rationale: "template origin label (a display string, not a filesystem path) spelled with the retired doctrine/ prefix; drained by the FR-018 vocabulary work; rename together with the sibling origin label template_resolver._tier_to_origin (PACKAGE_DEFAULT: \"doctrine\") or the two labels diverge"
+# WP25 (2026-10-09) drained its 7 entries: the MissionTemplateRepository origin
+# labels name the built-in tier as "built-in/..." (the sibling
+# template_resolver._tier_to_origin label moved with them) -> 0 entries. Closed.
+
+charter_pack_path_baseline: 0
+charter_pack_path_literals: []

@@ -722,8 +722,6 @@ exclude = [
     "src/specify_cli/upgrade/migrations/m_2_1_1_repair_skill_pack.py",
     "src/specify_cli/upgrade/migrations/m_2_1_2_fix_orchestrator_api_skill.py",
     "src/specify_cli/upgrade/migrations/m_2_1_2_fix_runtime_next_skill.py",
-    "src/specify_cli/upgrade/migrations/m_2_1_2_install_git_workflow_skill.py",
-    "src/specify_cli/upgrade/migrations/m_2_1_2_install_mission_system_skill.py",
     "src/specify_cli/upgrade/migrations/m_2_1_3_fix_planning_repository_terminology.py",
     "src/specify_cli/upgrade/migrations/m_2_1_3_restore_prompt_commands.py",
     "src/specify_cli/upgrade/migrations/m_2_1_4_enforce_command_file_state.py",

@@ -171,7 +171,7 @@ class CharterTemplateResolver:
             ResolutionTier.ORG: "org",
             ResolutionTier.GLOBAL_MISSION: "global",
             ResolutionTier.GLOBAL: "global",
-            ResolutionTier.PACKAGE_DEFAULT: "doctrine",
+            ResolutionTier.PACKAGE_DEFAULT: "built-in",
         }
         prefix = tier_prefix.get(tier, "unknown")
         return f"{prefix}/{mission}/{asset_type}/{filename}"

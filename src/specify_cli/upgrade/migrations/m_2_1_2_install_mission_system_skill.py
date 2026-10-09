@@ -38,17 +38,8 @@ def _load_canonical(relative_path: str) -> str | None:
         offering_root = files("charter.offering")
         canonical = offering_root.joinpath("skills", _SKILL_NAME, relative_path)
         return canonical.read_text(encoding="utf-8")
-    except Exception:
-        fallback = (
-            Path(__file__).resolve().parents[3]
-            / "doctrine"
-            / "skills"
-            / _SKILL_NAME
-            / relative_path
-        )
-        if fallback.is_file():
-            return fallback.read_text(encoding="utf-8")
-    return None
+    except Exception:  # the packaged skill is unreadable; the caller reports it
+        return None
 
 
 @MigrationRegistry.register

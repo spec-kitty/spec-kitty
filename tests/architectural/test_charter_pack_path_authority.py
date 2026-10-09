@@ -47,11 +47,15 @@ Authority and exemptions
   file allowed to spell the clause (b) literals. It is scanned for clause (a)
   like every other module: WP14 deleted its temporary read fallback (FR-011),
   so it spells no retired segment (:func:`test_authority_spells_no_retired_segment`).
-* :data:`FILE_EXEMPTIONS` is a closed, by-file list (no globs), each entry with
-  its reason: the cutover migration (WP11) and the frozen upgrade migrations
-  whose dead ``parents[3] / "doctrine" / "skills"`` fallbacks point at the
-  deleted ``src/doctrine/`` tree. WP25 shrinks it to the files that still
-  contain the literal.
+* :data:`RETIRED_LAYOUT_AUTHORITY_REL_PATH`
+  (``src/specify_cli/migration/legacy_charter_layout.py``, the legacy-state
+  predicate module of spec FR-018) is the only file allowed to spell the clause
+  (a) segment: it names the retired layout so the cutover migration (which
+  imports it and spells nothing itself) and the FR-011 CLI-root gate can detect
+  it. It is scanned for clause (b) like every other module. WP25 replaced the
+  former by-file exemption list with these two authorities: it deleted the
+  frozen upgrade migrations' dead fallbacks into the deleted built-in tree, and
+  the cutover migration no longer spells the segment.
 
 Allowlist (``charter_pack_path_allowlist.yaml``)
 -----------------------------------------------
@@ -83,7 +87,8 @@ pytestmark = pytest.mark.architectural
 _THIS = Path(__file__).resolve()
 _REPO_ROOT = _THIS.parents[2]
 SRC_ROOT = _REPO_ROOT / "src"
-ALLOWLIST_PATH = _THIS.parent / "charter_pack_path_allowlist.yaml"
+#: The allowlist ledger file (shrink-only; closed empty by WP25).
+LEDGER_PATH = _THIS.parent / "charter_pack_path_allowlist.yaml"
 GITIGNORE_PATH = _REPO_ROOT / ".gitignore"
 
 #: The one module allowed to name the project pack root and the pack-relative paths.
@@ -98,28 +103,9 @@ CLAUSE_B_SEGMENTS: frozenset[str] = frozenset({"charter-packs", "org-charter.yam
 #: The work packages allowed to own (and drain) an allowlist entry.
 DRAIN_OWNERS: frozenset[str] = frozenset({"WP04", "WP05", "WP14", "WP25"})
 
+#: The one module allowed to spell the retired clause (a) segment: the legacy-state predicate.
+RETIRED_LAYOUT_AUTHORITY_REL_PATH = "src/specify_cli/migration/legacy_charter_layout.py"
 _CUTOVER_MIGRATION = "src/specify_cli/upgrade/migrations/m_4_0_0rc6_charter_pack_cutover.py"
-_LEGACY_LAYOUT_PREDICATE = "src/specify_cli/migration/legacy_charter_layout.py"
-_DEAD_SKILL_FALLBACK = (
-    "frozen upgrade migration: a dead parents[3] / 'doctrine' / 'skills' fallback that points at the "
-    "deleted src/doctrine/ tree, not at the project layer; WP25 deletes the fallback or keeps the file listed"
-)
-
-#: Closed, by-file exemptions (no globs). Each value is the reason.
-FILE_EXEMPTIONS: dict[str, str] = {
-    _CUTOVER_MIGRATION: ("the FR-012 cutover migration (created by WP11) reads and moves the retired .kittify/doctrine/ tree, so it must spell the legacy segment"),
-    _LEGACY_LAYOUT_PREDICATE: (
-        "the legacy charter-layout predicate (created by WP11) shared by the cutover migration and the "
-        "FR-011 CLI-root gate (WP14) names the retired .kittify/doctrine/ root it detects; WP25's FR-018 gate exempts it too"
-    ),
-    "src/specify_cli/upgrade/migrations/m_2_1_2_fix_glossary_context_skill.py": _DEAD_SKILL_FALLBACK,
-    "src/specify_cli/upgrade/migrations/m_2_1_2_fix_orchestrator_api_skill.py": _DEAD_SKILL_FALLBACK,
-    "src/specify_cli/upgrade/migrations/m_2_1_2_fix_runtime_next_skill.py": _DEAD_SKILL_FALLBACK,
-    "src/specify_cli/upgrade/migrations/m_2_1_2_install_git_workflow_skill.py": _DEAD_SKILL_FALLBACK,
-    "src/specify_cli/upgrade/migrations/m_2_1_2_install_mission_system_skill.py": _DEAD_SKILL_FALLBACK,
-    "src/specify_cli/upgrade/migrations/m_3_2_0rc30_fix_runtime_next_result_default.py": _DEAD_SKILL_FALLBACK,
-    "src/specify_cli/upgrade/migrations/m_3_2_0rc35_fix_prompt_file_workaround.py": _DEAD_SKILL_FALLBACK,
-}
 
 
 #: Non-vacuity: the gate must have scanned at least this many ``src`` files.
@@ -423,18 +409,18 @@ def scan(paths: Iterable[Path]) -> list[Finding]:
 
 
 def source_files(src_root: Path) -> list[Path]:
-    """Every ``src`` Python file the gate covers: all of them except the exemptions.
+    """Every ``src`` Python file the gate covers: all of them.
 
-    The authority is covered too; :func:`governed_findings` drops only its
-    clause (b) findings (it is the one module allowed to spell them).
+    The two authorities are covered too; :func:`governed_findings` drops only
+    the clause each one is allowed to spell.
     """
-    files = [p for p in sorted(src_root.rglob("*.py")) if "__pycache__" not in p.parts]
-    return [p for p in files if _rel(p) not in FILE_EXEMPTIONS]
+    return [p for p in sorted(src_root.rglob("*.py")) if "__pycache__" not in p.parts]
 
 
 def governed_findings(findings: Iterable[Finding]) -> list[Finding]:
-    """Drop the authority's own clause (b) findings; keep everything else."""
-    return [f for f in findings if not (f.rel_path == AUTHORITY_REL_PATH and f.clause == "b")]
+    """Drop each authority's own clause findings; keep everything else."""
+    own = {(AUTHORITY_REL_PATH, "b"), (RETIRED_LAYOUT_AUTHORITY_REL_PATH, "a")}
+    return [f for f in findings if (f.rel_path, f.clause) not in own]
 
 
 def check(findings: Iterable[Finding], allowlist: set[AllowKey]) -> list[str]:
@@ -459,7 +445,7 @@ def _require(entry: dict[str, object], field: str, context: str) -> str:
     return value
 
 
-def load_allowlist(path: Path = ALLOWLIST_PATH) -> list[AllowEntry]:
+def load_allowlist(path: Path = LEDGER_PATH) -> list[AllowEntry]:
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     entries: list[AllowEntry] = []
     for idx, entry in enumerate(raw.get("charter_pack_path_literals") or []):
@@ -480,12 +466,22 @@ def load_allowlist(path: Path = ALLOWLIST_PATH) -> list[AllowEntry]:
     return entries
 
 
-def load_baseline(path: Path = ALLOWLIST_PATH) -> int:
+def load_baseline(path: Path = LEDGER_PATH) -> int:
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     value = raw.get("charter_pack_path_baseline")
     if not isinstance(value, int):
         raise AllowlistEntryError("charter_pack_path_baseline is missing or not an integer")
     return value
+
+
+#: The allowlist as loaded from :data:`LEDGER_PATH` (NFR-002: closed empty by WP25).
+ALLOWLIST: tuple[AllowEntry, ...] = tuple(load_allowlist())
+
+
+def test_allowlist_is_empty() -> None:
+    """NFR-002: every entry was drained; a new one needs a spec change, not an allowlist row."""
+    assert ALLOWLIST == ()
+    assert load_baseline() == 0
 
 
 @lru_cache(maxsize=1)
@@ -541,11 +537,21 @@ def test_allowlist_entries_name_a_drain_owner() -> None:
         assert entry.owner in DRAIN_OWNERS, entry
 
 
-def test_file_exemptions_exist() -> None:
-    """Staleness for the by-file exemptions: each file exists (WP10 keeps every migration module)."""
-    for rel in FILE_EXEMPTIONS:
-        assert (_REPO_ROOT / rel).is_file(), f"exempted file {rel} is gone: remove its exemption"
+def test_authorities_exist() -> None:
     assert (_REPO_ROOT / AUTHORITY_REL_PATH).is_file()
+    assert (_REPO_ROOT / RETIRED_LAYOUT_AUTHORITY_REL_PATH).is_file()
+
+
+def test_retired_layout_authority_spells_only_the_retired_segment() -> None:
+    """The predicate is in the tree walk, spells clause (a) (load-bearing control) and never clause (b)."""
+    authority = scan([_REPO_ROOT / RETIRED_LAYOUT_AUTHORITY_REL_PATH])
+    assert {f.clause for f in authority} == {"a"}
+    assert _REPO_ROOT / RETIRED_LAYOUT_AUTHORITY_REL_PATH in _live()[0]
+
+
+def test_cutover_migration_spells_no_retired_segment() -> None:
+    """The cutover migration reads the retired layout through the predicate, never by spelling it."""
+    assert scan([_REPO_ROOT / _CUTOVER_MIGRATION]) == []
 
 
 def test_authority_spells_no_retired_segment() -> None:
@@ -673,9 +679,12 @@ def test_stale_allowlist_entry_is_detected() -> None:
     assert speculative not in {f.key for f in _live_findings()}
 
 
-def test_exemptions_are_skipped_by_the_tree_walk(tmp_path: Path) -> None:
-    files = {_rel(p) for p in _live()[0]}
-    assert not files.intersection(FILE_EXEMPTIONS)
+def test_only_each_authoritys_own_clause_is_dropped() -> None:
+    planted = [
+        Finding(RETIRED_LAYOUT_AUTHORITY_REL_PATH, "<module>", "charter-packs", "b", 1),
+        Finding(RETIRED_LAYOUT_AUTHORITY_REL_PATH, "<module>", "doctrine", "a", 2),
+    ]
+    assert governed_findings(planted) == planted[:1]
     # Control: the authority does spell the governed clause (b) literals, so dropping them is load-bearing.
     assert scan([_REPO_ROOT / AUTHORITY_REL_PATH])
 
