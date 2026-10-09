@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import ClassVar
 
 
 class ClaudeignorePathError(Exception):
@@ -98,6 +99,33 @@ class BaseMigration(ABC):
     # when the upgrade runner is invoked with include_worktrees=True.
     runs_on_worktrees: bool = True
 
+    #: Selected before every other applicable migration by
+    #: ``MigrationRegistry.get_applicable``; at most one registered migration
+    #: may set it. A ``runs_first`` migration is selected on ``detect()`` alone,
+    #: independent of the ``from_version``/``target_version`` window, so its
+    #: ``detect()`` must be content-driven, never version-driven
+    #: (charter-pack-cutover research/runtime-seams.md §1.2).
+    runs_first: ClassVar[bool] = False
+
+    def structural_detect(self, project_path: Path) -> bool:  # noqa: ARG002 -- hook; the default ignores the project
+        """Return True when the project still carries state this migration owns.
+
+        Consulted only for a ``runs_first`` migration: when it returns True the
+        migration is selected and applied again even though ``metadata.yaml``
+        records it as applied (a pulled ``metadata.yaml`` or a merge can bring
+        the old state back after the first application). The default is False,
+        so a recorded migration stays settled.
+        """
+        return False
+
+    def reselect_when_recorded(self, project_path: Path) -> bool:
+        """True when a recorded application must not settle this migration.
+
+        Only a ``runs_first`` migration whose :meth:`structural_detect` is True
+        qualifies; every other recorded migration is skipped as applied.
+        """
+        return self.runs_first and self.structural_detect(project_path)
+
     @abstractmethod
     def detect(self, project_path: Path) -> bool:
         """Detect if this migration is needed based on project state.
@@ -134,3 +162,23 @@ class BaseMigration(ABC):
         Returns:
             MigrationResult with details of what was changed
         """
+
+
+class SupersededMigration(BaseMigration):
+    """A migration kept only as a recorded no-op so upgrade history stays meaningful.
+
+    Its module, class and ``migration_id`` stay registered, but ``detect()``
+    is always False, so the runner records it as ``skipped / "Not
+    applicable"`` and never applies it. ``superseded_by`` names what replaced it.
+    """
+
+    superseded_by: ClassVar[str] = ""
+
+    def detect(self, project_path: Path) -> bool:  # noqa: ARG002 -- superseded: never needed, whatever the project holds
+        return False
+
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002 -- superseded: refused for every project
+        return False, self.superseded_by
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: ARG002 -- superseded: a no-op for every project
+        return MigrationResult(success=True, warnings=[self.superseded_by])

@@ -126,7 +126,7 @@ def cutover_migration() -> Any:
 
 
 @covers("FR-012")
-@pending_until("WP10", "the cutover migration runs before every other pending migration")
+@pending_until("WP11", "the cutover migration runs before every other pending migration")
 def test_fr012_cutover_runs_first(tmp_path: Path) -> None:
     project = build("legacy_keys_only", tmp_path)
     result = run_cli(["upgrade", "--dry-run", "--json"], project)
@@ -137,7 +137,6 @@ def test_fr012_cutover_runs_first(tmp_path: Path) -> None:
 
 
 @covers("FR-012", "US2-6")
-@pending_until("WP10", "rc35 default-pack and normalizer migrations are recorded no-ops")
 def test_fr012_rc35_and_normalizer_recorded_skipped(tmp_path: Path) -> None:
     project = build("pre_rc35", tmp_path)
     result, payload = upgrade(project)

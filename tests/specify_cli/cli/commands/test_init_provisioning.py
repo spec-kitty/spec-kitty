@@ -317,37 +317,6 @@ def test_authored_empty_activations_not_overwritten(
 # ---------------------------------------------------------------------------
 
 
-def test_rc35_default_charter_pack_migration_identity_and_idempotence_unchanged(
-    tmp_path: Path,
-) -> None:
-    """m_3_2_0rc35_default_charter_pack: identity + idempotence pinned."""
-    from specify_cli.upgrade.migrations.m_3_2_0rc35_default_charter_pack import (
-        DefaultCharterPackMigration,
-    )
-
-    migration = DefaultCharterPackMigration()
-    assert migration.migration_id == "3.2.0rc35_default_charter_pack"
-    assert migration.target_version == "3.2.0rc35"
-
-    # Fail-open on absent config.yaml is an unchanged, deliberate operator
-    # decision (D-05): absent config = not yet a spec-kitty project.
-    assert migration.detect(tmp_path) is False
-
-    kittify = tmp_path / ".kittify"
-    kittify.mkdir()
-    (kittify / "config.yaml").write_text("agents:\n  available: []\n", encoding="utf-8")
-
-    first = migration.apply(tmp_path)
-    assert first.success is True
-    assert first.changes_made
-
-    second = migration.apply(tmp_path)
-    assert second.success is True
-    assert second.changes_made == [
-        "All activation keys already present; no changes needed"
-    ]
-
-
 def test_rc35_activate_builtin_mission_types_migration_identity_and_idempotence_unchanged(
     tmp_path: Path,
 ) -> None:
