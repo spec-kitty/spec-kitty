@@ -1,0 +1,77 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-09T13:03:32.925631Z",
+      "decision_id": "01M4GC601X606BH0NWHCEN8FX2",
+      "final_answer": "error (fail closed, same as the sharded layout)",
+      "input_key": "sibling_pack_endpoint_policy",
+      "mission_id": "01M4GC4BTDJS52Z3B1YKQ0GK4F",
+      "mission_slug": "pack-fragment-validation-01M4GC4B",
+      "opened_by": "orchestrator",
+      "options": [
+        "error (fail closed, same as the sharded layout)",
+        "advisory",
+        "skip"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "A qualified drg/fragment.yaml endpoint names a node that neither the built-in catalog nor this pack declares (e.g. a sibling org pack's node). How does standalone pack validation report it?",
+      "rationale": "Operator-delegated scope for #5833: same fail-closed behaviour as the sharded drg/*.graph.yaml path; docs/changelog state that standalone validation cannot see undeclared sibling-pack targets. Matches the issue's Expected section.",
+      "resolved_at": "2026-10-09T13:03:34.964360Z",
+      "resolved_by": "operator-delegated-scope",
+      "slot_key": "specify.scope.sibling-pack-endpoints",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-09T13:03:37.011413Z",
+      "decision_id": "01M4GC641KD33FRTTV6YGG9PB2",
+      "final_answer": "runtime endpoint resolver rules; ambiguous bare id is an error",
+      "input_key": "bare_endpoint_policy",
+      "mission_id": "01M4GC4BTDJS52Z3B1YKQ0GK4F",
+      "mission_slug": "pack-fragment-validation-01M4GC4B",
+      "opened_by": "orchestrator",
+      "options": [
+        "runtime endpoint resolver rules; ambiguous bare id is an error",
+        "augmentation-intent shortcut (bare target borrows source kind)",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Which resolution rule decides whether a bare or malformed fragment.yaml endpoint resolves, and how is a bare id matching more than one built-in node reported?",
+      "rationale": "Operator-delegated scope: unresolved bare sources/targets and malformed endpoints fail with the runtime endpoint resolver semantics, not the #5494 augmentation shortcut; ambiguous bare built-in ids handled consistently with the runtime (refused).",
+      "resolved_at": "2026-10-09T13:03:39.015832Z",
+      "resolved_by": "operator-delegated-scope",
+      "slot_key": "specify.scope.bare-endpoint-resolution",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-09T13:03:41.067873Z",
+      "decision_id": "01M4GC680BKTMM3B9A97E0443A",
+      "final_answer": "no - non-goal",
+      "input_key": "relation_label_validation",
+      "mission_id": "01M4GC4BTDJS52Z3B1YKQ0GK4F",
+      "mission_slug": "pack-fragment-validation-01M4GC4B",
+      "opened_by": "orchestrator",
+      "options": [
+        "no - non-goal",
+        "yes"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should this mission also validate unknown relation labels on fragment edges?",
+      "rationale": "Operator-delegated scope lists unknown relation labels as a non-goal for #5833; deferred with rationale, no follow-up issue filed while shipping.",
+      "resolved_at": "2026-10-09T13:03:43.107245Z",
+      "resolved_by": "operator-delegated-scope",
+      "slot_key": "specify.scope.relation-labels",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M4GC4BTDJS52Z3B1YKQ0GK4F",
+  "version": 1
+}

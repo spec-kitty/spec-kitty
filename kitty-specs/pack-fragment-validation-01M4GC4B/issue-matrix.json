@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#5833": {
+      "evidence_ref": "Claimed: https://github.com/spec-kitty/spec-kitty/issues/5833#issuecomment-6081381285 (assignee stijn-dejongh)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

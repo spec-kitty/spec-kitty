@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "mission_slug": "pack-fragment-validation-01M4GC4B",
+  "mission_id": "01M4GC4BTDJS52Z3B1YKQ0GK4F",
+  "mission_branch": "issue-5833-pack-fragment-validation",
+  "target_branch": "issue-5833-pack-fragment-validation",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/governance/create-an-org-doctrine-pack.md",
+        "src/charter/drg.py",
+        "src/charter/offering/drg/__init__.py",
+        "src/charter/offering/drg/merge.py",
+        "src/charter/offering/drg/org_pack_loader.py",
+        "src/charter/offering/drg/validator.py",
+        "src/specify_cli/doctrine/pack_validator.py",
+        "tests/architectural/test_charter_facades_reexport_doctrine.py",
+        "tests/charter/test_drg_endpoint_facade.py",
+        "tests/cli/test_doctrine_org_commands.py",
+        "tests/doctrine/drg/test_org_fragment_validation.py",
+        "tests/doctrine/drg/test_org_pack_auto_emit.py",
+        "tests/doctrine/drg/test_org_pack_merge.py",
+        "tests/doctrine/drg/test_org_pack_node_inference.py",
+        "tests/doctrine/drg/test_validator.py",
+        "tests/doctrine/test_org_pack_augmentation.py",
+        "tests/specify_cli/cli/commands/test_doctrine_validate.py",
+        "tests/specify_cli/doctrine/test_pack_validator.py",
+        "tests/specify_cli/doctrine/test_pack_validator_fragment_finding.py",
+        "tests/specify_cli/doctrine/test_pack_validator_org_endpoints.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-09T14:07:34.976460+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a8424b4fe5c0278296a4e279ba2c8cd835595e1e"
+}
