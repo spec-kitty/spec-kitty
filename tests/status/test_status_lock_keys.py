@@ -240,50 +240,17 @@ def test_review_cycle_lock_on_a_real_coord_mission_is_the_coord_lock(tmp_path: P
 
 
 # --- add-history (F6) -------------------------------------------------------------
-
-
-def _add_history_lock_dir(repo: Path, handle: str, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """The Mission directory ``agent tasks add-history`` hands the locked rewrite (its name keys the lock)."""
-    taken: list[Path] = []
-    wp_path = repo / "WP01-demo.md"
-    wp_path.write_text("---\nwork_package_id: WP01\n---\n\nbody\n", encoding="utf-8")
-    monkeypatch.setattr(tasks_module, "locate_project_root", lambda: repo)
-    monkeypatch.setattr(tasks_module, "_emit_sparse_session_warning", lambda *_a, **_k: None)
-    monkeypatch.setattr(tasks_module, "_find_mission_slug", lambda **_k: handle)
-    monkeypatch.setattr(tasks_module, "_ensure_target_branch_checked_out", lambda root, *_a, **_k: (root, None))
-    monkeypatch.setattr(tasks_module, "check_pre30_layout", lambda *_a, **_k: None)
-    monkeypatch.setattr(tasks_module, "locate_work_package", lambda *_a, **_k: SimpleNamespace(path=wp_path, agent="a", shell_pid=""))
-    monkeypatch.setattr(tasks_module, "locked_rewrite_text", lambda *_a, feature_dir, **_k: taken.append(feature_dir))
-
-    tasks_module.add_history("WP01", note="n", mission=handle, json_output=True)
-
-    assert len(taken) == 1
-    return taken[0]
-
-
-def test_add_history_on_a_real_coord_mission_locks_the_coord_directory_name(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from tests.integration.coord_topology_fixture import _build_coord_topology
-
-    ctx = _build_coord_topology(tmp_path, write_husk_meta=False)
-
-    lock_dir = _add_history_lock_dir(ctx.repo, ctx.slug, monkeypatch)
-
-    assert lock_dir.name == ctx.coord_feature_dir.name
-    with mission_write_lock(lock_dir, repo_root=ctx.repo) as held, coord_status_lock(ctx.repo, ctx.coord_feature_dir) as inner:
-        assert inner == held
-
-
-@pytest.mark.parametrize("handle", [SLUG, "01AAAAAA", DIR_NAME], ids=["slug", "mid8", "dir-name"])
-def test_add_history_on_a_mission_whose_directory_differs_from_its_slug_locks_the_emit_file(
-    mission: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, handle: str
-) -> None:
-    repo, feature_dir = mission
-    (feature_dir / "meta.json").write_text('{"mission_slug": "foo", "mission_id": "01AAAAAAAAAAAAAAAAAAAAAAAA"}', encoding="utf-8")
-    expected = _emit_lock_path(repo, feature_dir, monkeypatch)
-
-    lock_dir = _add_history_lock_dir(repo, handle, monkeypatch)
-
-    assert feature_status_lock_path(repo, lock_dir.name) == expected
+#
+# add-history no longer rewrites the WP-file markdown Activity Log under
+# ``locked_rewrite_text``; it records the note as a plain (uncommitted)
+# InnerStateChanged annotation via ``emit_inner_state_changed`` (#2334, end
+# state (ii)), resolving its STATUS surface through the SAME ``write_dir``
+# write-location accessor move-task's ``feature_write_dir`` uses. The retired
+# markdown-write lock tests were removed with that code path; that add-history
+# records on the authoritative coord surface (and so locks the coord Mission
+# directory name) is covered by
+# ``test_add_history_on_a_coord_mission_records_to_the_coord_surface`` in
+# tests/specify_cli/cli/commands/agent/test_add_history_event_log.py.
 
 
 # --- implement claim (#5819): one Mission, one lock across both claim paths -----------

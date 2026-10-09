@@ -3,8 +3,9 @@
 Red-first reproductions. Each test pauses writer A at the seam between its read
 of the current text and its write, lets writer B run, then releases A:
 
-* ``add-history`` (#5820): A reads the WP file, B appends its note, A writes its
-  stale copy back. Before the fix B's note was lost.
+* ``add-history`` (#5820 / #2334): each call records its note as an append-only
+  event-log annotation under the per-Mission status lock, so two overlapping
+  writers both keep their notes (no shared markdown buffer to clobber).
 * ``tracer-append`` (#5467): A reads ``traces/<category>.md``, B appends and
   commits, A writes its merged copy and commits. Before the fix B's finding was
   absent from the committed file, on a coord and on a lanes Mission.
@@ -120,17 +121,19 @@ def _lanes_mission(tmp_path: Path) -> tuple[Path, str, Path]:
     return repo, result.mission_slug, result.feature_dir / "tasks" / "WP01.md"
 
 
-def test_overlapping_add_history_keeps_both_notes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """#5820: the read of record and the write are one locked region.
+def test_overlapping_add_history_keeps_both_notes(tmp_path: Path) -> None:
+    """#5820 / #2334: concurrent add-history calls both land in the event log.
 
-    Writer A is paused INSIDE the transform (``append_activity_log`` only runs
-    there), after its read and before its write. Post-fix B blocks on the
-    Mission lock A holds; an unlocked read-then-write lets B finish first and
-    A then overwrites B's note.
+    add-history records each note as an append-only ``InnerStateChanged`` note
+    annotation under the per-Mission status lock (``emit_runtime_annotation``,
+    #2334 end state (ii)), not a read-modify-write of a shared ``## Activity
+    Log`` markdown section. Two overlapping writers therefore cannot lose each
+    other's note: there is no stale shared buffer to clobber.
     """
+    from specify_cli.status import read_event_stream
+
     repo, slug, wp_file = _lanes_mission(tmp_path)
-    pause = _Pause()
-    monkeypatch.setattr(tasks_module, "append_activity_log", pause.wrap(tasks_module.append_activity_log))
+    feature_dir = wp_file.parent.parent
     errors: list[BaseException] = []
 
     def add(note: str) -> Callable[[], None]:
@@ -138,19 +141,14 @@ def test_overlapping_add_history_keeps_both_notes(tmp_path: Path, monkeypatch: p
 
     with patch.object(tasks_module, "locate_project_root", return_value=repo):
         thread_a = _run_in_thread(add(NOTE_A), errors)
-        assert pause.reached.wait(WAIT_SECONDS), "writer A never reached its transform"
         thread_b = _run_in_thread(add(NOTE_B), errors)
-        pause.other_reached.wait(B_PROGRESS_SECONDS)
-        if pause.other_reached.is_set():
-            _join(thread_b)
-        pause.release.set()
         _join(thread_a)
         _join(thread_b)
 
     assert not errors, errors
-    text = wp_file.read_text(encoding="utf-8")
-    assert NOTE_A in text
-    assert NOTE_B in text, "writer B's history note was lost by writer A's stale write"
+    notes = [annotation.delta.note or "" for annotation in read_event_stream(feature_dir).annotations if annotation.wp_id == "WP01"]
+    assert any(NOTE_A in note for note in notes), f"writer A's note was lost; notes={notes!r}"
+    assert any(NOTE_B in note for note in notes), f"writer B's note was lost; notes={notes!r}"
 
 
 # ---------------------------------------------------------------------------
