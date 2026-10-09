@@ -980,8 +980,9 @@ from specify_cli.cli.commands.agent.tasks_mark_status import (
 @app.command(name="mark-status")
 def mark_status(
     task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
-    status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
+    status: Annotated[str, typer.Option("--status", help="Status: done/pending/skipped/not_applicable")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
+    wp: Annotated[str | None, typer.Option("--wp", help="Work package containing the subtasks (e.g., WP02)")] = None,
 
     owned_checkout: Annotated[
         Path | None,
@@ -989,14 +990,14 @@ def mark_status(
     ] = None,
 
     auto_commit: Annotated[
-        bool | None, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch (default: from project config)")
+        bool | None, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit status events when supported (default: from project config)")
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
-    """Update task checkbox status in tasks.md for one or more tasks.
+    """Record subtask status for one or more tasks.
 
-    Accepts MULTIPLE task IDs separated by spaces. All tasks are updated
-    in a single operation with one commit.
+    Accepts multiple task IDs separated by spaces. Status is recorded in the
+    mission event log. Use --wp when the same ID appears in more than one WP.
 
     Examples:
         # Single task:
@@ -1010,6 +1011,9 @@ def mark_status(
 
         # With JSON output:
         spec-kitty agent tasks mark-status T001 T002 --status done --json
+
+        # When IDs repeat across work packages:
+        spec-kitty agent tasks mark-status T001 --wp WP02 --status skipped
     """
     # WP08 (#2116): thin orchestrator. The Typer command declares the CLI surface
     # (WP01 golden byte-identity) and delegates to the CORELESS ``_do_mark_status``,
@@ -1020,6 +1024,7 @@ def mark_status(
         task_ids=task_ids,
         status=status,
         mission=mission,
+        wp=wp,
         auto_commit=auto_commit,
         json_output=json_output,
         owned=owned,

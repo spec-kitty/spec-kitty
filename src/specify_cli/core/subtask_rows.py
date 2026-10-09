@@ -362,8 +362,8 @@ def unchecked_subtask_ids_from_snapshot(
         raw = wp_state.get("subtasks")
         if isinstance(raw, Mapping):
             subtasks = raw
-    done = str(Lane.DONE)
-    return [task_id for task_id in roster_ids if str(subtasks.get(task_id, "")) != done]
+    terminal = {str(Lane.DONE), "skipped"}
+    return [task_id for task_id in roster_ids if str(subtasks.get(task_id, "")) not in terminal]
 
 
 def unchecked_subtask_ids_from_event_stream(
@@ -388,5 +388,5 @@ def unchecked_subtask_ids_from_event_stream(
     ).work_packages.get(wp_id)
     raw_subtasks = state.get("subtasks") if state is not None else None
     subtasks: Mapping[str, Any] = raw_subtasks if isinstance(raw_subtasks, Mapping) else {}
-    done = str(Lane.DONE)
-    return [task_id for task_id in roster_ids if str(subtasks.get(task_id, "")) != done]
+    terminal = {str(Lane.DONE), "skipped"}
+    return [task_id for task_id in roster_ids if str(subtasks.get(task_id, "")) not in terminal]

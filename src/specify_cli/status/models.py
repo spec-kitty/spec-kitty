@@ -98,11 +98,15 @@ def get_all_lane_values() -> frozenset[str]:
 
 ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
-#: A subtask's completion status reuses the canonical lane/status enum
-#: vocabulary (``Lane``) rather than introducing a divergent string type
-#: (data-model.md §WPInnerStateDelta). A subtask is "done" when its status is
-#: ``Lane.DONE``.
+
+class SubtaskStatus(StrEnum):
+    """Subtask-only terminal state; it is never a work-package lane."""
+
+    SKIPPED = "skipped"
+
+
 Status = Lane
+SubtaskValue: TypeAlias = Lane | SubtaskStatus
 
 
 #: The ``actor`` on a ``StatusEvent`` / ``InnerStateChanged`` is EITHER a plain
@@ -589,7 +593,7 @@ class WPInnerStateDelta:
 
     shell_pid: int | None = None
     shell_pid_created_at: str | None = None
-    subtasks: Mapping[str, Status] | None = None
+    subtasks: Mapping[str, SubtaskValue] | None = None
     note: str | None = None
     tracker_refs: list[str] | None = None
     tracker_refs_replace: list[str] | None = None
@@ -705,9 +709,9 @@ class WPInnerStateDelta:
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> WPInnerStateDelta:
         subtasks_raw = data.get("subtasks")
-        subtasks: dict[str, Status] | None = None
+        subtasks: dict[str, SubtaskValue] | None = None
         if subtasks_raw is not None:
-            subtasks = {str(sid): Status(value) for sid, value in subtasks_raw.items()}
+            subtasks = {str(sid): SubtaskStatus(value) if value == SubtaskStatus.SKIPPED else Lane(value) for sid, value in subtasks_raw.items()}
         review_raw = data.get("review")
         review = ReviewOverride.from_dict(review_raw) if review_raw is not None else None
         shell_pid_raw = data.get("shell_pid")
