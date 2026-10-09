@@ -1,6 +1,6 @@
 """Shared loader for the debrief scripts, which are internal-pack assets.
 
-Each script is found the way ``spec-kitty doctrine asset path <id>`` finds it: through the
+Each script is found the way ``spec-kitty charter pack asset path <id>`` finds it: through the
 ``path:`` of its ``*.asset.yaml`` sidecar, relative to ``packs/internal/assets/``. A wrong
 ``path:`` in a sidecar therefore fails the tests that load the script. The file names are
 hyphenated, so the script is loaded by path rather than imported as a package.

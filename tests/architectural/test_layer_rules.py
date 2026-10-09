@@ -36,7 +36,7 @@ UNCHANGED:
     test_tid251_enforcement
     test_guard_capability_call_sites
     test_pytest_marker_correctness
-    test_charter_facades_reexport_doctrine
+    test_charter_facades_reexport_offering
     (plus the shared architectural ``conftest`` infra)
 
 This closes the #2548 audit obligation. Do NOT re-open or re-classify these

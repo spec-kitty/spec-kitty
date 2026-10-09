@@ -40,7 +40,7 @@ pytestmark = [pytest.mark.unit]
 @dataclass
 class _ScopeFilteredRepository:
     """Minimal raw-repository double: one id, scope-filtered, with a real
-    active-language set -- mirrors ``BaseDoctrineRepository``'s
+    active-language set -- mirrors ``BaseArtifactRepository``'s
     ``scope_filtered_ids``/``_active_languages`` shape closely enough for
     ``_diagnose_catalog_miss`` to route to ``classify_scope_filtered_miss``.
     """
@@ -171,7 +171,7 @@ def test_unresolved_reference_records_mirrors_diagnostics_for_a_mixed_fixture(
     from charter.activation.compiler import ConfigActivatedRoots
     from charter.offering.drg.query import ResolveTransitiveRefsResult
 
-    class _StubDoctrineService:
+    class _StubActiveCharterService:
         def raw_repository(self, kind: str) -> Any:
             if kind == "styleguides":
                 return _ScopeFilteredRepository(
@@ -199,8 +199,8 @@ def test_unresolved_reference_records_mirrors_diagnostics_for_a_mixed_fixture(
         mission="software-dev",
         template_set="default",
         config_roots=config_roots,
-        doctrine_root=compiler_module.resolve_doctrine_root(),
-        doctrine_service=_StubDoctrineService(),
+        offering_root=compiler_module.resolve_offering_root(),
+        charter_service=_StubActiveCharterService(),
         repo_root=None,
         diagnostics=diagnostics,
         unresolved_records=unresolved_records,
@@ -233,7 +233,7 @@ def test_graph_unresolved_urn_with_scope_filtered_cause_gets_a_real_placeholder(
     from charter.activation.compiler import ConfigActivatedRoots
     from charter.offering.drg.query import ResolveTransitiveRefsResult
 
-    class _StubDoctrineService:
+    class _StubActiveCharterService:
         def raw_repository(self, kind: str) -> Any:
             if kind == "styleguides":
                 return _ScopeFilteredRepository(
@@ -261,8 +261,8 @@ def test_graph_unresolved_urn_with_scope_filtered_cause_gets_a_real_placeholder(
         mission="software-dev",
         template_set="default",
         config_roots=config_roots,
-        doctrine_root=compiler_module.resolve_doctrine_root(),
-        doctrine_service=_StubDoctrineService(),
+        offering_root=compiler_module.resolve_offering_root(),
+        charter_service=_StubActiveCharterService(),
         repo_root=None,
         diagnostics=diagnostics,
     )

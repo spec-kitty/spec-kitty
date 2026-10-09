@@ -1,0 +1,18 @@
+anti_patterns:
+- bad_example: "assert obj._internal_cache == {...}"
+  description: Tests that assert on private state rather than observable 
+    behaviour.
+  good_example: "assert obj.get_result() == expected_value"
+  name: Testing implementation details
+id: testing-style-guide
+principles:
+- "All new code must have tests."
+- "Tests must be deterministic — no random seeds, no wall-clock dependencies."
+- "Use fixture-based testing for any external I/O (network, filesystem)."
+- "Name tests after the behaviour they verify, not the implementation detail."
+schema_version: '1.0'
+scope: testing
+title: Testing Style Guide
+tooling:
+  coverage: your-project-coverage-tool
+  framework: your-project-test-runner

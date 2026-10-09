@@ -87,7 +87,7 @@ _GIT_ENV = {
 # tests/specify_cli/charter_runtime/test_boundary_heal.py -> tests/
 _TESTS_ROOT = Path(__file__).resolve().parents[2]
 _FIXTURE_ROOT = _TESTS_ROOT / "charter" / "fixtures" / "synthesizer"
-_GRAPH_PATH_SUFFIX = Path(".kittify") / "doctrine" / "graph.yaml"
+_GRAPH_PATH_SUFFIX = Path(".kittify") / "charter-packs" / "graph.yaml"
 
 
 def _fixture_adapter() -> FixtureAdapter:

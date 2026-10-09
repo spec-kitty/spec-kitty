@@ -62,7 +62,7 @@ class TestDeclaredNonFastPathActionAccepted:
 
     def test_malformed_project_drg_degrades_to_fast_path(self, tmp_path: Path) -> None:
         """A malformed overlay falls back to fast-path-only acceptance."""
-        overlay = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+        overlay = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
         overlay.parent.mkdir(parents=True)
         overlay.write_text(
             """\

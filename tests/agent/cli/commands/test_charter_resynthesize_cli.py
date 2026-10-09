@@ -386,7 +386,7 @@ class TestResynthesizeErrorPaths:
 
         from charter.activation.synthesizer.errors import TopicSelectorUnresolvedError
 
-        doctrine_dir = tmp_path / ".kittify" / "doctrine"
+        doctrine_dir = tmp_path / ".kittify" / "charter-packs"
 
         with (
             patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),

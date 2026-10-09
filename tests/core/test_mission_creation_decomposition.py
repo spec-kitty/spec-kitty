@@ -203,11 +203,11 @@ def test_invalid_purpose_summary_raises(repo: Path) -> None:
 
 
 def test_empty_activation_set_raises_and_leaves_no_scaffold(repo: Path) -> None:
-    from charter.activation.pack_context import CharterPackConfigError
+    from charter.activation.pack_context import ActiveCharterConfigError
 
     config_path = repo / ".kittify" / "config.yaml"
     config_path.write_text("mission_type_activations: []\n")
-    with pytest.raises(CharterPackConfigError):
+    with pytest.raises(ActiveCharterConfigError):
         create_mission_core(repo, "no-activation", **_summary("no-activation"))
     assert not (repo / "kitty-specs" / "no-activation").exists()
 

@@ -1247,7 +1247,7 @@ def test_existing_shared_owner_update_retains_new_consumers_and_prior_proof(
     assert manifest is not None and {entry.agent_key for entry in manifest.entries} == {"codex", "copilot"}
     for effect in (*updates, *backups):
         assert effect.logical_owners == ("codex", "copilot")
-        assert set(effect.surface_ids) == {"codex.doctrine_skill.alpha.SKILL.md", "copilot.doctrine_skill.alpha.SKILL.md"}
+        assert set(effect.surface_ids) == {"codex.charter_skill.alpha.SKILL.md", "copilot.charter_skill.alpha.SKILL.md"}
         assert effect.ownership == (OwnershipProof("manifest", f".kittify/skills-manifest.json:codex:{path}"),)
     assert {effect.id for effect in assessment.effects} == set(result.succeeded)
     expected = {

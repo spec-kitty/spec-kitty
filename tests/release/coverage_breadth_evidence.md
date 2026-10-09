@@ -248,7 +248,7 @@ exception set enumerates, and WP01 changes no selection (the `-m`, the shard bin
 ### Residual selection gap — pre-existing, and NOT closed by WP01
 
 Of the five paths the retiring step selects, **three are in no matrix slice's test directories**
-(union computed from the registry's `test_dirs`, with the workflow's `tests/{module}` + `tests/doctrine`
+(union computed from the registry's `test_dirs`, with the workflow's `tests/{module}` + `tests/charter_offering`
 fallback):
 
 | retiring-step path | covered by a slice? |

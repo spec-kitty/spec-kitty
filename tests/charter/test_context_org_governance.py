@@ -94,7 +94,7 @@ def _write_config(repo_root: Path, pack_root: Path, *, activated: list[str] | No
     # genuinely absent key.
     data: dict[str, object] = {
         "mission_type_activations": ["software-dev"],
-        "doctrine": {"org": {"packs": [{"name": _PACK_NAME, "local_path": str(pack_root)}]}},
+        "charter_packs": {"org": {"packs": [{"name": _PACK_NAME, "local_path": str(pack_root)}]}},
     }
     if activated is not None:
         data["activated_agent_profiles"] = activated
@@ -152,7 +152,7 @@ class TestProjectProfileWithoutOrgPacks:
         profile_id = "project-writer"
         directive_sentinel = "PROJECT-WRITER directive rationale"
         tactic_sentinel = "PROJECT-WRITER tactic rationale"
-        doctrine = tmp_path / ".kittify" / "doctrine"
+        doctrine = tmp_path / ".kittify" / "charter-packs"
         profiles = doctrine / "agent_profiles"
         profiles.mkdir(parents=True)
         (profiles / f"{profile_id}.agent.yaml").write_text(
@@ -275,7 +275,7 @@ def _write_activation_org_pack(repo_root: Path) -> Path:
               - activation_context:
                   mission_type: software-dev
                   action: implement
-                doctrine_pack_id: {_ACTIVATION_ORG_PACK_NAME}
+                charter_pack_id: {_ACTIVATION_ORG_PACK_NAME}
                 artifact_id: {_ORG_ONLY_ACTIVATION_ARTIFACT_ID}
                 artifact_kind: styleguides
             """
@@ -296,7 +296,7 @@ def _register_activation_org_pack(repo_root: Path, pack_root: Path) -> None:
                 # not hard-fail on a genuinely absent key. This test targets
                 # mission_type="software-dev" (see _resolve_bootstrap).
                 "mission_type_activations": ["software-dev"],
-                "doctrine": {"org": {"packs": [{"name": _ACTIVATION_ORG_PACK_NAME, "local_path": str(pack_root)}]}},
+                "charter_packs": {"org": {"packs": [{"name": _ACTIVATION_ORG_PACK_NAME, "local_path": str(pack_root)}]}},
             },
             fh,
         )
@@ -308,7 +308,7 @@ def _resolve_bootstrap(repo_root: Path) -> CharterContextResult:
 
     with (
         patch("charter.activation._drg_helpers.load_validated_graph", return_value=mock_graph),
-        patch("charter.activation.catalog.resolve_doctrine_root", return_value=repo_root),
+        patch("charter.activation.catalog.resolve_offering_root", return_value=repo_root),
         patch("charter.offering.drg.validator.assert_valid"),
         patch("charter.activation.sync.ensure_charter_bundle_fresh", return_value=None),
     ):

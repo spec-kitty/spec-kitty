@@ -375,7 +375,7 @@ def _write_pack_tactic(
     artifact_id: str,
     enhances: str | None = None,
 ) -> Path:
-    """Mirror the helper in ``tests/specify_cli/doctrine/test_pack_validator.py``."""
+    """Mirror the helper in ``tests/charter/packs/test_pack_validator.py``."""
     tactics = pack_dir / "tactics"
     tactics.mkdir(parents=True, exist_ok=True)
     lines = [
@@ -400,7 +400,7 @@ def _assert_built_in_fixture_tactic_present() -> None:
     masking a real bug (#5346/#5353). This precondition assert replaces that
     probe: it never skips, it fails the test with a clear message naming the
     missing fixture path. Module-local (not imported from
-    ``tests/specify_cli/doctrine/test_pack_validator.py``, which owns its own
+    ``tests/charter/packs/test_pack_validator.py``, which owns its own
     copy) per the WP01 T002 guidance.
     """
     from charter.offering.artifact_kinds import ArtifactKind
@@ -420,7 +420,7 @@ class TestStep4_PackValidatorVocabulary:
         """Step 4 setup: same-ID with NO intent -> reworded advisory."""
         _assert_built_in_fixture_tactic_present()
 
-        from specify_cli.doctrine.pack_validator import validate_pack
+        from charter.offering.packs.pack_validator import validate_pack
 
         _write_pack_tactic(tmp_path, artifact_id=_BUILT_IN_TACTIC_ID)
         result = validate_pack(tmp_path)
@@ -447,7 +447,7 @@ class TestStep4_PackValidatorVocabulary:
         """Inline ``enhances`` is retired; DRG fragment edges own relationships."""
         _assert_built_in_fixture_tactic_present()
 
-        from specify_cli.doctrine.pack_validator import validate_pack
+        from charter.offering.packs.pack_validator import validate_pack
 
         _write_pack_tactic(
             tmp_path,
@@ -470,7 +470,7 @@ class TestStep4_PackValidatorVocabulary:
         """``enhances: <bogus-id>`` -> hard ``unknown_target`` ERROR (FR-012)."""
         _assert_built_in_fixture_tactic_present()
 
-        from specify_cli.doctrine.pack_validator import validate_pack
+        from charter.offering.packs.pack_validator import validate_pack
 
         _write_pack_tactic(
             tmp_path,
@@ -564,7 +564,7 @@ class TestStep5_NoShippedLayerLabel:
         """``pack validate --json`` must not surface ``"shipped"``."""
         _assert_built_in_fixture_tactic_present()
 
-        from specify_cli.doctrine.pack_validator import (
+        from charter.offering.packs.pack_validator import (
             render_validation_result,
             validate_pack,
         )

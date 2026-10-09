@@ -1,22 +1,17 @@
 """Operator-facing handling of the whole-kind fail-closed compile error (#5257).
 
 ``compile_charter`` refuses to build a catalog when every activated reference of
-one tracked kind is unresolvable. Three CLI surfaces reach it and each must
-translate it, not crash with a traceback:
-
-- ``charter activate`` / ``charter deactivate`` recompile opportunistically
-  AFTER the config write succeeded -> a yellow "Catalog not recompiled" notice,
-  exit 0, nothing written to the catalog;
-- ``charter pack apply --compile`` was explicitly asked to compile -> a clean
-  error and exit 1.
+one tracked kind is unresolvable. ``charter activate`` / ``charter deactivate``
+recompile opportunistically AFTER the config write succeeded, so they must
+translate it, not crash with a traceback: a yellow "Catalog not recompiled"
+notice, exit 0, nothing written to the catalog.
 
 The ghost-node fixtures are shared with the ``charter generate`` CLI tests,
-which pin the third surface (fail closed, exit 1).
+which pin the other surface (fail closed, exit 1).
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
@@ -55,8 +50,7 @@ def _project_with_unresolvable_toolguide(project_root: Path, *directives: str) -
     # it to every effective built-in.
     listed = "".join(f"- {stem}\n" for stem in directives)
     # ``activated_tactics: []`` keeps the built-in packs from seeding tactics
-    # (their closures reach real toolguides) -- ``apply`` never overwrites a
-    # key already present without ``--force``.
+    # (their closures reach real toolguides).
     kittify = _write_config(project_root, f"activated_directives:\n{listed}activated_tactics: []\n")
     _write_established_catalog(kittify)
     _write_project_drg_overlay(project_root, kind="toolguide", ghost_id=_GHOST_ID)
@@ -101,35 +95,3 @@ def test_deactivate_prints_notice_when_whole_kind_unresolved(tmp_path: Path) -> 
     assert "toolguide" in result.output
     assert _SECOND_DIRECTIVE_STEM not in _activated_key(tmp_path, "activated_directives")
     assert catalog_path.read_bytes() == catalog_before
-
-
-def test_pack_apply_compile_exits_cleanly_when_whole_kind_unresolved(tmp_path: Path) -> None:
-    _project_with_unresolvable_toolguide(tmp_path, _REAL_DIRECTIVE_STEM)
-
-    result = runner.invoke(
-        charter_app,
-        ["pack", "apply", "minimal", "--repo-root", str(tmp_path), "--compile"],
-        catch_exceptions=True,
-    )
-
-    assert result.exit_code == 1, result.output
-    assert "Traceback" not in result.output
-    assert not isinstance(result.exception, RuntimeError), "the error must be translated, not escape as a raw RuntimeError"
-    assert isinstance(result.exception, SystemExit), result.exception
-    assert "toolguide" in result.output
-    assert _GHOST_ID in result.output
-
-
-def test_pack_apply_compile_json_error_carries_the_unresolved_records(tmp_path: Path) -> None:
-    _project_with_unresolvable_toolguide(tmp_path, _REAL_DIRECTIVE_STEM)
-
-    result = runner.invoke(
-        charter_app,
-        ["pack", "apply", "minimal", "--repo-root", str(tmp_path), "--compile", "--json"],
-        catch_exceptions=True,
-    )
-
-    assert result.exit_code == 1, result.output
-    payload = json.loads(result.stdout)
-    assert "toolguide" in payload["error"]
-    assert any(entry["kind"] == "toolguide" and entry["id"] == _GHOST_ID for entry in payload["unresolved_references"])

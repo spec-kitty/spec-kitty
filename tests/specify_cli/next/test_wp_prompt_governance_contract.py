@@ -225,7 +225,7 @@ def project_with_implement_wp(tmp_path: Path) -> tuple[Path, Path, str]:
 _FETCH_CMD_RE = re.compile(
     r"spec-kitty\s+charter\s+context\b|"
     r"spec-kitty\s+doctrine\b|"
-    r"DoctrineService\(",
+    r"ActiveCharterService\(",
     re.IGNORECASE,
 )
 _WHEN_DOING_RE = re.compile(

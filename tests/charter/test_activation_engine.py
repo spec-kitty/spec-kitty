@@ -140,7 +140,7 @@ def test_unknown_id_error_names_kind_id_and_recovery(config_path: Path) -> None:
     assert "directive" in message
     assert "999-nonexistent" in message
     assert "charter list --show-available" in message
-    assert "doctor doctrine" in message
+    assert "doctor charter-packs" in message
 
 
 # ---------------------------------------------------------------------------
@@ -297,7 +297,7 @@ def test_plan_deactivation_no_restrictions_raises(tmp_path: Path) -> None:
         )
 
     assert exc_info.value.kind == "directive"
-    assert "spec-kitty upgrade" in str(exc_info.value)
+    assert "spec-kitty charter activate directive <id>" in str(exc_info.value)
     assert path.read_bytes() == before
 
 

@@ -133,7 +133,7 @@ def test_activation_aware_map_composes_lineage_and_gates_only_the_leaf(lineage_r
 
     monkeypatch.setattr(
         ctx_mod,
-        "_build_activation_aware_doctrine_service",
+        "_build_active_charter_service",
         lambda repo_root, org_roots: _FakeService(lineage_repo, {"project-annie"}),
     )
     pr._reset_agent_profile_cache()

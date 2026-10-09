@@ -40,8 +40,8 @@ _CHARTER_YAML_BODY = 'schema_version: "2.0.0"\nmetadata:\n  bundle_schema_versio
 
 
 def _add_doctrine_artifact(repo_root: Path, rel_path: str, content: str = "# artifact\n") -> Path:
-    """Write a doctrine artifact under .kittify/doctrine/."""
-    full = repo_root / ".kittify" / "doctrine" / rel_path
+    """Write a doctrine artifact under .kittify/charter-packs/."""
+    full = repo_root / ".kittify" / "charter-packs" / rel_path
     full.parent.mkdir(parents=True, exist_ok=True)
     full.write_text(content, encoding="utf-8")
     return full
@@ -115,7 +115,7 @@ def _add_synthesis_manifest(
     else:
         raise ValueError(f"Cannot derive kind from artifact name: {name}")
 
-    full_artifact_rel = f".kittify/doctrine/{artifact_rel}"
+    full_artifact_rel = f".kittify/charter-packs/{artifact_rel}"
     provenance_rel = f".kittify/charter/provenance/{kind}-{slug}.yaml"
     real_hash = hashlib.sha256(content.encode()).hexdigest()  # noqa: TID251 — charter bundle manifest/content-hash scheme, not charter.hasher.hash_content() freshness
     stored_hash = "deadbeef" * 8 if corrupt_hash else real_hash
@@ -455,7 +455,7 @@ def test_validate_fails_when_sidecar_references_missing_artifact(
 ) -> None:
     """FR-002: provenance sidecar must reference an existing artifact file."""
     # Create doctrine/ so validate_synthesis_state() doesn't early-return with present=False.
-    (compliant_repo / ".kittify" / "doctrine").mkdir(parents=True, exist_ok=True)
+    (compliant_repo / ".kittify" / "charter-packs").mkdir(parents=True, exist_ok=True)
     # Write directive-bar.yaml sidecar but no corresponding doctrine artifact.
     # _check_provenance_have_artifacts derives kind=directive, slug=bar from filename
     # and calls _find_artifact — finds nothing → error.
@@ -600,7 +600,7 @@ def test_validate_passes_legacy_bundle_without_synthesis_state(
     compliant_repo: Path,
 ) -> None:
     """FR-004 / C-012: legacy bundles with no synthesis state must still pass."""
-    # compliant_repo has no .kittify/doctrine/, no provenance sidecars, no manifest.
+    # compliant_repo has no .kittify/charter-packs/, no provenance sidecars, no manifest.
     result = runner.invoke(charter_bundle.app, ["validate", "--json"])
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)

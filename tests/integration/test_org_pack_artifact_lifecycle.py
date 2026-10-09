@@ -103,7 +103,7 @@ _BUILTIN_OVERRIDE_STYLEGUIDE_YAML = textwrap.dedent(
       - python
 
     principles:
-      - "Org override: this declaration shadows the built-in python-conventions styleguide and MUST emit DoctrineLayerCollisionWarning."
+      - "Org override: this declaration shadows the built-in python-conventions styleguide and MUST emit ArtifactLayerCollisionWarning."
     """
 )
 
@@ -144,7 +144,7 @@ def _write_consumer_pack_config(repo_root: Path, *, pack_name: str, local_path: 
     (config_dir / "config.yaml").write_text(
         textwrap.dedent(
             f"""\
-            doctrine:
+            charter_packs:
               org:
                 packs:
                   - name: {pack_name}
@@ -235,7 +235,7 @@ def test_case_2_org_pack_styleguide_appears_in_consumer_prompt(tmp_path: Path) -
         "Consumer prompt MUST cite the org-distributed styleguide "
         "`caveman-comments`. Today the org-pack's `required_styleguides` "
         "field is dropped at parse time because `OrgCharterPolicy` does not "
-        "declare it (see src/specify_cli/doctrine/org_charter.py). "
+        "declare it (see src/charter/activation/org_charter.py). "
         "Mission B WP04 adds `required_styleguides` to `OrgCharterPolicy` "
         "and teaches `apply_org_charter_to_interview` to union the field "
         "into the project selection."
@@ -267,7 +267,7 @@ def test_case_2_required_styleguides_in_org_charter_pre_fills(tmp_path: Path) ->
     After Mission B WP04: schema field exists, interview data carries
     the selection field, and the union runs.
     """
-    from specify_cli.doctrine.org_charter import apply_org_charter_to_interview
+    from charter.activation.org_charter import apply_org_charter_to_interview
 
     consumer = tmp_path / "consumer"
     consumer.mkdir()
@@ -303,7 +303,7 @@ def test_case_2_required_styleguides_in_org_charter_pre_fills(tmp_path: Path) ->
         f"Observed selected_styleguides: {interview.selected_styleguides!r}\n"
         f"Apply messages: {messages!r}\n"
         "Fix lives in Mission B WP04 — extend the schema in "
-        "src/specify_cli/doctrine/org_charter.py:OrgCharterPolicy, "
+        "src/charter/activation/org_charter.py:OrgCharterPolicy, "
         "extend CharterInterview in src/charter/activation/interview.py, and extend "
         "apply_org_charter_to_interview to union the new field."
     )
@@ -317,7 +317,7 @@ def test_case_2_required_styleguides_in_org_charter_pre_fills(tmp_path: Path) ->
 def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> None:
     """An org pack that ships a styleguide whose id collides with a built-in
     styleguide (e.g. ``python-conventions``) MUST emit
-    ``DoctrineLayerCollisionWarning`` with the styleguide id and the
+    ``ArtifactLayerCollisionWarning`` with the styleguide id and the
     artifact kind in the message.
 
     Mission A wired collision warnings for the directive kind. The contract
@@ -327,8 +327,8 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
     fired). Mission B WP04 must verify / extend the collision pipeline for
     every artifact kind that becomes per-artifact selectable.
     """
-    from charter.offering.base import DoctrineLayerCollisionWarning
-    from charter.offering.service import DoctrineService
+    from charter.offering.base import ArtifactLayerCollisionWarning
+    from charter.offering.service import CharterOfferingService
 
     consumer = tmp_path / "consumer"
     consumer.mkdir()
@@ -350,13 +350,13 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
     # ``python-conventions`` -- the collision this test asserts requires
     # the built-in styleguide to actually load (a stale ``src/doctrine``
     # root loads zero styleguides, so nothing could ever collide).
-    service = DoctrineService(
+    service = CharterOfferingService(
         project_root=consumer / ".kittify" / "doctrine",
         org_roots=[pack_path],
     )
     # Force the styleguides repository to load — the warning fires at load time
     # (repositories load lazily, so construction above emits nothing).
-    with pytest.warns(DoctrineLayerCollisionWarning) as warning_records:
+    with pytest.warns(ArtifactLayerCollisionWarning) as warning_records:
         _ = list(service.styleguides.all())
 
     messages = [str(record.message) for record in warning_records]
@@ -366,7 +366,7 @@ def test_case_2_org_styleguide_collision_with_builtin_warns(tmp_path: Path) -> N
     ]
     assert matching, (
         "An org-layer styleguide that collides with a built-in id MUST emit "
-        "DoctrineLayerCollisionWarning naming both the id (`python-conventions`) "
+        "ArtifactLayerCollisionWarning naming both the id (`python-conventions`) "
         "and the artifact kind (`styleguide`). Observed warnings:\n"
         + "\n".join(f"  - {m}" for m in messages)
         + "\n\n"

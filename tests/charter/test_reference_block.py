@@ -22,7 +22,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation.context import (
-    _ActionDoctrineBundle,
+    _ActionGovernanceBundle,
     _load_references,
     _render_bootstrap_text,
 )
@@ -54,8 +54,8 @@ class _NullService:
     procedures = _NullRepo()
 
 
-def _empty_bundle() -> _ActionDoctrineBundle:
-    return _ActionDoctrineBundle(
+def _empty_bundle() -> _ActionGovernanceBundle:
+    return _ActionGovernanceBundle(
         mission="software-dev",
         directive_ids=[],
         tactic_ids=[],
@@ -81,7 +81,7 @@ def _render_reference_block(action: str) -> str:
         charter_path=_CHARTER_DIR / "charter.md",
         action=action,
         summary=[],
-        doctrine_bundle=_empty_bundle(),
+        governance_bundle=_empty_bundle(),
         references=references,
     )
     return _reference_docs_block(text)

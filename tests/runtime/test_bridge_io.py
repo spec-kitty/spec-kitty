@@ -274,11 +274,11 @@ def test_build_discovery_context_anchors_on_repo_root(tmp_path: Path) -> None:
 
 
 def _write_org_pack_config(repo_root: Path, *, pack_name: str, local_path: Path) -> None:
-    """Write a canonical ``doctrine.org.packs[].local_path`` config.yaml entry."""
+    """Write a canonical ``charter_packs.org.packs[].local_path`` config.yaml entry."""
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / "config.yaml").write_text(
-        "doctrine:\n"
+        "charter_packs:\n"
         "  org:\n"
         "    packs:\n"
         f"      - name: {pack_name}\n"
@@ -353,7 +353,7 @@ def test_build_discovery_context_propagates_org_pack_subdir_escape_error(
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True)
     (config_dir / "config.yaml").write_text(
-        "doctrine:\n"
+        "charter_packs:\n"
         "  org:\n"
         "    packs:\n"
         "      - name: acme\n"
@@ -448,7 +448,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
     acme_one = tmp_path / "acme-one"
     acme_two = tmp_path / "acme-two"
     (config_dir / "config.yaml").write_text(
-        "doctrine:\n"
+        "charter_packs:\n"
         "  org:\n"
         "    packs:\n"
         "      - name: acme\n"
@@ -877,8 +877,8 @@ def test_resolve_tech_stack_for_profile_bare_repo_resolves_python_pedro(tmp_path
     but with a REAL built-in profile id (``python-pedro``) instead of a
     nonexistent one.
 
-    Confirmed red against the pre-fix code: ``build_activation_aware_doctrine_
-    service(tmp_path)`` computed ``active_languages=[]`` (explicitly empty,
+    Confirmed red against the pre-fix code: ``build_active_charter_service(
+    tmp_path)`` computed ``active_languages=[]`` (explicitly empty,
     not ``None``) for this bare fixture, which drops ``python-pedro`` (a
     language-scoped built-in) from ``agent_profile_repository``, so
     ``resolve_profile("python-pedro")`` raised ``KeyError`` -- silently

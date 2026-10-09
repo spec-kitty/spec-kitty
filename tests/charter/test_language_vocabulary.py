@@ -45,7 +45,7 @@ def test_shipped_packs_contribute_python_and_no_reserved_or_sentinel_tokens() ->
 
 def test_project_overlay_contributes_its_scope(tmp_path: Path) -> None:
     """RED (pins the fix): a project-overlay artifact scoped to ``elixir`` extends the vocabulary."""
-    _write_artifact(tmp_path / ".kittify" / "doctrine", "tactic", "elixir-thing", "[elixir]")
+    _write_artifact(tmp_path / ".kittify" / "charter-packs", "tactic", "elixir-thing", "[elixir]")
 
     assert "elixir" in _vocabulary(tmp_path)
     assert "elixir" not in _vocabulary(None)
@@ -53,7 +53,7 @@ def test_project_overlay_contributes_its_scope(tmp_path: Path) -> None:
 
 def test_overlay_reserved_and_sentinel_scopes_contribute_nothing(tmp_path: Path) -> None:
     """RED (pins the fix): ``[unknown]`` / ``[any]`` scopes are not vocabulary."""
-    doctrine = tmp_path / ".kittify" / "doctrine"
+    doctrine = tmp_path / ".kittify" / "charter-packs"
     _write_artifact(doctrine, "tactic", "reserved-one", "[unknown]")
     _write_artifact(doctrine, "styleguide", "sentinel-one", "[any, ALL]")
 
@@ -71,16 +71,16 @@ def test_org_pack_root_contributes_its_scope(tmp_path: Path, monkeypatch: pytest
     assert "gleam" in _vocabulary(tmp_path)
 
 
-def test_flat_doctrine_project_layer_contributes_its_scope(tmp_path: Path) -> None:
-    """RED (pins F3a): the project layer follows ``resolve_project_root`` (flat ``doctrine/``), not a hardcoded path."""
+def test_repo_root_doctrine_dir_is_not_a_project_layer(tmp_path: Path) -> None:
+    """The project layer follows ``resolve_project_root``; the retired repo-root ``doctrine/`` is no candidate (FR-011)."""
     _write_artifact(tmp_path / "doctrine", "tactic", "elixir-thing", "[elixir]")
 
-    assert "elixir" in _vocabulary(tmp_path)
+    assert "elixir" not in _vocabulary(tmp_path)
 
 
 def test_kittify_doctrine_wins_over_flat_doctrine_like_the_service(tmp_path: Path) -> None:
-    """GREEN control (pins unchanged behaviour): the first existing candidate is the project layer, as for the service."""
-    _write_artifact(tmp_path / ".kittify" / "doctrine", "tactic", "gleam-thing", "[gleam]")
+    """GREEN control: the project pack root is the project layer, as for the service."""
+    _write_artifact(tmp_path / ".kittify" / "charter-packs", "tactic", "gleam-thing", "[gleam]")
     _write_artifact(tmp_path / "doctrine", "tactic", "elixir-thing", "[elixir]")
 
     vocabulary = _vocabulary(tmp_path)
@@ -91,7 +91,7 @@ def test_kittify_doctrine_wins_over_flat_doctrine_like_the_service(tmp_path: Pat
 
 def test_non_string_and_non_word_scope_items_contribute_nothing(tmp_path: Path) -> None:
     """RED (pins F3b): ``[null, 3]`` and non-word strings are not language tokens."""
-    _write_artifact(tmp_path / ".kittify" / "doctrine", "tactic", "junk-scope", "[null, 3, 'a b', '']")
+    _write_artifact(tmp_path / ".kittify" / "charter-packs", "tactic", "junk-scope", "[null, 3, 'a b', '']")
 
     assert _vocabulary(tmp_path) == _vocabulary(None)
 
@@ -105,7 +105,7 @@ def test_vocabulary_cache_is_bounded() -> None:
 
 def test_malformed_and_non_mapping_yaml_is_ignored(tmp_path: Path) -> None:
     """RED (pins the fix): unreadable scope fields degrade to no contribution, never raise."""
-    doctrine = tmp_path / ".kittify" / "doctrine" / "tactic"
+    doctrine = tmp_path / ".kittify" / "charter-packs" / "tactic"
     doctrine.mkdir(parents=True)
     (doctrine / "bad.tactic.yaml").write_text("applies_to_languages: [unterminated\n", encoding="utf-8")
     (doctrine / "list.tactic.yaml").write_text("- applies_to_languages\n", encoding="utf-8")

@@ -29,14 +29,14 @@ from charter.activation.context_renderers.profile_sections import (
     _render_profile_sections,
 )
 from charter.offering.agent_profiles import AgentProfile, AgentProfileRepository
-from charter.offering.service import DoctrineService
+from charter.offering.service import CharterOfferingService
 
 pytestmark = pytest.mark.fast
 
 
-def _real_service() -> DoctrineService:
-    """A DoctrineService over the shipped built-in doctrine tree (self-resolving)."""
-    return DoctrineService()
+def _real_service() -> CharterOfferingService:
+    """A CharterOfferingService over the shipped built-in doctrine tree (self-resolving)."""
+    return CharterOfferingService()
 
 
 def test_exemplar_procedure_reaches_agent_under_daphne() -> None:

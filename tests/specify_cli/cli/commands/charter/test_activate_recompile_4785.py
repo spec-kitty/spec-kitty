@@ -3,7 +3,7 @@ catalog stale (issue #4785 Finding 1, WP03 T011).
 
 Contract C1 (contracts/behavior-contracts.md): activating a built-in
 directive absent from an established charter store's compiled catalog must
-leave ``tests/doctrine/test_activation_parity_guard.py::
+leave ``tests/charter_offering/test_activation_parity_guard.py::
 test_this_project_charter_pack_is_coherent``-shaped coherence GREEN by
 default, with no manual edit -- `activate_cmd` recompiles
 ``catalog.references`` via the single compiler authority
@@ -16,7 +16,7 @@ through the pre-existing entry point: the CLI wrote
 ``activated_directives: [<stem>]`` into ``config.yaml`` but left the
 established ``charter.yaml`` catalog untouched, tripping the forward
 ID-level parity check (the #2524 dangler class) the exact same way
-``tests/doctrine/test_activation_parity_guard.py::
+``tests/charter_offering/test_activation_parity_guard.py::
 test_config_directive_absent_from_references_bites`` pins directly against
 ``run_consistency_check``.
 """
@@ -37,7 +37,7 @@ runner = CliRunner()
 
 pytestmark = [pytest.mark.regression, pytest.mark.integration]
 
-# The same stable built-in directive `tests/doctrine/test_activation_parity_guard.py`
+# The same stable built-in directive `tests/charter_offering/test_activation_parity_guard.py`
 # uses: canonical id (`DIRECTIVE_001`) differs from its config stem, exercising
 # the real stem<->canonical-id normalization the guard depends on.
 _REAL_DIRECTIVE_STEM = "001-architectural-integrity-standard"
@@ -58,7 +58,7 @@ def _write_established_catalog(kittify: Path) -> None:
     a genuinely ABSENT charter.yaml short-circuits the guard's parity check
     as "not yet synthesized" (a legitimate no-op skip), which would make
     this repro vacuous. Mirrors
-    ``tests/doctrine/test_activation_parity_guard.py::_write_charter_yaml_catalog``.
+    ``tests/charter_offering/test_activation_parity_guard.py::_write_charter_yaml_catalog``.
     """
     charter_dir = kittify / "charter"
     charter_dir.mkdir(parents=True, exist_ok=True)

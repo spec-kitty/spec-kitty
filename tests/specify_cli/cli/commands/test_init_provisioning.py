@@ -6,28 +6,31 @@ NFR-004; contracts C-A3/C-A4/C-A5; data-model Seam 2 (I-8/I-9/I-10).
 Covers:
 
 * T014(a) — C-A3: a brand-new ``spec-kitty init`` writes an explicit,
-  non-empty ``mission_type_activations`` copied from
-  ``src/charter/activation/packs/default.yaml``.
-* T014(b) — C-A4: a broken install missing ``default.yaml`` fails closed
-  with an actionable error, both at the helper level and through the ``init``
-  CLI command.
+  non-empty ``mission_type_activations`` copied from the built-in pack's
+  ``default`` preset (FR-003).
+* T014(b) — C-A4: a broken install whose ``default`` preset is missing fails
+  closed with ``DEFAULT_PRESET_MISSING``, both at the helper level and through
+  the ``init`` CLI command.
 * T014(c) — C-A5/NFR-004/I-8: re-running provisioning on an already-
   provisioned config is byte-identical and preserves a custom (non-built-in)
   entry; an authored empty list is never overwritten (C-008/C-A2).
-* **Copy-vs-rescan discriminator (REQUIRED)** — a fixture ``default.yaml``
+* **Copy-vs-rescan discriminator (REQUIRED)** — a fixture ``default`` preset
   whose ``mission_type_activations`` differs from the disk-scanned built-in
   roster; the provisioned config must match the *fixture*, not
   ``builtin_mission_type_id_set()``. This is what pins D-07/I-10 (copy, not
   re-derive) and fails a re-scan implementation.
-* T017 — migration-parity regression: both rc35 migrations
-  (``m_3_2_0rc35_default_charter_pack``, ``m_3_2_0rc35_activate_builtin_mission_types``)
-  are unchanged in identity and remain idempotent (operator decision: keep
-  both, no consolidation, D-05). No migration file is edited by this WP.
+* T017 — migration-parity regression: the rc35
+  ``m_3_2_0rc35_activate_builtin_mission_types`` migration is unchanged in
+  identity and remains idempotent (operator decision D-05).
+
+Fixture presets live in a tmp copy of ``packs/built-in`` that
+``SPEC_KITTY_PACKS_ROOT`` points at.
 """
 
 from __future__ import annotations
 
 import io
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -37,26 +40,35 @@ from ruamel.yaml import YAML
 from typer import Typer
 from typer.testing import CliRunner
 
-from specify_cli.charter_pack_registry import load_pack_yaml, resolve_builtin_pack_path
 from specify_cli.cli.commands import init as init_module
 from specify_cli.cli.commands.init import register_init_command
 from specify_cli.template.manager import TemplateCopyResult
-from specify_cli.provisioning import default_charter
-from specify_cli.provisioning.default_charter import (
-    DefaultCharterPackMissingError,
-    provision_default_mission_type_activations,
-)
+from charter.activation.compiler import DefaultPresetMissingError
+from specify_cli.provisioning.default_charter import provision_default_mission_type_activations
 
 pytestmark = pytest.mark.integration
 
 _SAFE_YAML = YAML(typ="safe")
 
 
-def _write_pack_fixture(path: Path, mission_types: list[str]) -> None:
-    """Write a minimal charter-pack fixture declaring only the activation key."""
+_BUILT_IN = Path(__file__).resolve().parents[4] / "packs" / "built-in"
+
+
+def _copied_pack(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A tmp copy of ``packs/built-in`` the code resolves through ``SPEC_KITTY_PACKS_ROOT``."""
+    packs_root = tmp_path / "packs-root"
+    shutil.copytree(_BUILT_IN, packs_root / "built-in")
+    monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(packs_root))
+    return packs_root / "built-in"
+
+
+def _write_preset_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: dict[str, Any]) -> Path:
+    """Copy the built-in pack and replace its ``default`` preset with *body*."""
+    preset = _copied_pack(tmp_path, monkeypatch) / "presets" / "default.yaml"
     dump_yaml = YAML()
-    with path.open("w", encoding="utf-8") as fh:
-        dump_yaml.dump({"mission_type_activations": mission_types}, fh)
+    with preset.open("w", encoding="utf-8") as fh:
+        dump_yaml.dump({"name": "default", "description": "fixture", **body}, fh)
+    return preset
 
 
 def _load_config(config_file: Path) -> dict[str, Any]:
@@ -102,11 +114,11 @@ def _patch_common_init_seams(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T014(a) — C-A3: fresh init copies the real default.yaml roster verbatim
+# T014(a) — C-A3: fresh init copies the real default preset roster verbatim
 # ---------------------------------------------------------------------------
 
 
-def test_fresh_init_writes_mission_type_activations_from_default_pack(
+def test_fresh_init_writes_mission_type_activations_from_default_preset(
     cli_app: tuple[Typer, Console],
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -123,50 +135,41 @@ def test_fresh_init_writes_mission_type_activations_from_default_pack(
     assert config_file.exists()
     config_data = _load_config(config_file)
 
-    default_pack_path = resolve_builtin_pack_path("default")
-    expected = load_pack_yaml(default_pack_path)["mission_type_activations"]
+    expected = _SAFE_YAML.load(_BUILT_IN / "presets" / "default.yaml")["mission_type_activations"]
 
     assert config_data.get("mission_type_activations") == expected
     assert config_data["mission_type_activations"] != []
 
 
 # ---------------------------------------------------------------------------
-# T014(b) — C-A4: fail closed on a broken install missing default.yaml
+# T014(b) — C-A4: fail closed on a broken install missing the default preset
 # ---------------------------------------------------------------------------
 
 
-def test_provision_raises_when_default_pack_missing(
+def test_provision_raises_when_default_preset_missing(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """C-A4/FR-011: a missing default.yaml raises, never an empty/implicit set."""
+    """C-A4/FR-003: a missing default preset raises, never an empty/implicit set."""
+    (_copied_pack(tmp_path, monkeypatch) / "presets" / "default.yaml").unlink()
 
-    def _raise_missing(name: str) -> Path:
-        raise FileNotFoundError(f"missing pack {name!r}")
+    with pytest.raises(DefaultPresetMissingError) as caught:
+        provision_default_mission_type_activations(tmp_path / "project")
 
-    monkeypatch.setattr(default_charter, "resolve_builtin_pack_path", _raise_missing)
+    assert caught.value.code == "DEFAULT_PRESET_MISSING"
+    assert not (tmp_path / "project" / ".kittify" / "config.yaml").exists()
 
-    with pytest.raises(DefaultCharterPackMissingError):
+
+def test_provision_raises_when_preset_lacks_mission_type_key(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """C-A4/FR-003: a default preset without the activation key also fails closed."""
+    _write_preset_fixture(tmp_path, monkeypatch, {"activated_kinds": []})
+
+    with pytest.raises(DefaultPresetMissingError, match="DEFAULT_PRESET_MISSING"):
         provision_default_mission_type_activations(tmp_path / "project")
 
 
-def test_provision_raises_when_pack_lacks_mission_type_key(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    """C-A4/FR-011: a malformed default.yaml (no activation key) also fails closed."""
-    fixture_pack = tmp_path / "fixture-default.yaml"
-    dump_yaml = YAML()
-    with fixture_pack.open("w", encoding="utf-8") as fh:
-        dump_yaml.dump({"activated_kinds": []}, fh)
-
-    monkeypatch.setattr(
-        default_charter, "resolve_builtin_pack_path", lambda name: fixture_pack
-    )
-
-    with pytest.raises(DefaultCharterPackMissingError):
-        provision_default_mission_type_activations(tmp_path / "project")
-
-
-def test_fresh_init_fails_closed_when_default_pack_missing(
+def test_fresh_init_fails_closed_when_default_preset_missing(
     cli_app: tuple[Typer, Console],
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -176,10 +179,7 @@ def test_fresh_init_fails_closed_when_default_pack_missing(
     monkeypatch.chdir(tmp_path)
     _patch_common_init_seams(monkeypatch)
 
-    def _raise_missing(name: str) -> Path:
-        raise FileNotFoundError(f"missing pack {name!r}")
-
-    monkeypatch.setattr(default_charter, "resolve_builtin_pack_path", _raise_missing)
+    (_copied_pack(tmp_path, monkeypatch) / "presets" / "default.yaml").unlink()
 
     result = _run(app, ["init", "broken-install", "--ai", "claude", "--non-interactive"])
 
@@ -187,9 +187,9 @@ def test_fresh_init_fails_closed_when_default_pack_missing(
     # The injected `console` (not CliRunner's captured stdout) is where init.py
     # prints its actionable error -- see register_init_command's `console` kwarg.
     assert isinstance(console.file, io.StringIO)
-    printed = console.file.getvalue().lower()
-    assert "default" in printed
-    assert "broken" in printed or "reinstall" in printed
+    printed = console.file.getvalue()
+    assert "Error (DEFAULT_PRESET_MISSING):" in printed
+    assert "reinstall spec-kitty" in printed
 
 
 # ---------------------------------------------------------------------------
@@ -200,9 +200,9 @@ def test_fresh_init_fails_closed_when_default_pack_missing(
 def test_provision_copies_fixture_pack_verbatim_not_disk_roster(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """The provisioned config matches the FIXTURE pack, not the disk-scanned roster.
+    """The provisioned config matches the FIXTURE preset, not the disk-scanned roster.
 
-    ``default.yaml`` currently authors exactly the disk roster
+    The ``default`` preset currently authors exactly the disk roster
     ``[software-dev, documentation, research, plan]``, so a naive test would
     pass whether the implementation copies or re-scans. This fixture's list
     deliberately differs from the disk roster (a subset plus a custom,
@@ -210,13 +210,8 @@ def test_provision_copies_fixture_pack_verbatim_not_disk_roster(
     ``builtin_mission_type_id_set()``) would resolve the disk roster instead
     of the fixture and fail this assertion.
     """
-    fixture_pack = tmp_path / "fixture-default.yaml"
     fixture_types = ["software-dev", "totally-custom-fixture-type"]
-    _write_pack_fixture(fixture_pack, fixture_types)
-
-    monkeypatch.setattr(
-        default_charter, "resolve_builtin_pack_path", lambda name: fixture_pack
-    )
+    _write_preset_fixture(tmp_path, monkeypatch, {"mission_type_activations": fixture_types})
 
     project = tmp_path / "project"
     project.mkdir()
@@ -248,11 +243,7 @@ def test_provision_is_idempotent_and_preserves_custom_entry(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """Re-running provisioning is byte-identical and keeps a custom entry."""
-    fixture_pack = tmp_path / "fixture-default.yaml"
-    _write_pack_fixture(fixture_pack, ["software-dev", "documentation"])
-    monkeypatch.setattr(
-        default_charter, "resolve_builtin_pack_path", lambda name: fixture_pack
-    )
+    _write_preset_fixture(tmp_path, monkeypatch, {"mission_type_activations": ["software-dev", "documentation"]})
 
     project = tmp_path / "project"
     project.mkdir()
@@ -288,11 +279,7 @@ def test_authored_empty_activations_not_overwritten(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     """C-008/C-A2: an authored empty list must not trigger provisioning."""
-    fixture_pack = tmp_path / "fixture-default.yaml"
-    _write_pack_fixture(fixture_pack, ["software-dev"])
-    monkeypatch.setattr(
-        default_charter, "resolve_builtin_pack_path", lambda name: fixture_pack
-    )
+    _write_preset_fixture(tmp_path, monkeypatch, {"mission_type_activations": ["software-dev"]})
 
     project = tmp_path / "project"
     kittify = project / ".kittify"
@@ -315,37 +302,6 @@ def test_authored_empty_activations_not_overwritten(
 # migrations unchanged; no consolidation, D-05). Reads/imports only — no
 # migration file is edited by this WP.
 # ---------------------------------------------------------------------------
-
-
-def test_rc35_default_charter_pack_migration_identity_and_idempotence_unchanged(
-    tmp_path: Path,
-) -> None:
-    """m_3_2_0rc35_default_charter_pack: identity + idempotence pinned."""
-    from specify_cli.upgrade.migrations.m_3_2_0rc35_default_charter_pack import (
-        DefaultCharterPackMigration,
-    )
-
-    migration = DefaultCharterPackMigration()
-    assert migration.migration_id == "3.2.0rc35_default_charter_pack"
-    assert migration.target_version == "3.2.0rc35"
-
-    # Fail-open on absent config.yaml is an unchanged, deliberate operator
-    # decision (D-05): absent config = not yet a spec-kitty project.
-    assert migration.detect(tmp_path) is False
-
-    kittify = tmp_path / ".kittify"
-    kittify.mkdir()
-    (kittify / "config.yaml").write_text("agents:\n  available: []\n", encoding="utf-8")
-
-    first = migration.apply(tmp_path)
-    assert first.success is True
-    assert first.changes_made
-
-    second = migration.apply(tmp_path)
-    assert second.success is True
-    assert second.changes_made == [
-        "All activation keys already present; no changes needed"
-    ]
 
 
 def test_rc35_activate_builtin_mission_types_migration_identity_and_idempotence_unchanged(

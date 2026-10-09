@@ -9,7 +9,7 @@ owns:
   - tests/charter/test_action_sequence_dispatch.py
   - tests/charter/test_active_languages_idempotency.py
   - tests/charter/test_reject_not_drop_cli.py
-  - tests/cli/test_doctor_doctrine_selections_snapshot.py
+  - tests/cli/test_doctor_charter_packs_selections_snapshot.py
   - tests/cli/test_events_tail.py
   - tests/compat/test_dry_run_parity.py
   - tests/concurrency/test_ensure_runtime_concurrent.py

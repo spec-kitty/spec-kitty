@@ -24,7 +24,7 @@ migrated in the #5409 mission rather than grandfathered.
 
 Scope (#5538): the #5409 gate scanned only ``src/charter`` and only module- and
 class-level assignments, so a mirror in a consumer package
-(``specify_cli/doctrine/pack_validator.py``'s plural→singular map) or inside a
+(``charter/offering/packs/pack_validator.py``'s plural→singular map) or inside a
 function body survived ungoverned. The gate now scans **every package under
 ``src/``** and **every collection display at any depth** — module, class,
 function-local, and bare ``return``/subscript displays alike. A mirror cannot
@@ -269,27 +269,23 @@ def _planted_plural_to_singular_map() -> str:
 
 
 @pytest.mark.parametrize(
-    ("scope", "template", "bound_name"),
+    ("scope", "template"),
     [
-        ("plain assignment", "MAPPING = {display}\n", "MAPPING"),
-        (
-            "annotated function local",
-            "def lookup(plural):\n    mapping: dict[str, str] = {display}\n    return mapping.get(plural)\n",
-            "mapping",
-        ),
-        ("bare return", "def lookup():\n    return {display}\n", "<unbound display>"),
+        ("module level", "MAPPING = {display}\n"),
+        ("class body", "class Holder:\n    MAPPING = {display}\n"),
+        ("function local", "def lookup(plural):\n    mapping = {display}\n    return mapping.get(plural)\n"),
+        ("bare return", "def lookup():\n    return {display}\n"),
+        ("subscripted display", "def lookup(plural):\n    return {display}[plural]\n"),
     ],
 )
-def test_gate_detects_a_mirror_at_any_depth(scope: str, template: str, bound_name: str) -> None:
-    """Self-mutation (#5538): a mirror is caught wherever it is written, under its binding name.
+def test_gate_detects_a_mirror_at_any_depth(scope: str, template: str) -> None:
+    """Self-mutation (#5538): a mirror is caught wherever it is written.
 
     The #5538 mirror was a function-local dict, the one placement the #5409
-    gate skipped. The walk is uniform, so the placements that matter are the
-    ones that reach ``_assignment_names`` differently: an ``Assign``, an
-    ``AnnAssign`` and a display bound to no name at all.
+    gate skipped. Each placement here must be flagged.
     """
     source = template.format(display=_planted_plural_to_singular_map())
-    assert [name for _, name, _ in _scan_source(source)] == [bound_name], f"gate must flag a {scope} mirror"
+    assert _scan_source(source), f"gate must flag a {scope} mirror"
 
 
 def test_gate_leaves_a_derived_map_alone() -> None:

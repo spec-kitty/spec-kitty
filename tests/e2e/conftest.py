@@ -48,7 +48,7 @@ def _write_built_in_only_manifest(project: Path) -> None:
         ),
         encoding="utf-8",
     )
-    (project / ".kittify" / "doctrine" / "graph.yaml").unlink(missing_ok=True)
+    (project / ".kittify" / "charter-packs" / "graph.yaml").unlink(missing_ok=True)
 
 
 @pytest.fixture(autouse=True)
@@ -287,13 +287,13 @@ def e2e_project(tmp_path: Path) -> Path:
 
     # Write the legacy fresh-seed PROVENANCE.md so compute_freshness returns
     # synthesized_drg=built_in_only (a passing state) instead of missing.
-    _doctrine_dir = project / ".kittify" / "doctrine"
-    _doctrine_dir.mkdir(parents=True, exist_ok=True)
-    (_doctrine_dir / "PROVENANCE.md").write_text(
+    _pack_dir = project / ".kittify" / "charter-packs"
+    _pack_dir.mkdir(parents=True, exist_ok=True)
+    (_pack_dir / "PROVENANCE.md").write_text(
         "# Spec Kitty Doctrine — Fresh Project Seed\n\n"
-        "This `.kittify/doctrine/` tree was materialized by `spec-kitty charter\n"
+        "This `.kittify/charter-packs/` tree was materialized by `spec-kitty charter\n"
         "synthesize` running against a **fresh project** (no LLM-authored YAML under\n"
-        "`.kittify/charter/generated/`). It exists so `DoctrineService` discovers a\n"
+        "`.kittify/charter/generated/`). It exists so `ActiveCharterService` discovers a\n"
         "project layer and the runtime can advance; it is intentionally empty.\n\n"
         "The runtime falls back to the in-package built-in doctrine\n"
         "(`src/charter/offering/`) for all artifact lookups until the LLM harness writes\n"

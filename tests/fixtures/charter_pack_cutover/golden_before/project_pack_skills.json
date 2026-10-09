@@ -1,0 +1,100 @@
+{
+  "base_sha": "0d4c7583e535dc4224598ce4abe654e5b6883936",
+  "charter_list": [
+    {
+      "activated": null,
+      "kind": "agent-profile"
+    },
+    {
+      "activated": null,
+      "kind": "directive"
+    },
+    {
+      "activated": null,
+      "kind": "glossary-pack"
+    },
+    {
+      "activated": null,
+      "kind": "mission-step-contract"
+    },
+    {
+      "activated": [
+        "software-dev"
+      ],
+      "kind": "mission-type"
+    },
+    {
+      "activated": null,
+      "kind": "paradigm"
+    },
+    {
+      "activated": null,
+      "kind": "procedure"
+    },
+    {
+      "activated": [
+        "triage"
+      ],
+      "kind": "skill"
+    },
+    {
+      "activated": null,
+      "kind": "styleguide"
+    },
+    {
+      "activated": null,
+      "kind": "tactic"
+    },
+    {
+      "activated": null,
+      "kind": "toolguide"
+    }
+  ],
+  "effective": {
+    "kinds": {
+      "agent_profiles": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "directives": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "glossary_packs": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "mission_step_contracts": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "paradigms": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "procedures": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "styleguides": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "tactics": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "toolguides": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      }
+    },
+    "mission_types": [
+      "software-dev"
+    ],
+    "skills": [
+      "triage"
+    ]
+  },
+  "fixture": "project_pack_skills"
+}

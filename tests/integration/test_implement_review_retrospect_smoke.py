@@ -11,7 +11,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent import app
 from specify_cli.cli.commands.agent import workflow_cores
 from specify_cli.context.mission_resolver import ResolvedMission
-from specify_cli.doctrine_synthesizer import SynthesisResult
+from specify_cli.charter_pack_synthesizer import SynthesisResult
 from runtime.next.runtime_bridge_decision_mapping import _finalized_task_board_override_step
 from runtime.next.decision import _compute_wp_progress
 from specify_cli.review.cycle import create_rejected_review_cycle, resolve_review_cycle_pointer

@@ -119,7 +119,7 @@ def _inject_legacy_overlay_content(tmp_path: Path) -> tuple[Path, Path]:
     preservation test's injection so a "backed" (artifact file present)
     on-disk-only node exists for the current run's target set to omit.
     """
-    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    doctrine_dir = tmp_path / ".kittify" / "charter-packs"
     graph_path = doctrine_dir / "graph.yaml"
     graph = _load_graph(graph_path)
     graph["nodes"].append(
@@ -167,7 +167,7 @@ def test_noop_resynthesis_is_byte_stable_for_graph_and_manifest(
     )
     synthesize(req_a, adapter=fixture_adapter, repo_root=tmp_path)
 
-    graph_path = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+    graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
     manifest_path = tmp_path / MANIFEST_PATH
     graph_before = graph_path.read_bytes()
     manifest_before = manifest_path.read_bytes()
@@ -340,7 +340,7 @@ def test_zero_emit_reconciliation_does_not_unlink_preserved_graph(
     )
     synthesize(req_a, adapter=fixture_adapter, repo_root=tmp_path)
 
-    graph_path = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+    graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
     assert graph_path.exists(), "prior synthesis did not establish a backed overlay"
     manifest_path = tmp_path / MANIFEST_PATH
     assert load_manifest(manifest_path).built_in_only is False
@@ -405,7 +405,7 @@ def test_corrupt_overlay_fails_closed_at_the_library_seam(
     )
     synthesize(req_a, adapter=fixture_adapter, repo_root=tmp_path)
 
-    graph_path = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+    graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
     manifest_path = tmp_path / MANIFEST_PATH
     manifest_before = manifest_path.read_bytes()
 
@@ -445,7 +445,7 @@ def test_dry_run_mode_computes_delta_without_writing(
     synthesize(req_a, adapter=fixture_adapter, repo_root=tmp_path)
     _inject_legacy_overlay_content(tmp_path)
     manifest_before = (tmp_path / MANIFEST_PATH).read_bytes()
-    graph_before = (tmp_path / ".kittify" / "doctrine" / "graph.yaml").read_bytes()
+    graph_before = (tmp_path / ".kittify" / "charter-packs" / "graph.yaml").read_bytes()
 
     req_b = _request(
         "01BBBBBBBBBBBBBBBBBBBBBBBBB",
@@ -458,7 +458,7 @@ def test_dry_run_mode_computes_delta_without_writing(
     assert result.reconciliation is not None
     assert _LEGACY_URN in {ref.urn for ref in result.reconciliation.retained}
     assert (tmp_path / MANIFEST_PATH).read_bytes() == manifest_before, "dry_run must not write the manifest"
-    assert (tmp_path / ".kittify" / "doctrine" / "graph.yaml").read_bytes() == graph_before, (
+    assert (tmp_path / ".kittify" / "charter-packs" / "graph.yaml").read_bytes() == graph_before, (
         "dry_run must not write graph.yaml"
     )
 
@@ -487,7 +487,7 @@ def test_prune_mode_excises_removable_content(
     )
     synthesize(req_b, adapter=fixture_adapter, repo_root=tmp_path, mode=SynthesizeMode.prune)
 
-    graph_path = tmp_path / ".kittify" / "doctrine" / "graph.yaml"
+    graph_path = tmp_path / ".kittify" / "charter-packs" / "graph.yaml"
     pruned_urns = {node["urn"] for node in _load_graph(graph_path)["nodes"]}
     assert _LEGACY_URN not in pruned_urns, "--prune must excise removable (preserved-but-untargeted) nodes"
 
@@ -610,11 +610,11 @@ def test_apply_prune_excises_removable_nodes_edges_and_manifest_entries() -> Non
             manifest_hash="0" * 64,
             artifacts=[
                 ManifestArtifactEntry(
-                    kind="tactic", slug="keep", path=".kittify/doctrine/tactic/keep.tactic.yaml",
+                    kind="tactic", slug="keep", path=".kittify/charter-packs/tactic/keep.tactic.yaml",
                     provenance_path=".kittify/charter/provenance/tactic-keep.yaml", content_hash="a" * 64,
                 ),
                 ManifestArtifactEntry(
-                    kind="tactic", slug="prune-me", path=".kittify/doctrine/tactic/prune-me.tactic.yaml",
+                    kind="tactic", slug="prune-me", path=".kittify/charter-packs/tactic/prune-me.tactic.yaml",
                     provenance_path=".kittify/charter/provenance/tactic-prune-me.yaml", content_hash="b" * 64,
                 ),
             ],

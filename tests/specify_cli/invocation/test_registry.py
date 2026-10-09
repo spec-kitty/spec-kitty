@@ -95,7 +95,7 @@ class TestRegistryResolveLocal:
     @staticmethod
     def _make_project_doctrine_repo(tmp_path: Path) -> Path:
         """A repo with one charter-activated project-local doctrine profile."""
-        profiles_dir = tmp_path / ".kittify" / "doctrine" / "agent_profiles"
+        profiles_dir = tmp_path / ".kittify" / "charter-packs" / "agent_profiles"
         profiles_dir.mkdir(parents=True)
         (profiles_dir / "seeker-implementer.agent.yaml").write_text(
             "\n".join(

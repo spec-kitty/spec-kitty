@@ -705,7 +705,7 @@ def test_org_tier_mission_discovered_via_third_wiring_site(
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True)
     (config_dir / "config.yaml").write_text(
-        "doctrine:\n"
+        "charter_packs:\n"
         "  org:\n"
         "    packs:\n"
         "      - name: acme\n"
@@ -796,7 +796,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
     acme_one = tmp_path / "acme-one"
     acme_two = tmp_path / "acme-two"
     (config_dir / "config.yaml").write_text(
-        "doctrine:\n"
+        "charter_packs:\n"
         "  org:\n"
         "    packs:\n"
         "      - name: acme\n"

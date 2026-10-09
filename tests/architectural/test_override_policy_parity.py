@@ -1,4 +1,4 @@
-"""Parity gate: ``doctor doctrine`` and the built-in-override gate share ONE policy loader.
+"""Parity gate: ``doctor charter-packs`` and the built-in-override gate share ONE policy loader.
 
 SC-005 / FR-013 (#5767). The consumer allowlist, each pack's own sanction and the
 consumer's revocations are combined in exactly one place,
@@ -26,7 +26,7 @@ from charter.offering.drg.models import DRGGraph
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_COLLECTOR = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "_doctrine_collect.py"
+_COLLECTOR = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "_charter_pack_collect.py"
 _GATE = Path(__file__).resolve().parent / "test_builtin_override_policy.py"
 
 _REQUIRED_CALLS = frozenset({"load_effective_override_policy", "adjudicate_overrides"})
@@ -130,13 +130,13 @@ def test_collector_and_gate_recipe_reach_identical_verdicts(tmp_path: Path) -> N
         load_effective_override_policy,
         pack_roots_from_fragments,
     )
-    from specify_cli.cli.commands._doctrine_collect import _collect_org_layer_data
+    from specify_cli.cli.commands._charter_pack_collect import _collect_org_layer_data
 
     pack_a = _write_pack(tmp_path, "pack-a", "DIRECTIVE_001", "replaceable_builtins:\n  - urn: directive:DIRECTIVE_001\n    reason: pack A replaces it\n")
     pack_b = _write_pack(tmp_path, "pack-b", "DIRECTIVE_003", None)
     (tmp_path / ".kittify").mkdir()
     (tmp_path / ".kittify" / "config.yaml").write_text(
-        f'doctrine:\n  org:\n    packs:\n      - name: pack-a\n        local_path: "{pack_a}"\n      - name: pack-b\n        local_path: "{pack_b}"\n'
+        f'charter_packs:\n  org:\n    packs:\n      - name: pack-a\n        local_path: "{pack_a}"\n      - name: pack-b\n        local_path: "{pack_b}"\n'
     )
 
     collected = _collect_org_layer_data(tmp_path)
@@ -176,13 +176,13 @@ def test_collector_and_gate_recipe_report_identical_policy_errors(tmp_path: Path
         load_effective_override_policy,
         pack_roots_from_fragments,
     )
-    from specify_cli.cli.commands._doctrine_collect import _adjudicate_with_policy, _collect_org_layer_data
+    from specify_cli.cli.commands._charter_pack_collect import _adjudicate_with_policy, _collect_org_layer_data
 
     pack_a = _write_pack(tmp_path, "pack-a", "DIRECTIVE_001", None)
     (tmp_path / ".kittify").mkdir()
-    (tmp_path / ".kittify" / "config.yaml").write_text(f'doctrine:\n  org:\n    packs:\n      - name: pack-a\n        local_path: "{pack_a}"\n')
-    (tmp_path / ".kittify" / "doctrine").mkdir()
-    (tmp_path / ".kittify" / "doctrine" / "replaceable-builtins.yaml").write_text("revoked_pack_sanctions:\n  - pack: pack-a\n  - pack: ghost-pack\n")
+    (tmp_path / ".kittify" / "config.yaml").write_text(f'charter_packs:\n  org:\n    packs:\n      - name: pack-a\n        local_path: "{pack_a}"\n')
+    (tmp_path / ".kittify" / "charter-packs").mkdir()
+    (tmp_path / ".kittify" / "charter-packs" / "replaceable-builtins.yaml").write_text("revoked_pack_sanctions:\n  - pack: pack-a\n  - pack: ghost-pack\n")
 
     fragments = load_org_drg(tmp_path)
     roots = pack_roots_from_fragments(fragments, tmp_path)

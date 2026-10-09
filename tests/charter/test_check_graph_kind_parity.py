@@ -14,7 +14,7 @@ Covers:
   its canonical node is absent from the DRG graph itself) -> a
   ``graph_kind_gaps`` entry naming ``{cli_kind}/{stem}``, not merely the
   kind. Distinct from the whole-kind exclusion already covered by
-  ``tests/doctrine/test_activation_parity_guard.py::
+  ``tests/charter_offering/test_activation_parity_guard.py::
   test_config_kind_absent_from_graph_bites``.
 - ``test_unresolvable_stem_names_the_id_in_verification_errors``: an unknown
   stem yields a **specific** ``verification_errors`` entry naming the

@@ -1,8 +1,8 @@
-"""`spec-kitty doctor doctrine` surfaces the operating-procedures resolution scan (M3).
+"""`spec-kitty doctor charter-packs` surfaces the operating-procedures resolution scan (M3).
 
 Every ``collaboration.operating-procedures`` entry on a built-in agent profile
 must resolve to a real ``procedure:`` DRG node. This proves the diagnostic is
-wired into ``doctor doctrine``: the shipped (triaged) tree reports a
+wired into ``doctor charter-packs``: the shipped (triaged) tree reports a
 present-and-empty finding and stays healthy; an injected unresolved entry
 populates the finding and flips the report unhealthy.
 """
@@ -11,15 +11,15 @@ from __future__ import annotations
 
 import pytest
 
-from specify_cli.cli.commands import _doctrine_collect
-from specify_cli.cli.commands._doctrine_collect import _run_operating_procedures_check
-from specify_cli.cli.commands._doctrine_health import DoctrineHealthReport
+from specify_cli.cli.commands import _charter_pack_collect
+from specify_cli.cli.commands._charter_pack_collect import _run_operating_procedures_check
+from specify_cli.cli.commands._charter_pack_health import CharterPackHealthReport
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_clean_built_in_tree_reports_present_and_empty() -> None:
-    report = DoctrineHealthReport()
+    report = CharterPackHealthReport()
 
     _run_operating_procedures_check(report)
 
@@ -42,7 +42,7 @@ def test_unresolved_entry_flips_healthy_and_records_finding(
         resolved_kind=None,
     )
     monkeypatch.setattr(opmod, "resolve_operating_procedure_entries", lambda *a, **k: [fake])
-    report = DoctrineHealthReport()
+    report = CharterPackHealthReport()
 
     _run_operating_procedures_check(report)
 
@@ -65,12 +65,12 @@ def test_scan_error_is_recorded_not_raised(monkeypatch: pytest.MonkeyPatch) -> N
     def _boom() -> object:
         raise RuntimeError("graph unavailable")
 
-    monkeypatch.setattr(_doctrine_collect, "load_built_in_graph", _boom, raising=False)
+    monkeypatch.setattr(_charter_pack_collect, "load_built_in_graph", _boom, raising=False)
     # The function imports load_built_in_graph locally; patch at its source.
     from charter.offering.drg import loader
 
     monkeypatch.setattr(loader, "load_built_in_graph", _boom)
-    report = DoctrineHealthReport()
+    report = CharterPackHealthReport()
 
     _run_operating_procedures_check(report)
 

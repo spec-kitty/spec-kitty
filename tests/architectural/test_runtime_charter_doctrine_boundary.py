@@ -11,8 +11,8 @@ import pytest
 from tests.architectural._ast_scan import parse_file, read_source
 from tests.architectural.test_doctrine_census import (
     EXEMPT_MANAGEMENT_SURFACE,
-    _doctrine_paths,
-    _is_doctrine_name,
+    _offering_paths,
+    _is_offering_name,
 )
 
 
@@ -28,21 +28,12 @@ _SCAN_ROOTS: tuple[Path, ...] = (
     _REPO_ROOT / "src" / "specify_cli",
     _REPO_ROOT / "src" / "runtime",
 )
-_EXEMPT_SUBPACKAGE = _REPO_ROOT / "src" / "specify_cli" / "doctrine"
 
 
-def _has_module_level_doctrine_import(source: str) -> bool:
-    visitor = _LazyDoctrineVisitor()
+def _has_module_level_offering_import(source: str) -> bool:
+    visitor = _LazyOfferingVisitor()
     visitor.visit(ast.parse(source))
     return bool(visitor.module_paths)
-
-
-def _is_exempt_subpackage(path: Path) -> bool:
-    try:
-        path.relative_to(_EXEMPT_SUBPACKAGE)
-    except ValueError:
-        return False
-    return True
 
 
 def _iter_runtime_python_files() -> list[Path]:
@@ -54,17 +45,15 @@ def _rel_to_repo(path: Path) -> str:
 
 
 def test_boundary_predicate_has_prohibited_and_compliant_controls() -> None:
-    assert _has_module_level_doctrine_import("from charter.offering.resolver import resolve_profile\n")
-    assert not _has_module_level_doctrine_import("from charter.profiles import resolve_profile\n")
+    assert _has_module_level_offering_import("from charter.offering.resolver import resolve_profile\n")
+    assert not _has_module_level_offering_import("from charter.profiles import resolve_profile\n")
 
 
-def test_runtime_has_no_direct_doctrine_imports() -> None:
+def test_runtime_has_no_direct_offering_imports() -> None:
     violators: list[str] = []
     for path in _iter_runtime_python_files():
-        if _is_exempt_subpackage(path):
-            continue
         source = read_source(path)
-        if _has_module_level_doctrine_import(source):
+        if _has_module_level_offering_import(source):
             violators.append(_rel_to_repo(path))
 
     assert not violators, "runtime must reach doctrine through charter; direct imports: " + ", ".join(violators)
@@ -113,21 +102,21 @@ _FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "doctrine_boundar
 _LAZY_BASELINE_ALLOWLIST: frozenset[tuple[str, str]] = frozenset(
     {
         # #3179: wrapped sole-door service construction for asset operations.
-        ("src/specify_cli/cli/commands/_doctrine_asset.py", "charter.offering.service"),
+        ("src/specify_cli/cli/commands/charter/pack_asset.py", "charter.offering.service"),
         # #3179: wrapped raw service for unfiltered diagnostic repositories.
-        ("src/specify_cli/cli/commands/_doctrine_collect.py", "charter.offering.service"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.service"),
         # #3179: existing operating-procedure diagnostics, pending facade migration.
-        ("src/specify_cli/cli/commands/_doctrine_collect.py", "charter.offering.agent_profiles.operating_procedures"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.agent_profiles.operating_procedures"),
         # #3179: diagnostic node-kind classification, pending charter.drg migration.
-        ("src/specify_cli/cli/commands/_doctrine_collect.py", "charter.offering.artifact_kinds"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.artifact_kinds"),
         # #3179: built-in graph for diagnostics, pending charter.drg migration.
-        ("src/specify_cli/cli/commands/_doctrine_collect.py", "charter.offering.drg.loader"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.drg.loader"),
         # #3179: doorless override-audit management internal (TICKETED-BASELINE).
-        ("src/specify_cli/cli/commands/_doctrine_collect.py", "charter.offering.drg.override_policy"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.drg.override_policy"),
         # #3179: diagnostic pack location, pending facade migration.
-        ("src/specify_cli/cli/commands/_doctrine_collect.py", "charter.offering.pack_paths"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.pack_paths"),
         # #3179: doorless DRG-regeneration internal (TICKETED-BASELINE).
-        ("src/specify_cli/cli/commands/doctrine.py", "charter.offering.drg.migration.hand_authored_overlay"),
+        ("src/specify_cli/cli/commands/charter/pack_tooling.py", "charter.offering.drg.migration.hand_authored_overlay"),
         # #3179: package __file__ metadata, not a symbol reach-through.
         ("src/specify_cli/tool_surface/bundles/codex.py", "charter.offering"),
         # #3522: pre-existing step-contract reach, charter.missions migration #2173.
@@ -138,20 +127,15 @@ _LAZY_BASELINE_ALLOWLIST: frozenset[tuple[str, str]] = frozenset(
 )
 
 
-#: SOURCE-side laundering baseline. Each entry is a ``src/specify_cli/doctrine/*``
-#: module that re-exports doctrine-origin symbols through its own ``__all__`` — a
-#: first-party re-export "laundering" conduit. ``config.py`` re-exports the
-#: shared org-pack-config contract; WP05 closes the conduit, which forces the
-#: stale-entry eviction below. A consumer-side check is impossible: ``from
-#: specify_cli.doctrine.config import load_pack_registry`` (laundered) and ``…
-#: import assert_pack_local_paths_exist`` (genuine first-party) are byte-identical
-#: import syntax, so the rule must be enforced at the SOURCE module's ``__all__``.
-# WP05 (01KZPDSR / C-005, FR-004) CLOSED the ``config.py`` conduit: the
-# doctrine-origin org-pack-config symbols are no longer listed in
-# ``config.__all__``, so the module launders nothing and the baseline is empty.
-# The module-level bindings survive for in-surface + management-surface-test
-# consumers, but ``__all__`` is the enforced surface (a consumer-side check is
-# impossible — see the note above), so an empty baseline is the closed state.
+#: SOURCE-side laundering baseline. Each entry is a scanned-root module (under
+#: ``src/specify_cli/`` or ``src/runtime/``) that re-exports ``charter.offering``-
+#: origin symbols through its own ``__all__`` — a first-party re-export
+#: "laundering" conduit. A consumer-side check is impossible: a laundered import
+#: and a genuine first-party import are byte-identical syntax, so the rule is
+#: enforced at the SOURCE module's ``__all__``. Empty and shrink-only: mission
+#: ``charter-pack-cutover-01M491G6`` WP05 (#3732) deleted the last conduit (the
+#: former management package's config module and its alias re-exports, C-001)
+#: and widened the scan from that package to every scanned root.
 _LAUNDERING_BASELINE: dict[str, frozenset[str]] = {}
 
 
@@ -164,7 +148,7 @@ def _is_type_checking_guard(test: ast.expr) -> bool:
     return False
 
 
-class _LazyDoctrineVisitor(ast.NodeVisitor):
+class _LazyOfferingVisitor(ast.NodeVisitor):
     """Parent-tracking descent separating module-level and nested doctrine imports.
 
     Tracks ``(nesting_depth, type_checking_depth)`` so it can:
@@ -190,7 +174,7 @@ class _LazyDoctrineVisitor(ast.NodeVisitor):
         if self._type_checking_depth:
             return
         paths = self.paths if self._nesting_depth else self.module_paths
-        paths.update(_doctrine_paths(node))
+        paths.update(_offering_paths(node))
 
     def visit_Import(self, node: ast.Import) -> None:
         self._record(node)
@@ -224,26 +208,24 @@ class _LazyDoctrineVisitor(ast.NodeVisitor):
         self._visit_scope(node)
 
 
-def _file_lazy_doctrine_paths(path: Path) -> set[str]:
+def _file_lazy_offering_paths(path: Path) -> set[str]:
     """Exact lazy (nested, non-TYPE_CHECKING) doctrine import modules in a file."""
     tree = parse_file(path)
-    visitor = _LazyDoctrineVisitor()
+    visitor = _LazyOfferingVisitor()
     visitor.visit(tree)
     return visitor.paths
 
 
-def _file_has_lazy_doctrine_import(path: Path) -> bool:
+def _file_has_lazy_offering_import(path: Path) -> bool:
     """True iff ``path`` performs a lazy (nested, non-TYPE_CHECKING) doctrine import."""
-    return bool(_file_lazy_doctrine_paths(path))
+    return bool(_file_lazy_offering_paths(path))
 
 
-def _lazy_doctrine_violators() -> set[tuple[str, str]]:
-    """Lazy file/import pairs outside the exempt management surface."""
+def _lazy_offering_violators() -> set[tuple[str, str]]:
+    """Lazy file/import pairs under the scanned roots (no subpackage is exempt)."""
     violators: set[tuple[str, str]] = set()
     for path in _iter_runtime_python_files():
-        if _is_exempt_subpackage(path):
-            continue
-        violators.update((_rel_to_repo(path), module) for module in _file_lazy_doctrine_paths(path))
+        violators.update((_rel_to_repo(path), module) for module in _file_lazy_offering_paths(path))
     return violators
 
 
@@ -255,8 +237,7 @@ def _format_lazy_ratchet_failure(*, new_violators: list[tuple[str, str]], stale_
             "Lazy (function-body) doctrine reach-through. The following file/import pairs under\n"
             "the scanned roots (src/specify_cli/, src/runtime/) introduce a NEW nested\n"
             "`from charter.offering.*` / `import\n"
-            "doctrine` import (outside `if TYPE_CHECKING:` and outside the\n"
-            "src/specify_cli/doctrine/ management surface) that is not in the\n"
+            "doctrine` import (outside `if TYPE_CHECKING:`) that is not in the\n"
             "lazy baseline:\n"
             f"  - {bullets}\n"
             "\n"
@@ -292,7 +273,7 @@ def _declared_all(tree: ast.Module) -> set[str] | None:
     return None
 
 
-def _doctrine_origin_names(tree: ast.Module) -> set[str]:
+def _offering_origin_names(tree: ast.Module) -> set[str]:
     """Local names bound by a direct ``from charter.offering…`` / ``import charter.offering`` import.
 
     Block context is irrelevant to laundering — a doctrine-origin name that
@@ -304,14 +285,14 @@ def _doctrine_origin_names(tree: ast.Module) -> set[str]:
     names: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
-            if not _doctrine_paths(node):
+            if not _offering_paths(node):
                 continue
             for alias in node.names:
                 if node.module != "charter" or alias.name == "offering":
                     names.add(alias.asname or alias.name)
         elif isinstance(node, ast.Import):
             for alias in node.names:
-                if _is_doctrine_name(alias.name):
+                if _is_offering_name(alias.name):
                     names.add(alias.asname or alias.name.split(".")[0])
     return names
 
@@ -321,37 +302,39 @@ def _laundered_symbols(tree: ast.Module) -> set[str]:
     declared = _declared_all(tree)
     if not declared:
         return set()
-    return declared & _doctrine_origin_names(tree)
+    return declared & _offering_origin_names(tree)
 
 
-def _source_side_laundering() -> dict[str, frozenset[str]]:
-    """Map each management-surface module → the doctrine symbols it launders."""
+def _source_side_laundering(roots: tuple[Path, ...] = _SCAN_ROOTS) -> dict[str, frozenset[str]]:
+    """Map each module under *roots* → the ``charter.offering`` symbols its ``__all__`` launders."""
     result: dict[str, frozenset[str]] = {}
-    for path in sorted(_EXEMPT_SUBPACKAGE.rglob("*.py")):
-        tree = parse_file(path)
-        laundered = _laundered_symbols(tree)
+    for path in sorted(p for root in roots for p in root.rglob("*.py")):
+        laundered = _laundered_symbols(parse_file(path))
         if laundered:
-            result[_rel_to_repo(path)] = frozenset(laundered)
+            key = _rel_to_repo(path) if path.is_relative_to(_REPO_ROOT) else path.as_posix()
+            result[key] = frozenset(laundered)
     return result
 
 
-def test_exempt_surface_matches_wp01_manifest() -> None:
-    """The lazy ratchet's exempt root is exactly WP01's enumerated management surface.
+def test_no_exempt_surface() -> None:
+    """The boundary scans every file under its roots: WP01's management surface is empty.
 
-    Binds this file's exemption to a single source (WP01's ``EXEMPT_MANAGEMENT_SURFACE``)
-    so the two cannot drift.
+    Mission ``charter-pack-cutover-01M491G6`` WP05 (NFR-002) deleted the former
+    exemption rather than moving it, and binds this file to WP01's manifest so
+    the two cannot drift.
     """
-    assert {_rel_to_repo(_EXEMPT_SUBPACKAGE)} == set(EXEMPT_MANAGEMENT_SURFACE)
+    assert not EXEMPT_MANAGEMENT_SURFACE, sorted(EXEMPT_MANAGEMENT_SURFACE)
+    assert _iter_runtime_python_files(), "control: the scanned roots hold modules"
 
 
 def test_lazy_detector_skips_type_checking_fixture() -> None:
     """Fixture proof (T020): a ``TYPE_CHECKING`` doctrine import is NOT flagged."""
-    assert _file_has_lazy_doctrine_import(_FIXTURES_DIR / "type_checking_import.py") is False
+    assert _file_has_lazy_offering_import(_FIXTURES_DIR / "type_checking_import.py") is False
 
 
 def test_lazy_detector_flags_nested_function_fixture() -> None:
     """Fixture proof (T020): a nested-function doctrine import IS flagged."""
-    assert _file_has_lazy_doctrine_import(_FIXTURES_DIR / "nested_function_import.py") is True
+    assert _file_has_lazy_offering_import(_FIXTURES_DIR / "nested_function_import.py") is True
 
 
 def test_lazy_ratchet_arithmetic_is_bidirectional() -> None:
@@ -369,14 +352,14 @@ def test_lazy_ratchet_arithmetic_is_bidirectional() -> None:
     assert sorted(baseline - shrunk) == ["b.py"]
 
 
-def test_runtime_has_no_new_lazy_doctrine_imports() -> None:
+def test_runtime_has_no_new_lazy_offering_imports() -> None:
     """Pin the LAZY doctrine reach-through as an only-shrink ratchet (FR-006 / SC-003).
 
     A new file/import pair fails even in an already-baselined file. Migrating
     one import without evicting its pair fails even if that file still reaches
     other doctrine modules. This preserves each measured reach independently.
     """
-    actual_violators = _lazy_doctrine_violators()
+    actual_violators = _lazy_offering_violators()
 
     new_violators = sorted(actual_violators - _LAZY_BASELINE_ALLOWLIST)
     stale_allowlist_entries = sorted(_LAZY_BASELINE_ALLOWLIST - actual_violators)
@@ -387,13 +370,13 @@ def test_runtime_has_no_new_lazy_doctrine_imports() -> None:
     )
 
 
-def test_source_side_no_new_doctrine_laundering() -> None:
+def test_source_side_no_new_offering_laundering() -> None:
     """Pin the SOURCE-side re-export-laundering surface (C-005 / FR-004).
 
-    No ``src/specify_cli/doctrine/*`` module may add a doctrine-origin symbol to
-    its ``__all__`` beyond the documented baseline (currently ``config.py``). A
-    new laundering module/symbol trips the "grow" direction; when WP05 closes the
-    ``config.py`` conduit, the "stale" direction forces the baseline eviction.
+    No module under the scanned roots may list a ``charter.offering``-origin
+    symbol in its ``__all__`` beyond the (empty) baseline. A new laundering
+    module/symbol trips the "grow" direction; closing a baselined conduit trips
+    the "stale" direction, forcing the eviction.
     """
     actual = _source_side_laundering()
 
@@ -410,8 +393,8 @@ def test_source_side_no_new_doctrine_laundering() -> None:
 
     assert not new_launderers and not stale_baseline, (
         "Source-side doctrine re-export laundering drift.\n\n"
-        f"New/extra laundered symbols (a src/specify_cli/doctrine/* module lists a\n"
-        f"doctrine-origin name in its __all__ beyond the baseline): {new_launderers}\n\n"
+        f"New/extra laundered symbols (a scanned-root module lists a charter.offering-\n"
+        f"origin name in its __all__ beyond the baseline): {new_launderers}\n\n"
         f"Stale baseline entries (a conduit was closed — shrink _LAUNDERING_BASELINE): "
         f"{stale_baseline}\n\n"
         "Fix: the management surface is inbound-only. Do not re-export doctrine\n"
@@ -420,17 +403,18 @@ def test_source_side_no_new_doctrine_laundering() -> None:
     )
 
 
-def test_config_conduit_is_closed() -> None:
-    """Closure-proof (WP05, 01KZPDSR / C-005): ``config.py`` launders nothing.
-
-    Inverts the pre-WP05 ``…is_still_a_conduit`` sanity-pin: once WP05 dropped the
-    doctrine-origin org-pack-config symbols from ``config.__all__``, the module
-    must no longer appear in the source-side laundering map, and the baseline that
-    seeded it must be empty. Re-introducing a doctrine-origin symbol into
-    ``config.__all__`` (re-opening the conduit) reds this guard.
-    """
-    actual = _source_side_laundering()
-    assert "src/specify_cli/doctrine/config.py" not in actual
+def test_laundering_scan_finds_a_planted_conduit(tmp_path: Path) -> None:
+    """Self-test: the source-side scan flags a planted ``__all__`` re-export of an offering symbol."""
+    root = tmp_path / "pkg"
+    root.mkdir()
+    (root / "clean.py").write_text("from charter.drg import ArtifactKind\n__all__ = ['ArtifactKind']\n", encoding="utf-8")
+    (root / "conduit.py").write_text(
+        "from charter.offering.drg.org_pack_config import load_pack_registry as load_pack_registry\n__all__ = ['load_pack_registry']\n",
+        encoding="utf-8",
+    )
+    found = _source_side_laundering((root,))
+    assert [Path(key).name for key in found] == ["conduit.py"]
+    assert set(found.values()) == {frozenset({"load_pack_registry"})}
     assert _LAUNDERING_BASELINE == {}
 
 
@@ -451,12 +435,12 @@ def test_lazy_gate_rejects_added_reach_in_baselined_file(spelling: str) -> None:
         patch.object(Path, "read_text", read_source),
         pytest.raises(AssertionError, match="org_pack_config"),
     ):
-        test_runtime_has_no_new_lazy_doctrine_imports()
+        test_runtime_has_no_new_lazy_offering_imports()
 
 
 def test_lazy_gate_rejects_partial_baseline_removal() -> None:
     """Migrating one import must shrink its entry even when the file still reaches."""
-    target = _REPO_ROOT / "src/specify_cli/cli/commands/_doctrine_collect.py"
+    target = _REPO_ROOT / "src/specify_cli/cli/commands/_charter_pack_collect.py"
     original_read = Path.read_text
     source = target.read_text(encoding="utf-8")
     assert "from charter.offering.drg.loader import" in source
@@ -469,7 +453,7 @@ def test_lazy_gate_rejects_partial_baseline_removal() -> None:
         patch.object(Path, "read_text", read_source),
         pytest.raises(AssertionError, match=r"(?s)Stale lazy-import baseline.*charter\.offering\.drg\.loader"),
     ):
-        test_runtime_has_no_new_lazy_doctrine_imports()
+        test_runtime_has_no_new_lazy_offering_imports()
 
 
 @pytest.mark.parametrize("package", ["runtime", "specify_cli"])
@@ -492,7 +476,7 @@ def test_source_scan_rejects_direct_import_forms(package: str, lazy: bool, state
     def read_source(path: Path, encoding: str | None = None) -> str:
         return mutation if path == target else original_read(path, encoding=encoding)
 
-    gate = test_runtime_has_no_new_lazy_doctrine_imports if lazy else test_runtime_has_no_direct_doctrine_imports
+    gate = test_runtime_has_no_new_lazy_offering_imports if lazy else test_runtime_has_no_direct_offering_imports
     with (
         patch.object(Path, "read_text", read_source),
         pytest.raises(AssertionError, match=f"src/{package}/__init__.py"),
@@ -507,7 +491,7 @@ def test_parent_import_laundering_tracks_only_offering_binding() -> None:
 
 @pytest.mark.parametrize("spelling", ["doctrine", "charter.offering"])
 def test_lazy_visitor_collects_every_module_in_multi_import(spelling: str) -> None:
-    visitor = _LazyDoctrineVisitor()
+    visitor = _LazyOfferingVisitor()
     visitor.visit(ast.parse(f"def probe():\n    import {spelling}.service, {spelling}.drg.org_pack_config\n"))
     assert visitor.paths == {f"{spelling}.service", f"{spelling}.drg.org_pack_config"}
 
@@ -530,7 +514,7 @@ def test_metadata_exception_rejects_root_member_import(spelling: str, members: s
         patch.object(Path, "read_text", read_source),
         pytest.raises(AssertionError, match="codex.py"),
     ):
-        test_runtime_has_no_new_lazy_doctrine_imports()
+        test_runtime_has_no_new_lazy_offering_imports()
 
 
 @pytest.mark.parametrize("spelling", ["doctrine", "charter.offering"])
@@ -541,7 +525,7 @@ def test_metadata_exception_rejects_root_member_import(spelling: str, members: s
 )
 def test_source_scan_rejects_module_control_flow_import(spelling: str, block: str) -> None:
     """A classified module in a migration-owned file still violates the top-level gate."""
-    target = _REPO_ROOT / "src/specify_cli/cli/commands/_doctrine_collect.py"
+    target = _REPO_ROOT / "src/specify_cli/cli/commands/_charter_pack_collect.py"
     original_read = Path.read_text
     statement = f"from {spelling}.drg.org_pack_config import resolve_org_dirs"
     mutation = target.read_text(encoding="utf-8") + "\n" + block.format(statement=statement)
@@ -551,16 +535,16 @@ def test_source_scan_rejects_module_control_flow_import(spelling: str, block: st
 
     with (
         patch.object(Path, "read_text", read_source),
-        pytest.raises(AssertionError, match="_doctrine_collect.py"),
+        pytest.raises(AssertionError, match="_charter_pack_collect.py"),
     ):
-        test_runtime_has_no_direct_doctrine_imports()
+        test_runtime_has_no_direct_offering_imports()
 
 
 @pytest.mark.parametrize(
     ("source", "module_level", "lazy"),
     [
         ("if True:\n    from charter.drg import resolve_org_dirs\n", False, False),
-        ("if TYPE_CHECKING:\n    from charter.offering.service import DoctrineService\n", False, False),
+        ("if TYPE_CHECKING:\n    from charter.offering.service import CharterOfferingService\n", False, False),
         ("try:\n    if typing.TYPE_CHECKING:\n        import doctrine.service\nexcept ImportError:\n    pass\n", False, False),
         ("if TYPE_CHECKING:\n    pass\nelse:\n    import doctrine.service\n", True, False),
         ("try:\n    pass\nexcept ImportError:\n    import doctrine.service\n", True, False),
@@ -573,7 +557,7 @@ def test_source_scan_rejects_module_control_flow_import(spelling: str, block: st
     ids=["facade", "type-checking", "try-type-checking", "runtime-else", "handler", "finally", "function", "async-function", "class", "type-checking-function"],
 )
 def test_control_flow_preserves_import_scope(source: str, module_level: bool, lazy: bool) -> None:
-    assert _has_module_level_doctrine_import(source) is module_level
-    visitor = _LazyDoctrineVisitor()
+    assert _has_module_level_offering_import(source) is module_level
+    visitor = _LazyOfferingVisitor()
     visitor.visit(ast.parse(source))
     assert bool(visitor.paths) is lazy

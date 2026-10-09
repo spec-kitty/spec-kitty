@@ -7,7 +7,7 @@ import pytest
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
-from charter.activation.doctrine_service_builder import build_activation_aware_doctrine_service
+from charter.activation.active_charter_service_builder import build_active_charter_service
 from specify_cli.cli.commands.charter import app
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -28,7 +28,7 @@ def test_org_directive_interview_and_generate(tmp_path: Path, monkeypatch: pytes
     )
     expected_stem = "foo"
     if project_override:
-        project_dir = tmp_path / ".kittify/doctrine/directive"
+        project_dir = tmp_path / ".kittify/charter-packs/directive"
         project_dir.mkdir(parents=True)
         (project_dir / "project-policy.directive.yaml").write_text(
             f'schema_version: "1.0"\nid: {directive_id}\ntitle: Acme Policy\nintent: Require independent Acme validation.\nenforcement: required\n'
@@ -45,7 +45,7 @@ def test_org_directive_interview_and_generate(tmp_path: Path, monkeypatch: pytes
         yaml.dump(config, stream)
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
     monkeypatch.chdir(tmp_path)
-    service = build_activation_aware_doctrine_service(tmp_path)
+    service = build_active_charter_service(tmp_path)
     raw = service.raw_repository("directives")
     assert directive_id in {item.id for item in raw.list_all()}
     if intake != "activated":
@@ -67,7 +67,7 @@ def test_org_directive_interview_and_generate(tmp_path: Path, monkeypatch: pytes
     expected_activation = directive_id if intake == "activated" else expected_stem
     assert expected_activation in bundle["activated_directives"]
     assert raw.get(directive_id) is not None
-    delivered = build_activation_aware_doctrine_service(tmp_path).directives
+    delivered = build_active_charter_service(tmp_path).directives
     assert directive_id in delivered, "Promoted org policy must be delivered, not merely compiled"
     assert delivered[directive_id].title == "Acme Policy"
     assert delivered[directive_id].intent == "Require independent Acme validation."
@@ -77,7 +77,7 @@ def test_org_directive_interview_and_generate(tmp_path: Path, monkeypatch: pytes
 def test_colliding_override_stem_preserves_selected_identity(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, intake: str) -> None:
     """A project filename cannot redirect adoption to a different built-in ID."""
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    project_dir = tmp_path / ".kittify/doctrine/directive"
+    project_dir = tmp_path / ".kittify/charter-packs/directive"
     project_dir.mkdir(parents=True)
     (project_dir / "025-boy-scout-rule.directive.yaml").write_text(
         'schema_version: "1.0"\nid: DIRECTIVE_001\ntitle: Project architecture\nintent: Require project architecture review.\nenforcement: required\n'
@@ -98,7 +98,7 @@ def test_colliding_override_stem_preserves_selected_identity(tmp_path: Path, mon
     assert result.exit_code == 0, result.output
     saved = yaml.load((tmp_path / ".kittify/config.yaml").read_text())
     assert saved["activated_directives"] == ["001-architectural-integrity-standard"]
-    delivered = build_activation_aware_doctrine_service(tmp_path).directives
+    delivered = build_active_charter_service(tmp_path).directives
     assert "DIRECTIVE_025" not in delivered
     assert delivered["DIRECTIVE_001"].title == "Project architecture"
     assert delivered["DIRECTIVE_001"].intent == "Require project architecture review."

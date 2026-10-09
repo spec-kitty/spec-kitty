@@ -5,7 +5,7 @@ built-in kind K live" and "where is the built-in root" into exactly two
 callables in :mod:`charter.offering.pack_paths` -- :func:`~charter.offering.pack_paths.built_in_dir`
 and :func:`~charter.offering.pack_paths.built_in_root`. WP01 created the authorities;
 WP02/WP03/WP05 rerouted every production reader onto them; WP04 (this file)
-drops the fail-open ``DoctrineService.built_in_root`` param that made the old
+drops the fail-open ``CharterOfferingService.built_in_root`` param that made the old
 nested shape constructable, and makes the single-authority invariant a CI gate
 so a sixth resolver cannot be quietly born (NFR-002).
 

@@ -2173,7 +2173,7 @@ _PRE_MISSION_MAPPED_SRC_DIRS: frozenset[str] = frozenset(
         "coordination",
         "core",
         "delivery",
-        "doctrine_synthesizer",
+        "charter_pack_synthesizer",
         "event_journal",
         "lanes",
         "missions",
@@ -2260,7 +2260,7 @@ _COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
     # already run under the misc shard (tests/tasks -> shard: misc, ci-quality.yml).
     "tasks": ("closeout", "misc", ("tests/tasks",)),
     # governance -> ``misc``.
-    "doctrine": ("governance", "misc", ("tests/specify_cli/doctrine",)),
+    "charter_packs": ("governance", "misc", ("tests/specify_cli/charter_packs",)),
     "policy": ("governance", "misc", ("tests/policy",)),
     "ownership": ("governance", "misc", ("tests/specify_cli/ownership",)),
     "contracts": ("governance", "misc", ("tests/specify_cli/contracts",)),

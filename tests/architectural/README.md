@@ -18,7 +18,7 @@ one-page architecture description:
 | Axis | What it enforces | Representative gates |
 |---|---|---|
 | **1. Layer direction** | `kernel ← doctrine ← charter ← specify_cli`; no upward imports | `test_layer_rules.py`, `test_runtime_charter_doctrine_boundary.py` |
-| **2. Surface completeness** | Schemas/facades match implementation reality; declared surfaces are exhaustive | `test_artifact_selection_completeness.py`, `test_activation_registry_schema.py`, `test_all_declarations_required.py`, `test_charter_facades_reexport_doctrine.py` |
+| **2. Surface completeness** | Schemas/facades match implementation reality; declared surfaces are exhaustive | `test_artifact_selection_completeness.py`, `test_activation_registry_schema.py`, `test_all_declarations_required.py`, `test_charter_facades_reexport_offering.py` |
 | **3. Closed-vocabulary integrity** | Operator-authored vocabularies are closed and SSOT-pinned; no dead symbols in public APIs | `test_no_dead_symbols.py`, `test_template_governance_payload_contract.py`, `test_trigger_registry_coverage.py` |
 | **4. Lifecycle presence** | Every shipped module has a runtime caller; every release has a migration; no dead modules | `test_no_dead_modules.py`, `test_migration_chain_integrity.py` |
 | **5. Dependency hygiene** | Manifests are exact; cross-cutting boundaries mediated; no retired packages; lock drift prevented | `test_auth_transport_singleton.py`, `test_compat_shims.py`, `test_shared_package_boundary.py`, `test_pyproject_shape.py`, `test_uv_lock_pin_drift.py`, `test_no_runtime_pypi_dep.py`, `test_events_tracker_public_imports.py` |
@@ -37,7 +37,7 @@ Gates are ordered alphabetically within each axis group.
 - **`test_activation_registry_schema.py`** — Confirms the activation registry JSON schema matches every key used in the shipped registry and org-pack extension points.
 - **`test_all_declarations_required.py`** — Confirms every artifact declared in doctrine packs has a matching implementation file. No orphaned declarations.
 - **`test_artifact_selection_completeness.py`** — Confirms every artifact selection the charter surface offers resolves to a real doctrine artifact. No catalog misses in the shipped selection surface.
-- **`test_charter_facades_reexport_doctrine.py`** — Confirms `charter.*` public surfaces re-export every symbol they claim. No facade drift.
+- **`test_charter_facades_reexport_offering.py`** — Confirms `charter.*` public surfaces re-export every symbol they claim. No facade drift.
 - **`test_retrospective_events_boundary.py`** — Confirms retrospective event emission is mediated; no direct event writes from the retrospective runtime.
 - **`test_safety_registry_completeness.py`** — Confirms the safety registry lists every file with a declared safety exemption; no undeclared exemptions.
 - **`test_shim_registry_schema.py`** — Confirms the shim registry YAML schema matches every shim record used at runtime.

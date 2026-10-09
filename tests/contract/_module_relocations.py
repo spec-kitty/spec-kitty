@@ -33,6 +33,9 @@ HISTORICAL_TO_CANONICAL: Final[Mapping[str, str]] = {
     "doctrine.drg": "charter.offering.drg",
     "charter.schemas": "charter.activation.schemas",
     "charter.scope": "charter.activation.scope",
+    # #3732 charter-pack cutover: specify_cli.doctrine was split by meaning;
+    # org-charter composition moved to charter.activation (ADR 2026-10-06-2).
+    "specify_cli.doctrine.org_charter": "charter.activation.org_charter",
 }
 
 

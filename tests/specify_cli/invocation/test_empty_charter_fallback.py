@@ -174,7 +174,7 @@ def test_org_pack_present_returns_none(tmp_path: Path) -> None:
     pack_root.mkdir(parents=True)
     _write_config(
         tmp_path,
-        {"doctrine": {"org": {"packs": [{"name": "orgzilla-governance-pack", "local_path": str(pack_root)}]}}},
+        {"charter_packs": {"org": {"packs": [{"name": "orgzilla-governance-pack", "local_path": str(pack_root)}]}}},
     )
 
     assert resolve_generic_fallback(tmp_path, "implement the feature") is None

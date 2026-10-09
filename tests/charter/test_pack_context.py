@@ -31,7 +31,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation.pack_context import (
-    CharterPackConfigError,
+    ActiveCharterConfigError,
     PackContext,
     _BUILTIN_ARTIFACT_KINDS,
 )
@@ -83,7 +83,7 @@ mission_type_activations:
   - documentation
   - research
   - plan
-doctrine:
+charter_packs:
   org:
     packs:
       - name: acme-pack
@@ -465,7 +465,7 @@ activated_directives: not-a-list
 {_PROVISIONED_MISSION_TYPES_YAML}"""
     _write_config(tmp_path, content)
 
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+    with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID"):
         PackContext.from_config(tmp_path)
 
 
@@ -478,7 +478,7 @@ activated_tactics: 42
 {_PROVISIONED_MISSION_TYPES_YAML}"""
     _write_config(tmp_path, content)
 
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+    with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID"):
         PackContext.from_config(tmp_path)
 
 
@@ -486,7 +486,7 @@ def test_invalid_config_yaml_raises_instead_of_using_defaults(tmp_path: Path) ->
     """Malformed config.yaml must not restore default-all activation."""
     _write_config(tmp_path, "activated_directives: [unterminated\n")
 
-    with pytest.raises(CharterPackConfigError, match="CHARTER_PACK_CONFIG_INVALID"):
+    with pytest.raises(ActiveCharterConfigError, match="ACTIVE_CHARTER_CONFIG_INVALID"):
         PackContext.from_config(tmp_path)
 
 
@@ -524,7 +524,7 @@ def test_from_config_unset_pack_env_var_propagates_fail_closed(
     content = f"""\
 vcs:
   type: git
-doctrine:
+charter_packs:
   org:
     packs:
       - name: acme-pack
@@ -557,7 +557,7 @@ def test_from_config_subdir_escape_propagates_fail_closed(tmp_path: Path) -> Non
     content = f"""\
 vcs:
   type: git
-doctrine:
+charter_packs:
   org:
     packs:
       - name: acme-pack

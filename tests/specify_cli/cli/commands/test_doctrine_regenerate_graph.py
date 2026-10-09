@@ -1,4 +1,4 @@
-"""CLI tests for ``spec-kitty doctrine regenerate-graph`` (WP09 / FR-009).
+"""CLI tests for ``spec-kitty charter pack regenerate-graph`` (WP09 / FR-009).
 
 Covers the operator-facing regeneration surface:
 
@@ -21,7 +21,7 @@ import pytest
 from typer.testing import CliRunner
 
 from charter.offering.drg.loader import load_built_in_graph
-from specify_cli.cli.commands.doctrine import app as doctrine_app
+from specify_cli.cli.commands.charter import charter_app
 
 if TYPE_CHECKING:
     from charter.offering.drg.models import DRGGraph
@@ -100,14 +100,14 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #: all of that because a ceiling cannot see a shrink, which is exactly why it is
 #: being ratcheted rather than left with nine points of silent slack. The
 #: authoritative membership record is ``_INTENTIONAL_ORPHANS`` in
-#: ``tests/doctrine/drg/migration/test_extractor_projection.py`` (pure-extractor
+#: ``tests/charter_offering/drg/migration/test_extractor_projection.py`` (pure-extractor
 #: view, 23); this ceiling is the shipped-graph view (21) and the two differ by
 #: the hand-authored overlay, per that module's own stated cause.
 #:
 #: 2026-07-31 (mission charter-delivery-finish-context-degod, #3064, post-merge
 #: follow-up): WP03's ``asset:common-charter-scaffold-minimal`` doctrine asset was
-#: relocated to first-class charter-pack status (``src/charter/activation/packs/minimal.yaml``,
-#: applied via ``spec-kitty charter pack apply minimal``) — it is structurally a
+#: relocated to first-class charter-pack status (today the built-in ``minimal`` preset,
+#: applied via ``spec-kitty charter activate --preset minimal``) — it is structurally a
 #: charter pack, not a generic doctrine asset. The asset node is gone from the DRG,
 #: reverting the ceiling **22 -> 21**. Full narrative in ``drg-orphan-residual.md``.
 #:
@@ -115,7 +115,7 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #: curated edges de-orphan three pure-extractor nodes (``directive:RECONCILE_
 #: CHANGE_SCOPE_TENSIONS``, ``directive:DISCIPLINED_REFACTORING``,
 #: ``directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY`` — see
-#: ``tests/doctrine/drg/migration/test_extractor_projection.py`` ledger entry
+#: ``tests/charter_offering/drg/migration/test_extractor_projection.py`` ledger entry
 #: 19), but all three were ALREADY resolved by the hand-authored overlay in the
 #: *shipped* graph, so ``_orphan_urns(load_built_in_graph())`` measures
 #: UNCHANGED at 21 — verified empirically, not assumed. The ceiling is already
@@ -148,7 +148,7 @@ def test_check_reports_committed_graph_fresh() -> None:
     with ``*.graph.yaml`` fragments.
     """
     result = runner.invoke(
-        doctrine_app, ["regenerate-graph", "--check", "--json"]
+        charter_app, ["pack", "regenerate-graph", "--check", "--json"]
     )
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
@@ -173,12 +173,12 @@ def test_regenerate_twice_is_byte_identical(
     shutil.copytree(DOCTRINE_ROOT, fake_doctrine)
     monkeypatch.setenv("SPEC_KITTY_PACKS_ROOT", str(fake_repo / "packs"))
 
-    r1 = runner.invoke(doctrine_app, ["regenerate-graph"])
+    r1 = runner.invoke(charter_app, ["pack", "regenerate-graph"])
     assert r1.exit_code == 0, r1.output
     first = {p.name: p.read_bytes() for p in _graph_files(fake_doctrine)}
     assert first, "regenerate-graph produced no graph source files"
 
-    r2 = runner.invoke(doctrine_app, ["regenerate-graph"])
+    r2 = runner.invoke(charter_app, ["pack", "regenerate-graph"])
     assert r2.exit_code == 0, r2.output
     second = {p.name: p.read_bytes() for p in _graph_files(fake_doctrine)}
 
@@ -208,7 +208,7 @@ def test_check_detects_stale_graph(
     )
 
     result = runner.invoke(
-        doctrine_app, ["regenerate-graph", "--check", "--json"]
+        charter_app, ["pack", "regenerate-graph", "--check", "--json"]
     )
     assert result.exit_code == 1, result.output
     payload = json.loads(result.stdout)

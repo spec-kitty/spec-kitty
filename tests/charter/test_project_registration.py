@@ -7,7 +7,7 @@ import pytest
 
 from charter.activation.synthesizer.manifest import load_yaml, verify
 from charter.offering.artifact_kinds import ArtifactKind, PROJECT_KIND_DIRS
-from specify_cli.cli.commands.doctrine import _STUB_TEMPLATES
+from specify_cli.cli.commands.charter.authoring import _STUB_TEMPLATES
 
 pytestmark = pytest.mark.unit
 
@@ -22,7 +22,7 @@ def author_guidance(root: Path) -> dict[str, Path]:
         "styleguide": "incident-notes",
     }.items():
         kind = ArtifactKind(token)
-        directory = root / ".kittify/doctrine" / PROJECT_KIND_DIRS[kind]
+        directory = root / ".kittify/charter-packs" / PROJECT_KIND_DIRS[kind]
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / kind.glob_pattern.replace("*", identifier)
         content = _STUB_TEMPLATES[kind].format(artifact_id=identifier).replace("TODO", "Operational")
@@ -44,7 +44,7 @@ def test_direct_written_guidance_registers_five_artifacts_without_synthesis(tmp_
     paths = author_guidance(tmp_path)
     before = {key: path.read_bytes() for key, path in paths.items()}
     plan = plan_project_registration(tmp_path)
-    assert not (tmp_path / ".kittify/doctrine/graph.yaml").exists()
+    assert not (tmp_path / ".kittify/charter-packs/graph.yaml").exists()
     assert sorted((a.node.kind.value, a.path) for a in plan.artifacts) == sorted(paths.items())
     assert {e.target for e in plan.graph.edges if e.source == "agent_profile:ops-responder"} == {
         "procedure:incident-runbook",
@@ -214,7 +214,7 @@ def test_deleted_source_prunes_node_edge_manifest_entry_and_sidecar(tmp_path):
     verify(manifest, tmp_path)
     assert all(entry.kind != "procedure" for entry in manifest.artifacts)
     assert not (tmp_path / ".kittify/charter/provenance/procedure-incident-runbook.yaml").exists()
-    committed = load_graph_or_dir(tmp_path / ".kittify/doctrine")
+    committed = load_graph_or_dir(tmp_path / ".kittify/charter-packs")
     assert committed.get_node("procedure:incident-runbook") is None
     assert all(e.target != "procedure:incident-runbook" for e in committed.edges)
 
@@ -321,7 +321,7 @@ def test_in_place_identity_edit_prunes_the_predecessor_registration(tmp_path):
     assert tmp_path / entry.path == paths["procedure"]
     assert not (tmp_path / ".kittify/charter/provenance/procedure-incident-runbook.yaml").exists()
     assert (tmp_path / ".kittify/charter/provenance/procedure-incident-runbook-v2.yaml").is_file()
-    committed = load_graph_or_dir(tmp_path / ".kittify/doctrine")
+    committed = load_graph_or_dir(tmp_path / ".kittify/charter-packs")
     assert committed.get_node("procedure:incident-runbook") is None
     assert committed.get_node("procedure:incident-runbook-v2") is not None
 
@@ -352,7 +352,7 @@ def test_deleting_the_renamed_source_leaves_no_permanent_phantom(tmp_path):
     manifest = load_yaml(tmp_path / ".kittify/charter/synthesis-manifest.yaml")
     verify(manifest, tmp_path)
     assert all(entry.kind != "procedure" for entry in manifest.artifacts)
-    committed = load_graph_or_dir(tmp_path / ".kittify/doctrine")
+    committed = load_graph_or_dir(tmp_path / ".kittify/charter-packs")
     assert committed.get_node("procedure:incident-runbook") is None
     assert committed.get_node("procedure:incident-runbook-v2") is None
     assert list((tmp_path / ".kittify/charter/provenance").glob("procedure-*.yaml")) == []
@@ -553,7 +553,7 @@ def test_path_and_provenance_drift_rewrites_manifest_entry_without_deleting_side
     manifest_path = tmp_path / ".kittify/charter/synthesis-manifest.yaml"
     manifest = load_yaml(manifest_path)
     original = next(e for e in manifest.artifacts if e.kind == "procedure")
-    drifted = original.model_copy(update={"path": ".kittify/doctrine/procedures/stale-recorded-path.procedure.yaml"})
+    drifted = original.model_copy(update={"path": ".kittify/charter-packs/procedures/stale-recorded-path.procedure.yaml"})
     others = [e for e in manifest.artifacts if e.kind != "procedure"]
     manifest = finalize_manifest(manifest.model_copy(update={"artifacts": [drifted, *others]}))
     dump_yaml(manifest, manifest_path, PathGuard(tmp_path))

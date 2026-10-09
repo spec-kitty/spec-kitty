@@ -43,7 +43,7 @@ def _make_repo_root(tmp_path: Path) -> Path:
     repo.mkdir()
     # PathGuard needs the .kittify dirs to be present so writes are allowed
     (repo / ".kittify" / "charter").mkdir(parents=True)
-    (repo / ".kittify" / "doctrine").mkdir(parents=True)
+    (repo / ".kittify" / "charter-packs").mkdir(parents=True)
     return repo
 
 
@@ -83,9 +83,9 @@ def _make_provenance(
 def test_staging_create_creates_subdirs(tmp_path: Path) -> None:
     """StagingDir.create() creates all required subdirectories."""
     stage = StagingDir.create(tmp_path, RUN_ID)
-    assert (stage.root / "doctrine" / "directive").is_dir()
-    assert (stage.root / "doctrine" / "tactic").is_dir()
-    assert (stage.root / "doctrine" / "styleguide").is_dir()
+    assert (stage.root / "charter-packs" / "directive").is_dir()
+    assert (stage.root / "charter-packs" / "tactic").is_dir()
+    assert (stage.root / "charter-packs" / "styleguide").is_dir()
     assert (stage.root / "charter" / "provenance").is_dir()
 
 
@@ -93,7 +93,7 @@ def test_staging_path_for_content(tmp_path: Path) -> None:
     """path_for_content returns correct location under doctrine subtree."""
     stage = StagingDir.create(tmp_path, RUN_ID)
     p = stage.path_for_content("tactic", "my-tactic.tactic.yaml")
-    assert p == stage.root / "doctrine" / "tactic" / "my-tactic.tactic.yaml"
+    assert p == stage.root / "charter-packs" / "tactic" / "my-tactic.tactic.yaml"
 
 
 def test_staging_path_for_provenance(tmp_path: Path) -> None:
@@ -202,8 +202,8 @@ def test_promote_validation_failure_no_files_in_live_tree(tmp_path: Path) -> Non
         )
 
     # No files in live tree
-    doctrine_root = repo / ".kittify" / "doctrine"
-    assert not list(doctrine_root.rglob("*.tactic.yaml"))
+    pack_root = repo / ".kittify" / "charter-packs"
+    assert not list(pack_root.rglob("*.tactic.yaml"))
 
     # Manifest NOT written
     manifest_path = repo / MANIFEST_PATH
@@ -234,7 +234,7 @@ def test_promote_success_writes_files_and_manifest(tmp_path: Path) -> None:
     assert manifest.run_id == RUN_ID
 
     # Artifact file in live tree
-    live_tactic = repo / ".kittify" / "doctrine" / "tactic" / "my-tactic.tactic.yaml"
+    live_tactic = repo / ".kittify" / "charter-packs" / "tactic" / "my-tactic.tactic.yaml"
     assert live_tactic.exists()
 
     # Provenance sidecar in live tree
@@ -319,8 +319,8 @@ def test_schema_failure_no_files_in_live_tree(tmp_path: Path) -> None:
         raise RuntimeError("schema failure: body does not match directive schema")
 
     # No files in live doctrine tree
-    doctrine_root = repo / ".kittify" / "doctrine"
-    assert not list(doctrine_root.rglob("*.yaml"))
+    pack_root = repo / ".kittify" / "charter-packs"
+    assert not list(pack_root.rglob("*.yaml"))
 
     # Staging preserved as .failed/
     failed_dir = stage.root.parent / f"{RUN_ID}S.failed"

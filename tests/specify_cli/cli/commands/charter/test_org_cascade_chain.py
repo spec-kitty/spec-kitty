@@ -1,19 +1,19 @@
 """WP02 (mission ``cascade-org-inert-01M07E9P``): org-roots threading into the
 three ``load_validated_graph`` cascade call sites (``activate.py``:226/317,
-``deactivate.py``:139) plus ``_layer_roots.py``'s ID-mapping chain widening.
+``deactivate.py``:139) plus ``charter.activation.layer_roots``'s ID-mapping chain widening.
 
 The defect this WP fixes (FR-001, NFR-001/002, C-001/002): before this WP,
 ``charter activate/deactivate --cascade`` walked the merged DRG with **no org
 roots at all**, so a ``requires``/``suggests`` edge that lived in (or targeted)
 an org pack was invisible to the cascade engine — dependent org-pack artifacts
 were silently neither activated nor reported as skipped. Separately,
-``_layer_roots.resolve_layer_roots`` only ever registered the FIRST org root
+``charter.activation.layer_roots.resolve_layer_roots`` only ever registered the FIRST org root
 into its single-value ``roots["org"]`` slot, so even once the DRG walk saw
 pack 2..N, the DRG-bare-ID -> config-stem-ID mapping (``_cascade_shared.py``'s
 ``drg_urn_to_config_id``, consolidated there from ``activate.py``'s
 ``_drg_id_to_config_id`` by issue #3772)
 still only consulted pack 1 -- an org-pack-2..N cascade target would resolve to
-its raw DRG ID (unresolvable by ``CharterPackManager.activate``) instead of its
+its raw DRG ID (unresolvable by ``ActiveCharterManager.activate``) instead of its
 real config stem.
 
 Covers T011 (red-first single-pack + two-pack chain), T012 (non-vacuity: the
@@ -37,7 +37,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.charter import charter_app
 from specify_cli.cli.commands.charter import activate as activate_mod
 from specify_cli.cli.commands.charter import _cascade_shared as cascade_shared_mod
-from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
+from charter.activation.layer_roots import resolve_layer_roots
 
 runner = CliRunner()
 
@@ -57,7 +57,7 @@ def _write_org_pack_config(project_root: Path, packs: list[tuple[str, str]]) -> 
     Carries ``mission_type_activations`` (WP04, C-A1): ``PackContext.from_config``
     fails closed without it.
     """
-    lines: list[str] = ["doctrine:", "  org:", "    packs:"]
+    lines: list[str] = ["charter_packs:", "  org:", "    packs:"]
     for name, local_path in packs:
         lines.append(f"      - name: {name}")
         lines.append(f"        local_path: {local_path}")
@@ -308,10 +308,10 @@ class TestIdMappingWideningNonVacuous:
 
         real_resolve_config_id = cascade_shared_mod.resolve_config_id
 
-        def _resolve_config_id_without_org_roots(urn, *, doctrine_root, org_roots=None, layer_roots=None, resolution_pass=None):
+        def _resolve_config_id_without_org_roots(urn, *, offering_root, org_roots=None, layer_roots=None, resolution_pass=None):
             del org_roots  # pre-T008 shape: never received the chain.
             return real_resolve_config_id(
-                urn, doctrine_root=doctrine_root, layer_roots=layer_roots, resolution_pass=resolution_pass
+                urn, offering_root=offering_root, layer_roots=layer_roots, resolution_pass=resolution_pass
             )
 
         monkeypatch.setattr(
@@ -687,7 +687,7 @@ class TestFragmentYamlEdgeCascades:
 
 
 class _FakeManagerMultiFail:
-    """Stand-in for ``CharterPackManager`` whose ``.activate`` raises a
+    """Stand-in for ``ActiveCharterManager`` whose ``.activate`` raises a
     distinct, caller-supplied ``ValueError`` on each successive call --
     one per org-root candidate ``_activate_cascade_target`` tries."""
 

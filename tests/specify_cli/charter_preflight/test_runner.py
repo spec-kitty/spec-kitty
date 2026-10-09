@@ -570,8 +570,8 @@ def test_auto_refresh_clean_worktree_runs_sequence(tmp_path: Path, monkeypatch: 
         # so the post-recompute sees a fresh DRG.
         if cmd[:3] == ["spec-kitty", "charter", "synthesize"]:
             seed_manifest(tmp_path, built_in_only=False)
-            (tmp_path / ".kittify" / "doctrine" / "graph.yaml").parent.mkdir(parents=True, exist_ok=True)
-            (tmp_path / ".kittify" / "doctrine" / "graph.yaml").write_text(
+            (tmp_path / ".kittify" / "charter-packs" / "graph.yaml").parent.mkdir(parents=True, exist_ok=True)
+            (tmp_path / ".kittify" / "charter-packs" / "graph.yaml").write_text(
                 "schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8",
             )
         return subprocess.CompletedProcess(args=cmd, returncode=0, stdout="", stderr="")

@@ -58,7 +58,7 @@ _BROKEN_ORG_MANIFEST_YAML = "schema_version: [unterminated flow seq\n"
 def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) -> None:
     """Write ``<repo_root>/.kittify/config.yaml`` with the canonical
     ``charter_packs.org.packs`` registry (CR-04 canonical shape; see
-    ``tests/doctrine/drg/test_org_pack_config_cr04_charter_packs.py``).
+    ``tests/charter_offering/drg/test_org_pack_config_cr04_charter_packs.py``).
     """
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True, exist_ok=True)
