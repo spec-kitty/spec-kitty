@@ -156,7 +156,6 @@ def test_every_pending_marker_names_a_real_wp() -> None:
 
 
 @covers("C-006")
-@pending_until("WP25", "closeout removes the last markers")
 def test_traceability_no_pending_markers_remain() -> None:
     assert _marker_count(suite_sources()) == 0
 

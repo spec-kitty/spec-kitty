@@ -31,7 +31,7 @@ from ._requirements import (
     count_living_text_files,
     is_living_path,
 )
-from ._support import covers, describe, pending_until, read_json_output, run_cli
+from ._support import covers, describe, read_json_output, run_cli
 from .legacy_fixtures import project_from_template
 
 ARCH = REPO_ROOT / "tests" / "architectural"
@@ -166,35 +166,23 @@ def _kind_vocabulary_row() -> None:
 class GateRow:
     key: str
     check: Callable[[], None]
-    pending: str | None
 
 
 GATE_ROWS: tuple[GateRow, ...] = (
-    GateRow("census_exemptions", _census_row, None),
-    GateRow("boundary_exemptions", _boundary_row, None),
-    GateRow("cr02_compat_test_deleted", _cr02_row, None),
-    GateRow("lifted_retirement_gate_closes_empty", _lifted_retirement_row, None),
-    GateRow("guidance_gate_is_removed_command_gate", _guidance_row, None),
-    GateRow("fr016_allowlist_empty", _fr016_row, "WP25"),
-    GateRow("fr018_allowlist_c004_only", _fr018_row, "WP25"),
-    # These two already close empty at base: unmarked regression guards.
-    GateRow("dead_doctrine_paths_allowlists_empty", _dead_paths_row, None),
-    GateRow("kind_vocabulary_allowlists_empty", _kind_vocabulary_row, None),
+    GateRow("census_exemptions", _census_row),
+    GateRow("boundary_exemptions", _boundary_row),
+    GateRow("cr02_compat_test_deleted", _cr02_row),
+    GateRow("lifted_retirement_gate_closes_empty", _lifted_retirement_row),
+    GateRow("guidance_gate_is_removed_command_gate", _guidance_row),
+    GateRow("fr016_allowlist_empty", _fr016_row),
+    GateRow("fr018_allowlist_c004_only", _fr018_row),
+    GateRow("dead_doctrine_paths_allowlists_empty", _dead_paths_row),
+    GateRow("kind_vocabulary_allowlists_empty", _kind_vocabulary_row),
 )
 
 
-_GATE_PENDING = {
-    "WP25": pending_until("WP25", "FR-016/FR-018 gate allowlists close empty (NFR-002)"),
-}
-
-
-def _gate_param(row: GateRow) -> Any:
-    marks = [_GATE_PENDING[row.pending]] if row.pending else []
-    return pytest.param(row, id=row.key, marks=marks)
-
-
 @covers("NFR-002")
-@pytest.mark.parametrize("row", [_gate_param(r) for r in GATE_ROWS])
+@pytest.mark.parametrize("row", [pytest.param(r, id=r.key) for r in GATE_ROWS])
 def test_nfr002_gates_close_empty(row: GateRow) -> None:
     row.check()
 
@@ -274,7 +262,6 @@ def _finding_token(finding: object) -> str:
 
 @covers("FR-018", "SC-003", "US4-2")
 @pytest.mark.corpus
-@pending_until("WP25", "the FR-018 vocabulary gate finds 0 tokens over the base floor")
 def test_fr018_vocabulary_gate_zero_findings_over_floor() -> None:
     gate = load_gate(VOCABULARY_GATE)
     paths = list(gate.living_paths(REPO_ROOT))
@@ -284,12 +271,8 @@ def test_fr018_vocabulary_gate_zero_findings_over_floor() -> None:
     assert findings == [], "\n".join(map(str, findings[:50]))
 
 
-def _token_param(token: str) -> Any:
-    return pytest.param(token, id=token, marks=pending_until("WP25", "each closed-list token is detected"))
-
-
 @covers("FR-018", "SC-003")
-@pytest.mark.parametrize("token", [_token_param(t) for t in FR018_FORBIDDEN_TOKENS])
+@pytest.mark.parametrize("token", [pytest.param(t, id=t) for t in FR018_FORBIDDEN_TOKENS])
 def test_fr018_planted_token_detected(token: str, tmp_path: Path) -> None:
     gate = load_gate(VOCABULARY_GATE)
     for rel in ("docs/guide.md", "docs/adr/0001-old.md"):

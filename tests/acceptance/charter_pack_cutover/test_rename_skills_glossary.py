@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from ._requirements import REMOVED_SKILL_IDS, REPO_ROOT, RETIRED_EXTRA_SKILL_IDS, is_living_path
-from ._support import covers, describe, git_init_commit, load_yaml, output_of, pending_until, read_json_output, run_cli
+from ._support import covers, describe, git_init_commit, load_yaml, output_of, read_json_output, run_cli
 from .legacy_fixtures import MISSION_TYPES, EDITED_SKILL, finish, project_from_template, write_doctrine_pack, write_yaml
 from .test_package_split import _python_names
 
@@ -311,7 +311,6 @@ def _reachability_test() -> Path:
 
 @covers("FR-014")
 @pytest.mark.corpus
-@pending_until("WP25", "reachability pins re-asserted against the default preset or deleted with reasons")
 def test_fr014_reachability_pins_reasserted_or_recorded() -> None:
     path = _reachability_test()
     source = path.read_text(encoding="utf-8")
