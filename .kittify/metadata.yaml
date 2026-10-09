@@ -7,6 +7,11 @@ spec_kitty:
   initialized_at: '2026-04-07T09:10:40.826207'
   last_upgraded_at: '2026-06-11T05:07:36.243731'
   schema_version: 3
+  schema_capabilities:
+    canonical_context: true
+    event_log_authority: true
+    ownership_manifest: true
+    thin_shims: true
 environment:
   python_version: 3.14.0
   platform: darwin
@@ -351,3 +356,87 @@ migrations:
     applied_at: '2026-08-09T17:54:53.389876'
     result: success
     notes: Backfilled 17 stranded verdict event(s) across 351 mission(s) scanned
+  - id: charter_pack_cutover
+    applied_at: '2026-10-09T18:51:37.690466+00:00'
+    result: success
+    notes: '{"errors": [], "kept_for_review": [".kittify/charter/charter.yaml: activated_directives
+      customised; not changed", ".kittify/charter/charter.yaml: activated_tactics
+      customised; not changed", ".kittify/charter/charter.yaml: activated_styleguides
+      customised; not changed", ".kittify/charter/charter.yaml: activated_toolguides
+      customised; not changed", ".kittify/charter/charter.yaml: activated_procedures
+      customised; not changed", ".kittify/charter/charter.yaml: activated_agent_profiles
+      customised; not changed"], "matches_minimal": [], "moved": [".kittify/doctrine/PROVENANCE.md
+      -> .kittify/charter-packs/PROVENANCE.md", ".kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml
+      -> .kittify/charter-packs/directives/001-mission-type-scope-directive.directive.yaml",
+      ".kittify/doctrine/directives/002-neutrality-posture-directive.directive.yaml
+      -> .kittify/charter-packs/directives/002-neutrality-posture-directive.directive.yaml",
+      ".kittify/doctrine/directives/003-risk-appetite-directive.directive.yaml ->
+      .kittify/charter-packs/directives/003-risk-appetite-directive.directive.yaml",
+      ".kittify/doctrine/styleguides/python-style-guide.styleguide.yaml -> .kittify/charter-packs/styleguides/python-style-guide.styleguide.yaml",
+      ".kittify/doctrine/styleguides/testing-style-guide.styleguide.yaml -> .kittify/charter-packs/styleguides/testing-style-guide.styleguide.yaml",
+      ".kittify/doctrine/tactics/how-we-apply-directive-003.tactic.yaml -> .kittify/charter-packs/tactics/how-we-apply-directive-003.tactic.yaml",
+      ".kittify/doctrine/tactics/testing-philosophy-tactic.tactic.yaml -> .kittify/charter-packs/tactics/testing-philosophy-tactic.tactic.yaml"],
+      "reset": [], "rewritten": [], "skills_kept": [], "skills_removed": [".claude/skills/spk-doctrine-charter
+      (spk-doctrine-charter; package-owned (manifest))", ".claude/skills/spk-doctrine-glossary
+      (spk-doctrine-glossary; package-owned (manifest))", ".claude/skills/spk-doctrine-profile-load
+      (spk-doctrine-profile-load; package-owned (manifest))", ".claude/skills/spk-doctrine-spdd-reasons
+      (spk-doctrine-spdd-reasons; package-owned (manifest))", ".claude/skills/spk-doctrine-bulk-edit
+      (spk-doctrine-bulk-edit; package-owned (manifest))", ".claude/skills/spk-doctrine-semantic-compression
+      (spk-doctrine-semantic-compression; package-owned (manifest))", ".claude/skills/spk-doctrine-show-me
+      (spk-doctrine-show-me; package-owned (manifest))", ".claude/skills/spec-kitty-charter-doctrine
+      (spec-kitty-charter-doctrine; package-owned (manifest))", ".claude/skills/spec-kitty-glossary-context
+      (spec-kitty-glossary-context; package-owned (manifest))", ".claude/skills/spec-kitty-bulk-edit-classification
+      (spec-kitty-bulk-edit-classification; package-owned (manifest))", ".claude/skills/spec-kitty-spdd-reasons
+      (spec-kitty-spdd-reasons; package-owned (manifest))", ".claude/skills/ad-hoc-profile-load
+      (ad-hoc-profile-load; package-owned (manifest))", ".agents/skills/spk-doctrine-charter
+      (spk-doctrine-charter; package-owned (manifest))", ".agents/skills/spk-doctrine-glossary
+      (spk-doctrine-glossary; package-owned (manifest))", ".agents/skills/spk-doctrine-profile-load
+      (spk-doctrine-profile-load; package-owned (manifest))", ".agents/skills/spk-doctrine-spdd-reasons
+      (spk-doctrine-spdd-reasons; package-owned (manifest))", ".agents/skills/spk-doctrine-bulk-edit
+      (spk-doctrine-bulk-edit; package-owned (manifest))", ".agents/skills/spk-doctrine-semantic-compression
+      (spk-doctrine-semantic-compression; package-owned (manifest))", ".agents/skills/spk-doctrine-show-me
+      (spk-doctrine-show-me; package-owned (manifest))", ".agents/skills/spec-kitty-charter-doctrine
+      (spec-kitty-charter-doctrine; package-owned (manifest))", ".agents/skills/spec-kitty-glossary-context
+      (spec-kitty-glossary-context; package-owned (manifest))", ".agents/skills/spec-kitty-bulk-edit-classification
+      (spec-kitty-bulk-edit-classification; package-owned (manifest))", ".agents/skills/spec-kitty-spdd-reasons
+      (spec-kitty-spdd-reasons; package-owned (manifest))", ".agents/skills/ad-hoc-profile-load
+      (ad-hoc-profile-load; package-owned (manifest))"]}; Moved .kittify/doctrine/PROVENANCE.md
+      -> .kittify/charter-packs/PROVENANCE.md; Moved .kittify/doctrine/directives/001-mission-type-scope-directive.directive.yaml
+      -> .kittify/charter-packs/directives/001-mission-type-scope-directive.directive.yaml;
+      Moved .kittify/doctrine/directives/002-neutrality-posture-directive.directive.yaml
+      -> .kittify/charter-packs/directives/002-neutrality-posture-directive.directive.yaml;
+      Moved .kittify/doctrine/directives/003-risk-appetite-directive.directive.yaml
+      -> .kittify/charter-packs/directives/003-risk-appetite-directive.directive.yaml;
+      Moved .kittify/doctrine/styleguides/python-style-guide.styleguide.yaml -> .kittify/charter-packs/styleguides/python-style-guide.styleguide.yaml;
+      Moved .kittify/doctrine/styleguides/testing-style-guide.styleguide.yaml -> .kittify/charter-packs/styleguides/testing-style-guide.styleguide.yaml;
+      Moved .kittify/doctrine/tactics/how-we-apply-directive-003.tactic.yaml -> .kittify/charter-packs/tactics/how-we-apply-directive-003.tactic.yaml;
+      Moved .kittify/doctrine/tactics/testing-philosophy-tactic.tactic.yaml -> .kittify/charter-packs/tactics/testing-philosophy-tactic.tactic.yaml;
+      Removed skill .claude/skills/spk-doctrine-charter (spk-doctrine-charter; package-owned
+      (manifest)); Removed skill .claude/skills/spk-doctrine-glossary (spk-doctrine-glossary;
+      package-owned (manifest)); Removed skill .claude/skills/spk-doctrine-profile-load
+      (spk-doctrine-profile-load; package-owned (manifest)); Removed skill .claude/skills/spk-doctrine-spdd-reasons
+      (spk-doctrine-spdd-reasons; package-owned (manifest)); Removed skill .claude/skills/spk-doctrine-bulk-edit
+      (spk-doctrine-bulk-edit; package-owned (manifest)); Removed skill .claude/skills/spk-doctrine-semantic-compression
+      (spk-doctrine-semantic-compression; package-owned (manifest)); Removed skill
+      .claude/skills/spk-doctrine-show-me (spk-doctrine-show-me; package-owned (manifest));
+      Removed skill .claude/skills/spec-kitty-charter-doctrine (spec-kitty-charter-doctrine;
+      package-owned (manifest)); Removed skill .claude/skills/spec-kitty-glossary-context
+      (spec-kitty-glossary-context; package-owned (manifest)); Removed skill .claude/skills/spec-kitty-bulk-edit-classification
+      (spec-kitty-bulk-edit-classification; package-owned (manifest)); Removed skill
+      .claude/skills/spec-kitty-spdd-reasons (spec-kitty-spdd-reasons; package-owned
+      (manifest)); Removed skill .claude/skills/ad-hoc-profile-load (ad-hoc-profile-load;
+      package-owned (manifest)); Removed skill .agents/skills/spk-doctrine-charter
+      (spk-doctrine-charter; package-owned (manifest)); Removed skill .agents/skills/spk-doctrine-glossary
+      (spk-doctrine-glossary; package-owned (manifest)); Removed skill .agents/skills/spk-doctrine-profile-load
+      (spk-doctrine-profile-load; package-owned (manifest)); Removed skill .agents/skills/spk-doctrine-spdd-reasons
+      (spk-doctrine-spdd-reasons; package-owned (manifest)); Removed skill .agents/skills/spk-doctrine-bulk-edit
+      (spk-doctrine-bulk-edit; package-owned (manifest)); Removed skill .agents/skills/spk-doctrine-semantic-compression
+      (spk-doctrine-semantic-compression; package-owned (manifest)); Removed skill
+      .agents/skills/spk-doctrine-show-me (spk-doctrine-show-me; package-owned (manifest));
+      Removed skill .agents/skills/spec-kitty-charter-doctrine (spec-kitty-charter-doctrine;
+      package-owned (manifest)); Removed skill .agents/skills/spec-kitty-glossary-context
+      (spec-kitty-glossary-context; package-owned (manifest)); Removed skill .agents/skills/spec-kitty-bulk-edit-classification
+      (spec-kitty-bulk-edit-classification; package-owned (manifest)); Removed skill
+      .agents/skills/spec-kitty-spdd-reasons (spec-kitty-spdd-reasons; package-owned
+      (manifest)); Removed skill .agents/skills/ad-hoc-profile-load (ad-hoc-profile-load;
+      package-owned (manifest))'
