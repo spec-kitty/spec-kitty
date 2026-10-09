@@ -39,6 +39,10 @@ from pathlib import Path
 from mission_runtime import OwnedRefusalCode
 
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
+from specify_cli.coordination.worktree_branch import (
+    normalize_ref as _normalize_ref,
+    probe_coord_branch,
+)
 from specify_cli.core.errors import StructuredError
 from specify_cli.git.destructive_guard import guarded_worktree_remove
 from specify_cli.lanes.branch_naming import (
@@ -180,24 +184,12 @@ def _require_mid8(mission_slug: str, mid8: str) -> None:
         raise CoordinationWorkspaceIdentityUnresolved(mission_slug=mission_slug)
 
 
-def _normalize_ref(ref: str) -> str:
-    """Strip ``refs/heads/`` prefix so HEAD comparisons use short names."""
-    return ref.removeprefix("refs/heads/")
-
-
-def require_coord_worktree_branch(path: Path, expected_ref: str) -> None:
+def require_coord_worktree_branch(path: Path, expected_ref: str, *, env: dict[str, str] | None = None) -> None:
     """Refuse a materialized coordination worktree on another branch."""
-    try:
-        actual = subprocess.check_output(
-            ["git", "-C", str(path), "symbolic-ref", "HEAD"],
-            text=True,
-            stderr=subprocess.PIPE,
-        ).strip()
-    except (OSError, subprocess.CalledProcessError):
-        actual = "<detached or unreadable HEAD>"
-    if _normalize_ref(actual) != _normalize_ref(expected_ref):
+    actual, failure_label = probe_coord_branch(path, env)
+    if actual is None or _normalize_ref(actual) != _normalize_ref(expected_ref):
         raise CoordinationWorkspaceBranchMismatch(
-            worktree_path=path, expected_ref=expected_ref, actual_ref=actual,
+            worktree_path=path, expected_ref=expected_ref, actual_ref=actual or failure_label,
         )
 
 
