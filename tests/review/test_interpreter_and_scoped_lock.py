@@ -51,14 +51,24 @@ def test_uv_present_and_pyproject_present_resolves_to_uv_run(
     tmp_path: Path,
 ) -> None:
     """Branch (i): both legs of the AND hold -> route through ``uv run``."""
-    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n[project.optional-dependencies]\ntest = ['pytest']\n", encoding="utf-8")
     monkeypatch.setattr(_interpreter.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
 
     command = resolve_pytest_command(["--junitxml=out.xml", "-q"], repo_root=tmp_path)
 
-    assert command[:5] == ["uv", "run", "--frozen", "--project", str(tmp_path)]
-    assert command[5:8] == ["python", "-m", "pytest"]
+    assert command[:7] == ["uv", "run", "--frozen", "--extra", "test", "--project", str(tmp_path)]
+    assert command[7:10] == ["python", "-m", "pytest"]
     assert command[-2:] == ["--junitxml=out.xml", "-q"]
+
+
+@pytest.mark.fast
+def test_uv_project_without_test_extra_uses_existing_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    monkeypatch.setattr(_interpreter.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
+
+    command = resolve_pytest_command(["-q"], repo_root=tmp_path)
+
+    assert command == ["uv", "run", "--frozen", "--project", str(tmp_path), "python", "-m", "pytest", "-q"]
 
 
 @pytest.mark.fast
