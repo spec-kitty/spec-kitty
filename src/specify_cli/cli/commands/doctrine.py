@@ -45,6 +45,14 @@ from pathlib import Path
 
 import typer
 from charter.activation.kind_vocabulary import PROJECT_KIND_DIRS
+from kernel.charter_pack_paths import (
+    DRG_FRAGMENT,
+    ORG_CHARTER_FILENAME,
+    PROJECT_PACK_ROOT_POSIX,
+    pack_drg_fragment,
+    pack_org_charter,
+    project_pack_root,
+)
 from charter.drg import ArtifactKind, slug_for
 from charter.activation.language_scope import (
     RESERVED_LANGUAGE_TOKENS,
@@ -637,7 +645,8 @@ def _resolve_scaffold_root(
     """Return the doctrine root that scaffolded files should land under.
 
     Project-layer scaffolding (no ``--pack``) writes under
-    ``<repo_root>/.kittify/doctrine/``. Pack-mode scaffolding writes to the
+    ``<repo_root>/.kittify/charter-packs/`` (the project charter pack root).
+    Pack-mode scaffolding writes to the
     user-supplied pack root verbatim.
     """
     if pack is not None:
@@ -647,7 +656,7 @@ def _resolve_scaffold_root(
             "Could not locate spec-kitty project root. Run from inside a project "
             "containing .kittify/ or pass --pack to target an explicit pack directory."
         )
-    return repo_root / ".kittify" / "doctrine"
+    return project_pack_root(repo_root)
 
 
 @app.command(name="new")
@@ -670,7 +679,7 @@ def new(
         "--pack",
         help=(
             "Scaffold inside a doctrine pack directory instead of the project layer. "
-            "When omitted, the stub lands under .kittify/doctrine/."
+            f"When omitted, the stub lands under {PROJECT_PACK_ROOT_POSIX}/."
         ),
     ),
 ) -> None:
@@ -1024,15 +1033,16 @@ def _run_minimal_scaffold(pack_path: Path, *, force: bool) -> None:
         raise typer.Exit(1)
 
     pack_path.mkdir(parents=True, exist_ok=True)
-    (pack_path / "drg").mkdir(parents=True, exist_ok=True)
+    fragment_path = pack_drg_fragment(pack_path)
+    fragment_path.parent.mkdir(parents=True, exist_ok=True)
 
-    (pack_path / "org-charter.yaml").write_text(_ORG_CHARTER_STUB, encoding="utf-8")
-    (pack_path / "drg" / "fragment.yaml").write_text(_DRG_FRAGMENT_STUB, encoding="utf-8")
+    pack_org_charter(pack_path).write_text(_ORG_CHARTER_STUB, encoding="utf-8")
+    fragment_path.write_text(_DRG_FRAGMENT_STUB, encoding="utf-8")
     (pack_path / "README.md").write_text(_ORG_PACK_README_STUB, encoding="utf-8")
 
     console.print(f"[green]Org pack scaffolded at:[/green] {pack_path}")
-    console.print("  org-charter.yaml")
-    console.print("  drg/fragment.yaml")
+    console.print(f"  {ORG_CHARTER_FILENAME}")
+    console.print(f"  {DRG_FRAGMENT.as_posix()}")
     console.print("  README.md")
     console.print(
         f"\nRun [bold]spec-kitty charter org validate {pack_path}[/bold] to confirm."

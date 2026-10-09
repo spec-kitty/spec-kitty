@@ -147,7 +147,7 @@ def _write_references(charter_dir: Path, entries: list[dict[str, str]]) -> None:
 
 
 def _seed_project_graph(repo: Path) -> Path:
-    """Create a schema-valid, empty ``.kittify/doctrine/graph.yaml``.
+    """Create a schema-valid, empty ``.kittify/charter-packs/graph.yaml``.
 
     Matches ``test_freshness_activation_visibility.py``'s own local helper:
     a bare ``schema_version``/``nodes``/``edges`` document is REJECTED by
@@ -155,7 +155,7 @@ def _seed_project_graph(repo: Path) -> Path:
     required) once ``charter.activation.consistency_check``'s graph-kind-parity check
     pydantic-validates it via ``load_validated_graph``.
     """
-    graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
+    graph_path = repo / ".kittify" / "charter-packs" / "graph.yaml"
     graph_path.parent.mkdir(parents=True, exist_ok=True)
     graph_path.write_text(
         dedent(

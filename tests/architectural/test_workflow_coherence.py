@@ -58,7 +58,13 @@ _QUOTED_RE = re.compile(r'"([\w-]+)"')
 # ``test_vestigial_glob_rows_stay_earned`` keeps this honest: a row whose glob
 # has left the workflow, or which has become live, reds until it is deleted —
 # the ledger cannot outlive its subject.
-VESTIGIAL_FILTER_GLOBS: dict[tuple[str, str, str], str] = {}
+VESTIGIAL_FILTER_GLOBS: dict[tuple[str, str, str], str] = {
+    ("ci-router.yml", "corpus", ".kittify/charter-packs/**"): (
+        "charter-pack-cutover-01M491G6 WP03 routes the project layer to .kittify/charter-packs/ ahead of "
+        "WP11, which moves this repository's tracked .kittify/doctrine/ tree there; the row turns live "
+        "then, and WP11 deletes it together with the '.kittify/doctrine/**' glob (WP11 T-step 6)"
+    ),
+}
 
 # NFR-007 fault-injection pair: a make target whose NAME shares nothing with
 # the live ``test-fast`` one, so a resolver that matched the literal string

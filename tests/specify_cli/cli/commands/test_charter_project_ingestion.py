@@ -18,7 +18,7 @@ def test_activation_registers_project_sources(tmp_path: Path, monkeypatch: pytes
     before = {key: path.read_bytes() for key, path in sources.items()}
     result = runner.invoke(app, ["activate", "agent-profile", "ops-responder"])
     assert result.exit_code == 0, result.output
-    assert (tmp_path / ".kittify/doctrine/graph.yaml").is_file()
+    assert (tmp_path / ".kittify/charter-packs/graph.yaml").is_file()
     from charter.activation.synthesizer.manifest import load_yaml, verify
 
     manifest = load_yaml(tmp_path / ".kittify/charter/synthesis-manifest.yaml")

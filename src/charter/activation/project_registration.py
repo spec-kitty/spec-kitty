@@ -33,6 +33,7 @@ from charter.offering.drg.models import DRGGraph
 from charter.offering.drg.org_pack_config import resolve_existing_org_roots
 from charter.offering.drg.project_scan import ProjectArtifact, project_reference_edges, scan_project_artifacts
 from charter.offering.drg.validator import assert_valid
+from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_path, resolve_project_pack_read_root
 from kernel.clock import now_utc_seconds
 
 __all__ = ["plan_project_registration", "commit_project_registration"]
@@ -116,7 +117,7 @@ def _project_graph(
     base: DRGGraph,
     stale_urns: frozenset[str] = frozenset(),
 ) -> tuple[DRGGraph, tuple[str, ...]]:
-    directory = root / ".kittify/doctrine"
+    directory = resolve_project_pack_read_root(root, quiet=True)
     existing = load_graph_or_dir(directory) if has_graph_files(directory) else None
     nodes = {node.urn: node for node in existing.nodes} if existing else {}
     # Prune phantom nodes (#4121): a committed registration whose URN the
@@ -294,7 +295,7 @@ def plan_project_registration(repo_root: Path, *, base_graph: DRGGraph | None = 
         project,
     )
     assert_valid(merged)
-    writes = [(root / ".kittify/doctrine/graph.yaml", canonical_yaml(graph_document_to_dict(project)).decode())]
+    writes = [(project_pack_path(root, PROJECT_GRAPH_FILENAME), canonical_yaml(graph_document_to_dict(project)).decode())]
     registration_writes, slug_reconcile_deletes = _registration_records(root, artifacts, stale)
     writes.extend(registration_writes)
     # A re-created artifact with the same identity reuses its predecessor's

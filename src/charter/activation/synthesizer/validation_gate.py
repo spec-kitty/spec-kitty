@@ -52,6 +52,8 @@ from charter.offering.drg.loader import DRGLoadError, load_graph_or_dir, merge_l
 from charter.offering.drg.models import DRGEdge, DRGGraph
 from charter.offering.drg.validator import validate_graph
 
+from kernel.charter_pack_paths import PROJECT_PACK_DIRNAME
+
 from .errors import ProjectDRGValidationError
 
 if TYPE_CHECKING:
@@ -181,7 +183,7 @@ def validate(
         enough for a CLI panel that names the dangling URN, the offending
         artifact, and the source reference that triggered it (US-5).
     """
-    overlay_doctrine_dir = staging_dir / "doctrine"
+    overlay_doctrine_dir = staging_dir / PROJECT_PACK_DIRNAME
 
     # --- Step 1: Load the staged overlay -----------------------------------
     try:

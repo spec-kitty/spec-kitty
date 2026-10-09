@@ -44,7 +44,7 @@ from charter.offering.drg.loader import DRGLoadError as DRGLoadError  # re-expor
 from charter.offering.drg.loader import has_graph_files, load_graph_or_dir, merge_layers
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode
 from charter.offering.drg.validator import dangling_endpoints, duplicate_edge_triples
-from kernel.charter_pack_paths import LEGACY_PROJECT_PACK_DIRNAME, resolve_project_pack_read_root
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT, resolve_project_pack_read_root
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -64,19 +64,6 @@ __all__ = [
     "reconcile_synthesis",
     "rewrite_manifest",
 ]
-
-#: NOTE the name/value mismatch: this constant holds ``.kittify`` (the
-#: KITTIFY dir), not "doctrine" -- the "doctrine" path segment is composed
-#: separately at each call site below. This is exactly the CR-07
-#: "split-literal, census-invisible" shape (mission
-#: ``charter-code-topology-01M152G1`` S4): a plain grep for the contiguous
-#: string ``.kittify/doctrine`` would miss every f-string call site here.
-#: Call sites now compose the "doctrine" segment from the single shared
-#: ``kernel.charter_pack_paths.LEGACY_PROJECT_PACK_DIRNAME`` source instead of a bare
-#: re-spelled literal, closing that gap without changing the resolved path
-#: (manifest-bookkeeping write paths, lines below, are unchanged -- M3 moves
-#: the data and cuts writes over to the canonical root).
-_DOCTRINE_DIRNAME = ".kittify"
 
 
 class SynthesizeMode(enum.Enum):
@@ -295,6 +282,7 @@ def rewrite_manifest(
 
     from .artifact_naming import artifact_filename, doctrine_kind_subdir  # noqa: PLC0415
     from .manifest import ManifestArtifactEntry, SynthesisManifest, finalize_manifest  # noqa: PLC0415
+    from .provenance import provenance_path_for  # noqa: PLC0415
     from .synthesize_pipeline import _get_synthesizer_version, canonical_yaml  # noqa: PLC0415
 
     new_entries_by_key: dict[tuple[str, str], ManifestArtifactEntry] = {}
@@ -312,8 +300,8 @@ def rewrite_manifest(
         yaml_bytes = canonical_yaml(body)
         content_hash = hashlib.sha256(yaml_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
-        rel_content = f"{_DOCTRINE_DIRNAME}/{LEGACY_PROJECT_PACK_DIRNAME}/{doctrine_kind_subdir(kind)}/{filename}"
-        rel_prov = f"{_DOCTRINE_DIRNAME}/charter/provenance/{kind}-{slug}.yaml"
+        rel_content = (PROJECT_PACK_ROOT / doctrine_kind_subdir(kind) / filename).as_posix()
+        rel_prov = provenance_path_for(kind, slug)
 
         new_entries_by_key[(kind, slug)] = ManifestArtifactEntry(
             kind=kind,
@@ -601,14 +589,13 @@ def reconcile_synthesis(
     from .manifest import MANIFEST_PATH  # noqa: PLC0415
     from .manifest import load_yaml as load_manifest  # noqa: PLC0415
 
-    # CR-07 (mission `charter-code-topology-01M152G1` S4): this is a pure
-    # read (see the "performs no I/O writes itself, only reads" docstring
-    # note above) -- the one call site in this module safe to route through
-    # the dual-root reader today. Prefers the canonical
-    # `.kittify/charter-packs` overlay when it exists; falls back to the
-    # legacy `.kittify/doctrine` (warn-once) otherwise. The manifest
-    # bookkeeping paths above (`rel_content`/`rel_prov`) stay pointed at the
-    # legacy root -- M3 cuts writes over once the data itself has moved.
+    # A pure read (see the "performs no I/O writes itself, only reads"
+    # docstring note above): the one call site in this module that routes
+    # through the temporary dual-root reader (FR-011, removed by WP14). It
+    # prefers the project charter pack root and falls back to the retired
+    # root (warn-once) only while a project has not been migrated. The
+    # manifest bookkeeping paths (`rel_content`) always name the project
+    # charter pack root (FR-016).
     doctrine_dir = resolve_project_pack_read_root(repo_root)
     existing_overlay = _load_existing_overlay(doctrine_dir)
     merged_overlay = (

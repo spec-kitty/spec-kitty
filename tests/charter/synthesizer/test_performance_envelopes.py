@@ -169,7 +169,7 @@ class TestNfr002FullSynthesis:
 
 
 def _seed_charter_freshness_repo(repo: Path) -> None:
-    """Seed a representative ``.kittify/charter/`` + ``.kittify/doctrine/``
+    """Seed a representative ``.kittify/charter/`` + ``.kittify/charter-packs/``
     tree: the single ``BUNDLE_CONTENT_HASH_FILES`` entry (``charter.yaml``,
     contracts/manifest-v2.md M1/M3 — consolidate-charter-bundle WP06
     narrowed this from the four legacy bundle files), a ``graph.yaml``, and
@@ -197,7 +197,7 @@ def _seed_charter_freshness_repo(repo: Path) -> None:
         encoding="utf-8",
     )
 
-    graph_path = repo / ".kittify" / "doctrine" / "graph.yaml"
+    graph_path = repo / ".kittify" / "charter-packs" / "graph.yaml"
     graph_path.parent.mkdir(parents=True, exist_ok=True)
     graph_path.write_text("schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8")
 

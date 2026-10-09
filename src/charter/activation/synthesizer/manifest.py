@@ -28,6 +28,7 @@ from ruamel.yaml import YAML
 
 from .errors import ManifestIntegrityError
 from .synthesize_pipeline import canonical_yaml
+from kernel.charter_pack_paths import KITTIFY_DIRNAME, LEGACY_PROJECT_PACK_DIRNAME, PROJECT_PACK_ROOT
 from kernel.paths import to_posix
 
 if TYPE_CHECKING:
@@ -35,7 +36,13 @@ if TYPE_CHECKING:
 
 # Canonical location of the synthesis manifest.
 MANIFEST_PATH = Path(".kittify/charter/synthesis-manifest.yaml")
-_ARTIFACT_PATH_PREFIX = Path(".kittify/doctrine")
+#: New entries are always written under the project charter pack root (FR-016).
+_ARTIFACT_PATH_PREFIX = PROJECT_PACK_ROOT
+#: TEMPORARY (FR-011, removed by WP14): the retired project layer prefix that
+#: manifests written before the cutover migration still carry. Read-only: it is
+#: accepted by :func:`verify` through :func:`_is_legacy_artifact_prefix`, never
+#: written.
+_LEGACY_ARTIFACT_PATH_PREFIX = Path(KITTIFY_DIRNAME, LEGACY_PROJECT_PACK_DIRNAME)
 _PROVENANCE_PATH_PREFIX = Path(".kittify/charter/provenance")
 
 
@@ -55,7 +62,11 @@ class ManifestArtifactEntry(BaseModel):
     kind: Literal["directive", "tactic", "styleguide", "procedure", "agent_profile"]
     slug: str
     path: str
-    """Repo-relative path to the artifact YAML under ``.kittify/doctrine/``."""
+    """Repo-relative path to the artifact YAML under ``.kittify/charter-packs/``.
+
+    Manifests written before the cutover migration carry the retired
+    ``.kittify/doctrine/`` prefix; :func:`verify` still accepts it on read.
+    """
 
     provenance_path: str
     """Repo-relative path to the provenance sidecar under ``.kittify/charter/``."""
@@ -117,7 +128,7 @@ class SynthesisManifest(BaseModel):
     built_in_only: bool = False
     """When True the synthesizer legitimately produced no project DRG
     (FR-009 / data-model §6).  Downstream readers MUST treat this as the
-    authoritative state and ignore any stale ``.kittify/doctrine/graph.yaml``.
+    authoritative state and ignore any stale ``.kittify/charter-packs/graph.yaml``.
 
     Default ``False`` preserves backward compatibility — manifests written by
     pre-WP02 synthesizers parse unchanged.
@@ -331,6 +342,21 @@ def _validate_manifest_path(raw_path: str, *, field_name: str, required_prefix: 
     return path
 
 
+def _is_legacy_artifact_prefix(raw_path: str) -> bool:
+    """TEMPORARY (FR-011, removed by WP14): True when *raw_path* uses the retired prefix.
+
+    A manifest written before the cutover migration lists its artifacts under
+    ``.kittify/doctrine/``. Until the migration rewrites those entries
+    (WP11) and WP14 removes this predicate, :func:`verify` accepts that prefix
+    on read. New entries are always written under :data:`_ARTIFACT_PATH_PREFIX`.
+    """
+    try:
+        Path(to_posix(raw_path)).relative_to(_LEGACY_ARTIFACT_PATH_PREFIX)
+    except ValueError:
+        return False
+    return True
+
+
 def _resolve_under_repo(repo_root: Path, rel_path: Path, *, field_name: str) -> Path:
     """Resolve ``rel_path`` and fail if symlinks escape ``repo_root``."""
     repo_resolved = repo_root.resolve(strict=False)
@@ -368,7 +394,9 @@ def verify(manifest: SynthesisManifest, repo_root: Path) -> None:
         artifact_rel = _validate_manifest_path(
             entry.path,
             field_name="manifest artifact path",
-            required_prefix=_ARTIFACT_PATH_PREFIX,
+            required_prefix=(
+                _LEGACY_ARTIFACT_PATH_PREFIX if _is_legacy_artifact_prefix(entry.path) else _ARTIFACT_PATH_PREFIX
+            ),
         )
         _validate_manifest_path(
             entry.provenance_path,

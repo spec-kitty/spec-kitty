@@ -37,7 +37,12 @@ from typing import Any, cast
 
 from kernel.atomic import substantively_equal as _substantively_equal_core
 from kernel.clock import now_utc_iso
-from kernel.charter_pack_paths import LEGACY_PROJECT_PACK_DIRNAME
+from kernel.charter_pack_paths import (
+    KITTIFY_DIRNAME,
+    PROJECT_GRAPH_FILENAME,
+    PROJECT_PACK_DIRNAME,
+    project_pack_path,
+)
 
 from charter.bundle import compute_bundle_content_hash
 from charter.activation.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
@@ -59,15 +64,10 @@ from .request import SynthesisRequest
 from .staging import StagingDir
 from .synthesize_pipeline import ProvenanceEntry, _get_synthesizer_version, canonical_yaml
 
-_KITTIFY_DIRNAME = ".kittify"
-#: CR-07 (mission ``charter-code-topology-01M152G1`` S4): this pipeline's
-#: live-tree writes only ever WRITE into this base -- M3 territory (the
-#: actual data move + write-side cutover to ``.kittify/charter-packs``), not
-#: M2's read-side dual-root reader (``kernel.charter_pack_paths``). Composed from
-#: the single shared ``LEGACY_PROJECT_PACK_DIRNAME`` source rather than a
-#: re-spelled ``"doctrine"`` literal so a census over that constant finds
-#: every write site here too.
-_DOCTRINE_DIRNAME = LEGACY_PROJECT_PACK_DIRNAME
+#: Live-tree writes land in the project charter pack root
+#: (``kernel.charter_pack_paths``, FR-016); provenance sidecars stay under
+#: ``.kittify/charter/provenance/``.
+_KITTIFY_DIRNAME = KITTIFY_DIRNAME
 _CHARTER_DIRNAME = "charter"
 _PROVENANCE_DIRNAME = "provenance"
 
@@ -116,7 +116,7 @@ class StagedArtifact:
     """
 
     path: str
-    """Repo-relative POSIX path (e.g. ``.kittify/doctrine/directive/001-foo.directive.yaml``)."""
+    """Repo-relative POSIX path (e.g. ``.kittify/charter-packs/directive/001-foo.directive.yaml``)."""
 
     kind: str
     """Doctrine kind: ``directive`` | ``tactic`` | ``styleguide``."""
@@ -178,13 +178,7 @@ def compute_written_artifacts(
         slug = prov.artifact_slug
         artifact_id = _artifact_id_from_provenance(prov)
         filename = artifact_filename(kind, slug, artifact_id)
-        live_path = (
-            repo_root
-            / _KITTIFY_DIRNAME
-            / _DOCTRINE_DIRNAME
-            / doctrine_kind_subdir(kind)
-            / filename
-        )
+        live_path = project_pack_path(repo_root, doctrine_kind_subdir(kind), filename)
         rel_path = live_path.relative_to(repo_root).as_posix()
         entries.append(
             StagedArtifact(
@@ -517,7 +511,7 @@ def _ensure_live_dirs(guard: PathGuard, repo_root: Path) -> None:
     """
     for kind in ("directive", "tactic", "styleguide"):
         guard.mkdir(
-            repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / _doctrine_kind_subdir(kind),
+            project_pack_path(repo_root, _doctrine_kind_subdir(kind)),
             caller="write_pipeline.promote[mkdir-doctrine]",
         )
 
@@ -550,15 +544,13 @@ def _replace_one_artifact(
     yaml_bytes = canonical_yaml(body)
     content_hash = _compute_content_hash(yaml_bytes)
 
-    # Content: staging → .kittify/doctrine/<kind-subdir>/<filename>
+    # Content: staging → .kittify/charter-packs/<kind-subdir>/<filename>
     #
     # The doctrine body YAML carries no volatile fields, so a no-op run
     # produces byte-identical content. Skip the replace when unchanged
     # so the tracked file (and its mtime) is left alone (#1912).
     staged_content = staging_dir.path_for_content(kind, filename)
-    live_content = (
-        repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / _doctrine_kind_subdir(kind) / filename
-    )
+    live_content = project_pack_path(repo_root, _doctrine_kind_subdir(kind), filename)
     if not _substantively_equal(yaml_bytes, live_content, frozenset()):
         guard.replace(staged_content, live_content, caller="write_pipeline.promote[content-replace]")
     # else: unchanged — staged copy is discarded by staging_dir.wipe().
@@ -597,11 +589,11 @@ def _promote_graph_overlay(guard: PathGuard, staging_dir: StagingDir, repo_root:
     skip the replace when only those volatile fields changed (#1912 — avoid
     graph.yaml churn).
     """
-    staged_graph = staging_dir.root / "doctrine" / _GRAPH_FILENAME
+    staged_graph = staging_dir.root / PROJECT_PACK_DIRNAME / _GRAPH_FILENAME
     if not staged_graph.exists():
         return
 
-    live_graph = repo_root / _KITTIFY_DIRNAME / _DOCTRINE_DIRNAME / _GRAPH_FILENAME
+    live_graph = project_pack_path(repo_root, PROJECT_GRAPH_FILENAME)
     if not _substantively_equal(staged_graph.read_bytes(), live_graph, _VOLATILE_GRAPH_FIELDS):
         guard.replace(staged_graph, live_graph, caller="write_pipeline.promote[graph-replace]")
 
