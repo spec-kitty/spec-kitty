@@ -28,6 +28,7 @@ import ast
 
 import pytest
 
+from runtime.next import run_lock
 from runtime.next import runtime_bridge as rb
 from runtime.next import runtime_bridge_composition as _composition_seam
 from runtime.next import runtime_bridge_cores as _cores
@@ -881,6 +882,18 @@ def test_capture_pre_speculative_state_returns_none_on_os_error(tmp_path: Path) 
     (run_dir / "state.json").mkdir()
 
     assert rb._dn_capture_pre_speculative_state(run_dir) is None
+
+
+def test_capture_pre_speculative_state_returns_none_when_the_run_cursor_lock_is_busy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "state.json").write_bytes(b'{"a": 1}')
+    monkeypatch.setattr(run_lock, "_LOCK_TIMEOUT_S", 0.2)
+
+    with run_lock.run_cursor_lock(run_dir):
+        assert rb._dn_capture_pre_speculative_state(run_dir) is None
+    # Lock free: the same call captures (the None above was the lock, not the files).
+    assert rb._dn_capture_pre_speculative_state(run_dir) == (b'{"a": 1}', 0)
 
 
 def test_rollback_buffered_run_state_restores_bytes_and_truncates_events(tmp_path: Path) -> None:
