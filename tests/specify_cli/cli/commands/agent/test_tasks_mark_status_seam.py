@@ -171,7 +171,7 @@ def test_patched_output_error_intercepts_validate_inputs_bad_status() -> None:
     ):
         tasks_mark_status._ms_validate_inputs(st)
     error_mock.assert_called_once_with(
-        True, "Invalid status 'approved'. Must be 'done' or 'pending'."
+        True, "Invalid status 'approved'. Must be 'done', 'pending', 'skipped', or 'not_applicable'."
     )
 
 
