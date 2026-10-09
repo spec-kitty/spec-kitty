@@ -6,6 +6,6 @@ agent_profile: null
 guidance: null
 delegates_to: []
 depends_on:
-- tasks
+- tasks-packages
 sequence_index: null
 in_action_sequence: false

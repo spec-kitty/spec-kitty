@@ -40,15 +40,3 @@ commands:
     prompt: "Research the topic and create a structured plan"
   review:
     prompt: "Review the plan for completeness and feasibility"
-
-# Task type definitions for agent profile suggestion
-task_types:
-  plan:
-    agent_role: planner
-    description: "Planning work packages"
-  research:
-    agent_role: researcher
-    description: "Research work packages"
-  review:
-    agent_role: reviewer
-    description: "Review work packages"

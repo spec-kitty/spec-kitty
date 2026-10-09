@@ -486,7 +486,7 @@ class TestCanonicalStateAuthority:
         )
 
         # Verify it's the feature-level message (mentions feature name), not per-WP
-        feature_level_errors = [issue for issue in summary.activity_issues if "No canonical state found for feature" in issue]
+        feature_level_errors = [issue for issue in summary.activity_issues if "No canonical state found for mission" in issue]
         assert len(feature_level_errors) >= 1, f"Expected at least one feature-level error, got: {summary.activity_issues}"
 
 

@@ -3,8 +3,6 @@ description: Materialize work package files
 ---
 # /spec-kitty.tasks-packages - Generate Work Package Files
 
-**Version**: 3.2.0
-
 ## Purpose
 
 Generate individual `tasks/WP*.md` prompt files from the manifest in `wps.yaml`.
@@ -19,7 +17,7 @@ This step assumes `wps.yaml` already exists with complete WP definitions.
 
 **IMPORTANT**: This step works in the repository root checkout. NO worktrees created.
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, pass `--mission <handle>` to every command that accepts `--mission`.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -121,11 +119,11 @@ model: ""          # filled in Step 4a — model identifier (e.g., claude-sonnet
 **IMPORTANT — `plan_concern_refs` lives in `wps.yaml` only.** Do NOT copy `plan_concern_refs` into WP prompt frontmatter. `WPMetadata` uses `extra="forbid"`, so any WP prompt file with `plan_concern_refs` in its frontmatter will cause `finalize-tasks --validate-only` to raise a `ValidationError`.
 
 Body sections (in order):
-0. `## ⚡ Do This First: Load Agent Profile` — **REQUIRED. Must be the first section after the H1 title, before Objective.** Instructs the implementing agent to load the assigned profile via `/ad-hoc-profile-load` before reading anything else. Use this exact structure, substituting frontmatter values:
+0. `## ⚡ Do This First: Load Agent Profile` — **REQUIRED. Must be the first section after the H1 title, before Objective.** Instructs the implementing agent to load the assigned profile via the `spk-doctrine-profile-load` skill before reading anything else. Use this exact structure, substituting frontmatter values:
    ```markdown
    ## ⚡ Do This First: Load Agent Profile
 
-   Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the frontmatter, and behave according to its guidance before parsing the rest of this prompt.
+   Use the `spk-doctrine-profile-load` skill to load the agent profile specified in the frontmatter, and behave according to its guidance before parsing the rest of this prompt.
 
    - **Profile**: `{agent_profile}`
    - **Role**: `{role}`
@@ -146,7 +144,7 @@ Body sections (in order):
 5. `## Risks` — known risks and mitigations
 6. `## Reviewer Guidance` — what reviewers should focus on
 
-Include the implementation command: `spec-kitty agent action implement {wp_id} --agent <name>`
+Include the implementation command: `spec-kitty agent action implement {wp_id} --agent <name> --mission <mission-slug>`
 
 Sizing: target 200–500 lines (3–7 subtasks), maximum 700 lines (10 subtasks).
 If >700 lines would be needed: write the file anyway but add a `> NOTE: This WP
@@ -212,9 +210,11 @@ Copy `requirement_refs` from `wps.yaml` exactly as written, including `SC-###`, 
 
 **Note**: `plan_concern_refs` is a `wps.yaml`-only field. It must NOT appear in WP prompt frontmatter — `WPMetadata` (`extra="forbid"`) will reject any WP file that includes it.
 
-Include the correct implementation command:
-- `spec-kitty agent action implement WP01 --agent <name>`
-- `spec-kitty agent action implement WP02 --agent <name>`
+Include the implementation command in each WP prompt — the same form for every WP:
+
+```bash
+spec-kitty agent action implement <WP-id> --agent <name> --mission <mission-slug>
+```
 
 `finalize_tasks` computes execution lanes from dependencies and write ownership. Agents never choose a base branch manually.
 
@@ -266,7 +266,7 @@ After completing this step:
 - Each has proper frontmatter with `work_package_id`, `dependencies`, `owned_files`, `authoritative_surface`, `execution_mode`
 - `mission_dir/wps.yaml` is fully populated: all `owned_files`, `requirement_refs`, `subtasks`, and `prompt_file` fields are set
 
-**Next step**: `spec-kitty next --agent <name>` will advance to finalization.
+**Next step**: run `/spec-kitty.tasks-finalize` to validate dependencies and commit the task artifacts. These tasks sub-steps are stages of the top-level `tasks` action, not separate steps that `spec-kitty next` issues.
 
 ## Prompt Quality Guidelines
 

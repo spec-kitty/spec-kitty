@@ -9,7 +9,7 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+**In repos with multiple missions, pass `--mission <handle>` to every command that accepts `--mission`.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## Goal
 
@@ -198,18 +198,34 @@ The report file you pass MUST start with the `analysis-findings/v1` carrier from
 
 Treat persistence failure as command failure. The command is not complete until the JSON response reports success and names `analysis-report.md`.
 
-> **⚠️ Caution — Do not write `analysis-report.md` directly**
+> **⚠️ Caution — write the report to a path OUTSIDE the repository checkout**
 >
 > The `analysis-findings/v1` carrier (step 6) is the **input format** for `record-analysis`,
 > not the **persisted format**. `record-analysis` wraps the carrier in the outer-wrapper
 > format (`artifact_type: spec-kitty.analysis-report`) that the implement gate accepts.
 >
-> Writing `analysis-report.md` directly — without piping through `record-analysis` — leaves
-> the file in carrier format, which the implement gate rejects with `carrier_format_not_wrapped`.
-> If this happens, recover by running:
+> Write the report body to a scratch file **outside the repository checkout** (a temp or
+> scratch directory) and pass that path to `record-analysis`. Writing the report body into
+> the checkout — including writing `analysis-report.md` directly — both leaves the file in
+> carrier format (the implement gate then rejects it with `carrier_format_not_wrapped`) and
+> dirties the worktree, so `record-analysis` refuses with `DIRTY_WORKTREE`. Recover by
+> writing the body to a path outside the repository checkout and re-running `record-analysis`
+> against that path:
 > ```bash
-> spec-kitty agent mission record-analysis --mission <mission-slug> --input-file analysis-report.md --json
+> TMP_REPORT="$(mktemp -t analysis-report.XXXXXX.md)"   # outside the repository checkout
+> # write the report body (starting with the analysis-findings/v1 carrier) to "$TMP_REPORT"
+> spec-kitty agent mission record-analysis --mission <mission-slug> --input-file "$TMP_REPORT" --json
 > ```
+
+### 7a. Report Currency (staleness rule)
+
+The recorded `analysis-report.md` is current only while the planning inputs it
+was computed against are unchanged. Editing the spec, plan, tasks or the
+charter after the report is recorded makes it **stale**. A stale (or missing)
+report is refused downstream: `spec-kitty next` re-issues the analyze step, and
+`spec-kitty implement` refuses to claim a work package with
+`analysis_report_required`. Re-run `/spec-kitty.analyze` and record a fresh
+report whenever any of those inputs change.
 
 ### 8. Provide Next Actions
 

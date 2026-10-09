@@ -20,7 +20,7 @@ pytestmark = pytest.mark.fast
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_MISSIONS_ROOT = _REPO_ROOT / "src" / "specify_cli" / "missions"
+_MISSIONS_ROOT = _REPO_ROOT / "packs" / "built-in" / "missions"
 
 
 # Missions whose `mission-runtime.yaml` MUST validate against the runtime
