@@ -1,21 +1,21 @@
 {
-  "event_count": 189,
-  "last_event_id": "01M4EFD455Q28MR4QSR2C8PEWM",
-  "materialized_at": "2026-10-08T19:21:23.365859+00:00",
+  "event_count": 220,
+  "last_event_id": "01M4F921YT5JE4YMAQDR39NHR9",
+  "materialized_at": "2026-10-09T02:49:43.642679+00:00",
   "mission_number": "",
   "mission_slug": "charter-pack-cutover-01M491G6",
   "mission_type": "software-dev",
   "schema_version": 2,
   "summary": {
-    "approved": 20,
+    "approved": 25,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
-    "planned": 4
+    "in_review": 0,
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -685,18 +685,24 @@
     "WP21": {
       "actor": "claude",
       "agent": "claude",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "implementer_of_record": "claude",
-      "lane": "in_review",
-      "last_event_id": "01M4EFD455Q28MR4QSR2C8PEWM",
-      "last_transition_at": "2026-10-08T19:21:23.365859+00:00",
+      "lane": "approved",
+      "last_event_id": "01M4EJ57V005PDA6400099JM26",
+      "last_transition_at": "2026-10-08T20:09:30.720200+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "R3/R4 renamed (12 commits on lane-u, head b7cb25f5). r3r4 + no_src_module_named_for_retired_tier red->green; acceptance 309 passed/0 failed/0 xpassed. Step 0 dead-src-path literals fixed. Deviations: _CHARTER_PACK_ROUTING_LAYERS, charter_repo. WP18 follow-up: skill reference renamed to charter-artifact-structure.md (please confirm). Activity log: scratchpad/wp21-activity-log.md"
+        "R3/R4 renamed (12 commits on lane-u, head b7cb25f5). r3r4 + no_src_module_named_for_retired_tier red->green; acceptance 309 passed/0 failed/0 xpassed. Step 0 dead-src-path literals fixed. Deviations: _CHARTER_PACK_ROUTING_LAYERS, charter_repo. WP18 follow-up: skill reference renamed to charter-artifact-structure.md (please confirm). Activity log: scratchpad/wp21-activity-log.md",
+        "reviewer-renata cycle 1 APPROVE. Red-first confirmed at da77f06a (2 failed: no_src_module_named_for_retired_tier, retired_identifiers_absent[r3r4]); both scans non-vacuous (planted OrgDoctrineSource and a src/specify_cli/doctrine_plant path, both red). Acceptance 309 passed/1 skipped/44 xfailed/0 failed/0 xpassed. Old import paths fail, no stubs or aliases. Renamed gates collect identical counts (143/6/8/6/1). Assertions unchanged (only reformatting). Census reaches for _charter_pack_collect identical to _doctrine_collect at base, so the 2->10 bump is pair-specific with a stale check (base was already red at 4>2). migration_id, class and module names untouched. 37 gate files 906 passed/2 failed, module dirs 8632 passed/5 failed, all red at base. make test-fast 2281 passed; ruff and format clean; mypy 125 = base. Non-blocking: profile-load-reliability.md is doc_status active and line 127 is a live instruction to a dead path, so route it to WP22; c52be730 left links broken until b7cb25f5; the unification test name is stale (WP23)."
       ],
       "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP21:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
       "role": "reviewer",
       "shell_pid": 20233,
       "shell_pid_created_at": "1791487271.12",
@@ -707,32 +713,133 @@
       }
     },
     "WP22": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M49BS9PQF1ARK91962AHB2R5",
-      "last_transition_at": "2026-10-06T19:41:55.799705+00:00"
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4ESRD5VN664MJQM2X15K349",
+      "last_transition_at": "2026-10-08T22:22:18.811380+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP22 prose cutover: built-in/internal packs, skills, CLI help text, living docs, AGENTS.md/CLAUDE.md; usage-journey rewritten to activation presets; CLI reference + retrieval index regenerated. Prose slice green (0/894). Reviewer: please rule on the fixture exclude for the generated docs-retrieval-index (c5a4154f). Activity log: /tmp/claude-0/-home-user-spec-kitty/f9460057-6c9a-5dbf-a006-51ed9650d09d/scratchpad/WP22-activity-log.md",
+        "Changes requested: stale completion manifest (freshness gate red) and retired doctrine: key in environment-variables.md example; two small owned-doc fixes.",
+        "Review cycle 1 fixes: completion manifest regenerated (4cc5bbae, freshness gate red->green); retired config keys/module path in env-vars, configuration, calibration README and org pack guide (6e1019a0). Activity log: /tmp/claude-0/-home-user-spec-kitty/f9460057-6c9a-5dbf-a006-51ed9650d09d/scratchpad/WP22-activity-log.md",
+        "Cycle 2 approved. B1: completion manifest regenerated (freshness gate green). B2: env-var example uses charter_packs.org.packs and parses through load_pack_registry(strict=True). configuration.md and calibration README fixed; extra organisation_packs fix in create-an-org-doctrine-pack.md is correct. Acceptance 310p/1s/43xf/0f/0xp; gates 153p; tests/docs 1741p (1 known WP24 red); test-fast 2281p; docs-lint 0 errors; ruff clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP22:20261008",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2844,
+      "shell_pid_created_at": "1791496888.39",
+      "subtasks": {
+        "T101": "done",
+        "T102": "done",
+        "T103": "done",
+        "T104": "done"
+      }
     },
     "WP23": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M49BSD8JGAMQP1G384EB5BR0",
-      "last_transition_at": "2026-10-06T19:41:59.442634+00:00"
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4EZT3TW6T42MXQ18HH4NT72",
+      "last_transition_at": "2026-10-09T00:08:06.236874+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "tests/doctrine -> tests/charter_offering via git mv (325 files, 3955 collected before/after, 3941 passed/14 skipped); rosters (ci-module-registry, packs/ci-router/ci-nightly, shard timings, interpreter roster, corpus registry, timing invariant, ruff.toml, pyproject format-exclude sorted, count unchanged) in the move commit; AGENTS/CLAUDE test policy; tier-sense identifiers and 2 file names renamed; doctrine marker kept (pytest.ini description reworded). Acceptance 311p/1s/42xf/0f/0xp; gates+importers 1090p/1f (pre-existing glossary anchor red at base); make test-fast 2281p; ruff clean. Activity log: scratchpad/wp23-activity-log.md",
+        "WP23 cycle 1 approved (reviewer-renata). Verified: 325 files / 3955 tests collected at 577b862d (tests/doctrine) and HEAD (tests/charter_offering); node-id sets identical modulo path + the 2 file renames, remaining 33 diffs are 1:1 T106 test-name renames. Red-first non-vacuous (assert not tests/doctrine exists), assertion unchanged. No tests/doctrine stub/symlink/conftest. Objective grep: only WP24-routed docs/context/charter.md:463, docs/migrations/relocate-builtin-doctrine-packs.md:124-125, frozen fixture, and the acceptance assertion itself. Rosters: registry, shard timings, packs.yml filter+deselect, ci-router, ci-nightly, interpreter roster, corpus gate (73 entries, pure path rename), ruff.toml (7), pyproject format-exclude (137 renamed, 2063 unchanged, set-equal), AGENTS.md==CLAUDE.md byte-identical. Manifest regen reproducible (regenerate-graph = no diff). Tests: acceptance 310p/1s/42xf/1 latency flake under contention (passes 2/2 isolated); tests/charter_offering 3941p/14s; 16 gate files 479p; out-of-tree touched tests 536p/2s/1 known red (glossary parity, confirmed red at lane base 8ae9cb89 -> WP24); roster consumers 151p; make test-fast 2281p/8s; ruff check clean; ruff format 3447 formatted. Non-blocking notes for WP24/WP25: .github/ci-module-registry.yml:199-201 comment still says the doctrine test tree did not move (now stale); tests/charter_offering/drg/test_regen_roundtrip.py:76 message still says 'retired src/doctrine home'; activity log says tests/charter 8 files, 11 were touched (all path-only); ci-nightly shard-4 list no longer alphabetical (gates green)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP23:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 11851,
+      "shell_pid_created_at": "1791501998.79",
+      "subtasks": {
+        "T105": "done",
+        "T106": "done"
+      }
     },
     "WP24": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M49BSGX57RGCXR60RQCHR5CW",
-      "last_transition_at": "2026-10-06T19:42:03.173192+00:00"
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4EZN0PZ5TSCMZZJ4D3V7YET",
+      "last_transition_at": "2026-10-09T00:05:19.199092+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Glossary (6 terms, 4 retired, seed/pack deprecations, ADR 2026-08-22-2 citations repointed), CHANGELOG Breaking Before/After (10 'Charter pack cutover:' entries, 38 rows), runbook docs/migrations/charter-pack-cutover.md, superseded banners, migrations index. Acceptance 315 passed/0 failed/0 xpassed. Needs ratification: glossary-pack exemption in the FR-010 prose fixture (41ac0dbe). Sidecar PR draft in scratchpad wp24-sidecar-pr-draft.md.",
+        "Review cycle 1 approved (reviewer-renata). Red-first verified (5 failed at bc449d92), green at lane HEAD: acceptance 315 passed/1 skipped/38 xfailed/0 failed/0 xpassed. CHANGELOG Unreleased only (no released-section or version change); Before/After covers every contracts/cli.md row, every contracts/errors.md code, 13->7 skill map, config keys/dirs, descriptor fields, carry-over Python renames; >=20 claims verified against CLI/code. Only 'Charter pack cutover:' entries spell FR-018 tokens (scripted check, 86 entries). Runbook accurate vs migration/gate code; banners only on 2 superseded runbooks; ADR untouched; parity gate change is data update (non-vacuity re-proven by planted mismatch). Fixture exemption 41ac0dbe ratified. docs-lint 0 errors, ruff clean, test-fast 2281 passed. Non-blocking notes in report."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP24:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 15791,
+      "shell_pid_created_at": "1791502223.22",
+      "subtasks": {
+        "T107": "done",
+        "T108": "done",
+        "T109": "done",
+        "T110": "done",
+        "T115": "done"
+      }
     },
     "WP25": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01M49BSKWFJGPA4BDEYPEJV71D",
-      "last_transition_at": "2026-10-06T19:42:06.223184+00:00"
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4F921YT5JE4YMAQDR39NHR9",
+      "last_transition_at": "2026-10-09T02:49:43.642679+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP25 lane-y 080781e4..220bb317: FR-018 gate (0 hits, 2455 scanned >= floor 2392, allowlist empty; 2 orchestrator-ruled exemptions escalated: glossary pack by file, retrieval index historical blocks); FR-014 pins deleted with reasons; FR-016 allowlist 0, facade gate keyed on charter.offering (red then green); renames/closeout follow-ups. Acceptance 352 passed/1 skipped/0 failed/0 xfail. Escalation: census TICKETED_BASELINE 2 entries remain. Activity log: scratchpad wp25tools/WP25-activity-log.md",
+        "Rejected cycle 1: test_no_manual_global_state_mutation red (3 WP01 acceptance-suite sites, red at lane base too); fix in rework. Nit: manifest_loader docstring origin example. All other WP25 surfaces verified.",
+        "Review cycle 1 addressed: B1 global-state gate green via mock.patch.dict in the 3 WP01 sites (c7a9eb9c, golden generator_digest updated, golden data unchanged); N1 manifest_loader docstring (5adb0070). Gate + acceptance 417 passed/1 skipped/0 failed/0 xfail; nfr003 -n0 passed.",
+        "Cycle 2 approved (architect-alphonso). B1 fixed: test_no_manual_global_state_mutation red at 220bb317 -> green (gate+FR-018 107 passed); _isolated_home restores/removes HOME/XDG (removed-key case verified); golden data byte-identical, only _meta generator_digest 66da6357 (matches sha256), digest+nfr003 -n0 2 passed; acceptance 352 passed/1 skipped/0 failed/0 xfail/0 xpass. N1 fixed. Advisory: patch.dict(sys.modules) restores the whole mapping, so modules first imported during exec_module (yaml, tests.architectural._ast_scan, scripts.*) are dropped and later re-imported as copies; no src module affected, suite green; follow-up candidate. Census residue escalated to owner (unchanged)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP25:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 22544,
+      "shell_pid_created_at": "1791512771.57",
+      "subtasks": {
+        "T111": "done",
+        "T112": "done",
+        "T113": "done",
+        "T114": "done"
+      }
     }
   }
 }
