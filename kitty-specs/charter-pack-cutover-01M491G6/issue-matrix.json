@@ -1,5 +1,17 @@
 {
   "rows": {
+    "#3104": {
+      "evidence_ref": "Cited for context in WP13 (the #3104 empty-charter dispatch journey test, retargeted to charter activate --preset minimal); prior closed work, no work owed by this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
     "#3732": {
       "evidence_ref": "Epic executed by this mission; closed at WP25 closeout",
       "fr": null,
