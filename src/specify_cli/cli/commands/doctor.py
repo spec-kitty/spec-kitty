@@ -1073,7 +1073,7 @@ def mission_state(
 
 # ---------------------------------------------------------------------------
 # WP07 T035 + T048: `spec-kitty doctor charter-packs` — org-layer snapshot health
-# (formerly `doctor doctrine`; renamed by mission charter-pack-cutover-01M491G6, FR-006).
+# (renamed from the old org-pack doctor command by mission charter-pack-cutover-01M491G6, FR-006).
 # ---------------------------------------------------------------------------
 
 

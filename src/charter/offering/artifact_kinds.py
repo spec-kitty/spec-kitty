@@ -235,7 +235,7 @@ class ArtifactKind(StrEnum):
         ``ANTI_PATTERN``): directive, tactic, styleguide, toolguide, paradigm,
         procedure, agent profile and mission step contract. Several surfaces
         still cover exactly this set -- the org-layer override lint, the
-        ``doctor doctrine`` org-pack directory count and collision scan, and
+        ``doctor charter-packs`` org-pack directory count and collision scan, and
         the API source's fallback type list. They read it from here instead of
         restating it; a surface that should also cover a later kind switches
         to a broader predicate rather than editing this set (#5824 tracks

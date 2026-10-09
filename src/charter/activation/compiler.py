@@ -1091,9 +1091,10 @@ def _default_active_charter_service(repo_root: Path | None) -> ActiveCharterServ
     plus optional project overlay.
 
     The project-root candidate list (in priority order):
-    1. ``.kittify/doctrine/``  — Phase 3 synthesis target (FR-009 / T024).
-    2. ``src/charter/offering/``       — code-local built-in-layer path.
-    3. ``doctrine/``           — flat fallback.
+    1. ``.kittify/charter-packs/`` — the project pack root, the synthesis target (FR-009 / T024).
+    2. ``src/charter/offering/``   — code-local built-in-layer path.
+
+    :mod:`charter.activation._project_root_candidates` owns this list.
 
     Discovery is conditional on directory presence: legacy projects (pre-
     synthesis) that have none of these directories see ``project_root=None``

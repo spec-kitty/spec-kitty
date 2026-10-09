@@ -42,7 +42,7 @@ def _build_active_charter_service_with_org_layer(
     — replaces the former inline "build raw, then best-effort wrap" pattern
     that lived here (and independently in
     ``specify_cli.charter_runtime.lint.checks.org_layer`` and
-    ``specify_cli.doctrine_service_factory``, C-001). The unified builder
+    the former ``specify_cli`` service factory, C-001). The unified builder
     always self-resolves org roots and always computes ``active_languages``,
     and it always returns the activation-aware
     :class:`charter.activation.resolver.ActiveCharterService` wrapper — it never falls back

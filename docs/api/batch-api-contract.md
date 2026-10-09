@@ -2,7 +2,7 @@
 title: Batch Event Ingest API Contract
 description: Batch event ingest API contract for Spec Kitty — authentication flow, event envelope fields, request/response format, event schemas, lane vocabulary, and error categorization.
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-10-09'
 type: reference
 audience: docs/context/audience/internal/maintainer.md
 related:
@@ -858,70 +858,7 @@ All fixture event data validates against the Pydantic `Event` model. See `tests/
 
 ## 8. Tracker Snapshot Publish Payload (Feature 048)
 
-The CLI publishes tracker snapshots to a **separate endpoint** from the batch event API:
-
-```
-POST {server_url}/api/v1/connectors/trackers/snapshots/
-Authorization: Bearer <token>
-Content-Type: application/json
-Idempotency-Key: <sha256-hash>
-```
-
-**Authorization token resolution**: The CLI resolves the bearer token from, in order: (1) an explicit `--auth-token` parameter, (2) `credentials["access_token"]`, (3) `credentials["token"]`. If all sources are empty, the `Authorization` header is omitted entirely. The SaaS should expect any of these token types and must reject unauthenticated requests.
-
-This endpoint is independent of the batch event pipeline (`/api/v1/events/batch/`). The 15-field event envelope (Section 2) is unchanged by this feature.
-
-### 8.1 Resource Routing Fields (2.1.0+)
-
-Two new fields enable the SaaS to resolve `ServiceResourceMapping` records without additional CLI round-trips:
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `external_resource_type` | `string \| null` | Yes | Canonical wire value identifying the resource kind |
-| `external_resource_id` | `string \| null` | Yes | Provider-specific resource identifier |
-
-**Canonical wire values**:
-
-| Value | Provider | Credential Source | Example ID |
-|-------|----------|-------------------|------------|
-| `"jira_project"` | Jira | `credentials["project_key"]` | `"ACME"` |
-| `"linear_team"` | Linear | `credentials["team_id"]` | `"abc-123-def-456"` |
-| `null` | Unsupported or missing | — | `null` |
-
-### 8.2 Null Semantics
-
-Both fields are always atomically `null` or atomically populated:
-- Provider not in routing map (e.g., unsupported provider) → both `null`
-- Credential key missing or empty string → both `null`
-- Never one `null` and one populated
-
-A `null` value means "routing unavailable" — the SaaS falls back to `(provider, workspace)` resolution.
-
-### 8.3 Idempotency Key
-
-The idempotency key hash includes `external_resource_type` and `external_resource_id`, ensuring that rebinding to a different project key or team ID produces a different key even when other state is unchanged.
-
-### 8.4 Example Payload (Jira with Routing)
-
-```json
-{
-  "provider": "jira",
-  "workspace": "acme.atlassian.net",
-  "external_resource_type": "jira_project",
-  "external_resource_id": "ACME",
-  "doctrine_mode": "external_authoritative",
-  "doctrine_field_owners": {},
-  "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
-  "project_slug": "spec-kitty",
-  "issues": [],
-  "mappings": [],
-  "checkpoint": {"cursor": null, "updated_since": null}
-}
-```
-
-### 8.5 Full Payload Schema
-
-See [tracker-snapshot-publish.md](../../kitty-specs/048-tracker-publish-resource-routing/contracts/tracker-snapshot-publish.md) for the complete field reference, null semantics, backward compatibility notes, and additional example payloads (Linear, unsupported provider).
+**Historical.** The CLI no longer publishes tracker snapshots: `sync_publish` refuses for both SaaS-backed and local tracker providers (`src/specify_cli/tracker/saas_service.py`, `src/specify_cli/tracker/local_service.py`, #3168), so this repository produces no snapshot payload for the SaaS to validate. The endpoint contract is owned upstream (`spec-kitty/saas`). The payload the CLI used to send, with its routing fields, null semantics and idempotency key, is recorded in [tracker-snapshot-publish.md](../../kitty-specs/048-tracker-publish-resource-routing/contracts/tracker-snapshot-publish.md).
 
 ---
 

@@ -447,7 +447,7 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     merges the COMPLETE graph — any org edge endpoint that binds to nothing.
 
     Dangling endpoints land in the existing ``errors`` array rather than a
-    dedicated key. ``doctor doctrine``'s collector keeps a separate
+    dedicated key. ``doctor charter-packs``'s collector keeps a separate
     ``dangling_endpoints`` list because its renderer reads it; nothing renders
     such a key here, and an unread payload slot is the inert-schema-slot defect
     this mission ratchets elsewhere. ``status`` already prints every ``errors``
@@ -558,7 +558,7 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
         # Without this, ``charter status --json`` returned ``org_layer.errors:
         # []`` for a graph whose edge named nothing — a machine-readable clean
         # bill for an unclean graph, on the very array built to carry the
-        # finding, while ``doctor doctrine`` reported it from identical inputs.
+        # finding, while ``doctor charter-packs`` reported it from identical inputs.
         result["errors"].extend(validate_dangling_references(merged))
     except Exception as exc:  # noqa: BLE001 — status must not crash on a bad pack
         # Attributed separately from the merge above: the merge succeeded, so

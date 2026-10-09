@@ -1,6 +1,6 @@
 """SPDD/REASONS pack activation detection.
 
-Single source of truth for "is the SPDD/REASONS doctrine pack active for this
+Single source of truth for "is the SPDD/REASONS charter content active for this
 project?". The helper inspects the project's real activation authority --
 ``.kittify/config.yaml``'s (or, when a ``charter:`` string pointer resolves,
 the pointed-at ``charter.yaml``'s) top-level ``activated_paradigms``/

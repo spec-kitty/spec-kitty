@@ -86,7 +86,7 @@ def _consumer_policy_path(repo_root: Path) -> Path:
     """Return the consumer allowlist path to read for *repo_root*.
 
     Resolved through the project pack root (FR-016); the retired
-    ``.kittify/doctrine/`` tree is never read (FR-011).
+    pre-cutover project directory is never read (FR-011).
     """
     return project_pack_root(repo_root) / PACK_POLICY_FILENAME
 
@@ -416,7 +416,7 @@ def configured_pack_names(repo_root: Path, pack_roots: Mapping[str, Path]) -> fr
     """Every pack name the repo configures: the registry's names plus *pack_roots*.
 
     The one definition of "configured" that ``revoked_pack_sanctions`` targets are
-    validated against, shared by ``doctor doctrine`` and the override gate. The
+    validated against, shared by ``doctor charter-packs`` and the override gate. The
     caller has already read the registry once, so the legacy-config
     ``DeprecationWarning`` is suppressed here rather than emitted a second time.
     """

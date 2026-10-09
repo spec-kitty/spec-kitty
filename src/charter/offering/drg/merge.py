@@ -806,7 +806,7 @@ def _dangling_org_endpoints(
     graph — the real shipped built-in against every configured pack — escalates
     the same finding to a structured error via
     :func:`charter.offering.drg.validator.validate_dangling_references`, whose docstring
-    carries the predicate. Today that is ``doctor doctrine`` (both its JSON
+    carries the predicate. Today that is ``doctor charter-packs`` (both its JSON
     collector and its human section) and ``charter status``; it is a rule about
     the merge, not a property of a particular command.
 

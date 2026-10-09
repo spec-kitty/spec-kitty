@@ -130,7 +130,7 @@ class MissionTypeProfile(BaseModel):
     ``BaseArtifactRepository`` (``doctrine/base.py``) keys every overlay on the
     raw YAML ``id`` field and **skips id-less overlay files** (``base.py:249``),
     so a project override at
-    ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` only
+    ``.kittify/charter-packs/mission_types/<type>/governance-profile.yaml`` only
     field-merges onto the shipped profile when it carries an ``id``.  This
     profile therefore exposes an ``id`` that is bound to ``mission_type`` by an
     invariant: **``id == mission_type`` for every profile** (shipped or
@@ -791,7 +791,7 @@ def _resolve_governance_slot(
 
     The profile is loaded through :class:`~charter.activation.mission_type_profile_repository.MissionTypeProfileRepository`
     so a per-type project override at
-    ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` field-merges
+    ``.kittify/charter-packs/mission_types/<type>/governance-profile.yaml`` field-merges
     onto the shipped baseline via the shared ``doctrine/base.py`` overlay
     (project > org > builtin) — no second merge site is added here.  ``provenance``
     reflects the winning layer for that type and is computed **eagerly** here
@@ -1286,7 +1286,7 @@ def _mission_type_profile_repository(
     ``repo_root is None`` yields a **shipped-only** repository (built-in layer,
     no project overlay) — the shape used by the built-in resolution ATDD suite.
     A concrete ``repo_root`` wires the project overlay at
-    ``.kittify/doctrine/mission_types/`` so per-type overrides ride the
+    ``.kittify/charter-packs/mission_types/`` so per-type overrides ride the
     ``doctrine/base.py`` stack.
 
     Imported lazily to avoid a charter-internal import cycle
@@ -1314,7 +1314,7 @@ def _load_mission_type_profile(
     Resolves ``src/charter/offering/missions/<mission_type>/governance-profile.yaml`` as
     the shipped baseline and — when ``repo_root`` is given — field-merges a
     project override from
-    ``<repo_root>/.kittify/doctrine/mission_types/<mission_type>/governance-profile.yaml``
+    ``<repo_root>/.kittify/charter-packs/mission_types/<mission_type>/governance-profile.yaml``
     via :class:`~charter.activation.mission_type_profile_repository.MissionTypeProfileRepository`
     (project > org > builtin; :class:`~charter.offering.base.ArtifactLayerCollisionWarning`
     on shadow).  Keying on the ``id == mission_type`` invariant means a profile

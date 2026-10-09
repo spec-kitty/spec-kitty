@@ -3,7 +3,7 @@
 This module resolves the `id`-keyed pack-lineage edge introduced by the
 pack-metadata manifest unification: ``parent_pack`` — a pack's parent, by
 ``pack_id`` (see ``data-model.md``'s ``PackDescriptor.parent_pack``). The
-former ``accompanies_doctrine_pack`` binding was retired with no replacement
+former accompanying-pack binding was retired with no replacement
 concept (#3732): a pack that still declares it is rejected with
 ``RETIRED_PACK_FIELD``.
 

@@ -9,7 +9,7 @@ This is distinct from the generated ``PackManifest`` (``pack-manifest.yaml``),
 which holds the manifest schema, constituents, and provenance.
 
 :func:`load_pack_descriptor` reads one ``pack.yaml``. A descriptor that still
-carries a retired field (``accompanies_doctrine_pack``, #3732) is rejected with
+carries a retired field (see :mod:`~charter.offering.packs.retired_fields`, #3732) is rejected with
 :class:`~charter.offering.packs.retired_fields.RetiredPackFieldError` (code
 ``RETIRED_PACK_FIELD``) naming the file, the field and its replacement, before
 pydantic's generic "extra fields not permitted" error. Identity resolution is

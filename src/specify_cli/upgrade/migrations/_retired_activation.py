@@ -73,7 +73,7 @@ Org-pack-resolvable skip
 An id moved to an org pack (e.g. ``packs/internal``) still resolves for a
 project that loads that pack via ``.kittify/config.yaml``'s
 ``charter_packs.org.packs``, or still declares it under a retired key
-(``doctrine.org`` / ``organisation_packs``, read by
+(the pre-cutover org-pack keys, read by
 :func:`_retired_key_org_roots` because the registry no longer reads them).
 :func:`_still_resolves_via_org_pack`
 is the cheap check: does any configured, existing org-pack root carry
@@ -357,8 +357,8 @@ def _still_resolves_via_org_pack(project_path: Path, retirement: Retirement) -> 
 def _retired_key_org_roots(project_path: Path) -> list[Path]:
     """Existing org pack roots a config still declares under a retired key.
 
-    The retired keys are ``doctrine.org`` (a ``packs`` list or the single-pack
-    form) and ``organisation_packs``. The org-pack registry no longer reads them
+    The retired keys are the pre-cutover org-pack keys (named in
+    :mod:`specify_cli.migration.legacy_charter_layout`). The org-pack registry no longer reads them
     (#3732 FR-011), and this engine cannot rely on the 4.0.0rc6 charter-pack
     cutover having rewritten them: that migration is ``runs_first`` when it
     applies, but upgrade selection evaluates ``detect()`` of every pending

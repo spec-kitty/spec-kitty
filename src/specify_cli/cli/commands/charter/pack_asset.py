@@ -56,8 +56,8 @@ def _build_asset_repository() -> AssetRepository:
     (packaged data — editable checkout, installed wheel, or an
     ``importlib.resources`` sibling; no built-in-root parameter needed here),
     so the command works from a clean installation with no repository
-    present. When invoked inside a project, the project ``.kittify/doctrine``
-    layer and configured org packs are layered on top (more specific tiers
+    present. When invoked inside a project, the project pack root
+    (``.kittify/charter-packs/``) layer and configured org packs are layered on top (more specific tiers
     win).
 
     WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T012): the raw

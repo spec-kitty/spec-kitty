@@ -94,7 +94,7 @@ def load_org_drg(
         loader: every configured pack is loaded via
         :func:`charter.offering.drg.org_pack_loader.load_org_pack`, which raises
         :class:`OrgPackMissingError` when a pack ships no
-        ``drg/fragment.yaml``. The diagnostic callers (``doctor doctrine`` /
+        ``drg/fragment.yaml``. The diagnostic callers (``doctor charter-packs`` /
         ``charter list`` / lint / status) keep this default so their
         error-reporting stays byte-identical (NFR-001).
 

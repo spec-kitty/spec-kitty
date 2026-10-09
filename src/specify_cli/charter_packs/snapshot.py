@@ -77,7 +77,7 @@ def write_snapshot(
             root lives (same semantics as ``OrgPackConfig.subdir``). Artifact
             validation and ``pack-manifest.yaml`` counts/write target the
             effective root (``local_path/subdir`` when set), matching FR-007
-            and ``doctor doctrine`` which read from ``effective_root``.
+            and ``doctor charter-packs`` which read from ``effective_root``.
 
     Returns:
         The :class:`FetchResult` produced by ``source.fetch`` (with extra

@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 def _load_graph_file(path: Path) -> Any | None:
     """Load a DRG graph file (``.yaml``/``.yml``/``.json``) into a ``DRGGraph``.
 
-    Returns ``None`` when the doctrine package is not importable, the file
+    Returns ``None`` when the charter offering is not importable, the file
     cannot be parsed, or validation against ``DRGGraph`` fails.
     """
     try:
@@ -68,7 +68,7 @@ def _load_built_in_drg() -> Any | None:
     seam (WP03, mission #2680) so the built-in graph is read in exactly one
     place and follows the monolith->fragment migration (WP05) transparently.
     The lazy, exception-safe shape is preserved: returns ``None`` when the
-    doctrine package is not importable or the graph cannot be loaded, which the
+    charter offering is not importable or the graph cannot be loaded, which the
     caller maps to :class:`GraphState.MISSING`.
     """
     try:

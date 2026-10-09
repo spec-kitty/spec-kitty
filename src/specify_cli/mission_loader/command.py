@@ -258,7 +258,7 @@ def _resolve_contract_refs(
     aligned with the runtime so an id that resolves here will resolve
     at runtime too.
     """
-    # Local import to avoid load-time coupling on the doctrine package.
+    # Local import to avoid load-time coupling on the charter offering.
     from charter.drg import resolve_org_dirs
     from charter.mission_steps import (
         MissionStepContractRepository,

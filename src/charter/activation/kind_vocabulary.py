@@ -191,9 +191,9 @@ def _scan_roots(
     those redundant overrides were removed in favour of the recursive base, and
     the parity/totality gate pins loader↔resolver agreement.
     ``layer_roots`` is the modern charter layer map.
-    Org roots contribute ``<root>/doctrine/<plural>/org``. Project roots
-    contribute ``<root>/doctrine/<singular>`` for live ``.kittify/doctrine``
-    overlays. Resolution scans project first, then org packs from last to
+    Only the project layer is read from it: its root is the project pack root
+    (``.kittify/charter-packs/``) and kind directories join onto it; org packs
+    are scanned flat through ``org_roots``. Resolution scans project first, then org packs from last to
     first declaration, then built-in, matching runtime overlay precedence.
 
     Several built-in kinds (tactics, styleguides, toolguides) organize
@@ -439,7 +439,7 @@ def resolve_artifact_urn(
             :meth:`ArtifactKind.from_operator_token` first).
         config_id: The config/file-stem ID, e.g.
             ``"001-architectural-integrity-standard"``.
-        offering_root: Resolved doctrine package root (passed as data, C-008).
+        offering_root: Resolved charter offering root (passed as data, C-008).
         org_roots: Optional additional org/project doctrine roots to scan.
         layer_roots: Optional modern layer map, e.g. ``{"org": <pack-root>}``.
 
@@ -588,7 +588,7 @@ def resolve_config_id(
 
     Args:
         urn: A DRG URN node ID, e.g. ``"directive:DIRECTIVE_001"``.
-        offering_root: Resolved doctrine package root (passed as data, C-008).
+        offering_root: Resolved charter offering root (passed as data, C-008).
         org_roots: Optional additional org/project doctrine roots to scan.
         layer_roots: Optional modern layer map, e.g. ``{"org": <pack-root>}``.
         resolution_pass: Optional memo shared by several resolutions in one

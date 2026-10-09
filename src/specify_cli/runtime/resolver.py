@@ -300,7 +300,7 @@ def _resolve_asset(
     1a. ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` (mission-scoped)
     1b. ``.kittify/overrides/{subdir}/{name}`` (global, backward-compatible fallback)
 
-    Tier 3 (org) probes each configured org doctrine pack root, in
+    Tier 3 (org) probes each configured org charter pack root, in
     declaration order, before falling through to the global-mission tier.
     Sourced via the lazy ``charter.drg.resolve_org_roots`` facade (DEC-003) --
     never a direct ``doctrine.*`` import from this module.
@@ -339,7 +339,7 @@ def _resolve_asset(
         _warn_legacy_asset(legacy)
         return ResolutionResult(path=legacy, tier=ResolutionTier.LEGACY, mission=mission)
 
-    # Tier 3 -- org (sourced from configured org doctrine packs). Lazy import
+    # Tier 3 -- org (sourced from configured org charter packs). Lazy import
     # mirrors the five existing specify_cli/** call sites that route org-root
     # resolution through this facade (DEC-003) -- never a direct
     # ``doctrine.*`` import from runtime. No try/except around
@@ -808,7 +808,7 @@ def resolve_mission(
         _warn_legacy_asset(legacy)
         return ResolutionResult(path=legacy, tier=ResolutionTier.LEGACY, mission=name)
 
-    # Tier 3 -- org (sourced from configured org doctrine packs). Lazy import
+    # Tier 3 -- org (sourced from configured org charter packs). Lazy import
     # mirrors _resolve_asset's org-tier import above (DEC-003); no
     # try/except around resolve_org_roots() -- see the identical rationale
     # in _resolve_asset above (DEC-005, NFR-001). ``quiet=True`` -- see the

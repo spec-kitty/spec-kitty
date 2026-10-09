@@ -214,7 +214,7 @@ def validate_dangling_references(graph: DRGGraph) -> list[str]:
     conflicts, so every qualified endpoint dangles there by construction and
     the check would report only noise.
 
-    An earlier revision of this docstring named ``spec-kitty doctor doctrine``
+    An earlier revision of this docstring named the org-pack doctor command
     as "the one place" holding a complete graph. That was false — three runtime
     callers build the merge from byte-identical inputs, and stating the claim as
     a uniqueness rather than a predicate is what let two of them ship a clean

@@ -3,7 +3,7 @@
 The operator-facing config shape belongs below both ``charter`` and
 ``specify_cli`` so every consumer sees the same configured packs. The
 canonical ``charter_packs.org.packs`` schema is the only shape read.
-The retired ``doctrine.org`` and top-level ``organisation_packs`` forms are
+The retired pre-cutover org-pack keys are
 rewritten by ``spec-kitty upgrade``; an unmigrated project is refused at the
 CLI root (``LEGACY_CHARTER_STATE``, mission ``charter-pack-cutover-01M491G6``
 FR-011), so nothing here reads them.
@@ -189,7 +189,7 @@ def _yaml() -> YAML:
 
 
 class OrgPackConfig(BaseModel):
-    """Single named org doctrine pack entry.
+    """Single named org charter pack entry.
 
     Identity
     --------
@@ -370,7 +370,7 @@ class OrgPackConfig(BaseModel):
 
 
 class PackRegistry(BaseModel):
-    """Ordered list of configured org doctrine packs."""
+    """Ordered list of configured org charter packs."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -400,7 +400,7 @@ def load_pack_registry(repo_root: Path, *, quiet: bool = False, strict: bool = F
     """Read configured org packs from ``repo_root/.kittify/config.yaml``.
 
     The one shape read: ``charter_packs.org.packs[]`` with ``name`` and
-    ``local_path``. The retired ``doctrine.org`` and ``organisation_packs``
+    ``local_path``. The retired pre-cutover org-pack
     keys are not read (``spec-kitty upgrade`` rewrites them; the CLI-root
     ``LEGACY_CHARTER_STATE`` gate refuses a project that still has them), so a
     config carrying only those yields an empty registry, never an error.

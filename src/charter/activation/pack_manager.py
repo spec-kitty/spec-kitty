@@ -873,8 +873,8 @@ class ActiveCharterManager:
     ) -> list[tuple[str, Path]]:
         """Return ``(layer, directory)`` pairs to scan for *kind_token*.
 
-        The built-in layer is rooted under the installed doctrine package
-        (``src/doctrine``). Org/project roots are supplied **as data** (C-008).
+        The built-in layer is rooted under the installed built-in pack
+        (``packs/built-in``). Org/project roots are supplied **as data** (C-008).
         Org roots use the flat pack layout ``<plural>/``. The project
         root is the project pack root (``.kittify/charter-packs/``) and uses
         the flat ``<singular>`` kind layout. Non-existent directories are

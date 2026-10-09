@@ -22,7 +22,7 @@ def resolve_layer_roots(repo_root: Path) -> dict[str, Path]:
 
     ``roots["project"]`` is the project pack root, present only when it is a
     directory (:func:`kernel.charter_pack_paths.project_pack_root`; the
-    retired ``.kittify/doctrine/`` tree is never read, FR-011).
+    retired pre-cutover project directory is never read, FR-011).
     """
     roots: dict[str, Path] = {}
 

@@ -7,7 +7,7 @@ else is implementation detail.
 
 All implementations MUST:
 
-* Write the doctrine pack into ``target_dir`` such that the directory contains
+* Write the charter pack into ``target_dir`` such that the directory contains
   at least one recognised artifact subdirectory (``directives/``, ``tactics/``,
   ``styleguides/``, ``toolguides/``, ``paradigms/``, ``procedures/``,
   ``agent_profiles/``, ``mission_step_contracts/``) on success.
@@ -62,7 +62,7 @@ class FetchResult:
 
 @runtime_checkable
 class OrgCharterPackSource(Protocol):
-    """Fetch-time source adapter for org doctrine packs.
+    """Fetch-time source adapter for org charter packs.
 
     Implementations pull governance artifacts from a remote location and
     write a validated snapshot to ``target_dir``.  No network calls are made

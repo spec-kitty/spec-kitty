@@ -12,7 +12,7 @@ Layer rule: ``kernel`` imports nothing upward (no ``charter``, ``glossary``,
 ``runtime`` or ``specify_cli``), so every layer can use this module.
 
 There is no legacy read fallback (FR-011): ``spec-kitty upgrade`` moves the
-retired ``.kittify/doctrine/`` tree here, and the CLI-root
+retired pre-cutover project directory here, and the CLI-root
 ``LEGACY_CHARTER_STATE`` gate refuses a project that still has it.
 """
 

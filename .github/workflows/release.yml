@@ -234,7 +234,7 @@ jobs:
           # checkout, so use the tracked tree as the source of truth here too.
           #
           # Path re-homed (charter-code-topology-01M152G1, S5): the former
-          # src/doctrine package relocated to src/charter/offering (S2a), so this
+          # built-in package relocated to src/charter/offering (S2a), so this
           # payload check now counts that tree / the wheel's charter/offering/
           # extraction path. The prior src/doctrine/hatch_build.py +
           # src/doctrine/pyproject.toml exclusions are gone too -- the dormant,

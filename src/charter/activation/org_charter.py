@@ -2,7 +2,7 @@
 
 This module defines the :class:`OrgCharterPolicy` Pydantic model and the
 loader / merger that produce a merged policy across all configured org
-doctrine packs.  It also exposes :func:`apply_org_charter_pre_fill`,
+charter packs.  It also exposes :func:`apply_org_charter_pre_fill`,
 which non-destructively pre-fills the project-level charter interview
 answers YAML with org-level defaults.
 
@@ -376,7 +376,7 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
     is normalized to config-stem form via :func:`_normalize_required_ids`
     before being handed to ``promote_activations`` — see that function's
     docstring. Resolving the doctrine root is best-effort: if it cannot be
-    resolved (rare — a broken/uninstalled doctrine package), ids are
+    resolved (rare — a broken/uninstalled charter offering), ids are
     promoted verbatim, matching this function's pre-fix behaviour rather
     than failing the whole (non-destructive, advisory) pre-fill flow.
 

@@ -11,7 +11,7 @@ via ``_build_active_charter_service``'s "always wrap" contract
 FR-008 unification (charter-sole-door-bypass-closure-01KZ3WAA WP01): this
 module now also exposes the single canonical
 :func:`build_active_charter_service` — the ONE public entry point
-that replaces ``specify_cli.doctrine_service_factory.build_active_charter_service``
+that replaces the former ``specify_cli`` service factory's builder
 (the latter became a thin re-export of this one, C-001, and was deleted in
 #3732 with every caller repointed here). It is itself a
 thin delegate to :func:`_build_active_charter_service` — the
@@ -48,7 +48,7 @@ sanctioned unfiltered-diagnostic form; see that module's docstring) and
 * ``org_roots`` is always self-resolved via
   :func:`charter.offering.drg.org_pack_config.resolve_org_roots` when a caller does
   not supply an explicit override (the prior behaviour of
-  ``specify_cli.doctrine_service_factory``'s builder) — no caller can
+  the former ``specify_cli`` service factory's builder) — no caller can
   silently lose the org layer by omitting the argument.
 
 Cycle note: :func:`_build_active_charter_service` calls
@@ -272,7 +272,7 @@ def build_active_charter_service(
     """Build the ONE canonical activation-aware ``ActiveCharterService`` (FR-008, C-001).
 
     This is the single unified builder — replacing
-    ``specify_cli.doctrine_service_factory.build_active_charter_service``
+    the former ``specify_cli`` service factory's builder
     (a thin re-export of this function until #3732 deleted it) and the inline "build raw,
     conditionally wrap" pattern previously duplicated in
     ``specify_cli/charter_runtime/lint/checks/org_layer.py`` and

@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 # Canonical location of the synthesis manifest.
 MANIFEST_PATH = Path(".kittify/charter/synthesis-manifest.yaml")
 #: Every entry lives under the project charter pack root (FR-016). A manifest
-#: still listing the retired ``.kittify/doctrine/`` prefix is rewritten by
+#: still listing the retired pre-cutover project prefix is rewritten by
 #: ``spec-kitty upgrade`` and otherwise fails :func:`verify` (FR-011).
 _ARTIFACT_PATH_PREFIX = PROJECT_PACK_ROOT
 _PROVENANCE_PATH_PREFIX = Path(".kittify/charter/provenance")
@@ -70,7 +70,7 @@ class ManifestArtifactEntry(BaseModel):
     """Repo-relative path to the artifact YAML under ``.kittify/charter-packs/``.
 
     A manifest written before the cutover migration carries the retired
-    ``.kittify/doctrine/`` prefix until ``spec-kitty upgrade`` rewrites it;
+    project prefix until ``spec-kitty upgrade`` rewrites it;
     :func:`verify` rejects that prefix (FR-011).
     """
 

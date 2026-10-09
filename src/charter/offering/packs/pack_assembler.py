@@ -1,4 +1,4 @@
-"""Pack assembly for org doctrine packs.
+"""Pack assembly for org charter packs.
 
 Merges multiple input packs into a single distributable pack directory.
 
@@ -56,7 +56,7 @@ if TYPE_CHECKING:
     # Type-checking-only: this module has no static top-level runtime
     # doctrine import (see ``_copy_drg_fragments``'s dynamic
     # ``DRGLoadError``/``load_graph`` import below) so it stays importable
-    # when the doctrine package is stripped from a test environment. A
+    # when the charter offering is stripped from a test environment. A
     # ``TYPE_CHECKING``-guarded import never executes at runtime, so it does
     # not reintroduce that hard dependency.
     from charter.offering.drg.models import DRGGraph

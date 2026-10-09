@@ -118,8 +118,8 @@ def default_profile_repository(project_root: Path) -> AgentProfileRepository:
     (the #3176 builder overlay seam, WP02). That seam resolves the inner
     ``charter.offering.service.CharterOfferingService``'s agent-profile project overlay at
     ``.kittify/agent_profiles`` — the path the builder's default
-    ``resolve_project_root`` candidates (``.kittify/doctrine`` / ``src/doctrine``
-    / ``doctrine``) never reach — so every seeded ``.kittify/agent_profiles/
+    ``resolve_project_root`` candidates (``.kittify/charter-packs`` /
+    ``src/charter/offering``) never reach — so every seeded ``.kittify/agent_profiles/
     *.agent.yaml`` stays visible with ``project`` provenance. ``specify_cli``
     consuming the ``charter`` builder is the correct dependency direction
     (C-001); the param lives in ``charter``/``doctrine``.

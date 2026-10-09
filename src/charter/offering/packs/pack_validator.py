@@ -1,4 +1,4 @@
-"""Pack-layout validation for org doctrine packs.
+"""Pack-layout validation for org charter packs.
 
 See ``kitty-specs/layered-doctrine-org-layer-01KRNPEE/contracts/pack-layout.md``
 for the normative contract enforced here.
@@ -158,7 +158,7 @@ class ValidationIssue:
     * ``profile_skipped`` — an agent-profile file was recorded by
       ``AgentProfileRepository`` as skipped (e.g. a post-merge field-conflict
       failure), surfaced here so ``pack validate`` reports it without a
-      separate ``spec-kitty doctor doctrine --json`` invocation.
+      separate ``spec-kitty doctor charter-packs --json`` invocation.
     * ``drg_root_graph_missing`` — the pack's ``drg/`` directory contains one
       or more ``*.graph.yaml`` fragments but the pack has no top-level
       ``*.graph.yaml`` **and** no ``drg/fragment.yaml`` — the runtime
@@ -224,7 +224,7 @@ class ValidationResult:
 def artifact_schema_registry() -> dict[str, tuple[str, type[BaseModel]]]:
     """Map plural directory name → ``(glob_pattern, pydantic_model)``.
 
-    Imported lazily to avoid loading the heavy doctrine package at module
+    Imported lazily to avoid loading the heavy charter offering at module
     import time (keeps ``--help`` snappy).
     """
     from charter.offering.agent_profiles.profile import AgentProfile
@@ -394,7 +394,7 @@ def validate_pack(
     check_drg_root: bool = True,
     org_charter_check: OrgCharterCheck | None = None,
 ) -> ValidationResult:
-    """Validate a doctrine pack directory.
+    """Validate a charter pack directory.
 
     Returns a :class:`ValidationResult` with ``ok=False`` if any error was
     found.  Advisories do not affect ``ok``.
@@ -888,7 +888,7 @@ def _validate_drg(
     try:
         from charter.offering.drg.loader import DRGLoadError, load_built_in_graph, load_graph
         from charter.offering.drg.models import DRGGraphSchemaError
-    except ModuleNotFoundError:  # pragma: no cover - doctrine package always present
+    except ModuleNotFoundError:  # pragma: no cover - charter offering always present
         return errors, advisories
 
     fragments = sorted(drg_dir.glob(_DRG_GRAPH_GLOB))
