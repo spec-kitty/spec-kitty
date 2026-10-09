@@ -106,6 +106,18 @@ def _gate_run_env() -> dict[str, str]:
     return env
 
 
+# Inherited interpreter-selection variables that make a ``uv run --project
+# <lane>`` gate import another checkout's code (#2803): a PYTHONPATH pointing
+# at the primary checkout's ``src``, or a VIRTUAL_ENV / UV_PROJECT_ENVIRONMENT
+# pointing at its environment.
+_UV_ENV_LEAK_KEYS = ("PYTHONPATH", "UV_PROJECT_ENVIRONMENT", "VIRTUAL_ENV")
+
+
+def _strip_interpreter_path_env(env: dict[str, str]) -> dict[str, str]:
+    """Return ``env`` without the variables that redirect ``uv`` off the lane."""
+    return {key: value for key, value in env.items() if key not in _UV_ENV_LEAK_KEYS}
+
+
 def _launch_failed_error(exc: OSError) -> str:
     """Shared ``OSError`` launch-failure message for the head-run subprocess."""
     return f"scoped test run failed to launch: {exc}"
@@ -458,6 +470,10 @@ def run_scoped_tests_at_head(
             [*test_targets, f"--junitxml={junit_path}", "-q"],
             repo_root=repo_root,
         )
+        if command[0] == "uv":
+            # Scoped to the uv path: the sys.executable fallback may rely on
+            # an inherited PYTHONPATH to find the code under test.
+            env = _strip_interpreter_path_env(env)
         try:
             with _scoped_run_lock():
                 process = _launch_scoped_process(
