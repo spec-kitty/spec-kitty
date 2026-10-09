@@ -1,0 +1,345 @@
+schema_version: 1
+mission_id: 01M491G6102N7NRMAW3219Z2F9
+mission_slug: charter-pack-cutover-01M491G6
+mission_number: 220
+friendly_name: Charter offering, activation presets and the doctrine-to-charter cutover
+mission_type: software-dev
+target_branch: issue-3732-charter-pack-rename
+created_at: '2026-10-09T07:55:22.484957+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-09T07:55:22.484957+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-030
+- id: h-002
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-030
+- id: h-003
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-030
+- id: h-004
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-030
+- id: h-005
+  category: implementation
+  summary: WP10 completed without rejection cycles
+  evidence_refs:
+  - e-030
+- id: h-006
+  category: implementation
+  summary: WP15 completed without rejection cycles
+  evidence_refs:
+  - e-030
+- id: h-007
+  category: implementation
+  summary: WP16 completed without rejection cycles
+  evidence_refs:
+  - e-030
+- id: h-008
+  category: implementation
+  summary: WP19 completed without rejection cycles
+  evidence_refs:
+  - e-030
+- id: h-009
+  category: implementation
+  summary: WP20 completed without rejection cycles
+  evidence_refs:
+  - e-030
+- id: h-010
+  category: implementation
+  summary: WP21 completed without rejection cycles
+  evidence_refs:
+  - e-030
+- id: h-011
+  category: implementation
+  summary: WP23 completed without rejection cycles
+  evidence_refs:
+  - e-030
+- id: h-012
+  category: implementation
+  summary: WP24 completed without rejection cycles
+  evidence_refs:
+  - e-030
+not_helpful:
+- id: n-014
+  category: doc
+  summary: analysis-report.md records 8 finding(s)
+  evidence_refs:
+  - e-044
+  details: The analysis-report.md artifact for this mission records 8 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: review_loop
+  summary: WP01 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-031
+  details: WP WP01 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-002
+  category: review_loop
+  summary: WP03 required 2 rejection cycle(s) before approval
+  evidence_refs:
+  - e-032
+  details: WP WP03 was sent back to an earlier lane with documented review feedback 2 time(s).
+- id: n-003
+  category: review_loop
+  summary: WP06 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-033
+  details: WP WP06 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-004
+  category: review_loop
+  summary: WP08 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-034
+  details: WP WP08 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-005
+  category: review_loop
+  summary: WP09 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-035
+  details: WP WP09 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-006
+  category: review_loop
+  summary: WP11 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-036
+  details: WP WP11 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-007
+  category: review_loop
+  summary: WP12 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-037
+  details: WP WP12 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-008
+  category: review_loop
+  summary: WP13 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-038
+  details: WP WP13 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-009
+  category: review_loop
+  summary: WP14 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-039
+  details: WP WP14 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-010
+  category: review_loop
+  summary: WP17 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-040
+  details: WP WP17 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-011
+  category: review_loop
+  summary: WP18 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-041
+  details: WP WP18 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-012
+  category: review_loop
+  summary: WP22 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-042
+  details: WP WP22 was sent back to an earlier lane with documented review feedback 1 time(s).
+- id: n-013
+  category: review_loop
+  summary: WP25 required 1 rejection cycle(s) before approval
+  evidence_refs:
+  - e-043
+  details: WP WP25 was sent back to an earlier lane with documented review feedback 1 time(s).
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP01-acceptance-suite.md
+- id: e-006
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP02-kernel-pack-paths-read-side.md
+- id: e-007
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP03-write-side-cutover-and-path-gate.md
+- id: e-008
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP04-package-split-pack-tooling.md
+- id: e-009
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP05-package-split-org-charter-adapters.md
+- id: e-010
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP06-effective-set-seam.md
+- id: e-011
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP07-preset-format-and-builtin-presets.md
+- id: e-012
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP08-activate-preset-and-pack-list.md
+- id: e-013
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP09-provisioning-from-default-preset.md
+- id: e-014
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP10-migration-framework.md
+- id: e-015
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP11-cutover-migration-keys-and-paths.md
+- id: e-016
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP12-cutover-migration-resets-and-summary.md
+- id: e-017
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP13-retire-preset-registry.md
+- id: e-018
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP14-remove-shims-and-legacy-gate.md
+- id: e-019
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP15-charter-command-homes.md
+- id: e-020
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP16-remove-doctrine-group.md
+- id: e-021
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP17-three-names-and-charter-pack-id.md
+- id: e-022
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP18-skill-families.md
+- id: e-023
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP19-rename-offering-facades-kernel.md
+- id: e-024
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP20-rename-activation.md
+- id: e-025
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP21-rename-specify-cli-and-gates.md
+- id: e-026
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP22-prose-packs-and-docs.md
+- id: e-027
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP23-rename-tests-doctrine-directory.md
+- id: e-028
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP24-glossary-changelog-runbook.md
+- id: e-029
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/tasks/WP25-vocabulary-gate-and-closeout.md
+- id: e-030
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+- id: e-031
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M49NHXPK5KFCTKXBZG9F007F
+- id: e-032
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M4A8FJ2C52VHNNAKP4CB6JAY..01M4AAQTP61NSSR560NDR0W0NB
+- id: e-033
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M4B2FCTJ7Z3PV1BQVG7M5BBJ
+- id: e-034
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M4BF9FGTC50F7Q39VMSSX6F2
+- id: e-035
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M4BPD2B0G9PJ3ETS6HP9YBA9
+- id: e-036
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M4B4R4NV2GJFCRFFGMVPQTJM
+- id: e-037
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M4BX19QVC41CE2NSTRSRTCBX
+- id: e-038
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M4C3WX3GS7SW6HP2NKJPAMND
+- id: e-039
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M4CJ4FW3H30DN8MZ6H110BNS
+- id: e-040
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M4ATSKFW5FDRR81ACY1TH5J2
+- id: e-041
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M4C3TCEHCNSR33JVMQAENDXJ
+- id: e-042
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M4EQQZRWH69JZDSGWSJY002B
+- id: e-043
+  kind: event_range
+  path: kitty-specs/charter-pack-cutover-01M491G6/status.events.jsonl
+  range: 01M4F6PB6QHPPF552CKFKX3B45
+- id: e-044
+  kind: file
+  path: kitty-specs/charter-pack-cutover-01M491G6/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

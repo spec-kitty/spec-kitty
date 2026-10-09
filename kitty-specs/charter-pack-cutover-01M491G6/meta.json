@@ -1,0 +1,38 @@
+{
+  "accept_commit": "27490a3845f228a0d65ac9360e03d9b03dac9d8a",
+  "acceptance_history": [
+    {
+      "accept_commit": "27490a3845f228a0d65ac9360e03d9b03dac9d8a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-09T08:14:48.935832+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "c80eaf9f8ae8f0278ab88da27ce42ca80e90d0f2"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-09T08:14:48.935832+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "c80eaf9f8ae8f0278ab88da27ce42ca80e90d0f2",
+  "baseline_merge_commit": "876b178206d13c745f0287e3577923af328b7c24",
+  "change_mode": "bulk_edit",
+  "coordination_branch": "kitty/mission-charter-pack-cutover-01M491G6",
+  "created_at": "2026-10-06T16:42:12.930421+00:00",
+  "flattened": false,
+  "friendly_name": "Charter offering, activation presets and the doctrine-to-charter cutover",
+  "merged_at": "2026-10-09T07:41:53.872037+00:00",
+  "merged_commit": "190885febefbca54d346307222d5be245733e574",
+  "mid8": "01M491G6",
+  "mission_id": "01M491G6102N7NRMAW3219Z2F9",
+  "mission_number": 220,
+  "mission_slug": "charter-pack-cutover-01M491G6",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Earlier renames kept old names working, leaving two names for one thing: agents and contributors get confused and users' harnesses contradict themselves. Following ADR 2026-10-06-1, a Charter Pack becomes a bundle of charter components plus activation presets applied with charter activate --pack/--preset, the doctrine command group and skill names are cut over in one step, and one upgrade migration rewrites existing projects so nothing silently loses activated artifacts.",
+  "purpose_tldr": "Replace the retired doctrine-pack vocabulary with one charter vocabulary across CLI, config, skills, code and docs, with activation presets as pack data and no compatibility layer.",
+  "slug": "charter-pack-cutover-01M491G6",
+  "status_phase": "1",
+  "target_branch": "issue-3732-charter-pack-rename",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-06T19:52:25.189432+00:00"
+}
