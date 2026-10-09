@@ -2,7 +2,7 @@
 title: The Runtime Loop Explained
 description: "How spec-kitty next inverts control so the runtime picks the next action: query versus advancing mode and the four decisions, step, decision_required, blocked, and terminal."
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/lead-developer.md
 related:
 - docs/architecture/kanban-workflow.md
@@ -62,6 +62,10 @@ The runtime considers several factors when making its decision:
 - You want explicit control over which action to take next
 
 The two approaches are complementary. Slash commands give you direct control. The runtime loop gives you automation.
+
+### Concurrent advances are serialised
+
+When several agents advance the same mission run in parallel (or one agent retries a slow call), advancing a run is **serialised**: at most one `next` mutates a given run's cursor at a time, and an advance that was evaluated against a step the run has since moved past is **refused** with a `blocked` decision and a named reason — never silently completed or re-planned as `success`. A per-run-directory lock guards the cursor's read-modify-write and a caller-evaluated-step compare-and-swap detects a run that moved between the caller's read and the commit. See ADR [2026-10-08-1](../adr/4.x/2026-10-08-1-serialise-run-dir-advance.md). A refused advance returns the ordinary `blocked` shape (reason + exit 1); a retrying loop should treat `blocked` as "re-query, do not hammer".
 
 ## Query Mode vs Advancing Mode
 
