@@ -399,25 +399,22 @@ def test_io_fault_and_no_fragment_defaults(tmp_path: Path, monkeypatch: pytest.M
     monkeypatch.setattr(pv, "load_org_pack", failing)
     result = pv.validate_pack(tmp_path)
     assert [(issue.file, issue.category) for issue in result.errors] == [(str(file), "unreadable_file")]
-    assert pv._collect_fragment_edge_intent(file.parent) == {}
-    assert pv._pack_node_urns(tmp_path) is None
+    assert pv._collect_fragment_edge_intent(file.parent, None) == {}
+    assert pv._pack_node_urns(None) is None
     file.unlink()
     assert pv.validate_pack(tmp_path).ok
-    assert pv._collect_fragment_edge_intent(file.parent) == {}
-    assert pv._pack_node_urns(tmp_path) is None
 
 
-def test_omitted_default_differs_from_explicit_absent_helper_input(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_helpers_consume_the_explicit_fragment_without_reloading(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     file = _write_fragment(tmp_path, [_local_node()], [_edge("local", "missing", "enhances")])
-    assert pv._collect_fragment_edge_intent(file.parent)["directives"]["local"][0] == {"enhances": "missing"}
-    assert pv._pack_node_urns(tmp_path) == frozenset({"directive:local"})
+    fragment = load_org_pack("test", tmp_path, 1)
 
     def forbidden(pack_name: str, pack_root: Path, layer_index: int) -> OrgDRGFragment:
-        pytest.fail("explicit load outcome must not reload")
+        pytest.fail("a helper handed the loaded fragment must not reload it")
 
     monkeypatch.setattr(pv, "load_org_pack", forbidden)
-    assert pv._collect_fragment_edge_intent(file.parent, None) == {}
-    assert pv._pack_node_urns(tmp_path, None) is None
+    assert pv._collect_fragment_edge_intent(file.parent, fragment)["directives"]["local"][0] == {"enhances": "missing"}
+    assert pv._pack_node_urns(fragment) == frozenset({"directive:local"})
 
 
 @pytest.mark.parametrize("fault", [lambda: DRGLoadError("unavailable"), lambda: OSError(2, "gone")], ids=["drg-load-error", "os-error"])
