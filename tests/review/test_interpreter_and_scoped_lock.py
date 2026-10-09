@@ -47,29 +47,36 @@ def _write_tiny_pytest_project(base: Path) -> None:
 
 
 @pytest.mark.fast
+@pytest.mark.parametrize(
+    ("pyproject", "expected_flag"),
+    [
+        ("[project]\nname = 'x'\n[project.optional-dependencies]\ntest = ['pytest']\n", ["--extra", "test"]),
+        ("[project]\nname = 'x'\n[dependency-groups]\ntest = ['pytest']\n", ["--group", "test"]),
+        ("[project]\nname = 'x'\n", None),
+    ],
+    ids=["extra", "group", "neither"],
+)
 def test_uv_present_and_pyproject_present_resolves_to_uv_run(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    pyproject: str,
+    expected_flag: list[str] | None,
 ) -> None:
-    """Branch (i): both legs of the AND hold -> route through ``uv run``."""
-    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n[project.optional-dependencies]\ntest = ['pytest']\n", encoding="utf-8")
+    """Branch (i): both legs of the AND hold -> route through ``uv run`` in the
+    project, requesting the declared test extra/group (if any) so pytest exists."""
+    (tmp_path / "pyproject.toml").write_text(pyproject, encoding="utf-8")
     monkeypatch.setattr(_interpreter.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
 
     command = resolve_pytest_command(["--junitxml=out.xml", "-q"], repo_root=tmp_path)
 
-    assert command[:7] == ["uv", "run", "--frozen", "--extra", "test", "--project", str(tmp_path)]
-    assert command[7:10] == ["python", "-m", "pytest"]
-    assert command[-2:] == ["--junitxml=out.xml", "-q"]
-
-
-@pytest.mark.fast
-def test_uv_project_without_test_extra_uses_existing_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    (tmp_path / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
-    monkeypatch.setattr(_interpreter.shutil, "which", lambda name: "/usr/bin/uv" if name == "uv" else None)
-
-    command = resolve_pytest_command(["-q"], repo_root=tmp_path)
-
-    assert command == ["uv", "run", "--frozen", "--project", str(tmp_path), "python", "-m", "pytest", "-q"]
+    assert command[:3] == ["uv", "run", "--frozen"]
+    assert command[command.index("--project") + 1] == str(tmp_path)
+    if expected_flag is None:
+        assert "--extra" not in command
+        assert "--group" not in command
+    else:
+        assert command[command.index(expected_flag[0]) + 1] == expected_flag[1]
+    assert command[-5:] == ["python", "-m", "pytest", "--junitxml=out.xml", "-q"]
 
 
 @pytest.mark.fast
