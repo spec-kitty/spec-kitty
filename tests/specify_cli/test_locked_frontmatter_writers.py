@@ -445,6 +445,18 @@ def test_restore_without_a_ledger_puts_back_a_file_that_is_gone(scope: tuple[Pat
     assert tasks_md.read_text(encoding="utf-8") == "original\n"
 
 
+def test_restore_inside_a_live_run_drops_the_restored_path_from_the_ledger(scope: tuple[Path, Path]) -> None:
+    """A restore while the ledger still observes writes must not report the pre-run bytes as finalize's write."""
+    mission_dir, tasks_md = scope
+    before = finalize_commit._snapshot_mission_write_scope(mission_dir)
+    with _finalize_run() as ledger:
+        _finalize_writes(tasks_md, "finalize wrote this\n")
+        finalize_commit._restore_mission_write_scope(before, mission_dir, written=dict(ledger.written))
+        assert tasks_md.resolve() not in ledger.written
+
+    assert tasks_md.read_text(encoding="utf-8") == "original\n"
+
+
 def test_restore_without_a_ledger_undoes_every_changed_file(scope: tuple[Path, Path]) -> None:
     """A status directory restored by the status guard passes no ledger and keeps the previous restore."""
     mission_dir, tasks_md = scope
