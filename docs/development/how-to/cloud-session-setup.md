@@ -2,7 +2,7 @@
 title: Set Up a Claude Code Cloud Session
 description: Prepare a Claude Code cloud session so the Spec Kitty CLI, the test package and CodeGraph are ready before you run a Mission or an Op.
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-09'
 audience: docs/context/audience/internal/maintainer.md
 type: how-to
 ---
@@ -35,7 +35,10 @@ command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 The script installs CodeGraph, registers it with Claude Code, and installs `uv`
-if it is missing. New sessions pick up the change.
+if it is missing. New sessions pick up the change. If your environment clones the
+repository before this script runs, you can also fold the per-session Step 2 work
+in here — see
+[Optional: run the repository script from the environment setup script](#optional-run-the-repository-script-from-the-environment-setup-script).
 
 The `codegraph install` line has not been tested end to end, so it ends in
 `|| true`: a failure there does not stop the container build. If the CodeGraph
@@ -115,21 +118,33 @@ on a local machine. In a cloud session it:
 
 When everything is already in place, the script finishes in about 7 seconds.
 
+### Optional: run the repository script from the environment setup script
+
+If your cloud environment clones the repository *before* the environment setup
+script runs, you can fold Step 2 into Step 1 and skip the per-session run. Append
+this to the environment setup script (Step 1):
+
+```bash
+repo="${CLAUDE_PROJECT_DIR:-}"
+if [ -n "$repo" ] && [ -d "$repo/.git" ]; then
+  (cd "$repo" && bash scripts/dev/cloud-session-setup.sh) || true
+fi
+```
+
+This is clone-order safe: when the checkout is not present yet (the common case,
+where the environment setup script runs at container-build time, before the repo
+lands), the guard makes it a no-op and you keep running the script by hand each
+session. When the clone *is* present, it runs the repository script for you. The
+trailing `|| true` keeps a failure from breaking the container build.
+
+The repository script is itself idempotent and gated on `CLAUDE_CODE_REMOTE`, so
+appending this line never does harm — the worst case is that it no-ops.
+
 ### Why this is not a committed SessionStart hook
 
 Spec Kitty writes its own hooks into `.claude/settings.json`. If that file were
 tracked with a setup hook in it, every checkout would become dirty. Running the
-script by hand keeps the tree clean.
-
-If the repository is already cloned when the environment setup script runs, you
-can append this line to that script instead:
-
-```bash
-cd <repo> && bash scripts/dev/cloud-session-setup.sh || true
-```
-
-Do this only if the clone exists at that point; otherwise keep running the
-script by hand.
+script by hand (or wiring it in as above) keeps the tree clean.
 
 ## Step 3: Check the result
 
