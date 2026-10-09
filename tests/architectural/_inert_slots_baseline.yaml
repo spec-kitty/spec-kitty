@@ -56,7 +56,7 @@ entries:
   # --- Mission D / I9: import_candidates has no producer yet ----------------
   # There is no import-candidate artefact anywhere under src/. The only
   # instances in the repository are the model's own test fixtures under
-  # tests/doctrine/fixtures/import-candidate/. The sequencing authority records
+  # tests/charter_offering/fixtures/import-candidate/. The sequencing authority records
   # I9 as the step that "gives import_candidates its first real producer", so
   # the whole kind is scheduled debt rather than a mistake.
   - name: accessed_on

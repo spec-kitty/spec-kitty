@@ -34,7 +34,7 @@ way.  "No runner registered" is not a steady state in a full install.
    (2026-09) ``execute_with_glossary`` has **zero production call sites** and
    no built-in step contract under ``packs/`` sets ``glossary_check``.  The
    default is therefore enforced nowhere in the live mission loop; the tests
-   in ``tests/doctrine/missions/test_glossary_hook.py`` pin the contract, not
+   in ``tests/charter_offering/missions/test_glossary_hook.py`` pin the contract, not
    live behaviour.  Wiring the hook into the step executor is a separate
    feature decision (tracked on #1868), not implied by this note.
 

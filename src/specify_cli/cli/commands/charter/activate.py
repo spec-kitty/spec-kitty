@@ -560,7 +560,7 @@ def recompile_catalog(repo_root: Path) -> list[str]:
     # a stale activation shadow (the C-001 single-authority split-brain that
     # left ``activated_glossary_packs`` un-removed and the deactivate test
     # red). The coherence guard itself no-ops on an absent ``charter.yaml``
-    # ("not yet synthesized" -- see ``tests/doctrine/
+    # ("not yet synthesized" -- see ``tests/charter_offering/
     # test_activation_parity_guard.py`` and ``test_activate_recompile_4785``'s
     # ``_write_established_catalog`` precondition), so skipping here keeps the
     # F1 coherence gain intact for established stores while never migrating a

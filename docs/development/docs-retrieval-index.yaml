@@ -4701,19 +4701,19 @@ pages:
     - {slug: "level-2-container-collaboration-code-paths", text: "Level 2 — Container Collaboration → Code Paths", level: 2}
     - {slug: "loop-a-planning-user-kitty-core-event-store", text: "Loop A: Planning (User → Kitty-core → Event Store)", level: 3}
     - {slug: "loop-b-execution-coordination-orchestration-event-store-connectors", text: "Loop B: Execution Coordination (Orchestration ↔ Event Store → Connectors)", level: 3}
-    - {slug: "loop-c-governance-user-charter-doctrine", text: "Loop C: Governance (User → Charter → Doctrine)", level: 3}
-    - {slug: "loop-c-action-context-bootstrap-agent-charter-doctrine", text: "Loop C': action context bootstrap (Agent → Charter → Doctrine)", level: 3}
+    - {slug: "loop-c-governance-user-charter-charter-offering", text: "Loop C: Governance (User → Charter → Charter Offering)", level: 3}
+    - {slug: "loop-c-action-context-bootstrap-agent-charter-charter-offering", text: "Loop C': action context bootstrap (Agent → Charter → Charter Offering)", level: 3}
     - {slug: "loop-d-visibility-status-read-event-store", text: "Loop D: Visibility (Status read ← Event Store)", level: 3}
     - {slug: "loop-e-external-projection-orchestration-tracker", text: "Loop E: External Projection (Orchestration → Tracker)", level: 3}
     - {slug: "level-3-components-modules", text: "Level 3 — Components → Modules", level: 2}
     - {slug: "tiered-template-resolution-pipeline", text: "Tiered Template Resolution Pipeline", level: 3}
-    - {slug: "doctrine-stack-layer-model", text: "Doctrine Stack: Layer Model", level: 2}
+    - {slug: "charter-offering-stack-layer-model", text: "Charter Offering Stack: Layer Model", level: 2}
     - {slug: "artifact-type-layers", text: "Artifact Type Layers", level: 3}
     - {slug: "reference-direction-rules", text: "Reference Direction Rules", level: 3}
     - {slug: "repository-implementation-pattern", text: "Repository Implementation Pattern", level: 3}
     - {slug: "shared-utilities-src-charter-offering-shared", text: "Shared Utilities (`src/charter/offering/shared/`)", level: 3}
     - {slug: "schema-validation", text: "Schema Validation", level: 3}
-    - {slug: "doctrine-stack-as-is-vs-vision", text: "Doctrine Stack: As-Is vs. Vision", level: 2}
+    - {slug: "charter-offering-stack-as-is-vs-vision", text: "Charter Offering Stack: As-Is vs. Vision", level: 2}
     - {slug: "what-exists-and-works-today", text: "What exists and works today", level: 3}
     - {slug: "what-is-emerging-or-aspirational", text: "What is emerging or aspirational", level: 3}
     - {slug: "divergence-notes", text: "Divergence Notes", level: 2}

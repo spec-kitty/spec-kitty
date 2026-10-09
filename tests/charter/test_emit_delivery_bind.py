@@ -55,7 +55,7 @@ all stays outside what these binds catch.
 ``test_directive_tactic_operating_procedures_are_emitted_as_drg_edges`` binds
 the **emit** half: it runs the single-authority extractor
 (``extract_artifact_edges``, mirroring the tmp_path pack-fixture pattern used
-throughout ``tests/doctrine/drg/migration/test_extractor.py``) over a minimal
+throughout ``tests/charter_offering/drg/migration/test_extractor.py``) over a minimal
 fixture pack and asserts the three body-delivering channels really do land as
 ``agent_profile --requires--> {directive,tactic,procedure}`` DRG edges — not
 merely assumed from reading the source.
@@ -155,7 +155,7 @@ def _fixture_suggested_doctrine_graph() -> DRGGraph:
 
     Mirrors the shape ``render_profile_suggested_doctrine`` walks in
     production (WP01, #3063 Family A: ``agent_profile --suggests--> paradigm``)
-    — see ``tests/doctrine/drg/test_profile_suggests_delivery.py`` for the
+    — see ``tests/charter_offering/drg/test_profile_suggests_delivery.py`` for the
     real-graph equivalent this synthesizes a minimal stand-in for.
     """
     return DRGGraph(
@@ -518,7 +518,7 @@ def test_directive_tactic_operating_procedures_are_emitted_as_drg_edges(
     (``extract_artifact_edges`` — C-004, no re-implementation), not merely
     assumed from reading the source. Mirrors the tmp_path pack-fixture
     pattern used by ``test_procedure_reference_reason_roundtrips`` et al. in
-    ``tests/doctrine/drg/migration/test_extractor.py``.
+    ``tests/charter_offering/drg/migration/test_extractor.py``.
     """
     offering_root = tmp_path / "pack"
     (offering_root / "directives").mkdir(parents=True)

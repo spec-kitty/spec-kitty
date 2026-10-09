@@ -100,7 +100,7 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #: all of that because a ceiling cannot see a shrink, which is exactly why it is
 #: being ratcheted rather than left with nine points of silent slack. The
 #: authoritative membership record is ``_INTENTIONAL_ORPHANS`` in
-#: ``tests/doctrine/drg/migration/test_extractor_projection.py`` (pure-extractor
+#: ``tests/charter_offering/drg/migration/test_extractor_projection.py`` (pure-extractor
 #: view, 23); this ceiling is the shipped-graph view (21) and the two differ by
 #: the hand-authored overlay, per that module's own stated cause.
 #:
@@ -115,7 +115,7 @@ def _graph_files(doctrine_dir: Path) -> list[Path]:
 #: curated edges de-orphan three pure-extractor nodes (``directive:RECONCILE_
 #: CHANGE_SCOPE_TENSIONS``, ``directive:DISCIPLINED_REFACTORING``,
 #: ``directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY`` — see
-#: ``tests/doctrine/drg/migration/test_extractor_projection.py`` ledger entry
+#: ``tests/charter_offering/drg/migration/test_extractor_projection.py`` ledger entry
 #: 19), but all three were ALREADY resolved by the hand-authored overlay in the
 #: *shipped* graph, so ``_orphan_urns(load_built_in_graph())`` measures
 #: UNCHANGED at 21 — verified empirically, not assumed. The ceiling is already

@@ -1227,7 +1227,7 @@ def _check_profile_skipped_diagnostics(
     PR-M-001: direct construction does not remove the need for a guard —
     ``AgentProfileRepository.__init__`` resolves the built-in content
     directory via the fail-closed ``built_in_dir()`` seam (pinned by
-    ``tests/doctrine/test_pack_root_resolver.py``), which can raise in a
+    ``tests/charter_offering/test_pack_root_resolver.py``), which can raise in a
     stripped environment. Guarded here exactly like the sibling
     ``_load_built_in_ids_per_kind`` guards the same seam, except the failure
     is surfaced as a ``profile_skipped`` ``ValidationIssue`` rather than

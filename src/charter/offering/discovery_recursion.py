@@ -35,7 +35,7 @@ __all__ = [
 #: unconditional), never hand-listed. The public seam is
 #: :func:`overlay_scan_is_recursive`, which binds both loader and resolver
 #: recursion to this set; the frozenset itself is a module-level derivation
-#: surface asserted by the parity gate (``tests/doctrine/test_discovery_recursion.py``)
+#: surface asserted by the parity gate (``tests/charter_offering/test_discovery_recursion.py``)
 #: but consumed by no other ``src/`` module, so it is deliberately **not** in
 #: ``__all__`` — exporting an unimported symbol would trip the dead-symbol gate.
 RECURSIVE_OVERLAY_KINDS: frozenset[ArtifactKind] = frozenset(ArtifactKind)

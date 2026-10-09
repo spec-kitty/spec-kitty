@@ -164,7 +164,7 @@ const CLUSTERS = [
   { label: 'specify_cli-core', dirs: 'tests/specify_cli/core tests/specify_cli/coordination tests/specify_cli/status tests/specify_cli/missions tests/specify_cli/next tests/specify_cli/doctrine tests/specify_cli/lanes tests/specify_cli/runtime tests/specify_cli/session_presence tests/specify_cli/integration tests/specify_cli/dossier tests/specify_cli/saas_client tests/specify_cli/charter_preflight tests/specify_cli/context tests/specify_cli/tasks' },
   { label: 'charter', dirs: 'tests/charter' },
   { label: 'integration', dirs: 'tests/integration' },
-  { label: 'doctrine', dirs: 'tests/doctrine tests/doctrine_synthesizer' },
+  { label: 'doctrine', dirs: 'tests/charter_offering tests/doctrine_synthesizer' },
   { label: 'sync', dirs: 'tests/sync' },
   { label: 'agent', dirs: 'tests/agent' },
   { label: 'architectural+auth', dirs: 'tests/architectural tests/auth' },

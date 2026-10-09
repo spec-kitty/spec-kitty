@@ -12,7 +12,7 @@ graph the merge layer refused to assemble came back::
     org_drg.collision_warnings=[{... "resolution": "hard_fail"}]
 
 Two tests existed on either side of the seam and neither owned it: WP08 pinned
-the merge-layer refusal (``tests/doctrine/test_drg_merge.py``) and a later WP
+the merge-layer refusal (``tests/charter_offering/test_drg_merge.py``) and a later WP
 pinned the collector's *non-raising* dangling-endpoint path
 (``test_doctor_doctrine_org_layer.py``). Nothing exercised a collector against
 a merge that actually raised. That untested join is the root cause, so these

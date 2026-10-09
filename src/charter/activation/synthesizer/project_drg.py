@@ -55,7 +55,7 @@ from .request import SynthesisTarget
 #: so a hand-authored project profile becomes a cascade-reachable node.
 #:
 #: ``ArtifactKind``-keyed (not string-keyed) so the totality gate
-#: (``tests/doctrine/drg/test_kind_mapping_totality.py``) is *guard-visible* to
+#: (``tests/charter_offering/drg/test_kind_mapping_totality.py``) is *guard-visible* to
 #: it. The map is a deliberate partial listed in that gate's
 #: ``_EXEMPT_GET_PARTIALS`` (the sole read site :func:`_node_kind_for` reads via
 #: ``.get``, treating a miss as "not emitted at the project tier"), so this

@@ -3,7 +3,7 @@
 ``resolve_context`` (``charter.offering.drg.query``) now annotates co-delivered
 ``in_tension_with`` pairs with their reconciler; ``_load_action_governance_bundle``
 must forward that annotation onto the delivered bundle verbatim -- see
-``tests/doctrine/drg/test_tension_arbiters.py`` for the ``resolve_context``-level
+``tests/charter_offering/drg/test_tension_arbiters.py`` for the ``resolve_context``-level
 coverage this file assumes and does not re-derive.
 
 Follows the ``charter.activation._drg_helpers.load_validated_graph`` patch pattern from

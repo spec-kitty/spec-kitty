@@ -48,7 +48,7 @@ _ROUTER = "ci-router.yml"
 _JOB = "tests-corpus-blocking"
 _JOB_KEY: lu.JobKey = (_ROUTER, _JOB, None)
 _CORPUS_MARKER = "corpus"
-_PERFORMANCE_CLASS = "tests/doctrine/test_shipped_profiles.py::TestShippedProfilesPerformance"
+_PERFORMANCE_CLASS = "tests/charter_offering/test_shipped_profiles.py::TestShippedProfilesPerformance"
 _MARKER = "corpus and not windows_ci"
 _PACKS_CORPUS_JOB = "built-in-corpus-suite"
 _PACKS_CORPUS_KEY: lu.JobKey = ("packs.yml", _PACKS_CORPUS_JOB, None)
@@ -185,7 +185,7 @@ def test_no_module_row_selects_the_orphans(expected_nodeids: frozenset[str]) -> 
     owned_dirs = [str(test_dir.relative_to(_REPO_ROOT)).replace("\\", "/") for row in registry_rows() for test_dir in resolve_test_dirs(row)]
     module_rows_see = frozenset(nodeid for nodeid in expected_nodeids if any(gc.path_matches(nodeid.split("::", 1)[0], nodeid, entry) for entry in owned_dirs))
 
-    # Only the performance class sits under a module-owned tree (tests/doctrine -> `charter`).
+    # Only the performance class sits under a module-owned tree (tests/charter_offering -> `charter`).
     assert module_rows_see == {nodeid for nodeid in expected_nodeids if nodeid.startswith(_PERFORMANCE_CLASS)}
     assert module_rows_see, "non-vacuity: the performance class must be inside the charter row's tree"
     # ...and the module shard marker deselects it, so no module shard executes it.

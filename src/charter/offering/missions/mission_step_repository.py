@@ -207,7 +207,7 @@ def _load_step_yaml(step_file: Path) -> MissionStep | None:
     ``MissionStep`` is ``extra="forbid"`` — any field absent from this
     mapping is **silently stripped** before validation rather than raising.
     Every new ``MissionStep`` field MUST be added here or it vanishes on
-    load with no error (see :mod:`tests.doctrine.missions.test_step_schema`
+    load with no error (see :mod:`tests.charter_offering.missions.test_step_schema`
     for the round-trip regression guard).
     """
     if not step_file.exists():

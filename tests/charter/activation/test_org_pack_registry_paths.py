@@ -5,7 +5,7 @@ Moved from ``tests/specify_cli/doctrine/test_config.py`` (mission
 
 * Load: multi-pack, absent key, no file, duplicate names, tilde expansion
   (the retired keys are covered by
-  ``tests/doctrine/drg/test_org_pack_config_cr04_charter_packs.py``).
+  ``tests/charter_offering/drg/test_org_pack_config_cr04_charter_packs.py``).
 * ``resolve_org_roots`` ordering.
 """
 

@@ -20,7 +20,7 @@ simplification, not an oversight.
 ``DEFAULT_ROLE_CAPABILITIES`` MUST have an entry here. Adding a role or
 verb to ``capabilities.py`` without updating ``_VERB_TO_TASK_TYPE`` is
 caught by
-``tests/doctrine/test_task_class_map.py::test_map_covers_every_canonical_verb``.
+``tests/charter_offering/test_task_class_map.py::test_map_covers_every_canonical_verb``.
 """
 
 from __future__ import annotations

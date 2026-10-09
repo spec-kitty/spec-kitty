@@ -161,7 +161,7 @@ modules:
   # landing-pr4948; 6161 collected) because rebasing onto current main pulled in
   # 5 new charter tests, so the anchor was recaptured to keep committed == collected.
   # The committed list length (now 6161) equals what
-  # the consumer actually collects (pytest tests/charter tests/doctrine -m
+  # the consumer actually collects (pytest tests/charter tests/charter_offering -m
   # "not performance and not stress" --collect-only -q -> 6161), so
   # module-tests.yml's positional nodeid/duration pairing now weights this
   # module's shards by MEASURED time instead of silently falling back to
@@ -204,7 +204,7 @@ modules:
   # determines every module's test directories.
   test_dirs:
   - tests/charter
-  - tests/doctrine
+  - tests/charter_offering
 - module: agent
   roots:
   - src/specify_cli/agent_utils/**
@@ -285,7 +285,7 @@ modules:
   # live test trees (tests/<name> and tests/specify_cli/<name>) that each
   # exercise the src module -- both are kept for faithful coverage (overlap
   # accepted, per CLAUDE.md "Test policy"). src/charter/offering/** mirrors
-  # the same dual-tree tests/charter + tests/doctrine pattern
+  # the same dual-tree tests/charter + tests/charter_offering pattern
   # module-tests.yml already special-cases for the "charter" module.
   test_dirs:
   - tests/core

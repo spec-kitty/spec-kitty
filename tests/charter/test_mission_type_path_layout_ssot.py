@@ -41,7 +41,7 @@ pytestmark = pytest.mark.unit
 class _StubPackContext:
     """Minimal structural stand-in satisfying ``_PackContextLike``.
 
-    Mirrors ``tests/doctrine/missions/test_mission_type_repository.py``'s own
+    Mirrors ``tests/charter_offering/missions/test_mission_type_repository.py``'s own
     ``_StubPackContext`` (``pack_roots``, ``repo_root``, ``__hash__``
     synthesized by ``@dataclass(frozen=True)``) so both the layered factory
     and the layer-namer accept the same context object in one test.

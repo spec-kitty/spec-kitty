@@ -165,7 +165,7 @@ If pursued, rename WP-template references `/spk-charter-profile-load → /spk-lo
 **keeping the leading slash**, and:
 - Do it via a **new forward migration**, not by editing the shipped rc35 migration in
   place (mutating emitted text diverges already-migrated installs).
-- Gate on `pytest tests/doctrine/test_spk_skill_pack.py`.
+- Gate on `pytest tests/charter_offering/test_spk_skill_pack.py`.
 - The research/documentation missing-section gap is a **separate additive** item.
 
 ## 5. Scope boundary
