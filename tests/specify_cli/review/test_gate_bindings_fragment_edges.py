@@ -38,7 +38,7 @@ from specify_cli.review import gate_bindings
 pytestmark = [pytest.mark.fast]
 
 # The org fragment edge, in resolved-URN form (``merge_three_layers``'
-# ``_resolve_edge_endpoint`` canonicalises the bare-id source to a ``directive:``
+# ``resolve_edge_endpoint`` canonicalises the bare-id source to a ``directive:``
 # URN — see WP01's ``test_org_fragment_edge_appears_in_returned_graph``).
 _BRIDGE_SOURCE = "directive:DIRECTIVE_A"
 _BRIDGE_TARGET = "directive:DIRECTIVE_B"

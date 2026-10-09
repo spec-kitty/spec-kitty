@@ -389,6 +389,10 @@ class _OrgDRGNode(BaseModel):
         return _ORG_DRG_KIND_ALIASES.get(value, value)
 
 
+class _DiscoveredOrgDRGNode(_OrgDRGNode):
+    """A file-discovered identity, not an author's explicit graph declaration."""
+
+
 class _OrgDRGEdge(BaseModel):
     """One typed edge in an organisation-tier DRG fragment.
 
@@ -459,6 +463,16 @@ class OrgDRGFragment(BaseModel):
     provenance_marker: Literal["org"] = "org"
     nodes: list[_OrgDRGNode] = Field(default_factory=list)
     edges: list[_OrgDRGEdge] = Field(default_factory=list)
+
+    @property
+    def authored_nodes(self) -> list[_OrgDRGNode]:
+        """Explicit declarations in authored order, excluding file discovery."""
+        return [node for node in self.nodes if not isinstance(node, _DiscoveredOrgDRGNode)]
+
+    @property
+    def authored_edges(self) -> list[_OrgDRGEdge]:
+        """Authored edges in order, excluding artifact/governance projections."""
+        return [edge for edge in self.edges if not isinstance(edge, _ProjectedOrgDRGEdge)]
 
 
 # ---------------------------------------------------------------------------
@@ -584,7 +598,7 @@ def load_org_pack(
     # was only ever an approximation: the projection path emits fully-qualified
     # ``<kind>:<id>`` endpoints while a fragment author naturally writes bare
     # ids, so the two spellings of ONE relationship were two keys — and once
-    # ``charter.offering.drg.merge._resolve_edge_endpoint`` became the canonicaliser,
+    # ``charter.offering.drg.merge.resolve_edge_endpoint`` became the canonicaliser,
     # both keys resolved to the same triple and the edge landed twice.
     #
     # It cannot be repaired in place either: resolving a bare id the fragment
@@ -646,7 +660,7 @@ def _collect_artifact_nodes(pack_root: Path) -> list[_OrgDRGNode]:
             title = data.get("title", data.get("name"))
             body_path = data.get("body_path")
             nodes.append(
-                _OrgDRGNode(
+                _DiscoveredOrgDRGNode(
                     id=identity,
                     kind=plural,
                     title=title if isinstance(title, str) else None,
