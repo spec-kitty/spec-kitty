@@ -52,6 +52,7 @@ from specify_cli.mission_metadata import (
     validate_meta,
     write_meta,
 )
+from specify_cli.meta_keys import MISSION_ID_KEY, MISSION_NUMBER_KEY
 from specify_cli.migration.canonicalization import (
     CanonicalPipelineResult,
     CanonicalRule,
@@ -2005,12 +2006,12 @@ def _canonicalize_meta(
     mission_number = _coerce_mission_number(number_raw)
     if mission_number is None:
         mission_number = mission_number_from_slug(mission_slug)
-    meta["mission_number"] = mission_number
+    meta[MISSION_NUMBER_KEY] = mission_number
 
     existing_id = meta.get("mission_id")
     if not isinstance(existing_id, str) or not ULID_PATTERN.match(existing_id):
         minted = deterministic_ulid(_mission_seed(mission_dir, meta, raw_rows))
-        meta["mission_id"] = minted
+        meta[MISSION_ID_KEY] = minted
         if generated_ids is not None:
             generated_ids.append(minted)
         actions.append("mission_id_deterministically_backfilled")

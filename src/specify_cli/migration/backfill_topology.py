@@ -32,21 +32,13 @@ from mission_runtime import MissionTopology, classify_topology, routes_through_c
 
 from specify_cli.lanes import CorruptLanesError, read_lanes_json
 from specify_cli.lanes.compute import has_code_lanes
+from specify_cli.meta_keys import COORDINATION_BRANCH_KEY, FLATTENED_KEY, TOPOLOGY_KEY
 
 logger = logging.getLogger(__name__)
 
-# Canonical meta.json keys (hoisted per Sonar S1192 — used in >=3 sites).
-#
-# ``TOPOLOGY_KEY`` / ``FLATTENED_KEY`` are PUBLIC (promoted from the former
-# module-private ``_TOPOLOGY_KEY`` / ``_FLATTENED_KEY`` by
-# verdict-seam-write-unification-01KZ9Q35 WP10 / D-PLAN-17): this module is
-# their semantic owner, and ``mission_metadata.flatten_coordination_metadata``
-# (#3219 / FR-015) imports them directly rather than re-spelling the string
-# literals at the import site (squad #16). ``_COORDINATION_BRANCH_KEY`` stays
-# private -- no other module needs to reference it by name.
-TOPOLOGY_KEY = "topology"
-FLATTENED_KEY = "flattened"
-_COORDINATION_BRANCH_KEY = "coordination_branch"
+# Keep the established public exports while sharing their names with writers
+# and the audit registry.
+_COORDINATION_BRANCH_KEY = COORDINATION_BRANCH_KEY
 
 #: The three keys ``mission_metadata.flatten_coordination_metadata`` rewrites in
 #: one write (pop ``coordination_branch``, pop ``topology``, set ``flattened``):

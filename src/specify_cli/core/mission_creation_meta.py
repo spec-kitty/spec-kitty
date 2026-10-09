@@ -21,6 +21,13 @@ from specify_cli.core.mission_creation_decisions import (
 )
 from kernel.clock import now_utc_iso
 from specify_cli.mission_metadata import load_meta_or_empty
+from specify_cli.meta_keys import (
+    COORDINATION_BRANCH_KEY,
+    FLATTENED_KEY,
+    MISSION_ID_KEY,
+    MISSION_NUMBER_KEY,
+    TOPOLOGY_KEY,
+)
 from specify_cli.core.mission_creation_errors import MissionCreationError
 from specify_cli.core.mission_creation_identity import _Purpose
 
@@ -108,13 +115,13 @@ def _build_create_meta(
     # after creation. mission_number is null pre-merge; a dense display
     # number is assigned only at merge time (single-writer context on main).
     # See FR-044.
-    meta.setdefault("mission_id", mission_id)
+    meta.setdefault(MISSION_ID_KEY, mission_id)
     # Backfill the canonical mid8 (first 8 chars of the ULID) so meta.json is
     # the single canonical identity source: the directory name already embeds
     # it, and any surface reading ``mid8`` from meta.json saw absence where
     # the value was knowable (#3474).
     meta.setdefault("mid8", mid8)
-    meta.setdefault("mission_number", None)  # JSON null — pre-merge missions have no number
+    meta.setdefault(MISSION_NUMBER_KEY, None)  # JSON null — pre-merge missions have no number
     meta.setdefault("slug", mission_slug_formatted)
     meta.setdefault("mission_slug", mission_slug_formatted)
     meta.setdefault("friendly_name", normalized_friendly_name)
@@ -151,7 +158,7 @@ def _build_create_meta(
         )
         coordination_branch_created_flag = coordination_outcome.created
         coordination_branch_skipped_reason = coordination_outcome.skipped_reason
-        meta["coordination_branch"] = coordination_outcome.branch_name
+        meta[COORDINATION_BRANCH_KEY] = coordination_outcome.branch_name
         # T032: a reused (not-created-this-run) branch's tip, captured before
         # this create's own seed/creation-events commit can move it -- the
         # CAS-reset anchor if this create later fails.
@@ -161,15 +168,15 @@ def _build_create_meta(
     from mission_runtime import classify_topology
 
     if topology in (MissionTopology.COORD, MissionTopology.SINGLE_BRANCH):
-        corroborated = classify_topology(meta.get("coordination_branch") or None, has_lanes=False)
+        corroborated = classify_topology(meta.get(COORDINATION_BRANCH_KEY) or None, has_lanes=False)
         if corroborated is not topology:
             raise MissionCreationError(
                 f"Topology corroboration failed for '{mission_slug_formatted}': stored "
                 f"'{topology.value}' but the minted coordination state classifies as "
                 f"'{corroborated.value}'."
             )
-    meta["topology"] = topology.value
-    meta.setdefault("flattened", False)
+    meta[TOPOLOGY_KEY] = topology.value
+    meta.setdefault(FLATTENED_KEY, False)
 
     return _MetaBuild(
         meta=meta,

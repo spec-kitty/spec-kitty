@@ -28,6 +28,7 @@ from specify_cli.core.paths import safe_mission_slug
 from kernel.clock import now_utc_iso
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from mission_runtime import resolve_mid8
+from specify_cli.meta_keys import COORDINATION_BRANCH_KEY, FLATTENED_KEY, TOPOLOGY_KEY
 
 # Hoisted S1192 literals (campsite #1970) -- the meta.json filename and the two
 # decode encodings appear across this module and the legacy contracts it absorbs.
@@ -956,8 +957,8 @@ def clear_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
     meta = _require_meta(feature_dir)
 
     cleared: dict[str, Any] = {}
-    if "coordination_branch" in meta:
-        cleared["coordination_branch"] = meta.pop("coordination_branch")
+    if COORDINATION_BRANCH_KEY in meta:
+        cleared[COORDINATION_BRANCH_KEY] = meta.pop(COORDINATION_BRANCH_KEY)
 
     if cleared:
         write_meta(feature_dir, meta, validate=False)
@@ -1001,22 +1002,12 @@ def flatten_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
     Raises:
         FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
     """
-    # Deferred import (LOAD-BEARING -- do NOT hoist to module level): the
-    # ``specify_cli.migration`` package's ``__init__.py`` imports
-    # ``backfill_identity``, which itself imports THIS module
-    # (``specify_cli.mission_metadata``) -- a module-level import here would
-    # re-form that exact cycle (empirically verified: a partially-initialized
-    # ``mission_metadata`` module fails resolving names ``backfill_identity``
-    # needs). Mirrors the established deferred-import pattern this module
-    # already uses for ``core.paths`` in :func:`_load_meta_fail_closed`.
-    from specify_cli.migration.backfill_topology import FLATTENED_KEY, TOPOLOGY_KEY
-
     meta = _require_meta(feature_dir)
 
-    if "coordination_branch" not in meta:
+    if COORDINATION_BRANCH_KEY not in meta:
         return {}
 
-    cleared: dict[str, Any] = {"coordination_branch": meta.pop("coordination_branch")}
+    cleared: dict[str, Any] = {COORDINATION_BRANCH_KEY: meta.pop(COORDINATION_BRANCH_KEY)}
     if TOPOLOGY_KEY in meta:
         cleared[TOPOLOGY_KEY] = meta.pop(TOPOLOGY_KEY)
     meta[FLATTENED_KEY] = True

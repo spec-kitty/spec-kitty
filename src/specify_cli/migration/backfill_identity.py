@@ -35,6 +35,7 @@ from ruamel.yaml import YAML
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.mission_metadata import _coerce_mission_number
+from specify_cli.meta_keys import MISSION_ID_KEY, MISSION_NUMBER_KEY
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +153,7 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
     else:
         skip_id = False
         new_id = _generate_ulid()
-        meta["mission_id"] = new_id
+        meta[MISSION_ID_KEY] = new_id
         changed = True
 
     # --- mission_number coercion (T020) --------------------------------------
@@ -167,7 +168,7 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
                 f"Cannot coerce mission_number {raw_number!r} in {slug}: {exc}"
             ) from exc
         if coerced is not None:
-            meta["mission_number"] = coerced
+            meta[MISSION_NUMBER_KEY] = coerced
             number_coerced = True
             changed = True
 
@@ -333,7 +334,7 @@ def backfill_mission_ids(repo_root: Path) -> dict[str, str]:
             continue
 
         new_id = _generate_ulid()
-        meta["mission_id"] = new_id
+        meta[MISSION_ID_KEY] = new_id
         mapping[feature_dir.name] = new_id
         logger.info("Assigned mission_id=%s to feature %s", new_id, feature_dir.name)
 
