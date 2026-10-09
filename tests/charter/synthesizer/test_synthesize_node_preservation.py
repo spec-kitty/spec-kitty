@@ -2,7 +2,7 @@
 
 Reproduction for https://github.com/Priivacy-ai/spec-kitty/issues/3270.
 
-Full ``synthesize`` rebuilds ``.kittify/doctrine/graph.yaml`` purely from the
+Full ``synthesize`` rebuilds ``.kittify/charter-packs/graph.yaml`` purely from the
 current run's recomputed target set, with **no reconciliation against the graph
 already on disk** (``orchestrator.synthesize._validation_callback`` →
 ``project_drg.emit_project_layer(targets=targets)`` → whole-file swap in
@@ -112,7 +112,7 @@ def test_synthesize_preserves_on_disk_graph_content_backed_by_artifacts(
     )
     synthesize(req_a, adapter=fixture_adapter, repo_root=tmp_path)
 
-    doctrine_dir = tmp_path / ".kittify" / "doctrine"
+    doctrine_dir = tmp_path / ".kittify" / "charter-packs"
     graph_path = doctrine_dir / "graph.yaml"
     assert graph_path.exists(), "first synthesis did not write graph.yaml"
 

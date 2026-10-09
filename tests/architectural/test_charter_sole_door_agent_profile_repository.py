@@ -12,7 +12,7 @@ NFR-001 requires that every ``AgentProfileRepository(`` call site in ``src/``
 resolve its **bound qualname** to the originating module, and that zero of them
 resolve to ``charter.offering.agent_profiles.repository.AgentProfileRepository`` outside
 the sole door (``src/charter/activation/resolver.py``), the one unified builder
-(``src/charter/activation/doctrine_service_builder.py``, FR-008), and the named,
+(``src/charter/activation/active_charter_service_builder.py``, FR-008), and the named,
 composite-key-anchored exclusions below.
 
 **Why a text grep is not acceptable here** (NFR-001, verbatim: "explicitly NOT a
@@ -49,13 +49,13 @@ Gate 2.
 
 Structural exemptions (directory/file keyed, never line keyed)
 ---------------------------------------------------------------
-* ``src/charter/offering/`` — the doctrine layer *owns* this class and the raw
-  ``charter.offering.service.DoctrineService`` that composes it
-  (``doctrine/service.py``'s ``DoctrineService.agent_profiles`` cache). That
+* ``src/charter/offering/`` — the offering *owns* this class and the raw
+  ``charter.offering.service.CharterOfferingService`` that composes it
+  (``charter/offering/service.py``'s ``CharterOfferingService.agent_profiles`` cache). That
   construction is the thing the sole door wraps, not a bypass of it — the same
   shape as Gate 5's ``src/charter/`` exemption.
 * ``src/charter/activation/resolver.py`` — the sole door itself (NFR-001).
-* ``src/charter/activation/doctrine_service_builder.py`` — the ONE unified builder
+* ``src/charter/activation/active_charter_service_builder.py`` — the ONE unified builder
   (FR-008/NFR-001).
 
 Named exclusions are **composite-key anchored, never whole-file**
@@ -77,7 +77,7 @@ kept only as a non-authoritative locator. This is strictly stronger, not a
 weakening: this mission *empirically* demonstrated the drift — every line number
 spec.md pinned had already moved by the time this gate was written
 (``registry.py`` 48→73, ``projection.py`` 84→115, ``profile_resolution.py``
-81→95, and Gate 2's four ``_doctrine_collect.py`` sites 193/283/420/828 →
+81→95, and Gate 2's four ``_charter_pack_collect.py`` sites 193/283/420/828 →
 209/314/468/920). Using the canonical primitive is also the repo rule (never
 improvise a second key-builder).
 
@@ -101,9 +101,9 @@ The four named exclusions, and their provenance
    as an in-scope FR-001 migration target and then could not close it: the
    factory's ``agent_profile_repository`` accessor is built from a raw service
    whose project-overlay directory comes from
-   ``charter.activation._doctrine_paths.resolve_project_root``'s three fixed candidates
+   ``charter.activation._project_root_candidates.resolve_project_root``'s three fixed candidates
    (``.kittify/doctrine``, ``src/doctrine``, ``doctrine``), none of which is
-   ``.kittify/agent_profiles``, and ``build_activation_aware_doctrine_service``
+   ``.kittify/agent_profiles``, and ``build_active_charter_service``
    exposes no parameter to retarget it. Both WP02's implementer and its reviewer
    independently forced the naive migration and reproduced three real test
    breakages (project-overlay profiles silently dropped). Closing it correctly
@@ -195,34 +195,6 @@ AGENT_PROFILE_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
             "through the factory."
         ),
     ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/doctrine/pack_validator.py",
-        qualname="_check_profile_skipped_diagnostics",
-        token_substring="AgentProfileRepository (",
-        occurrence=None,
-        rationale=(
-            "OPERATOR DECISION for mission org-pack-authoring-diagnostics-01KZY463 "
-            "(issue #3387). FR-002 requires `pack validate` to read agent profiles "
-            "from an arbitrary pack directory supplied on the CLI, using the same "
-            "load path the runtime uses - not this repo's own doctrine layer, so "
-            "no self-resolving builder can reach it. No sanctioned builder accepts "
-            "an explicit org_roots override for this: the public "
-            "build_activation_aware_doctrine_service(repo_root) and "
-            "_collect_profile_health(repo_root) both take only repo_root and "
-            "self-resolve org_roots, and charter.activation.resolver.DoctrineService.__init__ "
-            "requires an already-constructed raw inner charter.offering.service.DoctrineService "
-            "to wrap, which is itself the construction the sibling gate forbids. "
-            "Routing this through DoctrineService was tried on a previous tip and "
-            "reverted precisely because it trips the sibling sole-door gate "
-            "(test_charter_sole_door_doctrine_service.py) - see commit 863b85e77 "
-            "'fix(landing): revert profile diagnostics to direct "
-            "AgentProfileRepository construction'. The call is read-only diagnostic "
-            "(pack validate never mutates), and is guarded: a load failure here is "
-            "caught and reported as a profile_skipped ValidationIssue rather than "
-            "crashing the validator, per pack_validator.py's own docstring for this "
-            "function."
-        ),
-    ),
 )
 
 
@@ -247,7 +219,7 @@ def check_agent_profile_gate(sites: list[ConstructionSite]) -> list[str]:
     return [
         f"{site.describe()} constructs the raw agent-profile repository outside "
         "the charter sole door (FR-001/NFR-001) — obtain it from "
-        "charter.activation.resolver.DoctrineService.agent_profile_repository instead"
+        "charter.activation.resolver.ActiveCharterService.agent_profile_repository instead"
         for site in sites
         if not structurally_exempt(site.rel_path) and site.key not in excluded
     ]
@@ -258,7 +230,7 @@ def check_agent_profile_gate(sites: list[ConstructionSite]) -> list[str]:
 # =========================================================================== #
 
 
-def test_census_is_non_empty_and_includes_the_doctrine_owner() -> None:
+def test_census_is_non_empty_and_includes_the_offering_owner() -> None:
     """The resolver must actually find the known live constructions.
 
     A gate whose scanner silently resolves nothing would pass its

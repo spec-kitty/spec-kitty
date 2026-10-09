@@ -20,7 +20,7 @@ wrapper for the three DRG-backed always-on gates
 ``_check_decision_documentation_on_implement``). Covers:
 - ``test_run_consistency_check_loads_drg_and_builds_doctrine_service_once_implicit_all_active``:
   in the implicit-all-active (no explicit activation keys) branch, the three
-  gates are the ONLY ``load_validated_graph``/``_build_doctrine_service``
+  gates are the ONLY ``load_validated_graph``/``_build_offering_service``
   callers in the whole run -- an unambiguous end-to-end proof both are
   invoked exactly once (down from 3x / 2x pre-refactor), with the real
   shipped-corpus PASS-arm verdict pinned alongside.
@@ -52,7 +52,7 @@ import pytest
 
 import charter.activation._drg_helpers as drg_helpers
 import charter.activation.consistency_check as consistency_check
-import charter.activation.doctrine_service_builder as doctrine_service_builder
+import charter.activation.active_charter_service_builder as active_charter_service_builder
 from charter.activation.consistency_check import (
     ConsistencyReport,
     TensionFinding,
@@ -251,7 +251,7 @@ def test_run_consistency_check_returns_report_object(tmp_path: Path) -> None:
     assert isinstance(report, ConsistencyReport)
     assert isinstance(report.coherent, bool)
     assert isinstance(report.unknown_references, list)
-    assert isinstance(report.missing_from_doctrine, list)
+    assert isinstance(report.missing_from_offering, list)
     assert isinstance(report.kind_violations, list)
     assert isinstance(report.suggestions, list)
 
@@ -269,7 +269,7 @@ def test_no_activation_keys_skips_doctrine_scan(
     def fail_scan(*_args: object, **_kwargs: object) -> dict[str, frozenset[str]]:
         raise AssertionError("doctrine scan should not run without activation keys")
 
-    monkeypatch.setattr(consistency_check, "_collect_all_doctrine_ids", fail_scan)
+    monkeypatch.setattr(consistency_check, "_collect_all_offering_ids", fail_scan)
 
     report = run_consistency_check(ctx)
 
@@ -327,7 +327,7 @@ def test_run_consistency_check_completes_within_budget(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# #3808 (WP03): shared DRG load / DoctrineService build across the three
+# #3808 (WP03): shared DRG load / ActiveCharterService build across the three
 # always-on gates -- see module docstring for the full list.
 # ---------------------------------------------------------------------------
 
@@ -337,7 +337,7 @@ def test_run_consistency_check_loads_drg_and_builds_doctrine_service_once_implic
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """T009/T011: in the implicit-all-active branch, the three DRG-backed
-    gates are the ONLY ``load_validated_graph``/``_build_doctrine_service``
+    gates are the ONLY ``load_validated_graph``/``_build_offering_service``
     callers in the whole ``run_consistency_check`` call (the parity/kind
     checks that also load the DRG independently are skipped in this branch),
     so this is an unambiguous end-to-end proof of the T009 dedup. The real
@@ -346,7 +346,7 @@ def test_run_consistency_check_loads_drg_and_builds_doctrine_service_once_implic
     """
     call_counts = {"load": 0, "build": 0}
     real_load = drg_helpers.load_validated_graph
-    real_build = doctrine_service_builder._build_doctrine_service
+    real_build = active_charter_service_builder._build_offering_service
 
     def _counting_load(*args: object, **kwargs: object) -> object:
         call_counts["load"] += 1
@@ -358,7 +358,7 @@ def test_run_consistency_check_loads_drg_and_builds_doctrine_service_once_implic
 
     monkeypatch.setattr(drg_helpers, "load_validated_graph", _counting_load)
     monkeypatch.setattr(
-        doctrine_service_builder, "_build_doctrine_service", _counting_build
+        active_charter_service_builder, "_build_offering_service", _counting_build
     )
 
     ctx = _ctx_with_config_no_activation_keys(tmp_path, "# minimal valid project\n")
@@ -370,7 +370,7 @@ def test_run_consistency_check_loads_drg_and_builds_doctrine_service_once_implic
         f"{call_counts['load']}"
     )
     assert call_counts["build"] == 1, (
-        f"Expected _build_doctrine_service to run exactly once (shared "
+        f"Expected _build_offering_service to run exactly once (shared "
         f"between the lattice and decision-documentation gates), got "
         f"{call_counts['build']}"
     )

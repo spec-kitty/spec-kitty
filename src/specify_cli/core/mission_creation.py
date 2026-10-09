@@ -551,7 +551,7 @@ def _create_mission_core_impl(
     ------
     MissionCreationError
         On any validation or creation failure.
-    charter.activation.pack_context.CharterPackConfigError
+    charter.activation.pack_context.ActiveCharterConfigError
         When the project has no activated mission types (an absent or empty
         ``mission_type_activations`` set). This is the WP04 fail-closed at the
         mission-create / mission-type-use boundary: ``PackContext``

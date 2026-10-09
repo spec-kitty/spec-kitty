@@ -38,7 +38,7 @@ def test_activation_entry_accepts_anti_pattern(kind: str) -> None:
     """
     entry = ActivationEntry(
         activation_context={"action": "implement"},
-        doctrine_pack_id="project",
+        charter_pack_id="project",
         artifact_id="some-anti-pattern",
         artifact_kind=kind,
     )

@@ -8,7 +8,7 @@ See data-model.md §E-8 for the authoritative error taxonomy.
 
 ARCHITECTURAL NOTE: The production adapter (Anthropic SDK) has been removed.
 spec-kitty never calls an LLM itself. Synthesis is performed by the LLM harness
-(Claude Code, Codex, Cursor, etc.) via the spec-kitty-charter-doctrine skill.
+(Claude Code, Codex, Cursor, etc.) via the spk-charter-governance skill.
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ class PathGuardViolation(SynthesisError):
         return (
             f"PathGuard blocked write to '{self.attempted_path}' "
             f"(caller: {self.caller}). "
-            f"Synthesizer writes must target .kittify/doctrine/ (content) "
+            f"Synthesizer writes must target .kittify/charter-packs/ (content) "
             f"or .kittify/charter/ (bookkeeping) only."
         )
 

@@ -44,10 +44,10 @@ from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Re
 pytestmark = pytest.mark.unit
 
 #: Root of the shipped doctrine tree, resolved the same way as
-#: ``tests/doctrine/drg/migration/test_extractor.py::DOCTRINE_ROOT`` (this file
+#: ``tests/charter_offering/drg/migration/test_extractor.py::DOCTRINE_ROOT`` (this file
 #: is two directories shallower: ``tests/charter/test_cascade.py`` ->
 #: ``tests/charter`` -> ``tests`` -> repo root).
-_DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[2] / "src" / "charter" / "offering"
+_OFFERING_ROOT: Path = Path(__file__).resolve().parents[2] / "src" / "charter" / "offering"
 
 
 # ---------------------------------------------------------------------------
@@ -325,10 +325,10 @@ def test_referenced_but_not_cascaded_lists_skipped_kinds() -> None:
     # Recovery hint names --cascade and the consistency check (Contract C3.2).
     assert "--cascade" in report.recovery_hint
     assert "consistency-check" in report.recovery_hint
-    # It must name the REAL command `charter pack consistency-check`, not the
-    # nonexistent bare `charter consistency-check` the hint used to print (#5267).
-    assert "charter pack consistency-check" in report.recovery_hint
-    assert "charter consistency-check" not in report.recovery_hint
+    # It must name the REAL command `charter consistency-check` (OD-8, #3732),
+    # not the removed `charter pack consistency-check` spelling.
+    assert "charter consistency-check" in report.recovery_hint
+    assert "charter pack consistency-check" not in report.recovery_hint
 
 
 def test_referenced_but_not_cascaded_empty_when_no_refs() -> None:
@@ -504,7 +504,7 @@ def freshly_extracted_graph() -> DRGGraph:
 
     ``built_in_graph`` (above) loads the shipped ``packs/built-in/*.graph.yaml``
     fragments via :func:`load_built_in_graph` — those are committed goldens,
-    refreshed by ``spec-kitty doctrine regenerate-graph``. #3604's new
+    refreshed by ``spec-kitty charter pack regenerate-graph``. #3604's new
     ``mission_type --scope--> gov`` pass (T007,
     :func:`extract_governance_profile_scope_edges`) IS re-ledgered into those
     goldens in this mission (``packs/built-in/mission_type.graph.yaml`` and
@@ -520,7 +520,7 @@ def freshly_extracted_graph() -> DRGGraph:
     goldens through :func:`load_built_in_graph`. That function -- NOT bare
     :func:`~charter.offering.drg.migration.extractor.generate_graph` -- is the correct
     live-extraction reference: it is the exact pipeline
-    ``spec-kitty doctrine regenerate-graph`` runs (pure extraction, written to
+    ``spec-kitty charter pack regenerate-graph`` runs (pure extraction, written to
     a throwaway scratch dir, then merged with the hand-authored overlay via
     :func:`merge_hand_authored_overlay`). A first version of this fixture
     called bare ``generate_graph``, which omits that overlay; two of the
@@ -529,7 +529,7 @@ def freshly_extracted_graph() -> DRGGraph:
     types (post-review finding, #3604 WP02). Bare ``generate_graph`` output
     therefore does not match any shipped artifact --
     ``generate_reference_graph_with_overlay`` does (proof:
-    ``spec-kitty doctrine regenerate-graph --check`` is clean against
+    ``spec-kitty charter pack regenerate-graph --check`` is clean against
     ``built_in_graph``).
 
     Kept as a live re-extraction (rather than switched to ``built_in_graph``)
@@ -537,7 +537,7 @@ def freshly_extracted_graph() -> DRGGraph:
     the committed snapshot of it; the two are byte-identical today by
     construction of the ``test_extractor_projection.py`` guard above.
     """
-    return generate_reference_graph_with_overlay(_DOCTRINE_ROOT)
+    return generate_reference_graph_with_overlay(_OFFERING_ROOT)
 
 
 @pytest.mark.parametrize("mission_type_urn", _GOVERNANCE_BEARING_MISSION_TYPE_URNS)
@@ -804,10 +804,10 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(fresh
 #: re-ledgered in this mission and are byte-identical to a fresh canonical
 #: regen, locked by ``test_extractor_projection.py``). ``freshly_extracted_
 #: graph`` calls the CANONICAL ``generate_reference_graph_with_overlay``
-#: pipeline -- the same one ``spec-kitty doctrine regenerate-graph`` runs --
+#: pipeline -- the same one ``spec-kitty charter pack regenerate-graph`` runs --
 #: so these totals are what the shipped goldens actually carry, verified two
 #: ways:
-#: (1) ``spec-kitty doctrine regenerate-graph --check`` is clean on the base
+#: (1) ``spec-kitty charter pack regenerate-graph --check`` is clean on the base
 #: commit (goldens == canonical regenerate, pre-#3604); (2) with
 #: ``extract_governance_profile_scope_edges`` temporarily no-op'd, the SAME
 #: canonical pipeline reproduces research.md's pre-mission 31/23/160/0 exactly

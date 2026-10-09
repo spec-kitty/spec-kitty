@@ -5,7 +5,7 @@ language on behalf of another.  When a project's language is unrecognised
 (the reserved ``unknown`` value), the right next step is to extend the local
 charter rather than to add languages to shipped artifacts.
 
-This is product code, not a doctrine pack artifact.
+This is product code, not a Charter Pack artifact.
 """
 
 from __future__ import annotations

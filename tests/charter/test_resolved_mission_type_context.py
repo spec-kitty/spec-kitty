@@ -208,7 +208,7 @@ def _write_profile_template_override(
     repo_root: Path, template_set: str, *, mission_type: str = "software-dev"
 ) -> None:
     """Write a legacy governance-profile string that must not author mappings."""
-    override_dir = repo_root / ".kittify" / "doctrine" / "mission_types" / mission_type
+    override_dir = repo_root / ".kittify" / "charter-packs" / "mission_types" / mission_type
     override_dir.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
     yaml.default_flow_style = False
@@ -355,14 +355,15 @@ class TestResolvedTemplateSet:
             "plan": "plan-template.md",
         }
 
-    @pytest.mark.parametrize("selection_key", ["charter", "doctrine"])
+    @pytest.mark.parametrize("selection_key", ["charter"])
     def test_unregistered_project_override_has_no_artifact_mapping(
         self, tmp_path: Path, selection_key: str
     ) -> None:
         _write_config(tmp_path, ["software-dev"])
         # consolidate-charter-bundle (IC-04 / WP04, T028c):
-        # _project_has_doctrine_overrides reads charter.yaml's canonical
-        # governance.charter.selected_* (with legacy-key compatibility) -- the
+        # _project_has_pack_overrides reads charter.yaml's canonical
+        # governance.charter.selected_* (the retired governance.doctrine key
+        # fails closed, tests/charter/test_governance_fail_closed.py) -- the
         # retired governance.yaml is never consulted.
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True, exist_ok=True)
@@ -434,7 +435,7 @@ def _write_colliding_override(repo_root: Path) -> None:
     moment the FR-013 union actually runs — i.e. on first ``.governance``
     access, not at ``resolve_mission_type_context`` construction time.
     """
-    override_dir = repo_root / ".kittify" / "doctrine" / "mission_types" / "software-dev"
+    override_dir = repo_root / ".kittify" / "charter-packs" / "mission_types" / "software-dev"
     override_dir.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
     yaml.default_flow_style = False

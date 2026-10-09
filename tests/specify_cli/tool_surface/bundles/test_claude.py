@@ -178,7 +178,7 @@ def test_claude_code_bundle_validate_fails_when_skills_missing(
         f.message.rsplit(": ", 1)[-1] for f in result.missing_surfaces
     }
     assert str(ToolSurfaceKind.AGENT_PROFILE) in missing_kinds
-    assert str(ToolSurfaceKind.DOCTRINE_SKILL) in missing_kinds
+    assert str(ToolSurfaceKind.CHARTER_SKILL) in missing_kinds
 
 
 def test_claude_code_bundle_excludes_session_presence(tmp_path: Path) -> None:

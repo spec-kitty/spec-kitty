@@ -325,7 +325,7 @@ def test_project_preparation_uses_the_effective_set_the_merged_graph_and_namespa
     )
     support.write_org_charter(pack, required_skills=["required-one"], namespace="acme")
     support.write_config(tmp_path, pack, extra="activated_skills: [required-one, x, notes]\n", project_namespace="mine")
-    support.write_skill(tmp_path / ".kittify" / "doctrine", "notes")
+    support.write_skill(tmp_path / ".kittify" / "charter-packs", "notes")
 
     prepared = {p.id: p for p in prepare_project_skill_activations(tmp_path)}
 
@@ -366,7 +366,7 @@ def test_project_preparation_default_in_force_is_only_the_required_skills(tmp_pa
 @pytest.mark.integration
 def test_project_preparation_refuses_a_project_skill_without_a_namespace(tmp_path: Path) -> None:
     support.write_config(tmp_path, None, extra="activated_skills: [notes]\n")
-    support.write_skill(tmp_path / ".kittify" / "doctrine", "notes")
+    support.write_skill(tmp_path / ".kittify" / "charter-packs", "notes")
 
     with pytest.raises(SkillPreparationError, match=_PROJECT_NAMESPACE_CONFIG_PATH.replace(".", r"\.")):
         prepare_project_skill_activations(tmp_path)

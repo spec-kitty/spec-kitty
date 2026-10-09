@@ -14,13 +14,13 @@ from rich.table import Table
 from charter.activation.evidence.orchestrator import ConfigShapeError
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import CHARTER_KIND_TOKENS
-from charter.activation.pack_manager import AvailableArtifact, CharterPackManager
+from charter.activation.pack_manager import AvailableArtifact, ActiveCharterManager
 from charter.resolution import ResolutionTier
 from charter.template_catalog import TemplateRef, TierRoot, discover_templates
 from kernel.errors import KittyInternalConsistencyError
 
 from specify_cli.cli.commands.charter._common import _emit_error
-from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
+from charter.activation.layer_roots import resolve_layer_roots
 
 __all__ = ["charter_list_app"]
 
@@ -56,7 +56,7 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
     Templates live mission-scoped under ``<missions_root>/<mission>/templates``
     and ``.../command-templates`` (WP18). The package missions root ships with
     the ``doctrine`` package. The project layer (when present) carries its own
-    missions tree under ``<project-doctrine-root>/doctrine/missions``; the org
+    missions tree under ``<project pack root>/missions``; the org
     layer (when present) carries a *flat* missions tree under
     ``<org_root>/missions`` — no ``doctrine/`` subdir (FR-006, matching what
     the resolver actually reads, WP03).
@@ -68,10 +68,11 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
 
     tier_roots: list[TierRoot] = []
 
-    # Project (override-tier) missions, if a project doctrine layer exists.
+    # Project (override-tier) missions, if a project pack exists. The project
+    # layer root is the project pack root itself (``.kittify/charter-packs/``).
     project_root = layer_roots.get("project")
     if project_root is not None:
-        missions = project_root / "doctrine" / "missions"
+        missions = project_root / "missions"
         if missions.is_dir():
             tier_roots.append(
                 TierRoot(
@@ -81,7 +82,7 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
                 )
             )
 
-    # Org missions, if an org doctrine pack is configured. Flat layout
+    # Org missions, if an org Charter Pack is configured. Flat layout
     # (``<org_root>/missions``, no ``doctrine/`` subdir) and ``ResolutionTier.ORG``
     # match what the resolver actually reads (WP03) — see FR-006/DEC-009.
     org_root = layer_roots.get("org")
@@ -175,7 +176,7 @@ def list_cmd(
     the lower layers as data (C-008).
 
     ``--json`` emits the same rows the human table shows, reusing the exact
-    same ``CharterPackManager`` / ``discover_templates`` calls rather than
+    same ``ActiveCharterManager`` / ``discover_templates`` calls rather than
     re-deriving anything. Errors reuse the shared ``_emit_error`` envelope
     (``{"result": "error", "success": false, "error": message}``).
 
@@ -194,7 +195,7 @@ def list_cmd(
 
     try:
         ctx = ProjectContext.from_repo(repo_root)
-        manager = CharterPackManager()
+        manager = ActiveCharterManager()
         activated_map = manager.list_activated(ctx)
 
         # Resolve org/project roots once when we need the layer-aware view (C-008).
@@ -329,11 +330,11 @@ def list_cmd(
         _emit_error(console, json_output=json_output, message=str(exc))
         raise typer.Exit(1) from exc
     except KittyInternalConsistencyError as exc:
-        # CharterPackConfigError (ProjectContext.from_repo ->
+        # ActiveCharterConfigError (ProjectContext.from_repo ->
         # PackContext.from_config -> pack_context._load_config) on a
         # non-mapping .kittify/config.yaml or a dangling charter:
         # pointer. str(exc) is just the opaque code
-        # (CHARTER_PACK_CONFIG_INVALID); surface .body too, matching
+        # (ACTIVE_CHARTER_CONFIG_INVALID); surface .body too, matching
         # the established pattern (synthesize.py's KittyInternalConsistencyError
         # handler).
         detail = f"{exc.code}: {exc.body}" if exc.body else exc.code

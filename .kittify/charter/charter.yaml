@@ -2022,15 +2022,6 @@ activated_toolguides:
 - java-supply-chain
 - javascript-supply-chain
 - python-supply-chain
-activated_paradigms:
-- atomic-design
-- behaviour-driven-development
-- brownfield-onboarding
-- c4-incremental-detail-modeling
-- deep-module-design
-- domain-driven-design
-- specification-by-example
-- structured-prompt-driven-development
 activated_procedures:
 - bdd-scenario-lifecycle
 - disciplined-defect-diagnosis
@@ -2082,5 +2073,3 @@ activated_agent_profiles:
 - scribe-sally
 - synthesizer-sam
 - doctrine-daphne
-activated_mission_step_contracts: []
-activated_glossary_packs: []

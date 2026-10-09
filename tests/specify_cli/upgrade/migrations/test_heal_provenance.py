@@ -6,7 +6,7 @@ test calls ``detect()``/``can_apply()``/``apply()`` directly on a migration
 instance against a synthetic project, never through the upgrade pipeline, so
 the ``target_version`` guard never interferes. ``SPEC_KITTY_PACKS_ROOT`` is
 pointed at a synthetic ``packs/built-in`` tree (mirrors
-``tests/doctrine/test_provenance_normalizer.py``'s fixture) so built-in-pack
+``tests/charter_offering/test_provenance_normalizer.py``'s fixture) so built-in-pack
 classification is deterministic regardless of where this checkout lives.
 """
 

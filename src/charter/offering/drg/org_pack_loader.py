@@ -1,22 +1,23 @@
-"""Doctrine-layer org-pack schema and per-pack loader (Slice F WP06 / DDD boundary).
+"""Charter-offering org-pack schema and per-pack loader (Slice F WP06 / DDD boundary).
 
 This module is the canonical home for the org-pack on-disk schema.  It was
 split out of ``charter.drg`` per the PR #1119 pre-review comment: org-pack
-schema knowledge belongs in the ``doctrine`` layer so it cannot silently
-drift from the main DRG schema as ``doctrine`` evolves.
+schema knowledge belongs in ``charter.offering`` so it cannot silently
+drift from the main DRG schema as the offering evolves.
 
 Architectural boundary
 ----------------------
 
-``doctrine`` sits below ``charter`` in the dependency hierarchy::
+``charter.offering`` sits below the charter facades and ``charter.activation`` in
+the dependency hierarchy::
 
-    kernel (root) <- doctrine <- charter <- specify_cli
+    kernel (root) <- charter.offering <- charter <- specify_cli
 
 This module MUST NOT import from ``charter`` or ``specify_cli``. Charter
-reads ``organisation_packs:`` from ``.kittify/config.yaml`` (project-config
+reads ``charter_packs.org.packs`` from ``.kittify/config.yaml`` (project-config
 knowledge, charter-domain) and calls :func:`load_org_pack` for each
 configured pack root. All per-pack parsing and schema validation is the
-doctrine domain's responsibility and lives here.
+offering's responsibility and lives here.
 
 C-009 / kind universe
 ---------------------
@@ -41,6 +42,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from charter.offering.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
 from charter.offering.drg.models import NodeKind, Relation
+from kernel.charter_pack_paths import pack_drg_fragment
 
 __all__ = [
     "AUGMENTATION_ELIGIBLE_KINDS",
@@ -147,7 +149,7 @@ _MISSION_TYPE_UNIVERSE_EXTENSION: frozenset[str] = frozenset({_MISSION_TYPE_PLUR
 # ``_AUGMENTATION_PLURAL_KINDS`` (the same 5 kinds, "kept in sync" by comment).
 # FR-030 collapses them to ONE source here. Adding a kind is a one-line change
 # in :data:`AUGMENTATION_ELIGIBLE_KINDS`; both the loader auto-emitter and
-# ``specify_cli.doctrine.pack_validator`` derive from it.
+# ``charter.offering.packs.pack_validator`` derive from it.
 #
 # Coverage is now all 9 augmentation-eligible kinds (FR-028, T015): the
 # original five (tactic, styleguide, paradigm, procedure, agent_profile) plus
@@ -283,7 +285,7 @@ _AUGMENTATION_GLOBS: dict[str, str] = {kind.plural: kind.glob_pattern for kind i
 def augmentation_plural_kinds() -> frozenset[str]:
     """Return the plural directory names of all augmentation-eligible kinds.
 
-    FR-030 single-source derivation: ``specify_cli.doctrine.pack_validator``
+    FR-030 single-source derivation: ``charter.offering.packs.pack_validator``
     imports this instead of re-declaring its own ``_AUGMENTATION_PLURAL_KINDS``
     table. Includes ``mission_step_contracts`` and ``mission_types`` (the
     newly-covered kinds, T015 / FR-032).
@@ -439,7 +441,7 @@ class _ProjectedOrgDRGEdge(_OrgDRGEdge):
 class OrgDRGFragment(BaseModel):
     """A loaded organisation-tier DRG fragment with provenance metadata.
 
-    One instance per configured ``organisation_packs:`` entry. The loader
+    One instance per configured ``charter_packs.org.packs`` entry. The loader
     (:func:`load_org_pack`) produces a single fragment per pack root.
     ``layer_index`` (1..N) is assigned by the caller
     (``charter.drg.load_org_drg``) once it knows the declaration order.
@@ -533,7 +535,7 @@ def load_org_pack(
     if not pack_root.is_dir():
         raise OrgPackMissingError(pack_name, pack_root)
 
-    fragment_yaml = pack_root / "drg" / "fragment.yaml"
+    fragment_yaml = pack_drg_fragment(pack_root)
     if not fragment_yaml.exists():
         raise OrgPackMissingError(pack_name, fragment_yaml)
 

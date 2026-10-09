@@ -165,7 +165,7 @@ _MISSION_IDENTIFIER_ANSWERS: frozenset[str] = frozenset(
 
 # #3052 edge wiring (FR-012/NFR-007): underscore-normalized mission-type
 # identifier -> its ``mission_type:<id>`` DRG URN (built-in NodeKind.MISSION_TYPE,
-# see doctrine/drg/models.py). Derived from the SAME canonical
+# see charter/offering/drg/models.py). Derived from the SAME canonical
 # ``builtin_mission_type_ids()`` read as ``_MISSION_IDENTIFIER_ANSWERS`` above
 # (single source of truth, #2669 IC-1a) so the two tables can never drift.
 # This is the ONLY additional evidence source wired by WP07: when the

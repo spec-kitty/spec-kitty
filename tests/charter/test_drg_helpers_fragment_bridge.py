@@ -41,12 +41,11 @@ pytestmark = [pytest.mark.unit]
 def _write_config(repo_root: Path, packs: list[tuple[str, Path]]) -> None:
     """Write ``.kittify/config.yaml`` declaring *packs* in order.
 
-    Uses the canonical ``doctrine.org.packs[].local_path`` shape (not the
-    deprecated top-level ``organisation_packs`` key).
+    Uses the canonical ``charter_packs.org.packs[].local_path`` shape.
     """
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    lines = ["doctrine:", "  org:", "    packs:"]
+    lines = ["charter_packs:", "  org:", "    packs:"]
     for name, path in packs:
         lines.append(f"      - name: {name}")
         lines.append(f"        local_path: {path}")

@@ -166,22 +166,23 @@ def _dependency_line(name: str) -> str:
 
 def test_requests_dependency_comment_names_its_real_retained_consumer() -> None:
     """R3-T1 (m1-contract-drafts/R3.md §2.7): ``requests`` is kept because
-    ``doctrine/sources/{https_source,api_source}.py`` import it — a
+    ``charter_packs/sources/{https_source,api_source}.py`` import it — a
     consumer unrelated to the retired batch-sync/dossier transport
     (``delivery/receivers.py``, R2's physical-deletion scope). The stale
     "batch sync" justification comment must not survive the transport
     module's eventual removal and mislead a future reader into deleting a
-    dependency the doctrine-pack fetchers still need (§2.7 false-positive
-    guard, D1).
+    dependency the charter pack fetchers still need (§2.7 false-positive
+    guard, D1). The fetchers moved from ``specify_cli/doctrine/sources`` to
+    ``specify_cli/charter_packs/sources`` (mission charter-pack-cutover-01M491G6, FR-010).
     """
     line = _dependency_line("requests")
     assert "batch sync" not in line.lower(), f"requests' pyproject.toml comment still cites the retired batch-sync transport as its reason to exist: {line!r}"
 
-    # The dependency itself must stay declared — doctrine-pack HTTP/API
+    # The dependency itself must stay declared — charter pack HTTP/API
     # sources are retained, non-transport consumers (§2.7).
-    doctrine_sources = _SRC / "specify_cli" / "doctrine" / "sources"
-    consumers = [path for path in ("https_source.py", "api_source.py") if "import requests" in (doctrine_sources / path).read_text(encoding="utf-8")]
-    assert consumers == ["https_source.py", "api_source.py"], f"expected both doctrine-source fetchers to import requests directly; found: {consumers}"
+    pack_sources = _SRC / "specify_cli" / "charter_packs" / "sources"
+    consumers = [path for path in ("https_source.py", "api_source.py") if "import requests" in (pack_sources / path).read_text(encoding="utf-8")]
+    assert consumers == ["https_source.py", "api_source.py"], f"expected both charter pack source fetchers to import requests directly; found: {consumers}"
 
 
 def _dependency_table_entries(data: dict[str, Any]) -> list[tuple[str, str]]:

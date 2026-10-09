@@ -1,0 +1,103 @@
+{
+  "base_sha": "b9c2365a2e53851b081f7d8700ac1d821ca05edc",
+  "charter_list": [
+    {
+      "activated": null,
+      "kind": "agent-profile"
+    },
+    {
+      "activated": null,
+      "kind": "directive"
+    },
+    {
+      "activated": null,
+      "kind": "glossary-pack"
+    },
+    {
+      "activated": null,
+      "kind": "mission-step-contract"
+    },
+    {
+      "activated": [
+        "software-dev"
+      ],
+      "kind": "mission-type"
+    },
+    {
+      "activated": null,
+      "kind": "paradigm"
+    },
+    {
+      "activated": null,
+      "kind": "procedure"
+    },
+    {
+      "activated": null,
+      "kind": "skill"
+    },
+    {
+      "activated": null,
+      "kind": "styleguide"
+    },
+    {
+      "activated": null,
+      "kind": "tactic"
+    },
+    {
+      "activated": null,
+      "kind": "toolguide"
+    }
+  ],
+  "effective": {
+    "kinds": {
+      "agent_profiles": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "directives": {
+        "extra": [
+          "ACME-001-REVIEW-GATE",
+          "ACME-002-RELEASE-TRAIN"
+        ],
+        "form": "ALL_BUILTIN"
+      },
+      "glossary_packs": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "mission_step_contracts": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "paradigms": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "procedures": {
+        "extra": [
+          "acme-release-procedure"
+        ],
+        "form": "ALL_BUILTIN"
+      },
+      "styleguides": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      },
+      "tactics": {
+        "extra": [
+          "acme-pairing"
+        ],
+        "form": "ALL_BUILTIN"
+      },
+      "toolguides": {
+        "extra": [],
+        "form": "ALL_BUILTIN"
+      }
+    },
+    "mission_types": [
+      "software-dev"
+    ],
+    "skills": []
+  },
+  "fixture": "two_org_packs"
+}

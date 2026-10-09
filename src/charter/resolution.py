@@ -12,9 +12,9 @@ fallback handlers, no silent degradation.
 
 In addition, this module is the charter-layer facade for resolution-tier
 types from ``charter.offering.resolver`` (``ResolutionResult``, ``ResolutionTier``).
-The runtime → charter → doctrine boundary (ADR 2026-03-27-1, tightened by
+The runtime → charter → charter.offering boundary (ADR 2026-03-27-1, tightened by
 mission ``charter-mediated-doctrine-selection-01KRTZCA``) requires runtime
-modules under ``src/specify_cli/`` to reach doctrine artifacts only through
+modules under ``src/specify_cli/`` to reach charter offering artifacts only through
 charter facades. ``ResolutionResult`` and ``ResolutionTier`` are re-exported
 here as **pure re-exports** (object identity preserved). No behaviour, no
 wrappers, no type aliases.

@@ -130,7 +130,7 @@ def test_synthesize_json_surfaces_unknown_artifact_id_without_traceback(tmp_path
     stale_stem_error = UnknownArtifactIdError(
         "No directive artifact with config ID 'does-not-exist-directive-stem' found under "
         "doctrine root /fake/doctrine. Check `.kittify/config.yaml` activated_directives for "
-        "a stale or misspelled entry, or run `spec-kitty doctor doctrine` to verify the "
+        "a stale or misspelled entry, or run `spec-kitty doctor charter-packs` to verify the "
         "doctrine corpus (including any org packs) is intact."
     )
 
@@ -166,7 +166,7 @@ def test_synthesize_console_surfaces_unknown_artifact_id_without_traceback(tmp_p
     stale_stem_error = UnknownArtifactIdError(
         "No directive artifact with config ID 'does-not-exist-directive-stem' found under "
         "doctrine root /fake/doctrine. Check `.kittify/config.yaml` activated_directives for "
-        "a stale or misspelled entry, or run `spec-kitty doctor doctrine` to verify the "
+        "a stale or misspelled entry, or run `spec-kitty doctor charter-packs` to verify the "
         "doctrine corpus (including any org packs) is intact."
     )
 

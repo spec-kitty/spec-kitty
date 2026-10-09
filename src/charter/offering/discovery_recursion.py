@@ -1,4 +1,4 @@
-"""Single authority for org/project doctrine overlay recursion (C-001, C-006).
+"""Single authority for org/project overlay recursion (C-001, C-006).
 
 Both the loader (:mod:`charter.offering.base`, :mod:`charter.offering.agent_profiles.repository`)
 and the charter-activation resolver (:mod:`charter.activation.kind_vocabulary`) read this
@@ -13,7 +13,7 @@ configured non-recursive. The per-kind function signature exists so the resolver
 it uniformly, and so the parity/totality gate can falsify a reintroduced
 divergence per kind.
 
-Layering (C-006): this module lives in the ``doctrine`` layer and imports only
+Layering (C-006): this module lives in ``charter.offering`` and imports only
 :mod:`charter.offering.artifact_kinds` (itself zero-dependency). ``charter`` imports
 *down* into it; it never imports ``charter`` or ``specify_cli``.
 
@@ -35,7 +35,7 @@ __all__ = [
 #: unconditional), never hand-listed. The public seam is
 #: :func:`overlay_scan_is_recursive`, which binds both loader and resolver
 #: recursion to this set; the frozenset itself is a module-level derivation
-#: surface asserted by the parity gate (``tests/doctrine/test_discovery_recursion.py``)
+#: surface asserted by the parity gate (``tests/charter_offering/test_discovery_recursion.py``)
 #: but consumed by no other ``src/`` module, so it is deliberately **not** in
 #: ``__all__`` — exporting an unimported symbol would trip the dead-symbol gate.
 RECURSIVE_OVERLAY_KINDS: frozenset[ArtifactKind] = frozenset(ArtifactKind)
@@ -49,7 +49,7 @@ def overlay_scan_is_recursive(kind: ArtifactKind | None) -> bool:
     kind by construction (FR-002).
 
     *kind* is ``None`` when a caller cannot map its scan to a canonical
-    :class:`ArtifactKind` — e.g. a :class:`~charter.offering.base.BaseDoctrineRepository`
+    :class:`ArtifactKind` — e.g. a :class:`~charter.offering.base.BaseArtifactRepository`
     subclass (or test stub) whose glob is not one of the canonical
     ``ArtifactKind.glob_pattern`` values. Such a scan still recurses: the policy
     is uniform (C-001), so an unmapped scan gets the same unconditional

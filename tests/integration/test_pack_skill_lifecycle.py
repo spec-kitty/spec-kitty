@@ -188,7 +188,7 @@ def test_name_collision_fails_before_any_write(tmp_path: Path, project: Path) ->
     """Two skills rendering to one name: refused with the whole tree (staging, roots, manifest) untouched."""
     pack = tmp_path / "pack"
     support.write_skill(pack, "x-y")  # org tier, namespace "acme"  -> acme-x-y
-    support.write_skill(project / ".kittify" / "doctrine", "y")  # project tier, namespace "acme-x" -> acme-x-y
+    support.write_skill(project / ".kittify" / "charter-packs", "y")  # project tier, namespace "acme-x" -> acme-x-y
     _reconfigure(project, pack, ["x-y", "y"], project_namespace="acme-x")
     snapshot = _snapshot(project)
 
@@ -213,7 +213,7 @@ def test_activating_a_kind_other_than_skill_never_reprojects_pack_skills(tmp_pat
     pack = tmp_path / "pack"
     support.write_skill(pack, "x-y")
     support.write_directive(pack, "release-gate")
-    support.write_skill(project / ".kittify" / "doctrine", "y")
+    support.write_skill(project / ".kittify" / "charter-packs", "y")
     _reconfigure(project, pack, ["x-y", "y"], project_namespace="acme-x")  # both skills render as acme-x-y: not projectable
     skill_roots = {root: _snapshot(project / root) for root in AGENT_ROOTS}
 

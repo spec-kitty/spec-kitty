@@ -10,17 +10,18 @@ below directly rather than re-deriving a classification (or re-reading prose fro
         DISPOSITION,
         EXEMPT_MANAGEMENT_SURFACE,
         TICKETED_BASELINE,
-        reached_doctrine_paths,
+        reached_offering_paths,
     )
 
 The census is **re-run against the live tree** on every invocation (an AST sweep of
 the ``_SCAN_ROOTS`` — ``src/specify_cli/`` and, since the #3522 widening,
-``src/runtime/`` — excluding the exempt ``src/specify_cli/doctrine/`` management
-subpackage) — the disposition table is not trusted from a stale snapshot. A newly
+``src/runtime/``; no subpackage is exempt since mission
+``charter-pack-cutover-01M491G6`` WP05 deleted the former management package
+rather than moving its exemption, NFR-002) — the disposition table is not trusted from a stale snapshot. A newly
 reach-through-ed, undoored doctrine path therefore fails CI (FR-002 / SC-002).
 
 Census numbers, re-measured on this tip (post WP05–WP07 migration + the #3522
-``src/runtime`` widening) via ``reached_doctrine_paths()`` — the same live scan the
+``src/runtime`` widening) via ``reached_offering_paths()`` — the same live scan the
 gate runs on every invocation:
 
 * module-level direct ``from charter.offering …`` imports (``ImportFrom.level == 0``): **0**
@@ -35,7 +36,7 @@ gates below passed vacuously. Fixed together with the #3522 widening.)
 (Earlier snapshots recorded 29 files / 54 lines / 23 paths before the WP05–WP07
 migration, and 34 files / 70 lines / 26 paths at planning time — both superseded.
 The gate re-censuses the live tree every run, so it, not this prose, is the
-authority; reproduce the numbers above with ``reached_doctrine_paths()``.)
+authority; reproduce the numbers above with ``reached_offering_paths()``.)
 
 See ``kitty-specs/doctrine-public-api-surface-01KZPDSR/data-model.md`` for the finalized
 per-symbol disposition table and the management-surface / C-007-mission notes.
@@ -73,11 +74,13 @@ _MISSION_TASKS = _REPO_ROOT / "kitty-specs" / "doctrine-public-api-surface-01KZP
 # Manifest — the machine-readable disposition surface (imported by WP02 / WP04)
 # ---------------------------------------------------------------------------
 
-#: The inbound-only *management surface*: the only runtime location permitted to
-#: import ``doctrine.*`` directly. WP01 is the SOLE owner of this enumeration — no
-#: later WP may reclassify a module into the exempt surface, so it is pinned as a
-#: frozen set and any growth must be a deliberate, reviewed diff (test below).
-EXEMPT_MANAGEMENT_SURFACE: frozenset[str] = frozenset({"src/specify_cli/doctrine"})
+#: The inbound-only *management surface*: runtime locations permitted to import
+#: ``charter.offering.*`` directly. Empty: mission ``charter-pack-cutover-01M491G6``
+#: WP05 (#3732, FR-010 / NFR-002) deleted the one exempt package and removed its
+#: exemption rather than moving it; its adapters reach the offering tier only
+#: through the ``charter.drg`` / ``charter.packs`` doors. Pinned empty (test below):
+#: any entry is a deliberate, reviewed widening.
+EXEMPT_MANAGEMENT_SURFACE: frozenset[str] = frozenset()
 
 #: The full disposition taxonomy (data-model.md "Taxonomy (value set)" + the two
 #: census-only tags: TICKETED-BASELINE for doorless management internals, and
@@ -101,10 +104,11 @@ TAXONOMY: frozenset[str] = frozenset(
 #: mission's intent. WP03 owes no door for these; WP05 keeps them allowlisted.
 TICKETED_BASELINE: dict[str, str] = {
     "charter.offering.drg.override_policy": (
-        "Doctrine-management internal consumed by _doctrine_collect.py (override-audit paths); no clean charter door. Ratchet allowlist, #3179."
+        "Doctrine-management internal consumed by _charter_pack_collect.py (override-audit paths); no clean charter door. Ratchet allowlist, #3179."
     ),
     "charter.offering.drg.migration.hand_authored_overlay": (
-        "write_reference_graph_with_overlay is a DRG-regeneration internal consumed by cli/commands/doctrine.py; no clean charter door. Ratchet allowlist, #3179."
+        "write_reference_graph_with_overlay is a DRG-regeneration internal consumed by cli/commands/charter/pack_tooling.py; "
+        "no clean charter door. Ratchet allowlist, #3179."
     ),
 }
 
@@ -112,7 +116,7 @@ TICKETED_BASELINE: dict[str, str] = {
 #: is a **superset** of the currently-reached set: it also classifies paths reached
 #: only under ``TYPE_CHECKING`` today (drg.merge, glossary_packs, assets.models) so
 #: WP02/WP03 have a stable target even as call sites migrate. Every reached path
-#: MUST appear here (test_every_reached_doctrine_path_has_disposition).
+#: MUST appear here (test_every_reached_offering_path_has_disposition).
 DISPOSITION: dict[str, str] = {
     # agent_profiles cluster → charter.profiles (existing door)
     "charter.offering.agent_profiles.profile": "FACADE-ONLY",
@@ -120,7 +124,7 @@ DISPOSITION: dict[str, str] = {
     "charter.offering.agent_profiles.capabilities": "FACADE-ONLY",
     "charter.offering.agent_profiles.diagnostics": "FACADE-ONLY",
     # operating_procedures: the single-authority operating-procedures harvest,
-    # reached by _doctrine_collect.py (doctor doctrine) + the DRG extractor.
+    # reached by _charter_pack_collect.py (doctor charter-packs) + the DRG extractor.
     # FACADE-ONLY per the cluster: it belongs behind the charter.profiles door;
     # the op-procedures door is a tracked follow-up (see PR #3593).
     "charter.offering.agent_profiles.operating_procedures": "FACADE-ONLY",
@@ -134,9 +138,9 @@ DISPOSITION: dict[str, str] = {
     "charter.offering.drg.validator": "FACADE-ONLY",
     "charter.offering.drg.override_policy": "TICKETED-BASELINE",
     "charter.offering.drg.migration.hand_authored_overlay": "TICKETED-BASELINE",
-    # charter.offering.base — DoctrineLayerCollisionWarning (census-drift: absent from the
+    # charter.offering.base — ArtifactLayerCollisionWarning (census-drift: absent from the
     # snapshot table). Doorable → FACADE-ONLY (prefer a clean door over widening
-    # the exempt surface). Consumer _doctrine_collect.py is WP05-owned.
+    # the exempt surface). Consumer _charter_pack_collect.py is WP05-owned.
     "charter.offering.base": "FACADE-ONLY",
     # missions cluster → new charter.missions door
     "charter.offering.missions.step_contracts": "FACADE-ONLY",
@@ -176,8 +180,8 @@ DISPOSITION: dict[str, str] = {
 #: (ArtifactKind) directly while being owned by no migration WP. Mission
 #: ``doctrine-public-api-surface-01KZPDSR`` WP07 folded it in (out-of-map, justified):
 #: its ArtifactKind import now routes through ``charter.drg`` and its
-#: ``specify_cli.doctrine.org_charter`` usage is a first-party call into the exempt
-#: management surface (not a laundered doctrine symbol). Any NEW orphan (reached,
+#: ``charter.activation.org_charter`` usage is a first-party call into the
+#: activation tier (not a laundered doctrine symbol). Any NEW orphan (reached,
 #: unowned, not listed here) fails ``test_no_reached_file_is_orphaned``.
 #: Tracker: #3179.
 ORPHAN_REACHED_EXCEPTIONS: frozenset[tuple[str, str]] = frozenset(
@@ -190,6 +194,26 @@ ORPHAN_REACHED_EXCEPTIONS: frozenset[tuple[str, str]] = frozenset(
         # test_runtime_charter_doctrine_boundary.py's lazy baseline.
         ("src/runtime/next/runtime_bridge_composition.py", "charter.offering.missions.step_contracts"),
         ("src/runtime/next/runtime_bridge_io.py", "charter.offering.missions.step_projection"),
+        # #3732 (charter-pack-cutover-01M491G6 WP15) moved the retired
+        # ``spec-kitty doctrine`` leaves to their ``charter`` homes. These two
+        # modules are the successors of WP05-owned command files and keep their
+        # predecessors' reaches unchanged: the raw service construction (wrapped
+        # immediately; CONSTRUCTION-ROUTED, pinned by the sole-door gate's
+        # ``_build_asset_repository`` exclusion) and the doorless DRG-regeneration
+        # internal (TICKETED-BASELINE). The owner list above is the frozen
+        # 01KZPDSR record, so the moved files cannot join it.
+        ("src/specify_cli/cli/commands/charter/pack_asset.py", "charter.offering.service"),
+        ("src/specify_cli/cli/commands/charter/pack_tooling.py", "charter.offering.drg.migration.hand_authored_overlay"),
+        # #3732 (charter-pack-cutover-01M491G6 WP21) renamed the WP05-owned
+        # ``_doctrine_collect.py`` to ``_charter_pack_collect.py`` (git mv, no
+        # change of reach). Same reason as above: the frozen owner list names the
+        # predecessor, so the successor's unchanged reaches are listed pair by pair.
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.agent_profiles.operating_procedures"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.artifact_kinds"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.drg.loader"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.drg.override_policy"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.pack_paths"),
+        ("src/specify_cli/cli/commands/_charter_pack_collect.py", "charter.offering.service"),
     }
 )
 
@@ -215,13 +239,13 @@ def _is_type_checking(test: ast.expr) -> bool:
     return False
 
 
-def _is_doctrine_name(name: str) -> bool:
+def _is_offering_name(name: str) -> bool:
     """True for an absolute doctrine module name, in EITHER spelling.
 
     Post-relocation (charter-code-topology-01M152G1) the doctrine layer lives at
     ``charter.offering.*``; the legacy ``doctrine``/``doctrine.*`` spelling
     resolves through the ``src/doctrine.py`` shim. The census must recognize
-    both — matching only the legacy spelling left ``reached_doctrine_paths()``
+    both — matching only the legacy spelling left ``reached_offering_paths()``
     EMPTY on the relocated tree, so every census gate passed vacuously (found
     during the #3522 scan-root widening). The boundary gate shares this matcher.
     """
@@ -230,7 +254,7 @@ def _is_doctrine_name(name: str) -> bool:
     return name.startswith("doctrine.") or name.startswith("charter.offering.")
 
 
-def _doctrine_paths(node: ast.AST) -> set[str]:
+def _offering_paths(node: ast.AST) -> set[str]:
     """Absolute doctrine targets; root from-imports include the imported member.
 
     Bare package imports can be pinned for metadata access. Importing a member
@@ -242,12 +266,12 @@ def _doctrine_paths(node: ast.AST) -> set[str]:
         module = node.module or ""
         if module in ("doctrine", "charter.offering"):
             return {f"{module}.{alias.name}" for alias in node.names}
-        if _is_doctrine_name(module):
+        if _is_offering_name(module):
             return {module}
         if module == "charter" and any(alias.name == "offering" for alias in node.names):
             return {"charter.offering"}
     if isinstance(node, ast.Import):
-        return {alias.name for alias in node.names if _is_doctrine_name(alias.name)}
+        return {alias.name for alias in node.names if _is_offering_name(alias.name)}
     return set()
 
 
@@ -261,7 +285,7 @@ class _ReachVisitor(ast.NodeVisitor):
     def _record(self, node: ast.AST) -> None:
         if self._type_checking_depth:
             return
-        self.paths.update(_doctrine_paths(node))
+        self.paths.update(_offering_paths(node))
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         self._record(node)
@@ -281,18 +305,8 @@ class _ReachVisitor(ast.NodeVisitor):
             self.visit(child)
 
 
-def _is_exempt(path: Path) -> bool:
-    """True when ``path`` lives inside the exempt management subpackage."""
-    exempt_root = _REPO_ROOT / "src" / "specify_cli" / "doctrine"
-    try:
-        path.relative_to(exempt_root)
-    except ValueError:
-        return False
-    return True
-
-
-def reached_doctrine_paths() -> dict[str, set[str]]:
-    """Map each non-exempt runtime file → the set of doctrine module-paths it reaches.
+def reached_offering_paths() -> dict[str, set[str]]:
+    """Map each runtime file → the set of doctrine module-paths it reaches.
 
     Reach = a direct ``from charter.offering…`` / ``import charter.offering`` with
     ``ImportFrom.level == 0``, at module level *or* inside a function body,
@@ -301,8 +315,6 @@ def reached_doctrine_paths() -> dict[str, set[str]]:
     """
     result: dict[str, set[str]] = {}
     for path in sorted(p for root in _SCAN_ROOTS for p in root.rglob("*.py")):
-        if _is_exempt(path):
-            continue
         tree = parse_file(path)
         visitor = _ReachVisitor()
         for child in tree.body:
@@ -330,13 +342,13 @@ def _owned_files(task_filename: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_every_reached_doctrine_path_has_disposition() -> None:
+def test_every_reached_offering_path_has_disposition() -> None:
     """FR-002 / SC-002: every reached, non-exempt doctrine path is classified.
 
     A newly reach-through-ed doctrine module-path that lacks a disposition entry
     fails here — the machine-checkable "no undoored reach-through" guard.
     """
-    reached: set[str] = set().union(*reached_doctrine_paths().values())
+    reached: set[str] = set().union(*reached_offering_paths().values())
     undoored = undoored_paths(reached, DISPOSITION)
     assert not undoored, (
         "Undoored doctrine reach-through — the following doctrine module-paths are "
@@ -369,15 +381,16 @@ def test_no_reached_path_tagged_management() -> None:
 
 
 def test_management_surface_is_frozen() -> None:
-    """Pin the inbound-only management surface as a frozen, reviewed constant.
+    """Pin the management surface empty: the exemption was deleted, not moved (NFR-002).
 
-    WP01 is the sole owner of this enumeration; any growth must be a deliberate diff
-    to this literal, not a silent per-path judgment in a later WP.
+    Mission ``charter-pack-cutover-01M491G6`` WP05 deleted the one exempt package
+    (FR-010); its fetch/scaffold adapters moved to ``specify_cli.charter_packs``
+    with no exemption. Any entry here is a deliberate, reviewed widening.
     """
-    expected = frozenset({"src/specify_cli/doctrine"})
-    assert expected == EXEMPT_MANAGEMENT_SURFACE
-    exempt_dir = _REPO_ROOT / "src" / "specify_cli" / "doctrine"
-    assert exempt_dir.is_dir(), "exempt management subpackage missing from the tree"
+    assert not EXEMPT_MANAGEMENT_SURFACE, sorted(EXEMPT_MANAGEMENT_SURFACE)
+    retired = _REPO_ROOT.joinpath("src", "specify_cli", "doctrine")
+    assert not retired.exists(), "the retired management package is back in the tree"
+    assert _REPO_ROOT.joinpath("src", "specify_cli").is_dir(), "control: the scan root exists"
 
 
 def test_ticketed_baseline_paths_are_classified() -> None:
@@ -393,7 +406,7 @@ def test_no_reached_file_is_orphaned() -> None:
     census set; any remainder must be a documented ORPHAN_REACHED_EXCEPTIONS entry
     (else the reached file is orphaned and this fails).
     """
-    census = reached_doctrine_paths()
+    census = reached_offering_paths()
     owned: set[str] = set()
     for task_filename in _MIGRATION_WP_FILES:
         owned.update(_owned_files(task_filename))
@@ -409,7 +422,7 @@ def test_no_reached_file_is_orphaned() -> None:
 
 def test_orphan_exceptions_are_actually_reached() -> None:
     """Each excepted file/import pair must still be reached, even in a live file."""
-    census_pairs = {(file, module) for file, modules in reached_doctrine_paths().items() for module in modules}
+    census_pairs = {(file, module) for file, modules in reached_offering_paths().items() for module in modules}
     stale = ORPHAN_REACHED_EXCEPTIONS - census_pairs
     assert not stale, f"Stale ORPHAN_REACHED_EXCEPTIONS entries (no longer reach doctrine — a migration likely landed): {sorted(stale)}. Remove them."
 
@@ -423,7 +436,7 @@ def test_injected_undoored_path_is_flagged() -> None:
     flagged = undoored_paths(reached, DISPOSITION)
     assert flagged == {"charter.offering.brand_new_undoored_module"}
     # And the real, fully-classified reached set must flag nothing.
-    real = set().union(*reached_doctrine_paths().values())
+    real = set().union(*reached_offering_paths().values())
     assert undoored_paths(real, DISPOSITION) == set()
 
 
@@ -484,7 +497,7 @@ def test_census_source_scan_collects_import_forms(package: str, lazy: bool, stat
         return mutation if path == target else original_read(path, encoding=encoding)
 
     with patch.object(Path, "read_text", read_source):
-        assert reached_doctrine_paths().get(str(target.relative_to(_REPO_ROOT)), set()) == expected
+        assert reached_offering_paths().get(str(target.relative_to(_REPO_ROOT)), set()) == expected
 
 
 @pytest.mark.parametrize(
@@ -526,4 +539,4 @@ def test_census_distinguishes_root_members_from_metadata(spelling: str, members:
 
     with patch.object(Path, "read_text", read_source):
         expected = {"charter.offering"} | {f"{spelling}.{member}" for member in targets}
-        assert reached_doctrine_paths()[str(target.relative_to(_REPO_ROOT))] == expected
+        assert reached_offering_paths()[str(target.relative_to(_REPO_ROOT))] == expected

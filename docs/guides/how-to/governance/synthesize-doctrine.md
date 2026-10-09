@@ -2,7 +2,7 @@
 title: How to Synthesize and Maintain Doctrine
 description: Run charter synthesize and charter resynthesize, validate the bundle, check provenance, and recover from stale state.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-10-08'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -82,9 +82,9 @@ The `--dry-run` flag stages and validates artifacts but does not promote them to
 Review the output to confirm the synthesis plan is correct.
 
 `charter synthesize` reads the charter interview answers, resolves synthesis targets from the DRG
-and doctrine, and writes artifacts to `.kittify/doctrine/`. On a fresh project where
+and doctrine, and writes artifacts to `.kittify/charter-packs/`. On a fresh project where
 `.kittify/charter/generated/` is missing or empty, it materializes the minimal artifact set: a
-`.kittify/doctrine/` directory and a `PROVENANCE.md` record.
+`.kittify/charter-packs/` directory and a `PROVENANCE.md` record.
 
 ---
 
@@ -96,7 +96,7 @@ When the dry-run output looks correct, apply:
 uv run spec-kitty charter synthesize
 ```
 
-On success, the artifacts are promoted to `.kittify/doctrine/`. The runtime can now use the
+On success, the artifacts are promoted to `.kittify/charter-packs/`. The runtime can now use the
 updated doctrine for governed mission context injection.
 
 Additional options:

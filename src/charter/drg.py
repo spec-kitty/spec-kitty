@@ -67,12 +67,13 @@ from __future__ import annotations
 # ``charter.offering.api`` (not ``charter.offering.artifact_kinds`` directly) so the
 # PUBLIC wheel symbols gain a live in-repo caller — the from-``charter.offering.api``
 # wiring the no-dead-symbol gate (``tests/architectural/test_no_dead_symbols.py``) and
-# the strict T007 live-caller assertion (``test_doctrine_public_surface.py``) depend
+# the strict T007 live-caller assertion (``test_charter_offering_public_surface.py``) depend
 # on. Object identity is unchanged: ``charter.offering.api.ArtifactKind is
 # charter.offering.artifact_kinds.ArtifactKind`` (mission ``doctrine-public-api-surface``
 # WP03, FR-003 / NFR-002 / contract C1).
 from charter.offering.api import ArtifactKind, slug_for
-from charter.offering.base import DoctrineLayerCollisionWarning
+from charter.offering.artifact_kinds import CORE_KIND_PLURALS
+from charter.offering.base import ArtifactLayerCollisionWarning
 from charter.offering.drg import (
     DRGLoadError,
     DRGValidationError,
@@ -98,12 +99,14 @@ from charter.offering.drg.migration.extractor import (
 )
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from charter.offering.drg.org_pack_config import (
+    OrgPackConfig,
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
     load_pack_registry as load_pack_registry,
     resolve_existing_org_roots,
     resolve_org_dirs,
     resolve_org_roots,
+    resolve_relative_path_within_root,
 )
 from charter.offering.drg.org_pack_loader import (
     OrgDRGFragment,
@@ -118,12 +121,14 @@ from charter.offering.drg.project_scan import scan_project_artifacts
 __all__ = [
     "merge_three_layers",
     "ArtifactKind",
+    "CORE_KIND_PLURALS",
+    "OrgPackConfig",
     "DRGEdge",
     "DRGGraph",
     "DRGLoadError",
     "DRGNode",
     "DRGValidationError",
-    "DoctrineLayerCollisionWarning",
+    "ArtifactLayerCollisionWarning",
     "FIELDS_WITHHELD_FROM_GRAPH_OUTPUT",
     "NodeKind",
     "OrgDRGConflict",
@@ -150,6 +155,7 @@ __all__ = [
     "resolve_existing_org_roots",
     "resolve_org_dirs",
     "resolve_org_roots",
+    "resolve_relative_path_within_root",
     "slug_for",
     "validate_dangling_references",
 ]

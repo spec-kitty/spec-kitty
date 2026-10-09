@@ -14,6 +14,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from kernel.charter_pack_paths import project_pack_root
+
 from .findings import GraphState
 
 logger = logging.getLogger(__name__)
@@ -22,7 +24,7 @@ logger = logging.getLogger(__name__)
 def _load_graph_file(path: Path) -> Any | None:
     """Load a DRG graph file (``.yaml``/``.yml``/``.json``) into a ``DRGGraph``.
 
-    Returns ``None`` when the doctrine package is not importable, the file
+    Returns ``None`` when the charter offering is not importable, the file
     cannot be parsed, or validation against ``DRGGraph`` fails.
     """
     try:
@@ -42,13 +44,13 @@ def _load_graph_file(path: Path) -> Any | None:
 
 
 def _load_project_drg(repo_root: Path) -> Any | None:
-    """Try to load the project DRG from ``.kittify/doctrine/``.
+    """Try to load the project DRG from the project pack root (``.kittify/charter-packs/``).
 
     Search order matches the one used by ``entity_pages.py``::
 
         graph.yaml > merged_drg.json > drg.json > compiled_drg.json
     """
-    drg_dir = repo_root / ".kittify" / "doctrine"
+    drg_dir = project_pack_root(repo_root)
     candidates = ["graph.yaml", "merged_drg.json", "drg.json", "compiled_drg.json"]
     for name in candidates:
         path = drg_dir / name
@@ -66,7 +68,7 @@ def _load_built_in_drg() -> Any | None:
     seam (WP03, mission #2680) so the built-in graph is read in exactly one
     place and follows the monolith->fragment migration (WP05) transparently.
     The lazy, exception-safe shape is preserved: returns ``None`` when the
-    doctrine package is not importable or the graph cannot be loaded, which the
+    charter offering is not importable or the graph cannot be loaded, which the
     caller maps to :class:`GraphState.MISSING`.
     """
     try:
@@ -88,7 +90,7 @@ def load_merged_drg(repo_root: Path) -> tuple[Any | None, GraphState]:
     Resolution order (deterministic — locked by ADR
     ``2026-05-24-1-charter-freshness-ux-contract.md``):
 
-    1. Project DRG under ``.kittify/doctrine/`` →
+    1. Project DRG under ``.kittify/charter-packs/`` →
        ``(graph, GraphState.MERGED)``. The "merged" label reflects the
        contract that a synthesized project DRG already incorporates the
        built-in and any org-pack layers; callers do not need to merge

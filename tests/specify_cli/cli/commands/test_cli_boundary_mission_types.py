@@ -11,7 +11,6 @@ from click.testing import Result
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import charter_app
-from specify_cli.cli.commands.doctrine import app as doctrine_app
 from specify_cli.cli.commands.mission import app as mission_app
 from specify_cli.cli.commands.mission_type import app as mission_type_app
 
@@ -22,7 +21,7 @@ ROUTES = [
     (mission_type_app, ["list"]),
     (charter_app, ["mission-type", "list"]),
     (mission_type_app, ["show", "software-dev"]),
-    (doctrine_app, ["mission-type", "list"]),
+    (charter_app, ["mission-type", "list", "--include-inactive"]),
 ]
 
 
@@ -71,14 +70,13 @@ def test_issue_4598_aliases_keep_activation_subset(project: Path, app: Any, args
     assert "OptionInfo" not in result.output
 
 
-def test_inactive_discovery_and_doctrine_success_schema(project: Path) -> None:
-    canonical = runner.invoke(charter_app, ["mission-type", "list", "--include-inactive", "--json"])
-    doctrine = runner.invoke(doctrine_app, ["mission-type", "list", "--json"])
-    assert canonical.exit_code == doctrine.exit_code == 0
-    rows = json.loads(doctrine.stdout)
+def test_inactive_discovery_success_schema(project: Path) -> None:
+    result = runner.invoke(charter_app, ["mission-type", "list", "--include-inactive", "--json"])
+    assert result.exit_code == 0, repr(result.exception)
+    rows = json.loads(result.stdout)
     assert len(rows) > 1
-    assert {row["id"] for row in rows} == {row["id"] for row in json.loads(canonical.stdout)}
-    assert all(set(row) == {"id", "source_layer", "display_name"} for row in rows)
+    assert {row["id"] for row in rows if row["activated"]} == {"software-dev"}
+    assert all(set(row) == {"id", "source_layer", "display_name", "action_sequence", "activated"} for row in rows)
 
 
 def test_issue_4601_unknown_type_json(project: Path) -> None:

@@ -1,12 +1,12 @@
 """Shared helper for removing stale project ``graph.yaml`` residue.
 
 FR-007: two ``built_in_only``-writer paths used to each carry their own bare
-``(doctrine_dir / "graph.yaml").unlink(missing_ok=True)`` expression:
+``(pack_dir / "graph.yaml").unlink(missing_ok=True)`` expression:
 
 * ``charter.activation.synthesizer.project_drg.apply_post_condition`` (inside its atomic
   ``write_text(tmp) → unlink(graph) → guard.replace(tmp, manifest)`` sequence),
   and
-* ``specify_cli.cli.commands.charter._fresh_doctrine`` (a standalone unlink for
+* ``specify_cli.cli.commands.charter._fresh_project_layer`` (a standalone unlink for
   the synthesizer-bypass fresh-seed path).
 
 Both now route through :func:`unlink_stale_project_graph`. The graph filename
@@ -30,15 +30,15 @@ from charter.activation.synthesizer._constants import GRAPH_FILENAME as _GRAPH_F
 __all__ = ["unlink_stale_project_graph"]
 
 
-def unlink_stale_project_graph(doctrine_dir: Path) -> None:
-    """Remove a stale project ``graph.yaml`` under ``doctrine_dir`` if present.
+def unlink_stale_project_graph(pack_dir: Path) -> None:
+    """Remove a stale project ``graph.yaml`` under ``pack_dir`` if present.
 
     Idempotent and missing-safe: a missing ``graph.yaml`` is a no-op. This is
     the single sanctioned removal of a project graph that a ``built_in_only``
     writer disowns (FR-007).
 
     Args:
-        doctrine_dir: The project doctrine directory (``.kittify/doctrine``)
+        pack_dir: The project pack root (``.kittify/charter-packs``)
             that may contain a residual ``graph.yaml``.
     """
-    (doctrine_dir / _GRAPH_FILENAME).unlink(missing_ok=True)
+    (pack_dir / _GRAPH_FILENAME).unlink(missing_ok=True)

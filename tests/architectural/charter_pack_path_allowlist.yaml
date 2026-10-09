@@ -1,0 +1,28 @@
+# FR-016 charter pack path allowlist (mission charter-pack-cutover-01M491G6, WP03).
+#
+# Governed by tests/architectural/test_charter_pack_path_authority.py; read its
+# module docstring first. Key: (file, qualname, literal, clause); `line` is a
+# non-authoritative locator. Every entry
+# names the work package that drains it (WP04, WP05, WP14 or WP25) and why.
+# SHRINK-ONLY: charter_pack_path_baseline equals the entry count; drain an
+# entry by routing the site through kernel.charter_pack_paths, deleting the
+# entry and lowering the baseline. NFR-002: this list closes empty (WP25).
+#
+# Landed by WP03 (2026-10-07) with 25 entries: WP04 6, WP05 1, WP14 11, WP25 7.
+# WP03 review cycle 2 (2026-10-07): the gate learned the loop-then-join shape;
+# +2 WP14 entries (_project_root_candidates.py, agent_profiles.py) -> 27 entries:
+# WP04 6, WP05 1, WP14 13, WP25 7.
+# WP04 (2026-10-07) drained its 6 entries (pack_validator x4, pack_assembler,
+# org_charter) through kernel.charter_pack_paths -> 21 entries.
+# WP05 (2026-10-07) drained its 1 entry (org_charter_loader, moved to
+# charter.activation) through kernel.charter_pack_paths -> 20 entries.
+# WP14 (2026-10-07) drained its 13 entries: the read shims and the nested
+# <pack>/doctrine/<plural>/<layer> org layout are gone (FR-011), the pack-relative
+# literals go through kernel.charter_pack_paths -> 7 entries, all WP25.
+
+# WP25 (2026-10-09) drained its 7 entries: the MissionTemplateRepository origin
+# labels name the built-in tier as "built-in/..." (the sibling
+# template_resolver._tier_to_origin label moved with them) -> 0 entries. Closed.
+
+charter_pack_path_baseline: 0
+charter_pack_path_literals: []

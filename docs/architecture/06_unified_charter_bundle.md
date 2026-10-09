@@ -111,7 +111,7 @@ resolver reads the pointer, then loads that file. The pointer may redirect
 to a sibling, shared, or cross-project charter — a swap is a one-line config
 change. `config.yaml` no longer carries the flat `activated_*` /
 `mission_type_activations` keys itself; those moved to `charter.yaml`'s
-root (flat, matching `src/charter/activation/packs/default.yaml`) as part of the same
+root (flat, matching `packs/built-in/presets/default.yaml`) as part of the same
 inversion — `config.yaml` keeps only the pointer plus `org_packs`.
 
 A `charter:` pointer to a missing or unreadable file fails loud; there is no

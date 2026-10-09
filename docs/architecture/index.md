@@ -2,7 +2,7 @@
 title: Architecture notes
 description: 'Page index for docs/architecture/: the living C4 model, landscape and vision, explanations, models, assessments, templates, and the frozen per-era history.'
 doc_status: active
-updated: '2026-09-30'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/adr/3.x/2026-04-06-2-connector-auth-binding-separation.md
@@ -50,7 +50,7 @@ cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadm
 - [AI agent architecture](ai-agent-architecture.md) — how Spec Kitty stays agent-agnostic across the 17 supported agents.
 - [Why the Divio documentation system?](divio-documentation.md) — tutorials/how-to/reference/explanation mapping.
 - [Doctrine relationships](doctrine-relationships.md) — DRG relation types as typed graph edges.
-- [Understanding the org doctrine layer](org-doctrine-layer.md) — built-in/org/project doctrine resolution.
+- [Understanding the org layer of the charter offering](org-doctrine-layer.md) — built-in/org/project-layer resolution.
 - [Understanding Charter: synthesis, DRG, and governed context](charter-synthesis-drg.md).
 - [Understanding governed profile invocation](governed-profile-invocation.md) — standalone dispatch under governance.
 - [Profile-load reliability](profile-load-reliability.md) — why squads stopped loading charter agent profiles, and the stabilization design (partly shipped in 3.2.6; the rest is on 4.x Work).
@@ -62,7 +62,7 @@ cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadm
 - [Branch-target routing](branch-target-routing.md) — which git branch receives each type of change.
 - [WP runtime-state eviction](wp-runtime-state-eviction.md) — evicting runtime-mutable state into the event log.
 - [Doctrine artifact kinds](doctrine-kinds.md) — what each of the eight doctrine artifact kinds is for, with a built-in example of each.
-- [SPDD and the REASONS Canvas](spdd-reasons.md) — the opt-in Structured-Prompt-Driven Development doctrine pack and its change-intent canvas.
+- [SPDD and the REASONS Canvas](spdd-reasons.md) — the opt-in Structured-Prompt-Driven Development artifact set and its change-intent canvas.
 - [Team Kitty and Zeitgeist](../context/team-kitty.md) — the live hosted model: CLI → per-team Zeitgeist relay → Team Kitty Pulse, with the lane-transition sequence diagram.
 
 ## Status, trail & workflow models
@@ -92,7 +92,7 @@ cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadm
 ## Ownership & charter models
 
 - [Unified Charter Bundle](06_unified_charter_bundle.md) — the single-file authoritative `charter.yaml` model.
-- [Charter Pack Usage Journey](charter-pack-usage-journey.md) — the `apply` → `generate` two-step and the empty-charter dispatch safety net.
+- [Activation Preset Usage Journey](charter-pack-usage-journey.md) — the `activate --preset` → `generate` two-step and the empty-charter dispatch safety net.
 
 ## Templates & reference
 

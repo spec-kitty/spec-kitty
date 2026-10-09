@@ -1,12 +1,16 @@
 ---
 title: Migrating Shared Doctrine to the Org Layer
 description: Move shared governance artifacts out of project-local `.kittify/doctrine/` and into a proper org doctrine pack, including how to deal with deprecated constitution-era paths.
-doc_status: active
-updated: '2026-06-15'
+doc_status: superseded
+updated: '2026-10-08'
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # Migrating Shared Doctrine to the Org Layer
+
+> **Superseded; kept as a historical record.** The charter-pack cutover (#3732) replaced the layout
+> and commands this page describes, and Spec Kitty no longer reads them. The current path is
+> [Charter pack cutover](charter-pack-cutover.md).
 
 This guide is for projects that previously shared governance content by copying it into
 each project's `.kittify/doctrine/` folder (directly, via a bootstrap script, or by

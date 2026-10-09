@@ -1,6 +1,6 @@
 # Shipped Agent Profiles
 
-Reference agent profiles included in the `doctrine` package distribution. These
+Reference agent profiles shipped in the built-in Charter Pack (`packs/built-in/`). These
 define the core roles with their specialization, collaboration contracts, directive
 references, and initialization declarations. Stack-specialist profiles (prefixed
 with the language or framework name, e.g. `java-jenny`, `drupal-dries`) extend the base

@@ -111,7 +111,7 @@ pytestmark = pytest.mark.architectural
 # any differing/unprovable file), so it JOINS ``_ROUTED_MODULES`` — its one raw
 # literal is an empty-only ``Path.rmdir`` (allowlisted below).
 #
-# doctrine/sources/git_source.py (#4960/#4989) preserves hand-authored packs
+# charter_packs/sources/git_source.py (#4960/#4989) preserves hand-authored packs
 # via a temp-clone + move-aside pattern and a dirty/ahead-guarded reset — NOT
 # the removal guard — so it is scanned for raw literals but deliberately NEVER
 # joins ``_ROUTED_MODULES``. Its only raw removals are ephemeral-temp cleanups
@@ -123,12 +123,12 @@ _INIT_PY = SPECIFY_CLI_ROOT / "cli" / "commands" / "init.py"
 _AGENT_CONFIG_PY = SPECIFY_CLI_ROOT / "cli" / "commands" / "agent" / "config.py"
 _RESEARCH_PY = SPECIFY_CLI_ROOT / "cli" / "commands" / "research.py"
 _MIGRATE_PY = SPECIFY_CLI_ROOT / "runtime" / "migrate.py"
-_GIT_SOURCE_PY = SPECIFY_CLI_ROOT / "doctrine" / "sources" / "git_source.py"
+_GIT_SOURCE_PY = SPECIFY_CLI_ROOT / "charter_packs" / "sources" / "git_source.py"
 _MIGRATIONS_DIR = SPECIFY_CLI_ROOT / "upgrade" / "migrations"
 
 _GUARD_CALL = "guard_destructive_removal("
 _RESEARCH_PY_REL = "src/specify_cli/cli/commands/research.py"
-_GIT_SOURCE_REL = "src/specify_cli/doctrine/sources/git_source.py"
+_GIT_SOURCE_REL = "src/specify_cli/charter_packs/sources/git_source.py"
 
 #: The ONLY first-argument variable names a git_source.py raw removal may
 #: target: the ephemeral ``.tmp-<uuid>`` clone and the ``.old-<uuid>``
@@ -291,9 +291,9 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "removed the proven byte-identical files and preserved every differing one (#4961) — "
         "cannot lose content."
     ),
-    # --- doctrine/sources/git_source.py (4): ephemeral temp-clone teardown -
+    # --- charter_packs/sources/git_source.py (4): ephemeral temp-clone teardown -
     CensusKey(
-        rel="src/specify_cli/doctrine/sources/git_source.py",
+        rel="src/specify_cli/charter_packs/sources/git_source.py",
         qualname="GitSource._first_install",
         token_line="shutil . rmtree ( tmp_dir , ignore_errors = True )",
         op="shutil.rmtree",
@@ -305,7 +305,7 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "not the removal guard)."
     ),
     CensusKey(
-        rel="src/specify_cli/doctrine/sources/git_source.py",
+        rel="src/specify_cli/charter_packs/sources/git_source.py",
         qualname="GitSource._first_install",
         token_line="shutil . rmtree ( tmp_dir , ignore_errors = True )",
         op="shutil.rmtree",
@@ -314,7 +314,7 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "ephemeral temp cleanup (#4960): removes ONLY the `.tmp-<uuid>` clone dir this fetch created when `git checkout <ref>` fails — target_dir is never touched."
     ),
     CensusKey(
-        rel="src/specify_cli/doctrine/sources/git_source.py",
+        rel="src/specify_cli/charter_packs/sources/git_source.py",
         qualname="GitSource._promote",
         token_line="shutil . rmtree ( tmp_dir , ignore_errors = True )",
         op="shutil.rmtree",
@@ -325,7 +325,7 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "`.old-<uuid>` backup, never rmtree'd."
     ),
     CensusKey(
-        rel="src/specify_cli/doctrine/sources/git_source.py",
+        rel="src/specify_cli/charter_packs/sources/git_source.py",
         qualname="GitSource._promote",
         token_line="shutil . rmtree ( old_dir , ignore_errors = True )",
         op="shutil.rmtree",
@@ -653,7 +653,7 @@ _ALLOWLIST: dict[CensusKey, str] = {
         op="Path.unlink",
         op_ordinal=0,
     ): ("already-content-guarded exemplar (data-model do-not-change): removes a stale prompt command under a content check while restoring the package prompts."),
-    # --- m_3_1_1 (7): overwrite-guarded renames + empty-only rmdir ---------
+    # --- m_3_1_1 (6): overwrite-guarded renames + empty-only rmdir ---------
     CensusKey(
         rel="src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py",
         qualname="CharterRenameMigration._normalize_layouts",
@@ -699,13 +699,6 @@ _ALLOWLIST: dict[CensusKey, str] = {
         op="shutil.move",
         op_ordinal=0,
     ): ("relocation: renames a per-agent spec-kitty.constitution.md command to spec-kitty.charter.md (move)."),
-    CensusKey(
-        rel="src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py",
-        qualname="CharterRenameMigration._rename_agent_artifacts",
-        token_line="shutil . move ( str ( old_skill ) , str ( new_skill ) )",
-        op="shutil.move",
-        op_ordinal=0,
-    ): ("relocation: renames a per-agent constitution-doctrine skill dir to charter-doctrine (move)."),
     # --- m_3_1_2 (2): already-guarded exemplar + empty-only rmdir ----------
     CensusKey(
         rel="src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py",
@@ -785,6 +778,12 @@ _ROUTED_MODULES: frozenset[str] = frozenset(
         "upgrade/migrations/m_4_0_0rc5_retire_bundled_dashboard.py",
         "upgrade/migrations/m_0_6_7_ensure_missions.py",
         "upgrade/migrations/m_unify_charter_activation_finalize.py",
+        # #3732: the charter-pack cutover moves .kittify/doctrine/** file by file and
+        # removes each source (and the emptied root) through guard_destructive_removal.
+        "upgrade/migrations/m_4_0_0rc6_charter_pack_cutover.py",
+        # #3732 (WP12): the cutover's skills step removes installed copies of removed
+        # skills through guard_destructive_removal (manifest or frozen-hash proof).
+        "upgrade/migrations/_charter_pack_cutover_skills.py",
     }
 )
 

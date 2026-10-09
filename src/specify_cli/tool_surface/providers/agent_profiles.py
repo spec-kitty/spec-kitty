@@ -27,7 +27,8 @@ from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
-from charter.activation.pack_context import CharterPackConfigError
+from charter.activation.pack_context import ActiveCharterConfigError
+from kernel.charter_pack_paths import project_pack_root
 from ruamel.yaml.error import YAMLError
 
 from specify_cli.core.agent_config import AgentConfigError, load_agent_config
@@ -113,7 +114,7 @@ def agent_profile_definition() -> SurfaceDefinition:
 def _build_projector(project_root: Path) -> ProfileProjector:
     try:
         return ProfileProjector.from_project(project_root)
-    except (CharterPackConfigError, YAMLError, TypeError, KeyError) as exc:
+    except (ActiveCharterConfigError, YAMLError, TypeError, KeyError) as exc:
         raise ValueError(f"Invalid required profile inputs: {exc}") from exc
 
 
@@ -193,7 +194,7 @@ class AgentProfilesProvider:
             if before != _input_states(roots) or observe_node(manifest_path_for(inputs.root.path)) != manifest_before:
                 raise ValueError("Profile inputs changed during preparation")
             return assessment
-        except (OSError, ValueError, TypeError, KeyError, AgentConfigError, CharterPackConfigError, YAMLError) as exc:
+        except (OSError, ValueError, TypeError, KeyError, AgentConfigError, ActiveCharterConfigError, YAMLError) as exc:
             return OwnerAssessment(
                 PROVIDER_KEY,
                 inputs.root,
@@ -575,7 +576,8 @@ def _profile_input_roots(root: Path) -> tuple[Path, ...]:
         if observe_node(org).kind != "directory":
             raise ValueError(f"Required org profile root unavailable: {org}")
     paths = [package, Path(__file__).parent.parent / "profiles", *org_roots]
-    paths.extend(root / p for p in (".kittify/config.yaml", ".kittify/charter", ".kittify/agent_profiles", ".kittify/doctrine", "doctrine", "pyproject.toml"))
+    paths.extend(root / p for p in (".kittify/config.yaml", ".kittify/charter", ".kittify/agent_profiles", "pyproject.toml"))
+    paths.append(project_pack_root(root))
     paths.append(manifest_path_for(root))
     config = root / ".kittify/config.yaml"
     if observe_node(config).kind == "file":

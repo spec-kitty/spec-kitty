@@ -43,7 +43,7 @@ explicitly wants a different mission blueprint.
 
 ## Skill Load
 
-Before proceeding, load the `spec-kitty-charter-doctrine` skill for the charter
+Before proceeding, load the `spk-charter-governance` skill for the charter
 lifecycle model, doctrine access patterns, and action-context rules.
 
 If the skill conflicts with this command contract, follow this command contract.

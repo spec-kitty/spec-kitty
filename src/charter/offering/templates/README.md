@@ -28,4 +28,4 @@ Mission content templates live under `src/charter/offering/missions/<mission>/te
 ## Glossary Reference
 
 See [Template Set](../../../docs/context/charter.md#template-set) in the
-doctrine glossary context.
+charter glossary context.

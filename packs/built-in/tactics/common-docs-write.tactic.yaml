@@ -51,13 +51,13 @@ steps:
   - title: Run the live gates before handoff
     description: >
       Verify compliance against the live gates rather than asserting it in
-      prose: the DRG freshness gate (spec-kitty doctrine regenerate-graph
+      prose: the DRG freshness gate (spec-kitty charter pack regenerate-graph
       --check) so the doctrine graph stays in sync, then the documentation
       gates — the related: path validator, the page-inventory lockfile
       freshness gate, and the common-docs-structural-lint doctrine asset.
       Treat any red gate as a blocker, not a note for a later pass.
     examples:
-      - "spec-kitty doctrine regenerate-graph --check returns exit 0 (DRG fresh) before handoff."
+      - "spec-kitty charter pack regenerate-graph --check returns exit 0 (DRG fresh) before handoff."
       - "docs_structural_lint is green: index completeness for curated-complete sections, no shared non-nav content basename across sections, and DIRECTIVE_042 resolves to a loaded directive."
 failure_modes:
   - "The description is shorter than 50 or longer than 180 characters and the lockfile freshness gate rejects it."

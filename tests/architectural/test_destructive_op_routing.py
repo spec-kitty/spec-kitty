@@ -176,7 +176,7 @@ def _census_keys(sources: Mapping[str, str]) -> dict[CensusKey, int]:
 _ALLOWLIST: dict[CensusKey, str] = {
     # --- reset --hard (5) --------------------------------------------------
     CensusKey(
-        rel="src/specify_cli/doctrine/sources/git_source.py",
+        rel="src/specify_cli/charter_packs/sources/git_source.py",
         qualname="GitSource._update",
         token_line="reset_proc = self . _run_git ( [ , , str ( target_dir ) , , , reset_target ] )",
         op="reset_hard",

@@ -147,7 +147,7 @@ terms:
     status: active
 
   - surface: directive
-    definition: A doctrine artifact encoding a specific governance rule or constraint. The primary building block of project doctrine; referenced by agent profiles and action scopes.
+    definition: A doctrine artifact encoding a specific governance rule or constraint. The primary building block of a project's governance; referenced by agent profiles and action scopes.
     confidence: 0.95
     status: active
 
@@ -666,7 +666,7 @@ terms:
 
   - surface: enhances
     definition: >
-      Declarative field on a doctrine pack artifact (tactic, styleguide, paradigm,
+      Declarative field on a Charter Pack artifact (tactic, styleguide, paradigm,
       procedure, agent profile) that asserts the artifact augments a built-in
       artifact with the same ID via field-merge. Suppresses the same-ID-collision
       advisory and auto-emits an `ENHANCES` DRG edge.
@@ -677,7 +677,7 @@ terms:
 
   - surface: overrides
     definition: >
-      Declarative field on a doctrine pack artifact that asserts the artifact
+      Declarative field on a Charter Pack artifact that asserts the artifact
       fully replaces a built-in artifact with the same ID. Suppresses the same-ID
       advisory and auto-emits an `OVERRIDES` DRG edge.
     synonyms_to_avoid: [replaces, supersedes]
@@ -701,3 +701,64 @@ terms:
     synonyms_to_avoid: [primary-owned bookkeeping]
     confidence: 0.9
     status: active
+
+  # --- mission charter-pack-cutover-01M491G6 (#3732, ADR 2026-10-06-1): charter offering, active charter, activation presets ---
+
+  - surface: charter offering
+    definition: "Everything offered to a project: the Charter Packs it can draw from (the built-in pack and each configured org pack) plus the project layer. The offer side of the charter (src/charter/offering/, packs/); the activation side is the active charter. Not the project's activated set: say active charter. See ADR 2026-10-06-1 and the Charter offering entry in docs/context/charter.md."
+    synonyms_to_avoid: [doctrine catalog]
+    confidence: 0.95
+    status: active
+
+  - surface: charter pack
+    definition: "A distributable bundle of charter components (artifacts and their DRG edges) together with optional activation presets shipped as presets/<name>.yaml. An org pack may also enforce activations through required_<kind> lists in its org-charter.yaml. Identified by charter_pack_id (built-in, an org pack's configured name, or project); org packs are configured under charter_packs.org.packs. Not a named starting set of activations (say activation preset) and not the project's activation state (say active charter). See the Charter Pack entry in docs/context/charter.md."
+    synonyms_to_avoid: [doctrine pack, doctrine pack id]
+    confidence: 0.95
+    status: active
+
+  - surface: activation preset
+    definition: "A named set of activations that a Charter Pack ships (presets/<name>.yaml), applied with `spec-kitty charter activate [--pack <pack>] --preset <name>`. Applying it replaces every activation key it governs; changing a customised key needs --force; the applied preset name is not stored. The built-in pack ships default (no per-kind restriction, plus the built-in mission types) and minimal. Not a context-scoped activation entry (that is the activation registry). See the Activation preset entry in docs/context/charter.md."
+    synonyms_to_avoid: [pack default charter, default charter pack]
+    confidence: 0.95
+    status: active
+
+  - surface: active charter
+    definition: "What a project has activated: its activated_<kind> keys, activated_kinds and mission_type_activations, in .kittify/config.yaml or the charter.yaml it points to; listed by `spec-kitty charter list --json`. 'Active' and 'inactive' alone still describe one artifact ('an active directive'); 'active charter' names the project's activated set as a whole; the .kittify/charter/ tree is never called 'active' (ADR 2026-10-06-1 section 1). See the Active charter entry in docs/context/charter.md."
+    synonyms_to_avoid: [charter selection]
+    confidence: 0.95
+    status: active
+
+  - surface: project layer
+    definition: "The project's own charter components under the one flat root .kittify/charter-packs/ (charter_pack_id project). Part of the charter offering; ships no presets; listed by `spec-kitty charter pack list` as project. Not the materialised .kittify/charter/ tree (say Charter Bundle). See the Project layer entry in docs/context/charter.md."
+    confidence: 0.9
+    status: active
+
+  - surface: charter bundle
+    definition: "The materialised .kittify/charter/ tree as a unit: charter.md, the synthesis manifest, the DRG cache and provenance. Produced by `spec-kitty charter generate` and `spec-kitty charter synthesize`. Never called 'active': the project's activation state is the active charter. See the Charter Bundle entry in docs/context/charter.md."
+    confidence: 0.95
+    status: active
+
+  - surface: doctrine pack
+    definition: "DEPRECATED. Replaced by `Charter Pack` (ADR 2026-10-06-1). Retired by the charter-pack cutover (#3732); see the Charter Pack entry in docs/context/charter.md."
+    confidence: 1.0
+    status: deprecated
+
+  - surface: doctrine pack id
+    definition: "DEPRECATED. Replaced by `charter_pack_id`, the identity of a Charter Pack (ADR 2026-10-06-1, Amendment ruling 1). See the Charter Pack entry in docs/context/charter.md."
+    confidence: 1.0
+    status: deprecated
+
+  - surface: doctrine catalog
+    definition: "DEPRECATED. Replaced by `charter offering`: everything offered to a project (ADR 2026-10-06-1). See the Charter offering entry in docs/context/charter.md."
+    confidence: 1.0
+    status: deprecated
+
+  - surface: charter selection
+    definition: "DEPRECATED. Replaced by `active charter`: what a project has activated (ADR 2026-10-06-1). See the Active charter entry in docs/context/charter.md."
+    confidence: 1.0
+    status: deprecated
+
+  - surface: pack default charter
+    definition: "DEPRECATED. Replaced by `activation preset`: the built-in pack's default preset (ADR 2026-10-06-1). See the Activation preset entry in docs/context/charter.md."
+    confidence: 1.0
+    status: deprecated

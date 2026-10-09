@@ -159,7 +159,7 @@ def _write_charter_with_typo(repo: Path, typo_id: str) -> None:
     charter_yaml = textwrap.dedent(f"""\
         schema_version: '2.0.0'
         governance:
-          doctrine:
+          charter:
             selected_styleguides:
               - {typo_id}
         """)

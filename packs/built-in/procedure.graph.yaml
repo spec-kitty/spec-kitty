@@ -339,7 +339,7 @@ edges:
 - source: procedure:onboard-external-agent-to-pack
   target: directive:DIRECTIVE_018
   relation: requires
-  reason: Onboarded artifacts change doctrine layers and must be versioned with documented change rationale.
+  reason: Onboarded artifacts change charter offering layers and must be versioned with documented change rationale.
 - source: procedure:onboard-external-agent-to-pack
   target: directive:DIRECTIVE_032
   relation: requires

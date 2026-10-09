@@ -46,7 +46,7 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 | `packs/built-in/` | every downstream Spec Kitty user | ✅ in the PyPI wheel | product doctrine that should govern **all consumers** |
 | `packs/internal/` | the Spec Kitty core team | ❌ excluded from wheel/sdist | **in-house / maintainer / dogfooding** doctrine (how *we* land PRs, triage the tracker, calibrate P0, keep main honest) |
 
-**Before adding doctrine, ask: "does this govern consumers, or only how the core team works?"** In-house guidance placed in `built-in` gets force-shipped to everyone — a real defect. The wheel include is narrowed to `packs/built-in/` and guarded by `tests/cross_cutting/packaging/test_packaging_safety.py`. Internal-pack shape differs: a single `drg/fragment.yaml` (not sharded `*.graph.yaml`) + `org-charter.yaml`, loaded via `.kittify/config.yaml` → `charter_packs.org.packs` (legacy fallback `doctrine.org.packs`). Editing either pack trips the pack-manifest regen gate — run `spec-kitty doctrine regenerate-graph` after. See ADR `docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md` and `packs/internal/README.md`.
+**Before adding doctrine, ask: "does this govern consumers, or only how the core team works?"** In-house guidance placed in `built-in` gets force-shipped to everyone — a real defect. The wheel include is narrowed to `packs/built-in/` and guarded by `tests/cross_cutting/packaging/test_packaging_safety.py`. Internal-pack shape differs: a single `drg/fragment.yaml` (not sharded `*.graph.yaml`) + `org-charter.yaml`, loaded via `.kittify/config.yaml` → `charter_packs.org.packs`. Editing either pack trips the pack-manifest regen gate — run `spec-kitty charter pack regenerate-graph` after. See ADR `docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md` and `packs/internal/README.md`.
 
 ---
 
@@ -86,7 +86,7 @@ This repository uses **`main` as the integration branch**. Open a topic branch, 
 - Never add `# noqa: TID251` for a retired module.
 - Never resolve a kept-file conflict with `theirs` without re-running `tests/architectural/test_no_retired_subsystems.py`.
 
-**Test policy (§6):** run every test you write or change plus your blast radius, and record commands + counts in the PR. Baseline is `make test-fast`; add the test files of every module your diff touches, and the full test directory of each owning subsystem. Do **not** run `make test-full` or any whole-repo suite — the CI agent owns that. **Superseded by `NO_FULL_HEAVY_SUITES_IN_MISSION` (internal doctrine pack, 2026-09-27):** the line below about running `tests/architectural/` "in full" for cross-cutting changes no longer applies to mission work (implement/review/fold/closeout) — even a cross-cutting change targets the SPECIFIC gate files it implicates, never the bare directory, unless the operator explicitly asks for a full run; CI's cross-cutting lane (`ci-aggregate.yml`) still runs the full suite. See "Test policy — what you must run for a change" below for the calibrated blast-radius rule.
+**Test policy (§6):** run every test you write or change plus your blast radius, and record commands + counts in the PR. Baseline is `make test-fast`; add the test files of every module your diff touches, and the full test directory of each owning subsystem. Do **not** run `make test-full` or any whole-repo suite — the CI agent owns that. **Superseded by `NO_FULL_HEAVY_SUITES_IN_MISSION` (internal Charter Pack, 2026-09-27):** the line below about running `tests/architectural/` "in full" for cross-cutting changes no longer applies to mission work (implement/review/fold/closeout) — even a cross-cutting change targets the SPECIFIC gate files it implicates, never the bare directory, unless the operator explicitly asks for a full run; CI's cross-cutting lane (`ci-aggregate.yml`) still runs the full suite. See "Test policy — what you must run for a change" below for the calibrated blast-radius rule.
 
 ---
 
@@ -262,7 +262,7 @@ Both make targets set `PWHEADLESS=1` themselves and need the synced dev environm
 **Computing your blast radius — run this in addition to `make test-fast`:**
 
 1. For every source module your diff touches, run its own test file(s). The test tree mirrors the source tree (`src/specify_cli/status/store.py` → `tests/status/`), and when the mirror is not obvious, find the tests that exercise the module: `grep -rl "<module_name>" tests/ --include="*.py"`.
-2. Plus the full test directory of each owning subsystem: touching `src/charter/offering/**` ⇒ both `tests/charter/` and `tests/doctrine/` — the doctrine test tree did not move when the package absorbed `src/doctrine/` into `src/charter/offering/`, so both directories still cover that code and both count as "each owning subsystem."
+2. Plus the full test directory of each owning subsystem: touching `src/charter/offering/**` ⇒ both `tests/charter/` and `tests/charter_offering/` — the offering's own test tree sits beside `tests/charter/`, not inside it, so both directories cover that code and both count as "each owning subsystem."
 3. Cross-cutting changes (pytest.ini, pyproject.toml, conftest, markers, packaging) additionally touch `tests/architectural/` — but per `NO_FULL_HEAVY_SUITES_IN_MISSION`, run the SPECIFIC architectural gate file(s) the change implicates during mission work, not the bare directory as a whole; the full `tests/architectural/` sweep is CI's cross-cutting lane.
 
 Record the exact commands and passed/failed counts under the PR's *Tests run* section. A failure you did not cause and cannot explain is not yours to chase — classify it via the baseline-red gotcha below and note it in the PR.
@@ -584,7 +584,7 @@ Governing ADR: [`docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`](d
 
 ### Activation Engine (`charter.activation.activation_engine`)
 
-Plan/commit seam: `plan_activation()` validates (non-mutating); `commit_plan()` writes config only after plan succeeds. Never mutates config on validation failure (NFR-003). `CharterPackConfigError` → fail-closed. (Companion seam: `plan_deactivation()` / `promote_activations()`.)
+Plan/commit seam: `plan_activation()` validates (non-mutating); `commit_plan()` writes config only after plan succeeds. Never mutates config on validation failure (NFR-003). `ActiveCharterConfigError` → fail-closed. (Companion seam: `plan_deactivation()` / `promote_activations()`.)
 
 ```python
 plan = plan_activation(kind="directive", artifact_id="010-...", pack_context=ctx)
@@ -620,9 +620,9 @@ Without `--cascade`: warns about skipped artifacts with a suggested recovery com
 
 ### Pack skills
 
-A **pack skill** is a thin, parameterized entry point a team shares through a pack (ArtifactKind `skill`, URN `skill:<id>`; ADR [`2026-09-27-1`](docs/adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md)). Not to be confused with a shipped doctrine skill or a command skill (see [Pack skill](docs/context/execution.md#pack-skill)).
+A **pack skill** is a thin, parameterized entry point a team shares through a pack (ArtifactKind `skill`, URN `skill:<id>`; ADR [`2026-09-27-1`](docs/adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md)). Not to be confused with a charter skill or a command skill (see [Pack skill](docs/context/execution.md#pack-skill)).
 
-- **Activate:** `spec-kitty charter activate skill <id>` (and `deactivate`). **Declare:** `<id>.skill.yaml` plus a body file (prompt form) in an org pack's `skills/` or in `.kittify/doctrine/skills/`.
+- **Activate:** `spec-kitty charter activate skill <id>` (and `deactivate`). **Declare:** `<id>.skill.yaml` plus a body file (prompt form) in an org pack's `skills/` or in `.kittify/charter-packs/skills/`.
 - **Project:** rendered as `<skill_namespace>-<id>/SKILL.md` into the primary project skill root of each configured tool, never a user-global root; ownership lives in `.kittify/skills-manifest.json`. `spec-kitty doctor skills` reports drift, staleness and orphaned copies.
 - **Namespace:** a non-built-in skill needs a `skill_namespace` (org: `org-charter.yaml`; project: `charter_packs.project.skill_namespace` in `.kittify/config.yaml`). Grammar for the namespace and for skill ids: lowercase ASCII, starts with a letter, `[a-z0-9]` segments joined by single `-`; namespace at most 32 characters, id at most 64. `spk-`, `spec-kitty-` and `spec-kitty.` are reserved.
 - **Default in force:** when `activated_skills` is absent, the effective set is the org packs' `required_skills` plus built-in defaults (empty today), not every available skill. Neither default-pack seeding (`spec-kitty upgrade`) nor the charter interview writes the key; the first `activate skill <id>` writes it, starting from that in-force set.
@@ -645,7 +645,7 @@ edges:
 
 ### Profile Load Diagnostics
 
-`AgentProfileRepository.skipped_profiles` exposes load failures without filesystem rescans. Included in `spec-kitty doctor doctrine --json`. A pack with invalid profiles is NOT reported healthy even if DRG counts are valid (FR-010).
+`AgentProfileRepository.skipped_profiles` exposes load failures without filesystem rescans. Included in `spec-kitty doctor charter-packs --json`. A pack with invalid profiles is NOT reported healthy even if DRG counts are valid (FR-010).
 
 ### Upstream Deferred-Item References
 

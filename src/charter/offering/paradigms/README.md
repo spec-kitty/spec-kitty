@@ -23,5 +23,5 @@ Shipped paradigms live under:
 
 ## Glossary Reference
 
-See [Paradigm](../../../docs/context/charter.md#paradigm) in the doctrine
+See [Paradigm](../../../docs/context/charter.md#paradigm) in the charter
 glossary context.

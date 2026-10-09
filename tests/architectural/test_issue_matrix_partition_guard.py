@@ -54,7 +54,7 @@ HELPER_NAME = "resolve_issue_matrix_partition"
 
 REVIEW_GATE = "src/specify_cli/cli/commands/review/__init__.py"
 MERGE_GATES = "src/specify_cli/policy/merge_gates.py"
-GATE4_DOCTRINE = "src/charter/offering/skills/spec-kitty-mission-review/SKILL.md"
+GATE4_SKILL = "src/charter/offering/skills/spec-kitty-mission-review/SKILL.md"
 
 # Guarded gate functions that must resolve the partition through the helper.
 HELPER_CALLERS: dict[str, tuple[str, ...]] = {
@@ -397,7 +397,7 @@ def _is_prohibited_span(line: str, span_start: int) -> bool:
     return bool(_PROHIBITION_CLAUSE_RE.match(clause))
 
 
-def scan_doctrine(rel: str, text: str) -> list[Violation]:
+def scan_skill(rel: str, text: str) -> list[Violation]:
     found: list[Violation] = []
     fenced_spans: list[tuple[int, int]] = []
     for fence in _FENCE_RE.finditer(text):
@@ -418,7 +418,7 @@ def scan_doctrine(rel: str, text: str) -> list[Violation]:
 def _gate4_section(text: str) -> str:
     match = re.search(r"^### Gate 4: Issue matrix.*?(?=^### )", text, re.MULTILINE | re.DOTALL)
     if match is None:
-        pytest.fail(f"{GATE4_DOCTRINE}: '### Gate 4: Issue matrix' section not found — the guard would be vacuous")
+        pytest.fail(f"{GATE4_SKILL}: '### Gate 4: Issue matrix' section not found — the guard would be vacuous")
     return match.group(0)
 
 
@@ -433,15 +433,15 @@ def test_python_consumers_have_zero_raw_issue_matrix_reads(rel: str) -> None:
     assert violations == [], "issue-matrix partition bypass (route through resolve_issue_matrix_partition):\n" + "\n".join(map(str, violations))
 
 
-def test_gate4_doctrine_has_zero_raw_issue_matrix_reads() -> None:
-    text = _read_guarded(GATE4_DOCTRINE)
+def test_gate4_skill_has_zero_raw_issue_matrix_reads() -> None:
+    text = _read_guarded(GATE4_SKILL)
     _gate4_section(text)  # fail-closed: the guarded section must exist
-    violations = scan_doctrine(GATE4_DOCTRINE, text)
+    violations = scan_skill(GATE4_SKILL, text)
     assert violations == [], "Gate-4 doctrine reads the issue-matrix raw:\n" + "\n".join(map(str, violations))
 
 
-def test_gate4_doctrine_routes_through_the_resolver() -> None:
-    section = _gate4_section(_read_guarded(GATE4_DOCTRINE))
+def test_gate4_skill_routes_through_the_resolver() -> None:
+    section = _gate4_section(_read_guarded(GATE4_SKILL))
     assert "spec-kitty review" in section
     assert HELPER_NAME in section
 
@@ -583,21 +583,21 @@ class TestSelfMutation:
             "\nRead the verdicts with `cat kitty-specs/<slug>/issue-matrix.json`.\n",
         ],
     )
-    def test_injected_doctrine_raw_read_trips(self, injection: str) -> None:
-        text = _read_guarded(GATE4_DOCTRINE)
-        assert scan_doctrine(GATE4_DOCTRINE, text) == []
-        assert scan_doctrine(GATE4_DOCTRINE, text + injection), "doctrine raw-read rule did not trip"
+    def test_injected_skill_raw_read_trips(self, injection: str) -> None:
+        text = _read_guarded(GATE4_SKILL)
+        assert scan_skill(GATE4_SKILL, text) == []
+        assert scan_skill(GATE4_SKILL, text + injection), "doctrine raw-read rule did not trip"
 
     def test_prohibition_span_is_not_a_violation(self) -> None:
         # Pins the one carve-out so it cannot silently widen: an explicit
         # "Do NOT" ahead of the span is allowed, the same span without it is not.
-        assert scan_doctrine("x.md", "Do NOT `cat kitty-specs/s/issue-matrix.json` directly.\n") == []
-        assert scan_doctrine("x.md", "Then `cat kitty-specs/s/issue-matrix.json` directly.\n")
-        assert scan_doctrine("x.md", "Never skip this step: run `cat kitty-specs/s/issue-matrix.json` first.\n")
-        assert scan_doctrine("x.md", "Do not forget to always run `cat kitty-specs/s/issue-matrix.json` first.\n")
-        assert scan_doctrine("x.md", "Don't forget to `cat kitty-specs/s/issue-matrix.json`.\n")
-        assert scan_doctrine("x.md", "Never skip `cat kitty-specs/s/issue-matrix.json`.\n")
-        assert scan_doctrine("x.md", "Never run `cat kitty-specs/s/issue-matrix.json` by hand.\n") == []
+        assert scan_skill("x.md", "Do NOT `cat kitty-specs/s/issue-matrix.json` directly.\n") == []
+        assert scan_skill("x.md", "Then `cat kitty-specs/s/issue-matrix.json` directly.\n")
+        assert scan_skill("x.md", "Never skip this step: run `cat kitty-specs/s/issue-matrix.json` first.\n")
+        assert scan_skill("x.md", "Do not forget to always run `cat kitty-specs/s/issue-matrix.json` first.\n")
+        assert scan_skill("x.md", "Don't forget to `cat kitty-specs/s/issue-matrix.json`.\n")
+        assert scan_skill("x.md", "Never skip `cat kitty-specs/s/issue-matrix.json`.\n")
+        assert scan_skill("x.md", "Never run `cat kitty-specs/s/issue-matrix.json` by hand.\n") == []
 
     def test_missing_gate4_section_fails_closed(self) -> None:
         with pytest.raises(pytest.fail.Exception):

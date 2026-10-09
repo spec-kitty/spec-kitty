@@ -2,7 +2,7 @@
 title: 'CI and Architectural Gate Mechanics'
 description: 'What trips each spec-kitty CI gate — marker gates, the architectural battery, docs-freshness registration, and accept-to-consolidate close-out — with symptom and repro.'
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -209,9 +209,9 @@ for these is `PYTHONPATH=src -o addopts=""` so collection matches CI.
   from the call-ban): a raw `import datetime` / `from datetime import ...`
   anywhere outside `src/kernel/clock.py` fails. Import from `kernel.clock`, or
   add an exemption line under `tests/architectural/_exemptions/`.
-- **Charter facade table** (`tests/architectural/test_charter_facades_reexport_doctrine.py`):
+- **Charter facade table** (`tests/architectural/test_charter_facades_reexport_offering.py`):
   this self-discovers every `src/charter/*.py`, so a new charter facade that
-  re-exports a `doctrine.*` symbol in its `__all__` must be registered in the
+  re-exports a `charter.offering` symbol in its `__all__` must be registered in the
   facade table. It runs in an architectural shard, invisible to fast-shard local
   runs.
 - **Environment-fragile absolute counts:** integration jobs run
@@ -745,7 +745,7 @@ exactly what they expect.
   then `--resume`.
 - **The graph-manifest check verifies the pack manifest, not just the graph
   files.** Regenerating the reference graph alone leaves the manifest stale; run
-  the full `spec-kitty doctrine regenerate-graph`, which regenerates both.
+  the full `spec-kitty charter pack regenerate-graph`, which regenerates both.
 - **The post-merge stale-assertion analyzer** flags test string-literals tied to
   removed code even when the test still passes. Confirm the test is green, then
   refresh the docstring or literal.

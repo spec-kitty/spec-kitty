@@ -43,7 +43,7 @@ class _PackContextLike(Protocol):
     """Narrow structural protocol for the pack-context object.
 
     Replaces the ``TYPE_CHECKING`` import of ``charter.activation.pack_context.PackContext``
-    (C-004: doctrine must not import from charter).  Only the two attributes
+    (C-004: charter.offering must not import from the charter facades or activation).  Only the two attributes
     accessed by this module are declared; the protocol is intentionally
     minimal so that any conforming object — including test fakes — satisfies
     it without needing to depend on the charter package.
@@ -207,7 +207,7 @@ def _load_step_yaml(step_file: Path) -> MissionStep | None:
     ``MissionStep`` is ``extra="forbid"`` — any field absent from this
     mapping is **silently stripped** before validation rather than raising.
     Every new ``MissionStep`` field MUST be added here or it vanishes on
-    load with no error (see :mod:`tests.doctrine.missions.test_step_schema`
+    load with no error (see :mod:`tests.charter_offering.missions.test_step_schema`
     for the round-trip regression guard).
     """
     if not step_file.exists():
@@ -298,7 +298,7 @@ class MissionStepRepository:
 
     @classmethod
     def default(cls) -> MissionStepRepository:
-        """Return a repository loaded from the doctrine-bundled mission-steps directory.
+        """Return a repository loaded from the built-in mission-steps directory.
 
         Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
         (FR-005) relocated ``mission-steps/`` from

@@ -228,7 +228,7 @@ def build_glossary_drg_layer(
         store: Populated :class:`~glossary.store.GlossaryStore`.
         applicable_scopes: Scope strings to include.
         repo_root: Project root used to locate the optional project DRG
-            overlay at ``<repo_root>/.kittify/doctrine/graph.yaml``.
+            overlay at ``<repo_root>/.kittify/charter-packs/graph.yaml``.
 
     Returns:
         A :class:`DRGGraph` with ``generated_by="glossary-drg-builder-v1"``.

@@ -1,6 +1,6 @@
 """Project-aware template resolution through the 6-tier override chain.
 
-Composes MissionTemplateRepository (doctrine-level, package-default tier) with the
+Composes MissionTemplateRepository (offering-level, package-default tier) with the
 charter factory's tier chain. Charter is the
 concretization of doctrine into local context-aware legislation.
 
@@ -8,7 +8,7 @@ FR-003 (charter-sole-door-bypass-closure-01KZ3WAA WP05) — **this module is
 now a thin delegate.** :class:`CharterTemplateResolver` used to import
 ``charter.offering.resolver``'s tier functions itself, making it a *second*
 charter-layer door onto that chain alongside
-:class:`charter.activation.resolver.DoctrineService` (the factory) — the C-001
+:class:`charter.activation.resolver.ActiveCharterService` (the factory) — the C-001
 "two doors within charter" seam FR-003 closes. Every tier-chain call now
 routes through the factory's ``resolve_command_asset`` /
 ``resolve_content_asset`` methods, and this module no longer imports
@@ -20,8 +20,9 @@ The class is retained rather than retired because it is part of the public
 ``charter`` package surface (``charter/__init__.py`` exports it), and this
 mission's own precedent for the identical situation is delegation, not
 deletion: WP01 turned
-``specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service``
-into a thin re-export of the unified charter builder instead of removing it.
+the former ``specify_cli`` service factory's builder
+into a thin re-export of the unified charter builder instead of removing it
+(#3732 later deleted that re-export).
 Its one production caller (``specify_cli/runtime/resolver.py``) no longer
 uses this class at all — it calls the factory directly — so the production
 path has exactly one door.
@@ -30,7 +31,7 @@ Scope note: the ``resolve_*_path`` methods below are **not** part of the
 FR-003 seam and are intentionally left reaching
 :class:`MissionTemplateRepository` directly. They are package-default
 repository lookups, not ``charter.offering.resolver`` tier-chain calls — the same
-doctrine surface ``doctrine/resolver.py``'s own package-default tier consumes. There is
+offering surface ``charter/offering/resolver.py``'s own package-default tier consumes. There is
 therefore no second *authority* to consolidate: both these methods and the
 factory's ``resolve_package_default_*`` methods delegate to that one
 repository. Routing them through the factory as well would need
@@ -45,7 +46,7 @@ from pathlib import Path
 from typing import Any
 
 from charter.resolution import ResolutionTier
-from charter.activation.resolver import DoctrineService
+from charter.activation.resolver import ActiveCharterService
 from charter.offering.missions.repository import MissionTemplateRepository, TemplateResult
 
 __all__ = [
@@ -58,7 +59,7 @@ class CharterTemplateResolver:
 
     Resolution order: OVERRIDE > LEGACY > ORG > GLOBAL_MISSION > GLOBAL > PACKAGE_DEFAULT.
 
-    A thin delegate onto :class:`charter.activation.resolver.DoctrineService` for the
+    A thin delegate onto :class:`charter.activation.resolver.ActiveCharterService` for the
     tier chain (FR-003) — see the module docstring.
     """
 
@@ -94,7 +95,7 @@ class CharterTemplateResolver:
             mission: Mission name.
             name: Template name without ``.md`` extension.
             project_dir: Project root for override/legacy lookups.
-                If ``None``, falls back to doctrine-level lookup only.
+                If ``None``, falls back to offering-level lookup only.
 
         Returns:
             TemplateResult with content, origin, and tier.
@@ -105,12 +106,12 @@ class CharterTemplateResolver:
         if project_dir is not None:
             # FR-003: tier chain reached through the factory, never through a
             # direct ``charter.offering.resolver`` import of our own.
-            result = DoctrineService.resolve_command_asset(f"{name}.md", project_dir, mission=mission)
+            result = ActiveCharterService.resolve_command_asset(f"{name}.md", project_dir, mission=mission)
             content = result.path.read_text(encoding="utf-8")
             origin = self._tier_to_origin(result.tier, mission, "command-templates", f"{name}.md")
             return TemplateResult(content=content, origin=origin, tier=result.tier)
 
-        # No project context — doctrine-only lookup
+        # No project context — offering-only lookup
         template = self._repo.get_command_template(mission, name)
         if template is None:
             raise FileNotFoundError(
@@ -134,7 +135,7 @@ class CharterTemplateResolver:
             mission: Mission name.
             name: Template filename with extension.
             project_dir: Project root for override/legacy lookups.
-                If ``None``, falls back to doctrine-level lookup only.
+                If ``None``, falls back to offering-level lookup only.
 
         Returns:
             TemplateResult with content, origin, and tier.
@@ -145,12 +146,12 @@ class CharterTemplateResolver:
         if project_dir is not None:
             # FR-003: tier chain reached through the factory, never through a
             # direct ``charter.offering.resolver`` import of our own.
-            result = DoctrineService.resolve_content_asset(name, project_dir, mission=mission)
+            result = ActiveCharterService.resolve_content_asset(name, project_dir, mission=mission)
             content = result.path.read_text(encoding="utf-8")
             origin = self._tier_to_origin(result.tier, mission, "templates", name)
             return TemplateResult(content=content, origin=origin, tier=result.tier)
 
-        # No project context — doctrine-only lookup
+        # No project context — offering-only lookup
         template = self._repo.get_content_template(mission, name)
         if template is None:
             raise FileNotFoundError(
@@ -170,7 +171,7 @@ class CharterTemplateResolver:
             ResolutionTier.ORG: "org",
             ResolutionTier.GLOBAL_MISSION: "global",
             ResolutionTier.GLOBAL: "global",
-            ResolutionTier.PACKAGE_DEFAULT: "doctrine",
+            ResolutionTier.PACKAGE_DEFAULT: "built-in",
         }
         prefix = tier_prefix.get(tier, "unknown")
         return f"{prefix}/{mission}/{asset_type}/{filename}"

@@ -453,7 +453,7 @@ class TestParadigmRoundTrip:
 
     This is a smoke test for the existing synthesizer plumbing, not a change
     in T010. ``selected_paradigms`` is already a first-class field on
-    ``DoctrineSelectionConfig`` (src/charter/activation/schemas.py) and is wired through
+    ``GovernanceCharterConfig`` (src/charter/activation/schemas.py) and is wired through
     interview → extractor → governance.yaml. The check below confirms the
     activation helper sees the paradigm when written to governance.yaml.
     """
@@ -463,14 +463,14 @@ class TestParadigmRoundTrip:
 
     def test_paradigm_in_governance_activates_pack(self, tmp_path: Path) -> None:
         from charter.activation.charter_yaml_io import save_charter_yaml
-        from charter.activation.schemas import DoctrineSelectionConfig, GovernanceConfig
+        from charter.activation.schemas import GovernanceCharterConfig, GovernanceConfig
 
         # WP04 bucket-3 item 6: null out selected_paradigms in the
         # governance: write (the OLD body's _governance_selects_pack reads
         # exactly this field) and write .kittify/config.yaml's
         # activated_paradigms instead -- the source the NEW body reads.
         gov = GovernanceConfig(
-            charter=DoctrineSelectionConfig(
+            charter=GovernanceCharterConfig(
                 selected_paradigms=[],
             )
         )
@@ -520,7 +520,7 @@ class TestSelectedTacticsRoundTrip:
         from charter.activation.compiler import compile_charter
         from charter.activation.interview import default_interview
         from charter.activation.pack_context import PackContext
-        from charter.activation.schemas import DoctrineSelectionConfig, GovernanceConfig
+        from charter.activation.schemas import GovernanceCharterConfig, GovernanceConfig
 
         # 1. Build a PackContext that activates ONLY the canvas-fill tactic
         #    (every other kind explicitly narrowed to empty so nothing else
@@ -565,7 +565,7 @@ class TestSelectedTacticsRoundTrip:
         #    -- this is the same data the extractor used to scrape back out
         #    of the rendered markdown.
         governance = GovernanceConfig(
-            charter=DoctrineSelectionConfig(
+            charter=GovernanceCharterConfig(
                 selected_paradigms=compiled.selected_paradigms,
                 selected_directives=compiled.selected_directives,
                 selected_tactics=compiled.selected_tactics,
@@ -586,7 +586,7 @@ class TestSelectedTacticsRoundTrip:
         #    truth -- so the test stays a genuine end-to-end round-trip.
         charter_yaml_path = _charter_yaml_path(tmp_path)
         governance_no_tactics = GovernanceConfig(
-            charter=DoctrineSelectionConfig(
+            charter=GovernanceCharterConfig(
                 selected_paradigms=governance.charter.selected_paradigms,
                 selected_directives=governance.charter.selected_directives,
                 selected_tactics=[],

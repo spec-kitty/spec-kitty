@@ -4,7 +4,7 @@ Blue-gray theme optimized for sequence and interaction diagrams where dialogue
 flow and handoff clarity are primary concerns. Provides comprehensive element
 styling for all standard PlantUML diagram types.
 
-Author: Brett Schwarz (2019). Adapted for Spec Kitty doctrine templates.
+Author: Brett Schwarz (2019). Adapted for Spec Kitty charter offering templates.
 
 ## Snippet
 

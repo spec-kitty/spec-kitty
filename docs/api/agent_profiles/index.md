@@ -2,7 +2,7 @@
 title: 'Agent Profiles'
 description: Catalog of the 18 built-in agent profiles Spec Kitty ships, with identity, routing, and role for each.
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-10-08'
 type: reference
 audience: docs/context/audience/internal/lead-developer.md
 related:
@@ -33,18 +33,18 @@ This page catalogs the 18 built-in agent profiles shipped in
 `packs/built-in/agent_profiles/`. A profile governs identity, routing,
 and boundaries for a work package: the runtime assigns profiles to work
 packages automatically, and you can also load one on demand for an
-interactive session with the [`ad-hoc-profile-load`
-skill](../skills/spk-doctrine-profile-load.md). Two entries — `generic-agent`
+interactive session with the [`spk-charter-profile-load`
+skill](../skills/spk-charter-profile-load.md). Two entries — `generic-agent`
 and `human-in-charge` — are structurally different from the other 16; see
 their own pages for what that means.
 
 | Profile ID | Name | Roles | Routing Priority | Purpose |
 |---|---|---|---|---|
 | [architect-alphonso](architect-alphonso.md) | Architect Alphonso | architect | 50 | Designs and validates system architectures for scalability, maintainability, and correctness. |
-| [curator-carla](curator-carla.md) | Curator Carla | curator | 40 | Maintains knowledge base, doctrine layer, and documentation consistency. |
+| [curator-carla](curator-carla.md) | Curator Carla | curator | 40 | Maintains knowledge base, charter offering layers, and documentation consistency. |
 | [debugger-debbie](debugger-debbie.md) | Debugger Debbie | investigator, reviewer | 60 | Investigates recurring or stubborn bugs via a five-paradigm parallel debugging swarm. |
 | [designer-dagmar](designer-dagmar.md) | Designer Dagmar | designer | 50 | Creates accessible, consistent UX/UI designs and interaction specifications. |
-| [doctrine-daphne](doctrine-daphne.md) | Doctrine Daphne | curator, onboarding-guide | 48 | Onboards externally-built agents into validated doctrine pack artifacts. |
+| [doctrine-daphne](doctrine-daphne.md) | Doctrine Daphne | curator, onboarding-guide | 48 | Onboards externally-built agents into validated Charter Pack artifacts. |
 | [frontend-freddy](frontend-freddy.md) | Frontend Freddy | implementer | 80 | Implements browser-side components, layouts, and accessible frontend code. |
 | [generic-agent](generic-agent.md) | Generic Agent | implementer | 10 | Executes work packages under baseline governance (— default fallback). |
 | [human-in-charge](human-in-charge.md) | Human in Charge | human-in-charge | 100 | Marks a work package for direct human execution (— sentinel, not a persona). |

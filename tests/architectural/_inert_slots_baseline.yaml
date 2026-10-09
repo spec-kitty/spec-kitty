@@ -41,7 +41,7 @@
 #   schemas): FR-028 retired both fields and the schemas no longer declare
 #   them. 59 -> 51.
 # - PR #3134 excluded `occurrence-map.schema.yaml` from the schema walk
-#   (`_NON_DOCTRINE_SCHEMAS`): occurrence maps are per-mission planning
+#   (`_NON_ARTIFACT_SCHEMAS`): occurrence maps are per-mission planning
 #   artifacts outside the src-only producer scope, a checker-scope false
 #   positive. Its `from`/`moves`/`to` rows were deleted. 51 -> 48.
 # - PR #3234 retired `toolguide-references` (-1), dead-port-disposition-01M1TZVN
@@ -56,7 +56,7 @@ entries:
   # --- Mission D / I9: import_candidates has no producer yet ----------------
   # There is no import-candidate artefact anywhere under src/. The only
   # instances in the repository are the model's own test fixtures under
-  # tests/doctrine/fixtures/import-candidate/. The sequencing authority records
+  # tests/charter_offering/fixtures/import-candidate/. The sequencing authority records
   # I9 as the step that "gives import_candidates its first real producer", so
   # the whole kind is scheduled debt rather than a mistake.
   - name: accessed_on

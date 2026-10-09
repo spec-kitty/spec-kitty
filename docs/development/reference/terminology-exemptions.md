@@ -2,7 +2,7 @@
 title: Terminology Guard Exemption Policy
 description: "Policy for the five surfaces exempt from spec-kitty terminology guards: ADRs, migrations, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
 doc_status: active
-updated: '2026-10-06'
+updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related: []
@@ -226,8 +226,12 @@ for all:
 - `tests/architectural/test_no_config_key_spelled_as_module_path.py` — no
   charter config key written as a `charter.offering.*` module path.
 - `tests/architectural/test_no_deprecated_doctrine_command_in_guidance.py` —
-  no guidance naming a `spec-kitty doctrine` command that the `charter` group
-  registers with the same handler.
+  the removed-command gate: the `doctrine` command group was removed in
+  #3732, so no living surface invokes it (the CLI name followed by
+  `doctrine`) or names a backticked `doctrine <former command>`. It scans the shipped skills, both
+  packs, the living docs, the CI workflows, `Makefile`, `AGENTS.md`,
+  `CLAUDE.md`, `README.md` and the full text of every Python file under `src/`
+  and `scripts/` (docstrings and comments included). It has no allowlist.
 
 Those two gates add the following exemptions on top of the shared list, each
 for the reason given:
@@ -235,9 +239,9 @@ for the reason given:
 | Exemption | Gate | Reason |
 |---|---|---|
 | `docs/changelog/` (both gates) | both | A changelog entry's **Before** quotes the old key or command. The live-doc guard's Unreleased-only scan does not fit here, because the Unreleased section is exactly where those Before quotes live. |
-| `docs/plans/` | migrated-command gate | Plans and design reviews record how past work was planned and delivered (for example a work-package row recording that it added a subcommand to the `doctrine` group). Rewriting a delivered work package's command would falsify the record. |
-| `docs/api/cli-commands.md`, `docs/development/docs-retrieval-index.yaml` | migrated-command gate | Generated outputs: they regenerate from the CLI's help text and from the docs they index. |
-| Python docstrings and comments | migrated-command gate | They describe code, including the deprecated group itself; they do not instruct an operator. Every other string literal in `src/` is scanned. |
+| `docs/plans/` | removed-command gate | Plans and design reviews record how past work was planned and delivered (for example a work-package row recording that it added a subcommand to the `doctrine` group). Rewriting a delivered work package's command would falsify the record. |
+| `docs/development/docs-retrieval-index.yaml` | removed-command gate | Generated output: it indexes every docs page, including the exempt historical roots. `docs/api/cli-commands.md` is scanned: it regenerates from the CLI's help text, which no longer has the group. |
+| Glob `m_*charter_pack_cutover*.py` under `src/specify_cli/upgrade/migrations/` (today `m_4_0_0rc6_charter_pack_cutover.py`) | removed-command gate | The cutover migration must spell the retired literals it rewrites. |
 
 ## Invariant: Exemptions Must Stay Narrow
 

@@ -26,7 +26,7 @@ import pytest
 
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.mission_type_profiles import resolve_action_sequence_layer
-from charter.activation.pack_manager import CharterPackManager, _resolve_layer_candidate
+from charter.activation.pack_manager import ActiveCharterManager, _resolve_layer_candidate
 from charter.offering.missions.mission_type_repository import (
     ORG_MISSION_TYPES_SUBDIR,
     PROJECT_MISSION_TYPES_RELATIVE,
@@ -41,7 +41,7 @@ pytestmark = pytest.mark.unit
 class _StubPackContext:
     """Minimal structural stand-in satisfying ``_PackContextLike``.
 
-    Mirrors ``tests/doctrine/missions/test_mission_type_repository.py``'s own
+    Mirrors ``tests/charter_offering/missions/test_mission_type_repository.py``'s own
     ``_StubPackContext`` (``pack_roots``, ``repo_root``, ``__hash__``
     synthesized by ``@dataclass(frozen=True)``) so both the layered factory
     and the layer-namer accept the same context object in one test.
@@ -103,12 +103,13 @@ class TestMissionTypePathLayoutSingleAuthority:
 
         # Site 3 -- the availability catalog scans the SAME directory, both
         # through the candidate resolver and the full manager path.
-        candidate = _resolve_layer_candidate("project", repo / ".kittify", None, "missions/mission_types", layered=False)
+        project_pack_root = repo / ".kittify" / "charter-packs"
+        candidate = _resolve_layer_candidate("project", project_pack_root, None, "missions/mission_types", layered=False)
         assert candidate == authority_dir
-        detailed = CharterPackManager().list_available_detailed(
+        detailed = ActiveCharterManager().list_available_detailed(
             ProjectContext(repo_root=repo),
             kind="mission-type",
-            layer_roots={"project": repo / ".kittify"},
+            layer_roots={"project": project_pack_root},
         )
         probe_entries = [entry for entry in detailed if entry.artifact_id == "probe-type"]
         assert [entry.layer for entry in probe_entries] == ["project"]
@@ -132,7 +133,7 @@ class TestMissionTypePathLayoutSingleAuthority:
 
         candidate = _resolve_layer_candidate("org", org_root, None, "missions/mission_types", layered=False)
         assert candidate == authority_dir
-        detailed = CharterPackManager().list_available_detailed(
+        detailed = ActiveCharterManager().list_available_detailed(
             ProjectContext(repo_root=org_root),
             kind="mission-type",
             layer_roots={"org": org_root},
@@ -141,24 +142,25 @@ class TestMissionTypePathLayoutSingleAuthority:
         assert [entry.layer for entry in probe_entries] == ["org"]
 
     def test_pack_manager_project_base_is_authority_leading_segment(self, tmp_path: Path) -> None:
-        """The base ``layer_roots["project"]`` hands pack_manager is the repo
-        root joined with the authority's LEADING ``.kittify`` segment -- the
-        invariant that makes the derived under-``.kittify`` tail constant the
-        correct join for that base point.
+        """``layer_roots["project"]`` is the project pack root, a direct child
+        of the authority's LEADING ``.kittify`` segment: pack_manager's
+        ``.kittify`` derivation plus the under-``.kittify`` tail constant
+        reproduces the authority's own path.
 
         If the authority's leading segment ever moves, this pins the
         reconciliation point instead of letting pack_manager's join silently
         diverge by one directory level.
         """
-        # Lazy: keeps the specify_cli CLI surface out of this module's import
-        # time for the charter test shard.
-        from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
+        from charter.activation.layer_roots import resolve_layer_roots
+        from charter.activation.pack_manager import _kittify_root_of_project_pack
 
         repo = tmp_path / "repo"
-        (repo / ".kittify" / "doctrine").mkdir(parents=True)
+        (repo / ".kittify" / "charter-packs").mkdir(parents=True)
 
         roots = resolve_layer_roots(repo)
 
-        assert roots["project"] == repo.joinpath(PROJECT_MISSION_TYPES_RELATIVE[0])
+        assert roots["project"] == repo / ".kittify" / "charter-packs"
+        kittify = _kittify_root_of_project_pack(roots["project"])
+        assert kittify == repo.joinpath(PROJECT_MISSION_TYPES_RELATIVE[0])
         # The full join from that base reproduces the authority's own path.
-        assert roots["project"].joinpath(*PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT) == repo.joinpath(*PROJECT_MISSION_TYPES_RELATIVE)
+        assert kittify.joinpath(*PROJECT_MISSION_TYPES_RELATIVE_TO_KITTYFY_ROOT) == repo.joinpath(*PROJECT_MISSION_TYPES_RELATIVE)

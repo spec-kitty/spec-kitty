@@ -1,9 +1,9 @@
-"""CLI tests for ``spec-kitty doctrine org init`` and ``doctrine org validate``.
+"""CLI tests for ``spec-kitty charter org init`` and ``charter org validate``.
 
-WP08 / T039 RED tests.  All four tests FAIL on the planning base because the
-``org`` subapp does not exist in ``doctrine.py`` yet.
+WP08 / T039 tests, written for the former ``doctrine org`` spelling; the
+group moved to ``charter org`` (mission charter-pack-cutover-01M491G6, FR-006).
 
-Owner: ``src/specify_cli/cli/commands/doctrine.py``
+Owner: ``src/specify_cli/cli/commands/charter/org.py``
 Mission: slice-f-multi-context-extensibility-01KRX5C8
 """
 
@@ -15,7 +15,7 @@ from textwrap import dedent
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.doctrine import app
+from specify_cli.cli.commands.charter import charter_app as app
 
 runner = CliRunner()
 
@@ -23,12 +23,12 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------
-# T039-a: doctrine org init scaffolds a minimal org pack skeleton
+# T039-a: charter org init scaffolds a minimal org pack skeleton
 # ---------------------------------------------------------------------------
 
 
 def test_doctrine_org_init_scaffolds_minimal_pack(tmp_path: Path) -> None:
-    """``doctrine org init <path>`` creates the three required skeleton files.
+    """``charter org init <path>`` creates the three required skeleton files.
 
     Expected layout::
 
@@ -52,7 +52,7 @@ def test_doctrine_org_init_scaffolds_minimal_pack(tmp_path: Path) -> None:
 
     data = YAML(typ="safe").load(org_charter.read_text(encoding="utf-8"))
     assert data is not None
-    from specify_cli.doctrine.org_charter import OrgCharterPolicy
+    from charter.activation.org_charter import OrgCharterPolicy
 
     OrgCharterPolicy.model_validate(data)  # must not raise
 
@@ -80,12 +80,12 @@ def test_doctrine_org_init_scaffolds_minimal_pack(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T039-b: doctrine org init refuses to overwrite an existing pack
+# T039-b: charter org init refuses to overwrite an existing pack
 # ---------------------------------------------------------------------------
 
 
 def test_doctrine_org_init_refuses_to_overwrite_existing(tmp_path: Path) -> None:
-    """``doctrine org init`` exits non-zero when the target dir already exists
+    """``charter org init`` exits non-zero when the target dir already exists
     (without ``--force``).
     """
     pack_dir = tmp_path / "existing-pack"
@@ -98,12 +98,12 @@ def test_doctrine_org_init_refuses_to_overwrite_existing(tmp_path: Path) -> None
 
 
 # ---------------------------------------------------------------------------
-# T039-c: doctrine org validate accepts a valid pack
+# T039-c: charter org validate accepts a valid pack
 # ---------------------------------------------------------------------------
 
 
 def test_doctrine_org_validate_accepts_valid_pack(tmp_path: Path) -> None:
-    """``doctrine org validate <path>`` exits 0 for a pack that passes schema checks."""
+    """``charter org validate <path>`` exits 0 for a pack that passes schema checks."""
     pack_dir = tmp_path / "valid-pack"
 
     # Scaffold a pack using the init command so we always test against
@@ -117,12 +117,12 @@ def test_doctrine_org_validate_accepts_valid_pack(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T039-d: doctrine org validate rejects a pack with invalid kind in fragment
+# T039-d: charter org validate rejects a pack with invalid kind in fragment
 # ---------------------------------------------------------------------------
 
 
 def test_doctrine_org_validate_rejects_invalid_kind(tmp_path: Path) -> None:
-    """``doctrine org validate`` exits non-zero when fragment.yaml has an
+    """``charter org validate`` exits non-zero when fragment.yaml has an
     unknown ``kind`` value (not in the 8-kind canonical set).
     """
     pack_dir = tmp_path / "bad-pack"
@@ -309,7 +309,7 @@ def test_doctrine_org_init_from_local_folder(tmp_path: Path) -> None:
 
 def test_doctrine_org_init_from_bitbucket_ssh_at_ref(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Git TEMPLATE: ssh://git@…@feat/… clones via GitSource with parsed ref."""
-    from specify_cli.doctrine.sources.protocol import FetchResult
+    from specify_cli.charter_packs.sources.protocol import FetchResult
 
     calls: dict[str, object] = {}
 
@@ -330,7 +330,7 @@ def test_doctrine_org_init_from_bitbucket_ssh_at_ref(tmp_path: Path, monkeypatch
             return FetchResult(ok=True, artifacts_written=2, pack_version="deadbeef", errors=[])
 
     monkeypatch.setattr(
-        "specify_cli.doctrine.template_render.resolve.GitSource",
+        "specify_cli.charter_packs.template_render.resolve.GitSource",
         FakeGitSource,
     )
 
@@ -365,7 +365,7 @@ def test_doctrine_org_init_from_bitbucket_ssh_at_ref(tmp_path: Path, monkeypatch
 # internal validate_pack(...) call carries an explicit check_drg_root=True —
 # no carve-out. Two cases: (a) a parameter-value assertion mirroring T016's
 # assembler assertion (opposite value), and (b) a brand-new positive-fire
-# fixture proving `doctrine org validate` now catches the destructive shape
+# fixture proving `charter org validate` now catches the destructive shape
 # the dropped carve-out used to suppress.
 # ---------------------------------------------------------------------------
 
@@ -376,13 +376,13 @@ def test_doctrine_org_validate_catches_drg_only_fragment_after_init(
     """AC-7(b) — new positive-fire fixture, no precedent in the suite today:
     a pack scaffolded by ``org init``, then given a real
     ``drg/*.graph.yaml`` fragment and no pack-root ``*.graph.yaml``, produces
-    the ``drg_root_graph_missing`` diagnostic through ``doctrine org
+    the ``drg_root_graph_missing`` diagnostic through ``charter org
     validate``. This is the destructive shape the dropped ``org_validate``
     carve-out used to suppress — the whole point of dropping it (operator
     ruling #2).
 
     Before this WP, no ``drg_root_graph_missing`` diagnostic exists at all,
-    so ``doctrine org validate`` exits 0 for this fixture — this is the
+    so ``charter org validate`` exits 0 for this fixture — this is the
     load-bearing proof that the shape was genuinely unguarded before this WP.
     """
     pack_dir = tmp_path / "stub-then-real-drg"

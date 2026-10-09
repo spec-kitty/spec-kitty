@@ -135,7 +135,7 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
         commands=True,
         command_agent_keys=slash_command_agents,
     )
-    managed = builder.assess(agents, AssessmentInputs(root, projected=installation, consent=consent), kinds=(ToolSurfaceKind.DOCTRINE_SKILL,))
+    managed = builder.assess(agents, AssessmentInputs(root, projected=installation, consent=consent), kinds=(ToolSurfaceKind.CHARTER_SKILL,))
     commands = builder.assess(
         command_skill_agents,
         AssessmentInputs(root, projected=provisioning, consent=consent),
@@ -148,7 +148,7 @@ def prepare_upgrade_repairs(project_path: Path, *, consent: ApplyConsent) -> Pre
         for kind in ToolSurfaceKind
         if kind
         not in {
-            ToolSurfaceKind.DOCTRINE_SKILL,
+            ToolSurfaceKind.CHARTER_SKILL,
             ToolSurfaceKind.COMMAND_SKILL,
             ToolSurfaceKind.COMMAND_FILE,
         }

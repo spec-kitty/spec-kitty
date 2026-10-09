@@ -79,7 +79,7 @@ def _write_org_pack(repo_root: Path) -> Path:
 
 def _write_config(repo_root: Path, pack_root: Path, *, activated: list[str]) -> None:
     data: dict[str, object] = {
-        "doctrine": {"org": {"packs": [{"name": _PACK_NAME, "local_path": str(pack_root)}]}},
+        "charter_packs": {"org": {"packs": [{"name": _PACK_NAME, "local_path": str(pack_root)}]}},
         "activated_agent_profiles": activated,
     }
     kittify = repo_root / ".kittify"
@@ -172,7 +172,7 @@ def test_no_activation_key_admits_all_builtins_in_routing(tmp_path: Path) -> Non
     pack_root = _write_org_pack(tmp_path)
     # Declare the pack but write NO activated_agent_profiles key.
     data: dict[str, object] = {
-        "doctrine": {"org": {"packs": [{"name": _PACK_NAME, "local_path": str(pack_root)}]}},
+        "charter_packs": {"org": {"packs": [{"name": _PACK_NAME, "local_path": str(pack_root)}]}},
     }
     kittify = tmp_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)

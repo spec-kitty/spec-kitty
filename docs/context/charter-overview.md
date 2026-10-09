@@ -2,7 +2,7 @@
 title: How Charter Works
 description: The Charter mental model — synthesis, DRG, governed context, and profile invocation.
 doc_status: active
-updated: '2026-07-20'
+updated: '2026-10-08'
 type: explanation
 related:
 - docs/context/governance-files.md
@@ -46,7 +46,7 @@ The mechanism:
    and activation sections of `.kittify/charter/charter.yaml` — testing standards, quality gates,
    branching rules, directive selections, activated doctrine kinds.
 2. `charter generate` refreshes `charter.yaml`'s `catalog` and `metadata` sections (the doctrine
-   reference manifest and a generation timestamp) from the current doctrine selection, merging
+   reference manifest and a generation timestamp) from the active charter, merging
    the refresh back into the file without touching your authored sections.
 3. When `spec-kitty next` invokes an agent profile for a mission action, the runtime reads
    `charter.yaml` directly and injects the relevant charter context into the prompt automatically.
@@ -62,7 +62,7 @@ does not change runtime behavior.
 
 At a high level, the Charter setup flow is: capture policy decisions via interview, generate (or
 refresh) `charter.yaml`, check for graph-native decay, synthesize doctrine into
-`.kittify/doctrine/`, validate the bundle against the `CharterBundleManifest` v2.0.0 schema, and
+`.kittify/charter-packs/`, validate the bundle against the `CharterBundleManifest` v2.0.0 schema, and
 confirm status shows no drift. For the complete command-by-command walkthrough — including flags,
 what each command outputs, and how to recover from a stale bundle — follow
 [How to Set Up Project Governance](../guides/how-to/governance/setup-governance.md) rather than reproducing the
@@ -165,7 +165,7 @@ compact-context mode, causing agents to receive less detail.
 | `.kittify/charter/generated/` | Agent harness | Candidate doctrine YAML consumed by `charter synthesize` |
 | `.kittify/charter/synthesis-manifest.yaml` | Auto-generated (`charter synthesize`) | Manifest for promoted project-local doctrine artifacts |
 | `.kittify/charter/provenance/*.yaml` | Auto-generated (`charter synthesize`) | Provenance sidecars for synthesized doctrine artifacts |
-| `.kittify/doctrine/` | Auto-generated (synthesize) | Project-local doctrine promoted by synthesizer |
+| `.kittify/charter-packs/` | Auto-generated (synthesize) | Project-local doctrine promoted by synthesizer |
 
 See [Governance Files Reference](governance-files.md) for the full table.
 
@@ -177,5 +177,5 @@ See [Governance Files Reference](governance-files.md) for the full table.
 - [How to Set Up Project Governance](../guides/how-to/governance/setup-governance.md) — initial setup walkthrough
 - [How to Synthesize and Maintain Doctrine](../guides/how-to/governance/synthesize-doctrine.md) — day-to-day synthesis
 - [Understanding Charter: Synthesis, DRG, and Governed Context](../architecture/charter-synthesis-drg.md) — deeper explanation
-- [Charter Pack Usage Journey](../architecture/charter-pack-usage-journey.md) — the pack-driven
-  onboarding path (`charter pack apply` → `charter generate`) and the dispatch safety net
+- [Activation Preset Usage Journey](../architecture/charter-pack-usage-journey.md) — the
+  preset-driven onboarding path (`charter activate --preset` → `charter generate`) and the dispatch safety net

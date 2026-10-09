@@ -16,7 +16,8 @@ from ruamel.yaml.error import YAMLError
 
 from charter.activation._catalog_miss import CatalogMissCause, CatalogMissDiagnosis
 from charter.activation._io import load_charter_file
-from charter.activation.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
+from kernel.charter_pack_paths import project_pack_root
+from charter.activation.catalog import OfferingCatalog, load_offering_catalog, resolve_offering_root
 from charter.activation.context_renderers.catalog_diagnosis import _diagnose_catalog_miss
 from charter.activation.charter_yaml_io import (
     PreparedYamlWrite,
@@ -29,13 +30,14 @@ from charter.activation.charter_yaml_io import (
     update_charter_yaml_section,
     yaml_documents_equal,
 )
+from kernel.charter_pack_paths import pack_presets_dir
 from kernel.clock import now_utc_stamp
+from kernel.errors import KittyInternalConsistencyError
 from charter.activation.interview import (
     CharterInterview,
     LocalSupportDeclaration,
     validate_local_support_declarations,
 )
-from charter.activation.default_pack import load_default_mission_type_activations
 from charter.activation.kind_vocabulary import ArtifactKind, UnknownArtifactIdError, resolve_artifact_urn
 from charter.activation.language_scope import infer_repo_languages
 from charter.activation.pack_context import PackContext
@@ -48,7 +50,8 @@ from charter.activation.schemas import (
     DirectivesConfig,
     GovernanceConfig,
 )
-from charter.offering.pack_paths import built_in_dir
+from charter.offering.pack_paths import built_in_dir, built_in_root
+from charter.offering.packs.presets import DEFAULT_PRESET_NAME, PresetFormatError, PresetNotFoundError, load_preset
 from charter.offering.provenance import to_portable_source_path
 
 logger = logging.getLogger(__name__)
@@ -56,9 +59,11 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "CharterReference",
     "CompiledCharter",
+    "DefaultPresetMissingError",
     "WholeKindUnresolvedError",
     "WriteBundleResult",
     "compile_charter",
+    "default_preset_mission_types",
     "provision_mission_type_activations",
     "resolve_config_activated_roots",
     "write_compiled_charter",
@@ -144,7 +149,7 @@ def _resolve_config_activated_ids(
     kind: ArtifactKind,
     activated_stems: frozenset[str] | None,
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     fallback_ids: frozenset[str],
     org_roots: list[Path] | None = None,
     layer_roots: dict[str, Path] | None = None,
@@ -177,7 +182,7 @@ def _resolve_config_activated_ids(
         return sorted(fallback_ids)
 
     resolved = {
-        resolve_artifact_urn(kind, stem, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots).split(":", 1)[1] for stem in activated_stems
+        resolve_artifact_urn(kind, stem, offering_root=offering_root, org_roots=org_roots, layer_roots=layer_roots).split(":", 1)[1] for stem in activated_stems
     }
     return sorted(resolved)
 
@@ -185,8 +190,8 @@ def _resolve_config_activated_ids(
 def _resolve_config_activated_roots(
     *,
     pack_context: PackContext | None,
-    catalog: DoctrineCatalog,
-    doctrine_root: Path,
+    catalog: OfferingCatalog,
+    offering_root: Path,
 ) -> ConfigActivatedRoots:
     """Build the full config-sourced activation bundle for one compile."""
 
@@ -212,19 +217,19 @@ def _resolve_config_activated_roots(
 
     # ``pack_context.pack_roots`` is ``(builtin_root, *org_pack_roots)``
     # (``PackContext.from_config``); the built-in root is already threaded
-    # separately as ``doctrine_root``, so only the org/project-overlay
+    # separately as ``offering_root``, so only the org/project-overlay
     # entries need to be passed to the resolver. Empty for non-org projects
     # (no behavior change) -- see #2529.
     org_roots: list[Path] | None = list(pack_context.pack_roots[1:]) if pack_context is not None else None
 
-    layer_roots = {"project": pack_context.repo_root / ".kittify"} if pack_context is not None else None
+    layer_roots = {"project": project_pack_root(pack_context.repo_root)} if pack_context is not None else None
 
     try:
         return ConfigActivatedRoots(
             directives=_resolve_config_activated_ids(
                 ArtifactKind.DIRECTIVE,
                 _stems("activated_directives"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.directives,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -232,7 +237,7 @@ def _resolve_config_activated_roots(
             paradigms=_resolve_config_activated_ids(
                 ArtifactKind.PARADIGM,
                 _stems("activated_paradigms"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.paradigms,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -240,7 +245,7 @@ def _resolve_config_activated_roots(
             tactics=_resolve_config_activated_ids(
                 ArtifactKind.TACTIC,
                 _stems("activated_tactics"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.tactics,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -248,7 +253,7 @@ def _resolve_config_activated_roots(
             styleguides=_resolve_config_activated_ids(
                 ArtifactKind.STYLEGUIDE,
                 _stems("activated_styleguides"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.styleguides,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -256,7 +261,7 @@ def _resolve_config_activated_roots(
             toolguides=_resolve_config_activated_ids(
                 ArtifactKind.TOOLGUIDE,
                 _stems("activated_toolguides"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.toolguides,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -264,7 +269,7 @@ def _resolve_config_activated_roots(
             procedures=_resolve_config_activated_ids(
                 ArtifactKind.PROCEDURE,
                 _stems("activated_procedures"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.procedures,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -272,7 +277,7 @@ def _resolve_config_activated_roots(
             agent_profiles=_resolve_config_activated_ids(
                 ArtifactKind.AGENT_PROFILE,
                 _stems("activated_agent_profiles"),
-                doctrine_root=doctrine_root,
+                offering_root=offering_root,
                 fallback_ids=catalog.agent_profiles,
                 org_roots=org_roots,
                 layer_roots=layer_roots,
@@ -315,7 +320,7 @@ def _bare_ids_for_kind(urns: frozenset[str], kind: ArtifactKind) -> list[str]:
 def resolve_config_activated_roots(
     *,
     repo_root: Path,
-    doctrine_catalog: DoctrineCatalog | None = None,
+    offering_catalog: OfferingCatalog | None = None,
     pack_context: PackContext | None = None,
 ) -> ConfigActivatedRoots:
     """Resolve ``.kittify/config.yaml`` ``activated_*`` stems to bare canonical ids.
@@ -329,27 +334,27 @@ def resolve_config_activated_roots(
     logic live in ``charter``; ``specify_cli`` orchestrates.
     A supplied ``pack_context`` preflights proposed activations without writing them.
     """
-    catalog = doctrine_catalog or load_doctrine_catalog()
+    catalog = offering_catalog or load_offering_catalog()
     if pack_context is None:
         pack_context = PackContext.from_config(repo_root)
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     return _resolve_config_activated_roots(
         pack_context=pack_context,
         catalog=catalog,
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
     )
 
 
 if TYPE_CHECKING:
     # WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011): this name
     # now denotes the activation-aware wrapper, not the raw
-    # ``charter.offering.service.DoctrineService``. Every real caller already passes
-    # (or, after this WP, receives from :func:`_default_doctrine_service`) a
+    # ``charter.offering.service.CharterOfferingService``. Every real caller already passes
+    # (or, after this WP, receives from :func:`_default_active_charter_service`) a
     # wrapped instance -- ``generate.py``/``pack.py`` via
-    # ``_build_doctrine_service_with_org_layer``, this module via the change
+    # ``_build_active_charter_service_with_org_layer``, this module via the change
     # below -- so the annotation now matches what actually flows through
-    # ``compile_charter``'s ``doctrine_service`` parameter and its helpers.
-    from charter.activation.resolver import DoctrineService
+    # ``compile_charter``'s ``charter_service`` parameter and its helpers.
+    from charter.activation.resolver import ActiveCharterService
 
 
 @dataclass(frozen=True)
@@ -403,8 +408,8 @@ def compile_charter(
     mission: str,
     interview: CharterInterview,
     template_set: str | None = None,
-    doctrine_catalog: DoctrineCatalog | None = None,
-    doctrine_service: DoctrineService | None = None,
+    offering_catalog: OfferingCatalog | None = None,
+    charter_service: ActiveCharterService | None = None,
     repo_root: Path | None = None,
     pack_context: PackContext | None = None,
     rederive_languages: bool = False,
@@ -412,7 +417,7 @@ def compile_charter(
     """Compile charter markdown, references manifest, and library docs.
 
     Artifact loading and transitive reference resolution always prefer the
-    typed repository API and DRG-backed path. When *doctrine_service* is not
+    typed repository API and DRG-backed path. When *charter_service* is not
     supplied, a default service rooted at built-in doctrine (and an optional
     project overlay under *repo_root*) is constructed automatically.
 
@@ -423,7 +428,7 @@ def compile_charter(
     activation source and is captured purely as an interview record (see
     ``_user_profile_reference``). When *pack_context* is not supplied, it is
     built from ``.kittify/config.yaml`` under *repo_root* (mirroring
-    :func:`_default_doctrine_service`); when neither is available, every kind
+    :func:`_default_active_charter_service`); when neither is available, every kind
     resolves to "all built-ins active" -- the same absent-key default
     :class:`~charter.activation.pack_context.PackContext` already documents.
 
@@ -447,7 +452,7 @@ def compile_charter(
     a recompile never re-litigates the recorded languages).
     """
     # Single authority (issue #3292): route through the SAME function the
-    # doctrine-service language gate (charter.activation.doctrine_service_builder) uses,
+    # doctrine-service language gate (charter.activation.active_charter_service_builder) uses,
     # passing the in-memory *interview* so a not-yet-persisted interview
     # (e.g. `charter generate --no-from-interview`) is still consulted. This
     # replaces an independent `extract_declared_languages` scan that used to
@@ -456,21 +461,21 @@ def compile_charter(
     # read back as authoritative "admit none" — see that function's
     # docstring for the full feedback-loop this closes.
     active_languages = infer_repo_languages(repo_root, interview=interview, prefer_interview=rederive_languages)
-    catalog = doctrine_catalog or load_doctrine_catalog(active_languages=active_languages)
+    catalog = offering_catalog or load_offering_catalog(active_languages=active_languages)
     diagnostics: list[str] = []
     unresolved_reference_records: list[UnresolvedReferenceRecord] = []
 
-    if doctrine_service is None:
-        doctrine_service = _default_doctrine_service(repo_root)
+    if charter_service is None:
+        charter_service = _default_active_charter_service(repo_root)
 
     if pack_context is None and repo_root is not None:
         pack_context = PackContext.from_config(repo_root)
 
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
     config_roots = _resolve_config_activated_roots(
         pack_context=pack_context,
         catalog=catalog,
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
     )
 
     template = _resolve_template_set(mission=mission, requested_template_set=template_set, catalog=catalog)
@@ -498,7 +503,7 @@ def compile_charter(
         template_set=template,
         interview=interview,
         config_roots=config_roots,
-        doctrine_service=doctrine_service,
+        charter_service=charter_service,
         repo_root=repo_root,
         diagnostics=diagnostics,
         unresolved_reference_records=unresolved_reference_records,
@@ -522,7 +527,7 @@ def compile_charter(
         selected_tactics=config_roots.tactics,
         available_tools=available_tools,
         references=references,
-        doctrine_service=doctrine_service,
+        charter_service=charter_service,
     )
 
     return CompiledCharter(
@@ -615,9 +620,61 @@ class _PreparedMissionTypeActivations:
         return apply_yaml_write(self.write)
 
 
+class DefaultPresetMissingError(KittyInternalConsistencyError):
+    """The built-in pack's ``default`` preset cannot seed ``mission_type_activations``.
+
+    Raised by ``spec-kitty init``, ``spec-kitty charter generate`` and the upgrade
+    provisioning (FR-003) when ``presets/default.yaml`` of the built-in pack is
+    absent, unreadable or malformed, or lists no mission types: a broken
+    spec-kitty install, never a legitimate project state.
+    """
+
+    def __init__(self, preset_path: Path, detail: str) -> None:
+        self.preset_path = preset_path
+        super().__init__(
+            "DEFAULT_PRESET_MISSING",
+            f"The built-in pack's `default` preset {preset_path} {detail}. Cannot provision this project's "
+            "mission types. This indicates a broken spec-kitty install: reinstall spec-kitty and re-run the command.",
+        )
+
+
+def _default_preset_path() -> Path:
+    """The built-in pack's ``default`` preset file (whether or not it exists)."""
+    return pack_presets_dir(built_in_root()) / f"{DEFAULT_PRESET_NAME}.yaml"
+
+
+def default_preset_mission_types() -> list[str]:
+    """Return the built-in ``default`` preset's ``mission_type_activations``, failing closed.
+
+    The single seed-read of every mission-type provisioner (``init``,
+    ``charter generate``, upgrade). The list is copied verbatim: it is never
+    intersected with the mission-type catalog nor re-derived by scanning it.
+    An absent key or an empty list in the *shipped* preset is a broken
+    install, so it raises like a missing or malformed file.
+
+    Raises:
+        DefaultPresetMissingError: the preset file is absent, unreadable or
+            malformed, or declares no (or an empty) ``mission_type_activations``.
+    """
+    path = _default_preset_path()
+    try:
+        preset = load_preset(built_in_root(), DEFAULT_PRESET_NAME)
+    except PresetNotFoundError as exc:
+        raise DefaultPresetMissingError(path, "does not exist") from exc
+    except PresetFormatError as exc:
+        raise DefaultPresetMissingError(path, f"is malformed ({exc})") from exc
+    if not preset.mission_type_activations:
+        raise DefaultPresetMissingError(path, f"declares no non-empty '{_MISSION_TYPE_ACTIVATIONS_KEY}' list")
+    return list(preset.mission_type_activations)
+
+
 def prepare_mission_type_activations(repo_root: Path) -> _PreparedMissionTypeActivations:
-    """Read missing-key policy and prepare exact bytes without provisioning."""
-    from charter.activation.default_pack import _default_pack_yaml_path
+    """Read missing-key policy and prepare exact bytes without provisioning.
+
+    An absent key is seeded from the built-in ``default`` preset; the preset
+    file (and its parents) is recorded as an observed input, so the prepared
+    write refuses when the seed changed between preparation and apply.
+    """
     from charter.activation.pack_manager import prepare_activation_write, resolve_activation_write_target
 
     repo_root = repo_root.resolve()
@@ -629,9 +686,9 @@ def prepare_mission_type_activations(repo_root: Path) -> _PreparedMissionTypeAct
     if present:
         values = data[_MISSION_TYPE_ACTIVATIONS_KEY]
     else:
-        seed = _default_pack_yaml_path(None)
+        seed = _default_preset_path()
         source_inputs = tuple(observe_yaml_input(path) for path in (*reversed(seed.parents), seed))
-        values = load_default_mission_type_activations()
+        values = default_preset_mission_types()
     if not isinstance(values, list) or any(not isinstance(value, str) for value in values):
         raise ValueError(f"{_MISSION_TYPE_ACTIVATIONS_KEY} must be a list of strings")
     prepared = initial if present else prepare_activation_write(repo_root, {_MISSION_TYPE_ACTIVATIONS_KEY: values})
@@ -656,11 +713,10 @@ def provision_mission_type_activations(repo_root: Path) -> bool:
     actually offers its mission types, mirroring the built-in
     ``activated_<kind>`` keys.
 
-    Additive and idempotent (charter contract C-A2): the built-in mission-type
-    set authored in ``src/charter/activation/packs/default.yaml`` is written ONLY when the
-    key is entirely absent from the activation authority. An already-present
-    list — a custom set or an explicit ``[]`` fail-closed opt-out — is left
-    untouched.
+    Additive and idempotent (charter contract C-A2): the mission types of the
+    built-in pack's ``default`` preset are written ONLY when the key is
+    entirely absent from the activation authority. An already-present list —
+    a custom set or an explicit ``[]`` fail-closed opt-out — is left untouched.
 
     The write routes through
     :func:`charter.activation.pack_manager.resolve_activation_write_target` (the single
@@ -677,13 +733,10 @@ def provision_mission_type_activations(repo_root: Path) -> bool:
 
     Raises
     ------
-    CharterPackConfigError
-        When the shipped default pack declares no ``mission_type_activations``
-        set (a broken install) — fail-closed rather than seeding an empty,
-        equally-unusable list. Raised by the shared seed-read helper
-        :func:`charter.activation.default_pack.load_default_mission_type_activations`
-        (also consumed by ``spec-kitty init``/``upgrade`` provisioning), so
-        both provisioners fail closed on the identical condition.
+    DefaultPresetMissingError
+        When the key is absent and the built-in ``default`` preset cannot seed
+        it (:func:`default_preset_mission_types`, the seed-read ``spec-kitty
+        init`` shares) — fail-closed rather than seeding an empty list.
     """
     return prepare_mission_type_activations(repo_root).apply()
 
@@ -957,7 +1010,7 @@ def _resolve_template_set(
     *,
     mission: str,
     requested_template_set: str | None,
-    catalog: DoctrineCatalog,
+    catalog: OfferingCatalog,
 ) -> str:
     # ``catalog`` resolves to ``Any`` under single-file mypy, so bind the
     # attribute to its declared element type; this lets mypy infer ``str`` for
@@ -1033,25 +1086,26 @@ def _sanitize_catalog_selection(
     return []
 
 
-def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
-    """Build an activation-aware DoctrineService rooted at built-in doctrine
+def _default_active_charter_service(repo_root: Path | None) -> ActiveCharterService:
+    """Build an activation-aware ActiveCharterService rooted at built-in doctrine
     plus optional project overlay.
 
     The project-root candidate list (in priority order):
-    1. ``.kittify/doctrine/``  — Phase 3 synthesis target (FR-009 / T024).
-    2. ``src/charter/offering/``       — code-local built-in-layer path.
-    3. ``doctrine/``           — flat fallback.
+    1. ``.kittify/charter-packs/`` — the project pack root, the synthesis target (FR-009 / T024).
+    2. ``src/charter/offering/``   — code-local built-in-layer path.
+
+    :mod:`charter.activation._project_root_candidates` owns this list.
 
     Discovery is conditional on directory presence: legacy projects (pre-
     synthesis) that have none of these directories see ``project_root=None``
     and byte-identical behaviour to the pre-Phase-3 default (R-2 mitigation).
 
     WP03 (charter-sole-door-bypass-closure-01KZ3WAA, FR-002/T011): this used
-    to construct a raw, unwrapped ``charter.offering.service.DoctrineService``
+    to construct a raw, unwrapped ``charter.offering.service.CharterOfferingService``
     directly -- one of the six original FR-002 violation sites. When
     *repo_root* is available, construction now routes through WP01's single
-    unified builder, :func:`charter.activation.doctrine_service_builder.
-    build_activation_aware_doctrine_service`, which resolves the identical
+    unified builder, :func:`charter.activation.active_charter_service_builder.
+    build_active_charter_service`, which resolves the identical
     ``project_root`` via this same :func:`resolve_project_root` call
     internally, so the R-2 legacy-candidate behaviour above is unchanged.
     This does add real charter-activation filtering (a `PackContext` sourced
@@ -1082,20 +1136,20 @@ def _default_doctrine_service(repo_root: Path | None) -> DoctrineService:
     pre-mission unfiltered behaviour for legacy repo-root-less callers.
     """
     if repo_root is not None:
-        from charter.activation.doctrine_service_builder import (
-            build_activation_aware_doctrine_service,
+        from charter.activation.active_charter_service_builder import (
+            build_active_charter_service,
         )
 
-        return build_activation_aware_doctrine_service(repo_root)
+        return build_active_charter_service(repo_root)
 
-    from charter.activation.resolver import DoctrineService as _ActivationAwareDoctrineService
-    from charter.offering.service import DoctrineService as _RawDoctrineService
+    from charter.activation.resolver import ActiveCharterService
+    from charter.offering.service import CharterOfferingService
 
     # No built_in_root kwarg: repositories self-resolve packs/built-in/<kind>
     # via the built_in_dir seam (default None is behaviour-preserving here;
-    # WP04 drops the now-dead param from DoctrineService entirely).
-    # resolve_doctrine_root() post-relocation points at the emptied src/doctrine tree.
-    return _ActivationAwareDoctrineService(_RawDoctrineService(project_root=None))
+    # WP04 drops the now-dead param from ActiveCharterService entirely).
+    # resolve_offering_root() post-relocation points at the emptied src/doctrine tree.
+    return ActiveCharterService(CharterOfferingService(project_root=None))
 
 
 def _build_references(
@@ -1104,12 +1158,12 @@ def _build_references(
     template_set: str,
     interview: CharterInterview,
     config_roots: ConfigActivatedRoots,
-    doctrine_service: DoctrineService,
+    charter_service: ActiveCharterService,
     repo_root: Path | None = None,
     diagnostics: list[str] | None = None,
     unresolved_reference_records: list[UnresolvedReferenceRecord] | None = None,
 ) -> list[CharterReference]:
-    doctrine_root = resolve_doctrine_root()
+    offering_root = resolve_offering_root()
 
     references: list[CharterReference] = []
     references.append(_user_profile_reference(interview))
@@ -1118,8 +1172,8 @@ def _build_references(
             mission=mission,
             template_set=template_set,
             config_roots=config_roots,
-            doctrine_root=doctrine_root,
-            doctrine_service=doctrine_service,
+            offering_root=offering_root,
+            charter_service=charter_service,
             repo_root=repo_root,
             diagnostics=diagnostics if diagnostics is not None else [],
             unresolved_records=unresolved_reference_records if unresolved_reference_records is not None else [],
@@ -1128,20 +1182,20 @@ def _build_references(
     return references
 
 
-def _raw_kind_repository(doctrine_service: DoctrineService, kind: str) -> Any:
-    """Return the RAW, unfiltered repository for *kind* from *doctrine_service*.
+def _raw_kind_repository(charter_service: ActiveCharterService, kind: str) -> Any:
+    """Return the RAW, unfiltered repository for *kind* from *charter_service*.
 
-    ``compile_charter`` accepts two concrete ``doctrine_service`` shapes in
+    ``compile_charter`` accepts two concrete ``charter_service`` shapes in
     practice (only the first is the type its annotation names, but callers --
     including in-repo tests, e.g. ``tests/charter/test_activate_resolves_no_answers_edit.py``
     -- pass the second directly too):
 
-    - the activation-aware wrapper (``charter.activation.resolver.DoctrineService``),
+    - the activation-aware wrapper (``charter.activation.resolver.ActiveCharterService``),
       whose nine gated properties (``.directives`` et al.) return an
       ACTIVATION-FILTERED dict -- so its dedicated ``raw_repository(kind)``
       accessor is used instead (#4785 Finding 4b: a DRG-transitively-reached
       id can legitimately fall outside that filtered subset);
-    - a raw, unwrapped ``charter.offering.service.DoctrineService``, whose
+    - a raw, unwrapped ``charter.offering.service.CharterOfferingService``, whose
       same-named properties are ALREADY the unfiltered repository object (no
       ``raw_repository`` method exists on it, nor is one needed).
 
@@ -1152,10 +1206,10 @@ def _raw_kind_repository(doctrine_service: DoctrineService, kind: str) -> Any:
     ``raw_repository(kind)`` accessor, which degrades to ``None`` for the same
     kinds rather than raising ``AttributeError``.
     """
-    raw_repository = getattr(doctrine_service, "raw_repository", None)
+    raw_repository = getattr(charter_service, "raw_repository", None)
     if callable(raw_repository):
         return raw_repository(kind)
-    return getattr(doctrine_service, kind, None)
+    return getattr(charter_service, kind, None)
 
 
 #: Shared free-text template for every unresolved-reference diagnostic line
@@ -1364,7 +1418,7 @@ _TRACKED_KINDS: dict[str, _TrackedKind] = {
 
 def _model_reference(kind: str, model: Any, fields: _ReferenceFields) -> CharterReference:
     """Build the :class:`CharterReference` for a repository *model* of *kind*."""
-    return _doctrine_model_reference(
+    return _model_doctrine_reference(
         kind=kind,
         raw_id=fields.id_of(model),
         title=fields.title_of(model),
@@ -1375,7 +1429,7 @@ def _model_reference(kind: str, model: Any, fields: _ReferenceFields) -> Charter
 def _route_unresolved_urn(
     urn: str,
     *,
-    doctrine_service: DoctrineService,
+    charter_service: ActiveCharterService,
     diagnostics: list[str],
     unresolved_records: list[UnresolvedReferenceRecord],
     project_root: Path | None,
@@ -1426,7 +1480,7 @@ def _route_unresolved_urn(
         return None, None
 
     plural = artifact_kind.plural
-    repository = _raw_kind_repository(doctrine_service, plural)
+    repository = _raw_kind_repository(charter_service, plural)
     if artifact_kind.value not in _TRACKED_KINDS:
         detail = (
             f"no repository for kind: {kind_prefix}"
@@ -1479,7 +1533,7 @@ def _render_kind_references(
 
     *repository* must be the RAW, unfiltered repository for *kind*
     (:func:`_raw_kind_repository`), not one of
-    ``charter.activation.resolver.DoctrineService``'s nine activation-filtered
+    ``charter.activation.resolver.ActiveCharterService``'s nine activation-filtered
     properties. *ids* is the DRG transitive-closure result (``graph.<kind>``),
     which legitimately reaches ids beyond direct config activation (#4785
     Finding 4b) -- looking those up against the activation-filtered view
@@ -1518,8 +1572,8 @@ class WholeKindUnresolvedError(RuntimeError):
     Raised by :func:`compile_charter` instead of writing a catalog whose section
     for that kind would be silently empty. It stays a :class:`RuntimeError` so a
     caller that predates it keeps failing closed, but each command that reaches
-    the compiler translates it deliberately: ``charter generate`` and
-    ``charter pack apply --compile`` report it and exit non-zero, while
+    the compiler translates it deliberately: ``charter generate`` reports it
+    and exits non-zero, while
     ``charter activate``/``deactivate`` (whose config write already succeeded)
     downgrade it to a "catalog not recompiled" notice.
 
@@ -1573,8 +1627,8 @@ def _build_references_from_service(
     mission: str,
     template_set: str,
     config_roots: ConfigActivatedRoots,
-    doctrine_root: Path,
-    doctrine_service: DoctrineService,
+    offering_root: Path,
+    charter_service: ActiveCharterService,
     repo_root: Path | None,
     diagnostics: list[str],
     unresolved_records: list[UnresolvedReferenceRecord] | None = None,
@@ -1603,7 +1657,7 @@ def _build_references_from_service(
     # no directive edge (e.g. the #2524 baseline danglers `aggregate-design-
     # rules` / `contextive`) still resolves.
     graph = _resolve_transitive_reference_graph(
-        doctrine_root=doctrine_root,
+        offering_root=offering_root,
         directives=config_roots.directives,
         direct_root_urns=_direct_root_urns(config_roots),
         repo_root=repo_root,
@@ -1617,7 +1671,7 @@ def _build_references_from_service(
         kind_references = _render_kind_references(
             getattr(graph, tracked.plural),
             kind=kind,
-            repository=_raw_kind_repository(doctrine_service, tracked.plural),
+            repository=_raw_kind_repository(charter_service, tracked.plural),
             fields=tracked.fields,
             diagnostics=diagnostics,
             unresolved_records=unresolved_records,
@@ -1633,7 +1687,7 @@ def _build_references_from_service(
     for urn, _urn_dup in graph.unresolved:
         attributed_kind, reference = _route_unresolved_urn(
             urn,
-            doctrine_service=doctrine_service,
+            charter_service=charter_service,
             diagnostics=diagnostics,
             unresolved_records=unresolved_records,
             project_root=repo_root,
@@ -1671,7 +1725,7 @@ _GRAPH_LOAD_FAILURE_CAUSE: Final[UnresolvedCause] = "graph_load_failed"
 
 def _resolve_transitive_reference_graph(
     *,
-    doctrine_root: Path,
+    offering_root: Path,
     directives: list[str],
     repo_root: Path | None,
     direct_root_urns: frozenset[str] = frozenset(),
@@ -1727,7 +1781,7 @@ def _resolve_transitive_reference_graph(
         if repo_root is not None:
             merged = load_validated_graph(repo_root)
         else:
-            if not doctrine_root.exists():
+            if not offering_root.exists():
                 return fallback
             merged = load_built_in_graph()
             assert_valid(merged)
@@ -1900,7 +1954,7 @@ def _load_yaml_asset(path: Path, *, unsafe: bool = False) -> dict[str, object]:
     return data
 
 
-def _doctrine_model_reference(
+def _model_doctrine_reference(
     *,
     kind: str,
     raw_id: str,
@@ -1976,13 +2030,13 @@ def _template_reference(*, mission: str, template_set: str) -> CharterReference:
     """Build the mission template-set reference.
 
     Mission ``doctrine-consumer-surface-missions-extraction-01KZ6G6H``
-    (FR-005) retired this function's former ``doctrine_root`` parameter: the
+    (FR-005) retired this function's former ``offering_root`` parameter: the
     primary arm (``repo._mission_config_path``) is the one actually read below
     via ``get_mission_config``, correctly resolved through the FR-004 kernel
     primitive regardless of the mission's relocation. The display-only
     fallback (used when a mission's ``mission.yaml`` genuinely doesn't exist)
     now uses ``repo._missions_root`` -- the same promoted authority -- rather
-    than a stale ``doctrine_root / "missions"`` literal naming the
+    than a stale ``offering_root / "missions"`` literal naming the
     pre-relocation location.
     """
     from charter.offering.missions import MissionTemplateRepository
@@ -2060,7 +2114,7 @@ def _render_charter_markdown(
     selected_directives: list[str],
     available_tools: list[str],
     references: list[CharterReference],
-    doctrine_service: DoctrineService,
+    charter_service: ActiveCharterService,
     selected_tactics: list[str] | None = None,
 ) -> str:
     selected_tactics = selected_tactics or []
@@ -2085,7 +2139,7 @@ def _render_charter_markdown(
         f"- Deployment Constraints: {deployment}",
     ]
 
-    numbered_directives = _render_directives(interview, selected_directives, doctrine_service)
+    numbered_directives = _render_directives(interview, selected_directives, charter_service)
 
     reference_rows = ["| Reference ID | Kind | Summary | Local Doc |", "|---|---|---|---|"]
     for reference in references:
@@ -2137,13 +2191,13 @@ def _render_charter_markdown(
 def _render_directives(
     interview: CharterInterview,
     selected_directives: list[str],
-    doctrine_service: DoctrineService,
+    charter_service: ActiveCharterService,
 ) -> str:
     lines: list[str] = []
     index = 1
 
     for directive_id in selected_directives:
-        directive = doctrine_service.directives.get(directive_id)
+        directive = charter_service.directives.get(directive_id)
         if directive is None:
             lines.append(f"{index}. Apply doctrine directive `{directive_id}` to planning and implementation decisions.")
             index += 1

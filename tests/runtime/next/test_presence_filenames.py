@@ -83,7 +83,7 @@ class TestPresenceFilenamesMalformedManifestPropagates:
             def get_expected_artifacts(self, mission: str) -> None:
                 raise MalformedManifestError(offending_path, ValueError("bad indentation"))
 
-        monkeypatch.setattr(manifest_loader_module, "_doctrine_repository", lambda: _FakeRepository())
+        monkeypatch.setattr(manifest_loader_module, "_offering_template_repository", lambda: _FakeRepository())
 
         with pytest.raises(MalformedManifestError) as exc_info:
             _presence_filenames_for(_MALFORMED_MISSION_TYPE)

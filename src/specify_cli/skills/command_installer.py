@@ -506,10 +506,10 @@ def windows_dir_mode_only_divergence(observed: FileState, planned: FileState) ->
     command-parent receipt check (``installer._command_parent_receipts``). Left
     unhandled either makes ``upgrade`` unable to converge in one pass on Windows:
     the re-check raises (#4776) or a ``chmod`` is re-planned forever (#4777), and
-    the doctrine skills never apply.
+    the charter skills never apply.
 
     Treating that single, host-inherent divergence as satisfied lets ``upgrade``
-    converge in one pass with both command AND doctrine skills applied
+    converge in one pass with both command AND charter skills applied
     (FR-005/006) and report zero dry-run repairs once converged (FR-007).
 
     **File/symlink extension (#4927, T005).** Every managed *file*'s
@@ -544,7 +544,7 @@ def _manifest_change_bytes(manifest: manifest_store.SkillsManifest) -> bytes:
     #4134: ``installed_at`` is a per-invocation wall-clock stamp (sampled once as
     ``_CommandBatch.time`` and threaded into ``ManifestEntry.installed_at``).
     Excluding it from the change-detection comparison -- mirroring the
-    doctrine-skill provider's ``_expected_entries``, which compares with
+    charter-skill provider's ``_expected_entries``, which compares with
     ``installed_at=""`` -- keeps a cross-invocation timestamp difference from
     planning a phantom manifest rewrite (and from tripping the completion
     re-check). Callers persist the manifest's *real* bytes; only the

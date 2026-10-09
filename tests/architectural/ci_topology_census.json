@@ -37,6 +37,14 @@
       "target_shard": "misc"
     },
     {
+      "dir": "charter_packs",
+      "cone_roots": [
+        "tests/specify_cli/charter_packs"
+      ],
+      "target_group": "governance",
+      "target_shard": "misc"
+    },
+    {
       "dir": "compat",
       "cone_roots": [
         "tests/specify_cli/compat"
@@ -81,14 +89,6 @@
       "dir": "doc_analysis",
       "cone_roots": [],
       "target_group": "closeout",
-      "target_shard": "misc"
-    },
-    {
-      "dir": "doctrine",
-      "cone_roots": [
-        "tests/specify_cli/doctrine"
-      ],
-      "target_group": "governance",
       "target_shard": "misc"
     },
     {
@@ -314,7 +314,7 @@
     "distribution",
     "doc_analysis",
     "doctrine",
-    "doctrine_synthesizer",
+    "charter_pack_synthesizer",
     "dossier",
     "event_journal",
     "events",

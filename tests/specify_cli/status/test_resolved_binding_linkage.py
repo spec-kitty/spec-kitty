@@ -546,7 +546,7 @@ def _make_local_charter_profile_repo(root: Path) -> Path:
     now — #4128) — so threading it through ``--profile`` used to fail with
     ``Available: []``.
     """
-    profiles_dir = root / ".kittify" / "doctrine" / "agent_profiles"
+    profiles_dir = root / ".kittify" / "charter-packs" / "agent_profiles"
     profiles_dir.mkdir(parents=True)
     (profiles_dir / "seeker-implementer.agent.yaml").write_text(
         "\n".join(

@@ -2,7 +2,7 @@
 title: 'Context: Configuration and Project Structure'
 description: Glossary context defining where policy, runtime configuration, and mission artifacts live in a Spec Kitty project (.kittify/, kitty-specs/, and related terms).
 doc_status: active
-updated: '2026-04-10'
+updated: '2026-10-08'
 related:
 - docs/context/charter.md
 - docs/context/execution.md
@@ -80,7 +80,7 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 
 | | |
 |---|---|
-| **Definition** | The compiled, project-specific charter containing the HiC's governance decisions, doctrine selections, interview answers, and reference manifest. Stored in `.kittify/charter/`. Use "Project Charter" when distinguishing from the Charter Library. |
+| **Definition** | The compiled, project-specific charter containing the HiC's governance decisions, activation choices, interview answers, and reference manifest. Stored in `.kittify/charter/`. Use "Project Charter" when distinguishing from the Charter Library. |
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -96,4 +96,4 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Context** | Configuration & Project Structure |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Project Charter](#project-charter), [Doctrine Catalog](./charter.md#doctrine-catalog) |
+| **Related terms** | [Project Charter](#project-charter), [Charter offering](./charter.md#charter-offering) |

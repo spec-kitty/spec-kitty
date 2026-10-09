@@ -13,7 +13,7 @@ resolvers land on the identical topology-blind primary directory --
 the seam's coord-deleted fail-loud branch, regardless of topology. The ONE
 observable behavior change in this cluster is for the single genuinely
 COORD-partition kind migrated here -- ``STATUS_STATE``
-(``doctrine_synthesizer/apply.py``) -- whose declared ``coordination_branch``
+(``charter_pack_synthesizer/apply.py``) -- whose declared ``coordination_branch``
 may have been deleted from git with no coord worktree materialized: the old
 lenient resolver silently substituted the PRIMARY checkout; the seam now
 raises :class:`~specify_cli.coordination.surface_resolver
@@ -23,7 +23,7 @@ This module pins three classes of proof:
 
 1. **Fail-loud proof** -- the seam raises on a deleted-coord mismatch for the
    one genuinely coord-partition site in this cluster:
-   ``doctrine_synthesizer.apply``'s STATUS_STATE feature-dir helper.
+   ``charter_pack_synthesizer.apply``'s STATUS_STATE feature-dir helper.
    Red-first: before WP07 this called the lenient
    ``resolve_planning_read_dir``, which never raises on a deleted coord
    branch -- it silently substitutes primary.
@@ -115,10 +115,10 @@ def _build_deleted_coord_mission(tmp_path: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def test_doctrine_synthesizer_feature_dir_raises_on_deleted_coord(
+def test_charter_pack_synthesizer_feature_dir_raises_on_deleted_coord(
     tmp_path: Path,
 ) -> None:
-    """``doctrine_synthesizer.apply._feature_dir`` (STATUS_STATE) fails loud.
+    """``charter_pack_synthesizer.apply._feature_dir`` (STATUS_STATE) fails loud.
 
     Before WP07 this helper called the lenient ``resolve_planning_read_dir``,
     which silently substituted the PRIMARY checkout when the declared
@@ -126,7 +126,7 @@ def test_doctrine_synthesizer_feature_dir_raises_on_deleted_coord(
     through ``placement_seam(...).read_dir(STATUS_STATE)``, which raises
     ``CoordinationBranchDeleted`` instead (NFR-002 fail-loud read authority).
     """
-    from specify_cli.doctrine_synthesizer.apply import _feature_dir
+    from specify_cli.charter_pack_synthesizer.apply import _feature_dir
 
     repo = _build_deleted_coord_mission(tmp_path)
 
@@ -281,16 +281,16 @@ def test_seam_parity_specify_interview_get_mission_id_resolves_primary(
 # by the two ``_get_mission_id`` tests above.
 
 
-def test_seam_parity_doctrine_synthesizer_feature_dir_resolves_primary_on_flat_topology(
+def test_seam_parity_charter_pack_synthesizer_feature_dir_resolves_primary_on_flat_topology(
     flat_topology_mission: FlatTopologyContext,
 ) -> None:
-    """``doctrine_synthesizer.apply._feature_dir`` (STATUS_STATE), healthy leg.
+    """``charter_pack_synthesizer.apply._feature_dir`` (STATUS_STATE), healthy leg.
 
     The discriminating sibling of the fail-loud proof above: a flat (non-
     coord) mission has no coordination_branch at all, so the STATUS_STATE
     read resolves the primary checkout without raising.
     """
-    from specify_cli.doctrine_synthesizer.apply import _feature_dir
+    from specify_cli.charter_pack_synthesizer.apply import _feature_dir
 
     ctx = flat_topology_mission
     assert _feature_dir(ctx.repo, ctx.slug) == ctx.primary_feature_dir
