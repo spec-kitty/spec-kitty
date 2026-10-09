@@ -242,6 +242,8 @@ ACCOUNTED_SITES: dict[tuple[str, str], tuple[int, str]] = {
     # get_change_mode, record_acceptance, resolve_mission_identity,
     # set_change_mode, set_documentation_state, set_origin_ticket,
     # set_purpose_summary, set_target_branch, set_vcs_lock) are ROUTED now --
+    # (clear_coordination_metadata, set_change_mode and set_purpose_summary were
+    # removed later as dead setters, mission-writer-followups WP02) --
     # they call load_meta_fail_closed via mission_metadata.py's own
     # _require_meta()/_load_meta_fail_closed() helpers, not load_meta, so the
     # live scan no longer finds them and their rows are correctly gone rather
