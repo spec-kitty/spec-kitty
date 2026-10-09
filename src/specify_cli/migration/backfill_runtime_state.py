@@ -107,6 +107,7 @@ from specify_cli.status import (
     feature_status_lock,
     materialize,
     materialize_snapshot,
+    mission_lock_key,
     read_event_stream,
     reduce,
 )
@@ -1434,7 +1435,7 @@ def backfill_runtime_state(
     # subprocess runs inside the section (NFR-001); the ``dry_run`` early
     # return inside the lock is fine.
     lock_root = resolve_status_lock_root(feature_dir, owned.repository_root if owned is not None else None)
-    with feature_status_lock(lock_root, feature_dir.name):
+    with feature_status_lock(lock_root, mission_lock_key(feature_dir, repo_root=lock_root)):
         return _backfill_runtime_state_locked(feature_dir, read_dir, slug, dry_run=dry_run)
 
 
@@ -1679,7 +1680,7 @@ def apply_wp_status_backfill(
         return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, skip_reason=COORD_SURFACE_LIVE)
     lock_root = resolve_status_lock_root(feature_dir, None)
     try:
-        with feature_status_lock(lock_root, feature_dir.name):
+        with feature_status_lock(lock_root, mission_lock_key(feature_dir, repo_root=lock_root)):
             return _apply_wp_status_backfill_locked(feature_dir, dry_run=dry_run, evidence=evidence, coord_probed=probed)
     except _WP_STATUS_MISSION_ERRORS as exc:
         return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, error=f"{type(exc).__name__}: {exc}")

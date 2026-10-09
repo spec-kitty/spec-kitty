@@ -42,10 +42,12 @@ from __future__ import annotations
 
 from kernel.clock import datetime
 from pathlib import Path
+from collections.abc import Callable
 from typing import Any, Literal, TypedDict, cast
 
 from specify_cli.core.paths import load_meta_fail_closed
-from specify_cli.mission_metadata import write_meta
+from specify_cli.mission_metadata import locked_update_meta
+from specify_cli.status import mission_write_lock
 
 
 IterationMode = Literal["initial", "gap_filling", "mission_specific"]
@@ -135,6 +137,25 @@ def _require_meta(meta_file: Path) -> dict[str, Any]:
 # ============================================================================
 
 
+def _update_documentation_state(meta_file: Path, apply: Callable[[dict[str, Any]], None]) -> None:
+    """Apply *apply* to ``meta.json``'s ``documentation_state`` under the Mission write lock.
+
+    The read, the edit and the write all happen inside one hold of the Mission lock
+    (:func:`~specify_cli.mission_metadata.locked_update_meta`), so a concurrent writer of any other
+    ``meta.json`` field is never overwritten by a stale copy. The write is tolerant (no top-level
+    validation).
+
+    Raises:
+        FileNotFoundError: If meta.json doesn't exist.
+        MissionMetaReadError: If meta.json is invalid (fail-closed).
+    """
+
+    def mutate(meta: dict[str, Any]) -> None:
+        apply(meta.setdefault("documentation_state", {}))
+
+    locked_update_meta(meta_file.parent, mutate, validate=False)
+
+
 def set_iteration_mode(meta_file: Path, iteration_mode: str) -> None:
     """Set iteration mode in feature meta.json.
 
@@ -149,18 +170,7 @@ def set_iteration_mode(meta_file: Path, iteration_mode: str) -> None:
     """
     mode = _require_iteration_mode(iteration_mode)
 
-    # Read existing meta.json (fail-closed on corruption; raises if missing)
-    meta = _require_meta(meta_file)
-
-    # Initialize documentation_state if not present
-    if "documentation_state" not in meta:
-        meta["documentation_state"] = {}
-
-    # Set iteration mode
-    meta["documentation_state"]["iteration_mode"] = mode
-
-    # Write back with standard formatting (tolerant — no top-level validation)
-    write_meta(meta_file.parent, meta, validate=False)
+    _update_documentation_state(meta_file, lambda state: state.update(iteration_mode=mode))
 
 
 def set_divio_types_selected(meta_file: Path, divio_types: list[str]) -> None:
@@ -179,18 +189,7 @@ def set_divio_types_selected(meta_file: Path, divio_types: list[str]) -> None:
     if invalid_types:
         raise ValueError(f"Invalid Divio types: {invalid_types}. Must be one of: {valid_types}")
 
-    # Read existing meta.json (fail-closed on corruption; raises if missing)
-    meta = _require_meta(meta_file)
-
-    # Initialize documentation_state if not present
-    if "documentation_state" not in meta:
-        meta["documentation_state"] = {}
-
-    # Set Divio types
-    meta["documentation_state"]["divio_types_selected"] = divio_types
-
-    # Write back with standard formatting (tolerant — no top-level validation)
-    write_meta(meta_file.parent, meta, validate=False)
+    _update_documentation_state(meta_file, lambda state: state.update(divio_types_selected=divio_types))
 
 
 def set_generators_configured(meta_file: Path, generators: list[GeneratorConfig]) -> None:
@@ -219,18 +218,7 @@ def set_generators_configured(meta_file: Path, generators: list[GeneratorConfig]
         if "config_path" not in gen:
             raise ValueError(f"Generator config missing 'config_path' field: {gen}")
 
-    # Read existing meta.json (fail-closed on corruption; raises if missing)
-    meta = _require_meta(meta_file)
-
-    # Initialize documentation_state if not present
-    if "documentation_state" not in meta:
-        meta["documentation_state"] = {}
-
-    # Set generators
-    meta["documentation_state"]["generators_configured"] = generators
-
-    # Write back with standard formatting (tolerant — no top-level validation)
-    write_meta(meta_file.parent, meta, validate=False)
+    _update_documentation_state(meta_file, lambda state: state.update(generators_configured=generators))
 
 
 def set_audit_metadata(meta_file: Path, last_audit_date: datetime | None, coverage_percentage: float) -> None:
@@ -248,19 +236,8 @@ def set_audit_metadata(meta_file: Path, last_audit_date: datetime | None, covera
     if not (0.0 <= coverage_percentage <= 1.0):
         raise ValueError(f"coverage_percentage must be 0.0-1.0, got {coverage_percentage}")
 
-    # Read existing meta.json (fail-closed on corruption; raises if missing)
-    meta = _require_meta(meta_file)
-
-    # Initialize documentation_state if not present
-    if "documentation_state" not in meta:
-        meta["documentation_state"] = {}
-
-    # Set audit metadata
-    meta["documentation_state"]["last_audit_date"] = last_audit_date.isoformat() if last_audit_date else None
-    meta["documentation_state"]["coverage_percentage"] = coverage_percentage
-
-    # Write back with standard formatting (tolerant — no top-level validation)
-    write_meta(meta_file.parent, meta, validate=False)
+    audit_date = last_audit_date.isoformat() if last_audit_date else None
+    _update_documentation_state(meta_file, lambda state: state.update(last_audit_date=audit_date, coverage_percentage=coverage_percentage))
 
 
 # ============================================================================
@@ -334,14 +311,13 @@ def write_documentation_state(meta_file: Path, state: DocumentationState) -> Non
     if missing_fields:
         raise ValueError(f"State missing required fields: {missing_fields}")
 
-    # Read existing meta.json (fail-closed on corruption; raises if missing)
-    meta = _require_meta(meta_file)
+    # Always persist the canonical iteration mode.
+    canonical = {**state, "iteration_mode": _require_iteration_mode(state["iteration_mode"])}
 
-    # Update documentation_state, always persisting the canonical iteration mode
-    meta["documentation_state"] = {**state, "iteration_mode": _require_iteration_mode(state["iteration_mode"])}
+    def mutate(meta: dict[str, Any]) -> None:
+        meta["documentation_state"] = canonical
 
-    # Write back with standard formatting (tolerant — no top-level validation)
-    write_meta(meta_file.parent, meta, validate=False)
+    locked_update_meta(meta_file.parent, mutate, validate=False)
 
 
 def initialize_documentation_state(
@@ -394,19 +370,19 @@ def update_documentation_state(meta_file: Path, **updates: Any) -> Documentation
         FileNotFoundError: If meta.json doesn't exist
         ValueError: If state doesn't exist (call initialize first)
     """
-    # Read current state
-    state = read_documentation_state(meta_file)
+    # One hold of the Mission lock spans the read and the write, so a concurrent update is never lost.
+    with mission_write_lock(meta_file.parent):
+        state = read_documentation_state(meta_file)
 
-    if state is None:
-        raise ValueError(f"No documentation state found in {meta_file}. Call initialize_documentation_state() first.")
+        if state is None:
+            raise ValueError(f"No documentation state found in {meta_file}. Call initialize_documentation_state() first.")
 
-    # Update fields
-    for key, value in updates.items():
-        if key in state:
-            state[key] = _require_iteration_mode(value) if key == "iteration_mode" else value  # type: ignore
+        # Update fields
+        for key, value in updates.items():
+            if key in state:
+                state[key] = _require_iteration_mode(value) if key == "iteration_mode" else value  # type: ignore
 
-    # Write back
-    write_documentation_state(meta_file, state)
+        write_documentation_state(meta_file, state)
     return state
 
 
@@ -425,29 +401,23 @@ def ensure_documentation_state(meta_file: Path) -> None:
     Args:
         meta_file: Path to meta.json
     """
-    # Read existing meta.json (fail-closed on corruption; raises if missing)
-    meta = _require_meta(meta_file)
 
-    # Check if documentation mission
-    if meta.get("mission_type") != "documentation":
-        return  # Not a documentation mission, nothing to do
+    def mutate(meta: dict[str, Any]) -> bool:
+        # Not a documentation mission, or it already has state: nothing to do.
+        if meta.get("mission_type") != "documentation" or "documentation_state" in meta:
+            return False
+        meta["documentation_state"] = {
+            "iteration_mode": "initial",  # Assume first run
+            "divio_types_selected": [],  # Unknown, user must specify
+            "generators_configured": [],  # Unknown, user must configure
+            "target_audience": "developers",  # Reasonable default
+            "last_audit_date": None,
+            "coverage_percentage": 0.0,
+        }
+        return True
 
-    # Check if state already exists
-    if "documentation_state" in meta:
-        return  # Already has state
-
-    # Initialize with defaults
-    meta["documentation_state"] = {
-        "iteration_mode": "initial",  # Assume first run
-        "divio_types_selected": [],  # Unknown, user must specify
-        "generators_configured": [],  # Unknown, user must configure
-        "target_audience": "developers",  # Reasonable default
-        "last_audit_date": None,
-        "coverage_percentage": 0.0,
-    }
-
-    # Write back with standard formatting (tolerant — no top-level validation)
-    write_meta(meta_file.parent, meta, validate=False)
+    # The check and the write share one hold of the Mission lock (fail-closed on corruption).
+    locked_update_meta(meta_file.parent, mutate, validate=False)
 
 
 def get_state_version(state: DocumentationState) -> int:

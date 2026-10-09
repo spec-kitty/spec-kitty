@@ -940,8 +940,14 @@ def _flatten_discarded_mission(feature_dir: Path) -> None:
     best-effort cleanup, never a hard failure of an otherwise-successful discard.
     """
     from specify_cli.mission_metadata import flatten_coordination_metadata
+    from specify_cli.status import FeatureStatusLockTimeoutError
 
-    with contextlib.suppress(FileNotFoundError):
+    # ``flatten_coordination_metadata`` now takes the bounded Mission write lock
+    # (FR-001), so a concurrent holder can raise ``FeatureStatusLockTimeoutError``
+    # (STATUS_LOCK_HELD). By this point the discard has already torn down branches
+    # and worktrees; a timeout on this best-effort cleanup must not crash the
+    # destructive tail — the contended write is safe, and the discard is idempotent.
+    with contextlib.suppress(FileNotFoundError, FeatureStatusLockTimeoutError):
         flatten_coordination_metadata(feature_dir)
 
 
@@ -960,10 +966,16 @@ def _mark_mission_discarded(feature_dir: Path) -> None:
     mission is exactly the one likely to hold a degraded meta.json, and by
     this point the discard has already torn down branches and worktrees;
     crashing here over a cosmetic dashboard marker is the wrong trade.
+
+    Also tolerant of a bounded Mission-lock timeout
+    (``FeatureStatusLockTimeoutError`` / STATUS_LOCK_HELD): ``record_discard``
+    now takes the Mission write lock (FR-001), and a concurrent holder must not
+    turn this cosmetic marker into a traceback after the irreversible teardown.
     """
     from specify_cli.mission_metadata import record_discard
+    from specify_cli.status import FeatureStatusLockTimeoutError
 
-    with contextlib.suppress(FileNotFoundError, MissionMetaReadError):
+    with contextlib.suppress(FileNotFoundError, MissionMetaReadError, FeatureStatusLockTimeoutError):
         record_discard(feature_dir)
 
 
@@ -1661,9 +1673,9 @@ def switch_cmd(
     console.print("Mission types are now selected [bold]per mission run[/bold] during [cyan]/spec-kitty.specify[/cyan].")
     console.print()
     console.print("[cyan]New workflow:[/cyan]")
-    console.print("  1. Run [bold]/spec-kitty.specify[/bold] inside your coding agent (Claude Code, Codex, Cursor) to start a new feature")
+    console.print("  1. Run [bold]/spec-kitty.specify[/bold] inside your coding agent (Claude Code, Codex, Cursor) to start a new mission")
     console.print("  2. The system will infer and confirm the appropriate mission")
-    console.print("  3. Mission is stored in the feature's [dim]meta.json[/dim]")
+    console.print("  3. Mission is stored in the mission's [dim]meta.json[/dim]")
     console.print()
     console.print("[cyan]To see available missions:[/cyan]")
     console.print("  spec-kitty mission list")

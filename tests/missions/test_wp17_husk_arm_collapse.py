@@ -75,7 +75,7 @@ def _init_repo(repo_root: Path) -> None:
 
 def _write_meta(feature_dir: Path, meta: dict[str, object]) -> None:
     """Persist meta via the canonical sorted-key serializer (NOT a rotting writer)."""
-    from specify_cli.migration.backfill_topology import _write_meta_canonical
+    from tests._meta_write_support import write_meta_canonical as _write_meta_canonical
 
     feature_dir.mkdir(parents=True, exist_ok=True)
     _write_meta_canonical(feature_dir / "meta.json", meta)

@@ -139,7 +139,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-abandoned-prior-<MID8#1>"
+                "Add scaffold for mission flat-abandoned-prior-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-abandoned-prior-<MID8#1>/meta.json",
@@ -350,7 +350,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-lanes-documentation-<MID8#1>"
+                "Add scaffold for mission flat-lanes-documentation-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-lanes-documentation-<MID8#1>/meta.json",
@@ -497,7 +497,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-lanes-plain-<MID8#1>"
+                "Add scaffold for mission flat-lanes-plain-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-lanes-plain-<MID8#1>/meta.json",
@@ -647,7 +647,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-lanes-pr-bound-<MID8#1>"
+                "Add scaffold for mission flat-lanes-pr-bound-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-lanes-pr-bound-<MID8#1>/meta.json",
@@ -800,7 +800,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-lanes-retention-<MID8#1>"
+                "Add scaffold for mission flat-lanes-retention-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-lanes-retention-<MID8#1>/meta.json",
@@ -989,7 +989,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-same-slug-other-type-<MID8#1>"
+                "Add scaffold for mission flat-same-slug-other-type-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-same-slug-other-type-<MID8#1>/meta.json",
@@ -1188,7 +1188,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-lanes-summary-<MID8#1>"
+                "Add scaffold for mission flat-lanes-summary-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-lanes-summary-<MID8#1>/meta.json",
@@ -1483,7 +1483,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-single-branch-commit-to-target-<MID8#1>"
+                "Add scaffold for mission flat-single-branch-commit-to-target-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-single-branch-commit-to-target-<MID8#1>/meta.json",
@@ -1639,7 +1639,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-single-branch-documentation-<MID8#1>"
+                "Add scaffold for mission flat-single-branch-documentation-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-single-branch-documentation-<MID8#1>/meta.json",
@@ -1786,7 +1786,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-single-branch-plain-<MID8#1>"
+                "Add scaffold for mission flat-single-branch-plain-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-single-branch-plain-<MID8#1>/meta.json",
@@ -1936,7 +1936,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-single-branch-pr-bound-<MID8#1>"
+                "Add scaffold for mission flat-single-branch-pr-bound-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-single-branch-pr-bound-<MID8#1>/meta.json",
@@ -2089,7 +2089,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-single-branch-retention-<MID8#1>"
+                "Add scaffold for mission flat-single-branch-retention-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-single-branch-retention-<MID8#1>/meta.json",
@@ -2236,7 +2236,7 @@
           "topic": [
             {
               "message": [
-                "Add scaffold for feature flat-single-branch-summary-<MID8#1>"
+                "Add scaffold for mission flat-single-branch-summary-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/flat-single-branch-summary-<MID8#1>/meta.json",

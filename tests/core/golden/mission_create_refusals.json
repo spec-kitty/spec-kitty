@@ -404,7 +404,7 @@
       "outcome": {
         "error_code": null,
         "exc_type": "MissionCreationError",
-        "message": "Invalid feature slug 'Not_Kebab'. Must be kebab-case (lowercase letters, numbers, hyphens only).\n\nValid examples:\n  - user-auth\n  - fix-bug-123\n  - 068-feature-name\n  - new-dashboard\n\nInvalid examples:\n  - User-Auth (uppercase)\n  - user_auth (underscores)"
+        "message": "Invalid mission slug 'Not_Kebab'. Must be kebab-case (lowercase letters, numbers, hyphens only).\n\nValid examples:\n  - user-auth\n  - fix-bug-123\n  - 068-feature-name\n  - new-dashboard\n\nInvalid examples:\n  - User-Auth (uppercase)\n  - user_auth (underscores)"
       },
       "post": {
         "branches": [
@@ -1159,7 +1159,7 @@
           "kitty/mission-ref-orphan-retry-<MID8#1>": [
             {
               "message": [
-                "Add scaffold for feature ref-orphan-retry-<MID8#1>"
+                "Add scaffold for mission ref-orphan-retry-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/ref-orphan-retry-<MID8#1>/meta.json",

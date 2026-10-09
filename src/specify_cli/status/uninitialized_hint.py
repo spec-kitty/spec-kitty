@@ -102,9 +102,9 @@ def feature_event_log_missing_error(feature_dir: Path) -> str:
     slug = feature_dir.name
     root_cause = cycle_root_cause(feature_dir)
     if root_cause is not None:
-        return f"Canonical status not found for feature '{slug}': {root_cause}"
+        return f"Canonical status not found for mission '{slug}': {root_cause}"
     return (
-        f"Canonical status not found for feature '{slug}'. "
+        f"Canonical status not found for mission '{slug}'. "
         f"Run 'spec-kitty agent mission finalize-tasks --mission {slug}' "
         f"to bootstrap the event log."
     )

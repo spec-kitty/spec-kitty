@@ -82,7 +82,7 @@ class TestCreateMissionCoreSlugValidation:
         """FR-018: uppercase slugs are still rejected by slug validation."""
         from specify_cli.core.mission_creation import create_mission_core
 
-        with pytest.raises(MissionCreationError, match="Invalid feature slug"):
+        with pytest.raises(MissionCreationError, match="Invalid mission slug"):
             create_mission_core(
                 repo_root=tmp_path,
                 mission_slug="User-Auth",
@@ -93,7 +93,7 @@ class TestCreateMissionCoreSlugValidation:
         """FR-018: slugs with underscores are still rejected."""
         from specify_cli.core.mission_creation import create_mission_core
 
-        with pytest.raises(MissionCreationError, match="Invalid feature slug"):
+        with pytest.raises(MissionCreationError, match="Invalid mission slug"):
             create_mission_core(
                 repo_root=tmp_path,
                 mission_slug="user_auth",

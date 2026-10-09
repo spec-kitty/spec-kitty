@@ -867,9 +867,16 @@ def _seed_coord_surface(request: _SeedRequest) -> SeedReport:
     from specify_cli.status import (
         BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS,
         feature_status_lock,
+        mission_lock_key,
     )
+    from specify_cli.status import registered_hold
 
-    with feature_status_lock(_lock_root(request), request.mission_dir_name, timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS):
+    lock_root = _lock_root(request)
+    key = mission_lock_key(request.root_mission_dir, repo_root=lock_root)
+    with (
+        feature_status_lock(lock_root, key, timeout=BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS),
+        registered_hold(lock_root, request.root_mission_dir.name, key),
+    ):
         return _seed_coord_surface_locked(request)
 
 

@@ -168,3 +168,42 @@ def test_mark_mission_discarded_is_a_noop_on_a_corrupt_meta(tmp_path: Path) -> N
     _mark_mission_discarded(feature_dir)
 
     assert (feature_dir / "meta.json").read_text(encoding="utf-8") == corrupt
+
+
+def test_mark_mission_discarded_absorbs_a_bounded_lock_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # record_discard now takes the bounded Mission write lock (FR-001), so a
+    # concurrent holder can raise FeatureStatusLockTimeoutError (STATUS_LOCK_HELD).
+    # The discard tail must absorb it: by this point branches/worktrees are gone,
+    # the contended write is safe, and crashing over the cosmetic marker after the
+    # irreversible teardown is the wrong trade.
+    import specify_cli.mission_metadata as mission_metadata
+    from specify_cli.cli.commands.mission_type import _mark_mission_discarded
+    from specify_cli.status import FeatureStatusLockTimeoutError
+
+    def _raise(_feature_dir: Path) -> None:
+        raise FeatureStatusLockTimeoutError("mission lock held")
+
+    monkeypatch.setattr(mission_metadata, "record_discard", _raise)
+
+    feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
+    feature_dir.mkdir(parents=True)
+
+    _mark_mission_discarded(feature_dir)  # must not raise
+
+
+def test_flatten_discarded_mission_absorbs_a_bounded_lock_timeout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # flatten_coordination_metadata takes the same bounded lock; a timeout on
+    # this best-effort cleanup must not crash the destructive discard tail.
+    import specify_cli.mission_metadata as mission_metadata
+    from specify_cli.cli.commands.mission_type import _flatten_discarded_mission
+    from specify_cli.status import FeatureStatusLockTimeoutError
+
+    def _raise(_feature_dir: Path) -> None:
+        raise FeatureStatusLockTimeoutError("mission lock held")
+
+    monkeypatch.setattr(mission_metadata, "flatten_coordination_metadata", _raise)
+
+    feature_dir = tmp_path / "kitty-specs" / _MISSION_SLUG
+    feature_dir.mkdir(parents=True)
+
+    _flatten_discarded_mission(feature_dir)  # must not raise

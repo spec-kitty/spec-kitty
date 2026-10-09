@@ -47,10 +47,10 @@ def validate_encoding(
 
         feature_dirs = [d for d in mission_specs.iterdir() if d.is_dir()]
         if not feature_dirs:
-            console.print("[yellow]No feature directories found.[/yellow]")
+            console.print("[yellow]No mission directories found.[/yellow]")
             raise typer.Exit(0)
 
-        console.print(f"[cyan]Checking encoding for {len(feature_dirs)} features...[/cyan]")
+        console.print(f"[cyan]Checking encoding for {len(feature_dirs)} missions...[/cyan]")
         console.print()
 
         total_issues = 0
@@ -89,10 +89,10 @@ def validate_encoding(
     )
 
     if not feature_dir.exists():
-        console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
+        console.print(f"[red]Error:[/red] Mission directory not found: {feature_dir}")
         raise typer.Exit(1)
 
-    console.print(f"[cyan]Validating encoding for feature:[/cyan] {mission_slug}")
+    console.print(f"[cyan]Validating encoding for mission:[/cyan] {mission_slug}")
     console.print()
 
     issues, fixed = _validate_feature_dir(feature_dir, fix=fix, backup=backup)

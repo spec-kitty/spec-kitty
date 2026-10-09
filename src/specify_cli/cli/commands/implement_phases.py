@@ -28,6 +28,7 @@ from specify_cli.core import dependency_graph
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.core.vcs import VCSBackend
+from specify_cli.missions._read_path_resolver import mission_write_lock_dir
 from specify_cli.git.commit_helpers import (
     SafeCommitHeadMismatch,
     SafeCommitPathPolicyError,
@@ -158,7 +159,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path | None = None) -> tup
         raise typer.Exit(1) from exc
     except implement_support.MissionMetaMissing as exc:
         console.print(f"[red]Error:[/red] meta.json not found in {feature_dir}")
-        console.print("Run /spec-kitty.specify inside your coding agent (Claude Code, Codex, Cursor) first to create the feature structure")
+        console.print("Run /spec-kitty.specify inside your coding agent (Claude Code, Codex, Cursor) first to create the mission structure")
         raise typer.Exit(1) from exc
     if locked:
         console.print("[cyan]→ VCS locked to git in meta.json[/cyan]")
@@ -478,16 +479,12 @@ def enter_checkout_claim_lock(stack: ExitStack, ctx: ImplementContext, selection
 def hold_mission_write_lock(stack: ExitStack, ctx: ImplementContext) -> None:
     """Hold the Mission write lock on *stack* from the claim emit through the claim commit (#5468).
 
-    The key is the status write surface ``agent action implement`` locks
-    (``workflow_executor.claim_status_dir``), so the two claim paths exclude each other on one
-    Mission even when a coordination Mission's directory name differs from the primary one; the
-    claim emit and its commit nest inside this hold. Unbounded wait (``UNBOUNDED_LOCK_WAIT``):
-    the initiating command queues rather than failing.
+    The key is the one the claim emit itself re-enters (``start_implementation_status``
+    locks ``mission_lock_key(feature_dir)``), so the emit nests inside this hold and the claim commit stages a consistent snapshot of
+    the status files. Unbounded wait (``UNBOUNDED_LOCK_WAIT``): the initiating command queues rather
+    than failing.
     """
-    from specify_cli.cli.commands.agent import workflow_executor
-
-    status_dir = workflow_executor.claim_status_dir(ctx.repo_root, ctx.mission_slug)
-    stack.enter_context(mission_write_lock(status_dir, repo_root=ctx.repo_root, timeout=UNBOUNDED_LOCK_WAIT))
+    stack.enter_context(mission_write_lock(mission_write_lock_dir(ctx.repo_root, ctx.mission_slug), repo_root=ctx.repo_root, timeout=UNBOUNDED_LOCK_WAIT))
 
 
 def allocate(ctx: ImplementContext, wp_id: str, selection: WorkspaceSelection, base: str | None) -> AllocationResult:

@@ -374,7 +374,7 @@ def implement(
         return
 
     tracker = StepTracker(f"Implement {wp_id}")
-    tracker.add("detect", "Detect feature context")
+    tracker.add("detect", "Detect mission context")
     tracker.add("validate", "Validate planning state")
     tracker.add("create", "Resolve execution workspace")
     console.print()
@@ -383,7 +383,7 @@ def implement(
     try:
         repo_root = find_repo_root()
         ctx = implement_phases.detect_context(mission, wp_id, repo_root, auto_commit, json_mode=json_output)
-        tracker.complete("detect", f"Feature: {ctx.mission_slug}")
+        tracker.complete("detect", f"Mission: {ctx.mission_slug}")
     except (TaskCliError, FileNotFoundError, FrontmatterError, ValidationError, typer.Exit) as exc:
         tracker.error("detect", str(exc))
         console.print(tracker.render())

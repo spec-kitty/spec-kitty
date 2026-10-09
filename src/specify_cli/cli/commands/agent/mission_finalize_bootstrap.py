@@ -25,7 +25,8 @@ import typer
 from kernel._safe_re import re
 from mission_runtime import MissionArtifactKind
 from mission_runtime import OwnedCheckout
-from specify_cli.frontmatter import write_frontmatter
+from kernel.atomic import atomic_write
+from specify_cli.frontmatter import FrontmatterManager, locked_update_frontmatter
 from specify_cli.ownership import infer_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
 from specify_cli.ownership.inference import detect_post_integration_acceptance
@@ -35,6 +36,7 @@ from specify_cli.ownership.validation import (
     validate_glob_matches,
 )
 from specify_cli.status import Lane, WPMetadata, _Builder
+from specify_cli.status import locked_rewrite_text, mission_write_lock
 from specify_cli.core.wps_manifest import (
     WpsManifest,
     generate_tasks_md_from_manifest,
@@ -103,6 +105,10 @@ class _BootstrapState:
     inmemory_frontmatter: dict[str, WPMetadata] = field(default_factory=dict)
     inmemory_bodies: dict[str, str] = field(default_factory=dict)
     pending_writes: list[tuple[Path, WPMetadata, str]] = field(default_factory=list)
+    #: The fields bootstrap decided to set on each queued work package (its ``changed_fields``). The flush
+    #: re-applies exactly these to the frontmatter and body it reads under the lock, never the in-memory
+    #: model, so a field or note another writer landed since the read survives (FR-003).
+    pending_deltas: dict[Path, dict[str, object]] = field(default_factory=dict)
     ownership_warnings: list[str] = field(default_factory=list)
     ownership_contradictions: list[str] = field(default_factory=list)
     #: #3394 review F1 -- non-blocking signal, kept distinct from
@@ -328,6 +334,7 @@ def _bootstrap_one_wp(
     if frontmatter_changed:
         if not validate_only:
             state.pending_writes.append((wp_file, updated_meta, body))
+            state.pending_deltas[wp_file] = dict(changed_fields)
         else:
             state.would_modify.append({"wp_id": wp_id, "changes": changed_fields})
         state.updated_count += 1
@@ -455,12 +462,46 @@ def _validate_owned_files_not_in_mission_specs(inmemory_frontmatter: dict[str, W
     raise typer.Exit(1) from None
 
 
-def _flush_frontmatter_writes(state: _BootstrapState, *, validate_only: bool) -> None:
-    """Phase: write pending frontmatter to disk (gated on not validate_only)."""
+def _apply_finalize_delta(frontmatter: dict[str, object], wp_file: Path, delta: dict[str, object]) -> None:
+    """Apply finalize's field *delta* to the frontmatter just read under the lock (edited in place).
+
+    The base is the work package as it is NOW, through the same typed read bootstrap used, so a field
+    another writer landed since (a map-requirements ref) is kept and the legacy-form normalisation of
+    the model dump still happens. ``requirement_refs`` keeps its populate-when-empty rule (FR-004,
+    #2991), judged on the fresh value: refs another writer set meanwhile are never overwritten.
+    """
+    from specify_cli.cli.commands.agent import mission_finalize as _mf
+
+    fresh, _body = _mf._read_wp_frontmatter(wp_file)
+    effective = {key: value for key, value in delta.items() if not (key == "requirement_refs" and fresh.requirement_refs)}
+    merged = fresh.builder().set(**effective).build() if effective else fresh
+    frontmatter.clear()
+    frontmatter.update(merged.model_dump(exclude_none=True, mode="json"))
+
+
+def _flush_one_frontmatter_write(wp_file: Path, updated_meta: WPMetadata, body: str, delta: dict[str, object] | None, *, repo_root: Path | None = None) -> None:
+    """Write one queued work package: *delta* onto the file as it is under the lock, else the queued model."""
+    feature_dir = wp_file.parent.parent
+    if delta is None or not wp_file.exists():
+        # Nothing recorded to re-apply, or the file does not exist yet: the queued model is all there is.
+        with mission_write_lock(feature_dir, repo_root=repo_root):
+            # Atomic, so a reader never sees a torn file, and recorded in the run's write ledger by ``atomic_write``.
+            atomic_write(wp_file, FrontmatterManager().render(updated_meta.model_dump(exclude_none=True, mode="json"), body))
+        return
+    locked_update_frontmatter(wp_file, lambda frontmatter: _apply_finalize_delta(frontmatter, wp_file, delta), feature_dir=feature_dir, repo_root=repo_root)
+
+
+def _flush_frontmatter_writes(state: _BootstrapState, *, validate_only: bool, repo_root: Path | None = None) -> None:
+    """Phase: write pending frontmatter to disk (gated on not validate_only).
+
+    Finalize reads every work package long before it flushes, so each write applies its field delta to the
+    frontmatter and body read again under the Mission write lock and never writes the in-memory model back
+    (mission-writer-followups plan D2, A9).
+    """
     if validate_only:
         return
     for wp_file, updated_meta, body in state.pending_writes:
-        write_frontmatter(wp_file, updated_meta.model_dump(exclude_none=True, mode="json"), body)
+        _flush_one_frontmatter_write(wp_file, updated_meta, body, state.pending_deltas.get(wp_file), repo_root=repo_root)
 
 
 def _gather_validation_frontmatter(wp_files: list[Path], state: _BootstrapState) -> tuple[dict[str, WPMetadata], dict[str, str]]:
@@ -652,6 +693,7 @@ def _regenerate_or_report_tasks_md(
     *,
     validate_only: bool,
     json_output: bool,
+    repo_root: Path | None = None,
 ) -> bool:
     """Phase: T017 tasks.md regeneration from wps.yaml (FR-008, FR-011) — #3221.
 
@@ -684,7 +726,8 @@ def _regenerate_or_report_tasks_md(
         if stale and not json_output:
             _mf.console.print("[yellow]⚠[/yellow] tasks.md is stale relative to wps.yaml; run finalize-tasks without --validate-only to regenerate")
         return stale
-    tasks_md.write_text(generated, encoding="utf-8")
+    # The manifest decides the content; the write takes the Mission lock like every other tasks.md writer (A10).
+    locked_rewrite_text(tasks_md, lambda _current: generated, feature_dir=planning_dir, repo_root=repo_root)
     if not json_output:
         _mf.console.print(f"[green]Regenerated[/green] tasks.md from wps.yaml ({len(wps_manifest.work_packages)} WPs)")
     return False

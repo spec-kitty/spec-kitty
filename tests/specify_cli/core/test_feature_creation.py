@@ -462,7 +462,7 @@ def test_invalid_slug_raises(tmp_path: Path) -> None:
     """Non-kebab-case slug raises MissionCreationError."""
     _init_git_repo(tmp_path)
 
-    with pytest.raises(MissionCreationError, match="Invalid feature slug"):
+    with pytest.raises(MissionCreationError, match="Invalid mission slug"):
         create_mission_core(tmp_path, "Invalid_Slug", **_mission_summary("Invalid_Slug"))
 
 
@@ -471,11 +471,11 @@ def test_slug_starting_with_number_accepted(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
 
     # Slug validation must pass; creation may succeed or fail for non-slug reasons,
-    # but must NOT raise MissionCreationError with "Invalid feature slug".
+    # but must NOT raise MissionCreationError with "Invalid mission slug".
     try:
         create_mission_core(tmp_path, "123-fix", **_mission_summary("123-fix"))
     except MissionCreationError as exc:
-        assert "Invalid feature slug" not in str(exc), (
+        assert "Invalid mission slug" not in str(exc), (
             "Digit-prefixed slug '123-fix' must no longer be rejected for slug format. "
             f"Got: {exc}"
         )
@@ -485,7 +485,7 @@ def test_uppercase_slug_raises(tmp_path: Path) -> None:
     """Uppercase slug raises MissionCreationError."""
     _init_git_repo(tmp_path)
 
-    with pytest.raises(MissionCreationError, match="Invalid feature slug"):
+    with pytest.raises(MissionCreationError, match="Invalid mission slug"):
         create_mission_core(tmp_path, "User-Auth", **_mission_summary("User-Auth"))
 
 

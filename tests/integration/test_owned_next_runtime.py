@@ -29,7 +29,7 @@ from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.core.owned_mission import NEXT_OWNED_TOPOLOGIES, resolve_owned_mission
 from tests._factories import provision_test_charter
 from tests.integration.conftest import OwnedCheckouts
-from tests.runtime._next_mission_scaffold import advance_to_step, seed_wp_lane
+from tests.runtime._next_mission_scaffold import advance_to_step, analysis_is_current, seed_wp_lane
 from runtime.next import runtime_bridge_decision_mapping as decision_mapping
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -171,12 +171,14 @@ class TestFr007StaleRootCopyBoard:
         from runtime.next import decision as decision_mod
 
         checkouts = owned_checkouts
-        fact = _walk_to_tasks(checkouts, monkeypatch)
+        fact = _walk_to_analyze(checkouts, monkeypatch)
         stale_root_copy()  # R now holds a DIFFERENT WP set / lane map for the same mission
         snap = _r_snapshot(checkouts)
         before = snap.take()
 
-        decision = decision_mod.decide_next("claude", checkouts.mission_slug, "success", checkouts.repository_root, owned=fact)
+        decision = decision_mod.decide_next(
+            "claude", checkouts.mission_slug, "success", checkouts.repository_root, owned=fact, analysis_currency=analysis_is_current
+        )
 
         _assert_issues_implement_wp01_in_p(decision, fact)
         assert decision.mission_slug == checkouts.mission_slug
@@ -529,6 +531,17 @@ def _walk_to_tasks(checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -
     return _mint(checkouts)
 
 
+def _walk_to_analyze(checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> OwnedCheckout:
+    """:func:`_walk_to_tasks`, one step further (WP07): the REAL engine sits on the
+    ``analyze`` step inside P. With a current analysis report (the tests inject
+    ``analysis_is_current``), the next ``decide_next(..., "success")`` completes
+    ``analyze`` and must issue ``implement WP01`` in P (O5)."""
+    _provision_charter(checkouts)
+    _finalize(checkouts, monkeypatch)
+    advance_to_step(checkouts.owned_root, checkouts.mission_slug, "software-dev", "analyze")
+    return _mint(checkouts)
+
+
 def _r_snapshot(checkouts: OwnedCheckouts) -> Any:
     """An :class:`RSnapshotter` over R (and P's git state) that leaves the
     global home out of scope: ``decide_next`` legitimately writes the step's
@@ -561,10 +574,10 @@ def _assert_issues_implement_wp01_in_p(decision: Any, fact: OwnedCheckout) -> No
 class TestFr008RuntimeWalk:
     """T057 step 2 / FR-008 / O5 at the REAL ``decide_next`` entry point
     (review cycle 1 finding 5): a finalized single_branch owned mission whose
-    run sits at ``tasks`` advances to ``implement WP01`` in P with no
-    ``ValueError`` / wedge."""
+    run sits at ``analyze`` (the step WP07 put between ``tasks`` and ``implement``)
+    advances to ``implement WP01`` in P with no ``ValueError`` / wedge."""
 
-    def test_decide_next_from_tasks_issues_implement_wp01_in_p(
+    def test_decide_next_from_analyze_issues_implement_wp01_in_p(
         self,
         make_owned_checkouts,
         monkeypatch: pytest.MonkeyPatch,
@@ -573,15 +586,17 @@ class TestFr008RuntimeWalk:
         from runtime.next.runtime_bridge import query_current_state
 
         checkouts = make_owned_checkouts(topology="single_branch")
-        fact = _walk_to_tasks(checkouts, monkeypatch)
+        fact = _walk_to_analyze(checkouts, monkeypatch)
         snap = _r_snapshot(checkouts)
         before = snap.take()
 
-        decision = decision_mod.decide_next("claude", checkouts.mission_slug, "success", checkouts.repository_root, owned=fact)
+        decision = decision_mod.decide_next(
+            "claude", checkouts.mission_slug, "success", checkouts.repository_root, owned=fact, analysis_currency=analysis_is_current
+        )
 
         _assert_issues_implement_wp01_in_p(decision, fact)
 
-        follow_up = query_current_state("claude", checkouts.mission_slug, checkouts.repository_root, owned=fact)
+        follow_up = query_current_state("claude", checkouts.mission_slug, checkouts.repository_root, owned=fact, analysis_currency=analysis_is_current)
         assert follow_up.mission_state == "implement", "the run must have advanced past the unadvanced decision"
         snap.assert_unchanged(before, snap.take(), tolerate_status_mutex_for=checkouts.mission_slug)
 
@@ -596,7 +611,7 @@ class TestFr008RuntimeWalk:
         from runtime.next import decision as decision_mod
 
         checkouts = make_owned_checkouts(topology="single_branch")
-        fact = _walk_to_tasks(checkouts, monkeypatch)
+        fact = _walk_to_analyze(checkouts, monkeypatch)
         before = _run_state_bytes(checkouts, fact)
         assert before, "fixture must have a persisted run state to compare"
         refusal = ActionContextError(OwnedRefusalCode.OWNED_REVIEW_BASE_UNAVAILABLE.value, "cannot resolve the workspace")
@@ -607,12 +622,12 @@ class TestFr008RuntimeWalk:
         monkeypatch.setattr(decision_mapping, "_wp_iteration_action_and_state", _fails)
 
         with pytest.raises(ActionContextError) as excinfo:
-            decision_mod.decide_next("claude", checkouts.mission_slug, "success", checkouts.repository_root, owned=fact)
+            decision_mod.decide_next("claude", checkouts.mission_slug, "success", checkouts.repository_root, owned=fact, analysis_currency=analysis_is_current)
 
         assert excinfo.value.code == OwnedRefusalCode.OWNED_REVIEW_BASE_UNAVAILABLE.value
         assert _run_state_bytes(checkouts, fact) == before, "the advance must not have been persisted"
 
-    def test_non_owned_control_walks_from_tasks_to_implement(self, tmp_path: Path) -> None:
+    def test_non_owned_control_walks_from_analyze_to_implement(self, tmp_path: Path) -> None:
         """Same entry point, no ``owned=``: the identical walk on a plain
         (non-owned) mission is green -- the row is attributable to the fact."""
         from runtime.next import decision as decision_mod
@@ -621,9 +636,9 @@ class TestFr008RuntimeWalk:
         repo = tmp_path / "control"
         slug = "042-owned-walk-control"
         scaffold_software_dev(repo, slug, with_spec=True, with_plan=True, with_tasks_md=True, wps={"WP01": "planned"})
-        advance_to_step(repo, slug, "software-dev", "tasks")
+        advance_to_step(repo, slug, "software-dev", "analyze")
 
-        decision = decision_mod.decide_next("claude", slug, "success", repo)
+        decision = decision_mod.decide_next("claude", slug, "success", repo, analysis_currency=analysis_is_current)
 
         assert decision.kind == "step", (decision.kind, decision.reason)
         assert decision.action == "implement"

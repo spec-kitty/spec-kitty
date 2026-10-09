@@ -44,7 +44,7 @@ def _validate_create_inputs(mission_slug: str, friendly_name: str | None) -> str
     """
     if not KEBAB_CASE_PATTERN.match(mission_slug):
         raise MissionCreationError(
-            f"Invalid feature slug '{mission_slug}'. "
+            f"Invalid mission slug '{mission_slug}'. "
             "Must be kebab-case (lowercase letters, numbers, hyphens only)."
             "\n\nValid examples:"
             "\n  - user-auth"

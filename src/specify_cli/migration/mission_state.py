@@ -59,7 +59,7 @@ from specify_cli.migration.canonicalization import (
     MigrationContext,
     apply_rules,
 )
-from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
+from specify_cli.status import ULID_PATTERN, Lane, StatusEvent, mission_write_lock
 from specify_cli.status import materialize_snapshot, materialize_to_json
 from specify_cli.status import (
     ANNOTATION_KIND,
@@ -1749,12 +1749,15 @@ def _repair_meta_phase(
     generated_ids: list[str] | None,
 ) -> dict[str, Any]:
     """Canonicalize and persist ``meta.json``; return the canonical meta."""
-    meta, state.meta_actions = _canonicalize_meta(mission_dir, raw_rows, generated_ids=generated_ids)
-    state.mission_slug = str(meta.get("mission_slug") or state.mission_slug)
-    state.mission_id = str(meta.get("mission_id") or "")
-    before_meta = _file_fingerprint(mission_dir / META_FILENAME)
-    if state.meta_actions:
-        write_meta(mission_dir, meta)
+    # The canonicalizing read, the fingerprint and the whole-file replace share one hold of the
+    # Mission write lock, so a concurrent meta.json writer is never overwritten by a stale copy.
+    with mission_write_lock(mission_dir, repo_root=repo_root, fallback_to_dir_name=True):
+        meta, state.meta_actions = _canonicalize_meta(mission_dir, raw_rows, generated_ids=generated_ids)
+        state.mission_slug = str(meta.get("mission_slug") or state.mission_slug)
+        state.mission_id = str(meta.get("mission_id") or "")
+        before_meta = _file_fingerprint(mission_dir / META_FILENAME)
+        if state.meta_actions:
+            write_meta(mission_dir, meta)
     state.record_change(repo_root, mission_dir / META_FILENAME, before_meta)
     return meta
 
@@ -1808,6 +1811,7 @@ def _render_event_log(canonical_lines: Sequence[str], original: bytes) -> bytes:
 
 def _repair_quarantine_phase(
     repo_root: Path,
+    mission_dir: Path,
     run_id: str,
     quarantine_lines: Sequence[str],
     state: _RepairState,
@@ -1820,7 +1824,11 @@ def _repair_quarantine_phase(
     quarantine_path = repo_root / MISSION_STATE_AUDIT_ROOT / "quarantine" / run_id / safe_mission_slug / EVENTS_FILENAME
     before_quarantine = _file_fingerprint(quarantine_path)
     quarantine_text = "".join(line.rstrip("\n") + "\n" for line in quarantine_lines)
-    atomic_write(quarantine_path, quarantine_text, mkdir=True)
+    # #5883: the status-log audit dump runs under the Mission write lock (the
+    # same lock the meta phase takes, re-entrant per thread), so the audit write
+    # never races a concurrent writer of this Mission.
+    with mission_write_lock(mission_dir, repo_root=repo_root, fallback_to_dir_name=True):
+        atomic_write(quarantine_path, quarantine_text, mkdir=True)
     state.quarantine_written = True
     state.record_change(repo_root, quarantine_path, before_quarantine)
 
@@ -1943,7 +1951,7 @@ def _repair_status_log_phases(
 
     log_changed = _repair_events_phase(repo_root, status_path, raw_rows, canonical_lines, state)
     if quarantine_lines:
-        _repair_quarantine_phase(repo_root, run_id, quarantine_lines, state)
+        _repair_quarantine_phase(repo_root, mission_dir, run_id, quarantine_lines, state)
     snapshot = _repair_status_json_phase(repo_root, mission_dir, state, log_changed=log_changed)
     _repair_lanes_phase(repo_root, mission_dir, snapshot, meta, state)
     return True

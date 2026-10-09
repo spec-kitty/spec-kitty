@@ -377,7 +377,7 @@ def test_sc6_finalize_lands_on_resolved_placement_no_catch22(
             text=True,
             check=True,
         ).stdout
-        assert "Add tasks for feature" not in log, f"[{topology.name}] a refused planning commit must NOT land on the protected target {placement_ref!r}:\n{log}"
+        assert "Add tasks for mission" not in log, f"[{topology.name}] a refused planning commit must NOT land on the protected target {placement_ref!r}:\n{log}"
         return
 
     assert result.exit_code == 0, f"[{topology.name}] finalize-tasks refused / failed (exit {result.exit_code}); the catch-22 is NOT killed:\n{result.output}"
@@ -397,7 +397,7 @@ def test_sc6_finalize_lands_on_resolved_placement_no_catch22(
         text=True,
         check=True,
     ).stdout
-    assert "Add tasks for feature" in log, f"[{topology.name}] tasks commit not found on resolved placement {placement_ref!r}:\n{log}"
+    assert "Add tasks for mission" in log, f"[{topology.name}] tasks commit not found on resolved placement {placement_ref!r}:\n{log}"
 
 
 def test_pr_bound_finalize_preserves_planning_branch_and_protected_merge_target(
@@ -449,7 +449,7 @@ def test_pr_bound_finalize_preserves_planning_branch_and_protected_merge_target(
     assert result.exit_code == 0, result.output
     assert _parse_json_from_output(result.output).get("result") == "success"
     assert _git(repo.repo_root, "rev-parse", "main").stdout.strip() == protected_tip_before
-    assert "Add tasks for feature" in _git(repo.repo_root, "log", "--oneline", "-10", planning_branch).stdout
+    assert "Add tasks for mission" in _git(repo.repo_root, "log", "--oneline", "-10", planning_branch).stdout
     normalized_meta = json.loads(meta_path.read_text(encoding="utf-8"))
     assert normalized_meta["target_branch"] == planning_branch
     assert normalized_meta["merge_target_branch"] == "main"

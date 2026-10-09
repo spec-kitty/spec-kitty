@@ -62,6 +62,7 @@ from specify_cli.cli.commands.agent.workflow_cores import (
     workspace_contract_description,
 )
 from specify_cli.core.constants import MISSION_TYPE_RESEARCH
+from specify_cli.missions._read_path_resolver import mission_write_lock_dir
 from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.status import FORCE_NOTE_HINT, Lane, StoreError, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
 from specify_cli.status import RollbackOutcome, RollbackPoint, RollbackRefusal, UNBOUNDED_LOCK_WAIT, appended_event_ids, capture_rollback_point, mission_write_lock
@@ -228,7 +229,7 @@ def _sync_lane_or_revert(
         )
     except Exception as exc:  # noqa: BLE001 — structured sync refusal
         try:
-            with mission_write_lock(rollback_point.events_path.parent, repo_root=repo_root, timeout=UNBOUNDED_LOCK_WAIT):
+            with mission_write_lock(mission_write_lock_dir(repo_root, mission_slug), repo_root=repo_root, timeout=UNBOUNDED_LOCK_WAIT):
                 w._revert_coordination_commit(receipt)
                 # The real revert already removed the claim's rows from the log. An empty tail
                 # is the finished state (still restore status.json); a non-empty one must be
@@ -1098,7 +1099,7 @@ def implement_claim_transition(
     """
     wf_feature_dir = claim_status_dir(main_repo_root, mission_slug)
     with ExitStack() as hold:
-        hold.enter_context(mission_write_lock(wf_feature_dir, repo_root=main_repo_root, timeout=UNBOUNDED_LOCK_WAIT))
+        hold.enter_context(mission_write_lock(mission_write_lock_dir(main_repo_root, mission_slug), repo_root=main_repo_root, timeout=UNBOUNDED_LOCK_WAIT))
         return _implement_claim_transition_body(
             release_lock=hold.close,
             wf_feature_dir=wf_feature_dir,

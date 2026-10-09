@@ -430,8 +430,15 @@ def _hydrate_status_events_from_index(feature_dir: Path, worktree: Path) -> str 
         return f"{RULE_ID_STATUS_JSON}: missing authoritative {rel_path}"
 
     events_path.parent.mkdir(parents=True, exist_ok=True)
+    # Exclusive create (#5883): hydrate the authoritative log only when it is
+    # genuinely absent. An exclusive create cannot clobber an existing log, so if
+    # a concurrent writer created it between the existence check above and here,
+    # keep theirs rather than overwriting it with the index snapshot.
     try:
-        events_path.write_text(index_text, encoding="utf-8")
+        with open(events_path, "x", encoding="utf-8") as handle:
+            handle.write(index_text)
+    except FileExistsError:
+        return None
     except OSError as exc:
         return f"{RULE_ID_STATUS_JSON}: could not hydrate {rel_path}: {exc!r}"
 

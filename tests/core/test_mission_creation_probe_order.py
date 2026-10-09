@@ -104,7 +104,7 @@ EXPECTED: dict[str, list[str]] = {
         "add --force -- kitty-specs/probe-ok-<MID8>/status.events.jsonl",
         "add --force -- kitty-specs/probe-ok-<MID8>/tasks/README.md",
         "add --force -- kitty-specs/probe-ok-<MID8>/tasks/.gitkeep",
-        "commit --only -m 'Add scaffold for feature probe-ok-<MID8>' -- <SCAFFOLD>",
+        "commit --only -m 'Add scaffold for mission probe-ok-<MID8>' -- <SCAFFOLD>",
     ],
     # Created from ``topic``, so the Primary Branch resolution takes a shorter path.
     "target_without_commit": [
@@ -267,7 +267,7 @@ _RECREATE_DOUBLE_RESOLUTION = [
     "add --force -- kitty-specs/probe-recreate-<MID8>/status.events.jsonl",
     "add --force -- kitty-specs/probe-recreate-<MID8>/tasks/README.md",
     "add --force -- kitty-specs/probe-recreate-<MID8>/tasks/.gitkeep",
-    "commit --only -m 'Add scaffold for feature probe-recreate-<MID8>' -- <SCAFFOLD>",
+    "commit --only -m 'Add scaffold for mission probe-recreate-<MID8>' -- <SCAFFOLD>",
 ]
 #: With the shared probe the mint reuses the guard's memoised answer: exactly the mint's
 #: two resolution probes are gone, nothing else moved.

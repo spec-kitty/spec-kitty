@@ -217,7 +217,7 @@ def test_ownership_overlap_refusal_inside_owned_checkout_leaves_p_and_r_unchange
     assert "Ownership validation failed" in output, output
 
     after_r = snapshotter.take()
-    snapshotter.assert_unchanged(before_r, after_r)
+    snapshotter.assert_unchanged(before_r, after_r, tolerate_status_mutex_for=checkouts.mission_slug)
     after_p = _take_p_oracle(checkouts.owned_root)
     _assert_p_unchanged(before_p, after_p, "the ownership-overlap refusal")
 
@@ -618,7 +618,7 @@ def test_issue_matrix_scaffold_refusal_inside_owned_checkout_leaves_p_and_r_unch
 
     assert exit_code != 0, output
     assert "Ownership validation failed" in output, output
-    snapshotter.assert_unchanged(before_r, snapshotter.take())
+    snapshotter.assert_unchanged(before_r, snapshotter.take(), tolerate_status_mutex_for=checkouts.mission_slug)
     after_p = _take_p_oracle(checkouts.owned_root)
     _assert_p_unchanged(before_p, after_p, "the issue-matrix scaffold refusal")
 

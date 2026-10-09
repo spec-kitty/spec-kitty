@@ -59,6 +59,7 @@ __all__ = [
     "coord_branch_name",
     "coord_dir_name",
     "coord_mission_dir_name",
+    "coordination_lock_dir_name",
     "coord_reconstruct_branch",
     "is_valid_bare_slug_body",
     "lane_branch_shell_glob",
@@ -66,6 +67,7 @@ __all__ = [
     "mid8_from_slug",
     "mission_branch_name_required",
     "mission_dir_name",
+    "mission_lock_dir_name",
     "parse_lane_worktree_dir",
     "reset_legacy_failover_warning",
     "resolve_branch_name",
@@ -372,6 +374,31 @@ class InvalidMissionIdentity(BranchIdentityUnresolved):
         return payload
 
 
+class MissionLockKeyUnresolved(StructuredError):
+    """A coordination-routed Mission has no resolvable mid8, so it has no lock key.
+
+    Fail-closed (plan A3): the Mission write lock is keyed on the coordination
+    directory name ``<slug>-<mid8>``. Without a mid8 that name cannot be composed,
+    and a trailing-dash key (``<slug>-``) or a silent fall back to the bare slug
+    would lock a file no other writer of the Mission takes.
+    """
+
+    error_code: str = "MISSION_LOCK_KEY_UNRESOLVED"
+
+    def __init__(self, mission_slug: str) -> None:
+        self.mission_slug = mission_slug
+        super().__init__(
+            f"cannot key the Mission write lock for {mission_slug!r}: the Mission records a coordination "
+            "branch but no mid8 can be resolved from its meta.json (mid8, mission_id or the slug tail). "
+            "Run `spec-kitty migrate backfill-identity`, then retry."
+        )
+
+    def to_dict(self) -> dict[str, Any]:
+        payload: dict[str, Any] = super().to_dict()
+        payload["mission_slug"] = self.mission_slug
+        return payload
+
+
 def mission_branch_name_required(mission_slug: str, mission_id: str | None) -> str:
     """Compose the canonical mission integration branch, fail-closed.
 
@@ -671,6 +698,50 @@ def coord_mission_dir_name(mission_slug: str, *, mid8: str) -> str:
     if mission_slug.endswith(suffix):
         return mission_slug
     return f"{mission_slug}{suffix}"
+
+
+def mission_lock_dir_name(mission_slug: str, *, mid8: str) -> str:
+    """Return the Mission write-lock key for a Mission whose mid8 is already resolved.
+
+    The coordination directory name ``<slug>-<mid8>`` when a mid8 is known, else the
+    bare slug. An empty *mid8* never produces the trailing-dash name ``<slug>-``
+    (:func:`coord_mission_dir_name` keeps that grammar for path composition): that name
+    keyed a lock file nobody else takes (plan A3).
+    """
+    return coord_mission_dir_name(mission_slug, mid8=mid8) if mid8 else mission_slug
+
+
+def coordination_lock_dir_name(
+    mission_slug: str,
+    *,
+    mission_id: str | None,
+    mid8: str | None,
+    coordination_branch: str,
+) -> str:
+    """Return the lock key of a coordination-routed Mission, or fail closed.
+
+    Resolves the mid8 through the transaction's cascade (:func:`resolve_transaction_mid8`:
+    ``meta.mid8``, then ``mission_id[:8]``, then the slug tail) and composes
+    :func:`mission_lock_dir_name`.
+
+    A legacy ``NNN-`` slug whose cascade returns ``""`` is the documented dual-era carve-out
+    (it routes to the bare-slug surface, exactly as the transaction does), so its key is the
+    bare slug, not an error.
+
+    Raises:
+        MissionLockKeyUnresolved: a modern slug whose cascade is exhausted. The cascade itself
+            raises there, so the transaction cannot resolve the Mission either.
+    """
+    try:
+        resolved = resolve_transaction_mid8(
+            mission_slug,
+            mission_id=mission_id,
+            mid8=mid8,
+            coordination_branch=coordination_branch,
+        )
+    except BranchIdentityUnresolved as exc:
+        raise MissionLockKeyUnresolved(mission_slug) from exc
+    return mission_lock_dir_name(mission_slug, mid8=resolved)
 
 
 def coord_dir_name(mission_slug: str, *, mid8: str) -> str:

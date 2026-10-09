@@ -1023,6 +1023,7 @@ def _mint_owned_for_setup_plan(tmp_path: Path, *, slug: str = "001-docs") -> Any
     owned_root = tmp_path / "owned"
     mission_dir = owned_root / "kitty-specs" / slug
     repo.mkdir(parents=True, exist_ok=True)
+    (repo / ".git").mkdir(exist_ok=True)  # a primary checkout: the lock key reads its meta without resolving a main root
     mission_dir.mkdir(parents=True, exist_ok=True)
     return OwnedCheckout._mint(
         repository_root=repo,

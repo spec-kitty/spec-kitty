@@ -161,7 +161,7 @@ class TestLockedRereadSpliceAndWrite:
             order.append("write")
             return cast(Path, write_acceptance_matrix(feature_dir_arg, matrix))
 
-        monkeypatch.setattr(matrix_module, "feature_status_lock", _spy_lock)
+        monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _spy_lock)
         monkeypatch.setattr(matrix_module, "read_acceptance_matrix", _spy_read)
         monkeypatch.setattr(matrix_module, "write_acceptance_matrix", _spy_write)
 
@@ -286,7 +286,7 @@ class TestLockedRereadSpliceAndWrite:
             write_calls.append(args)
             return cast(Path, write_acceptance_matrix(*args, **kwargs))
 
-        monkeypatch.setattr(matrix_module, "feature_status_lock", _timeout_lock)
+        monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _timeout_lock)
         monkeypatch.setattr(matrix_module, "write_acceptance_matrix", _spy_write)
 
         with pytest.raises(FeatureStatusLockTimeoutError):
@@ -642,7 +642,7 @@ class TestLockedAcceptanceVerdictGuard:
             read_calls.append(feature_dir_arg)
             return read_acceptance_matrix(feature_dir_arg)
 
-        monkeypatch.setattr(matrix_module, "feature_status_lock", _timeout_lock)
+        monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _timeout_lock)
         monkeypatch.setattr(matrix_module, "read_acceptance_matrix", _spy_read)
 
         with pytest.raises(FeatureStatusLockTimeoutError), locked_acceptance_verdict_guard(repo_root, feature_dir, timeout=0.01):

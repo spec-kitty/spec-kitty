@@ -48,6 +48,7 @@ from tests.integration.coord_topology_fixture import (
     CoordTopologyContext,
     coord_topology_mission,
 )
+from tests.runtime._next_mission_scaffold import analysis_is_current
 
 # Re-export fixture so pytest discovers it in this module.
 __all__ = ["coord_topology_mission"]
@@ -110,6 +111,7 @@ def _build_implement_override_decision(ctx: CoordTopologyContext) -> Decision:
         emitted_run_id=None,
         repo_root=ctx.repo,
         finalized_override="implement",
+        analysis_currency=analysis_is_current,
     )
 
 
@@ -236,7 +238,7 @@ class TestNextPreviewRoutesToPrimary:
         _mark_primary_task_board_finalized(ctx)
         _seed_coord_planned_event(ctx)
 
-        decision = query_current_state("claude", ctx.slug, ctx.repo)
+        decision = query_current_state("claude", ctx.slug, ctx.repo, analysis_currency=analysis_is_current)
 
         assert decision.kind is DecisionKind.query
         assert decision.mission_state == "implement"
@@ -265,8 +267,8 @@ class TestNextPreviewRoutesToPrimary:
         # PRIMARY, the planned event only on COORD).
         ctx.decoy_events_path.unlink()
 
-        query = query_current_state("claude", ctx.slug, ctx.repo)
-        advance = decide_next_via_runtime("claude", ctx.slug, "success", ctx.repo)
+        query = query_current_state("claude", ctx.slug, ctx.repo, analysis_currency=analysis_is_current)
+        advance = decide_next_via_runtime("claude", ctx.slug, "success", ctx.repo, analysis_currency=analysis_is_current)
 
         assert query.preview_step == "implement"
         assert advance.kind is DecisionKind.step, advance.reason

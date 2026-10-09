@@ -46,6 +46,7 @@ from kernel.clock import datetime, now_utc, now_utc_iso, parse_iso
 from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root
 
 from .locking import feature_status_lock, project_event_log_lock
+from .mission_write import mission_lock_key
 from .models import Lane as _Lane
 from .store import append_raw_rows_atomic
 
@@ -281,10 +282,10 @@ def _atomic_append(path: Path, line: str) -> None:
     append_raw_rows_atomic(path, [json.loads(line)])
 
 
-def _lifecycle_write_lock(repo_root: Path | None, mission_dir_name: str | None) -> AbstractContextManager[Path | None]:
+def _lifecycle_write_lock(repo_root: Path | None, mission_dir: Path | None) -> AbstractContextManager[Path | None]:
     """Return the lock context that guards a lifecycle log writer.
 
-    Mission-scoped writes (``mission_dir_name`` provided, i.e. every appender
+    Mission-scoped writes (``mission_dir`` provided, i.e. every appender
     except ``ProjectInitialized``) use the SAME mission-keyed
     :func:`feature_status_lock` that ``status/emit.py``'s
     ``emit_status_transition`` uses for ``status.events.jsonl`` -- this is
@@ -299,7 +300,7 @@ def _lifecycle_write_lock(repo_root: Path | None, mission_dir_name: str | None) 
     if repo_root is None:
         return nullcontext()
     lock: AbstractContextManager[Path | None] = (
-        feature_status_lock(repo_root, mission_dir_name) if mission_dir_name is not None else project_event_log_lock(repo_root)
+        feature_status_lock(repo_root, mission_lock_key(mission_dir, repo_root=repo_root)) if mission_dir is not None else project_event_log_lock(repo_root)
     )
     return lock
 
@@ -598,7 +599,7 @@ def persist_lifecycle_event_local(
     )
     resolved_repo_root = repo_root if repo_root is not None else _repo_root_for_lifecycle_log(log_path)
     try:
-        with _lifecycle_write_lock(resolved_repo_root, log_path.parent.name if mission_slug is not None else None):
+        with _lifecycle_write_lock(resolved_repo_root, log_path.parent if mission_slug is not None else None):
             _atomic_append(log_path, json.dumps(envelope, sort_keys=True))
     except OSError as exc:
         logger.warning("Could not persist %s event to %s: %s", event_type, log_path, exc)

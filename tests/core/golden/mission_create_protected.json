@@ -102,7 +102,7 @@
           "kitty/mission-prot-configured-non-primary-<MID8#1>": [
             {
               "message": [
-                "Add scaffold for feature prot-configured-non-primary-<MID8#1>"
+                "Add scaffold for mission prot-configured-non-primary-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/prot-configured-non-primary-<MID8#1>/meta.json",
@@ -260,7 +260,7 @@
           "owned-topic": [
             {
               "message": [
-                "Add scaffold for feature prot-owned-coord-<MID8#1>"
+                "Add scaffold for mission prot-owned-coord-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/prot-owned-coord-<MID8#1>/meta.json",
@@ -424,7 +424,7 @@
           "owned-topic": [
             {
               "message": [
-                "Add scaffold for feature prot-owned-lanes-<MID8#1>"
+                "Add scaffold for mission prot-owned-lanes-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/prot-owned-lanes-<MID8#1>/meta.json",
@@ -593,7 +593,7 @@
           "owned-topic": [
             {
               "message": [
-                "Add scaffold for feature prot-owned-lanes-with-coord-<MID8#1>"
+                "Add scaffold for mission prot-owned-lanes-with-coord-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/prot-owned-lanes-with-coord-<MID8#1>/meta.json",
@@ -757,7 +757,7 @@
           "owned-topic": [
             {
               "message": [
-                "Add scaffold for feature prot-owned-single-branch-<MID8#1>"
+                "Add scaffold for mission prot-owned-single-branch-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/prot-owned-single-branch-<MID8#1>/meta.json",
@@ -919,7 +919,7 @@
           "kitty/mission-prot-primary-no-origin-head-<MID8#1>": [
             {
               "message": [
-                "Add scaffold for feature prot-primary-no-origin-head-<MID8#1>"
+                "Add scaffold for mission prot-primary-no-origin-head-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/prot-primary-no-origin-head-<MID8#1>/meta.json",
@@ -1068,7 +1068,7 @@
           "kitty/mission-prot-primary-unconfigured-<MID8#1>": [
             {
               "message": [
-                "Add scaffold for feature prot-primary-unconfigured-<MID8#1>"
+                "Add scaffold for mission prot-primary-unconfigured-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/prot-primary-unconfigured-<MID8#1>/meta.json",
@@ -1864,7 +1864,7 @@
           "main": [
             {
               "message": [
-                "Add scaffold for feature prot-single-branch-commit-to-target-<MID8#1>"
+                "Add scaffold for mission prot-single-branch-commit-to-target-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/prot-single-branch-commit-to-target-<MID8#1>/meta.json",
@@ -2013,7 +2013,7 @@
           "kitty/mission-prot-single-branch-plain-<MID8#1>": [
             {
               "message": [
-                "Add scaffold for feature prot-single-branch-plain-<MID8#1>"
+                "Add scaffold for mission prot-single-branch-plain-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/prot-single-branch-plain-<MID8#1>/meta.json",
@@ -2165,7 +2165,7 @@
           "kitty/mission-prot-single-branch-pr-bound-<MID8#1>": [
             {
               "message": [
-                "Add scaffold for feature prot-single-branch-pr-bound-<MID8#1>"
+                "Add scaffold for mission prot-single-branch-pr-bound-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/prot-single-branch-pr-bound-<MID8#1>/meta.json",
@@ -2320,7 +2320,7 @@
           "kitty/mission-prot-single-branch-retention-<MID8#1>": [
             {
               "message": [
-                "Add scaffold for feature prot-single-branch-retention-<MID8#1>"
+                "Add scaffold for mission prot-single-branch-retention-<MID8#1>"
               ],
               "paths": [
                 "kitty-specs/prot-single-branch-retention-<MID8#1>/meta.json",

@@ -122,6 +122,44 @@ def repair_lane_mismatch(  # MIGRATION-ONLY
     if expected_lane is None:
         return False, f"Could not determine expected lane for {task_file.name}"
 
+    # The read, the repair and the write are one hold of the Mission write lock, so another writer's
+    # change to this file between the read and the write is never overwritten (plan A10).
+    from specify_cli.status import FeatureStatusLockTimeoutError, mission_write_lock
+
+    try:
+        with mission_write_lock(_mission_dir_of(task_file)):
+            return _rewrite_lane_metadata(
+                task_file,
+                expected_lane,
+                actual_lane,
+                agent=agent,
+                shell_pid=shell_pid,
+                add_history=add_history,
+                dry_run=dry_run,
+            )
+    except FeatureStatusLockTimeoutError as exc:
+        return False, f"Failed to lock the mission for {task_file.name}: {exc}"
+
+
+def _mission_dir_of(task_file: Path) -> Path:
+    """The Mission directory that owns *task_file*: the parent of its ``tasks`` directory, else its own directory."""
+    for parent in task_file.parents:
+        if parent.name == "tasks":
+            return parent.parent
+    return task_file.parent
+
+
+def _rewrite_lane_metadata(
+    task_file: Path,
+    expected_lane: str,
+    actual_lane: str | None,
+    *,
+    agent: str,
+    shell_pid: str,
+    add_history: bool,
+    dry_run: bool,
+) -> tuple[bool, str | None]:
+    """Read *task_file*, set its ``lane`` (and the activity-log entry), and write it back; runs under the Mission lock."""
     try:
         content = task_file.read_text(encoding="utf-8-sig")
         frontmatter, body, _ = parse_frontmatter(content)

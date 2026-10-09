@@ -185,20 +185,29 @@ def _write_create_meta(feature_dir: Path, meta: dict[str, Any], mission: str | N
     The tail of the former single-step ``_build_create_meta``, verbatim: the orchestrator
     calls it right after the protected-target mint, so the file carries the
     minted ``mission_branch`` exactly as before.
+
+    The birth write of ``meta.json`` runs under the Mission write lock like every
+    other ``meta.json`` writer (FR-001/FR-020), so a writer that races the create
+    (a reopen, discard or tracker binding of the same slug) is serialised rather
+    than silently overwritten. ``fallback_to_dir_name`` covers the window before a
+    coordination key is readable; the nested ``set_documentation_state`` re-enters
+    the same re-entrant lock on this thread.
     """
     from specify_cli.mission_metadata import set_documentation_state, write_meta
+    from specify_cli.status import mission_write_lock
 
-    write_meta(feature_dir, meta)
+    with mission_write_lock(feature_dir, fallback_to_dir_name=True):
+        write_meta(feature_dir, meta)
 
-    if mission == "documentation":
-        meta.setdefault(_META_KEY_MISSION_TYPE, "documentation")
-        if "documentation_state" not in meta:
-            doc_state: dict[str, Any] = {
-                "iteration_mode": "initial",
-                "divio_types_selected": [],
-                "generators_configured": [],
-                "target_audience": "developers",
-                "last_audit_date": None,
-                "coverage_percentage": 0.0,
-            }
-            set_documentation_state(feature_dir, doc_state)
+        if mission == "documentation":
+            meta.setdefault(_META_KEY_MISSION_TYPE, "documentation")
+            if "documentation_state" not in meta:
+                doc_state: dict[str, Any] = {
+                    "iteration_mode": "initial",
+                    "divio_types_selected": [],
+                    "generators_configured": [],
+                    "target_audience": "developers",
+                    "last_audit_date": None,
+                    "coverage_percentage": 0.0,
+                }
+                set_documentation_state(feature_dir, doc_state)
