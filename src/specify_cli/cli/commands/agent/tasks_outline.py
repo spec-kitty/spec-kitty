@@ -12,6 +12,7 @@ One-way import rule (INV-2): this module MUST NOT import from
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 import enum
 from kernel._safe_re import re
@@ -165,8 +166,10 @@ def _extract_pipe_table_wp_id(line: str, header_map: dict[str, int]) -> str | No
     return None
 
 
-def _resolve_history_wp_id(tasks_content: str, task_id: str) -> str | None:
-    """Resolve the WP that owns *task_id* from tasks.md structure."""
+def _iter_history_owner_candidates(tasks_content: str, task_id: str) -> Iterator[str | None]:
+    """Yield the owning WP (or ``None`` when unattributable) of every STRUCTURED tasks.md
+    row that names *task_id*: a pipe-table row, a checkbox row, or an inline
+    ``Subtasks:`` list. Prose mentions never yield."""
     normalized_task_id = task_id.upper()
     current_wp_id: str | None = None
     lines = tasks_content.split("\n")
@@ -178,23 +181,28 @@ def _resolve_history_wp_id(tasks_content: str, task_id: str) -> str | None:
 
         if _is_pipe_table_task_row(line, normalized_task_id):
             header_map = _parse_pipe_table_header(lines, line_index)
-            return _extract_pipe_table_wp_id(line, header_map) or current_wp_id
-
-        if re.search(rf"-\s*\[[ x]\]\s*{re.escape(normalized_task_id)}\b", line, re.IGNORECASE):
-            if current_wp_id:
-                return current_wp_id
+            yield _extract_pipe_table_wp_id(line, header_map) or current_wp_id
+        elif re.search(rf"-\s*\[[ x]\]\s*{re.escape(normalized_task_id)}\b", line, re.IGNORECASE):
             explicit_wp = re.search(r"\b(WP\d+)\b", line, re.IGNORECASE)
-            if explicit_wp:
-                return str(explicit_wp.group(1)).upper()
-            return None
-
-        inline_match = _INLINE_SUBTASKS_RE.search(line)
-        if inline_match:
+            yield current_wp_id or (str(explicit_wp.group(1)).upper() if explicit_wp else None)
+        elif inline_match := _INLINE_SUBTASKS_RE.search(line):
             ids = [value.strip().upper() for value in inline_match.group("ids").split(",")]
             if normalized_task_id in ids:
-                return current_wp_id
+                yield current_wp_id
 
-    return None
+
+def _resolve_history_wp_id(tasks_content: str, task_id: str) -> str | None:
+    """Resolve the WP that owns *task_id* from tasks.md structure (first structured row)."""
+    return next(_iter_history_owner_candidates(tasks_content, task_id), None)
+
+
+def history_wp_ids(tasks_content: str, task_id: str) -> list[str]:
+    """Return every WP whose structured tasks.md rows name *task_id*, sorted.
+
+    Unlike :func:`_resolve_history_wp_id` this does not stop at the first row, so
+    a subtask id shared by several work packages is reported for all of them.
+    """
+    return sorted({owner for owner in _iter_history_owner_candidates(tasks_content, task_id) if owner})
 
 
 def _resolve_wp_id(
