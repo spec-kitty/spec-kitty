@@ -108,6 +108,7 @@ from charter.drg import (
     dangling_endpoints,
     resolve_edge_endpoint,
 )
+from charter.offering.drg.merge import org_local_endpoint_map
 from charter.offering.drg.override_policy import (
     PACK_POLICY_FILENAME,
     OverridePolicyError,
@@ -967,19 +968,16 @@ def _org_node_urn(kind: str, node_id: str) -> str:
 
 
 def _org_local_registry(fragment: OrgDRGFragment, trusted: set[str]) -> tuple[dict[str, str], set[str]]:
-    """Keep all declarations separately from last-winner bare bindings.
+    """Return the bare-id bindings and the explicitly declared URNs of one pack.
 
-    Preserve loader order/last assignment; discovery alone confers no trust.
+    Bindings come from the merge's own map (:func:`org_local_endpoint_map`), with
+    discovery alone conferring no trust; schema-trusted identities the loader did
+    not surface are added so a file-only artifact still binds.
     """
     declared = {_org_node_urn(node.kind, node.id) for node in fragment.authored_nodes}
-    local: dict[str, str] = {}
-    represented: set[str] = set()
-    for node in fragment.nodes:
-        urn = _org_node_urn(node.kind, node.id)
-        if urn in declared or urn in trusted:
-            local[node.id] = urn
-            represented.add(urn)
-    for urn in sorted(trusted - represented):
+    local = org_local_endpoint_map(fragment, trusted=trusted)
+    loaded = {_org_node_urn(node.kind, node.id) for node in fragment.nodes}
+    for urn in sorted(trusted - loaded):
         local[urn.partition(":")[2]] = urn
     return local, declared
 
