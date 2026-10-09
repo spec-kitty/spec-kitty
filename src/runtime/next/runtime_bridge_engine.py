@@ -111,11 +111,21 @@ StaleAdvancePlan = _engine.StaleAdvancePlan
 PLAN_UNAVAILABLE_ERRORS = (OSError, ValueError, MissionRuntimeError, yaml.YAMLError)
 
 
-def plan_advance(run_ref: MissionRunRef, agent_id: str, result: str = "success") -> AdvancePlan:
+def plan_advance(
+    run_ref: MissionRunRef,
+    agent_id: str,
+    result: str = "success",
+    *,
+    expected_issued_step: str | None = None,
+) -> AdvancePlan:
     """Wrap ``_internal_runtime.engine.plan_advance`` (live attribute lookup) --
     the engine's single, pure "apply the result and plan the next step"
-    authority (WP11 review cycle 1, findings 3/4)."""
-    return _engine.plan_advance(run_ref, agent_id, cast("ResultType", result))
+    authority (WP11 review cycle 1, findings 3/4).
+
+    ``expected_issued_step`` carries the caller-evaluated bootstrap step into
+    the plan so ``commit_advance`` can refuse a run whose issued step changed
+    since (#5682 expected-step CAS). ``None`` preserves today's behaviour."""
+    return _engine.plan_advance(run_ref, agent_id, cast("ResultType", result), expected_issued_step=expected_issued_step)
 
 
 def commit_advance(

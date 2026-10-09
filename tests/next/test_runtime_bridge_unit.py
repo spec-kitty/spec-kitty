@@ -2439,30 +2439,32 @@ class TestResolveWpWorkspaceBeforePersistingTheAdvance:
         assert calls == ["resolve:failed"], "the advance must never be persisted when resolution fails"
         assert self._run_bytes(ctx) == before, "state.json / run.events.jsonl must be byte-identical"
 
-    def test_pre_resolution_is_not_reused_for_a_different_issued_step(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """The reuse is keyed on the step the resolution was computed for: if
-        the run moved past the plan (stale) and the engine then issues a
-        different step, the mapper resolves afresh."""
-        from runtime.next._internal_runtime.schema import NextDecision
-
-        rb, ctx, calls = self._at_implement(tmp_path, monkeypatch)
-        real_persist = rb.runtime_next_step
+    @pytest.mark.regression
+    def test_stale_engine_advance_refuses_blocked_and_never_replans_via_next_step(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Inverted (#5854): a stale engine-path advance must REFUSE with a
+        ``blocked`` Decision and never fall back to ``runtime_next_step`` (which
+        would re-apply ``success`` and could complete a step this caller never
+        ran). Keeps the ``_stale`` ``commit_advance`` monkeypatch; now asserts
+        ``blocked`` + ``runtime_next_step`` call count 0 + nothing written."""
+        rb, ctx, _calls = self._at_implement(tmp_path, monkeypatch)
+        before = self._run_bytes(ctx)
+        next_step_calls: list[int] = []
 
         def _stale(*_a: Any, **_k: Any) -> Any:
             raise rb._engine_adapter.StaleAdvancePlan("the run moved on")
 
-        def _issues_another_step(*args: Any, **kwargs: Any) -> Any:
-            issued = real_persist(*args, **kwargs)
-            assert issued.step_id == "review"
-            return NextDecision(kind="step", run_id=issued.run_id, mission_key=issued.mission_key, step_id="implement")
+        def _counting_next_step(*args: Any, **kwargs: Any) -> Any:  # pragma: no cover - must not run
+            next_step_calls.append(1)
+            raise AssertionError("runtime_next_step must not be called on a stale engine advance")
 
         monkeypatch.setattr(rb._engine_adapter, "commit_advance", _stale)
-        monkeypatch.setattr(rb, "runtime_next_step", _issues_another_step)
+        monkeypatch.setattr(rb, "runtime_next_step", _counting_next_step)
 
-        rb._dn_decision_materialize(ctx)
+        decision = rb._dn_decision_materialize(ctx)
 
-        assert calls.count("resolve:review") == 1
-        assert calls.count("resolve:implement") == 1, "a different issued step must be resolved afresh, not served the review resolution"
+        assert decision.kind == DecisionKind.blocked
+        assert next_step_calls == [], "the stale advance must not re-plan through next_step"
+        assert self._run_bytes(ctx) == before, "a refused advance must write nothing"
 
 
 class TestLegacyAdvancePlansExactlyOnce:
