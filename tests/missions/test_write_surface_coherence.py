@@ -271,7 +271,7 @@ def test_fr007_finalize_validate_only_reports_full_mapping(tmp_path: Path) -> No
 # T030 — FR-008 protected-primary refusal (G-4 / DECISION 6)
 # ---------------------------------------------------------------------------
 
-_FEATURE_BRANCH_REMEDY = "feature branch"
+_TOPIC_BRANCH_REMEDY = "topic branch"
 _COORD_WORKTREE_PHRASE = "coordination worktree"
 
 
@@ -318,7 +318,7 @@ def test_fr008_router_returns_no_op_wrong_surface(tmp_path: Path) -> None:
 
     A primary-kind (``SPEC``) commit on a protected primary ``target_branch``
     returns ``CommitRouterResult(status="no_op_wrong_surface")``; the diagnostic
-    names the feature-branch remedy and never mentions the coordination worktree
+    names the topic-branch remedy and never mentions the coordination worktree
     (no coord-transit fallback — C-002 / D-3 / FR-008).
     """
     from specify_cli.coordination.commit_router import commit_for_mission
@@ -342,7 +342,7 @@ def test_fr008_router_returns_no_op_wrong_surface(tmp_path: Path) -> None:
 
     assert result.status == "no_op_wrong_surface"
     diagnostic = result.diagnostic or ""
-    assert _FEATURE_BRANCH_REMEDY in diagnostic, diagnostic
+    assert _TOPIC_BRANCH_REMEDY in diagnostic, diagnostic
     assert _COORD_WORKTREE_PHRASE not in diagnostic, diagnostic
 
 
@@ -350,7 +350,7 @@ def test_fr008_safe_commit_raises_protected_branch_refused(tmp_path: Path) -> No
     """DECISION 6: the ``safe_commit`` bypass path RAISES ``ProtectedBranchRefused``.
 
     The other refusal shape: a direct ``safe_commit`` to the protected primary
-    branch raises ``ProtectedBranchRefused`` whose message names the feature-branch
+    branch raises ``ProtectedBranchRefused`` whose message names the topic-branch
     remedy and never mentions the coordination worktree. Asserting both shapes
     against the path that produces each is the FR-008 full-surface check; conflating
     them (raise on the router / result on safe_commit) yields a false pass/fail.
@@ -371,5 +371,5 @@ def test_fr008_safe_commit_raises_protected_branch_refused(tmp_path: Path) -> No
         )
 
     message = str(exc_info.value)
-    assert _FEATURE_BRANCH_REMEDY in message, message
+    assert _TOPIC_BRANCH_REMEDY in message, message
     assert _COORD_WORKTREE_PHRASE not in message, message
