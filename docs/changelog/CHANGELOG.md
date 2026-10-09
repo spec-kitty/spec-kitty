@@ -22,6 +22,7 @@ this section at publish._
 
 ### Breaking
 
+- **Charter pack cutover: run `spec-kitty upgrade` once after installing** (#3732). It renames the config keys, moves `.kittify/doctrine/` to `.kittify/charter-packs/` and removes stale skill copies; edit old `spec-kitty doctrine …` calls in your scripts to `spec-kitty charter …` by hand.
 - **Charter pack cutover: the `spec-kitty doctrine` command group is removed; its commands live under `spec-kitty charter`** (#3732). **Before:** pack tooling, fetch, scaffolding and validation ran under `spec-kitty doctrine`, behind a deprecation banner. **After:** each command has one home under `spec-kitty charter`. An old spelling fails as an unknown command (exit 2), with no alias and no hint; update saved scripts with the [runbook](../migrations/charter-pack-cutover.md).
   - `spec-kitty doctrine pack validate <dir>` → `spec-kitty charter pack validate <dir>` (it also validates `presets/` and rejects retired pack fields)
   - `spec-kitty doctrine pack assemble …` → `spec-kitty charter pack assemble …`
