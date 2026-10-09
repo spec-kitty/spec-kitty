@@ -87,6 +87,47 @@ def _result_by_id(payload: dict[str, Any], task_id: str) -> dict[str, Any]:
     return next(result for result in payload["results"] if result["id"] == task_id)
 
 
+def test_repeated_subtask_requires_wp_and_scoped_mark_is_idempotent(tmp_path: Path) -> None:
+    slug = "5067-repeated"
+    mission_dir = _write_mission(tmp_path, slug, "# Tasks\n\n## WP01\nSubtasks: T001\n\n## WP02\nSubtasks: T001\n", wp_ids=("WP01", "WP02"))
+    for wp_id in ("WP01", "WP02"):
+        (mission_dir / "tasks" / f"{wp_id}-test.md").write_text(
+            f"---\nwork_package_id: {wp_id}\nsubtasks:\n  - T001\n---\n", encoding="utf-8"
+        )
+
+    def invoke(*extra: str) -> Any:
+        with (
+            patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
+            patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(tmp_path, "main")),
+            patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
+            patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
+        ):
+            return runner.invoke(app, ["mark-status", "T001", "--status", "done", "--mission", slug, "--json", "--no-auto-commit", *extra])
+
+    ambiguous = invoke()
+    assert ambiguous.exit_code == 1
+    assert "--wp" in ambiguous.output
+    assert not (mission_dir / "status.events.jsonl").exists()
+
+    first = invoke("--wp", "WP02")
+    assert first.exit_code == 0, first.output
+    assert json.loads(first.stdout)["summary"]["updated"] == 1
+    again = invoke("--wp", "WP02")
+    assert again.exit_code == 0, again.output
+    assert json.loads(again.stdout)["summary"] == {"updated": 0, "already_satisfied": 1, "not_found": 0}
+
+
+def test_skipped_subtask_is_terminal_for_review_gate(tmp_path: Path) -> None:
+    from specify_cli.core.subtask_rows import unchecked_subtask_ids_from_snapshot
+    from specify_cli.status import WPInnerStateDelta
+
+    delta = WPInnerStateDelta(subtasks={"T001": "skipped"})
+    assert WPInnerStateDelta.from_dict(delta.to_dict()).to_dict() == delta.to_dict()
+    with patch("specify_cli.status.wp_snapshot_state", return_value={"subtasks": {"T001": "skipped"}}):
+        assert unchecked_subtask_ids_from_snapshot(tmp_path, "WP01", ["T001"]) == []
+
+
 def test_inline_subtasks_single(tmp_path: Path) -> None:
     """WP04/T015: inline-Subtasks completion is event-sourced, not a tasks.md
     byte-write — the row stays byte-identical (no checkbox is materialized)."""
