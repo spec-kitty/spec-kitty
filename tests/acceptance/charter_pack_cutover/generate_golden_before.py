@@ -30,6 +30,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from unittest import mock
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -79,20 +80,14 @@ def _git(*args: str) -> str:
 @contextlib.contextmanager
 def _isolated_home() -> Iterator[Path]:
     """Point HOME / XDG at a throwaway directory: in-process CLI runs write global state."""
-    keys = ("HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME")
-    saved = {k: os.environ.get(k) for k in keys}
+    keys = ("XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_STATE_HOME")
     home = Path(tempfile.mkdtemp(prefix="charter-pack-cutover-home-"))
-    os.environ["HOME"] = str(home)
-    for key in keys[1:]:
-        os.environ[key] = str(home / key.lower())
+    overrides = {"HOME": str(home), **{key: str(home / key.lower()) for key in keys}}
     try:
-        yield home
+        # patch.dict restores the whole mapping on exit, deleting keys that were unset.
+        with mock.patch.dict(os.environ, overrides):
+            yield home
     finally:
-        for key, value in saved.items():
-            if value is None:
-                os.environ.pop(key, None)
-            else:
-                os.environ[key] = value
         shutil.rmtree(home, ignore_errors=True)
 
 

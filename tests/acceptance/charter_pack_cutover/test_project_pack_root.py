@@ -6,6 +6,7 @@ import importlib
 import importlib.util
 import re
 import sys
+from unittest import mock
 from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
@@ -26,8 +27,10 @@ def load_module_by_path(path: Path, name: str) -> ModuleType:
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec is not None and spec.loader is not None, path
     module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module  # dataclasses and typing resolve a module through sys.modules
-    spec.loader.exec_module(module)
+    # dataclasses and typing resolve a module through sys.modules while it executes;
+    # patch.dict removes the entry again afterwards.
+    with mock.patch.dict(sys.modules, {spec.name: module}):
+        spec.loader.exec_module(module)
     return module
 
 

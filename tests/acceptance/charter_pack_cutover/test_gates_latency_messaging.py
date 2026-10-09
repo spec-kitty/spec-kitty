@@ -12,6 +12,7 @@ import statistics
 import subprocess
 import sys
 import time
+from unittest import mock
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,8 +51,10 @@ def load_gate(path: Path) -> ModuleType:
     spec = importlib.util.spec_from_file_location(f"acceptance_gate_{path.stem}", path)
     assert spec is not None and spec.loader is not None, path
     module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module  # dataclasses and typing resolve a module through sys.modules
-    spec.loader.exec_module(module)
+    # dataclasses and typing resolve a module through sys.modules while it executes;
+    # patch.dict removes the entry again afterwards.
+    with mock.patch.dict(sys.modules, {spec.name: module}):
+        spec.loader.exec_module(module)
     return module
 
 
