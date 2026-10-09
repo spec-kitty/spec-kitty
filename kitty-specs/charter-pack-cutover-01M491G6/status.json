@@ -1,7 +1,7 @@
 {
-  "event_count": 217,
-  "last_event_id": "01M4F6RFP0AT0EWCAN5S2QBV0V",
-  "materialized_at": "2026-10-09T02:09:32.683701+00:00",
+  "event_count": 219,
+  "last_event_id": "01M4F7QA2E4VAKNFEZDJZ87PEN",
+  "materialized_at": "2026-10-09T02:26:22.926756+00:00",
   "mission_number": "",
   "mission_slug": "charter-pack-cutover-01M491G6",
   "mission_type": "software-dev",
@@ -13,8 +13,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "in_review": 0,
+    "in_progress": 0,
+    "in_review": 1,
     "planned": 0
   },
   "work_packages": {
@@ -809,18 +809,19 @@
     },
     "WP25": {
       "actor": "claude",
-      "agent": null,
-      "agent_profile": "reviewer-renata",
+      "agent": "claude",
+      "agent_profile": "architect-alphonso",
       "agent_profile_version": "1.0",
       "force_count": 1,
       "implementer_of_record": "claude",
-      "lane": "in_progress",
-      "last_event_id": "01M4F6RFP0AT0EWCAN5S2QBV0V",
-      "last_transition_at": "2026-10-09T02:09:32.683701+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M4F7QA2E4VAKNFEZDJZ87PEN",
+      "last_transition_at": "2026-10-09T02:26:22.926756+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "WP25 lane-y 080781e4..220bb317: FR-018 gate (0 hits, 2455 scanned >= floor 2392, allowlist empty; 2 orchestrator-ruled exemptions escalated: glossary pack by file, retrieval index historical blocks); FR-014 pins deleted with reasons; FR-016 allowlist 0, facade gate keyed on charter.offering (red then green); renames/closeout follow-ups. Acceptance 352 passed/1 skipped/0 failed/0 xfail. Escalation: census TICKETED_BASELINE 2 entries remain. Activity log: scratchpad wp25tools/WP25-activity-log.md",
-        "Rejected cycle 1: test_no_manual_global_state_mutation red (3 WP01 acceptance-suite sites, red at lane base too); fix in rework. Nit: manifest_loader docstring origin example. All other WP25 surfaces verified."
+        "Rejected cycle 1: test_no_manual_global_state_mutation red (3 WP01 acceptance-suite sites, red at lane base too); fix in rework. Nit: manifest_loader docstring origin example. All other WP25 surfaces verified.",
+        "Review cycle 1 addressed: B1 global-state gate green via mock.patch.dict in the 3 WP01 sites (c7a9eb9c, golden generator_digest updated, golden data unchanged); N1 manifest_loader docstring (5adb0070). Gate + acceptance 417 passed/1 skipped/0 failed/0 xfail; nfr003 -n0 passed."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
@@ -830,14 +831,14 @@
         "reviewer": "claude",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 22544,
+      "shell_pid_created_at": "1791512771.57",
       "subtasks": {
-        "T111": "planned",
-        "T112": "planned",
-        "T113": "planned",
-        "T114": "planned"
+        "T111": "done",
+        "T112": "done",
+        "T113": "done",
+        "T114": "done"
       }
     }
   }
