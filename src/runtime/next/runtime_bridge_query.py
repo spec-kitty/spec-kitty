@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.clock import now_utc_iso
+from kernel.locks import LockAcquireTimeout
 from mission_runtime import OwnedCheckout
 from runtime.next import runtime_bridge_cores as _cores
 from runtime.next import runtime_bridge_decision_log as _decision_log
@@ -612,10 +613,19 @@ def answer_decision_via_runtime(
     # coordination branch (spec-kitty #1546, FR-001–FR-005).
     answer_emitter: Any = _decision_log._wrap_with_decision_git_log(sync_emitter, mission_slug, repo_root, owned=owned)
     actor = ActorIdentity(actor_id=agent, actor_type=actor_type, provider=None, model=None, tool=None)
-    runtime_provide_decision_answer(
-        run_ref,
-        decision_id,
-        answer,
-        actor,
-        emitter=answer_emitter,
-    )
+    try:
+        runtime_provide_decision_answer(
+            run_ref,
+            decision_id,
+            answer,
+            actor,
+            emitter=answer_emitter,
+        )
+    except LockAcquireTimeout as exc:
+        # A peer holds the run-cursor lock past its bounded wait: surface the
+        # existing answer-error type (not a raw lock traceback). Nothing was
+        # written; the answer can simply be retried.
+        raise MissionRuntimeError(
+            f"Run for mission {mission_slug!r} is busy (another advance holds the run cursor); "
+            f"decision {decision_id!r} was not answered, retry shortly."
+        ) from exc
