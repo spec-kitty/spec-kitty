@@ -3,8 +3,22 @@ type: explanation
 updated: 2026-10-09
 audience: agentic-framework-core-team
 mission: scoped-shadow-workspace-write-boundary-01M4H5FQ
-status: decision-pending-operator
+status: operator-decided
 decides: "#3129 (write-boundary topology) and #2334 (kitty-specs duplication) scoping"
+---
+
+> **OPERATOR DECISION (2026-10-09).**
+> - **#3129 → Option B (layer).** A scoped capability handle is layered onto the existing
+>   coordination/primary partition; the consolidation engine is left untouched. Option A
+>   (replace) is recorded as the deferred north star; Option C's declaration-first
+>   `repo_root`/branch entry is adopted as B's first increment. No structural step is taken
+>   in this spike — B's handle design is future, separately-commissioned work.
+> - **#2334 → end state (ii).** Retire the markdown WP Activity Log in favour of
+>   `status.events.jsonl` (per #2684's title): evict the template hand-append instruction
+>   AND retire `add-history`'s markdown write. Approved to implement now, **gated on a
+>   reader-dependency audit** (confirm no consumer reads the markdown Activity Log for a
+>   decision before removing the writer). If a load-bearing reader is found, surface it with
+>   a migration proposal before removing anything.
 ---
 
 # Scoped shadow workspaces — the write-boundary topology question (#3129 / #2334)
