@@ -112,17 +112,17 @@
           {
             "path": "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/meta.json",
             "reason": "Generated scaffold could not be committed to the protected or unavailable target branch.",
-            "responsible_command": "commit from a non-protected feature branch"
+            "responsible_command": "commit from a non-protected topic branch"
           },
           {
             "path": "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/tasks/README.md",
             "reason": "Generated scaffold could not be committed to the protected or unavailable target branch.",
-            "responsible_command": "commit from a non-protected feature branch"
+            "responsible_command": "commit from a non-protected topic branch"
           },
           {
             "path": "<TMP>/repo/kitty-specs/gold-coord-ok-<MID8#1>/tasks/.gitkeep",
             "reason": "Generated scaffold could not be committed to the protected or unavailable target branch.",
-            "responsible_command": "commit from a non-protected feature branch"
+            "responsible_command": "commit from a non-protected topic branch"
           }
         ],
         "write_mode": "update_existing_files"
@@ -907,17 +907,17 @@
           {
             "path": "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/meta.json",
             "reason": "Generated scaffold could not be committed to the protected or unavailable target branch.",
-            "responsible_command": "commit from a non-protected feature branch"
+            "responsible_command": "commit from a non-protected topic branch"
           },
           {
             "path": "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/tasks/README.md",
             "reason": "Generated scaffold could not be committed to the protected or unavailable target branch.",
-            "responsible_command": "commit from a non-protected feature branch"
+            "responsible_command": "commit from a non-protected topic branch"
           },
           {
             "path": "<TMP>/repo/kitty-specs/gold-default-primary-<MID8#1>/tasks/.gitkeep",
             "reason": "Generated scaffold could not be committed to the protected or unavailable target branch.",
-            "responsible_command": "commit from a non-protected feature branch"
+            "responsible_command": "commit from a non-protected topic branch"
           }
         ],
         "write_mode": "update_existing_files"
