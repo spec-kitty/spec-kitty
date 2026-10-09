@@ -38,6 +38,7 @@ from mission_runtime import (
     kind_is_coordination_residue,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.coordination.worktree_branch import coord_worktree_branch, normalize_ref
 
 __all__ = [
     "CoordRepairOutcome",
@@ -503,30 +504,6 @@ def _rev_parse_head(coord_worktree: Path, env: dict[str, str]) -> str | None:
     return head.stdout.strip() or None
 
 
-def _normalized_branch_name(ref: str) -> str:
-    """Strip a ``refs/heads/`` prefix so branch names compare like-for-like."""
-    prefix = "refs/heads/"
-    return ref[len(prefix) :] if ref.startswith(prefix) else ref
-
-
-def _worktree_checked_out_branch(coord_worktree: Path, env: dict[str, str]) -> str | None:
-    """Return the worktree's checked-out branch name, or ``None`` when detached.
-
-    ``git symbolic-ref HEAD`` fails (non-zero) on a detached HEAD — treated as no
-    branch identity rather than raising, so the caller can refuse uniformly.
-    """
-    ref = subprocess.run(
-        ["git", "-C", str(coord_worktree), "symbolic-ref", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-        env=env,
-    )
-    if ref.returncode != 0:
-        return None
-    return ref.stdout.strip() or None
-
-
 def _worktree_branch_matches_coord_ref(coord_worktree: Path, coord_ref: str, env: dict[str, str]) -> bool:
     """Branch-identity guard closing the #4920-sibling foreign-branch class.
 
@@ -541,10 +518,10 @@ def _worktree_branch_matches_coord_ref(coord_worktree: Path, coord_ref: str, env
     stranded. Require the worktree to have ``coord_ref`` itself checked out
     (detached HEAD refuses too) before any revert is attempted.
     """
-    checked_out = _worktree_checked_out_branch(coord_worktree, env)
+    checked_out = coord_worktree_branch(coord_worktree, env=env)
     if checked_out is None:
         return False
-    return _normalized_branch_name(checked_out) == _normalized_branch_name(coord_ref)
+    return normalize_ref(checked_out) == normalize_ref(coord_ref)
 
 
 def _head_shape_is_expected(
