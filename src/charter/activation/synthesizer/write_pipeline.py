@@ -35,8 +35,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
-from packaging.version import InvalidVersion, Version
-
 from kernel.atomic import substantively_equal as _substantively_equal_core
 from kernel.clock import now_utc_iso
 from kernel.charter_pack_paths import (
@@ -668,8 +666,7 @@ def _write_manifest_file(
     the manifest is unchanged modulo those fields. A substantive change
     (artifact set, hashes, adapter identity) still alters the comparison and
     triggers a rewrite, so the on-disk manifest can never go stale relative
-    to the artifacts. A content-changing run from an older CLI keeps the
-    recorded synthesizer version and recomputes the manifest self-hash.
+    to the artifacts, and records the versions that actually ran.
 
     Returns the manifest callers should observe: the freshly written one, or
     — when the write was skipped — the prior on-disk manifest (preserving its
@@ -682,16 +679,6 @@ def _write_manifest_file(
     if _substantively_equal(new_manifest_bytes, manifest_path, _VOLATILE_MANIFEST_FIELDS):
         return load_manifest(manifest_path)
 
-    if manifest_path.exists():
-        previous = load_manifest(manifest_path)
-        try:
-            older = Version(manifest.synthesizer_version) < Version(previous.synthesizer_version)
-        except InvalidVersion:
-            older = False
-        if older:
-            manifest = finalize_manifest(
-                manifest.model_copy(update={"synthesizer_version": previous.synthesizer_version})
-            )
     dump_manifest(manifest, manifest_path, guard)
     return manifest
 
