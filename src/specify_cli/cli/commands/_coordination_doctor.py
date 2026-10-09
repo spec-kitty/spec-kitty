@@ -357,8 +357,8 @@ def _coord_worktree_head_finding(
             f"expected {coord_branch!r}."
         ),
         next_step=(
-            f"Inspect the worktree manually; then run `{_WORKSPACE_RECOVERY_CMD}` "
-            "to restore."
+            "Inspect the worktree, then check out the coordination branch there: "
+            f"`git -C {worktree} checkout {coord_branch}`."
         ),
         error_code="COORDINATION_WORKTREE_BRANCH_MISMATCH",
     )
