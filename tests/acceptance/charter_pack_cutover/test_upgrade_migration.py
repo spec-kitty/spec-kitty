@@ -496,7 +496,9 @@ def _kept_kinds(name: str, relation: str) -> set[str]:
         return {k.removeprefix("activated_") for k in STALE_KEYS_KEPT.get(name, ())}
     if relation == "minimal_equal":
         return {"directives", "tactics"}
-    return set()
+    if relation == "pre_rc35":
+        return set()
+    raise ValueError(f"{name}: unknown EXPECTED_RELATION {relation!r}")
 
 
 def expected_after(name: str, record: dict[str, Any], builtin_now: dict[str, list[str]]) -> dict[str, frozenset[str]]:
