@@ -526,7 +526,7 @@
      }
     },
     "list": {
-     "help": "List activated doctrine artifacts by kind.",
+     "help": "List activated charter artifacts by kind.",
      "hidden": false,
      "deprecated": false
     },
@@ -561,12 +561,12 @@
        "deprecated": false
       },
       "asset": {
-       "help": "Resolve shipped and overlay doctrine assets (no install — C-002).",
+       "help": "Resolve shipped and overlay charter pack assets (no install — C-002).",
        "hidden": false,
        "deprecated": false,
        "commands": {
         "list": {
-         "help": "List all resolvable doctrine assets and their source tiers.",
+         "help": "List all resolvable charter pack assets and their source tiers.",
          "hidden": false,
          "deprecated": false
         },

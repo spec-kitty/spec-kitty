@@ -98,7 +98,7 @@ spec-kitty charter org validate .
 def org_init(
     pack_path: Path = typer.Argument(
         ...,
-        help="Destination directory for the scaffold or rendered doctrine tree.",
+        help="Destination directory for the scaffold or rendered charter pack tree.",
     ),
     force: bool = typer.Option(
         False,

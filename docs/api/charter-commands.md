@@ -43,7 +43,7 @@ generated [`spec-kitty charter` section of the CLI Command Reference](cli-comman
 | `activate` | Activate a doctrine artifact by kind and ID (FR-004), with optional cascade — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-activate) |
 | `deactivate` | Deactivate a doctrine artifact by kind and ID (FR-005), with optional cascade — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-deactivate) |
 | `preflight` | Verify charter-derived state before a governed session begins — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-preflight) |
-| `list` | List activated doctrine artifacts by kind — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-list) |
+| `list` | List activated charter artifacts by kind — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-list) |
 | `mission-type` | Mission type commands (activated types only) — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-mission-type) |
 | `pack` | Charter pack management commands — see [CLI Command Reference](cli-commands.md#spec-kitty-charter-pack) |
 
@@ -104,7 +104,7 @@ interview answers fail closed; use `--no-from-interview` to opt into defaults.
 | Flag | Description | Default |
 | --- | --- | --- |
 | `--mission-type TEXT` | Mission type for template-set defaults | — |
-| `--template-set TEXT` | Override doctrine template set (must exist in packaged doctrine missions) | — |
+| `--template-set TEXT` | Override charter offering template set (must exist in packaged charter offering missions) | — |
 | `--from-interview` / `--no-from-interview` | Load interview answers if present | `--from-interview` |
 | `--profile TEXT` | Default profile when no interview is available | `minimal` |
 | `--force`, `-f` | Overwrite existing charter bundle | — |

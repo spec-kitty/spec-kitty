@@ -1211,7 +1211,7 @@ def rewrite_opposed_by(
         Path,
         typer.Option(
             "--pack",
-            help="Root directory of the target pack to migrate (org pack or any directory shaped like the built-in doctrine tree).",
+            help="Root directory of the target pack to migrate (org pack or any directory shaped like the built-in charter pack tree).",
             metavar="PATH",
         ),
     ] = Path("."),

@@ -424,7 +424,7 @@ def generate(
     template_set: str | None = typer.Option(
         None,
         "--template-set",
-        help="Override doctrine template set (must exist in packaged doctrine missions)",
+        help="Override charter offering template set (must exist in packaged charter offering missions)",
     ),
     from_interview: bool = typer.Option(True, "--from-interview/--no-from-interview", help="Load interview answers if present"),
     profile: str = typer.Option("minimal", "--profile", help="Default profile when no interview is available"),

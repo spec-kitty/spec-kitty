@@ -1,4 +1,4 @@
-"""spec-kitty charter list — show activated doctrine artifacts per kind."""
+"""spec-kitty charter list — show activated charter artifacts per kind."""
 
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ _wide_console = CliConsole(width=200)
 
 charter_list_app = typer.Typer(
     name="list",
-    help="List activated doctrine artifacts by kind.",
+    help="List activated charter artifacts by kind.",
     no_args_is_help=False,
     invoke_without_command=True,
 )
@@ -167,7 +167,7 @@ def list_cmd(
     ),
     repo_root: Path = typer.Option(Path("."), hidden=True),
 ) -> None:
-    """List activated doctrine artifacts for each charter kind.
+    """List activated charter artifacts for each charter kind.
 
     With ``--all`` the listing additionally surfaces every *available* artifact
     across the built-in, org, and project layers — each annotated by its source
