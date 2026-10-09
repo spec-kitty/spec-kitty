@@ -470,6 +470,41 @@ def _untracked_mission_paths(worktree: Path) -> tuple[str, ...]:
     return tuple(str(entry.path) for entry in entries if entry.xy == "??")
 
 
+def _short_ref(ref: str) -> str:
+    return ref.removeprefix("refs/heads/")
+
+
+def _declared_coordination_branch(seam: PlacementSeam) -> str | None:
+    """The ``coordination_branch`` the Mission's primary ``meta.json`` declares, short-named; ``None`` when absent or unreadable."""
+    from specify_cli.core.paths import load_meta_fail_closed
+
+    try:
+        meta = load_meta_fail_closed(seam.read_dir(MissionArtifactKind.PRIMARY_METADATA)) or {}
+    except MissionMetaReadError:
+        return None
+    declared = meta.get("coordination_branch")
+    return _short_ref(declared) if isinstance(declared, str) and declared else None
+
+
+def _refuse_on_wrong_checked_out_branch(mismatch: CoordinationWorkspaceBranchMismatch, *, merge_record_exists: bool) -> typer.Exit:
+    """Render the refusal for a coordination worktree that left its declared branch (or is detached); return the ``Exit(1)`` to raise (#2908).
+
+    The declared branch is the composed one, so the fix is to check it out again
+    in the worktree. Like :func:`_refuse_on_uncomposed_coordination_branch`, this
+    does NOT claim that no state changed.
+    """
+    expected = _short_ref(mismatch.expected_ref)
+    actual = escape(_short_ref(mismatch.actual_ref))
+    worktree = escape(str(mismatch.worktree_path))
+    console.print(
+        f"[red]Error:[/red] The coordination worktree {worktree} is on {actual}, not on the Mission's coordination branch '{escape(expected)}', "
+        "so it cannot read or write the Mission's coordination status.\n"
+        f"Check out the coordination branch there: [bold]git -C {worktree} checkout {escape(expected)}[/bold], then re-run [bold]spec-kitty consolidate[/bold]. "
+        f"{escape(_protected_refusal_footer(merge_record_exists))}{COORDINATION_WORKTREE_BRANCH_MISMATCH_SUFFIX}"
+    )
+    return typer.Exit(1)
+
+
 def _refuse_on_uncomposed_coordination_branch(mismatch: CoordinationWorkspaceBranchMismatch, *, merge_record_exists: bool) -> typer.Exit:
     """Render the refusal for a coordination worktree on a branch the product does not compose; return the ``Exit(1)`` to raise (#5750).
 
@@ -577,7 +612,10 @@ def _resolve_run_status_dir(seam: PlacementSeam) -> Path:
         mismatch = _branch_mismatch_cause(exc)
         if mismatch is None:
             raise  # any other resolution failure keeps the behaviour it had before #5750
-        raise _refuse_on_uncomposed_coordination_branch(mismatch, merge_record_exists=merge_record_may_exist(seam)) from exc
+        merge_record_exists = merge_record_may_exist(seam)
+        if _declared_coordination_branch(seam) == _short_ref(mismatch.expected_ref):
+            raise _refuse_on_wrong_checked_out_branch(mismatch, merge_record_exists=merge_record_exists) from exc
+        raise _refuse_on_uncomposed_coordination_branch(mismatch, merge_record_exists=merge_record_exists) from exc
     except FeatureStatusLockTimeoutError as exc:
         raise _abort_before_state_change(
             exc,
