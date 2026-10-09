@@ -186,33 +186,19 @@ def test_no_for_feature_operator_text_in_src() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_scan_catches_fstring_offender() -> None:
-    src = 'def f(slug):\n    return f"Add tasks for feature {slug}"\n'
-    assert scan_python_source(src, "pkg/mod.py")
+_OFFENDERS = {
+    "f-string": 'def f(slug):\n    return f"Add tasks for feature {slug}"\n',
+    "adjacent concatenation": 'MSG = ("Add tasks "\n       "for feature X")\n',
+    "explicit plus concatenation": 'def f(slug):\n    return "Add tasks for " + "feature " + slug\n',
+    "variable": 'MSG = "Status not found for feature here"\ndef f():\n    return MSG\n',
+    ".format template": 'def f(slug):\n    return "Add tasks for feature {}".format(slug)\n',
+    "leading Feature:": 'def f(slug):\n    print(f"   Feature: {slug}")\n',
+    "deprecated feature branch prose": 'MSG = "Switch to a feature branch or pass --branch-strategy"\n',
+}
 
 
-def test_scan_catches_adjacent_concatenation_offender() -> None:
-    src = 'MSG = ("Add tasks "\n       "for feature X")\n'
-    assert scan_python_source(src, "pkg/mod.py")
-
-
-def test_scan_catches_explicit_plus_concatenation_offender() -> None:
-    src = 'def f(slug):\n    return "Add tasks for " + "feature " + slug\n'
-    assert scan_python_source(src, "pkg/mod.py")
-
-
-def test_scan_catches_variable_offender() -> None:
-    src = 'MSG = "Status not found for feature here"\ndef f():\n    return MSG\n'
-    assert scan_python_source(src, "pkg/mod.py")
-
-
-def test_scan_catches_format_template_offender() -> None:
-    src = 'def f(slug):\n    return "Add tasks for feature {}".format(slug)\n'
-    assert scan_python_source(src, "pkg/mod.py")
-
-
-def test_scan_catches_leading_feature_colon_offender() -> None:
-    src = 'def f(slug):\n    print(f"   Feature: {slug}")\n'
+@pytest.mark.parametrize("src", _OFFENDERS.values(), ids=_OFFENDERS.keys())
+def test_scan_catches_each_offender_form(src: str) -> None:
     assert scan_python_source(src, "pkg/mod.py")
 
 
@@ -220,19 +206,16 @@ def test_scan_catches_leading_feature_colon_offender() -> None:
 # Near-miss negatives (must stay green)
 # ---------------------------------------------------------------------------
 
-
-def test_scan_ignores_clean_mission_wording() -> None:
-    src = 'def f(slug):\n    return f"Add tasks for mission {slug}"\n'
-    assert scan_python_source(src, "pkg/mod.py") == []
-
-
-def test_scan_ignores_feature_identifier_loops() -> None:
-    src = "def f(dirs):\n    return [feature_dir for feature_dir in dirs]\n"
-    assert scan_python_source(src, "pkg/mod.py") == []
+_CLEAN = {
+    "clean mission wording": 'def f(slug):\n    return f"Add tasks for mission {slug}"\n',
+    "feature identifier loops": "def f(dirs):\n    return [feature_dir for feature_dir in dirs]\n",
+    "docstring mentions": '"""Helper for feature detection.\n\nFeature: notes.\n"""\nX = 1\n',
+    "feature-branch machine value": 'STRATEGY = "feature-branch"\nMSG = "recommended_strategy: feature-branch"\n',
+}
 
 
-def test_scan_ignores_docstring_mentions() -> None:
-    src = '"""Helper for feature detection.\n\nFeature: notes.\n"""\nX = 1\n'
+@pytest.mark.parametrize("src", _CLEAN.values(), ids=_CLEAN.keys())
+def test_scan_ignores_each_clean_form(src: str) -> None:
     assert scan_python_source(src, "pkg/mod.py") == []
 
 
