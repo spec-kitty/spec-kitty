@@ -87,6 +87,98 @@ def _result_by_id(payload: dict[str, Any], task_id: str) -> dict[str, Any]:
     return next(result for result in payload["results"] if result["id"] == task_id)
 
 
+def test_repeated_subtask_requires_wp_and_scoped_mark_is_idempotent(tmp_path: Path) -> None:
+    slug = "5067-repeated"
+    mission_dir = _write_mission(
+        tmp_path,
+        slug,
+        "# Tasks\n\n## WP01\nSubtasks: T001, T002\n\n## WP02\nSubtasks: T001\nReuses the fixture from T002 in WP01.\n",
+        wp_ids=("WP01", "WP02"),
+    )
+    rosters = {"WP01": ("T001", "T002"), "WP02": ("T001",)}
+    for wp_id, ids in rosters.items():
+        listed = "".join(f"  - {task_id}\n" for task_id in ids)
+        (mission_dir / "tasks" / f"{wp_id}-test.md").write_text(
+            f"---\nwork_package_id: {wp_id}\nsubtasks:\n{listed}---\n", encoding="utf-8"
+        )
+
+    def invoke(*extra: str, task_id: str = "T001") -> Any:
+        with (
+            patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
+            patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(tmp_path, "main")),
+            patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
+            patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
+        ):
+            return runner.invoke(app, ["mark-status", task_id, "--status", "done", "--mission", slug, "--json", "--no-auto-commit", *extra])
+
+    ambiguous = invoke()
+    assert ambiguous.exit_code == 1
+    assert "--wp" in ambiguous.output
+    assert not (mission_dir / "status.events.jsonl").exists()
+
+    first = invoke("--wp", "WP02")
+    assert first.exit_code == 0, first.output
+    assert json.loads(first.stdout)["summary"]["updated"] == 1
+    events_before = (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
+    assert '"wp_id": "WP02"' in events_before
+    again = invoke("--wp", "WP02")
+    assert again.exit_code == 0, again.output
+    assert json.loads(again.stdout)["summary"] == {"updated": 0, "already_satisfied": 1, "not_found": 0}
+    assert (mission_dir / "status.events.jsonl").read_text(encoding="utf-8") == events_before
+
+    # A prose mention of T002 under WP02 does not make WP02 an owner: the authored
+    # roster decides, so T002 resolves to WP01 without --wp, and --wp WP02 refuses.
+    not_owner = invoke("--wp", "WP02", task_id="T002")
+    assert not_owner.exit_code == 1
+    for fragment in ("T002 is not a subtask of WP02", f"Mission {slug}", "(owners: WP01)", "Re-run with --wp WP01."):
+        assert fragment in not_owner.output
+    bad_format = invoke("--wp", "second")
+    assert bad_format.exit_code == 1
+    assert "expected WP<digits>" in bad_format.output
+    assert (mission_dir / "status.events.jsonl").read_text(encoding="utf-8") == events_before
+    prose_only = invoke(task_id="T002")
+    assert prose_only.exit_code == 0, prose_only.output
+    assert '"wp_id": "WP01"' in (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
+
+    # Fail closed: a roster that cannot be read could hide a second owner, so even a
+    # --wp-scoped mark refuses (naming the file) rather than skipping it.
+    events_before = (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
+    (mission_dir / "tasks" / "WP03-broken.md").write_text("---\nsubtasks: [T001\n---\n", encoding="utf-8")
+    unreadable = invoke("--wp", "WP02")
+    assert unreadable.exit_code == 1
+    assert "WP03-broken.md" in unreadable.output
+    assert (mission_dir / "status.events.jsonl").read_text(encoding="utf-8") == events_before
+
+
+def test_skipped_subtask_delta_round_trips() -> None:
+    """The review-gate terminal rule for ``skipped`` is pinned against a real
+    reduced event log in test_tasks_transition_core / test_subtask_rows_snapshot;
+    this keeps only the wire round-trip of the new value."""
+    from specify_cli.status import WPInnerStateDelta
+
+    delta = WPInnerStateDelta(subtasks={"T001": "skipped"})
+    assert WPInnerStateDelta.from_dict(delta.to_dict()).to_dict() == delta.to_dict()
+
+
+@pytest.mark.parametrize("requested", ["skipped", "not_applicable"])
+def test_mark_skipped_emits_skipped_state(tmp_path: Path, requested: str) -> None:
+    slug = "5067-skipped"
+    mission_dir = _write_mission(tmp_path, slug, "# Tasks\n\n## WP01\nSubtasks: T001\n", wp_ids=("WP01",))
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value=slug),
+        patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out", return_value=(tmp_path, "main")),
+        patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning"),
+        patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", _null_lock),
+    ):
+        result = runner.invoke(app, ["mark-status", "T001", "--wp", "WP01", "--status", requested, "--mission", slug, "--json", "--no-auto-commit"])
+    assert result.exit_code == 0, result.output
+    events = (mission_dir / "status.events.jsonl").read_text(encoding="utf-8")
+    assert '"T001": "skipped"' in events
+    assert "not_applicable" not in events  # the alias is an input synonym, never persisted
+
+
 def test_inline_subtasks_single(tmp_path: Path) -> None:
     """WP04/T015: inline-Subtasks completion is event-sourced, not a tasks.md
     byte-write — the row stays byte-identical (no checkbox is materialized)."""

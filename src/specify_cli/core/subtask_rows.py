@@ -251,6 +251,10 @@ class SubtaskRosterResolutionError(RuntimeError):
     """The authored subtask roster could not be resolved safely."""
 
 
+class SubtaskRosterMissingError(SubtaskRosterResolutionError):
+    """The WP file is readable but authors no ``subtasks:`` roster (legacy ``tasks.md``-only WP)."""
+
+
 def _locate_wp_file(feature_dir: Path, wp_id: str) -> Path:
     """Locate the single canonical WP markdown file for *wp_id* under ``tasks/``.
 
@@ -309,7 +313,7 @@ def authored_subtask_roster(feature_dir: Path, wp_id: str) -> list[str]:
     try:
         frontmatter, _body = FrontmatterManager().read(wp_file)
         if "subtasks" not in frontmatter:
-            raise SubtaskRosterResolutionError(
+            raise SubtaskRosterMissingError(
                 f"Cannot resolve subtask roster for {wp_id}: subtasks key is missing"
             )
         metadata = WPMetadata.model_validate(frontmatter, strict=False)
@@ -320,6 +324,42 @@ def authored_subtask_roster(feature_dir: Path, wp_id: str) -> list[str]:
             f"Cannot resolve subtask roster for {wp_id}: {wp_file.name} is unreadable"
         ) from exc
     return normalize_authored_subtask_roster(metadata.subtasks)
+
+
+def authored_roster_owner_map(feature_dir: Path) -> dict[str, frozenset[str]]:
+    """Map every WP in ``tasks/`` to its authored subtask-id roster (upper-cased ids).
+
+    Built ONCE per invocation so an ownership decision reads each WP file a single
+    time. Fail-closed, unlike the lenient ``owning_wp_from_authored_roster``: a WP
+    file whose roster cannot be read (malformed frontmatter, ambiguous files)
+    raises :class:`SubtaskRosterResolutionError`
+    naming that file, because skipping it could make an id owned by several work
+    packages look unique and defeat refuse-before-write. A readable WP file with
+    no ``subtasks:`` key authors no roster (legacy WP) and maps to an empty set.
+    """
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.is_dir():
+        return {}
+    owner_map: dict[str, frozenset[str]] = {}
+    for path in sorted(tasks_dir.glob("*.md")):
+        prefix = re.match(rf"^(WP\d+){_WP_FILE_SEP}", path.name, re.IGNORECASE)
+        if prefix is None:
+            continue
+        wp_id = prefix.group(1).upper()
+        try:
+            roster = authored_subtask_roster(feature_dir, wp_id)
+        except SubtaskRosterMissingError:
+            roster = []  # legacy WP: authors no roster, so ``tasks.md`` may attribute its ids
+        except SubtaskRosterResolutionError as exc:
+            raise SubtaskRosterResolutionError(f"{path.name}: {exc}") from exc
+        owner_map[wp_id] = frozenset(entry.upper() for entry in roster)
+    return owner_map
+
+
+def authored_roster_owners(owner_map: Mapping[str, frozenset[str]], task_id: str) -> list[str]:
+    """Return the WPs (sorted) whose authored roster in *owner_map* contains *task_id*."""
+    normalized = task_id.upper()
+    return sorted(wp_id for wp_id, roster in owner_map.items() if normalized in roster)
 
 
 def normalize_authored_subtask_roster(raw_values: Iterable[object]) -> list[str]:
@@ -354,7 +394,7 @@ def unchecked_subtask_ids_from_snapshot(
     if not roster_ids:
         return []
     # Lazy import: see ``authored_subtask_roster`` — avoids the core->status cycle.
-    from specify_cli.status import Lane, wp_snapshot_state
+    from specify_cli.status import is_subtask_terminal, wp_snapshot_state
 
     wp_state = wp_snapshot_state(feature_dir, wp_id)
     subtasks: Mapping[str, Any] = {}
@@ -362,8 +402,7 @@ def unchecked_subtask_ids_from_snapshot(
         raw = wp_state.get("subtasks")
         if isinstance(raw, Mapping):
             subtasks = raw
-    done = str(Lane.DONE)
-    return [task_id for task_id in roster_ids if str(subtasks.get(task_id, "")) != done]
+    return [task_id for task_id in roster_ids if not is_subtask_terminal(subtasks.get(task_id, ""))]
 
 
 def unchecked_subtask_ids_from_event_stream(
@@ -377,7 +416,7 @@ def unchecked_subtask_ids_from_event_stream(
     coordination branch that has no materialized worktree.  The completion
     semantics are identical to :func:`unchecked_subtask_ids_from_snapshot`.
     """
-    from specify_cli.status import Lane, reduce
+    from specify_cli.status import is_subtask_terminal, reduce
 
     roster_ids = [str(task_id) for task_id in roster]
     if not roster_ids:
@@ -388,5 +427,4 @@ def unchecked_subtask_ids_from_event_stream(
     ).work_packages.get(wp_id)
     raw_subtasks = state.get("subtasks") if state is not None else None
     subtasks: Mapping[str, Any] = raw_subtasks if isinstance(raw_subtasks, Mapping) else {}
-    done = str(Lane.DONE)
-    return [task_id for task_id in roster_ids if str(subtasks.get(task_id, "")) != done]
+    return [task_id for task_id in roster_ids if not is_subtask_terminal(subtasks.get(task_id, ""))]

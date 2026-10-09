@@ -33,11 +33,13 @@ from specify_cli.core.subtask_rows import (
     UNCHECKED_SUBTASK_ROW,
     authored_subtask_roster,
     iter_wp_section_subtask_rows,
+    unchecked_subtask_ids_from_event_stream,
     unchecked_subtask_ids_from_snapshot,
 )
 from specify_cli.migration.backfill_runtime_state import _subtasks_from_tasks_md
 from specify_cli.status import emit_inner_state_changed
-from specify_cli.status.models import Lane, Status, WPInnerStateDelta
+from specify_cli.status.store import read_event_stream
+from specify_cli.status.models import Lane, SubtaskStatus, SubtaskValue, WPInnerStateDelta
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -89,7 +91,7 @@ def _write_wp_file(feature_dir: Path, wp_id: str, subtask_ids: list[str]) -> Pat
     return wp_file
 
 
-def _emit_subtasks(feature_dir: Path, wp_id: str, subtasks: dict[str, Status]) -> None:
+def _emit_subtasks(feature_dir: Path, wp_id: str, subtasks: dict[str, SubtaskValue]) -> None:
     """Record subtask completion through the REAL writer ``mark-status`` uses."""
     emit_inner_state_changed(
         feature_dir,
@@ -319,7 +321,8 @@ def test_authored_subtask_roster_reads_frontmatter(tmp_path: Path) -> None:
         authored_subtask_roster(feature_dir, "WP99")
 
 
-def test_unchecked_from_snapshot_fail_closed_and_done_detection(tmp_path: Path) -> None:
+@pytest.mark.parametrize("terminal", [Lane.DONE, SubtaskStatus.SKIPPED], ids=["done", "skipped"])
+def test_unchecked_from_snapshot_fail_closed_and_terminal_detection(tmp_path: Path, terminal: SubtaskValue) -> None:
     feature_dir = _seed_feature_dir(tmp_path, tasks_md=None)
     _write_wp_file(feature_dir, "WP01", ["T001", "T002"])
 
@@ -327,8 +330,15 @@ def test_unchecked_from_snapshot_fail_closed_and_done_detection(tmp_path: Path) 
     # Silent snapshot -> fail-closed (every roster id incomplete).
     assert unchecked_subtask_ids_from_snapshot(feature_dir, "WP01", roster) == ["T001", "T002"]
 
-    _emit_subtasks(feature_dir, "WP01", {"T001": Lane.DONE, "T002": Lane.DONE})
+    # A deliberately skipped subtask is as terminal as a done one; planned is not.
+    _emit_subtasks(feature_dir, "WP01", {"T001": terminal, "T002": Lane.PLANNED})
+    assert unchecked_subtask_ids_from_snapshot(feature_dir, "WP01", roster) == ["T002"]
+
+    _emit_subtasks(feature_dir, "WP01", {"T002": terminal})
     assert unchecked_subtask_ids_from_snapshot(feature_dir, "WP01", roster) == []
+    # The transactional (event-stream) resolver shares the same terminal rule.
+    stream = read_event_stream(feature_dir)
+    assert unchecked_subtask_ids_from_event_stream(stream, "WP01", roster) == []
 
     # An empty roster is nothing to block on regardless of snapshot state.
     assert unchecked_subtask_ids_from_snapshot(feature_dir, "WP01", []) == []

@@ -143,7 +143,7 @@
        "deprecated": false
       },
       "mark-status": {
-       "help": "Update task checkbox status in tasks.md for one or more tasks.\n\nAccepts MULTIPLE task IDs separated by spaces. All tasks are updated\nin a single operation with one commit.\n\nExamples:\n    # Single task:\n    spec-kitty agent tasks mark-status T001 --status done\n\n    # Multiple tasks (space-separated):\n    spec-kitty agent tasks mark-status T001 T002 T003 --status done\n\n    # Many tasks at once:\n    spec-kitty agent tasks mark-status T040 T041 T042 T043 T044 T045 --status done --mission 001-my-feature\n\n    # With JSON output:\n    spec-kitty agent tasks mark-status T001 T002 --status done --json",
+       "help": "Record subtask status for one or more tasks.\n\nAccepts multiple task IDs separated by spaces. Status is recorded in the\nmission event log. Use --wp when the same ID appears in more than one WP.\n\nExamples:\n    # Single task:\n    spec-kitty agent tasks mark-status T001 --status done\n\n    # Multiple tasks (space-separated):\n    spec-kitty agent tasks mark-status T001 T002 T003 --status done\n\n    # Many tasks at once:\n    spec-kitty agent tasks mark-status T040 T041 T042 T043 T044 T045 --status done --mission 001-my-feature\n\n    # With JSON output:\n    spec-kitty agent tasks mark-status T001 T002 --status done --json\n\n    # When IDs repeat across work packages:\n    spec-kitty agent tasks mark-status T001 --wp WP02 --status skipped",
        "hidden": false,
        "deprecated": false
       },
@@ -236,7 +236,7 @@
      "deprecated": false,
      "commands": {
       "emit": {
-       "help": "Emit a status transition event for a work package.\n\nRecords a lane transition in the canonical event log, validates the\ntransition against the state machine, materializes a snapshot, and\nupdates legacy compatibility views.\n\nExamples:\n    spec-kitty agent status emit WP01 --to claimed --actor claude\n    spec-kitty agent status emit WP01 --to approved --actor claude --review-result-json '{\"reviewer\": \"alice\", \"verdict\": \"approved\", \"reference\": \"PR#1\"}'\n    spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason \"resuming after crash\"",
+       "help": "Emit a status transition event for a work package.\n\nRecords a lane transition in the canonical event log, validates the\ntransition against the state machine, materializes a snapshot, and\nupdates legacy compatibility views.\n\nExamples:\n    spec-kitty agent status emit WP01 --to claimed --actor claude\n    spec-kitty agent status emit --wp WP01 --to claimed --actor claude\n    spec-kitty agent status emit WP01 --to approved --actor claude --review-result-json '{\"reviewer\": \"alice\", \"verdict\": \"approved\", \"reference\": \"PR#1\"}'\n    spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason \"resuming after crash\"",
        "hidden": false,
        "deprecated": false
       },

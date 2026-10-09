@@ -140,6 +140,33 @@ def _patch_detection(tmp_path: Path, mission_slug: str = "034-test-feature"):
 class TestEmitCommand:
     """Tests for ``spec-kitty agent status emit``."""
 
+    @pytest.mark.parametrize(
+        ("wp_args", "expected_error"),
+        [
+            (["--wp", "WP01"], None),
+            (["WP01"], None),
+            (["WP01", "--wp", "wp01"], None),
+            (["WP01", "--wp", "WP02"], "must match"),
+            ([], "work package ID is required"),
+            (["--wp", "W1"], "expected WP<digits>"),
+        ],
+        ids=["wp-only", "positional-only", "both-matching", "both-mismatching", "neither", "bad-format"],
+    )
+    def test_emit_wp_argument_forms(self, tmp_path: Path, feature_dir: Path, wp_args: list[str], expected_error: str | None) -> None:
+        _seed_planned(feature_dir)
+        patches = _patch_detection(tmp_path)
+        with (patches["locate_project_root"], patches["get_main_repo_root"], patches["saas_fan_out"]):
+            result = runner.invoke(
+                app,
+                ["emit", *wp_args, "--to", "claimed", "--actor", "test-agent", "--mission", "034-test-feature"],
+            )
+        if expected_error is None:
+            assert result.exit_code == 0, result.output
+            assert "WP01" in result.output
+        else:
+            assert result.exit_code == 1
+            assert expected_error in result.output
+
     def test_emit_valid_transition(self, tmp_path: Path, feature_dir: Path):
         """A valid planned -> claimed transition should succeed."""
         _seed_planned(feature_dir)

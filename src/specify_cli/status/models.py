@@ -98,11 +98,51 @@ def get_all_lane_values() -> frozenset[str]:
 
 ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
 
-#: A subtask's completion status reuses the canonical lane/status enum
-#: vocabulary (``Lane``) rather than introducing a divergent string type
-#: (data-model.md §WPInnerStateDelta). A subtask is "done" when its status is
-#: ``Lane.DONE``.
+#: Canonical work-package id form (``WP`` + digits). One authority for the store,
+#: ``agent status emit`` and ``agent tasks mark-status``.
+WP_ID_PATTERN = re.compile(r"^WP\d+$")
+
+
+def normalize_wp_id(value: str) -> str:
+    """Return *value* upper-cased and stripped, or raise ``ValueError`` naming the expected form."""
+    normalized = value.strip().upper()
+    if WP_ID_PATTERN.fullmatch(normalized) is None:
+        raise ValueError(f"Invalid work package ID '{value}': expected WP<digits> (e.g. WP01)")
+    return normalized
+
+
+class SubtaskStatus(StrEnum):
+    """Subtask-only terminal state; it is never a work-package lane."""
+
+    SKIPPED = "skipped"
+
+
 Status = Lane
+SubtaskValue: TypeAlias = Lane | SubtaskStatus
+
+#: Subtask values that count as "finished" for the review gate: completed work
+#: (``Lane.DONE``) or a deliberate operator decision not to do it (``skipped``).
+#: The single authority every gate site consumes (no bare ``"skipped"`` literal).
+TERMINAL_SUBTASK_STATES: frozenset[str] = frozenset({str(Lane.DONE), str(SubtaskStatus.SKIPPED)})
+
+#: Operator-facing synonyms for a subtask status. Input boundary only: the alias
+#: is resolved before any event is built and is never persisted.
+_SUBTASK_STATUS_ALIASES: dict[str, str] = {"not_applicable": str(SubtaskStatus.SKIPPED)}
+
+
+def is_subtask_terminal(value: object) -> bool:
+    """Return True when a reduced-snapshot subtask value is done or skipped."""
+    return str(value) in TERMINAL_SUBTASK_STATES
+
+
+def resolve_subtask_status_alias(value: str) -> str:
+    """Resolve a subtask-status alias (``not_applicable`` -> ``skipped``).
+
+    Mirrors ``transitions.resolve_lane_alias``: returns the normalized input
+    when it is not an alias. The alias is never persisted.
+    """
+    normalized = value.strip().lower()
+    return _SUBTASK_STATUS_ALIASES.get(normalized, normalized)
 
 
 #: The ``actor`` on a ``StatusEvent`` / ``InnerStateChanged`` is EITHER a plain
@@ -589,7 +629,7 @@ class WPInnerStateDelta:
 
     shell_pid: int | None = None
     shell_pid_created_at: str | None = None
-    subtasks: Mapping[str, Status] | None = None
+    subtasks: Mapping[str, SubtaskValue] | None = None
     note: str | None = None
     tracker_refs: list[str] | None = None
     tracker_refs_replace: list[str] | None = None
@@ -705,9 +745,9 @@ class WPInnerStateDelta:
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> WPInnerStateDelta:
         subtasks_raw = data.get("subtasks")
-        subtasks: dict[str, Status] | None = None
+        subtasks: dict[str, SubtaskValue] | None = None
         if subtasks_raw is not None:
-            subtasks = {str(sid): Status(value) for sid, value in subtasks_raw.items()}
+            subtasks = {str(sid): SubtaskStatus(value) if value == SubtaskStatus.SKIPPED else Lane(value) for sid, value in subtasks_raw.items()}
         review_raw = data.get("review")
         review = ReviewOverride.from_dict(review_raw) if review_raw is not None else None
         shell_pid_raw = data.get("shell_pid")

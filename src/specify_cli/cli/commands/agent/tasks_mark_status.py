@@ -57,6 +57,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -74,6 +75,7 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
 )
 from specify_cli.cli.commands.agent.tasks_outline import (
     TASKS_MD_FILENAME,
+    history_wp_ids,
     TaskIdResolutionFormat,
     TaskIdResolutionOutcome,
     TaskIdResult,
@@ -84,11 +86,30 @@ from specify_cli.cli.commands.agent.tasks_outline import (
 )
 from specify_cli.core.subtask_rows import (
     SubtaskRosterResolutionError,
+    authored_roster_owner_map,
+    authored_roster_owners,
     authored_subtask_roster,
 )
 from specify_cli.core.owned_mission import require_unstaged_index
-from specify_cli.status import mission_lock_key
+from specify_cli.status import Lane, SubtaskStatus, SubtaskValue, mission_lock_key, normalize_wp_id, resolve_subtask_status_alias, wp_snapshot_state
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
+
+#: ``--status`` values; ``not_applicable`` is an input alias for ``skipped``.
+_VALID_MARK_STATUSES = ("done", "pending", "skipped", "not_applicable")
+
+
+def _requested_subtask_value(status: str) -> SubtaskValue:
+    """Map a validated ``--status`` to the subtask value it records.
+
+    The single place ``--status`` becomes a persisted value, so the
+    already-satisfied check and the emitted delta cannot disagree. The
+    ``not_applicable`` alias resolves to ``skipped`` here and is never persisted.
+    """
+    resolved = resolve_subtask_status_alias(status)
+    if resolved == SubtaskStatus.SKIPPED:
+        return SubtaskStatus.SKIPPED
+    return Lane.DONE if resolved == "done" else Lane.PLANNED
+
 
 #: WP prompt directories carry a README that is not a work package.
 _README_FILENAME = "readme.md"
@@ -110,6 +131,7 @@ class _MarkStatusState:
     mission: str | None
     auto_commit: bool | None
     json_output: bool
+    wp: str | None = None
     # --- phase A/B: resolved context ---
     repo_root: Path = field(default_factory=Path)
     main_repo_root: Path = field(default_factory=Path)
@@ -127,6 +149,7 @@ class _MarkStatusState:
     updated_tasks: list[str] = field(default_factory=list)
     not_found_tasks: list[str] = field(default_factory=list)
     resolved_tasks: list[str] = field(default_factory=list)
+    task_wps: dict[str, str] = field(default_factory=dict)
 
 
 def _default_mark_status_ports() -> TasksPorts:
@@ -148,9 +171,15 @@ def _ms_validate_inputs(st: _MarkStatusState) -> None:
     """Phase A: validate ``--status`` + non-empty task IDs, then normalize IDs."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    if st.status not in ("done", "pending"):
-        _tasks._output_error(st.json_output, f"Invalid status '{st.status}'. Must be 'done' or 'pending'.")
+    if st.status not in _VALID_MARK_STATUSES:
+        _tasks._output_error(st.json_output, f"Invalid status '{st.status}'. Must be 'done', 'pending', 'skipped', or 'not_applicable'.")
         raise typer.Exit(1)
+    if st.wp is not None:
+        try:
+            st.wp = normalize_wp_id(st.wp)
+        except ValueError as exc:
+            _tasks._output_error(st.json_output, f"Invalid --wp value: {exc}")
+            raise typer.Exit(1) from exc
     if not st.task_ids:
         _tasks._output_error(st.json_output, "At least one task ID is required")
         raise typer.Exit(1)
@@ -298,6 +327,67 @@ def _ms_commit(st: _MarkStatusState, ports: TasksPorts) -> None:
             _tasks.console.print(f"[yellow]Warning:[/yellow] Auto-commit exception: {e}")
 
 
+def _owners_for_task(owner_map: dict[str, frozenset[str]], tasks_content: str, task_id: str) -> list[str]:
+    """Owning WPs of *task_id*: the authored rosters decide; ``tasks.md`` only when no roster does."""
+    return authored_roster_owners(owner_map, task_id) or history_wp_ids(tasks_content, task_id)
+
+
+def _not_an_owner_message(st: _MarkStatusState, task_id: str, owners: list[str]) -> str:
+    """Operator message for ``--wp`` naming a work package that does not own *task_id*."""
+    head = f"{task_id} is not a subtask of {st.wp} in Mission {st.mission_slug}"
+    if not owners:
+        return f"{head}; no work package lists it."
+    rerun = " or ".join(f"--wp {owner}" for owner in owners)
+    return f"{head} (owners: {', '.join(owners)}). Re-run with {rerun}."
+
+
+def _resolve_task_owners(st: _MarkStatusState, tasks_content: str) -> None:
+    """Resolve and record (``st.task_wps``) the owning WP of every requested id.
+
+    Refuses BEFORE anything is written when an id is shared by several WPs and no
+    ``--wp`` was given, when ``--wp`` does not own the id, or when an authored
+    roster cannot be read (fail closed: skipping it could hide a second owner).
+    Bare ``WP<digits>`` ids are left to ``_resolve_wp_id``'s dedicated rejection.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    try:
+        owner_map = authored_roster_owner_map(st.feature_dir)
+    except SubtaskRosterResolutionError as exc:
+        _tasks._output_error(st.json_output, f"Cannot determine which work package owns the subtasks: {exc}")
+        raise typer.Exit(1) from exc
+    for task_id in st.task_ids:
+        if re.fullmatch(r"WP\d+", task_id, re.IGNORECASE):
+            continue
+        owners = _owners_for_task(owner_map, tasks_content, task_id)
+        if st.wp is None and len(owners) > 1:
+            _tasks._output_error(
+                st.json_output,
+                f"{task_id} is a subtask of {', '.join(owners)} in Mission {st.mission_slug}; pass --wp to select one.",
+            )
+            raise typer.Exit(1)
+        if st.wp is not None and st.wp not in owners:
+            _tasks._output_error(st.json_output, _not_an_owner_message(st, task_id, owners))
+            raise typer.Exit(1)
+        if owners:
+            st.task_wps[task_id] = st.wp or owners[0]
+
+
+def _classify_against_snapshot(st: _MarkStatusState, result: TaskIdResult, task_id: str) -> TaskIdResult:
+    """Turn an ``UPDATED`` result into ``ALREADY_SATISFIED`` when the owning WP's
+    reduced snapshot already holds the requested value (a repeat writes no event);
+    otherwise report what is about to be recorded. Other outcomes pass through."""
+    wp_id = st.task_wps.get(task_id)
+    if result.outcome != TaskIdResolutionOutcome.UPDATED or wp_id is None:
+        return result
+    current = wp_snapshot_state(st.status_dir, wp_id)
+    subtasks = (current.get("subtasks") or {}) if current is not None else {}
+    requested = str(_requested_subtask_value(st.status))
+    if subtasks.get(task_id) == requested:
+        return TaskIdResult(task_id, TaskIdResolutionOutcome.ALREADY_SATISFIED, result.format, f"{task_id} in {wp_id} is already {requested}; no event written.")
+    return TaskIdResult(task_id, TaskIdResolutionOutcome.UPDATED, result.format, f"Recorded {requested} for {task_id} in {wp_id}.")
+
+
 def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
     """Phase C: resolve task IDs without mutating the authored tasks index.
 
@@ -323,6 +413,7 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
             raise typer.Exit(1)
 
         content = st.tasks_md.read_text(encoding="utf-8")
+        _resolve_task_owners(st, content)
         lines = content.split("\n")
         results: list[TaskIdResult] = []
         # Update all requested tasks in a single pass.
@@ -345,6 +436,7 @@ def _ms_apply_updates(st: _MarkStatusState, ports: TasksPorts) -> None:
                     message=f"{task_id} was not found in any supported task format.",
                 )
             )
+            result = _classify_against_snapshot(st, result, task_id)
             results.append(result)
 
         st.results = results
@@ -377,17 +469,17 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     ``Path.cwd()`` (C-003/#2647).
     """
     from mission_runtime import is_single_branch, resolve_topology
-    from specify_cli.status import Lane, Status, WPInnerStateDelta
+    from specify_cli.status import WPInnerStateDelta
 
     if not st.updated_tasks:
         return
 
-    target_status: Status = Lane.DONE if st.status == "done" else Lane.PLANNED
+    target_status = _requested_subtask_value(st.status)
     tasks_content = st.tasks_md.read_text(encoding="utf-8")
     resolved_tasks_by_wp: dict[str, list[str]] = {}
     unresolved_tasks: list[str] = []
     for task_id in st.updated_tasks:
-        history_wp_id = _resolve_history_wp_id(tasks_content, task_id) or owning_wp_from_authored_roster(st.feature_dir, task_id)
+        history_wp_id = st.task_wps.get(task_id) or _resolve_history_wp_id(tasks_content, task_id) or owning_wp_from_authored_roster(st.feature_dir, task_id)
         if history_wp_id is None:
             unresolved_tasks.append(task_id)
         else:
@@ -606,6 +698,7 @@ def _do_mark_status(
     json_output: bool,
     owned: OwnedCheckout | None = None,
     *,
+    wp: str | None = None,
     ports: TasksPorts | None = None,
 ) -> None:
     """Orchestrate ``mark-status`` over the WP02 ports (C-005 seam), CORELESS.
@@ -629,6 +722,7 @@ def _do_mark_status(
         mission=mission,
         auto_commit=auto_commit,
         json_output=json_output,
+        wp=wp,
         owned=owned,
     )
     try:
