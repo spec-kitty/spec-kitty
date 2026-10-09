@@ -997,6 +997,27 @@ def test_resolve_run_status_dir_refuses_an_uncomposed_coordination_branch_truthf
     assert "correct coordination_branch" not in out  # a recovery that was not proven end to end is not printed
 
 
+@pytest.mark.parametrize("actual_ref", ["refs/heads/scratch", "<detached or unreadable HEAD>"])
+def test_resolve_run_status_dir_tells_the_operator_to_check_out_the_declared_branch(capsys: pytest.CaptureFixture[str], tmp_path: Path, actual_ref: str) -> None:
+    """A declared (composed) coordination branch the worktree merely left gets a plain `git checkout` remedy, not the #5750 "not composed" claim (#2908)."""
+    from specify_cli.coordination.workspace import CoordinationWorkspaceBranchMismatch
+
+    composed = "kitty/mission-m-01KX0000"
+    base = _seam(tmp_path, None)
+    meta = {"mission_id": _SEED_MISSION_ID, "mission_slug": "m", "coordination_branch": composed}
+    (base._primary_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    mismatch = CoordinationWorkspaceBranchMismatch(worktree_path=tmp_path / "coord", expected_ref=composed, actual_ref=actual_ref)
+    seam = _MismatchSeam(mismatch, repo_root=base.repo_root, primary_dir=base._primary_dir)
+
+    with pytest.raises(typer.Exit):
+        entry_preflight._resolve_run_status_dir(seam)
+
+    out = " ".join(capsys.readouterr().out.split())
+    assert f"git -C {tmp_path / 'coord'} checkout {composed}" in out
+    assert "not the one the product composes" not in out and "differs from" not in out
+    assert out.endswith("Error code: COORDINATION_WORKTREE_BRANCH_MISMATCH.")
+
+
 def test_resolve_run_status_dir_with_an_uncomposed_branch_and_an_earlier_merge_record_points_at_abort(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
     _git_init(tmp_path / "coord")
 
