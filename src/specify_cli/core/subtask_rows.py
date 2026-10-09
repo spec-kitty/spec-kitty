@@ -354,7 +354,7 @@ def unchecked_subtask_ids_from_snapshot(
     if not roster_ids:
         return []
     # Lazy import: see ``authored_subtask_roster`` — avoids the core->status cycle.
-    from specify_cli.status import Lane, wp_snapshot_state
+    from specify_cli.status import is_subtask_terminal, wp_snapshot_state
 
     wp_state = wp_snapshot_state(feature_dir, wp_id)
     subtasks: Mapping[str, Any] = {}
@@ -362,8 +362,7 @@ def unchecked_subtask_ids_from_snapshot(
         raw = wp_state.get("subtasks")
         if isinstance(raw, Mapping):
             subtasks = raw
-    terminal = {str(Lane.DONE), "skipped"}
-    return [task_id for task_id in roster_ids if str(subtasks.get(task_id, "")) not in terminal]
+    return [task_id for task_id in roster_ids if not is_subtask_terminal(subtasks.get(task_id, ""))]
 
 
 def unchecked_subtask_ids_from_event_stream(
@@ -377,7 +376,7 @@ def unchecked_subtask_ids_from_event_stream(
     coordination branch that has no materialized worktree.  The completion
     semantics are identical to :func:`unchecked_subtask_ids_from_snapshot`.
     """
-    from specify_cli.status import Lane, reduce
+    from specify_cli.status import is_subtask_terminal, reduce
 
     roster_ids = [str(task_id) for task_id in roster]
     if not roster_ids:
@@ -388,5 +387,4 @@ def unchecked_subtask_ids_from_event_stream(
     ).work_packages.get(wp_id)
     raw_subtasks = state.get("subtasks") if state is not None else None
     subtasks: Mapping[str, Any] = raw_subtasks if isinstance(raw_subtasks, Mapping) else {}
-    terminal = {str(Lane.DONE), "skipped"}
-    return [task_id for task_id in roster_ids if str(subtasks.get(task_id, "")) not in terminal]
+    return [task_id for task_id in roster_ids if not is_subtask_terminal(subtasks.get(task_id, ""))]
