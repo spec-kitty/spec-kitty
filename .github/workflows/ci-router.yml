@@ -203,7 +203,7 @@ jobs:
               - 'src/charter/offering/**'
               - 'src/specify_cli/core/**'
               - 'src/specify_cli/coordination/**'
-              - 'src/specify_cli/doctrine_synthesizer/**'
+              - 'src/specify_cli/charter_pack_synthesizer/**'
               - 'src/specify_cli/status/**'
               - 'src/specify_cli/tool_surface/**'
               - 'src/specify_cli/zeitgeist_client/**'
@@ -233,7 +233,7 @@ jobs:
               - 'kitty-specs/**/acceptance-matrix.json'
               - '.kittify/charter/**'
               - '.kittify/glossaries/**'
-              - '.kittify/doctrine/**'
+              - '.kittify/charter-packs/**'
               - 'contracts/**'
               # Intended: an Op-journal commit under kitty-ops/ triggers the corpus job (the Ops read of the reality suite reads it).
               - 'kitty-ops/**'
@@ -1011,12 +1011,19 @@ jobs:
       - run: |
           uv sync --frozen --all-extras
           uv run --frozen pytest -rs -m "corpus and not windows_ci" \
+            tests/acceptance/charter_pack_cutover/test_cli_surface.py \
+            tests/acceptance/charter_pack_cutover/test_gates_latency_messaging.py \
+            tests/acceptance/charter_pack_cutover/test_package_split.py \
+            tests/acceptance/charter_pack_cutover/test_presets.py \
+            tests/acceptance/charter_pack_cutover/test_project_pack_root.py \
+            tests/acceptance/charter_pack_cutover/test_rename_skills_glossary.py \
+            tests/acceptance/charter_pack_cutover/test_traceability.py \
             tests/contract/test_example_round_trip.py \
             tests/contract/test_mission_status_payloads.py \
             tests/contract/test_mission_status_reality.py \
             tests/integration/test_mission_review_contract_gate.py \
             tests/specify_cli/migration/test_corpus_wp_snapshot_parity.py \
-            "tests/doctrine/test_shipped_profiles.py::TestShippedProfilesPerformance"
+            "tests/charter_offering/test_shipped_profiles.py::TestShippedProfilesPerformance"
 
   # The contract tool unit tests (#5558): every corpus-marked module of tests/contract except the three that
   # `tests-corpus-blocking` owns (the directory minus those three, so a new tool test module is picked up
