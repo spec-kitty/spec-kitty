@@ -24,7 +24,7 @@ from specify_cli.core.mission_creation_decisions import (
     orphan_scaffold_candidates,
     plan_orphan_scaffold_removal,
 )
-from kernel.git import GitCommandError, tracked_paths
+from kernel.git import GitCommandError, changed_paths, tracked_paths
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.mission_creation_errors import ProtectedMintRefusedError
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
@@ -242,16 +242,12 @@ def _base_covering_own_seed(repo_root: Path, branch: str, creation_base: str | N
     tip = _rev_parse_or_none(repo_root, branch)
     if tip is None:
         return creation_base
-    changed = subprocess.run(
-        ["git", "-C", str(repo_root), "diff", "--name-only", creation_base, tip],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if changed.returncode != 0:
+    try:
+        changed = changed_paths(repo_root, creation_base, tip)
+    except GitCommandError:
         return creation_base
     own_prefix = f"{KITTY_SPECS_DIR}/{mission_dir_name}/"
-    paths = [line for line in changed.stdout.splitlines() if line]
+    paths = [path.as_posix() for path in changed]
     return tip if all(path.startswith(own_prefix) for path in paths) else creation_base
 
 

@@ -41,7 +41,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from kernel.git import GitPath, status_entries
+from kernel.git import GitCommandError, GitPath, changed_paths, status_entries
 
 from . import ref_advance
 from .ref_advance import ResidueClassifier
@@ -332,8 +332,11 @@ def _merge_owned_paths(worktree: Path, env: dict[str, str] | None) -> frozenset[
     base = _run_git(worktree, ["merge-base", "HEAD", "MERGE_HEAD"], env=env)
     if base.returncode != 0:
         return frozenset()
-    changed = _run_git(worktree, ["diff", "--name-only", base.stdout.strip(), "MERGE_HEAD"], env=env)
-    return frozenset(changed.stdout.split("\n")) - {""} if changed.returncode == 0 else frozenset()
+    try:
+        changed = changed_paths(worktree, base.stdout.strip(), "MERGE_HEAD", env=env)
+    except GitCommandError:
+        return frozenset()
+    return frozenset(path.as_posix() for path in changed)
 
 
 def _stage_blob(worktree: Path, stage: int, path: str, env: dict[str, str] | None) -> bytes | None:
