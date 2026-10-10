@@ -1081,7 +1081,8 @@ def _confirm_discard(mission_slug: str, *, force: bool) -> None:
     confirm = typer.confirm(
         f"Discard mission {mission_slug}? This deletes the coordination "
         f"branch, every lane branch, and all worktrees. Unmerged work "
-        f"on those branches WILL BE LOST.",
+        f"on those branches WILL BE LOST, and so will the coordination history "
+        f"kept there (review cycles, traces, issue matrix) unless it is already on the primary branch.",
         default=False,
     )
     if not confirm:
