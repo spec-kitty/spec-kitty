@@ -1,0 +1,13 @@
+{
+  "wp_id": "WP06",
+  "captured_at": "2026-10-10T06:21:23Z",
+  "base_branch": "fix/nightly-suites-green-rework",
+  "base_commit": "57d5af42de251677c6dff1c043fa78521474675f",
+  "test_runner": "custom",
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml"
+}

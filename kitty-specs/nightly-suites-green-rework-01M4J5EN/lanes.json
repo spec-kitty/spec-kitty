@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "mission_slug": "nightly-suites-green-rework-01M4J5EN",
+  "mission_id": "01M4J5ENT8XAK1VJTVN6H75D9W",
+  "mission_branch": "kitty/mission-nightly-suites-green-rework-01M4J5EN",
+  "target_branch": "fix/nightly-suites-green-rework",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/mission_creation.py",
+        "src/specify_cli/core/mission_creation_meta.py",
+        "src/specify_cli/workspace/root_resolver.py",
+        "tests/integration/test_owned_lifecycle_acceptance_e2e.py",
+        "tests/integration/test_owned_lifecycle_acceptance_finalize.py",
+        "tests/integration/test_owned_lifecycle_acceptance_review.py",
+        "tests/specify_cli/workspace/test_owned_root_anchor_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/specify_cli/charter_packs/test_sources_security.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/test_cli_boundary_context.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/contract/_mission_status_oracles.py",
+        "tests/contract/test_mission_status_reality.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "packs/built-in/missions/mission-steps/software-dev/implement/prompt.md",
+        "tests/specify_cli/upgrade/test_occurrence_classification.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/release/pinning_rule_inventory.json"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "tests/performance/test_help_import_surface.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "docs/development/reference/terminology-exemptions.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-10T06:11:22.460943+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP07"
+  ],
+  "planning_commit_sha": "23a27857b6f156c5b1932f2212a73b76f81f1d49"
+}

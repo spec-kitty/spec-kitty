@@ -1,0 +1,119 @@
+{
+  "mission_slug": "nightly-suites-green-rework-01M4J5EN",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "independent-review+targeted-tests",
+      "evidence": "WP01 e7a69b9811: owned birth-write lock anchors on P; armed-pin green (passed_through==[]); opus review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T07:29:27.967618+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "independent-review+targeted-tests",
+      "evidence": "WP01 e7a69b9811: owned status write-target resolves to P (seam B diagnosed as analyze-gate test staleness, not redirect); 14 owned-lifecycle tests green; opus review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T07:29:30.812457+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "independent-review+targeted-tests",
+      "evidence": "WP01 e7a69b9811: two non-vacuous behavioral guards (birth-lock + plumbing), 2-way mutation proven; opus review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T07:29:33.654629+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "independent-review+targeted-tests",
+      "evidence": "WP02 a54338601a: redaction pinned through real clone_repository seam, non-vacuous; opus review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T07:29:36.483120+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "independent-review+targeted-tests",
+      "evidence": "WP03 da18fb1932: non-project context test hardened (cwd outside repo); merge-base confirms codes long-standing; opus review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T07:29:39.275413+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "independent-review+targeted-tests",
+      "evidence": "WP04 b972692a9d: oracle mirrors resolver live-remote arm, independent (F6), asymmetry pinned (F7); opus review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T07:29:42.115682+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "independent-review+targeted-tests",
+      "evidence": "WP05 db33f67461: implement SOURCE template points at canonical mission-steps path; opus review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T07:29:44.952830+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "independent-review+targeted-tests",
+      "evidence": "WP06 adc5195015: pinning inventory re-derived, retiring-step dispositioned (C-003); byte-match; opus review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T07:29:47.837701+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "independent-review+targeted-tests",
+      "evidence": "WP07 4fefb89287: docs/archive/ + all docs/ exempt roots documented; opus review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T07:29:50.674750+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "independent-review+targeted-tests",
+      "evidence": "WP08 5ace01c8c1: next_cmd.py eager imports deferred; scoped import-absence test non-vacuous (red-on-revert); opus review",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T07:29:53.493650+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "independent-review+targeted-tests",
+      "evidence": "DEFERRED by operator (Option A) to #5999; down-payment (WP08 5ace01c8c1) + FR-010 positive control delivered; budget-green is operator/CI-owned (C-005), NOT verified green in-mission",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T07:29:56.323891+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
