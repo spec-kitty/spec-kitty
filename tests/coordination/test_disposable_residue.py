@@ -214,3 +214,25 @@ def test_coordination_role_keeps_another_missions_status_state() -> None:
 
     assert not _is_disposable_residue(f"kitty-specs/{_OTHER}/status.json", context)
     assert not _is_disposable_residue(f"kitty-specs/{_OTHER}/status.events.jsonl", context)
+
+
+# --- .kittify/derived status views (#6020 CI: single_branch post-merge refresh) ---
+
+
+@pytest.mark.parametrize("role", [CheckoutRole.REPOSITORY_ROOT, CheckoutRole.COORDINATION, CheckoutRole.MISSION, CheckoutRole.LANE])
+@pytest.mark.parametrize("topology", list(MissionTopology))
+def test_own_derived_status_views_are_disposable_in_every_role_and_topology(role: CheckoutRole, topology: MissionTopology) -> None:
+    context = ResidueContext(role=role, mission_slug="alpha", topology=topology)
+    for name in ("status.json", "progress.json", "lifecycle.json", "board-summary.json"):
+        assert _is_disposable_residue(f".kittify/derived/alpha/{name}", context)
+
+
+@pytest.mark.parametrize("role", [CheckoutRole.REPOSITORY_ROOT, CheckoutRole.COORDINATION, CheckoutRole.LANE])
+def test_another_missions_derived_views_are_kept(role: CheckoutRole) -> None:
+    context = ResidueContext(role=role, mission_slug="alpha", topology=MissionTopology.SINGLE_BRANCH)
+    assert not _is_disposable_residue(".kittify/derived/bravo/status.json", context)
+
+
+def test_a_file_directly_under_derived_is_not_a_mission_view() -> None:
+    context = ResidueContext(role=CheckoutRole.REPOSITORY_ROOT, mission_slug="alpha", topology=MissionTopology.SINGLE_BRANCH)
+    assert not _is_disposable_residue(".kittify/derived/notes.md", context)
