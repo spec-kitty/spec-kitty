@@ -1,100 +1,75 @@
-"""Unification routing gate (mission ``merge-destructive-op-safety-01M2XQF8``,
-WP05/T018-T020, NFR-006/FR-007, ``contracts/routing-invariant.md``).
+"""Unification routing gate (missions ``merge-destructive-op-safety-01M2XQF8`` and
+``destructive-residue-context-01M4KBPS``, NFR-006/FR-007/FR-006,
+``contracts/routing-invariant.md``).
 
-A non-vacuous architectural gate (DIRECTIVE_043) proving the defect class this
-mission fixes (a destructive git command run against dirty/off-target state)
-is closed BY CONSTRUCTION, not by reviewer goodwill:
+A non-vacuous architectural gate (DIRECTIVE_043) proving the defect class
+#4752/#4753/#5965/#5966 describe (a destructive git command, or a recursive
+checkout deletion, run against state that holds the only copy of a file) is
+closed BY CONSTRUCTION, not by reviewer goodwill. There is **no allowlist**
+(ADR ``2026-09-30-1-allowlist-ratchets-are-priced-debt``): a destructive site is
+either routed through the one guard (``git/destructive_guard.py``) or it fails.
 
-1. **T018 -- routing/allowlist gate.** Every ``git reset --hard``,
-   user-facing ``git worktree remove ... --force``, ``git merge --abort``,
-   and ``git stash push`` command LITERAL under ``src/specify_cli/`` is
-   either (a) inside the WP01 guard's own implementation (``git/destructive_guard.py``,
-   ``git/ref_advance.py``), (b) reached only via the shared
-   ``guarded_worktree_remove`` chokepoint (proven separately -- those live
-   call sites carry no raw literal at all, by construction), or (c) a member
-   of the frozen, individually-rationalized ``_ALLOWLIST`` below. The census
-   is LIVE (AST-driven, re-run every test run against the actual tree) --
-   not a hand-copied snapshot -- and shrink-only: a site disappearing from
-   source is a (non-failing) prompt to trim the allowlist; a NEW raw literal
-   outside both the guard and the allowlist fails the gate.
-2. **T019 -- retired (folded into the git-path class gate).** T019 used to
-   scan the ``git``/``consolidation``/``coordination``/``core/vcs`` seams for a
-   new ``git status --porcelain`` "is dirty" predicate against a curated
-   ``_KNOWN_DIRTY_PREDICATES`` registry. Mission ``git-paths-are-data`` (#5392)
-   moved every path listing behind ``kernel.git``, and
-   ``test_git_path_listing_owner.py`` now refuses a ``status --porcelain`` argv
-   (and every other path-listing argv or output split) anywhere under ``src/``
-   outside ``src/kernel/git/``, with an empty allowlist. That subsumes the
-   scan, so it and its registry are deleted (ADR
-   ``2026-09-30-1-allowlist-ratchets-are-priced-debt``: a registry is priced
-   debt, and a class gate replaces it). The guard still reuses
-   ``ref_advance._dirty_entries`` (data-model.md), which asks
-   ``kernel.git.status_entries``; no replacement registry of call sites exists.
-3. **T020 -- self-mutation (non-vacuity).** The T018 scan is proven to
-   actually bite: a planted, un-rationalized destructive-command literal is
-   detected by the SAME scanner the primary gate uses, and separately,
-   temporarily dropping one real entry from the frozen allowlist reproduces
-   the exact failure the primary gate would raise for a genuine regression --
-   proving the diff logic itself is not vacuous.
+1. **Routing gate.** Every command LITERAL below under ``src/specify_cli/``,
+   ``src/runtime/``, ``src/charter/`` and ``src/kernel/`` is a failure, except
+   inside the guard's own implementation (``git/destructive_guard.py`` and
+   ``git/ref_advance.py``, the named :data:`_GUARD_INTERNAL_MODULES`):
 
-``git stash push`` census (user-content-preservation epic #4915, finding #1
-of #4946, folded into PR #4936): PR #4936's #4888 fix already removed
-``git stash push --staged`` / ``git stash pop --index`` from
-``git/commit_helpers.py::safe_commit``, but nothing censused ``git stash``
-argv literals repo-wide, and two dead helpers (``core/vcs/git.py::git_stash``
-/ ``git_stash_pop``) still carried the footgun argv with no production
-caller. Those helpers are deleted (mission ``fold-4946-stash-gate``); this
-gate now censuses ``("stash", "push")`` the same way it censuses the other
-three destructive patterns, so a FUTURE reintroduction of a raw
-hide-then-restore stash call is caught here rather than relying on review.
-The live census currently finds zero ``("stash", "push")`` argv literals
-under ``src/specify_cli/``, so no ``_ALLOWLIST`` entry is needed.
+   ``git reset --hard``, ``git worktree remove --force``, ``git worktree prune``,
+   ``git merge --abort``, ``git stash push``, ``git stash drop``,
+   ``git branch -D``, ``git clean -f`` (``-fd``, ``-fdx``, ``--force``) and
+   ``git checkout --force`` / ``-f``.
+
+   The census is LIVE (AST-driven, re-run every test run against the actual
+   tree), not a hand-copied snapshot.
+2. **Recursive-deletion gate.** No reference to ``shutil.rmtree`` (a call, an
+   ``atexit.register(shutil.rmtree, ...)``, a ``from shutil import rmtree``
+   alias) outside the four modules that PROVE ownership at run time
+   (:data:`_RMTREE_PERMITTED`). Telling a checkout path from a temp tree
+   statically is not decidable; forbidding the bare call and routing through
+   helpers that prove ownership at run time is (research D7).
+3. **Tool-owned confinement.** ``CheckoutRole.TOOL_OWNED`` (under which every
+   path is disposable) may be named only in the modules that create scratch,
+   cache or just-created checkouts (:data:`_TOOL_OWNED_PERMITTED`).
+4. **Named-intent pin.** ``guarded_branch_delete(..., operator_intent=...)``,
+   which skips the unique-commit check, is passed only by
+   ``missions/_create.py::_delete_branch`` (``--force-recreate``).
+5. **Non-vacuity.** Every needle detects a planted literal through the SAME
+   scanner; the guard modules, scanned without their exclusion, do contain
+   literals; and planting a literal in a copy of the live tree turns the gate red.
 
 Detection strategy
 -------------------
 A bare text ``grep`` for ``"reset", "--hard"`` would miss the one real
 indirection this codebase has (``coordination/workspace.py``'s
-``_GIT_WORKTREE = "worktree"`` module constant, used in place of the string
-literal at the one intentionally-guard-exempt call site). This gate instead
-walks every ``ast.List``/``ast.Tuple`` literal, resolves each element that is
-either a string constant or a `Name` bound to a module-level string constant,
-and matches an ORDERED (not necessarily contiguous) subsequence of the
-target command's tokens -- so ``[..., _GIT_WORKTREE, "remove", "--force",
-...]`` is caught exactly like the literal spelling.
-
-Known, out-of-band scope note (C-004 follow-up, NOT this gate's job)
----------------------------------------------------------------------
-A separate, deferred loss surface -- standalone ``git branch -D`` deleting an
-unmerged branch's commits (``merge/executor.py``, ``orchestrator_api/``,
-``core/mission_creation.py``) -- needs its own is-branch-merged guard. It is
-a distinct command family from the three NFR-006 names and is intentionally
-out of this gate's scope; tracked as a follow-up mission in the WP05 PR body.
+``_GIT_WORKTREE = "worktree"`` module constant). This gate instead walks every
+``ast.List``/``ast.Tuple`` literal, resolves each element that is either a
+string constant or a `Name` bound to a module-level string constant, and
+matches an ORDERED (not necessarily contiguous) subsequence of the target
+command's tokens -- so ``[..., _GIT_WORKTREE, "remove", "--force", ...]`` is
+caught exactly like the literal spelling.
 """
 
 from __future__ import annotations
 
 import ast as _ast
-import warnings
-from collections.abc import Mapping
+import tempfile
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
 import pytest
 
 from tests.architectural._destructive_op_census import (
     REPO_ROOT,
-    SPECIFY_CLI_ROOT,
     SRC_ROOT,
-    argv_tokens,
-    assert_changed_argument_is_unexpected,
-    assert_partition_survives_drift,
     CensusKey,
-    assert_second_identical_op_is_unexpected,
+    argv_tokens,
     census_keys,
     census_keys_for_sources,
     census_partition,
+    composite_key,
     describe_unexpected,
-    diff_against_allowlist,
-    drop_one_entry,
+    from_import_map,
+    import_alias_map,
     iter_py_files,
     module_string_constants,
     ordered_subsequence,
@@ -102,44 +77,88 @@ from tests.architectural._destructive_op_census import (
     read_sources,
     render_census_key,
     scan_planted_source,
-    with_duplicated_statement,
-    with_leading_argument,
 )
 
 pytestmark = pytest.mark.architectural
 
 # The AST plumbing (file iteration, parsing, module-constant resolution, argv
-# tokenisation, ordered-subsequence matching, qualname resolution, the
-# allowlist diff, and the self-mutation harness) is the single shared authority
-# in ``_destructive_op_census`` (DIRECTIVE_044); this file keeps only the
-# git-argv classifier and its ``_ALLOWLIST``.
+# tokenisation, ordered-subsequence matching, qualname resolution and the
+# self-mutation harness) is the single shared authority in
+# ``_destructive_op_census`` (DIRECTIVE_044); this file keeps only the
+# git-argv classifier and the named module constants below. There is no
+# allowlist and no ``CensusKey`` row (ADR 2026-09-30-1).
 
 # ---------------------------------------------------------------------------
-# T018 -- destructive-command routing/allowlist gate
+# Routing gate -- destructive-command literals
 # ---------------------------------------------------------------------------
 
 _RESET_HARD = "reset_hard"
 _WORKTREE_REMOVE_FORCE = "worktree_remove_force"
+_WORKTREE_PRUNE = "worktree_prune"
 _MERGE_ABORT = "merge_abort"
 _STASH_PUSH = "stash_push"
+_STASH_DROP = "stash_drop"
+_BRANCH_DELETE_FORCE = "branch_delete_force"
+_CLEAN_FORCE = "clean_force"
+_CHECKOUT_FORCE = "checkout_force"
 
-_PATTERN_NEEDLES: dict[str, tuple[str, ...]] = {
-    _RESET_HARD: ("reset", "--hard"),
-    _WORKTREE_REMOVE_FORCE: ("worktree", "remove", "--force"),
-    _MERGE_ABORT: ("merge", "--abort"),
-    _STASH_PUSH: ("stash", "push"),
+_PATTERN_NEEDLES: dict[str, tuple[tuple[str, ...], ...]] = {
+    _RESET_HARD: (("reset", "--hard"),),
+    _WORKTREE_REMOVE_FORCE: (("worktree", "remove", "--force"),),
+    _WORKTREE_PRUNE: (("worktree", "prune"),),
+    _MERGE_ABORT: (("merge", "--abort"),),
+    _STASH_PUSH: (("stash", "push"),),
+    _STASH_DROP: (("stash", "drop"),),
+    _BRANCH_DELETE_FORCE: (("branch", "-D"),),
+    _CHECKOUT_FORCE: (("checkout", "--force"), ("checkout", "-f")),
 }
+
+#: ``git clean`` is forced by ``-f`` in any short-option cluster (``-fd``, ``-fdx``, ``-xdf``) or ``--force``.
+_CLEAN_FORCE_LONG = "--force"
+
+#: The guard's own implementation: the one place a destructive command literal belongs.
+_GUARD_INTERNAL_MODULES: dict[str, str] = {
+    "src/specify_cli/git/destructive_guard.py": "the guard: every destroy runs here, after the only-copy scan",
+    "src/specify_cli/git/ref_advance.py": "the ref-advance resync: dirty-checks every checkout before its reset",
+}
+
+#: Roots the census scans (the destructive set can live in any layer that shells out to git).
+_SCAN_ROOTS: tuple[Path, ...] = tuple(SRC_ROOT / name for name in ("specify_cli", "runtime", "charter", "kernel"))
+
+#: Files-scanned floor (NFR-002): the widened scan covered 1395 files when the allowlist was emptied.
+#: A scan that silently shrinks below it is vacuous.
+_FILES_SCANNED_FLOOR = 1390
+
+
+def _is_forced_clean(tokens: list[str | None]) -> bool:
+    """True for ``clean`` followed by ``--force`` or a short-option cluster holding ``f``."""
+    resolved = [token for token in tokens if token is not None]
+    if "clean" not in resolved:
+        return False
+    after = resolved[resolved.index("clean") + 1 :]
+    return any(token == _CLEAN_FORCE_LONG or (token.startswith("-") and not token.startswith("--") and "f" in token[1:]) for token in after)
 
 
 def _classify_argv(tokens: list[str | None]) -> str | None:
-    for pattern, needles in _PATTERN_NEEDLES.items():
-        if ordered_subsequence(tokens, *needles):
+    for pattern, alternatives in _PATTERN_NEEDLES.items():
+        if any(ordered_subsequence(tokens, *needles) for needles in alternatives):
             return pattern
-    return None
+    return _CLEAN_FORCE if _is_forced_clean(tokens) else None
+
+
+def _is_guard_internal(path: Path) -> bool:
+    posix = path.as_posix()
+    return any(posix.endswith(rel) for rel in _GUARD_INTERNAL_MODULES)
 
 
 def _find_destructive_literals(path: Path) -> list[tuple[int, str]]:
-    """``(lineno, pattern)`` for every destructive-command argv literal in *path*."""
+    """``(lineno, pattern)`` for every destructive-command argv literal in *path* (the guard's own modules excluded)."""
+    if _is_guard_internal(path):
+        return []
+    return _find_destructive_literals_unfiltered(path)
+
+
+def _find_destructive_literals_unfiltered(path: Path) -> list[tuple[int, str]]:
     tree = parse(path)
     consts = module_string_constants(tree)
     hits: list[tuple[int, str]] = []
@@ -153,7 +172,7 @@ def _find_destructive_literals(path: Path) -> list[tuple[int, str]]:
 
 def _live_sources() -> dict[str, str]:
     """``{repo-rel path: source}`` for every file the census scans."""
-    return read_sources(iter_py_files(SPECIFY_CLI_ROOT))
+    return read_sources(path for root in _SCAN_ROOTS for path in iter_py_files(root))
 
 
 def _census_keys(sources: Mapping[str, str]) -> dict[CensusKey, int]:
@@ -161,285 +180,41 @@ def _census_keys(sources: Mapping[str, str]) -> dict[CensusKey, int]:
     return census_keys_for_sources(sources, _find_destructive_literals)
 
 
-# ---------------------------------------------------------------------------
-# The frozen allowlist. Built from a LIVE census of the integrated tree
-# (post WP01-WP04). Each entry is keyed by CONTENT, not by line (mission
-# ratchet-baseline-census-gate-remediation-01M3EW3Z, FR-006): ``CensusKey`` =
-# (repo-relative path, enclosing qualname, normalized token line of the argv
-# literal, op, op_ordinal among identical live sites in that function). An
-# unrelated line shift never re-pins an entry; a second identical op or a
-# changed argument is a NEW key and fails. Shrink-only: an entry whose site
-# disappears only warns (stale), never fails. A NEW entry must be justified
-# here in the SAME PR that introduces it -- paste the ``CensusKey(...)``
-# literal from the gate's failure message.
-# ---------------------------------------------------------------------------
-_ALLOWLIST: dict[CensusKey, str] = {
-    # --- reset --hard (5) --------------------------------------------------
-    CensusKey(
-        rel="src/specify_cli/charter_packs/sources/git_source.py",
-        qualname="GitSource._update",
-        token_line="reset_proc = self . _run_git ( [ , , str ( target_dir ) , , , reset_target ] )",
-        op="reset_hard",
-        op_ordinal=0,
-    ): (
-        "guarded reset (#4989): _update runs `git reset --hard` on the persistent "
-        "pack clone ONLY after _local_changes_refusal has fail-closed refused when "
-        "the working tree holds uncommitted local changes OR carries local commits "
-        "ahead of the reset target -- so this reset can never silently discard "
-        "hand-authored pack content; the target itself is resolved by ref type "
-        "(_resolve_reset_target) rather than blanket origin/<ref>. Rationale "
-        "rewritten in WP03 (mission asset-preservation-migrate-fetch): the old "
-        "'throwaway doctrine-pack clone' rationale was false after WP02 rewrote "
-        "_update -- the clone is persistent (.git preserved across fetches) and "
-        "the reset is now dirty/ahead-guarded, not unguarded."
-    ),
-    CensusKey(
-        rel="src/specify_cli/consolidation/git_probes.py", qualname="_refresh_primary_checkout_after_merge", token_line="[ , , , ] ,", op="reset_hard", op_ordinal=0
-    ): (
-        "guarded by WP03/T011 (#4752): refuses via assert_checkout_on_target "
-        "before this reset runs whenever expected_branch is supplied; the "
-        "live merge preflight always supplies it."
-    ),
-    CensusKey(
-        rel="src/specify_cli/git/ref_advance.py",
-        qualname="_resync_checkouts",
-        token_line="reset = _run_git ( worktree , [ , , branch ] , env = env )",
-        op="reset_hard",
-        op_ordinal=0,
-    ): (
-        "the reused guard primitive's OWN resync implementation -- this "
-        "module defines _dirty_entries (the residue-aware dirty check every "
-        "other guard call reuses) and only resets after that check already "
-        "passed for this worktree. Re-pinned from :462 (#4997 follow-up, "
-        "data-loss fix): the new public seam reset_would_obstruct_untracked "
-        "(consumed by merge/preflight.py::is_pure_behind_head_lag, INV-3) "
-        "was added earlier in the file, shifting this line; same "
-        "advance_branch_ref resync site/rationale, confirmed by a direct read "
-        "-- not a new destructive op. Extracted from advance_branch_ref into "
-        "_resync_checkouts (tidy-first, consolidation-claim-rollback-integrity "
-        "WP02); shared by advance_branch_ref and "
-        "restore_branch_ref(resync_checkouts=True); both dirty-check "
-        "(_checkouts_ready_for) before the ref moves."
-    ),
-    CensusKey(
-        rel="src/specify_cli/lanes/worktree_allocator.py",
-        qualname="_merge_dependency_lane_tips",
-        token_line="[ , , , pre_loop_ref ] ,",
-        op="reset_hard",
-        op_ordinal=0,
-    ): (
-        "atomic rollback to a pre-loop ref (#1915) AFTER the loop's own "
-        "half-merge was already aborted -- lane-loop-scoped recovery, not an "
-        "arbitrary destroy of operator state."
-    ),
-    CensusKey(
-        rel="src/specify_cli/consolidation/resume_recovery.py",
-        qualname="_recover_behind_head_primary_on_resume",
-        token_line="[ , , , ] ,",
-        op="reset_hard",
-        op_ordinal=0,
-    ): (
-        "#4997 behind-own-HEAD resume recovery (_recover_behind_head_primary_on_resume): "
-        "runs ONLY after a provably-pure-lag proof -- classify_resume_dirty_remedy == "
-        "BEHIND_OWN_HEAD (lane already an ancestor of HEAD) AND is_pure_behind_head_lag "
-        "(working tree AND index byte-identical to the persisted pre_mutation_target_sha, "
-        "HEAD its strict descendant, no untracked file obstructing a restored path). It "
-        "resets the primary to its OWN already-advanced HEAD (restoring phantom staged "
-        "deletions), destroying nothing genuine; any deviation refuses fail-closed instead."
-    ),
-    # --- worktree remove --force (10) --------------------------------------
-    CensusKey(
-        rel="src/specify_cli/core/vcs/git.py",
-        qualname="GitVCS.remove_workspace",
-        token_line="[ , , , str ( workspace_path ) , ] ,",
-        op="worktree_remove_force",
-        op_ordinal=0,
-    ): (
-        "dead adapter -- VcsProvider.remove_workspace has zero callers "
-        "(contracts/routing-invariant.md); it is explicitly NOT the "
-        "chokepoint (guarded_worktree_remove is)."
-    ),
-    CensusKey(
-        rel="src/specify_cli/consolidation/mission_number/bake.py",
-        qualname="_compute_next_mission_number_or_none",
-        token_line="[ , , , str ( tmp_path ) , ] ,",
-        op="worktree_remove_force",
-        op_ordinal=0,
-    ): ("ephemeral detached scan worktree, torn down in the same function's own finally block; never operator-visible state."),
-    CensusKey(
-        rel="src/specify_cli/consolidation/mission_number/bake.py",
-        qualname="_write_mission_number_to_branch",
-        token_line="[ , , , str ( mission_tmp_path ) , ] ,",
-        op="worktree_remove_force",
-        op_ordinal=0,
-    ): ("ephemeral detached scan worktree (mission-number bake), same class as the sibling _compute_next_mission_number_or_none site (#2600)."),
-    CensusKey(
-        rel="src/specify_cli/consolidation/workspace.py",
-        qualname="cleanup_merge_workspace",
-        token_line="[ , , , , str ( workspace_path ) ] ,",
-        op="worktree_remove_force",
-        op_ordinal=0,
-    ): ("merge scratch workspace (C-006) -- always removed unconditionally by design, out of the guard's scope."),
-    CensusKey(
-        rel="src/specify_cli/review/baseline.py",
-        qualname="_baseline_worktree",
-        token_line="[ , , , str ( tmp_worktree ) , ] ,",
-        op="worktree_remove_force",
-        op_ordinal=0,
-    ): ("detached temp baseline-comparison worktree, torn down in the same context manager that created it."),
-    CensusKey(
-        rel="src/specify_cli/cli/commands/mission_type.py",
-        qualname="_remove_lane_worktrees",
-        token_line="[ , , str ( repo_root ) , , , str ( entry ) , ] ,",
-        op="worktree_remove_force",
-        op_ordinal=0,
-    ): ("reached only via `--discard` (_discard_mission): an operator-requested, intentional mission abandonment -- not an implicit/accidental destroy."),
-    CensusKey(
-        rel="src/specify_cli/git/destructive_guard.py",
-        qualname="_remove_worktree_force",
-        token_line="[ , , str ( worktree ) , ] ,",
-        op="worktree_remove_force",
-        op_ordinal=0,
-    ): ("the chokepoint's OWN inline implementation (_remove_worktree_force, called only from guarded_worktree_remove) -- this IS the guard, not a bypass of it."),
-    CensusKey(
-        rel="src/specify_cli/git/destructive_guard.py",
-        qualname="guarded_reset_hard",
-        token_line="_git_ok ( worktree , [ , , target ] , env )",
-        op="reset_hard",
-        op_ordinal=0,
-    ): ("the guard's OWN implementation (dirty-scans first) -- this IS the guard (#5965)."),
-    CensusKey(
-        rel="src/specify_cli/git/destructive_guard.py",
-        qualname="guarded_merge_abort",
-        token_line="_git_ok ( worktree , [ , ] , env )",
-        op="merge_abort",
-        op_ordinal=0,
-    ): ("the guard's OWN implementation (dirty-scans first) -- this IS the guard (#5965)."),
-    CensusKey(
-        rel="src/specify_cli/lanes/consolidation.py",
-        qualname="preview_mission_target_integration",
-        token_line="[ , , , str ( tmp_path ) , ] ,",
-        op="worktree_remove_force",
-        op_ordinal=0,
-    ): (
-        "read-only forecast scratch worktree, created detached in the same "
-        "ExitStack and force-removed even when the simulated merge leaves "
-        "intentional conflict entries; never operator-visible state. "
-        "Re-pinned from :969 (#5173 status.json reconcile inserted code "
-        "earlier in the file); same site/rationale, confirmed by a direct read."
-    ),
-    CensusKey(
-        rel="src/specify_cli/lanes/consolidation.py",
-        qualname="_merge_branch_into",
-        token_line="[ , , , str ( tmp_path ) , ] ,",
-        op="worktree_remove_force",
-        op_ordinal=0,
-    ): ("ephemeral lane-merge tmp worktree, unconditionally cleaned up via ExitStack on exit."),
-    CensusKey(
-        rel="src/specify_cli/lanes/worktree_allocator.py",
-        qualname="_remove_lane_worktree",
-        token_line="[ , , , , str ( worktree_path ) ] ,",
-        op="worktree_remove_force",
-        op_ordinal=0,
-    ): (
-        "fresh-path atomicity (#3281/T010): removes a just-created worktree "
-        "AFTER _merge_recorded_planning_commit already aborted the "
-        "half-merge -- the tree is clean by construction; best-effort, "
-        "reports a warning rather than raising on failure."
-    ),
-    CensusKey(
-        rel="src/specify_cli/coordination/workspace.py",
-        qualname="_remove_worktree_registration",
-        token_line="[ , , str ( repo_root ) , _GIT_WORKTREE , , , str ( path ) ] ,",
-        op="worktree_remove_force",
-        op_ordinal=0,
-    ): (
-        "_remove_worktree_registration: prunes a registration whose "
-        "worktree directory is already ABSENT from disk -- the guard "
-        "cannot run here even in principle (it resolves the repo root by "
-        "executing git INSIDE the worktree). GUARD-EXEMPT per the module's "
-        "own docstring, not an unrouted/unexplained raw force-remove."
-    ),
-    # --- merge --abort (6) --------------------------------------------------
-    CensusKey(rel="src/specify_cli/consolidation/state.py", qualname="abort_git_merge", token_line="[ , , ] ,", op="merge_abort", op_ordinal=0): (
-        "abort_git_merge's own generic primitive; its one live caller "
-        "(cli.commands.merge._dispatch_abort, WP04/#4754) passes only the "
-        "scoped merge-workspace path, never repo_root (INV-5). Re-pinned "
-        "from :638 (terminus-reconciliation-attribution-integrity, #5021 r1): "
-        "the reconciliation_passed_target_sha resume-anchor field shifted the "
-        "line, same primitive/rationale."
-    ),
-    CensusKey(rel="src/specify_cli/lanes/consolidation.py", qualname="_merge_branch_into", token_line="[ , , ] ,", op="merge_abort", op_ordinal=0): (
-        "scoped to the ephemeral lane-merge tmp worktree (squash-conflict rollback), never repo_root."
-    ),
-    CensusKey(rel="src/specify_cli/lanes/consolidation.py", qualname="_merge_branch_into", token_line="[ , , ] ,", op="merge_abort", op_ordinal=1): (
-        "scoped to the ephemeral lane-merge tmp worktree (merge-conflict rollback), never repo_root."
-    ),
-    CensusKey(
-        rel="src/specify_cli/lanes/worktree_allocator.py", qualname="_merge_recorded_planning_commit", token_line="[ , , ] ,", op="merge_abort", op_ordinal=0
-    ): ("scoped to the lane worktree (planning-commit merge-conflict rollback), never repo_root."),
-    CensusKey(rel="src/specify_cli/lanes/worktree_allocator.py", qualname="_merge_dependency_lane_tips", token_line="[ , , ] ,", op="merge_abort", op_ordinal=0): (
-        "scoped to the lane worktree (dependency-lane merge-conflict rollback), never repo_root."
-    ),
-    CensusKey(
-        rel="src/specify_cli/lanes/auto_rebase.py", qualname="_abort_with_failure", token_line="_run ( [ , , ] , worktree_path )", op="merge_abort", op_ordinal=0
-    ): ("scoped to the lane worktree (auto-rebase conflict rollback), never repo_root."),
-}
+def _unexpected(sources: Mapping[str, str]) -> set[CensusKey]:
+    """Every live site: with no allowlist, every site the census finds is unexpected."""
+    return census_partition(_census_keys(sources), {})[0]
 
 
-def _census_partition(sources: Mapping[str, str]) -> tuple[set[CensusKey], set[CensusKey]]:
-    """This gate's binding of :func:`census_partition` (finder + ``_ALLOWLIST``)."""
-    return census_partition(_census_keys(sources), _ALLOWLIST)
+def test_the_gate_has_no_allowlist() -> None:
+    """ADR 2026-09-30-1: a registry of exempted sites is priced debt; this gate carries none."""
+    assert "_ALLOWLIST" not in globals()
 
 
-#: Files-scanned floor (NFR-002): the finder scanned 1013 files on the planning
-#: base (3717c7ea). A scan that silently shrinks below it is vacuous.
-_FILES_SCANNED_FLOOR = 1013
-
-#: Every file carrying an allowlisted site; the line-drift test runs per file.
-_DRIFT_FILES: tuple[str, ...] = tuple(sorted({key.rel for key in _ALLOWLIST}))
-
-
-def test_destructive_commands_only_at_allowlisted_or_guard_sites() -> None:
-    """NFR-006/FR-007/INV-3: every destructive-command literal under
-    ``src/specify_cli/`` is either inside the guard's own implementation or
-    a member of the frozen, rationalized allowlist. A NEW site fails; a
-    disappeared site only warns (shrink-only ratchet)."""
+def test_no_destructive_command_literal_outside_the_guard() -> None:
+    """NFR-006/FR-007/INV-3: every destructive-command literal is routed through the guard (none is exempt)."""
     sources = _live_sources()
     assert len(sources) >= _FILES_SCANNED_FLOOR, f"census scanned {len(sources)} files, below the pinned floor {_FILES_SCANNED_FLOOR}"
-    unexpected, suppressed = _census_partition(sources)
-    stale = set(_ALLOWLIST) - suppressed
+    unexpected = _unexpected(sources)
 
     assert not unexpected, (
-        "New destructive git command literal(s) found outside the routed "
-        "guard (guarded_worktree_remove / assert_checkout_on_target / "
-        "assert_worktree_clean) and the frozen allowlist (NFR-006/FR-007). "
-        "Route the site through the guard, or add a rationale entry to "
-        f"_ALLOWLIST in this file: {describe_unexpected(unexpected, sources, _find_destructive_literals)}"
+        "Destructive git command literal(s) found outside the guard (git/destructive_guard.py). "
+        "Route the site through guarded_worktree_remove / guarded_reset_hard / guarded_merge_abort / "
+        "guarded_worktree_prune / guarded_branch_delete (or, for a tool-owned scratch tree, "
+        f"consolidation.workspace.remove_scratch_worktree): {describe_unexpected(unexpected, sources, _find_destructive_literals)}"
     )
-    assert suppressed, "Non-vacuity: the census suppressed no allowlisted site at all"
-    if stale:
-        warnings.warn(
-            f"Shrink-only allowlist: the following site(s) no longer carry a raw destructive-command literal -- safe to delete from _ALLOWLIST: {sorted(stale)}",
-            UserWarning,
-            stacklevel=1,
-        )
 
 
-def test_allowlisted_files_exist() -> None:
-    """Sanity: a renamed/deleted allowlisted file must not silently drop out
-    of the scan (an absent file reads as zero live hits, i.e. a false
-    "shrink", masking a rename the allowlist should track by path)."""
-    rel_paths = {key.rel for key in _ALLOWLIST}
-    missing = sorted(rel for rel in rel_paths if not (REPO_ROOT / rel).is_file())
-    assert not missing, f"Allowlisted file(s) no longer exist: {missing}"
+def test_guard_internal_modules_exist() -> None:
+    """A renamed guard module must not silently drop out of the exclusion (and make the scan vacuous)."""
+    missing = sorted(rel for rel in _GUARD_INTERNAL_MODULES if not (REPO_ROOT / rel).is_file())
+    assert not missing, f"Guard module(s) no longer exist: {missing}"
 
 
 # ---------------------------------------------------------------------------
-# Positive routing proof (C-003): the three LIVE user-facing force-removal
-# call sites actually reach the shared chokepoint. The allowlist scan above
-# proves no UNROUTED raw literal exists anywhere; this proves the specific
-# known routed sites are not merely "absent because the file doesn't exist".
+# Positive routing proof (C-003): the LIVE user-facing force-removal call
+# sites actually reach the shared chokepoint. The scan above proves no
+# UNROUTED raw literal exists anywhere; this proves the specific known routed
+# sites are not merely "absent because the file doesn't exist".
 # ---------------------------------------------------------------------------
 _ROUTED_WORKTREE_REMOVE_SITES: tuple[str, ...] = (
     "specify_cli/consolidation/phase_teardown.py",
@@ -457,35 +232,42 @@ def test_live_worktree_removal_sites_route_through_the_guard() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T020 -- self-mutation (non-vacuity) proof, both directions, for both gates.
+# Self-mutation (non-vacuity) proof for the literal gate.
 # ---------------------------------------------------------------------------
 
-
-def test_scanner_detects_a_planted_unrouted_worktree_remove_force(tmp_path: Path) -> None:
-    """A planted, un-rationalized raw force-remove is caught by the exact
-    scanner the primary allowlist gate runs."""
-    hits = scan_planted_source(
-        tmp_path,
-        "planted_unrouted.py",
-        'import subprocess\n\n\ndef _sneaky_cleanup(worktree):\n    subprocess.run(["git", "worktree", "remove", str(worktree), "--force"])\n',
-        _find_destructive_literals,
-    )
-    assert hits == [(5, _WORKTREE_REMOVE_FORCE)], (
-        f"Non-vacuity failure: the routing scanner did not detect a planted raw `git worktree remove --force` call. Got: {hits!r}."
-    )
+_PLANTED_ARGV: dict[str, str] = {
+    _RESET_HARD: '["git", "reset", "--hard", "HEAD"]',
+    _WORKTREE_REMOVE_FORCE: '["git", "worktree", "remove", str(worktree), "--force"]',
+    _WORKTREE_PRUNE: '["git", "worktree", "prune"]',
+    _MERGE_ABORT: '["git", "merge", "--abort"]',
+    _STASH_PUSH: '["git", "stash", "push"]',
+    _STASH_DROP: '["git", "stash", "drop"]',
+    _BRANCH_DELETE_FORCE: '["git", "branch", "-D", name]',
+    _CLEAN_FORCE: '["git", "clean", "-fdx"]',
+    _CHECKOUT_FORCE: '["git", "checkout", "--force", ref]',
+}
 
 
-def test_scanner_detects_a_planted_unrouted_stash_push(tmp_path: Path) -> None:
-    """T020/non-vacuity for the ``git stash push`` needle (#4915/#4946): a
-    planted, un-rationalized raw hide-then-restore stash call is caught by
-    the exact scanner the primary allowlist gate runs."""
-    hits = scan_planted_source(
-        tmp_path,
-        "planted_stash.py",
-        'import subprocess\n\n\ndef _sneaky_hide(workspace_path):\n    subprocess.run(["git", "-C", str(workspace_path), "stash", "push"])\n',
-        _find_destructive_literals,
-    )
-    assert hits == [(5, _STASH_PUSH)], f"Non-vacuity failure: the routing scanner did not detect a planted raw `git stash push` call. Got: {hits!r}."
+def _planted_source(argv: str) -> str:
+    return f"import subprocess\n\n\ndef _sneaky(worktree, name, ref):\n    subprocess.run({argv})\n"
+
+
+@pytest.mark.parametrize("pattern", sorted(_PLANTED_ARGV))
+def test_scanner_detects_a_planted_literal_for_every_needle(tmp_path: Path, pattern: str) -> None:
+    """Each destructive command is caught by the exact scanner the gate runs."""
+    hits = scan_planted_source(tmp_path, "planted.py", _planted_source(_PLANTED_ARGV[pattern]), _find_destructive_literals)
+    assert hits == [(5, pattern)], f"Non-vacuity failure: the scanner did not detect a planted {pattern!r} literal. Got: {hits!r}."
+
+
+def test_every_needle_has_a_planted_proof() -> None:
+    """A new needle must come with its non-vacuity proof."""
+    assert set(_PLANTED_ARGV) == set(_PATTERN_NEEDLES) | {_CLEAN_FORCE}
+
+
+@pytest.mark.parametrize("argv", ['["git", "checkout", "-f", ref]', '["git", "clean", "--force", "-d"]', '["git", "clean", "-xdf"]'])
+def test_scanner_detects_the_alternate_spellings(tmp_path: Path, argv: str) -> None:
+    hits = scan_planted_source(tmp_path, "planted_alt.py", _planted_source(argv), _find_destructive_literals)
+    assert [pattern for _, pattern in hits] in ([_CHECKOUT_FORCE], [_CLEAN_FORCE])
 
 
 def test_scanner_resolves_module_constant_indirection(tmp_path: Path) -> None:
@@ -507,88 +289,253 @@ def test_scanner_resolves_module_constant_indirection(tmp_path: Path) -> None:
     )
 
 
-def test_scanner_does_not_flag_unrelated_worktree_calls(tmp_path: Path) -> None:
-    """Control: ``worktree add`` / ``worktree list --porcelain`` (no
-    ``remove``+``--force``) must not be flagged -- proves the scanner isn't
-    simply matching on the word "worktree" (vacuous in the OTHER direction)."""
+def test_scanner_does_not_flag_unrelated_calls(tmp_path: Path) -> None:
+    """Control: benign git argv (``worktree add/list``, ``branch -d``, ``checkout main``,
+    ``clean -n``, ``stash list``) must not be flagged -- proves the scanner isn't
+    simply matching on the command word (vacuous in the OTHER direction)."""
     hits = scan_planted_source(
         tmp_path,
         "planted_benign.py",
         "import subprocess\n\n\n"
-        "def _list_and_add(repo_root, path, branch):\n"
+        "def _benign(repo_root, path, branch):\n"
         '    subprocess.run(["git", "-C", str(repo_root), "worktree", "list", "--porcelain"])\n'
-        '    subprocess.run(["git", "-C", str(repo_root), "worktree", "add", str(path), branch])\n',
+        '    subprocess.run(["git", "-C", str(repo_root), "worktree", "add", str(path), branch])\n'
+        '    subprocess.run(["git", "branch", "-d", branch])\n'
+        '    subprocess.run(["git", "checkout", branch])\n'
+        '    subprocess.run(["git", "clean", "-n"])\n'
+        '    subprocess.run(["git", "stash", "list"])\n',
         _find_destructive_literals,
     )
     assert hits == []
 
 
-def test_removing_an_allowlist_entry_reproduces_a_gate_failure() -> None:
-    """Non-vacuity (T020): temporarily dropping ONE real allowlist entry and
-    re-diffing against the ACTUAL live scan reproduces exactly the failure
-    the primary gate (``test_destructive_commands_only_at_allowlisted_or_guard_sites``)
-    would raise if that site were ever un-routed and un-rationalized --
-    proving the primary gate is not vacuously green."""
-    live = _census_keys(_live_sources())
-    victim, shrunk_allowlist = drop_one_entry(_ALLOWLIST)
+def test_the_guard_modules_do_hold_literals_when_not_excluded() -> None:
+    """Non-vacuity of the exclusion: scanned WITHOUT it, the guard modules carry real literals,
+    so the finder demonstrably sees them and the module-level exclusion is what keeps them out."""
+    unfiltered = {rel: _find_destructive_literals_unfiltered(REPO_ROOT / rel) for rel in _GUARD_INTERNAL_MODULES}
+    assert all(unfiltered.values()), unfiltered
+    patterns = {pattern for hits in unfiltered.values() for _, pattern in hits}
+    assert {_RESET_HARD, _WORKTREE_REMOVE_FORCE, _MERGE_ABORT, _WORKTREE_PRUNE, _BRANCH_DELETE_FORCE} <= patterns
 
-    unexpected, _stale = diff_against_allowlist(live, shrunk_allowlist)
 
-    assert victim in unexpected, (
-        f"Self-mutation check failed: removing {victim!r} from the allowlist "
-        "did not reproduce a gate failure against the live tree. The primary "
-        "routing gate is vacuous -- investigate diff_against_allowlist / "
-        "_census_keys before trusting a green run."
+def test_a_literal_planted_in_the_live_tree_turns_the_gate_red() -> None:
+    """Self-mutation: add one raw literal to a copy of a real module and the very check the gate runs reports it (only that file is rescanned)."""
+    victim = "src/specify_cli/consolidation/workspace.py"
+    sources = {victim: (REPO_ROOT / victim).read_text(encoding="utf-8") + '\n\ndef _planted_sneaky(root):\n    return ["git", "reset", "--hard", "HEAD"]\n'}
+
+    unexpected = _unexpected(sources)
+
+    assert [(key.rel, key.qualname, key.op) for key in unexpected] == [(victim, "_planted_sneaky", _RESET_HARD)]
+
+
+def test_the_exclusion_is_by_module_not_by_name(tmp_path: Path) -> None:
+    """A copy of the literal in a differently named module is NOT excluded."""
+    hits = scan_planted_source(tmp_path, "not_the_guard.py", _planted_source(_PLANTED_ARGV[_RESET_HARD]), _find_destructive_literals)
+    assert hits
+
+
+# ---------------------------------------------------------------------------
+# Recursive-deletion gate (research D7): no bare shutil.rmtree.
+# ---------------------------------------------------------------------------
+
+#: The modules that PROVE ownership at run time before a recursive delete. Named constants with a
+#: reason each, not ``CensusKey`` rows: adding one is a reviewed edit of this mapping.
+_RMTREE_PERMITTED: dict[str, str] = {
+    "src/kernel/tree_removal.py": "remove_tool_owned_tree proves the path lies inside the owned root and holds no .git",
+    "src/specify_cli/git/destructive_guard.py": "guarded_tree_delete deletes a checkout only after the only-copy scan",
+    "src/specify_cli/asset_preservation/guard.py": "the asset-preservation guard removes only a path the manifest prover owns",
+    "src/charter/activation/synthesizer/path_guard.py": "PathGuard.rmtree confines the delete to the synthesizer's allowed write surface",
+}
+
+
+def _is_shutil_rmtree_reference(node: _ast.AST, modules: Mapping[str, str], imported: Mapping[str, tuple[str, str]]) -> bool:
+    """``shutil.rmtree`` (any import spelling), a bare name bound by ``from shutil import rmtree [as x]``, or that import itself."""
+    if isinstance(node, _ast.Attribute):
+        return node.attr == "rmtree" and isinstance(node.value, _ast.Name) and modules.get(node.value.id) == "shutil"
+    if isinstance(node, _ast.Name):
+        return isinstance(node.ctx, _ast.Load) and imported.get(node.id) == ("shutil", "rmtree")
+    if isinstance(node, _ast.ImportFrom):
+        return node.module == "shutil" and any(alias.name == "rmtree" for alias in node.names)
+    return False
+
+
+def _find_rmtree_references(path: Path) -> list[int]:
+    """Line numbers of every reference to ``shutil.rmtree`` in *path*: a call, an ``atexit.register(shutil.rmtree, ...)``,
+    a ``functools.partial`` or a ``from shutil import rmtree [as x]`` alias, however ``shutil`` was imported."""
+    tree = parse(path)
+    modules = import_alias_map(tree)
+    imported = from_import_map(tree)
+    return sorted({node.lineno for node in _ast.walk(tree) if _is_shutil_rmtree_reference(node, modules, imported)})
+
+
+def _rmtree_offenders(sources: Mapping[str, str]) -> dict[str, list[int]]:
+    live = scan_sources_for_lines(sources, _find_rmtree_references)
+    return {rel: lines for rel, lines in live.items() if rel not in _RMTREE_PERMITTED}
+
+
+def scan_sources_for_lines(sources: Mapping[str, str], finder: Callable[[Path], list[int]]) -> dict[str, list[int]]:
+    """Run a line-number *finder* over in-memory sources (written to a temp tree at the same relative path)."""
+    found: dict[str, list[int]] = {}
+    with tempfile.TemporaryDirectory(prefix="rmtree-scan-") as tmp:
+        for rel, source in sources.items():
+            copy = Path(tmp) / rel
+            copy.parent.mkdir(parents=True, exist_ok=True)
+            copy.write_text(source, encoding="utf-8")
+            lines = finder(copy)
+            if lines:
+                found[rel] = lines
+    return found
+
+
+def test_no_bare_rmtree_outside_the_ownership_proving_modules() -> None:
+    """A recursive delete that cannot prove tool ownership at run time is the #5965/#5966 defect class."""
+    offenders = _rmtree_offenders(_live_sources())
+
+    assert not offenders, (
+        "shutil.rmtree referenced outside the ownership-proving modules. Use kernel.tree_removal.remove_tool_owned_tree "
+        "(a tree the tool owns) or git.destructive_guard.guarded_tree_delete (a git checkout): "
+        f"{offenders}"
     )
 
 
+def test_rmtree_permitted_modules_exist_and_each_still_references_it() -> None:
+    """No dead exemption: a permitted module that no longer references ``shutil.rmtree`` is removed from the mapping."""
+    stale = sorted(rel for rel in _RMTREE_PERMITTED if not (REPO_ROOT / rel).is_file() or not _find_rmtree_references(REPO_ROOT / rel))
+    assert not stale, f"Permitted rmtree module(s) with no rmtree reference left: {stale}"
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "import shutil\n\n\ndef f(p):\n    shutil.rmtree(p)\n",
+        "import shutil as sh\n\n\ndef f(p):\n    sh.rmtree(p)\n",
+        "from shutil import rmtree\n\n\ndef f(p):\n    rmtree(p)\n",
+        "from shutil import rmtree as rm\n\n\ndef f(p):\n    rm(p)\n",
+        "import atexit\nimport shutil\n\n\ndef f(p):\n    atexit.register(shutil.rmtree, p)\n",
+        "import shutil\n\n\ndef f():\n    import functools\n    return functools.partial(shutil.rmtree, ignore_errors=True)\n",
+    ],
+    ids=["call", "module-alias", "from-import", "from-import-alias", "atexit-register", "partial"],
+)
+def test_rmtree_scanner_detects_every_spelling(tmp_path: Path, source: str) -> None:
+    """Self-mutation: a planted ``shutil.rmtree`` in any spelling is caught by the gate's own scanner."""
+    assert scan_planted_source(tmp_path, "planted_rmtree.py", source, _find_rmtree_references)
+
+
+def test_rmtree_scanner_ignores_other_rmtree_methods_and_shutil_functions(tmp_path: Path) -> None:
+    """Control: ``PathGuard.rmtree`` (a method) and ``shutil.copytree`` are not a bare ``shutil.rmtree``."""
+    source = "import shutil\n\n\ndef f(guard, a, b):\n    guard.rmtree(a)\n    shutil.copytree(a, b)\n"
+    assert scan_planted_source(tmp_path, "planted_ok.py", source, _find_rmtree_references) == []
+
+
+def test_a_rmtree_planted_in_the_live_tree_turns_the_gate_red() -> None:
+    victim = "src/specify_cli/consolidation/workspace.py"
+    sources = {victim: (REPO_ROOT / victim).read_text(encoding="utf-8") + "\n\ndef _planted(path):\n    import shutil\n\n    shutil.rmtree(path)\n"}
+
+    assert list(_rmtree_offenders(sources)) == [victim]
+
+
 # ---------------------------------------------------------------------------
-# Line-drift tolerance (NFR-001) and non-widening (FR-006) through the seam.
+# Tool-owned confinement: CheckoutRole.TOOL_OWNED makes EVERY path disposable.
 # ---------------------------------------------------------------------------
 
-_NON_WIDENING_REL = "src/specify_cli/lanes/consolidation.py"
+#: The modules that may name ``CheckoutRole.TOOL_OWNED``: the role's own definition, and the modules that
+#: create scratch, cache or just-created checkouts. Anywhere else it would be an escape hatch.
+_TOOL_OWNED_PERMITTED: dict[str, str] = {
+    "src/specify_cli/coordination/coherence.py": "defines the role and its is_disposable_residue rule",
+    "src/specify_cli/consolidation/workspace.py": "the merge/baseline/numbering scratch worktrees and the merge workspace",
+    "src/specify_cli/charter_packs/sources/git_source.py": "the pack-source cache clone under the tool's own cache root",
+    "src/specify_cli/core/mission_creation_rollback.py": "rollback deletes only the directories this very Mission creation just made",
+}
 
 
-def _site_linenos(rel: str, op: str | None = None) -> list[int]:
-    return sorted(lineno for lineno, hit_op in _find_destructive_literals(REPO_ROOT / rel) if op is None or hit_op == op)
+def _is_tool_owned_reference(node: _ast.AST, imported: Mapping[str, tuple[str, str]]) -> bool:
+    """``CheckoutRole.TOOL_OWNED``, or a bare name bound by ``from ... import TOOL_OWNED [as x]``."""
+    if isinstance(node, _ast.Attribute):
+        return node.attr == "TOOL_OWNED" and isinstance(node.value, _ast.Name) and node.value.id == "CheckoutRole"
+    if isinstance(node, _ast.Name):
+        return isinstance(node.ctx, _ast.Load) and imported.get(node.id, ("", ""))[1] == "TOOL_OWNED"
+    return False
 
 
-def test_destructive_drift_files_cover_the_allowlist() -> None:
-    """Companion floor: the drift test runs over at least the 15 allowlisted files."""
-    assert len(_DRIFT_FILES) >= 15, _DRIFT_FILES
+def _find_tool_owned_references(path: Path) -> list[int]:
+    """Line numbers naming ``CheckoutRole.TOOL_OWNED`` (or a bare ``TOOL_OWNED`` imported from ``coherence``)."""
+    tree = parse(path)
+    imported = from_import_map(tree)
+    return sorted({node.lineno for node in _ast.walk(tree) if _is_tool_owned_reference(node, imported)})
 
 
-@pytest.mark.parametrize("rel", _DRIFT_FILES)
-def test_destructive_census_survives_line_drift(rel: str) -> None:
-    """NFR-001: an unrelated line shift (blank line at the top; a probe
-    statement above every census site) leaves ``(unexpected, suppressed)``
-    unchanged. RED on the line-keyed allowlist, GREEN on content keys."""
-    source = (REPO_ROOT / rel).read_text(encoding="utf-8")
-    file_keys = [key for key in _ALLOWLIST if key.rel == rel]
-    assert_partition_survives_drift(rel, source, _census_partition, _site_linenos(rel), file_keys)
+def _tool_owned_offenders(sources: Mapping[str, str]) -> dict[str, list[int]]:
+    live = scan_sources_for_lines(sources, _find_tool_owned_references)
+    return {rel: lines for rel, lines in live.items() if rel not in _TOOL_OWNED_PERMITTED}
 
 
-def test_second_identical_op_in_exempted_function_fails() -> None:
-    """Non-widening guard: duplicating an exempted ``merge --abort`` statement
-    inside its function is reported as unexpected. GREEN on the line-keyed base
-    (a new line already yields a new key) and must stay GREEN on content keys
-    (``op_ordinal`` makes the duplicate a new key)."""
-    source = (REPO_ROOT / _NON_WIDENING_REL).read_text(encoding="utf-8")
-    lineno = _site_linenos(_NON_WIDENING_REL, _MERGE_ABORT)[0]
-    assert_second_identical_op_is_unexpected(_NON_WIDENING_REL, source, _census_partition, lineno)
+def test_tool_owned_role_is_confined_to_the_scratch_and_cache_modules() -> None:
+    offenders = _tool_owned_offenders(_live_sources())
+
+    assert not offenders, f"CheckoutRole.TOOL_OWNED named outside the modules that own scratch/cache checkouts: {offenders}"
 
 
-def test_changed_argument_on_exempted_op_fails() -> None:
-    """Non-widening guard: adding a NAME element to an exempted argv literal
-    (same line, so the line count is unchanged) makes the site unexpected and
-    its old entry stale. RED on the line-keyed base (the ``path:line:op`` key
-    silently keeps blessing the changed argument); GREEN on content keys (the
-    token line changes). Editing only a string element would not change the
-    tokens: ``composite_key`` strips strings."""
-    source = (REPO_ROOT / _NON_WIDENING_REL).read_text(encoding="utf-8")
-    lineno = _site_linenos(_NON_WIDENING_REL, _MERGE_ABORT)[0]
-    mutated = with_leading_argument(source, lineno, (_ast.List, _ast.Tuple))
-    assert_changed_argument_is_unexpected(_NON_WIDENING_REL, source, _census_partition, mutated)
+def test_tool_owned_permitted_modules_each_still_name_the_role() -> None:
+    stale = sorted(rel for rel in _TOOL_OWNED_PERMITTED if not (REPO_ROOT / rel).is_file() or not _find_tool_owned_references(REPO_ROOT / rel))
+    assert not stale, f"Permitted TOOL_OWNED module(s) that no longer name the role: {stale}"
+
+
+def test_tool_owned_scanner_detects_a_planted_use(tmp_path: Path) -> None:
+    source = "from specify_cli.coordination.coherence import CheckoutRole, ResidueContext\n\nCTX = ResidueContext(role=CheckoutRole.TOOL_OWNED)\n"
+    assert scan_planted_source(tmp_path, "planted_owned.py", source, _find_tool_owned_references) == [3]
+    bare = "from specify_cli.coordination.coherence import TOOL_OWNED\n\nROLE = TOOL_OWNED\n"
+    assert scan_planted_source(tmp_path, "planted_owned_bare.py", bare, _find_tool_owned_references) == [3]
+
+
+def test_a_tool_owned_use_planted_in_the_live_tree_turns_the_gate_red() -> None:
+    victim = "src/specify_cli/status/doctor_husks.py"
+    sources = {victim: (REPO_ROOT / victim).read_text(encoding="utf-8") + "\n\n_PLANTED = CheckoutRole.TOOL_OWNED\n"}
+
+    assert list(_tool_owned_offenders(sources)) == [victim]
+
+
+# ---------------------------------------------------------------------------
+# Named-intent pin: only --force-recreate may skip the unique-commit check.
+# ---------------------------------------------------------------------------
+
+_OPERATOR_INTENT_CALLERS: frozenset[tuple[str, str]] = frozenset({("src/specify_cli/missions/_create.py", "_delete_branch")})
+_GUARDED_BRANCH_DELETE = "guarded_branch_delete"
+
+
+def _operator_intent_callers(path: Path) -> list[tuple[int, str]]:
+    """``(lineno, enclosing qualname)`` of each ``guarded_branch_delete(..., operator_intent=...)`` call in *path*."""
+    source = path.read_text(encoding="utf-8")
+    callers: list[tuple[int, str]] = []
+    for node in _ast.walk(_ast.parse(source)):
+        if not isinstance(node, _ast.Call) or not any(keyword.arg == "operator_intent" for keyword in node.keywords):
+            continue
+        func = node.func
+        name = func.attr if isinstance(func, _ast.Attribute) else func.id if isinstance(func, _ast.Name) else ""
+        if name == _GUARDED_BRANCH_DELETE:
+            callers.append((node.lineno, composite_key(source, node.lineno)[0]))
+    return callers
+
+
+def test_only_force_recreate_passes_an_operator_intent() -> None:
+    live = {
+        (rel, qualname)
+        for root in _SCAN_ROOTS
+        for path in iter_py_files(root)
+        for rel in [path.relative_to(REPO_ROOT).as_posix()]
+        if not rel.endswith("git/destructive_guard.py")
+        for _, qualname in _operator_intent_callers(path)
+    }
+
+    assert live == _OPERATOR_INTENT_CALLERS
+
+
+def test_operator_intent_scanner_detects_a_planted_caller(tmp_path: Path) -> None:
+    source = (
+        "from specify_cli.git.destructive_guard import guarded_branch_delete\n\n\n"
+        "def sneaky(root):\n"
+        "    guarded_branch_delete(root, 'b', creation_base=None, operator_intent='force_recreate')\n"
+    )
+    assert [qualname for _, qualname in scan_planted_source(tmp_path, "planted_intent.py", source, _operator_intent_callers)] == ["sneaky"]
 
 
 # ---------------------------------------------------------------------------
@@ -634,48 +581,6 @@ def test_render_census_key_names_identity_line_and_tokens() -> None:
     [(key, lineno)] = census_keys("pkg/mod.py", _TWIN_SOURCE, [(7, _MERGE_ABORT)]).items()
     rendered = render_census_key(key, lineno)
     assert rendered == f"pkg/mod.py::rollback::{_MERGE_ABORT}#0 (line 7) tokens=subprocess . run ( [ , , wt , , ] )"
-
-
-# ---------------------------------------------------------------------------
-# T024 -- real-data ordinal non-widening and actionable failure output.
-# ---------------------------------------------------------------------------
-
-_TWIN_QUALNAME = "_merge_branch_into"
-
-
-def _twin_merge_abort_keys() -> list[CensusKey]:
-    return sorted(key for key in _ALLOWLIST if key.rel == _NON_WIDENING_REL and key.qualname == _TWIN_QUALNAME and key.op == _MERGE_ABORT)
-
-
-def test_duplicating_the_twin_merge_abort_reports_op_ordinal_2() -> None:
-    """``lanes/consolidation.py::_merge_branch_into`` holds the two exempted
-    ``merge --abort`` twins (``op_ordinal`` 0 and 1). A third identical one is
-    ``op_ordinal=2``: not in the allowlist, so the gate reports it."""
-    twins = _twin_merge_abort_keys()
-    assert [key.op_ordinal for key in twins] == [0, 1], twins
-    source = (REPO_ROOT / _NON_WIDENING_REL).read_text(encoding="utf-8")
-    live = census_keys(_NON_WIDENING_REL, source, _find_destructive_literals(REPO_ROOT / _NON_WIDENING_REL))
-    second_twin_line = live[twins[1]]
-
-    unexpected, suppressed = _census_partition({_NON_WIDENING_REL: with_duplicated_statement(source, second_twin_line)})
-
-    assert unexpected == {twins[1]._replace(op_ordinal=2)}
-    assert set(twins) <= suppressed
-
-
-def test_gate_failure_message_renders_identity_line_and_tokens() -> None:
-    """An unexpected key is rendered as ``rel::qualname::op#ordinal (line N)
-    tokens=...`` so the author can write the ``CensusKey(...)`` literal."""
-    twin = _twin_merge_abort_keys()[1]
-    source = (REPO_ROOT / _NON_WIDENING_REL).read_text(encoding="utf-8")
-    line = census_keys(_NON_WIDENING_REL, source, _find_destructive_literals(REPO_ROOT / _NON_WIDENING_REL))[twin]
-    mutated = with_duplicated_statement(source, line)
-    unexpected, _ = _census_partition({_NON_WIDENING_REL: mutated})
-
-    [rendered] = describe_unexpected(unexpected, {_NON_WIDENING_REL: mutated}, _find_destructive_literals)
-
-    assert rendered.startswith(f"{_NON_WIDENING_REL}::{_TWIN_QUALNAME}::{_MERGE_ABORT}#2 (line ")
-    assert rendered.endswith(f"tokens={twin.token_line}")
 
 
 def test_census_partition_splits_unexpected_from_suppressed() -> None:
