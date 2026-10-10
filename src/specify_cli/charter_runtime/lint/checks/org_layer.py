@@ -16,7 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from charter.drg import ArtifactKind
+from charter.drg import LAYERED_REPOSITORY_KIND_PLURALS
 from charter.packs import RETIRED_PACK_FIELD, RetiredPackFieldError
 from specify_cli.charter_runtime.lint.findings import LintFinding
 
@@ -27,7 +27,7 @@ KITTIFY_DIR_NAME = ".kittify"
 # :attr:`~charter.offering.artifact_kinds.ArtifactKind.has_layered_repository`
 # (11 kinds) rather than the retired ``core`` set (8) so an org override of
 # ``glossary_pack``, ``skill`` or ``asset`` is flagged too.
-_OVERRIDABLE_ARTIFACT_TYPES: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.has_layered_repository)
+_OVERRIDABLE_ARTIFACT_TYPES: tuple[str, ...] = LAYERED_REPOSITORY_KIND_PLURALS
 
 
 def _find_repo_root_from_drg(drg: Any) -> Path | None:
