@@ -33,7 +33,9 @@ either routed through the one guard (``git/destructive_guard.py``) or it fails.
 4. **Named-intent pin.** ``guarded_branch_delete(..., operator_intent=...)``,
    which skips the unique-commit check, is passed only by
    ``missions/_create.py::_delete_branch`` (``--force-recreate``).
-5. **Non-vacuity.** Every needle detects a planted literal through the SAME
+5. **Spelling-independent gates.** No ``"--hard"`` string constant anywhere outside the guard modules, and no
+   ``shell=True`` call whose command string holds a destructive git fragment.
+6. **Non-vacuity.** Every needle detects a planted literal through the SAME
    scanner; the guard modules, scanned without their exclusion, do contain
    literals; and planting a literal in a copy of the live tree turns the gate red.
 
@@ -332,6 +334,105 @@ def test_the_exclusion_is_by_module_not_by_name(tmp_path: Path) -> None:
     """A copy of the literal in a differently named module is NOT excluded."""
     hits = scan_planted_source(tmp_path, "not_the_guard.py", _planted_source(_PLANTED_ARGV[_RESET_HARD]), _find_destructive_literals)
     assert hits
+
+
+# ---------------------------------------------------------------------------
+# Spelling-independent gates: a bare "--hard" constant, and shell=True command strings.
+# The argv-literal scan above matches list/tuple literals only; these two close the
+# remaining spellings (``cmd = "--hard"; [..., cmd]``, ``subprocess.run("git reset --hard", shell=True)``).
+# ---------------------------------------------------------------------------
+
+_HARD_FLAG = "--hard"
+
+#: Substrings that make a ``shell=True`` command string destructive.
+_SHELL_DESTRUCTIVE_FRAGMENTS: tuple[str, ...] = ("reset --hard", "clean -f", "branch -D", "worktree remove")
+
+
+def _find_hard_flag_constants(path: Path) -> list[int]:
+    """Line numbers of every string constant equal to ``"--hard"`` anywhere (the guard's own modules excluded)."""
+    if _is_guard_internal(path):
+        return []
+    return _find_hard_flag_constants_unfiltered(path)
+
+
+def _find_hard_flag_constants_unfiltered(path: Path) -> list[int]:
+    return sorted({node.lineno for node in _ast.walk(parse(path)) if isinstance(node, _ast.Constant) and node.value == _HARD_FLAG})
+
+
+def _is_shell_true(call: _ast.Call) -> bool:
+    return any(kw.arg == "shell" and isinstance(kw.value, _ast.Constant) and kw.value.value is True for kw in call.keywords)
+
+
+def _string_fragments(call: _ast.Call) -> str:
+    """Every string constant inside the call's positional arguments, joined (covers f-string parts and concatenation)."""
+    return " ".join(node.value for arg in call.args for node in _ast.walk(arg) if isinstance(node, _ast.Constant) and isinstance(node.value, str))
+
+
+def _find_shell_destructive_commands(path: Path) -> list[int]:
+    """Line numbers of ``shell=True`` calls whose command string holds a destructive git fragment."""
+    if _is_guard_internal(path):
+        return []
+    return sorted(
+        {
+            node.lineno
+            for node in _ast.walk(parse(path))
+            if isinstance(node, _ast.Call) and _is_shell_true(node) and any(frag in _string_fragments(node) for frag in _SHELL_DESTRUCTIVE_FRAGMENTS)
+        }
+    )
+
+
+def _line_offenders(finder: Callable[[Path], list[int]]) -> dict[str, list[int]]:
+    found: dict[str, list[int]] = {}
+    for rel in _live_sources():
+        lines = finder(REPO_ROOT / rel)
+        if lines:
+            found[rel] = lines
+    return found
+
+
+def test_no_bare_hard_flag_constant_outside_the_guard() -> None:
+    """``"--hard"`` is only ever spelled inside the guard modules, however the argv is assembled."""
+    offenders = _line_offenders(_find_hard_flag_constants)
+    assert not offenders, f'The "--hard" flag appears outside the guard: {offenders}. Route through guarded_reset_hard.'
+
+
+def test_no_shell_true_destructive_git_command() -> None:
+    """A ``shell=True`` string running a destructive git command bypasses the argv scan entirely."""
+    offenders = _line_offenders(_find_shell_destructive_commands)
+    assert not offenders, f"shell=True destructive git command outside the guard: {offenders}"
+
+
+def test_the_guard_modules_do_hold_a_hard_flag_constant_when_not_excluded() -> None:
+    """Non-vacuity of the exclusion: the finder sees the real constants the module exclusion hides."""
+    assert all(_find_hard_flag_constants_unfiltered(REPO_ROOT / rel) for rel in _GUARD_INTERNAL_MODULES)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        'import subprocess\n\n\ndef f():\n    flag = "--hard"\n    subprocess.run(["git", "reset", flag])\n',
+        'FLAGS = {"mode": "--hard"}\n',
+    ],
+    ids=["bound-to-name", "inside-dict"],
+)
+def test_hard_flag_scanner_detects_a_planted_constant(tmp_path: Path, source: str) -> None:
+    assert scan_planted_source(tmp_path, "planted_hard.py", source, _find_hard_flag_constants)
+
+
+@pytest.mark.parametrize("fragment", _SHELL_DESTRUCTIVE_FRAGMENTS)
+def test_shell_scanner_detects_every_destructive_fragment(tmp_path: Path, fragment: str) -> None:
+    source = f'import subprocess\n\n\ndef f(x):\n    subprocess.run("git {fragment} " + x, shell=True)\n'
+    assert scan_planted_source(tmp_path, "planted_shell.py", source, _find_shell_destructive_commands) == [5]
+
+
+def test_shell_scanner_ignores_benign_shell_commands_and_non_shell_calls(tmp_path: Path) -> None:
+    source = (
+        "import subprocess\n\n\ndef f():\n"
+        '    subprocess.run("git status", shell=True)\n'
+        '    subprocess.run("git reset --hard", shell=False)\n'
+        '    print("git reset --hard HEAD~1 undoes a commit")\n'
+    )
+    assert scan_planted_source(tmp_path, "planted_shell_ok.py", source, _find_shell_destructive_commands) == []
 
 
 # ---------------------------------------------------------------------------
