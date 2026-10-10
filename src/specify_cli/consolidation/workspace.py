@@ -45,7 +45,6 @@ __all__ = [
     "get_merge_runtime_dir",
     "_worktree_removal_delay",
     "abort_scratch_merge",
-    "discard_scratch_tree",
     "remove_scratch_worktree",
 ]
 
@@ -121,7 +120,7 @@ def _gitlink_dangles(git_entry: Path) -> bool:
     return not target.exists()
 
 
-def discard_scratch_tree(path: Path, *, tool_root: Path, reason: str) -> bool:
+def _discard_scratch_tree(path: Path, *, tool_root: Path, reason: str) -> bool:
     """Delete a scratch directory under ``tool_root`` that this tool created; best effort.
 
     A plain directory goes through :func:`remove_tool_owned_tree`. A directory that is
@@ -168,7 +167,7 @@ def create_merge_workspace(mission_id: str, target_branch: str, repo_root: Path)
         if get_merge_workspace(mission_id, repo_root) is not None:
             return workspace_path
         # Invalid state: remove and recreate
-        discard_scratch_tree(
+        _discard_scratch_tree(
             workspace_path,
             tool_root=get_merge_runtime_dir(mission_id, repo_root),
             reason="stale merge workspace",
@@ -230,7 +229,7 @@ def cleanup_merge_workspace(mission_id: str, repo_root: Path) -> None:
             if child.name in _PRESERVED_FILES:
                 continue
             if child.is_dir():
-                discard_scratch_tree(child, tool_root=runtime_dir, reason="merge runtime artifact")
+                _discard_scratch_tree(child, tool_root=runtime_dir, reason="merge runtime artifact")
             else:
                 child.unlink(missing_ok=True)
 

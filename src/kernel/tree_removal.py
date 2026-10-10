@@ -21,9 +21,9 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
-__all__ = ["TOOL_OWNED_PATH_UNPROVEN", "ToolOwnedPathUnproven", "remove_tool_owned_tree"]
+__all__ = ["ToolOwnedPathUnproven", "remove_tool_owned_tree"]
 
-TOOL_OWNED_PATH_UNPROVEN = "TOOL_OWNED_PATH_UNPROVEN"
+_TOOL_OWNED_PATH_UNPROVEN = "TOOL_OWNED_PATH_UNPROVEN"
 
 _LOG = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ _LOG = logging.getLogger(__name__)
 class ToolOwnedPathUnproven(ValueError):
     """``path`` is not provably a tool-owned tree; nothing was deleted (a programming error)."""
 
-    error_code = TOOL_OWNED_PATH_UNPROVEN
+    error_code = _TOOL_OWNED_PATH_UNPROVEN
 
 
 def _retry_writable(function: Callable[[str], object], name: str, _exc: object) -> None:
@@ -54,12 +54,12 @@ def _prove_owned(path: Path, tool_root: Path, reason: str) -> Path:
     resolved = path.resolve()
     root = tool_root.resolve()
     if resolved != root and root not in resolved.parents:
-        raise ToolOwnedPathUnproven(f"{TOOL_OWNED_PATH_UNPROVEN}: {path} is not inside the owned root {tool_root} ({reason}); nothing was deleted")
+        raise ToolOwnedPathUnproven(f"{_TOOL_OWNED_PATH_UNPROVEN}: {path} is not inside the owned root {tool_root} ({reason}); nothing was deleted")
     cursor = resolved
     while True:
         if (cursor / ".git").exists() or (cursor / ".git").is_symlink():
             raise ToolOwnedPathUnproven(
-                f"{TOOL_OWNED_PATH_UNPROVEN}: {cursor} is a git checkout ({reason}); delete it through guarded_tree_delete, nothing was deleted"
+                f"{_TOOL_OWNED_PATH_UNPROVEN}: {cursor} is a git checkout ({reason}); delete it through guarded_tree_delete, nothing was deleted"
             )
         if cursor == root:
             return resolved
