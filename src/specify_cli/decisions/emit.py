@@ -32,7 +32,7 @@ Public API:
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 import json
 import logging
 from pathlib import Path
@@ -72,7 +72,7 @@ def _generate_ulid() -> str:
     return str(_ulid_mod.ULID())
 
 
-def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
+def _mission_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the WRITE location of ``kitty-specs/<mission_slug>/`` for decision events.
 
     coord-artifact-single-home-01M3V4BE WP09 (FR-003/FR-003a, #5519): routed
@@ -98,13 +98,14 @@ def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
     effect (``test_decision_fresh_coord_5113.py``'s list/verify/dry-run
     never-materializes guards).
     """
-    mission_dir: Path = placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.STATUS_STATE).path
+    mission_dir: Path = placement_seam(repo_root, mission_slug, **({"owned": owned} if owned is not None else {})).write_dir(MissionArtifactKind.STATUS_STATE).path
     return mission_dir
 
 
-def _events_path(repo_root: Path, mission_slug: str) -> Path:
+def _events_path(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the WRITE-side path to ``status.events.jsonl`` (see :func:`_mission_dir`)."""
-    return _mission_dir(repo_root, mission_slug) / _EVENTS_FILENAME
+    path = _mission_dir(repo_root, mission_slug, **({"owned": owned} if owned is not None else {})) / _EVENTS_FILENAME
+    return owned.files([path])[0] if owned is not None else path
 
 
 def _count_rows(events_path: Path) -> int:
@@ -207,6 +208,7 @@ def emit_decision_opened(
     decision_id: str,
     entry: IndexEntry,
     actor: str,
+    owned: OwnedCheckout | None = None,
 ) -> int:
     """Append a ``DecisionPointOpened`` (interview) event to status.events.jsonl.
 
@@ -256,7 +258,7 @@ def emit_decision_opened(
         "event_type": DECISION_POINT_OPENED,
         "payload": json.loads(payload.model_dump_json()),
     }
-    events_path = _events_path(repo_root, mission_slug)
+    events_path = _events_path(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
     line_count = _append_raw_event(events_path, event_dict)
     _queue_decision_fanout(events_path, event_dict, mission_slug=mission_slug, repo_root=repo_root)
     return line_count
@@ -269,6 +271,7 @@ def emit_decision_resolved(
     decision_id: str,
     entry: IndexEntry,
     actor: str,
+    owned: OwnedCheckout | None = None,
 ) -> int:
     """Append a ``DecisionPointResolved`` (interview) event to status.events.jsonl.
 
@@ -338,7 +341,7 @@ def emit_decision_resolved(
         "event_type": DECISION_POINT_RESOLVED,
         "payload": json.loads(payload.model_dump_json()),
     }
-    events_path = _events_path(repo_root, mission_slug)
+    events_path = _events_path(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
     line_count = _append_raw_event(events_path, event_dict)
     _queue_decision_fanout(events_path, event_dict, mission_slug=mission_slug, repo_root=repo_root)
     return line_count

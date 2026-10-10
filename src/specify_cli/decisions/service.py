@@ -219,7 +219,7 @@ def _is_allowed_terminal_reopen(
     return _index_fold.is_allowed_terminal_reopen(current_status, target_status)
 
 
-def _primary_metadata_dir(repo_root: Path, mission_slug: str) -> Path:
+def _primary_metadata_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the PRIMARY-partition dir that carries ``meta.json``.
 
     Routed through ``placement_seam(...).read_dir(PRIMARY_METADATA)`` — a
@@ -230,10 +230,10 @@ def _primary_metadata_dir(repo_root: Path, mission_slug: str) -> Path:
     (``status/aggregate.py``, ``merge/executor.py``, ``merge/resolve.py``,
     ``runtime/next/runtime_bridge.py``, etc.) rather than a bespoke walk.
     """
-    return placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    return placement_seam(repo_root, mission_slug, **({"owned": owned} if owned is not None else {})).read_dir(MissionArtifactKind.PRIMARY_METADATA)
 
 
-def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
+def _resolve_mission_id(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> str:
     """Read mission_id from kitty-specs/<slug>/meta.json.
 
     Raises:
@@ -255,7 +255,7 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
     # (``load_index(file_path.parent)``). The decisions LEDGER directory
     # itself (``decisions/index.json`` / ``DM-<id>.md``) stays COORD-routed
     # via ``_mission_dir`` — only this identity read moves.
-    feature_dir = _primary_metadata_dir(repo_root, mission_slug)
+    feature_dir = _primary_metadata_dir(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
     # FR-005 / post-#2091 + FR-007 / #3162: this site hard-fails on a missing
     # meta.json (DecisionError(MISSION_NOT_FOUND)) -- allow_missing=True would
     # MASK that guard and silently re-introduce the removed legacy tolerance.
@@ -290,7 +290,7 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
     return str(mission_id)
 
 
-def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
+def _mission_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the READ-side COORD-partition kitty-specs/<mission_slug>/ dir.
 
     ``status.events.jsonl`` is coord-authority-owned STATUS-partition state --
@@ -313,20 +313,21 @@ def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
     this helper -- see :func:`_ledger_dir` below. Only ``status.events.jsonl``
     (:func:`_events_path`) stays COORD-routed here.
     """
-    mission_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
+    mission_dir: Path = placement_seam(repo_root, mission_slug, **({"owned": owned} if owned is not None else {})).read_dir(MissionArtifactKind.STATUS_STATE)
     return mission_dir
 
 
-def _events_path(repo_root: Path, mission_slug: str) -> Path:
+def _events_path(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the READ-side kitty-specs/<mission_slug>/status.events.jsonl.
 
     Read-only callers only (see :func:`_mission_dir`). Writers use
     :func:`_write_events_path`.
     """
-    return _mission_dir(repo_root, mission_slug) / "status.events.jsonl"
+    path = _mission_dir(repo_root, mission_slug, **({"owned": owned} if owned is not None else {})) / "status.events.jsonl"
+    return owned.files([path])[0] if owned is not None else path
 
 
-def _write_mission_dir(repo_root: Path, mission_slug: str) -> Path:
+def _write_mission_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the WRITE location of ``kitty-specs/<mission_slug>/`` for decision events.
 
     coord-artifact-single-home-01M3V4BE WP09 (FR-003/FR-003a, #5519): the
@@ -344,16 +345,17 @@ def _write_mission_dir(repo_root: Path, mission_slug: str) -> Path:
     BEFORE any ledger write, so a refusal leaves the ledger untouched (zero
     record loss, NFR-002) -- call this BEFORE ``_ledger_dir`` writes.
     """
-    mission_dir: Path = placement_seam(repo_root, mission_slug).write_dir(MissionArtifactKind.STATUS_STATE).path
+    mission_dir: Path = placement_seam(repo_root, mission_slug, **({"owned": owned} if owned is not None else {})).write_dir(MissionArtifactKind.STATUS_STATE).path
     return mission_dir
 
 
-def _write_events_path(repo_root: Path, mission_slug: str) -> Path:
+def _write_events_path(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the WRITE-side path to ``status.events.jsonl`` (see :func:`_write_mission_dir`)."""
-    return _write_mission_dir(repo_root, mission_slug) / "status.events.jsonl"
+    path = _write_mission_dir(repo_root, mission_slug, **({"owned": owned} if owned is not None else {})) / "status.events.jsonl"
+    return owned.files([path])[0] if owned is not None else path
 
 
-def _ledger_dir(repo_root: Path, mission_slug: str) -> Path:
+def _ledger_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the PRIMARY-partition dir holding the decision ledger content.
 
     #4966 AC-D2 (WP03 residual, closing the gap ``15971a5ef6``'s meta.json
@@ -378,7 +380,18 @@ def _ledger_dir(repo_root: Path, mission_slug: str) -> Path:
     sidecar ``index.json.lock`` (see :func:`_decisions_lock_path`) and a
     concurrent open/resolve cannot race a repair.
     """
-    ledger_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.DECISION_LEDGER)
+    ledger_dir: Path = placement_seam(repo_root, mission_slug, **({"owned": owned} if owned is not None else {})).read_dir(MissionArtifactKind.DECISION_LEDGER)
+    if owned is not None:
+        decisions_dir = ledger_dir / "decisions"
+        # follow_links=True: this is a boundary screen that decides where the
+        # ledger paths LEAD, so a ledger entry symlinked out of the mission is
+        # refused. Default files() keeps a link leaf (#5671), which would admit
+        # such an escape on the read path (list/resolve), so the screen must
+        # resolve the final component here.
+        owned.files(
+            [decisions_dir, decisions_dir / "index.json", _decisions_lock_path(ledger_dir), *decisions_dir.glob("DM-*.md")],
+            follow_links=True,
+        )
     return ledger_dir
 
 
@@ -403,7 +416,7 @@ def _parse_opened_events(content: bytes | str) -> list[dict[str, Any]]:
     return events
 
 
-def _opened_event_exists(repo_root: Path, mission_slug: str, decision_id: str) -> bool:
+def _opened_event_exists(repo_root: Path, mission_slug: str, decision_id: str, *, owned: OwnedCheckout | None = None) -> bool:
     """Return True when the canonical opened event already exists.
 
     Raises:
@@ -412,7 +425,7 @@ def _opened_event_exists(repo_root: Path, mission_slug: str, decision_id: str) -
             fail-closed (FR-012). Never raised when the file is simply
             absent (D5); that case returns ``False``.
     """
-    path = _events_path(repo_root, mission_slug)
+    path = _events_path(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
     if not path.exists():
         return False
 
@@ -434,9 +447,10 @@ def _repair_missing_opened_event(
     mission_slug: str,
     *,
     entry: IndexEntry,
+    owned: OwnedCheckout | None = None,
 ) -> int | None:
     """Re-emit a missing opened event for an already-persisted open decision."""
-    if _opened_event_exists(repo_root, mission_slug, entry.decision_id):
+    if _opened_event_exists(repo_root, mission_slug, entry.decision_id, **({"owned": owned} if owned is not None else {})):
         return None
     if entry.opened_by is None:
         raise DecisionError(
@@ -447,11 +461,7 @@ def _repair_missing_opened_event(
     try:
         return int(
             _emit.emit_decision_opened(
-                repo_root,
-                mission_slug,
-                decision_id=entry.decision_id,
-                entry=entry,
-                actor=entry.opened_by,
+                repo_root, mission_slug, decision_id=entry.decision_id, entry=entry, actor=entry.opened_by, **({"owned": owned} if owned is not None else {})
             )
         )
     except Exception as exc:
@@ -540,6 +550,7 @@ def open_decision(
     dry_run: bool = False,
     decision_id: str | None = None,
     on_minted: Callable[[str], None] | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> DecisionOpenResponse:
     """Open a new decision or return idempotently if already open.
 
@@ -577,11 +588,11 @@ def open_decision(
             message="Either step_id or slot_key must be provided",
         )
 
-    mission_id = _resolve_mission_id(repo_root, mission_slug)
+    mission_id = _resolve_mission_id(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
     # #4966 AC-D2: the ledger dir is PRIMARY-partition-resolved (see
     # ``_ledger_dir``) -- NOT the COORD-partition ``_mission_dir`` used for
     # ``status.events.jsonl`` below.
-    mission_dir = _ledger_dir(repo_root, mission_slug)
+    mission_dir = _ledger_dir(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
 
     if dry_run:
         if on_minted is not None:
@@ -602,7 +613,7 @@ def open_decision(
     # decision). A placement failure here fails BEFORE the ledger write
     # below, so a refusal leaves the ledger untouched (zero record loss,
     # NFR-002).
-    _write_events_path(repo_root, mission_slug)  # pre-resolve: any placement failure fails before write
+    _write_events_path(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))  # pre-resolve: any placement failure fails before write
 
     # T010 (D4/FR-004): the dedup lookup (check) and the mint-and-append
     # (act) run under ONE lock acquisition -- the service-level
@@ -629,11 +640,7 @@ def open_decision(
         assert existing is not None  # narrows for mypy: is_new=False implies existing
         if not _is_terminal(existing.status):
             # Idempotent return — already open
-            repaired_lamport = _repair_missing_opened_event(
-                repo_root,
-                mission_slug,
-                entry=existing,
-            )
+            repaired_lamport = _repair_missing_opened_event(repo_root, mission_slug, entry=existing, **({"owned": owned} if owned is not None else {}))
             if on_minted is not None:
                 on_minted(existing.decision_id)
             return DecisionOpenResponse(
@@ -657,11 +664,7 @@ def open_decision(
     assert entry is not None  # narrows for mypy: is_new=True implies entry
     artifact = _store.write_artifact(mission_dir, entry)
     lamport = _emit.emit_decision_opened(
-        repo_root,
-        mission_slug,
-        decision_id=entry.decision_id,
-        entry=entry,
-        actor=actor,
+        repo_root, mission_slug, decision_id=entry.decision_id, entry=entry, actor=actor, **({"owned": owned} if owned is not None else {})
     )
     if on_minted is not None:
         on_minted(entry.decision_id)
@@ -775,6 +778,7 @@ def _terminal_command(
     resolved_by: str | None = None,
     actor: str,
     dry_run: bool = False,
+    owned: OwnedCheckout | None = None,
 ) -> DecisionTerminalResponse:
     """Shared implementation for resolve, defer, and cancel.
 
@@ -795,11 +799,11 @@ def _terminal_command(
     # see ``open_decision``'s identical rationale -- resolve the event WRITE
     # location before this terminal write (resolve / defer / cancel all
     # route through here).
-    _write_events_path(repo_root, mission_slug)  # pre-resolve: any placement failure fails before write
+    _write_events_path(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))  # pre-resolve: any placement failure fails before write
 
     # #4966 AC-D2: the ledger dir is PRIMARY-partition-resolved (see
     # ``_ledger_dir``) -- NOT the COORD-partition ``_mission_dir``.
-    mission_dir = _ledger_dir(repo_root, mission_slug)
+    mission_dir = _ledger_dir(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
     # T010 (D4/FR-004): load -> find -> idempotency/conflict-check -> mutate
     # -> save all run under ONE lock acquisition (see
     # ``_apply_terminal_under_lock``) instead of the prior lock-free
@@ -827,11 +831,7 @@ def _terminal_command(
 
     _store.write_artifact(mission_dir, updated_entry)
     lamport = _emit.emit_decision_resolved(
-        repo_root,
-        mission_slug,
-        decision_id=decision_id,
-        entry=updated_entry,
-        actor=actor,
+        repo_root, mission_slug, decision_id=decision_id, entry=updated_entry, actor=actor, **({"owned": owned} if owned is not None else {})
     )
 
     return DecisionTerminalResponse(
@@ -860,6 +860,7 @@ def resolve_decision(
     resolved_by: str | None = None,
     actor: str,
     dry_run: bool = False,
+    owned: OwnedCheckout | None = None,
 ) -> DecisionTerminalResponse:
     """Resolve a decision with a concrete answer.
 
@@ -907,6 +908,7 @@ def resolve_decision(
         resolved_by=resolved_by,
         actor=actor,
         dry_run=dry_run,
+        owned=owned,
     )
 
 
@@ -919,6 +921,7 @@ def defer_decision(
     resolved_by: str | None = None,
     actor: str,
     dry_run: bool = False,
+    owned: OwnedCheckout | None = None,
 ) -> DecisionTerminalResponse:
     """Defer a decision for later resolution.
 
@@ -944,6 +947,7 @@ def defer_decision(
         resolved_by=resolved_by,
         actor=actor,
         dry_run=dry_run,
+        owned=owned,
     )
 
 
@@ -956,6 +960,7 @@ def cancel_decision(
     resolved_by: str | None = None,
     actor: str,
     dry_run: bool = False,
+    owned: OwnedCheckout | None = None,
 ) -> DecisionTerminalResponse:
     """Cancel a decision (deemed no longer relevant).
 
@@ -981,4 +986,5 @@ def cancel_decision(
         resolved_by=resolved_by,
         actor=actor,
         dry_run=dry_run,
+        owned=owned,
     )
