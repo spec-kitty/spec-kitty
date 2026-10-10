@@ -51,6 +51,8 @@ from rich.text import Text
 
 from kernel._safe_re import re
 from mission_runtime import CommitTarget, MissionArtifactKind, placement_seam
+from mission_runtime import OwnedCheckout
+
 from specify_cli.agent_tasks_ports import CommitArtifactResult, MissionHandle, TasksPorts
 from specify_cli.cli.commands.agent.tasks_mapping_core import (
     TRACKER_ONLY_MODE,
@@ -145,6 +147,7 @@ class _MapReqState:
     mission: str | None
     json_output: bool
     auto_commit: bool | None
+    owned: OwnedCheckout | None = None
     # --- phase A: input-mode facts ---
     tracker_ref_values: list[str] = field(default_factory=list)
     tracker_only_mode: bool = False
@@ -220,7 +223,7 @@ def _mr_resolve_context(st: _MapReqState) -> None:
     """Phase B: repo/mission/target-branch resolution + the protected-branch gate."""
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    repo_root = _tasks.locate_project_root()
+    repo_root = st.owned.repository_root if st.owned else _tasks.locate_project_root()
     if repo_root is None:
         _tasks._output_error(st.json_output, "Could not locate project root")
         raise typer.Exit(1)
@@ -229,8 +232,13 @@ def _mr_resolve_context(st: _MapReqState) -> None:
     # FR-010 / FR-019: one-shot sparse-checkout session warning.
     _tasks._emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks map-requirements")
 
-    st.mission_slug = _tasks._find_mission_slug(explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root)
-    st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
+    if st.owned is not None:
+        st.mission_slug = st.owned.mission_slug
+        st.main_repo_root = st.owned.owned_root
+        st.target_branch = st.owned.write_branch
+    else:
+        st.mission_slug = _tasks._find_mission_slug(explicit_mission=st.mission, json_output=st.json_output, repo_root=repo_root)
+        st.main_repo_root, st.target_branch = _tasks._ensure_target_branch_checked_out(repo_root, st.mission_slug, st.json_output)
     st.auto_commit_on = _tasks.get_auto_commit_default(st.main_repo_root) if st.auto_commit is None else st.auto_commit
     st.commit_target = CommitTarget(ref=st.target_branch)
     if st.auto_commit_on:
@@ -239,6 +247,13 @@ def _mr_resolve_context(st: _MapReqState) -> None:
         # map-requirements edits WP prompt files → WORK_PACKAGE_TASK (primary)
         # (write-surface-coherence WP02 / T009). Resolve the destination through
         # the kind authority instead of the hardcoded target_branch above.
+        if st.owned is not None:
+            st.commit_target = placement_seam(st.main_repo_root, st.mission_slug, owned=st.owned).write_target(MissionArtifactKind.WORK_PACKAGE_TASK)
+            policy = _tasks.ProtectionPolicy.resolve_for_owned(st.owned)
+            if policy.is_protected(st.commit_target.ref):
+                _tasks._output_error(st.json_output, f"Protected owned write branch: {st.commit_target.ref}")
+                raise typer.Exit(1)
+            return
         st.commit_target = _resolve_planning_placement(st.main_repo_root, st.mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
         protected_error = _tasks._protected_branch_status_commit_error(
             st.commit_target.ref,
@@ -332,7 +347,11 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     )
 
     # #2064: resolve the WP ``tasks/`` dir through the SAME seam finalize uses.
-    st.feature_dir = _tasks._map_requirements_feature_dir(st.main_repo_root, st.mission_slug)
+    st.feature_dir = (
+        placement_seam(st.main_repo_root, st.mission_slug, owned=st.owned).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
+        if st.owned
+        else _tasks._map_requirements_feature_dir(st.main_repo_root, st.mission_slug)
+    )
     # Boundary guard — hard-reject pre-3.0 layout before any WP mutation.
     try:
         check_pre30_layout(st.feature_dir)
@@ -343,7 +362,7 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     # FR-011 / T012: fold the handle to its canonical dir NAME first so a bare
     # mid8 / human slug resolves the durable ``<slug>-<mid8>`` home (ambiguous
     # handle RAISES — no silent pick, C-002). Routed through the port (T030).
-    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
+    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug, owned=st.owned)
     st.primary_dir = ports.fs.primary_anchor_dir(handle)
 
     if not st.feature_dir.exists():
@@ -370,7 +389,7 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     # files are WORK_PACKAGE_TASK — a PRIMARY-partition kind. Resolve the read dir
     # through the kind-aware seam (the SAME single authority WP01 routed the rest
     # of the gate reads onto) instead of the topology-routed ``feature_dir``.
-    st.tasks_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / "tasks"
+    st.tasks_dir = placement_seam(st.main_repo_root, st.mission_slug, owned=st.owned).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK) / "tasks"
     _mr_unknown_wp_gate(st)
 
 
@@ -560,6 +579,7 @@ def _mr_write_frontmatter(st: _MapReqState) -> None:
                 actor=MAP_REQUIREMENTS_COMMAND_NAME,
                 mission_slug=st.mission_slug,
                 repo_root=st.main_repo_root,
+                **({"owned": st.owned} if st.owned is not None else {}),
             )
 
 
@@ -730,18 +750,20 @@ def _mr_auto_commit(st: _MapReqState, ports: TasksPorts) -> None:
         wp_file = next((f for f in st.tasks_dir.glob(f"{wp_id}*.md")), None)
         if wp_file is not None:
             written_files.append(wp_file.resolve())
+    if st.owned is not None and st.tracker_ref_values:
+        written_files.extend(p for name in ("status.events.jsonl", "status.json") if (p := st.feature_dir / name).exists())
     if not written_files:
         return
     spec_number = st.mission_slug.split("-")[0] if "-" in st.mission_slug else st.mission_slug
     commit_msg = f"chore: Map requirements for {', '.join(sorted(st.new_mappings))} on spec {spec_number}"
-    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
+    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug, owned=st.owned)
     try:
         _router_result = ports.coord.commit_artifact(
             handle,
             tuple(written_files),
             commit_msg,
             kind=MissionArtifactKind.WORK_PACKAGE_TASK,
-            policy=_tasks.ProtectionPolicy.resolve(st.main_repo_root),
+            policy=_tasks.ProtectionPolicy.resolve_for_owned(st.owned) if st.owned else _tasks.ProtectionPolicy.resolve(st.main_repo_root),
         )
         st.commit_router_result = _router_result
         if _router_result.status == "committed":
@@ -808,6 +830,12 @@ def _mr_emit_output(st: _MapReqState) -> None:
         # merged into ``coverage.unmapped_functional`` (Story 1 / FR-001 / FR-004).
         "bare_prose_requirement_ids": st.mapping_plan.bare_prose_requirement_ids,
     }
+    if st.owned is not None:
+        from specify_cli.cli.commands._owned_checkout import stale_copy_payload, echo_stale_copy_warning
+
+        payload.update(stale_copy_payload(st.owned))
+        if not st.json_output:
+            echo_stale_copy_warning(st.owned)
     if st.replace:
         # requirement-id-grammar-01M3NRCA WP03 (FR-005): additive, ``--replace``-
         # only key -- the default-mode ``map_requirements_success`` byte
@@ -846,6 +874,7 @@ def _do_map_requirements(
     auto_commit: bool | None,
     *,
     ports: TasksPorts | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> None:
     """Orchestrate ``map-requirements`` over the WP04 core + WP02 ports (C-005 seam).
 
@@ -867,6 +896,7 @@ def _do_map_requirements(
         mission=mission,
         json_output=json_output,
         auto_commit=auto_commit,
+        owned=owned,
     )
     try:
         _mr_validate_modes(st)

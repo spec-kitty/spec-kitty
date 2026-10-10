@@ -1337,12 +1337,14 @@ def map_requirements(
             help="Automatically commit WP file changes (default: from project config)",
         ),
     ] = None,
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
     """Register requirement-to-WP mappings with immediate validation."""
     # WP07 (#2116): thin orchestrator. The Typer command declares the CLI surface
     # (WP01 golden byte-identity) and delegates to ``_do_map_requirements``, which
     # runs the WP04 ``plan_mapping`` core and executes the write/commit through the
     # WP02 ports (``FsReader.primary_anchor_dir`` fold, ``commit_artifact``).
+    owned = _resolve_task_owned(owned_checkout, mission, json_output=json_output, envelope=flat_error_envelope)
     _do_map_requirements(
         wp=wp,
         refs=refs,
@@ -1352,6 +1354,7 @@ def map_requirements(
         mission=mission,
         json_output=json_output,
         auto_commit=auto_commit,
+        owned=owned,
     )
 
 
