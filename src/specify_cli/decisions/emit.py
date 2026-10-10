@@ -98,13 +98,13 @@ def _mission_dir(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | N
     effect (``test_decision_fresh_coord_5113.py``'s list/verify/dry-run
     never-materializes guards).
     """
-    mission_dir: Path = placement_seam(repo_root, mission_slug, **({"owned": owned} if owned is not None else {})).write_dir(MissionArtifactKind.STATUS_STATE).path
+    mission_dir: Path = placement_seam(repo_root, mission_slug, owned=owned).write_dir(MissionArtifactKind.STATUS_STATE).path
     return mission_dir
 
 
 def _events_path(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Path:
     """Return the WRITE-side path to ``status.events.jsonl`` (see :func:`_mission_dir`)."""
-    path = _mission_dir(repo_root, mission_slug, **({"owned": owned} if owned is not None else {})) / _EVENTS_FILENAME
+    path = _mission_dir(repo_root, mission_slug, owned=owned) / _EVENTS_FILENAME
     return owned.files([path])[0] if owned is not None else path
 
 
@@ -258,7 +258,7 @@ def emit_decision_opened(
         "event_type": DECISION_POINT_OPENED,
         "payload": json.loads(payload.model_dump_json()),
     }
-    events_path = _events_path(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
+    events_path = _events_path(repo_root, mission_slug, owned=owned)
     line_count = _append_raw_event(events_path, event_dict)
     _queue_decision_fanout(events_path, event_dict, mission_slug=mission_slug, repo_root=repo_root)
     return line_count
@@ -341,7 +341,7 @@ def emit_decision_resolved(
         "event_type": DECISION_POINT_RESOLVED,
         "payload": json.loads(payload.model_dump_json()),
     }
-    events_path = _events_path(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
+    events_path = _events_path(repo_root, mission_slug, owned=owned)
     line_count = _append_raw_event(events_path, event_dict)
     _queue_decision_fanout(events_path, event_dict, mission_slug=mission_slug, repo_root=repo_root)
     return line_count

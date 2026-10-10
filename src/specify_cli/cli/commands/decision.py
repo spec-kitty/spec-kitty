@@ -766,7 +766,7 @@ def cmd_verify(
     # real deferred decision. Reuse the ONE existing ledger-dir authority
     # (do not add a second/third resolver here).
     try:
-        mission_dir = _resolve_ledger_dir(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
+        mission_dir = _resolve_ledger_dir(repo_root, mission_slug, owned=owned)
     except ActionContextError as exc:
         _handle_action_context_error(exc)
 
@@ -908,7 +908,7 @@ def cmd_list(
     # coord husk returns the COORD worktree the ledger writer never touches,
     # so ``list`` silently reported an empty ledger.
     try:
-        mission_dir = _resolve_ledger_dir(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
+        mission_dir = _resolve_ledger_dir(repo_root, mission_slug, owned=owned)
     except ActionContextError as exc:
         _handle_action_context_error(exc)
 

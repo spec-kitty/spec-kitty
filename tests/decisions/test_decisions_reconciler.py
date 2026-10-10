@@ -711,7 +711,7 @@ def test_service_and_doctor_resolve_ledger_dir_in_lockstep_under_coord_topology(
         doctor_ledger_dir = _doctor_mod._ledger_dir(tmp_path, MISSION_SLUG)
         events_dir = _service_mod._mission_dir(tmp_path, MISSION_SLUG)
 
-    service_seam_ctor.assert_called_with(tmp_path, MISSION_SLUG)
+    service_seam_ctor.assert_called_with(tmp_path, MISSION_SLUG, owned=None)
 
     assert service_ledger_dir == primary_dir, "service.py::_ledger_dir must resolve DECISION_LEDGER under coord topology, not drift to STATUS_STATE"
     assert doctor_ledger_dir == primary_dir, "_decisions_doctor.py::_ledger_dir must resolve DECISION_LEDGER under coord topology, not drift to STATUS_STATE"

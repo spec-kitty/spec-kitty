@@ -122,7 +122,7 @@ def _resolve_record_analysis_placement_ref(repo_root: Path, feature_dir: Path, *
     from mission_runtime import ActionContextError as _ActionContextError, placement_seam
 
     try:
-        return placement_seam(repo_root, feature_dir.name, **({"owned": owned} if owned else {})).write_target(MissionArtifactKind.ANALYSIS_REPORT)
+        return placement_seam(repo_root, feature_dir.name, owned=owned).write_target(MissionArtifactKind.ANALYSIS_REPORT)
     except _ActionContextError:
         return None
 
@@ -301,7 +301,7 @@ def _commit_analysis_report(
             # topology and NEVER transits the coordination branch.
             kind=MissionArtifactKind.ANALYSIS_REPORT,
             target_branch=target_branch,
-            **({"owned": owned} if owned else {}),
+            owned=owned,
         )
     except (subprocess.CalledProcessError, OSError, RuntimeError, ValueError):
         return None
@@ -334,7 +334,7 @@ def _run_report_only(
         body=body,
         analyzer_agent=analyzer_agent,
         target_branch=owned.write_branch if owned else get_feature_target_branch(repo_root, feature_dir.name),
-        **({"owned": owned} if owned else {}),
+        owned=owned,
     )
     payload = report_outcome.payload
     if owned is not None:
@@ -430,7 +430,7 @@ def record_analysis(
         # T013 / D11: a genuine resolution failure fails closed here instead of
         # silently letting the preflight run with a conservative, un-filtered
         # dirty set (see ``_require_record_analysis_placement``).
-        placement_ref = _resolve_record_analysis_placement_ref(repo_root, feature_dir, **({"owned": owned} if owned else {}))
+        placement_ref = _resolve_record_analysis_placement_ref(repo_root, feature_dir, owned=owned)
         placement_ref = _require_record_analysis_placement(placement_ref, mission_slug=feature_dir.name)
         if not report_only:
             _enforce_analysis_report_write_preflight(
@@ -438,7 +438,7 @@ def record_analysis(
                 json_output=json_output,
                 placement_ref=placement_ref,
                 mission_slug=feature_dir.name,
-                **({"owned": owned} if owned else {}),
+                owned=owned,
             )
 
         body = sys.stdin.read() if input_file == "-" else Path(input_file).read_text(encoding="utf-8")
@@ -477,7 +477,7 @@ def record_analysis(
         from specify_cli.cli.commands.agent.mission_feature_resolution import _kind_for_artifact
         from mission_runtime import placement_seam
 
-        write_feature_dir = placement_seam(repo_root, feature_dir.name, **({"owned": owned} if owned else {})).read_dir(_kind_for_artifact("spec"))
+        write_feature_dir = placement_seam(repo_root, feature_dir.name, owned=owned).read_dir(_kind_for_artifact("spec"))
 
         if report_only:
             _run_report_only(
@@ -487,7 +487,7 @@ def record_analysis(
                 body=body,
                 analyzer_agent=analyzer_agent,
                 json_output=json_output,
-                **({"owned": owned} if owned else {}),
+                owned=owned,
             )
             return
 
@@ -519,7 +519,7 @@ def record_analysis(
             mission_slug=_analysis_mission_slug,
             report_path=result.path,
             target_branch=owned.write_branch if owned else get_feature_target_branch(repo_root, _analysis_mission_slug),
-            **({"owned": owned} if owned else {}),
+            owned=owned,
         )
 
         payload = {_PAYLOAD_KEY_SUCCESS: True, "result": "success", **result.to_dict()}
