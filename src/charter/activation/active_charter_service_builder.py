@@ -183,9 +183,11 @@ def _self_resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     both :func:`_build_active_charter_service`'s default and
     :func:`build_active_charter_service` route through this one
     helper so the resolution rule can never drift between them. Delegates to
-    the shared :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots`
-    primitive (#3525 Fold A) — this was the precedent every other
-    "does this org root exist" consumer now routes onto instead of
+    the :func:`charter.activation.layer_roots.resolve_pack_chain` authority
+    (lenient posture, ``strict=False``), which wraps the shared
+    :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots`
+    primitive. That primitive (#3525 Fold A) was the precedent every other
+    "does this org root exist" consumer routed onto instead of
     re-implementing the filter comprehension independently.
     """
     from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415
