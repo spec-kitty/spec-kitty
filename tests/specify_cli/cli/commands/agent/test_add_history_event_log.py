@@ -56,8 +56,10 @@ def _lanes_mission(tmp_path: Path) -> tuple[Path, str, Path]:
     return repo, result.mission_slug, result.feature_dir
 
 
-def test_add_history_records_note_as_event_annotation(tmp_path: Path) -> None:
+def test_add_history_records_note_in_the_event_log_and_leaves_the_wp_body_untouched(tmp_path: Path) -> None:
     repo, slug, feature_dir = _lanes_mission(tmp_path)
+    wp_file = feature_dir / "tasks" / "WP01.md"
+    before = wp_file.read_bytes()
 
     with patch.object(tasks_module, "locate_project_root", return_value=repo):
         tasks_module.add_history(task_id="WP01", note=NOTE, mission=slug, agent="claude", shell_pid=None, json_output=True)
@@ -65,22 +67,8 @@ def test_add_history_records_note_as_event_annotation(tmp_path: Path) -> None:
     stream = read_event_stream(feature_dir)
     notes = [a.delta.note for a in stream.annotations if a.wp_id == "WP01" and a.delta.note]
     assert any(NOTE in (note or "") for note in notes), f"note not recorded in the event log; annotations={notes!r}"
-
-
-def test_add_history_does_not_write_markdown_activity_log(tmp_path: Path) -> None:
-    repo, slug, feature_dir = _lanes_mission(tmp_path)
-    wp_file = feature_dir / "tasks" / "WP01.md"
-    before = wp_file.read_text(encoding="utf-8")
-
-    with patch.object(tasks_module, "locate_project_root", return_value=repo):
-        tasks_module.add_history(task_id="WP01", note=NOTE, mission=slug, agent="claude", shell_pid=None, json_output=True)
-
-    after = wp_file.read_text(encoding="utf-8")
-    # The invariant is that add-history does not WRITE to the WP prompt body at
-    # all (the note goes to the event log). Any ``## Activity Log`` text present
-    # is pre-existing fixture scaffolding, not something add-history authored.
-    assert NOTE not in after, "the note must land in the event log, not the WP prompt body"
-    assert after == before, "add-history must not mutate the WP prompt body at all"
+    # No second, cwd-sensitive markdown writer (#2334): the WP prompt is byte-identical.
+    assert wp_file.read_bytes() == before, "add-history must not mutate the WP prompt body at all"
 
 
 def test_add_history_on_a_coord_mission_records_to_the_coord_surface(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
