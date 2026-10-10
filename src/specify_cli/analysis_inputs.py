@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -104,7 +104,7 @@ def _entry(path: Path, root: Path, feature_dir: Path) -> dict[str, str | None]:
             raise MaterialInputError(f"Invalid WP definition: {path.name}") from exc
         static = {key: value for key, value in metadata.items() if key not in MUTABLE_FIELDS}
         return {"path": relative, "sha256": _sha256_text(json.dumps(static, sort_keys=True, default=str) + "\n" + body)}
-    return _artifact_hash_entry(path, root)
+    return cast(dict[str, str | None], _artifact_hash_entry(path, root))
 
 
 def _source_paths(charter: dict[str, Any], root: Path) -> list[Path]:
@@ -142,27 +142,66 @@ def _package_inputs() -> dict[str, dict[str, str | None]]:
     return result
 
 
-def _resolved_template_paths(root: Path, feature_dir: Path) -> list[Path]:
+def _global_template_mirror(path: Path, *, mission: str, tier: str) -> str:
+    """Admit only regular, canonically addressed copies of the packaged template."""
+    from charter.activation.resolver import ActiveCharterService
+    from specify_cli.runtime.resolver import get_kittify_home
+
+    home = get_kittify_home().absolute()
+    if any(parent.is_symlink() for parent in (home, *home.parents)):
+        raise MaterialInputError("Global template authority contains a symlink")
+    _safe_path(home, path)
+    relative = path.relative_to(home).as_posix()
+    expected = Path("missions") / mission / "templates" / path.name if tier == "GLOBAL_MISSION" else Path("templates") / path.name
+    package = ActiveCharterService.resolve_package_default_asset_path(
+        missions_root=get_package_asset_root(),
+        mission=mission,
+        subdir="templates",
+        name=path.name,
+    )
+    if relative != expected.as_posix() or package is None or not path.is_file():
+        raise MaterialInputError("External mutable global template authority is unsupported")
+    _safe_path(get_package_asset_root(), package)
+    if not package.is_file() or path.read_bytes() != package.read_bytes():
+        raise MaterialInputError("External mutable global template authority is unsupported")
+    return relative
+
+
+def _resolved_template_paths(root: Path, feature_dir: Path) -> tuple[list[Path], dict[str, dict[str, str | None]]]:
     from charter.activation.mission_type_profiles import resolve_mission_type_context
     from charter.activation.pack_context import ActiveCharterConfigError
+    from specify_cli.analysis_report import _sha256_file, _sha256_text
     from specify_cli.runtime.resolver import ResolutionTier, resolve_configured_template
 
     metadata = _mapping(feature_dir / "meta.json")
     mission_type = metadata.get("mission_type")
     if mission_type is None:
-        return []
+        return [], {}
     try:
         context = resolve_mission_type_context(root, mission_type=mission_type)
     except ActiveCharterConfigError as exc:
         raise MaterialInputError("Configured charter activation is invalid") from exc
     paths = []
+    selections = {}
     for kind in context.template_set or {}:
         resolved = resolve_configured_template(kind, root, context)
         if resolved.tier in (ResolutionTier.GLOBAL, ResolutionTier.GLOBAL_MISSION):
-            raise MaterialInputError("External mutable global template authority is unsupported")
-        if resolved.tier is not ResolutionTier.PACKAGE_DEFAULT:
+            address = _global_template_mirror(resolved.path, mission=mission_type, tier=resolved.tier.name)
+        elif resolved.tier is ResolutionTier.PACKAGE_DEFAULT:
+            address = resolved.path.relative_to(get_package_asset_root()).as_posix()
+        else:
+            address = _safe_path(root, resolved.path).relative_to(root).as_posix()
             paths.append(resolved.path)
-    return paths
+        identity = {
+            "mission": mission_type,
+            "kind": kind,
+            "tier": resolved.tier.name,
+            "address": address,
+            "selected_path": str(resolved.path.absolute()),
+            "sha256": _sha256_file(resolved.path),
+        }
+        selections[f"template-selection:{kind}"] = {"path": None, "sha256": _sha256_text(json.dumps(identity, sort_keys=True))}
+    return paths, selections
 
 
 def collect_material_inputs(feature_dir: Path, repo_root: Path) -> dict[str, dict[str, str | None]]:
@@ -212,7 +251,8 @@ def collect_material_inputs(feature_dir: Path, repo_root: Path) -> dict[str, dic
         include(charter_path.parent / value)
     for path in _source_paths(charter, root):
         include(path)
-    for path in _resolved_template_paths(root, feature_dir):
+    template_paths, selections = _resolved_template_paths(root, feature_dir)
+    for path in template_paths:
         include(path)
 
     result: dict[str, dict[str, str | None]] = {}
@@ -222,4 +262,5 @@ def collect_material_inputs(feature_dir: Path, repo_root: Path) -> dict[str, dic
         # complete key set detects additions/removals without hashing outputs.
         result[f"material:{relative}"] = _entry(path, root, feature_dir)
     result.update(_package_inputs())
+    result.update(selections)
     return result
