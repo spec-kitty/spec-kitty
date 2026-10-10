@@ -16,6 +16,8 @@ import pytest
 
 from specify_cli.cli.commands.charter.activate import _check_preset_flags
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 class _ForeignParameterSource(enum.Enum):
     """Same member names as click's enum, no shared identity (the vendored era)."""

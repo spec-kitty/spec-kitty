@@ -17,6 +17,8 @@ import pytest
 
 from specify_cli.upgrade.intent import _click_of, _parse_values
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 class _ForeignUsageError(Exception):
     def __init__(self, message: str, ctx: object = None) -> None:
