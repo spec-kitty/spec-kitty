@@ -11315,7 +11315,7 @@ pages:
   - path: "docs/development/reference/terminology-exemptions.md"
     title: "Terminology Guard Exemption Policy"
     divio_type: "reference"
-    abstract: "Policy for the five surfaces exempt from spec-kitty terminology guards: ADRs, migrations, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
+    abstract: "Policy for the six surfaces exempt from spec-kitty terminology guards: ADRs, migrations, archived pages, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
     anchors:
     - {slug: "background", text: "Background", level: 2}
     - {slug: "exempt-surface-1-docs-adr-immutable-architectural-decision-records", text: "Exempt Surface 1: `docs/adr/` — Immutable Architectural Decision Records", level: 2}
@@ -11338,6 +11338,10 @@ pages:
     - {slug: "what-is-excluded-5", text: "What is excluded", level: 3}
     - {slug: "why-it-is-exempt-5", text: "Why it is exempt", level: 3}
     - {slug: "scope-boundary-4", text: "Scope boundary", level: 3}
+    - {slug: "exempt-surface-6-docs-archive-retired-pages-relocated-out-of-the-live-tree", text: "Exempt Surface 6: `docs/archive/` — Retired Pages Relocated Out of the Live Tree", level: 2}
+    - {slug: "what-is-excluded-6", text: "What is excluded", level: 3}
+    - {slug: "why-it-is-exempt-6", text: "Why it is exempt", level: 3}
+    - {slug: "scope-boundary-5", text: "Scope boundary", level: 3}
     - {slug: "shared-exempt-root-list-and-the-operator-surface-gates", text: "Shared Exempt-Root List and the Operator-Surface Gates", level: 2}
     - {slug: "invariant-exemptions-must-stay-narrow", text: "Invariant: Exemptions Must Stay Narrow", level: 2}
     - {slug: "updating-this-policy", text: "Updating This Policy", level: 2}
