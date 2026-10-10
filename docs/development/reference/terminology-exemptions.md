@@ -1,6 +1,6 @@
 ---
 title: Terminology Guard Exemption Policy
-description: "Policy for the five surfaces exempt from spec-kitty terminology guards: ADRs, migrations, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
+description: "Policy for the six surfaces exempt from spec-kitty terminology guards: ADRs, migrations, archived pages, archival plans, dated reports and the Unreleased-only CHANGELOG scan."
 doc_status: active
 updated: '2026-10-08'
 audience: docs/context/audience/internal/maintainer.md
@@ -30,7 +30,7 @@ doctrine skills, and live documentation — stay aligned with the canonical
 vocabulary. They scan live surfaces only; surfaces that are historical records or
 archival snapshots are deliberately out of scope.
 
-Five categories of surfaces are currently exempt from the live-doc component of
+Six categories of surfaces are currently exempt from the live-doc component of
 the guards. Each is described below.
 
 ---
@@ -212,6 +212,35 @@ calls the shared `assert_docfx_does_not_publish_reports` in
 `docs/reports/` path. If that guard ever fails, `docs/reports/` has started being
 published as live documentation and this exemption must be reconsidered, not
 silently kept.
+
+---
+
+## Exempt Surface 6: `docs/archive/` — Retired Pages Relocated Out of the Live Tree
+
+### What is excluded
+
+All files under `docs/archive/` are excluded from the live-doc scan in
+`_live_doc_scan_targets()` in `tests/contract/test_terminology_guards.py`
+(`FORBIDDEN_SCAN_ROOTS`).
+
+### Why it is exempt
+
+`docs/archive/` holds retired pages that #5428 ("archive retired pages and
+neutralize 3.x-anchored names") relocated out of the live tree. They are
+immutable historical snapshots that legitimately retain era-correct wording
+(the removed `--feature` alias, the pre-3.0 main-centric workflow, "Merge to
+main"), exactly like `docs/adr/`. The Terminology Canon permits legacy wording
+in explicitly archived artifacts, and rewording these pages would falsify the
+record they exist to preserve. #5428 moved the pages but did not exempt the new
+root, so the scan began flagging them (for example
+`docs/archive/plans/initiatives/test_improvement/IMPLEMENTATION_COMPLETE.md`);
+the exemption restores the archival carve-out (#5488).
+
+### Scope boundary
+
+Only `docs/archive/` is exempt. A retired page is exempt only because it lives
+under this root: moving a page out of `docs/archive/` back into the live tree
+puts it back in scope. All other live `docs/` pages remain fully scanned.
 
 ---
 
