@@ -28,11 +28,7 @@ def _write_directive(pack_root: Path, directive_id: str, marker: str) -> None:
     directives_dir = pack_root / "directives"
     directives_dir.mkdir(parents=True, exist_ok=True)
     (directives_dir / f"{directive_id.lower()}.directive.yaml").write_text(
-        f'schema_version: "1.0"\n'
-        f"id: {directive_id}\n"
-        f"title: Directive {directive_id}\n"
-        f"intent: Intent of {directive_id}. {marker}\n"
-        "enforcement: required\n",
+        f'schema_version: "1.0"\nid: {directive_id}\ntitle: Directive {directive_id}\nintent: Intent of {directive_id}. {marker}\nenforcement: required\n',
         encoding="utf-8",
     )
 
@@ -82,9 +78,7 @@ class TestIncludeSeesFullOrgChain:
         from charter.activation.active_charter_service_builder import _build_offering_service
         from charter.offering.drg.org_pack_config import resolve_existing_org_roots
 
-        service = _build_offering_service(
-            two_pack_project, org_roots=resolve_existing_org_roots(two_pack_project)
-        )
+        service = _build_offering_service(two_pack_project, org_roots=resolve_existing_org_roots(two_pack_project))
         directive = service.directives.get("SHARED_ONE")
         assert directive is not None
         assert "MARKER-FROM-beta" in directive.intent
@@ -131,9 +125,7 @@ class TestActivateValidatesAgainstWinningPack:
 
 
 class TestActivateUnknownInEveryPack:
-    def test_unknown_id_exits_1_names_both_packs_and_leaves_config_unchanged(
-        self, two_pack_project: Path
-    ) -> None:
+    def test_unknown_id_exits_1_names_both_packs_and_leaves_config_unchanged(self, two_pack_project: Path) -> None:
         config_path = two_pack_project / ".kittify" / "config.yaml"
         before = config_path.read_text(encoding="utf-8")
         result = runner.invoke(
