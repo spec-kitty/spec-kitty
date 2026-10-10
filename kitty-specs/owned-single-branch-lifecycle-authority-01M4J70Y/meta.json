@@ -1,0 +1,32 @@
+{
+  "accept_commit": "488de6e5bf7510d1d0e5f873d506d536b7bbfdea",
+  "acceptance_history": [
+    {
+      "accept_commit": "488de6e5bf7510d1d0e5f873d506d536b7bbfdea",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-10T08:40:45.562116+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "3cee586fac05f56ae2943fdd8f30ecbd82eeed24"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-10T08:40:45.562116+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "3cee586fac05f56ae2943fdd8f30ecbd82eeed24",
+  "created_at": "2026-10-10T06:11:58.728396+00:00",
+  "flattened": false,
+  "friendly_name": "Owned single-branch lifecycle authority",
+  "mid8": "01M4J70Y",
+  "mission_branch": "kitty/mission-owned-single-branch-lifecycle-authority-01M4J70Y",
+  "mission_id": "01M4J70YY5ZZF5T6SRDEESPHTN",
+  "mission_number": null,
+  "mission_slug": "owned-single-branch-lifecycle-authority-01M4J70Y",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Milestone 11 Slice 2: seven issues (#5874 #5877 #5878 #5880 #5892 #5893 #5947) where owned-checkout single_branch commands fold the invocation root to get_main_repo_root instead of consuming the validated OwnedCheckout fact. Fix = resolve ownership once and carry the validated fact through discovery, path/material selection, preflight and commit routing, mirroring the seam already honoured by review/cycle.py, accept.py and next_cmd.py.",
+  "purpose_tldr": "Thread the validated OwnedCheckout through the remaining single-branch lifecycle commands so owned missions resolve, preflight and commit correctly.",
+  "slug": "owned-single-branch-lifecycle-authority-01M4J70Y",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

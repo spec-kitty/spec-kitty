@@ -1,0 +1,72 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-10T06:13:21.898949Z",
+      "decision_id": "01M4J73MVA39YY3DE9ZP7W2CTD",
+      "final_answer": "Confirmed. Thread the single validated OwnedCheckout (minted by resolve_owned_mission) as owned= through discovery \u2192 path/material selection \u2192 preflight \u2192 commit routing for all 7 surfaces. No second ownership resolver; core/paths.py unchanged. Preserve non-owned primary/coordination semantics and all ownership refusals.",
+      "input_key": "confirmed_intent",
+      "mission_id": "01M4J70YY5ZZF5T6SRDEESPHTN",
+      "mission_slug": "owned-single-branch-lifecycle-authority-01M4J70Y",
+      "opened_by": "cli",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Confirm scope: thread the one validated OwnedCheckout through the 7 single-branch lifecycle surfaces (#5874 decision incl orchestrator-api, #5877 prerequisites, #5878 map-requirements, #5880+#5892 finalize-tasks, #5893 record-analysis, #5947 review/cycle) \u2014 one resolver seam (resolve_owned_mission \u2192 owned=), no second ownership resolver, no core/paths.py change; owned-create single_branch missions resolve/preflight/select-material/commit from the owned checkout.",
+      "rationale": null,
+      "resolved_at": "2026-10-10T06:13:32.362032Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.confirmed-intent",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-10T06:13:35.608564Z",
+      "decision_id": "01M4J7427RFDSVZ2T85K62N634",
+      "final_answer": "both-halves (operator ruling): adopt owned recording AND the material/charter authority half \u2014 admit package-identical GLOBAL template mirrors (byte-compared to the package default; guard relaxation kept exactly as reviewed) with template-selection:<kind> freshness identity, and thread owned through charter generate destinations.",
+      "input_key": "record_analysis_authority_scope",
+      "mission_id": "01M4J70YY5ZZF5T6SRDEESPHTN",
+      "mission_slug": "owned-single-branch-lifecycle-authority-01M4J70Y",
+      "opened_by": "cli",
+      "options": [
+        "recording-only",
+        "both-halves (operator ruling)"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "#5893 record-analysis: adopt the owned-recording fix only, or also the template/charter material-authority half (admit package-identical GLOBAL template mirrors + thread owned through charter generate)?",
+      "rationale": null,
+      "resolved_at": "2026-10-10T06:13:46.056031Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.record-analysis-authority",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-10T06:13:49.161219Z",
+      "decision_id": "01M4J74FF97BBV25T3DD4MV7JE",
+      "final_answer": "verify-green + defensive owned hardening (no fabricated red): add a by-construction owned-arm test pinning that the primary resolver (get_main_repo_root) is NOT consulted for an owned single_branch review/cycle arm, and tidy the one latent smell (cycle.py ProtectionPolicy.resolve(main_repo_root) \u2192 resolve_for_owned(owned, slug), guarded by owned-is-None fallback). Do not fabricate a red or edit test expectations; let the next green nightly self-close #5947, note the scoped-green evidence in the PR.",
+      "input_key": "review_cycle_disposition",
+      "mission_id": "01M4J70YY5ZZF5T6SRDEESPHTN",
+      "mission_slug": "owned-single-branch-lifecycle-authority-01M4J70Y",
+      "opened_by": "cli",
+      "options": [
+        "verify-green + defensive owned hardening (no fabricated red)",
+        "write a new red first"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "#5947 (nightly specify-cli-out-of-matrix red): the two named tests are empirically GREEN on current main (red nightly ran on an older commit). How to close it under red-first discipline?",
+      "rationale": null,
+      "resolved_at": "2026-10-10T06:13:58.332366Z",
+      "resolved_by": null,
+      "slot_key": "specify.verification.review-cycle-disposition",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M4J70YY5ZZF5T6SRDEESPHTN",
+  "version": 1
+}

@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "mission_slug": "owned-single-branch-lifecycle-authority-01M4J70Y",
+  "mission_id": "01M4J70YY5ZZF5T6SRDEESPHTN",
+  "mission_branch": "kitty/mission-owned-single-branch-lifecycle-authority-01M4J70Y",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/analysis_inputs.py",
+        "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_bootstrap.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_lanes.py",
+        "src/specify_cli/cli/commands/agent/mission_finalize_planning_pin.py",
+        "src/specify_cli/cli/commands/agent/mission_record_analysis.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/tasks_map_requirements.py",
+        "src/specify_cli/cli/commands/charter/generate.py",
+        "src/specify_cli/cli/commands/decision.py",
+        "src/specify_cli/decisions/emit.py",
+        "src/specify_cli/decisions/service.py",
+        "src/specify_cli/git/report_transaction.py",
+        "src/specify_cli/orchestrator_api/decision_verbs.py",
+        "src/specify_cli/review/cycle.py",
+        "src/specify_cli/status/emit.py",
+        "tests/integration/test_analysis_template_mirrors.py",
+        "tests/integration/test_owned_analysis_recording.py",
+        "tests/integration/test_owned_charter_generation.py",
+        "tests/integration/test_owned_map_requirements.py",
+        "tests/integration/test_owned_pr_bound_finalization.py",
+        "tests/integration/test_owned_protected_single_branch.py",
+        "tests/integration/test_single_branch_lane_preview.py",
+        "tests/specify_cli/cli/commands/agent/test_map_requirements_commit_result_json.py",
+        "tests/specify_cli/cli/commands/test_decision_owned_checkout.py",
+        "tests/specify_cli/test_owned_history_support.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-10T06:28:25.460629+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "fb8b46c9b0295377b22fea8710afc7cd5a2d8f3b"
+}

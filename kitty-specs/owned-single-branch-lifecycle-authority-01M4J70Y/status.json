@@ -1,0 +1,206 @@
+{
+  "event_count": 36,
+  "last_event_id": "01M4JFC5RDDAWWJW0G7DZNQH1K",
+  "materialized_at": "2026-10-10T08:37:49.965319+00:00",
+  "mission_number": "",
+  "mission_slug": "owned-single-branch-lifecycle-authority-01M4J70Y",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 6,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4JASWTBYY3HVAXNPS3EYMJY",
+      "last_transition_at": "2026-10-10T07:17:56.683708+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "independent-review:reviewer-renata:approve",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 23526,
+      "shell_pid_created_at": "1791615988.67",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      },
+      "tracker_refs": [
+        "#5874"
+      ]
+    },
+    "WP02": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4JBJRKHHCNPQGKG74Z0WENK",
+      "last_transition_at": "2026-10-10T07:31:31.569507+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "independent-review:reviewer-renata:approve",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3471,
+      "shell_pid_created_at": "1791617408.33",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      },
+      "tracker_refs": [
+        "#5877"
+      ]
+    },
+    "WP03": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4JCBS5SZN9D4JM1B11C9ZXZ",
+      "last_transition_at": "2026-10-10T07:45:11.353991+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "independent-review:reviewer-renata:approve",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 14499,
+      "shell_pid_created_at": "1791618174.4",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done"
+      },
+      "tracker_refs": [
+        "#5878"
+      ]
+    },
+    "WP04": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4JD66HYMXP7A5TGV9CTP5NG",
+      "last_transition_at": "2026-10-10T07:59:37.022153+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "independent-review:reviewer-renata:approve",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 31913,
+      "shell_pid_created_at": "1791619032.64",
+      "subtasks": {
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      },
+      "tracker_refs": [
+        "#5880",
+        "#5892"
+      ]
+    },
+    "WP05": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4JEKJPB8CRGM617FTGKK9XR",
+      "last_transition_at": "2026-10-10T08:24:24.011593+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "independent-review:reviewer-renata:approve",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 25441,
+      "shell_pid_created_at": "1791620344.17",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      },
+      "tracker_refs": [
+        "#5893"
+      ]
+    },
+    "WP06": {
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4JFC5RDDAWWJW0G7DZNQH1K",
+      "last_transition_at": "2026-10-10T08:37:49.965319+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "independent-review:reviewer-renata:approve",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4649,
+      "shell_pid_created_at": "1791621381.77",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done"
+      },
+      "tracker_refs": [
+        "#5947"
+      ]
+    }
+  }
+}

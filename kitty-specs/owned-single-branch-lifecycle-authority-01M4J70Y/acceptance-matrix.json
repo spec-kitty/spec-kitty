@@ -1,0 +1,99 @@
+{
+  "mission_slug": "owned-single-branch-lifecycle-authority-01M4J70Y",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 test_decision_owned_checkout.py (12) + test_decision_verbs_owned.py (3) green; owned decision host+orchestrator-api resolve under P, no repo-root leak",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T08:39:45.614183+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 test_owned_protected_single_branch.py prereqs cases green; branch_matches_target true with minted write branch",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T08:39:50.873850+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 test_owned_map_requirements.py (11) green; mapping lands owned, stale primary untouched",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T08:39:55.918523+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 test_owned_pr_bound_finalization.py green; owned finalize skips legacy recovery, preserves landing target",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T08:40:01.084709+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 test_single_branch_lane_preview.py green; validate-only preview == real single lane-planning",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T08:40:06.268453+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 test_owned_analysis_recording.py green; report commits on owned HEAD, primary unchanged",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T08:40:11.297047+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006a",
+      "description": "Verify FR-006a is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 test_analysis_template_mirrors.py + test_owned_charter_generation.py green; package-identical GLOBAL mirror admitted, deeper guards intact",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T08:40:16.259015+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 test_owned_history_support.py (25 incl new invariant) green; owned review/cycle arm never consults primary resolver",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T08:40:21.474081+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "All WPs: no second ownership resolver, core/paths.py unchanged across the diff; non-owned/coord snapshots preserved; refusals fire before writes",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T08:40:26.526068+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
