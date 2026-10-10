@@ -10,6 +10,8 @@ from collections.abc import Mapping
 
 import yaml
 
+from kernel.tree_removal import remove_tool_owned_tree
+
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from specify_cli.template.renderer import parse_frontmatter, render_template_text, rewrite_paths
@@ -46,7 +48,7 @@ def prepare_command_templates(
 
     merged_dir = base_templates_dir.parent / f".merged-{mission_templates_dir.parent.name}"
     if merged_dir.exists():
-        shutil.rmtree(merged_dir)
+        remove_tool_owned_tree(merged_dir, owned_root=merged_dir, reason="merged command-template dir")
 
     shutil.copytree(base_templates_dir, merged_dir)
     for template_path in mission_templates_dir.glob("*.md"):
@@ -86,7 +88,7 @@ def generate_agent_assets(command_templates_dir: Path, project_path: Path, agent
     config = AGENT_COMMAND_CONFIG[agent_key]
     output_dir = project_path / config["dir"]
     if output_dir.exists():
-        shutil.rmtree(output_dir)
+        remove_tool_owned_tree(output_dir, owned_root=output_dir, reason="generated agent command dir")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if not command_templates_dir.exists():

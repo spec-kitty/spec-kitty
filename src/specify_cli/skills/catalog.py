@@ -25,7 +25,6 @@ from __future__ import annotations
 import atexit
 import hashlib
 import logging
-import shutil
 import tempfile
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -39,6 +38,7 @@ from charter.activation.skill_preparation import (
 )
 from charter.drg import resolve_existing_org_roots
 from kernel.charter_pack_paths import project_pack_root
+from kernel.tree_removal import remove_tool_owned_tree
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import UnsafePathSegmentError, assert_safe_path_segment
 from specify_cli.skills.manifest import ORIGIN_PACK, load_manifest
@@ -261,7 +261,7 @@ def _stage(project_root: Path, rendered: list[_Rendered]) -> SkillRegistry | Non
         raise PackSkillCatalogError(f"pack-skill staging root is not a regular directory: {root}")
     if not rendered:
         if root.is_dir() and any(root.iterdir()):
-            shutil.rmtree(root)
+            remove_tool_owned_tree(root, owned_root=root, reason="stale pack-skill staging root")
         return None
     wanted = {item.prepared.rendered_name for item in rendered}
     if root.is_dir():
@@ -292,7 +292,13 @@ def _read_only_parent() -> Path:
     global _READ_ONLY_ROOT
     if _READ_ONLY_ROOT is None or not _READ_ONLY_ROOT.is_dir():
         _READ_ONLY_ROOT = Path(tempfile.mkdtemp(prefix="spec-kitty-pack-skills-"))
-        atexit.register(shutil.rmtree, _READ_ONLY_ROOT, ignore_errors=True)
+        atexit.register(
+            remove_tool_owned_tree,
+            _READ_ONLY_ROOT,
+            owned_root=_READ_ONLY_ROOT,
+            reason="read-only pack-skill temp root",
+            best_effort=True,
+        )
     return _READ_ONLY_ROOT
 
 
@@ -318,7 +324,7 @@ def _stage_read_only(rendered: list[_Rendered]) -> SkillRegistry | None:
     root = _read_only_parent() / _rendered_set_key(rendered)
     if not root.is_dir():
         building = root.with_name(f"{root.name}.building")
-        shutil.rmtree(building, ignore_errors=True)
+        remove_tool_owned_tree(building, owned_root=building, reason="pack-skill build dir", best_effort=True)
         for item in rendered:
             _write_staged(building / item.prepared.rendered_name / _SKILL_FILENAME, item.text)
         building.rename(root)
@@ -327,7 +333,7 @@ def _stage_read_only(rendered: list[_Rendered]) -> SkillRegistry | None:
 
 def _remove_node(path: Path) -> None:
     if path.is_dir() and not path.is_symlink():
-        shutil.rmtree(path)
+        remove_tool_owned_tree(path, owned_root=path, reason="stale pack-skill staging entry")
     else:
         path.unlink()
 

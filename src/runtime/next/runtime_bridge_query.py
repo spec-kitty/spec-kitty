@@ -29,11 +29,11 @@ this module never imports ``runtime_bridge``; the bridge imports it.
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 from typing import Any
 
 from kernel.clock import now_utc_iso
+from kernel.tree_removal import remove_tool_owned_tree
 from kernel.locks import LockAcquireTimeout
 from mission_runtime import OwnedCheckout
 from runtime.next import runtime_bridge_cores as _cores
@@ -436,7 +436,7 @@ def query_current_state(
         )
     finally:
         if ephemeral_run_store is not None:
-            shutil.rmtree(ephemeral_run_store, ignore_errors=True)
+            remove_tool_owned_tree(ephemeral_run_store, owned_root=ephemeral_run_store, reason="ephemeral query run store", best_effort=True)
 
 
 def _query_resolve_mission_context(

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import secrets
-import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from kernel.tree_removal import remove_tool_owned_tree
 from specify_cli.charter_packs.template_render import (
     DEFAULT_LOCAL_PATH,
     RenderRequest,
@@ -23,6 +23,7 @@ from specify_cli.charter_packs.template_render.ignore_copy import (
     copy_template_tree,
     load_ignore_rules,
 )
+from specify_cli.charter_packs.template_render.resolve import discard_temp_source
 from specify_cli.charter_packs.template_render.substitute import (
     SubstituteError,
     substitute_tokens,
@@ -129,7 +130,7 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
         )
     finally:
         if staging is not None and staging.exists():
-            shutil.rmtree(staging, ignore_errors=True)
+            remove_tool_owned_tree(staging, owned_root=staging, reason="template render staging", best_effort=True)
         _cleanup_source(source.root, source.cleanup)
 
     return None
@@ -181,7 +182,7 @@ def _force_swap(staging: Path, pack_path: Path) -> PipelineError | None:
     except OSError as exc:
         return _restore_backup(backup, pack_path, exc)
     if backup.is_dir():
-        shutil.rmtree(backup, ignore_errors=True)
+        remove_tool_owned_tree(backup, owned_root=backup, reason="force-swap backup of the replaced pack", best_effort=True)
     else:
         backup.unlink(missing_ok=True)
     return None
@@ -215,7 +216,7 @@ def _restore_backup(backup: Path, pack_path: Path, promotion_error: OSError) -> 
 
 def _cleanup_source(root: Path, cleanup: bool) -> None:
     if cleanup:
-        shutil.rmtree(root, ignore_errors=True)
+        discard_temp_source(root)
 
 
 def _from_validation(result: ValidationResult) -> PipelineError:
