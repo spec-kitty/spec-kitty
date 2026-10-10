@@ -509,9 +509,10 @@ def _preflight_refresh_planning_commit(
     json_output: bool,
 ) -> None:
     """Read-only guard run before finalize can write files or lifecycle events."""
-    contract_error = _refresh_branch_contract_error(planning_dir, target_branch, target_branch_override)
-    if contract_error is not None:
-        _refuse_planning_pin_refresh(contract_error, json_output=json_output)
+    if owned is None:
+        contract_error = _refresh_branch_contract_error(planning_dir, target_branch, target_branch_override)
+        if contract_error is not None:
+            _refuse_planning_pin_refresh(contract_error, json_output=json_output)
     primary_root = owned.repository_root if owned else repo_root
     primary_worktree = owned.owned_root if owned else repo_root
     surface_error = _refresh_worktree_status_error(primary_root, primary_worktree, mission_slug)

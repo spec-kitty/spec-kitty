@@ -783,17 +783,22 @@ def _emit_validate_only_report(
     if (wp_manifests and wp_dependencies) or all_canceled:
         from specify_cli.lanes.compute import compute_lanes as _compute_lanes_validate
         from specify_cli.lanes.persistence import read_lanes_json
+        from specify_cli.migration.backfill_topology import topology_from_meta
 
         raw_mission_id = meta.get("mission_id") if meta else None
         mission_id = raw_mission_id if isinstance(raw_mission_id, str) else None
+        raw_mission_branch = meta.get("mission_branch") if meta else None
+        mission_branch = raw_mission_branch if isinstance(raw_mission_branch, str) else None
         lanes_manifest_dry = _compute_lanes_validate(
             dependency_graph=wp_dependencies,
             ownership_manifests=wp_manifests,
             mission_slug=mission_slug,
-            target_branch=target_branch,
+            target_branch=_mf._resolve_merge_target_branch(planning_dir, target_branch) if owned else target_branch,
             wp_bodies=wp_bodies,
             mission_id=mission_id,
             previous_lanes=read_lanes_json(planning_dir),
+            topology=topology_from_meta(meta or {}, planning_dir),
+            mission_branch=mission_branch,
             frozen=frozen,
         )
         cr_dry = lanes_manifest_dry.collapse_report

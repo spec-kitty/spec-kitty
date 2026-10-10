@@ -63,7 +63,7 @@ from specify_cli.cli.console import console as console
 if TYPE_CHECKING:
     from specify_cli.lanes.frozen_membership import FrozenLaneMembership
 from kernel.paths import repo_tree_path
-from mission_runtime import ActionContextError, MissionArtifactKind
+from mission_runtime import ActionContextError, MissionArtifactKind, OwnedRefusalCode
 from specify_cli.core.checkout_identity import CheckoutIdentity, Intent, resolve_checkout_identity
 from mission_runtime import OwnedCheckout
 from specify_cli.cli.commands._owned_checkout import (
@@ -773,19 +773,39 @@ def _run_finalize_branch_setup(
     # both normal and --validate-only modes (C-005/IC-01).
     _validate_occurrence_map_ready(ctx.planning_dir, json_output=json_output)
 
-    target_branch = _resolve_target_branch(
-        ctx.repo_root,
-        ctx.primary_dir,
-        target_branch_override=target_branch_override,
-        json_output=json_output,
-    )
+    if ctx.owned is not None:
+        # The validated fact already proves planning placement. An override
+        # still names the canonical landing target, including flagless adoption.
+        from specify_cli.core.owned_mission import _branch_matches_target
+
+        meta = load_meta_fail_closed(ctx.primary_dir) or {}
+        if not _branch_matches_target(
+            ctx.owned.write_branch,
+            ctx.owned.write_branch,
+            target_branch_override,
+            target=str(meta.get("target_branch") or ""),
+        ):
+            emit_owned_refusal(
+                ActionContextError(OwnedRefusalCode.OWNED_BRANCH_REFUSED, "The target-branch override must match the mission's declared target."),
+                json_output=json_output,
+                envelope=_finalize_refusal_envelope,
+            )
+        target_branch = ctx.owned.write_branch
+    else:
+        target_branch = _resolve_target_branch(
+            ctx.repo_root,
+            ctx.primary_dir,
+            target_branch_override=target_branch_override,
+            json_output=json_output,
+        )
     merge_target_branch = _resolve_merge_target_branch(ctx.primary_dir, target_branch)
-    _preflight_recovered_pr_bound_contract(
-        ctx.repo_root,
-        ctx.primary_dir,
-        planning_branch=target_branch,
-        json_output=json_output,
-    )
+    if ctx.owned is None:
+        _preflight_recovered_pr_bound_contract(
+            ctx.repo_root,
+            ctx.primary_dir,
+            planning_branch=target_branch,
+            json_output=json_output,
+        )
     # #5445 landing fix: the --refresh-planning-commit preflight (the read-only
     # planning-pin decision + branch-contract/bootstrap guards) is NOT run here
     # any more -- it is called directly from ``finalize_tasks`` itself, right
@@ -829,14 +849,15 @@ def _run_finalize_branch_setup(
             owned_derived_snapshot = _snapshot_mission_write_scope(owned_derived_dir)
         meta_path_for_revert = ctx.primary_dir / META_JSON_FILENAME
         meta_original_text = meta_path_for_revert.read_text(encoding="utf-8") if meta_path_for_revert.exists() else None
-        target_branch_persist = _persist_branch_contract_for_finalize(
-            ctx.primary_dir,
-            planning_branch=target_branch,
-            merge_target_branch=merge_target_branch,
-            target_branch_override=target_branch_override,
-            invocation_identity=ctx.invocation_identity,
-            json_output=json_output,
-        )
+        if ctx.owned is None:
+            target_branch_persist = _persist_branch_contract_for_finalize(
+                ctx.primary_dir,
+                planning_branch=target_branch,
+                merge_target_branch=merge_target_branch,
+                target_branch_override=target_branch_override,
+                invocation_identity=ctx.invocation_identity,
+                json_output=json_output,
+            )
     return _FinalizeBranchSetup(
         target_branch=target_branch,
         merge_target_branch=merge_target_branch,
