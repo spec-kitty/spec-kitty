@@ -1,4 +1,5 @@
 """Owned analysis recording must preserve checkout and report-transaction boundaries."""
+
 from __future__ import annotations
 
 import json
@@ -221,8 +222,12 @@ def test_transaction_rejects_foreign_mission_directory(analysis_checkouts):
     assert fact is not None
     before = tuple(snapshot(root) for root in (primary, owned, sibling))
     outcome = record_report_transaction(
-        repo_root=owned, feature_dir=primary / "kitty-specs" / SLUG, body=BODY,
-        analyzer_agent=None, target_branch=fact.write_branch, owned=fact,
+        repo_root=owned,
+        feature_dir=primary / "kitty-specs" / SLUG,
+        body=BODY,
+        analyzer_agent=None,
+        target_branch=fact.write_branch,
+        owned=fact,
     )
     assert not outcome.payload["success"]
     assert outcome.payload["commit_status"] == "failed_before_write"
