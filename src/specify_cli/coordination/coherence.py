@@ -25,9 +25,10 @@ from __future__ import annotations
 
 import re
 import subprocess
+from enum import StrEnum
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from kernel.paths import to_posix
 from mission_runtime import (
@@ -41,7 +42,11 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.coordination.worktree_branch import coord_worktree_branch, normalize_ref
 
 __all__ = [
+    "CheckoutRole",
     "CoordRepairOutcome",
+    "ResidueContext",
+    "checkout_role_for",
+    "is_disposable_residue",
     "coord_incoherent_done_wps",
     "is_coord_residue_churn",
     "is_coordination_kind_file",
@@ -387,6 +392,141 @@ def is_toolchain_generated_churn(
         ``True`` when ``path`` is spec-kitty-generated churn a gate should ignore.
     """
     return is_self_bookkeeping_churn(path) or is_coord_residue_churn(path, mission_slug=mission_slug, topology=topology)
+
+
+class CheckoutRole(StrEnum):
+    """Which kind of checkout a destructive operation is about to rewrite or remove."""
+
+    REPOSITORY_ROOT = "repository_root"
+    COORDINATION = "coordination"
+    MISSION = "mission"
+    LANE = "lane"
+    TOOL_OWNED = "tool_owned"
+    """A checkout the tool created and owns (pack cache, scratch worktree): no user file can be in it."""
+
+
+@dataclass(frozen=True)
+class ResidueContext:
+    """Everything a destructive guard needs to decide what is disposable (#5965 / #5966).
+
+    Callers pass this instead of a context-free predicate, so the wrong
+    predicate cannot be written. There are no ``None`` defaults: every role but
+    ``TOOL_OWNED`` carries a Mission slug and the Mission's STORED topology. An
+    unreadable topology cannot become a context (:meth:`for_mission` raises).
+
+    ``mission_dir_names`` optionally widens the Mission's own directory names
+    under ``kitty-specs/`` (the composed ``<slug>-<mid8>`` coordination
+    directory); empty means just ``mission_slug``.
+    """
+
+    role: CheckoutRole
+    mission_slug: str = ""
+    topology: MissionTopology | None = None
+    mission_dir_names: frozenset[str] = frozenset()
+
+    def __post_init__(self) -> None:
+        if self.role is CheckoutRole.TOOL_OWNED:
+            return
+        if not isinstance(self.mission_slug, str) or not self.mission_slug:
+            raise ValueError(f"ResidueContext for role {self.role.value!r} requires a non-empty mission_slug")
+        if not isinstance(self.topology, MissionTopology):
+            raise ValueError(f"ResidueContext for role {self.role.value!r} requires the Mission's stored MissionTopology, got {self.topology!r}")
+
+    @classmethod
+    def for_mission(cls, repo_root: Path, mission_slug: str, role: CheckoutRole) -> ResidueContext:
+        """Build the context for ``mission_slug`` reading its STORED topology; raises when it is unreadable."""
+        if role is CheckoutRole.TOOL_OWNED:
+            return cls(role=role)
+        from specify_cli.migration.backfill_topology import read_topology
+        from specify_cli.missions._read_path_resolver import mission_dir_aliases
+
+        topology = read_topology(repo_root / KITTY_SPECS_DIR / mission_slug)
+        return cls(role=role, mission_slug=mission_slug, topology=topology, mission_dir_names=mission_dir_aliases(repo_root, mission_slug))
+
+    def is_disposable(self, path: str) -> bool:
+        """:func:`is_disposable_residue` for this context (the ``ResidueClassifier`` seam)."""
+        return is_disposable_residue(path, self)
+
+    def for_checkout(self, repo_root: Path, worktree: Path) -> ResidueContext:
+        """The same Mission judged against ``worktree``'s own role (a tool-owned context stays tool-owned)."""
+        if self.role is CheckoutRole.TOOL_OWNED:
+            return self
+        return ResidueContext(
+            role=checkout_role_for(repo_root, worktree),
+            mission_slug=self.mission_slug,
+            topology=self.topology,
+            mission_dir_names=self.mission_dir_names,
+        )
+
+
+def checkout_role_for(repo_root: Path, worktree: Path) -> CheckoutRole:
+    """The role of ``worktree`` relative to ``repo_root``, by the git worktree registry (C-SEAM-1).
+
+    Fails toward the STRICTEST role (``COORDINATION``: only spec-kitty's own
+    bookkeeping is disposable) when the registry cannot be read, the worktree is
+    unregistered, or it lives outside ``repo_root`` and is not a registered
+    worktree. A Mission worktree and a lane worktree are indistinguishable by
+    the registry and share the same rules, so both resolve to ``LANE``.
+    """
+    from specify_cli.coordination.surface_resolver import (
+        WorktreeRegistryUnavailable,
+        WorktreeTopology,
+        classify_worktree_topology,
+    )
+
+    if worktree.resolve() == repo_root.resolve():
+        return CheckoutRole.REPOSITORY_ROOT
+    try:
+        topology = classify_worktree_topology(worktree, repo_root=repo_root)
+    except WorktreeRegistryUnavailable:
+        return CheckoutRole.COORDINATION
+    if topology is WorktreeTopology.LANE_WORKTREE:
+        return CheckoutRole.LANE
+    return CheckoutRole.COORDINATION
+
+
+def _is_other_mission_path(path: str, context: ResidueContext) -> bool:
+    """True when ``path`` lies under ``kitty-specs/<name>/`` for a Mission directory that is not ``context``'s.
+
+    A structural look at the path segment after ``kitty-specs`` only: which
+    files of that directory count as residue stays with the kind authority.
+    """
+    parts = PurePosixPath(to_posix(path)).parts
+    if KITTY_SPECS_DIR not in parts:
+        return False
+    after = parts[parts.index(KITTY_SPECS_DIR) + 1 :]
+    if len(after) < 2:
+        return False
+    return after[0] not in (context.mission_dir_names or {context.mission_slug})
+
+
+def is_disposable_residue(path: str | Path, context: ResidueContext) -> bool:
+    """Whether a destructive operation on ``context``'s checkout may discard ``path`` (first match wins).
+
+    1. A tool-owned checkout: everything is disposable.
+    2. Another Mission's artifact: never (#5966).
+    3. spec-kitty's own bookkeeping (:func:`is_self_bookkeeping_churn`): disposable.
+    4. In a coordination worktree, anything else is the only copy (#5965).
+    5. Elsewhere, coordination-partition residue under the Mission's STORED topology
+       (:func:`is_coord_residue_churn`): its stale copy is disposable.
+
+    Reuses the existing classifiers; it adds the checkout-role and Mission-scope
+    rules they lack and no partition rule of its own.
+    """
+    if context.role is CheckoutRole.TOOL_OWNED:
+        return True
+    if _is_other_mission_path(str(path), context):
+        return False
+    if is_self_bookkeeping_churn(path):
+        return True
+    if context.role is CheckoutRole.COORDINATION:
+        return False
+    return is_coord_residue_churn(
+        path,
+        mission_slug=context.mission_slug,
+        topology=context.topology,
+        mission_dir_names=context.mission_dir_names or None,
+    )
 
 
 def coord_incoherent_done_wps(
