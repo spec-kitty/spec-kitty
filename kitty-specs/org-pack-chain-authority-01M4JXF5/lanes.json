@@ -1,0 +1,183 @@
+{
+  "version": 1,
+  "mission_slug": "org-pack-chain-authority-01M4JXF5",
+  "mission_id": "01M4JXF5MQSVRD6VGT81PNPWZW",
+  "mission_branch": "kitty/mission-org-pack-chain-authority-01M4JXF5",
+  "target_branch": "kitty/org-pack-chain-authority-stack",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activation/layer_roots.py",
+        "src/charter/offering/drg/org_pack_config.py",
+        "tests/charter/activation/test_layer_roots.py",
+        "tests/charter/activation/test_resolve_pack_chain.py",
+        "tests/charter_offering/drg/test_org_pack_config_resolve_existing_org_roots.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activation/effective_set.py",
+        "src/charter/activation/org_charter.py",
+        "src/charter/activation/preset_application.py",
+        "tests/charter/activation/test_effective_set_chain.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/activation/action_governance_bundle.py",
+        "src/charter/activation/invocation_context.py",
+        "src/specify_cli/cli/commands/charter/list_cmd.py",
+        "tests/charter/test_action_governance_bundle_org_fragment.py",
+        "tests/charter/test_invocation_context.py",
+        "tests/specify_cli/cli/commands/charter/test_org_cascade_chain.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/charter/activation/pack_manager.py",
+        "src/specify_cli/cli/commands/charter/activate.py",
+        "tests/charter/test_pack_manager.py",
+        "tests/charter/test_pack_manager_catalog.py",
+        "tests/specify_cli/cli/commands/charter/test_multi_org_pack_chain_5779.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/activation/manifest_loader.py",
+        "src/charter/activation/org_requirement_kinds.py",
+        "src/charter/offering/missions/requirement_kinds.py",
+        "tests/charter/activation/test_load_requirement_kinds.py",
+        "tests/charter_offering/missions/test_requirement_kinds_model.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/charter/activation/_drg_helpers.py",
+        "src/charter/activation/active_charter_service_builder.py",
+        "src/charter/activation/language_vocabulary.py",
+        "src/charter/activation/profile_resolution.py",
+        "src/charter/activation/project_registration.py",
+        "src/charter/activation/skill_preparation.py",
+        "src/charter/offering/resolver.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/charter/_resynthesis_preflight.py",
+        "src/specify_cli/cli/commands/charter/context.py",
+        "src/specify_cli/cli/commands/charter/deactivate.py",
+        "src/specify_cli/cli/commands/charter/interview.py",
+        "src/specify_cli/cli/commands/charter/pack_asset.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/architectural/test_org_pack_chain_single_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-g",
+        "lane-h"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-10T14:04:52.159286+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "5642021a859249b798c70a176372da26b4a67d0c"
+}

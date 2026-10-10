@@ -1,0 +1,23 @@
+{
+  "baseline_merge_commit": "3ac028c3cfe92e878684eb6ad16f039f300f86f9",
+  "contracts": "none",
+  "contracts_rationale": "No external HTTP/GraphQL/webhook interface. New surfaces are an internal Python API (resolve_pack_chain, load_requirement_kinds, widened ActiveCharterManager) and a YAML file schema (requirement-kinds.yaml), captured in data-model.md.",
+  "created_at": "2026-10-10T12:44:08.303713+00:00",
+  "flattened": true,
+  "friendly_name": "One org-pack chain authority",
+  "merged_at": "2026-10-10T15:27:06.892940+00:00",
+  "merged_commit": "b0d6a4d080055fd9cbc5f530043b658e0fb71478",
+  "mid8": "01M4JXF5",
+  "mission_id": "01M4JXF5MQSVRD6VGT81PNPWZW",
+  "mission_number": 226,
+  "mission_slug": "org-pack-chain-authority-01M4JXF5",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When a project declares more than one organization charter pack, different charter surfaces disagree about which packs they read: some read only the first pack, so artifacts, templates and mission declarations defined in later packs are invisible or render the wrong body. This mission makes a single chain authority the only source of the ordered, existing pack chain, fixes the surfaces that still read pack one, retires a per-pack retry workaround, and makes a declared-but-missing pack fail loudly instead of silently vanishing.",
+  "purpose_tldr": "Every charter surface reads the same ordered, existing org-pack chain through one authority.",
+  "slug": "org-pack-chain-authority-01M4JXF5",
+  "status_phase": "1",
+  "target_branch": "kitty/org-pack-chain-authority-stack",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-10T14:09:26.712521+00:00"
+}
