@@ -6,12 +6,12 @@ import contextlib
 import errno
 import os
 import tempfile
-import shutil
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 from stat import S_IMODE, S_ISDIR, S_ISREG
 
+from kernel.tree_removal import remove_tool_owned_tree
 from kernel.resolution import is_symlink_loop_error, resolve_rejecting_loops
 
 
@@ -224,15 +224,13 @@ def write_text_within_directory(path: Path, content: str, *, root: Path, encodin
     return safe_path
 
 
-def safe_remove(path: Path) -> bool:
-    """Remove a file or directory tree if it exists, returning True when something was removed."""
-    if not path.exists():
-        return False
-    if path.is_dir() and not path.is_symlink():
-        shutil.rmtree(path)
-    else:
-        path.unlink()
-    return True
+def safe_remove(path: Path, *, owned_root: Path | None = None) -> bool:
+    """Remove a file or directory tree if it exists, returning True when something was removed.
+
+    ``owned_root`` is the root the caller owns (default: ``path`` itself); the removal is
+    refused (``ToolOwnedPathUnproven``) when ``path`` is outside it or is a git checkout.
+    """
+    return remove_tool_owned_tree(path, owned_root=owned_root or path, reason="core.utils.safe_remove")
 
 
 def get_platform() -> str:

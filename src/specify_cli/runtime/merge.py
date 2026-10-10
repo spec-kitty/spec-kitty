@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 from typing import overload
 
+from kernel.tree_removal import remove_tool_owned_tree
 from specify_cli.tool_surface.operations import ApplyConsent, OwnerApplyResult, OwnerAssessment
 
 # Directories managed by the package — overwritten on every update.
@@ -66,7 +67,7 @@ def merge_package_assets(source: Path | OwnerAssessment, dest: Path, *, consent:
         dst = dest / managed_dir
         if src.exists():
             if dst.exists():
-                shutil.rmtree(dst)
+                remove_tool_owned_tree(dst, owned_root=dst, reason="package-managed runtime directory replaced on update")
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copytree(src, dst)
 

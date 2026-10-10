@@ -12,8 +12,8 @@ from __future__ import annotations
 import io
 import json
 import re
-import shutil
 from kernel.clock import now_utc_compact_stamp
+from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
 from pathlib import Path
 from typing import Any
 
@@ -446,11 +446,11 @@ def _cleanup_legacy_worktree_assets(project_path: Path, dry_run: bool) -> tuple[
                         if commands_dir.is_symlink():
                             commands_dir.unlink()
                         else:
-                            shutil.rmtree(commands_dir)
+                            remove_tool_owned_tree(commands_dir, owned_root=commands_dir, reason="worktree agent commands dir")
                         parent = commands_dir.parent
                         if parent.exists() and not any(parent.iterdir()):
                             parent.rmdir()
-                    except OSError as exc:
+                    except (OSError, ToolOwnedPathUnproven) as exc:
                         errors.append(f"[{root.name}] failed to remove {agent_dir}/{subdir}/: {exc}")
 
         scripts_dir = root / ".kittify" / "scripts"
@@ -463,8 +463,8 @@ def _cleanup_legacy_worktree_assets(project_path: Path, dry_run: bool) -> tuple[
                     if scripts_dir.is_symlink():
                         scripts_dir.unlink()
                     else:
-                        shutil.rmtree(scripts_dir)
-                except OSError as exc:
+                        remove_tool_owned_tree(scripts_dir, owned_root=scripts_dir, reason="worktree .kittify/scripts")
+                except (OSError, ToolOwnedPathUnproven) as exc:
                     errors.append(f"[{root.name}] failed to remove .kittify/scripts/: {exc}")
 
         if root_cleaned:
