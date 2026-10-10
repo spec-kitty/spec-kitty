@@ -517,11 +517,16 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   governance-evidence seam (append-only policy-audit.jsonl);
         #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
-        # charter-activation-split (#806) restored EXPERIMENTAL replay
-        # semantics, leaving these activation-adjacent seams without static
-        # src/ callers. TODO(triage): #925 owns wire-or-prune disposition.
-        "charter.parser",
-        "charter.activation.template_resolver",
+        # charter.parser + charter.activation.template_resolver: PRUNED (deleted
+        # outright, 2026-10-10). Both were test-only, superseded Cat-7 orphans
+        # (the prose->section scraper, and the redundant template-resolver facade
+        # whose sole production caller was repointed to the ActiveCharterService
+        # factory by charter-sole-door-bypass-closure-01KZ3WAA WP05). Full
+        # evidence: the self-contained wire-or-prune record at
+        # https://github.com/spec-kitty/spec-kitty/issues/925#issuecomment-6097724759
+        # (the gate's former inline #806/#925 refs were stale pre-convergence
+        # cross-line numbers; no accurate canonical issue exists). Burn-down
+        # Policy (b): live Cat-7 set 4 -> 2.
         # sync.admission_operations: REMOVED (issue-5-delete-sync-transport,
         # 2026-08-25). The module was deleted outright with the sync transport;
         # its #3262 WP11 wiring consumer no longer exists, so there is nothing

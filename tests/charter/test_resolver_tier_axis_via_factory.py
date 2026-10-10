@@ -7,9 +7,8 @@ Equivalence/regression proof, not a smoke test. Three things are asserted:
    returns exactly the ``ResolutionResult`` the pre-existing
    ``charter.offering.resolver`` entry point returns, walked top-down by removing the
    winning tier's file and re-resolving.
-2. **The old call sites' results are preserved.** ``CharterTemplateResolver``
-   (now a thin delegate) and ``specify_cli/runtime/resolver.py``'s tier-5 hop
-   (now calling the factory directly) still produce the paths/tiers they
+2. **The old call sites' results are preserved.** ``specify_cli/runtime/resolver.py``'s
+   tier-5 hop (now calling the factory directly) still produces the paths/tiers it
    produced before the consolidation — including the
    ``SPEC_KITTY_TEMPLATE_ROOT`` override the runtime tier-5 hop honours.
 3. **The tier functions were not moved or duplicated.** The factory methods
@@ -31,11 +30,7 @@ import specify_cli.runtime.resolver as runtime_resolver_module
 from charter.resolution import ResolutionResult, ResolutionTier
 from charter.activation.pack_context import PackContext
 from charter.activation.resolver import ActiveCharterService
-from charter.activation.template_resolver import CharterTemplateResolver
 from charter.offering.missions.repository import MissionTemplateRepository
-from tests.architectural.test_charter_sole_door_resolver_imports import (
-    scan_file_resolver_imports,
-)
 
 pytestmark = pytest.mark.fast
 
@@ -225,11 +220,11 @@ def test_mission_definition_tier_walk_matches_doctrine_resolver(
 
 
 def test_package_default_paths_match_the_retired_resolver_calls(tmp_path: Path) -> None:
-    """Factory tier-5 lookups == what ``CharterTemplateResolver`` returns.
+    """Factory tier-5 lookups land on the package-default paths.
 
-    ``CharterTemplateResolver.from_missions_root(...)``'s ``resolve_*_path``
-    methods are the exact calls ``specify_cli/runtime/resolver.py`` used to
-    make for tier 5; the factory must answer identically for the same root.
+    These are the exact lookups ``specify_cli/runtime/resolver.py`` makes for
+    tier 5; the factory must answer with the package-default command, content,
+    and mission-config paths for the given root.
     """
     missions_root = tmp_path / "missions"
     command = _write(missions_root / "mission-steps" / _MISSION / _COMMAND_STEM / "prompt.md", "prompt")
@@ -237,17 +232,24 @@ def test_package_default_paths_match_the_retired_resolver_calls(tmp_path: Path) 
     mission_config = _write(missions_root / _MISSION / "mission.yaml", f"name: {_MISSION}\n")
     charter_resolver_module._mission_template_repository.cache_clear()
 
-    legacy = CharterTemplateResolver.from_missions_root(missions_root)
-
-    assert ActiveCharterService.resolve_package_default_asset_path(
-        missions_root=missions_root, mission=_MISSION, subdir="command-templates", name=_COMMAND_NAME
-    ) == legacy.resolve_command_template_path(_MISSION, _COMMAND_STEM) == command
-    assert ActiveCharterService.resolve_package_default_asset_path(
-        missions_root=missions_root, mission=_MISSION, subdir="templates", name=_CONTENT_NAME
-    ) == legacy.resolve_content_template_path(_MISSION, _CONTENT_NAME) == content
-    assert ActiveCharterService.resolve_package_default_mission_config_path(
-        missions_root=missions_root, mission=_MISSION
-    ) == legacy.resolve_mission_config_path(_MISSION) == mission_config
+    assert (
+        ActiveCharterService.resolve_package_default_asset_path(
+            missions_root=missions_root, mission=_MISSION, subdir="command-templates", name=_COMMAND_NAME
+        )
+        == command
+    )
+    assert (
+        ActiveCharterService.resolve_package_default_asset_path(
+            missions_root=missions_root, mission=_MISSION, subdir="templates", name=_CONTENT_NAME
+        )
+        == content
+    )
+    assert (
+        ActiveCharterService.resolve_package_default_mission_config_path(
+            missions_root=missions_root, mission=_MISSION
+        )
+        == mission_config
+    )
 
 
 def test_package_default_asset_path_unknown_subdir_and_misses(tmp_path: Path) -> None:
@@ -337,36 +339,6 @@ def test_runtime_tier5_hop_keeps_its_own_package_root_authority(
     assert runtime_resolver_module.resolve_template(
         _CONTENT_NAME, project_dir, _MISSION
     ) == ResolutionResult(path=expected, tier=ResolutionTier.PACKAGE_DEFAULT, mission=_MISSION)
-
-
-def test_charter_template_resolver_routes_the_tier_chain_through_the_factory(
-    project_dir: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The delegate calls the factory — it has no tier-chain path of its own."""
-    sentinel = _write(project_dir / "sentinel.md", "sentinel body")
-    calls: list[str] = []
-
-    def _fake_content(name: str, project: Path, mission: str = _MISSION) -> ResolutionResult:
-        calls.append(f"content:{name}")
-        return ResolutionResult(path=sentinel, tier=ResolutionTier.OVERRIDE, mission=mission)
-
-    def _fake_command(name: str, project: Path, mission: str = _MISSION) -> ResolutionResult:
-        calls.append(f"command:{name}")
-        return ResolutionResult(path=sentinel, tier=ResolutionTier.GLOBAL, mission=mission)
-
-    monkeypatch.setattr(ActiveCharterService, "resolve_content_asset", _fake_content)
-    monkeypatch.setattr(ActiveCharterService, "resolve_command_asset", _fake_command)
-
-    resolver = CharterTemplateResolver()
-    content = resolver.resolve_content_template(_MISSION, _CONTENT_NAME, project_dir=project_dir)
-    command = resolver.resolve_command_template(_MISSION, _COMMAND_STEM, project_dir=project_dir)
-
-    assert calls == [f"content:{_CONTENT_NAME}", f"command:{_COMMAND_NAME}"]
-    assert content.content == "sentinel body"
-    assert content.tier is ResolutionTier.OVERRIDE
-    assert command.content == "sentinel body"
-    assert command.tier is ResolutionTier.GLOBAL
 
 
 # ---------------------------------------------------------------------------
@@ -465,42 +437,6 @@ def test_tier_axis_is_ungated_by_activation_state(
         path=override_path, tier=ResolutionTier.OVERRIDE, mission=_MISSION
     )
     assert via_factory == via_doctrine
-
-
-@pytest.mark.parametrize(
-    "method_name",
-    ["resolve_command_template", "resolve_content_template", "resolve_mission_config_path"],
-)
-def test_new_factory_method_names_do_not_collide_with_the_delegate(method_name: str) -> None:
-    """The factory must not reuse ``CharterTemplateResolver``'s method names.
-
-    The two objects coexist (the delegate is public ``charter`` API), and their
-    signatures differ, so a shared name would leave a reader unsure which
-    contract applies.
-    """
-    assert hasattr(CharterTemplateResolver, method_name)
-    assert not hasattr(ActiveCharterService, method_name)
-
-
-def test_template_resolver_does_not_import_the_doctrine_tier_functions() -> None:
-    """One charter-layer door: the delegate reaches the tiers only via the factory.
-
-    ``tests/architectural/test_charter_sole_door_resolver_imports.py`` guards
-    every module outside ``src/charter/**`` and exempts the charter layer, so
-    this is the only guard that ``charter/activation/template_resolver.py``
-    does not import ``charter.offering.resolver`` itself. The gate's AST
-    scanner catches every spelling at every scope, including
-    ``from charter.offering import resolver``.
-    """
-    activation_dir = Path(charter_resolver_module.__file__).parent
-    delegate = activation_dir / "template_resolver.py"
-    sole_door = activation_dir / "resolver.py"
-
-    # Assumption: the scanner does see the sanctioned import in the sole door.
-    assert scan_file_resolver_imports(sole_door, "src/charter/activation/resolver.py")
-
-    sites = scan_file_resolver_imports(delegate, "src/charter/activation/template_resolver.py")
-    assert sites == [], [site.describe() for site in sites]
 
 
 def test_mission_template_repository_cache_reuses_one_instance(tmp_path: Path) -> None:

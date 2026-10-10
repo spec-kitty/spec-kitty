@@ -50,10 +50,10 @@
         "python": "3.11.15"
       },
       "totals": {
-        "files": 1257,
+        "files": 1255,
         "files_with_coverage": 998,
         "covered_statements": 42942,
-        "statements": 128878
+        "statements": 128702
       },
       "files": {
         "src/charter/__init__.py": [
@@ -447,10 +447,6 @@
         "src/charter/activation/synthesizer/write_pipeline.py": [
           0,
           205
-        ],
-        "src/charter/activation/template_resolver.py": [
-          0,
-          44
         ],
         "src/charter/assets.py": [
           0,
@@ -867,10 +863,6 @@
         "src/charter/pack_paths.py": [
           0,
           2
-        ],
-        "src/charter/parser.py": [
-          0,
-          132
         ],
         "src/charter/primitives.py": [
           0,

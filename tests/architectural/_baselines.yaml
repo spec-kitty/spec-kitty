@@ -156,7 +156,18 @@ test_no_dead_modules:
   # dossier.drift_detector, migration.envelope_seam) were each adjudicated
   # PRUNE and deleted outright -- none had a viable low-risk wiring target
   # after the sync transport's removal (issue #5). TODO(triage) notes burned.
-  category_7_grandfathered_orphans: 5  # justification: 8->5 after the latest main merge wired discovery_recursion, org_governance, and project_scan; the remaining orphan disposition is tracked by #925.
+  #
+  # 4 -> 2 (prune-cat7-charter-parser-template-resolver, 2026-10-10): the two
+  # remaining activation-adjacent Cat-7 orphans (charter.parser,
+  # charter.activation.template_resolver) were adjudicated PRUNE and deleted
+  # outright per Burn-down Policy (b) (Cat-7 shrinks >=2/major, target 0 by 4.0).
+  # Both were test-only and superseded; full evidence in the self-contained
+  # wire-or-prune record at
+  # https://github.com/spec-kitty/spec-kitty/issues/925#issuecomment-6097724759.
+  # (This entry previously read 5 -- a pre-existing drift above the live set of
+  # 4 -- and cited a stale pre-convergence #925 cross-line number; no accurate
+  # canonical issue exists, so the #925 comment stands as the record.)
+  category_7_grandfathered_orphans: 2  # justification: live Cat-7 set is specify_cli.auth.transport + specify_cli.policy.audit (2); see the prune note above and the #925 issue comment.
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:

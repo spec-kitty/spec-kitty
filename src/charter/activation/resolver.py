@@ -27,10 +27,9 @@ is the **sole charter-layer door** onto ``charter/offering/resolver.py``'s 6-tie
 asset resolution chain. The tier functions themselves stay in
 ``charter/offering/resolver.py`` (charter must import charter.offering, never the reverse);
 what lives here is the entry point — see the "6-tier resolution axis"
-section of :class:`ActiveCharterService`. Before WP05,
-``charter.activation.template_resolver.CharterTemplateResolver`` was a *second*
-charter-layer object reaching ``charter.offering.resolver`` independently of this
-one; it is now a thin delegate onto these methods.
+section of :class:`ActiveCharterService`. (A former second charter-layer
+object that reached ``charter.offering.resolver`` independently of this one was
+repointed onto these methods by WP05 and later deleted.)
 """
 
 from __future__ import annotations
@@ -436,12 +435,11 @@ class ActiveCharterService:
     # (``_resolve_asset``, ``resolve_mission``) are NOT moved, renamed, or
     # duplicated — they stay in ``charter.offering`` because charter.activation
     # imports the offering and never the reverse. What consolidates here is the *entry point*: before
-    # WP05, ``charter.activation.template_resolver.CharterTemplateResolver`` reached
-    # ``charter.offering.resolver`` independently of this class, giving the charter
-    # layer two doors onto the same chain (C-001 violation). It is now a thin
-    # delegate onto the methods below, and
-    # ``specify_cli/runtime/resolver.py``'s tier-6 routing calls them
-    # directly.
+    # WP05, a second charter-layer object reached ``charter.offering.resolver``
+    # independently of this class, giving the charter layer two doors onto the
+    # same chain (C-001 violation). That object was repointed onto the methods
+    # below and later deleted, and ``specify_cli/runtime/resolver.py``'s tier-6
+    # routing calls them directly.
     #
     # ---- Ungated by design (do NOT add activation filtering here) --------
     # Unlike the nine gated properties above, these methods apply NO charter
