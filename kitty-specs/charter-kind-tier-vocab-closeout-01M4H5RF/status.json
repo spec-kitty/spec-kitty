@@ -1,0 +1,175 @@
+{
+  "event_count": 30,
+  "last_event_id": "01M4J2R3RD5Y3CZQ9C1RJD3C4G",
+  "materialized_at": "2026-10-10T04:57:09.645119+00:00",
+  "mission_number": "",
+  "mission_slug": "charter-kind-tier-vocab-closeout-01M4H5RF",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 5,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "approved",
+      "last_event_id": "01M4H8733FE4TM47106FXGAEJY",
+      "last_transition_at": "2026-10-09T21:13:28.944023+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Independent review: read full diff; red-first self-test added; _origin_by_identity confined to identity-required origins; the two newly-surfaced non-class re-exports (FIELDS_WITHHELD_FROM_GRAPH_OUTPUT, RETIRED_PACK_FIELD) correctly tabled; 162 tests pass; ruff+format clean.",
+        "Approved WP01 (#5836): gate catches non-class re-exports by identity; non-vacuous self-test; 162 tests green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 7517,
+      "shell_pid_created_at": "1791578734.59",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M4HCMEM45KE2J8TW7VGS5G3H",
+      "last_transition_at": "2026-10-09T22:30:41.028263+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Independent review: R1'/R4/R5/R6 tightly scoped (member-ref R6, Literal-slice exemption); T014 guards 6 legit constructs; red-first shown; 6 mirror sites derive with values preserved (facade identity for RECOGNISED_ARTIFACT_DIRS intact); 283 gate/facade/terminology/totality tests green; 4 mypy no-any-return findings confirmed pre-existing on base.",
+        "Approved WP02 (#5823): five mirror shapes recognised, every live site derives, empty allowlist. NOTE: the 3 pack/fetch sites derive from core/CORE_KIND_PLURALS and will be repointed by WP03 when core is retired."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    },
+    "WP03": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M4HG8BQA18G8X9EGRBD2K73D",
+      "last_transition_at": "2026-10-09T23:33:59.146096+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Independent review: has_layered_repository=11 kinds with own frozenset + distinct-fact docstring; core/_CORE_KINDS/CORE_KIND_PLURALS deleted (absence pinned by test) + charter.drg re-export removed; 4 named surfaces -> layered predicate with glossary_pack/skill/asset coverage tests; pack-dir sites -> has_built_in_content_dir (correctness fix per DD-2); DEFAULT_KIND_GATE isolated; fetch selector -> activatable (inert). Validated: gates 274, artifact_kinds+totality 59, surfaces 6+79+25+11, packaging 17; pack regen no drift; ruff/format/mypy clean (pack_manifest:204 no-any-return is pre-existing per-file artifact, untouched line).",
+        "Approved WP03 (#5824): core retired, surfaces widened, pack-dir drift fixed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T030": "done",
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude-reviewer",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M4J2R3RD5Y3CZQ9C1RJD3C4G",
+      "last_transition_at": "2026-10-10T04:57:09.645119+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Independent review: kernel.pack_tiers authority (single 'built-in' spelling, layer-clean, imports only typing); 4 tier-token sites derive from it value-preservingly; new empty-allowlist gate (red-first: flagged the 4 sites; frozen-provenance exemption proven by test); on-disk dir + _BUILT_IN_DIR_NAME untouched. T050 audit sound: 'builtin' provenance vocabulary is persisted/compared (context JSON + ~30 tests) so excluded per NFR-003. Validated: 182 gate tests (incl built-in-location/path/kind/terminology still green), 187 targeted module tests; ruff/format clean; 3 mypy findings pre-existing on base.",
+        "Approved WP04: tier-token single authority + gate (partial resolution of #5825/#5961; provenance half deferred to #5992 per DD-4 / operator ruling)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261010",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T050": "done",
+        "T051": "done",
+        "T052": "done",
+        "T053": "done",
+        "T054": "done",
+        "T055": "done",
+        "T056": "done",
+        "T057": "done"
+      }
+    },
+    "WP05": {
+      "actor": "wp05-reviewer",
+      "agent": "wp05-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M4HGEKTJYN8G008N13VENA68",
+      "last_transition_at": "2026-10-09T23:37:24.050288+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Independent review: (1) git ls-files '*/spec-kitty-standalone.md' empty - all 13 gone. (2) grep src/doctrine/skills/ across 13 agent dirs empty. (3) graph.yml git status empty + last commit eb7cbbf7 unrelated to mission - untouched. (4) guard test test_retired_activation.py 34 passed. (5) manifests never listed spec-kitty-standalone. (6) commit 904ad08b deletes exactly 13 files, 222 deletions.",
+        "Approved: 13 dead copies deleted, graph.yml untouched, guard test green, orphans unmanaged."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261009",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T070": "done",
+        "T071": "done"
+      }
+    }
+  }
+}
