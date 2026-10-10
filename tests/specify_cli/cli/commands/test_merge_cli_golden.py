@@ -20,7 +20,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import click
 import pytest
 import typer
 from typer.testing import CliRunner
@@ -32,6 +31,7 @@ from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
 )
 from specify_cli.status.models import Lane, ReviewResult
+from tests import _click_universe as typer_click
 from tests.reliability.fixtures import (
     WorkPackageSpec,
     append_status_event,
@@ -135,7 +135,7 @@ def _build_merge_app() -> typer.Typer:
 def _live_parser_long_flags() -> frozenset[str]:
     """Enumerate the merge command's actual long option strings from the parser.
 
-    Derives the set from the real ``click.Command.params`` (each ``Option`` exposes
+    Derives the set from the real ``typer_click.Command.params`` (each ``Option`` exposes
     primary ``.opts`` and toggle ``.secondary_opts`` such as ``--keep-branch``),
     keeping only ``--long`` forms. ``add_completion=False`` keeps Typer from
     injecting ``--install-completion`` / ``--show-completion`` so the set is purely
@@ -145,11 +145,11 @@ def _live_parser_long_flags() -> frozenset[str]:
     app = typer.Typer(add_completion=False)
     app.command()(merge_module.consolidate)
     command = typer.main.get_command(app)
-    if isinstance(command, click.Group):
+    if isinstance(command, typer_click.Group):
         command = next(iter(command.commands.values()))
     flags: set[str] = set()
     for param in command.params:
-        if isinstance(param, click.Option):
+        if isinstance(param, typer_click.Option):
             for opt in (*param.opts, *param.secondary_opts):
                 if opt.startswith("--"):
                     flags.add(opt)
@@ -157,7 +157,7 @@ def _live_parser_long_flags() -> frozenset[str]:
 
 
 def _live_parser_visibility_partition() -> tuple[frozenset[str], frozenset[str]]:
-    """Partition the merge command's long options by ``click.Option.hidden``.
+    """Partition the merge command's long options by ``typer_click.Option.hidden``.
 
     Returns ``(visible_long_flags, hidden_long_flags)`` derived from the live
     parser params (``add_completion=False`` so Typer injects no completion
@@ -169,12 +169,12 @@ def _live_parser_visibility_partition() -> tuple[frozenset[str], frozenset[str]]
     app = typer.Typer(add_completion=False)
     app.command()(merge_module.consolidate)
     command = typer.main.get_command(app)
-    if isinstance(command, click.Group):
+    if isinstance(command, typer_click.Group):
         command = next(iter(command.commands.values()))
     visible: set[str] = set()
     hidden: set[str] = set()
     for param in command.params:
-        if isinstance(param, click.Option):
+        if isinstance(param, typer_click.Option):
             longs = [opt for opt in (*param.opts, *param.secondary_opts) if opt.startswith("--")]
             (hidden if param.hidden else visible).update(longs)
     return frozenset(visible), frozenset(hidden)

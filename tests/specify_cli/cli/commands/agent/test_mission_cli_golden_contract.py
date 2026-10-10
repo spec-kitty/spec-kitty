@@ -18,15 +18,15 @@ import json
 import subprocess
 from pathlib import Path
 
-import click
 import pytest
 from typer.main import get_command
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.mission import app as mission_app
+from tests import _click_universe as typer_click
 
 
-def _resolve_subcommand(command_name: str) -> click.Command:
+def _resolve_subcommand(command_name: str) -> typer_click.Command:
     """Resolve a registered ``agent mission`` subcommand from the Click tree.
 
     Introspects the resolved Click command tree directly (rather than the
@@ -34,8 +34,8 @@ def _resolve_subcommand(command_name: str) -> click.Command:
     surface regression.
     """
     group = get_command(mission_app)
-    assert isinstance(group, click.Group), "mission app must resolve to a Click Group"
-    ctx = click.Context(group)
+    assert isinstance(group, typer_click.Group), "mission app must resolve to a Click Group"
+    ctx = typer_click.Context(group)
     sub = group.get_command(ctx, command_name)
     assert sub is not None, f"subcommand {command_name!r} not registered"
     return sub
@@ -46,7 +46,7 @@ def _command_flag_tokens(command_name: str) -> set[str]:
     sub = _resolve_subcommand(command_name)
     tokens: set[str] = set()
     for param in sub.params:
-        if isinstance(param, click.Option):
+        if isinstance(param, typer_click.Option):
             tokens.update(param.opts)
             tokens.update(param.secondary_opts)
     return tokens
@@ -55,7 +55,7 @@ def _command_flag_tokens(command_name: str) -> set[str]:
 def _command_positional_names(command_name: str) -> set[str]:
     """Return the positional-argument parameter names for ``command_name``."""
     sub = _resolve_subcommand(command_name)
-    return {p.name for p in sub.params if isinstance(p, click.Argument) and p.name is not None}
+    return {p.name for p in sub.params if isinstance(p, typer_click.Argument) and p.name is not None}
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -326,14 +326,14 @@ def test_command_exposes_positional_argument(command: str, name: str) -> None:
 def test_record_analysis_input_file_default_is_stdin_sentinel() -> None:
     """``record-analysis --input-file`` defaults to the stdin sentinel ``-``."""
     sub = _resolve_subcommand("record-analysis")
-    option = next(p for p in sub.params if isinstance(p, click.Option) and "--input-file" in p.opts)
+    option = next(p for p in sub.params if isinstance(p, typer_click.Option) and "--input-file" in p.opts)
     assert option.default == _RECORD_ANALYSIS_INPUT_FILE_DEFAULT
 
 
 def test_record_analysis_report_only_requires_explicit_opt_in() -> None:
     """The transaction option never silently changes the default dirty guard."""
     sub = _resolve_subcommand("record-analysis")
-    option = next(p for p in sub.params if isinstance(p, click.Option) and "--report-only" in p.opts)
+    option = next(p for p in sub.params if isinstance(p, typer_click.Option) and "--report-only" in p.opts)
     assert option.default is False
 
 
@@ -344,7 +344,7 @@ def test_create_mission_flag_is_hidden_deprecation() -> None:
     the canonical ``--mission-type`` flag is visible.
     """
     sub = _resolve_subcommand("create")
-    by_flag = {flag: p for p in sub.params if isinstance(p, click.Option) for flag in p.opts}
+    by_flag = {flag: p for p in sub.params if isinstance(p, typer_click.Option) for flag in p.opts}
     assert "--mission" in by_flag, "deprecated --mission alias must remain registered"
     assert by_flag["--mission"].hidden is True, "--mission must stay hidden"
     assert "--mission-type" in by_flag

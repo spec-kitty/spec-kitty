@@ -43,15 +43,15 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-import click
 import pytest
 from typer.main import get_command
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.cli.commands import _apply_short_help_options
+from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
+from tests import _click_universe as typer_click
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands._help_snapshot import (
     force_wide_help_console,
@@ -158,9 +158,9 @@ CONTRACT_FLAGS: dict[str, tuple[str, ...]] = {
 # ---------------------------------------------------------------------------
 
 
-def _click_group() -> click.Group:
+def _click_group() -> typer_click.Group:
     command = get_command(app)
-    assert isinstance(command, click.Group)
+    assert isinstance(command, typer_click.Group)
     return command
 
 
@@ -174,7 +174,7 @@ def _command_flags(name: str) -> set[str]:
     cmd = _click_group().commands[name]
     flags: set[str] = set()
     for param in cmd.params:
-        if isinstance(param, click.Option):
+        if isinstance(param, typer_click.Option):
             flags.update(param.opts)
     return flags
 

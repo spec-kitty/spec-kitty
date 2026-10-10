@@ -282,10 +282,11 @@ def test_merge_has_no_feature_param_in_cli_introspection() -> None:
 
     Authority: WP01 hard-removal contract.
     """
-    import click
     from typer.main import get_command
 
-    cli: click.Group = get_command(app)  # type: ignore[assignment]
+    from tests import _click_universe as typer_click
+
+    cli: typer_click.Group = get_command(app)  # type: ignore[assignment]
     merge_cmd = cli.commands.get("consolidate")
     assert merge_cmd is not None, "merge command not found in CLI app"
 
@@ -310,21 +311,22 @@ def test_inscope_files_have_no_feature_param_in_cli_introspection() -> None:
 
     Authority: spec.md FR-003, FR-004.
     """
-    import click
     from typer.main import get_command
 
-    cli: click.Group = get_command(app)  # type: ignore[assignment]
+    from tests import _click_universe as typer_click
+
+    cli: typer_click.Group = get_command(app)  # type: ignore[assignment]
 
     # Map normalised command path strings to their Click commands
     def _walk(
-        group: click.Group, prefix: tuple[str, ...] = ()
-    ) -> list[tuple[str, click.Command]]:
-        found: list[tuple[str, click.Command]] = []
+        group: typer_click.Group, prefix: tuple[str, ...] = ()
+    ) -> list[tuple[str, typer_click.Command]]:
+        found: list[tuple[str, typer_click.Command]] = []
         for name, cmd in group.commands.items():
             path = prefix + (name,)
-            if isinstance(cmd, click.Group):
+            if isinstance(cmd, typer_click.Group):
                 found.extend(_walk(cmd, path))
-            elif isinstance(cmd, click.Command):
+            elif isinstance(cmd, typer_click.Command):
                 found.append((" ".join(path), cmd))
         return found
 

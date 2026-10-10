@@ -29,12 +29,10 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import click
 import pytest
 from typer.main import get_command
 
 from mission_runtime import MissionArtifactKind
-from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
     CommitStatusResult,
@@ -50,6 +48,7 @@ from specify_cli.agent_tasks_ports import (
     TasksPorts,
     default_ports,
 )
+from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.missions._read_path_resolver import (
@@ -58,6 +57,7 @@ from specify_cli.missions._read_path_resolver import (
 )
 from specify_cli.status.models import TransitionRequest
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
+from tests import _click_universe as typer_click
 from tests.integration.coord_topology_fixture import (
     CoordTopologyContext,
     _build_coord_topology,
@@ -326,7 +326,7 @@ def test_injection_idiom_accepts_injected_fake_bundle() -> None:
 def _iter_command_param_opts() -> list[tuple[str, str]]:
     """Return ``(command_name, option)`` for every param opt on the tasks surface."""
     group = get_command(app)
-    assert isinstance(group, click.Group)
+    assert isinstance(group, typer_click.Group)
     pairs: list[tuple[str, str]] = []
     for name, command in group.commands.items():
         for param in command.params:

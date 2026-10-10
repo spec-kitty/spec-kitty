@@ -28,12 +28,12 @@ vacuously green just because the table happens to be well-formed today.
 
 from __future__ import annotations
 
-import click
 import pytest
 import typer
 from typer.main import get_command
 
 from specify_cli.cli.commands import _COMMAND_REGISTRARS
+from tests import _click_universe as typer_click
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -56,7 +56,7 @@ def _top_level_names_after_registering(registrar: object) -> set[str]:
     registrar(app)  # type: ignore[operator]
     click_command = get_command(app)
     if hasattr(click_command, "list_commands"):
-        ctx = click.Context(click_command, info_name=click_command.name)
+        ctx = typer_click.Context(click_command, info_name=click_command.name)
         return set(click_command.list_commands(ctx))
     assert click_command.name is not None, "a registered top-level command must have a resolved name"
     return {click_command.name}

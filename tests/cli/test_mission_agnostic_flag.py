@@ -21,7 +21,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import click
 import pytest
 import typer
 from typer.core import TyperCommand, TyperGroup
@@ -34,11 +33,12 @@ from specify_cli.cli.helpers import (
     _ignored_mission_option,
     make_leaf_commands_mission_agnostic,
 )
+from tests import _click_universe as typer_click
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-def _resolve(argv: list[str]) -> click.Command:
+def _resolve(argv: list[str]) -> typer_click.Command:
     """Walk the Click group tree along ``argv``'s command names to the leaf command.
 
     Fails loudly when a name does not resolve, so a renamed command surfaces as an
@@ -46,7 +46,7 @@ def _resolve(argv: list[str]) -> click.Command:
     """
     from specify_cli import app
 
-    node: click.Command = get_command(app)
+    node: typer_click.Command = get_command(app)
     rest = list(argv)
     while rest:
         sub = getattr(node, "commands", None)
@@ -95,18 +95,18 @@ def test_every_leaf_command_accepts_mission() -> None:
 
     root = get_command(app)
 
-    def leaves(node: click.Command) -> list[tuple[str, click.Command]]:
+    def leaves(node: typer_click.Command) -> list[tuple[str, typer_click.Command]]:
         sub = getattr(node, "commands", None)
         if not sub:
             return [("", node)]
-        found: list[tuple[str, click.Command]] = []
+        found: list[tuple[str, typer_click.Command]] = []
         for name, cmd in sub.items():
             found.extend((f"{prefix} {name}".strip(), leaf) for prefix, leaf in leaves(cmd))
         return found
 
     all_leaves = leaves(root)
     assert len(all_leaves) > 100, "guard the guard: the tree walk found implausibly few commands"
-    ctx = click.Context(root)
+    ctx = typer_click.Context(root)
     offenders = [path for path, leaf in all_leaves if not any("--mission" in param.opts for param in leaf.get_params(ctx))]
     assert offenders == [], f"commands that reject --mission: {offenders}"
 
@@ -246,18 +246,18 @@ def test_reregistration_keeps_the_invariant(monkeypatch) -> None:
 
     click_root = get_command(root)
 
-    def leaves(node: click.Command) -> list[click.Command]:
+    def leaves(node: typer_click.Command) -> list[typer_click.Command]:
         sub = getattr(node, "commands", None)
         if not sub:
             return [node]
-        found: list[click.Command] = []
+        found: list[typer_click.Command] = []
         for cmd in sub.values():
             found.extend(leaves(cmd))
         return found
 
     all_leaves = leaves(click_root)
     assert len(all_leaves) > 100, "guard the guard: implausibly few commands registered"
-    ctx = click.Context(click_root)
+    ctx = typer_click.Context(click_root)
     offenders = [leaf for leaf in all_leaves if not any("--mission" in p.opts for p in leaf.get_params(ctx))]
     assert offenders == []
 

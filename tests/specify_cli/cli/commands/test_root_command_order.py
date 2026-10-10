@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import sys
 
-import click
 import pytest
 from typer.main import get_command
 
 from specify_cli import app as cli_app
 from specify_cli.cli.helpers import callback as root_callback
+from tests import _click_universe as typer_click
 
 pytestmark = [pytest.mark.fast]
 
 
-def _visible_root_command_names(command: click.Group, ctx: click.Context) -> list[str]:
+def _visible_root_command_names(command: typer_click.Group, ctx: typer_click.Context) -> list[str]:
     return [
         name
         for name in command.list_commands(ctx)
@@ -44,7 +44,7 @@ def _command_names_from_simple_help(output: str) -> list[str]:
 
 def test_root_command_names_are_alphabetical() -> None:
     command = get_command(cli_app)
-    ctx = click.Context(command, info_name="spec-kitty")
+    ctx = typer_click.Context(command, info_name="spec-kitty")
     visible_names = _visible_root_command_names(command, ctx)
 
     assert visible_names == sorted(visible_names)
@@ -54,7 +54,7 @@ def test_bare_root_invocation_prints_alphabetical_command_list(monkeypatch: pyte
     import specify_cli.readiness as readiness
 
     command = get_command(cli_app)
-    ctx = click.Context(command, info_name="spec-kitty", terminal_width=200)
+    ctx = typer_click.Context(command, info_name="spec-kitty", terminal_width=200)
     expected_names = _visible_root_command_names(command, ctx)
 
     monkeypatch.setattr(sys, "argv", ["spec-kitty"])

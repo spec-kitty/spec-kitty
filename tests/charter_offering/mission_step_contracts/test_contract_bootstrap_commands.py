@@ -17,12 +17,12 @@ from __future__ import annotations
 import shlex
 from pathlib import Path
 
-import click
 import pytest
 from typer.main import get_command
 
 from charter.offering.missions.step_contracts import MissionStepContractRepository
 from specify_cli.mission_step_contracts.executor import StepContractExecutor
+from tests import _click_universe as typer_click
 
 pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 
@@ -50,7 +50,7 @@ def test_some_bootstrap_commands_were_discovered() -> None:
     assert BOOTSTRAP_COMMANDS, "discovered no spec-kitty bootstrap commands in built-in step contracts"
 
 
-def _resolve(argv: list[str]) -> tuple[click.Command, list[str]]:
+def _resolve(argv: list[str]) -> tuple[typer_click.Command, list[str]]:
     """Walk the Click group tree to the leaf command, returning (cmd, remaining argv)."""
     from specify_cli import app
 
@@ -80,11 +80,11 @@ def test_bootstrap_command_parses(contract_id: str, command: str) -> None:
     leaf, remaining = _resolve(argv[1:])
     try:
         leaf.make_context(leaf.name, list(remaining), resilient_parsing=False).close()
-    except click.NoSuchOption as exc:
+    except typer_click.NoSuchOption as exc:
         pytest.fail(
             f"{contract_id} bootstrap renders `{command}`, but the CLI rejects "
             f"{exc.option_name!r}. A contract may not advertise a flag the parser does "
             f"not have — an operator or host runs this rendered string verbatim."
         )
-    except click.UsageError as exc:  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
+    except typer_click.UsageError as exc:
         pytest.fail(f"{contract_id} bootstrap renders `{command}`, which does not parse: {exc}")

@@ -22,13 +22,6 @@ from __future__ import annotations
 
 import re
 
-import click
-from click.testing import CliRunner
-from typer.main import get_command
-
-from specify_cli import app as _typer_app
-
-
 # ---------------------------------------------------------------------------
 # Resolve the underlying Click command tree.
 # ---------------------------------------------------------------------------
@@ -36,28 +29,32 @@ from specify_cli import app as _typer_app
 # ``test_decision_command_shape_consistency.py``) import that Typer app directly and let
 # Typer's CliRunner handle the conversion. For introspection we want the
 # Click command tree, which Typer can give us via ``get_command``.
-
 import pytest
+from click.testing import CliRunner
+from typer.main import get_command
+
+from specify_cli import app as _typer_app
+from tests import _click_universe as typer_click
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-cli: click.Group = get_command(_typer_app)  # type: ignore[assignment]
+cli: typer_click.Group = get_command(_typer_app)  # type: ignore[assignment]
 
 
 FEATURE_TOKEN_RE = re.compile(r"--feature\b")
 
 
-def _walk_leaf_commands(group: click.Group, prefix: tuple[str, ...] = ()):
+def _walk_leaf_commands(group: typer_click.Group, prefix: tuple[str, ...] = ()):
     """Yield (path_tuple, command) for every leaf command under ``group``."""
     for name, cmd in group.commands.items():
         path = prefix + (name,)
-        if isinstance(cmd, click.Group):
+        if isinstance(cmd, typer_click.Group):
             yield from _walk_leaf_commands(cmd, path)
         else:
             yield path, cmd
 
 
-def _param_declares_feature_flag(param: click.Parameter) -> bool:
+def _param_declares_feature_flag(param: typer_click.Parameter) -> bool:
     """Return True iff the param's CLI surface declares ``--feature``.
 
     We deliberately match on declared option strings (``param.opts`` and

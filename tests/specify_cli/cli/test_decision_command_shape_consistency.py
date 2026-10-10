@@ -34,19 +34,17 @@ import re
 from pathlib import Path
 from typing import cast
 
-import click
+import pytest
 from click.testing import CliRunner
 from typer.main import get_command
 
 from specify_cli import app as _typer_app
+from tests import _click_universe as typer_click
 from tests._support.docfx_reports_guard import assert_docfx_does_not_publish_reports
-
-
-import pytest
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-cli: click.Group = get_command(_typer_app)  # type: ignore[assignment]
+cli: typer_click.Group = get_command(_typer_app)  # type: ignore[assignment]
 
 # Repository root: this file lives at
 #   <repo>/tests/specify_cli/cli/test_decision_command_shape_consistency.py
@@ -103,7 +101,7 @@ def test_report_snapshot_prefix_stays_an_archive_classified_prefix() -> None:
 DOCFX_CONFIG_PATH = REPO_ROOT / "docs" / "docfx.json"
 
 
-def _visible_subcommand_names(group: click.Group) -> set[str]:
+def _visible_subcommand_names(group: typer_click.Group) -> set[str]:
     """Return the names of subcommands that are NOT hidden."""
     return {
         name
@@ -122,12 +120,12 @@ def test_agent_decision_subgroup_has_canonical_visible_subcommands() -> None:
     assert agent_grp is not None and hasattr(agent_grp, "commands"), (
         "spec-kitty agent group missing from CLI"
     )
-    agent_grp = cast(click.Group, agent_grp)
+    agent_grp = cast(typer_click.Group, agent_grp)
     decision_grp = agent_grp.commands.get("decision")
     assert decision_grp is not None and hasattr(decision_grp, "commands"), (
         "spec-kitty agent decision subgroup missing from CLI"
     )
-    decision_grp = cast(click.Group, decision_grp)
+    decision_grp = cast(typer_click.Group, decision_grp)
     visible = _visible_subcommand_names(decision_grp)
     assert visible == EXPECTED_SUBCOMMANDS, (
         f"FR-007 regression: visible decision subcommands drifted.\n"

@@ -45,13 +45,13 @@ while still failing on any usage/description/flag/help-text drift.
 
 from __future__ import annotations
 
-import click
 import pytest
 from typer.main import get_command
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.doctor import app
 from specify_cli.cli.commands import _apply_short_help_options
+from specify_cli.cli.commands.doctor import app
+from tests import _click_universe as typer_click
 from tests.specify_cli.cli.commands._help_snapshot import (
     force_wide_help_console,
     normalize_help,
@@ -625,15 +625,15 @@ def test_registered_command_names_match_frozen_subcommands() -> None:
 
 
 def _is_option_param(param: object) -> bool:
-    """Return True for option parameters in both click.Option and typer.core.TyperOption.
+    """Return True for option parameters in both typer_click.Option and typer.core.TyperOption.
 
-    Click 8.4+ with Typer uses TyperOption which does not inherit from click.Option
+    Click 8.4+ with Typer uses TyperOption which does not inherit from typer_click.Option
     but has the same duck-typed surface (is_flag, multiple, opts).
     """
-    return isinstance(param, click.Option) or (hasattr(param, "is_flag") and hasattr(param, "opts"))
+    return isinstance(param, typer_click.Option) or (hasattr(param, "is_flag") and hasattr(param, "opts"))
 
 
-def _option_arity(opt: click.Option) -> str:
+def _option_arity(opt: typer_click.Option) -> str:
     if opt.multiple:
         return "multi"
     if opt.is_flag:

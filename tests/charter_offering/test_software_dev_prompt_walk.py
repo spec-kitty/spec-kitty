@@ -36,7 +36,6 @@ import sys
 from collections.abc import Iterator
 from pathlib import Path
 
-import click
 import pytest
 from typer.main import get_command
 
@@ -46,6 +45,7 @@ from charter.offering.missions.step_contracts import (
     MissionStepContractStep,
 )
 from specify_cli.mission_step_contracts.executor import StepContractExecutor
+from tests import _click_universe as typer_click
 from tests.charter_offering.conftest import REPO_ROOT
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.corpus]
@@ -114,19 +114,19 @@ def _commands_with_options(segment: str) -> Iterator[tuple[list[str], list[str]]
         yield tokens, options
 
 
-def _resolve_leaf(root: click.Group, tokens: list[str]) -> tuple[click.Command | None, str | None]:
+def _resolve_leaf(root: typer_click.Group, tokens: list[str]) -> tuple[typer_click.Command | None, str | None]:
     """Walk ``tokens`` to a leaf command.
 
     Returns ``(leaf, None)`` when the path resolves (a leaf reached, remaining
     tokens being arguments), or ``(None, unresolved_prefix)`` when a group token
     does not resolve.
     """
-    command: click.Command = root
+    command: typer_click.Command = root
     walked: list[str] = []
     for token in tokens:
-        if not isinstance(command, click.Group):
+        if not isinstance(command, typer_click.Group):
             return command, None
-        sub = command.get_command(click.Context(command), token)
+        sub = command.get_command(typer_click.Context(command), token)
         if sub is None:
             return None, " ".join([*walked, token])
         walked.append(token)
@@ -134,7 +134,7 @@ def _resolve_leaf(root: click.Group, tokens: list[str]) -> tuple[click.Command |
     return command, None
 
 
-def _command_option_strings(command: click.Command) -> set[str]:
+def _command_option_strings(command: typer_click.Command) -> set[str]:
     """Return every long/short option string the command accepts."""
     accepted: set[str] = set()
     for param in command.params:
@@ -143,20 +143,20 @@ def _command_option_strings(command: click.Command) -> set[str]:
     return accepted
 
 
-def _unknown_options(command: click.Command, options: list[str]) -> list[str]:
+def _unknown_options(command: typer_click.Command, options: list[str]) -> list[str]:
     """Return the options not accepted by ``command`` (``--opt=value`` tolerated)."""
     accepted = _command_option_strings(command)
     return [opt for opt in options if opt.split("=", 1)[0] not in accepted]
 
 
 @pytest.fixture(scope="module")
-def cli_root() -> click.Group:
+def cli_root() -> typer_click.Group:
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(sys, "argv", ["spec-kitty"])
         from specify_cli import _get_app
 
         root = get_command(_get_app())
-    assert isinstance(root, click.Group)
+    assert isinstance(root, typer_click.Group)
     return root
 
 
@@ -166,7 +166,7 @@ def cli_root() -> click.Group:
 _MINIMUM_PROMPT_COMMANDS = 10
 
 
-def _collect_command_violations(root: click.Group) -> tuple[list[str], int]:
+def _collect_command_violations(root: typer_click.Group) -> tuple[list[str], int]:
     violations: list[str] = []
     checked = 0
     for prompt in _WALKED_PROMPTS:
@@ -185,7 +185,7 @@ def _collect_command_violations(root: click.Group) -> tuple[list[str], int]:
     return violations, checked
 
 
-def test_prompt_commands_and_options_resolve(cli_root: click.Group) -> None:
+def test_prompt_commands_and_options_resolve(cli_root: typer_click.Group) -> None:
     violations, checked = _collect_command_violations(cli_root)
     assert checked >= _MINIMUM_PROMPT_COMMANDS, (
         f"Only checked {checked} spec-kitty commands across the walked prompts (expected >= {_MINIMUM_PROMPT_COMMANDS}); the collector or pack root may be broken."
@@ -217,7 +217,7 @@ def _render_declared_command(step: MissionStepContractStep) -> str:
     return rendered
 
 
-def _collect_contract_violations(root: click.Group) -> tuple[list[str], int]:
+def _collect_contract_violations(root: typer_click.Group) -> tuple[list[str], int]:
     violations: list[str] = []
     steps = _software_dev_command_steps()
     for contract_id, step in steps:
@@ -235,7 +235,7 @@ def _collect_contract_violations(root: click.Group) -> tuple[list[str], int]:
     return violations, len(steps)
 
 
-def test_rendered_step_contract_commands_parse(cli_root: click.Group) -> None:
+def test_rendered_step_contract_commands_parse(cli_root: typer_click.Group) -> None:
     violations, checked = _collect_contract_violations(cli_root)
     assert checked >= 1, "discovered no software-dev step-contract commands to render"
     assert violations == [], "Rendered software-dev step-contract commands do not parse:\n" + "\n".join(violations)
@@ -424,13 +424,13 @@ def test_commands_with_options_ignores_non_spec_kitty() -> None:
     assert list(_commands_with_options("git diff --name-only HEAD")) == []
 
 
-def test_resolve_leaf_reports_unresolved_prefix(cli_root: click.Group) -> None:
+def test_resolve_leaf_reports_unresolved_prefix(cli_root: typer_click.Group) -> None:
     leaf, unresolved = _resolve_leaf(cli_root, ["agent", "tasks", "transition", "wp01"])
     assert leaf is None
     assert unresolved == "agent tasks transition"
 
 
-def test_unknown_options_flags_missing_and_tolerates_equals(cli_root: click.Group) -> None:
+def test_unknown_options_flags_missing_and_tolerates_equals(cli_root: typer_click.Group) -> None:
     leaf, _ = _resolve_leaf(cli_root, ["accept"])
     assert leaf is not None
     assert _unknown_options(leaf, ["--mission=x"]) == []
