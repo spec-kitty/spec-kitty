@@ -245,8 +245,8 @@ def _package_default_path(
     FR-003 / T019 — **construction-contract mapping, recorded here as the
     call site the WP asked to document.**
 
-    Before this change this helper went through
-    ``charter.activation.template_resolver.CharterTemplateResolver``, obtained from an
+    Before this change this helper went through a since-deleted charter-layer
+    template-resolver delegate, obtained from an
     ``lru_cache``d ``_charter_template_resolver_for(missions_root)`` factory
     keyed on a ``missions_root`` *string*, while the canonical charter factory
     (``charter.activation.resolver.ActiveCharterService``) is built from a ``repo_root`` by the
