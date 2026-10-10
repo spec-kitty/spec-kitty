@@ -1,0 +1,11 @@
+enforcement: required
+id: PROJECT_001
+intent: >
+  Define the primary mission scope and core user outcome that this project
+  optimizes for, establishing a clear boundary for all development activity.
+procedures:
+- "Ensure every feature specification references the mission type."
+- "Reject work that falls outside the stated mission scope."
+schema_version: '1.0'
+scope: "All project work packages and feature development."
+title: Mission Type Scope Directive
