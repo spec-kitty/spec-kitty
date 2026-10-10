@@ -12616,7 +12616,7 @@ pages:
   - path: "docs/guides/how-to/scenarios/parallel-implementation-tracking.md"
     title: "Parallel Implementation Tracking"
     divio_type: "how-to"
-    abstract: "Track several agents implementing a roadmap in parallel and give leadership continuous visibility through Spec Kitty status views and activity logs."
+    abstract: "Track several agents implementing a roadmap in parallel and give leadership continuous visibility through Spec Kitty status views and the WP status event log."
     anchors:
     - {slug: "setup", text: "Setup", level: 2}
     - {slug: "steps", text: "Steps", level: 2}
