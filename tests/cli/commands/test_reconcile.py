@@ -200,7 +200,7 @@ class TestCli:
         _patch_feature_dir(monkeypatch, feature_dir)
         return CliRunner().invoke(app, args)
 
-    def test_command_is_wired_into_the_app(self):
+    def test_command_is_wired_into_the_app(self, tmp_path, monkeypatch):
         """Integration-wiring: ``reconcile`` is a live, callable command.
 
         Runs --help in an isolated filesystem so the readiness banner (emitted
@@ -211,9 +211,8 @@ class TestCli:
 
         from specify_cli import app
 
-        runner = CliRunner()
-        with runner.isolated_filesystem():
-            result = runner.invoke(app, ["reconcile", "--help"])
+        monkeypatch.chdir(tmp_path)
+        result = CliRunner().invoke(app, ["reconcile", "--help"])
         assert result.exit_code == 0
         # Strip ANSI so the assertion survives Rich colorizing the help in CI
         # (the flag renders as `\x1b[..m--mission\x1b[0m`, breaking a raw substring).
