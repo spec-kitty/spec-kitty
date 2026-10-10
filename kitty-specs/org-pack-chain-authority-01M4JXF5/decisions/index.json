@@ -1,0 +1,53 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-10T12:44:43.974565Z",
+      "decision_id": "01M4JXG8J6K4ZS9PWV78Z6GERC",
+      "final_answer": "Stack on #6005: it lands first with its full-chain --include/activate fix; this mission generalizes the chain read to every surface via one resolve_pack_chain() authority and retires the _activate_cascade_target retry loop on top.",
+      "input_key": "stack_on_6005",
+      "mission_id": "01M4JXF5MQSVRD6VGT81PNPWZW",
+      "mission_slug": "org-pack-chain-authority-01M4JXF5",
+      "opened_by": "cli",
+      "options": [
+        "Stack on #6005 (lands first; generalize + retire loop on top)",
+        "Subsume #6005",
+        "Independent, leave retry loop"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should this mission subsume open PR #6005, stack on top of it, or stay independent and leave the retry loop?",
+      "rationale": null,
+      "resolved_at": "2026-10-10T12:44:57.079165Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.stack-vs-6005",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-10T12:44:58.834135Z",
+      "decision_id": "01M4JXGQ2JKGZPMNMY0H62NMSN",
+      "final_answer": "Include the loader seam ONLY: a RequirementKind/RequirementKindDeclaration model plus load_requirement_kinds() that resolves requirement-kinds.yaml through the same chain (built-in -> org full-chain last-wins -> project tier, project wins) with whole-file override and fail-closed on invalid/missing. The #5956 gate handlers, glossary terms, and grammar integration are out of scope.",
+      "input_key": "loader_seam_5956",
+      "mission_id": "01M4JXF5MQSVRD6VGT81PNPWZW",
+      "mission_slug": "org-pack-chain-authority-01M4JXF5",
+      "opened_by": "cli",
+      "options": [
+        "Include the loader seam only (not gate handlers/glossary/grammar)",
+        "Defer/scope out"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Include the #5956 Mission-type requirement-kinds loader seam (model + load_requirement_kinds through the chain, fail-closed), or defer it?",
+      "rationale": null,
+      "resolved_at": "2026-10-10T12:45:00.480242Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.loader-seam",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M4JXF5MQSVRD6VGT81PNPWZW",
+  "version": 1
+}
