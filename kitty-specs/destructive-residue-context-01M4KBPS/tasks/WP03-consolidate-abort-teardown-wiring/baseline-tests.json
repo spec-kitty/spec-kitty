@@ -1,0 +1,13 @@
+{
+  "wp_id": "WP03",
+  "captured_at": "2026-10-10T18:25:09Z",
+  "base_branch": "fix/5965-5966-destructive-residue-context",
+  "base_commit": "960eea5619d089962814609ee81f0830cd3e87bf",
+  "test_runner": "custom",
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml"
+}
