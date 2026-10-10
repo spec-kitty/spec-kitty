@@ -55,7 +55,7 @@ from specify_cli.cli.commands.spec_commit_cmd import spec_commit_command
 from tests._factories import provision_test_charter
 from tests._owned_fixtures import RSnapshotter, mint_test_fact, prompt_cache_prefix
 from tests.integration.conftest import OwnedCheckouts, _git, _init_repo, _write_mission, _write_single_lane_manifest
-from tests.runtime._next_mission_scaffold import advance_to_step
+from tests.runtime._next_mission_scaffold import advance_to_step, analysis_is_current
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -357,7 +357,7 @@ def _step_next_implement(walk: _Walk) -> dict[str, Any]:
     files use -- because walking every upstream step through the CLI adds ~90 s per
     parametrisation without exercising anything the per-step files do not.
     """
-    advance_to_step(walk.site.p, walk.slug, "software-dev", "tasks")
+    advance_to_step(walk.site.p, walk.slug, "software-dev", "analyze")
     payload = _run(
         next_app,
         ["--agent", "claude", "--owned-checkout", str(walk.site.p), "--mission", walk.slug, "--result", "success", "--json"],
@@ -472,6 +472,11 @@ def _drive(site: _Site, *, stale: bool, where: str, monkeypatch: pytest.MonkeyPa
     check("review", review, ignore_keys=_NEXT_PROVENANCE_KEYS)
     check("context", _step_context_resolve(walk))
     return walk
+
+
+@pytest.fixture(autouse=True)
+def _analysis_gate_passes(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(next_cmd, "analysis_currency_for", lambda *_a, **_k: analysis_is_current)
 
 
 @pytest.fixture
