@@ -1,5 +1,5 @@
 Usage: tasks add-history [OPTIONS] TASK_ID
-Append history entry to task activity log.
+Record a history note in the WP status event log.
 Examples:
 spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
 Arguments
