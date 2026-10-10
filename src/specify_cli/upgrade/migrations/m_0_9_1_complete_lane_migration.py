@@ -10,8 +10,8 @@ normalize frontmatter.
 from __future__ import annotations
 
 import re
-import shutil
 from pathlib import Path
+from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
 
 from ..registry import MigrationRegistry
 from ..autocommit import record_upgrade_mutation
@@ -321,10 +321,10 @@ class CompleteLaneMigration(BaseMigration):
                         try:
                             # Use shutil.rmtree for more robust removal
                             # This will remove the directory and all system files within it
-                            shutil.rmtree(lane_dir)
+                            remove_tool_owned_tree(lane_dir, owned_root=lane_dir, reason="empty lane directory (system files only)")
                             changes.append(f"  Removed: {lane}/")
                             dirs_removed += 1
-                        except OSError as e:
+                        except (OSError, ToolOwnedPathUnproven) as e:
                             warnings.append(f"  Could not remove {lane}/: {e}")
             else:
                 if lane_dir.is_dir():
@@ -422,7 +422,7 @@ class CompleteLaneMigration(BaseMigration):
                                 commands_dir.unlink()
                                 changes.append(f"[{worktree_name}] Removed {agent_dir}/{subdir}/ symlink (inherits from main)")
                             elif commands_dir.is_dir():
-                                shutil.rmtree(commands_dir)
+                                remove_tool_owned_tree(commands_dir, owned_root=commands_dir, reason="worktree agent commands dir")
                                 changes.append(f"[{worktree_name}] Removed {agent_dir}/{subdir}/ (inherits from main)")
 
                             # Clean up parent directory if now empty
@@ -432,7 +432,7 @@ class CompleteLaneMigration(BaseMigration):
 
                             cleaned_this_worktree = True
 
-                        except OSError as e:
+                        except (OSError, ToolOwnedPathUnproven) as e:
                             errors.append(f"[{worktree_name}] Failed to remove {agent_dir}/{subdir}/: {e}")
 
             # Remove .kittify/scripts/
@@ -450,10 +450,10 @@ class CompleteLaneMigration(BaseMigration):
                             scripts_dir.unlink()
                             changes.append(f"[{worktree_name}] Removed .kittify/scripts/ symlink (inherits from main)")
                         elif scripts_dir.is_dir():
-                            shutil.rmtree(scripts_dir)
+                            remove_tool_owned_tree(scripts_dir, owned_root=scripts_dir, reason="worktree .kittify/scripts")
                             changes.append(f"[{worktree_name}] Removed .kittify/scripts/ (inherits from main)")
                         cleaned_this_worktree = True
-                    except OSError as e:
+                    except (OSError, ToolOwnedPathUnproven) as e:
                         errors.append(f"[{worktree_name}] Failed to remove .kittify/scripts/: {e}")
 
             if cleaned_this_worktree:

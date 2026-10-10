@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import re
-import shutil
 from pathlib import Path
+from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
 
 from ..autocommit import record_upgrade_mutation
 from ..registry import MigrationRegistry
@@ -269,9 +269,9 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
                         try:
                             # Use shutil.rmtree for more robust removal
                             # This will remove the directory and all system files within it
-                            shutil.rmtree(lane_dir)
+                            remove_tool_owned_tree(lane_dir, owned_root=lane_dir, reason="empty lane directory (system files only)")
                             changes.append(f"  Removed empty: {lane}/")
-                        except OSError as e:
+                        except (OSError, ToolOwnedPathUnproven) as e:
                             warnings.append(f"  Could not remove {lane}/: {e}")
         else:
             for lane in self.LANE_DIRS:

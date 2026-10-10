@@ -25,6 +25,7 @@ from specify_cli.core import (
 )
 from specify_cli.core.env import is_interactive
 from kernel.clock import now_utc_iso
+from kernel.tree_removal import remove_tool_owned_tree
 from specify_cli.core.constants import OCCURRENCE_MAP_FILENAME
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.core.vcs import (
@@ -456,7 +457,8 @@ def _discard_failed_project_scaffold(project_path: Path, *, here: bool) -> None:
         list(_OPERATOR_AUTHORED_SUBTREES),
         backup_parent=project_path.parent,
     )
-    shutil.rmtree(project_path)
+    # Owned: ``project_path`` is the scaffold this same run created (``not here``); init runs no ``git init``.
+    remove_tool_owned_tree(project_path, owned_root=project_path, reason="failed init scaffold created by this run")
 
 
 def _wire_merge_driver_best_effort(project_path: Path) -> Literal["installed", "present", "customized"] | None:
@@ -1591,10 +1593,7 @@ def init(  # noqa: C901
     if kittify_dir.is_dir():
         for scratch in kittify_dir.iterdir():
             if scratch.is_dir() and (scratch.name.startswith(".resolved-") or scratch.name.startswith(".merged-")):
-                try:  # noqa: SIM105
-                    shutil.rmtree(scratch)
-                except Exception:  # noqa: S110
-                    pass  # best-effort cleanup
+                remove_tool_owned_tree(scratch, owned_root=scratch, reason="init resolver scratch dir", best_effort=True)
 
 
 def register_init_command(

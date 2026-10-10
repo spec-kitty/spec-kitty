@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
+from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -138,9 +139,9 @@ class CommandsRenameMigration(BaseMigration):
                             changes.append(f"Would remove old commands/ from worktree {worktree.name}")
                         else:
                             try:
-                                shutil.rmtree(wt_templates_commands)
+                                remove_tool_owned_tree(wt_templates_commands, owned_root=wt_templates_commands, reason="worktree legacy templates/commands")
                                 changes.append(f"Removed old commands/ from worktree {worktree.name}")
-                            except OSError as e:
+                            except (OSError, ToolOwnedPathUnproven) as e:
                                 warnings.append(f"Could not remove old commands/ from worktree {worktree.name}: {e}")
 
                     # Rename missions/*/commands/ in worktree
