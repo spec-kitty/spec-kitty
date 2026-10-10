@@ -932,9 +932,6 @@ entries:
 - module: charter.offering.missions.step_contracts
   name: DelegatesTo
   category: category_c_wp_in_flight_unified_mission_step
-- module: charter.activation.pack_manager
-  name: ActivationResult
-  category: category_c_wp_in_flight_charter_activation
 - module: specify_cli.charter_activate
   name: AffectedMission
   category: category_c_wp_in_flight_charter_activation
