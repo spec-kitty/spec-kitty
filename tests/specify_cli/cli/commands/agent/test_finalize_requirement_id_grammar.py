@@ -63,7 +63,7 @@ def _disable_saas_sync_for_finalize_grammar_tests(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
 
 
-def _seed_mission(tmp_path: Path, *, spec_md: str, wp_refs: dict[str, list[str]]) -> Path:
+def _seed_mission(tmp_path: Path, *, spec_md: str, wp_refs: dict[str, list[str]], mission_type: str = "software-dev") -> Path:
     """Build a minimal mission dir with spec.md + one WP file per ``wp_refs`` entry.
 
     Each WP's ``requirement_refs`` is authored directly as a YAML list in its
@@ -100,8 +100,68 @@ def _seed_mission(tmp_path: Path, *, spec_md: str, wp_refs: dict[str, list[str]]
             encoding="utf-8",
         )
 
-    (feature_dir / "meta.json").write_text(json.dumps({"mission_slug": "001-test"}), encoding="utf-8")
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_slug": "001-test", "mission_type": mission_type}), encoding="utf-8")
     return feature_dir
+
+
+def test_research_refs_validate_without_fake_fr(tmp_path: Path) -> None:
+    spec = """# Research
+
+## Research Question & Scope
+
+**Primary Research Question**: How do teams assess evidence?
+
+**Scope**:
+- **In Scope**: Evidence assessment in three teams
+
+## Research Requirements
+
+- **DR-001**: Interview team members.
+- **AR-001**: Synthesize interview patterns.
+- **QR-001**: Cite every claim.
+"""
+    mission = _seed_mission(tmp_path, spec_md=spec, wp_refs={"WP01": ["DR-001", "AR-001", "QR-001"]}, mission_type="research")
+    result = _invoke_finalize(tmp_path, mission, validate_only=True)
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["parsed_spec_ids"]["data_collection"] == ["DR-001"]
+    assert payload["parsed_spec_ids"]["analysis"] == ["AR-001"]
+    assert payload["parsed_spec_ids"]["quality"] == ["QR-001"]
+
+    wp_file = mission / "tasks" / "WP01-test.md"
+    wp_file.write_text(
+        wp_file.read_text(encoding="utf-8").replace("requirement_refs:\n  - DR-001\n  - AR-001\n  - QR-001\n", "requirement_refs: []\n"),
+        encoding="utf-8",
+    )
+    (mission / "tasks.md").write_text("# Tasks\n\n## WP01\n\n**Requirements**: DR-001, AR-001, QR-001\n", encoding="utf-8")
+    result = _invoke_finalize(tmp_path, mission, validate_only=True)
+    assert result.exit_code == 0, result.output
+
+    (mission / "tasks.md").write_text("# Tasks\n\n## WP01\n\n**Requirements**: DR-001, AR-001\n", encoding="utf-8")
+    result = _invoke_finalize(tmp_path, mission, validate_only=True)
+    assert result.exit_code == 1
+    assert "QR-001" in json.loads(result.output)["unmapped_functional_requirements"]
+
+
+def test_research_keeps_shared_constraint_and_success_criterion_ids(tmp_path: Path) -> None:
+    spec = """# Research
+
+## Research Requirements
+
+- **DR-001**: Collect records.
+- **AR-001**: Analyze records.
+- **QR-001**: Check evidence.
+- **C-001**: Retain consent.
+- **SC-001**: Publish a report.
+- **NFR-001**: Protect records.
+"""
+    mission = _seed_mission(tmp_path, spec_md=spec, wp_refs={"WP01": ["DR-001", "AR-001", "QR-001", "C-001", "SC-001", "NFR-001"]}, mission_type="research")
+    result = _invoke_finalize(tmp_path, mission, validate_only=True)
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["parsed_spec_ids"]["constraint"] == ["C-001"]
+    assert payload["parsed_spec_ids"]["non_functional"] == ["NFR-001"]
+    assert payload["parsed_spec_ids"]["success_criteria"] == ["SC-001"]
 
 
 def _invoke_finalize(tmp_path: Path, feature_dir: Path, *, validate_only: bool = False):

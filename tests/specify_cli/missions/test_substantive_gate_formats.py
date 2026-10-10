@@ -59,6 +59,15 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
+def test_research_template_with_only_question_and_scope_filled_is_not_substantive(tmp_path: Path) -> None:
+    template = (_REPO_ROOT / "packs/built-in/missions/research/templates/research-spec-template.md").read_text()
+    body = template.replace("[What specific question does this research aim to answer?]", "Which process is most reliable?")
+    body = body.replace("[What will be investigated]", "The process in three teams")
+    spec = tmp_path / "spec.md"
+    spec.write_text(body)
+    assert not is_substantive(spec, "spec", mission_type="research")
+
+
 # Canonical bulleted Technical Context (real values) — the plan-template shape.
 _BULLETED_REAL = """# Implementation Plan
 
@@ -401,6 +410,27 @@ def test_documentation_build_commands_only_peer_is_substantive() -> None:
 def test_research_real_data_sources_is_substantive() -> None:
     """Decision 3(c-ii): the named-sibling nested-heading detector."""
     assert _is_plan_substantive_for_type(_RESEARCH_REAL, "research") is True
+
+
+def test_research_spec_requires_question_scope_and_native_requirements(tmp_path: Path) -> None:
+    from specify_cli.missions._substantive import is_substantive
+
+    template = _read_template("packs/built-in/missions/research/templates/research-spec-template.md")
+    spec = tmp_path / "spec.md"
+    spec.write_text(template, encoding="utf-8")
+    assert not is_substantive(spec, "spec", mission_type="research")
+
+    populated = template.replace("[What specific question does this research aim to answer?]", "How do teams assess evidence?")
+    populated = populated.replace("[What will be investigated]", "Evidence assessment across three teams")
+    populated = populated.replace("Research MUST collect data from [specific sources]", "Research MUST collect data from interviews")
+    populated = populated.replace("Findings MUST be synthesized into [specific output]", "Findings MUST be synthesized into a report")
+    populated = populated.replace("All claims MUST be supported by cited evidence", "All claims MUST be supported by cited interviews")
+    spec.write_text(populated, encoding="utf-8")
+    assert is_substantive(spec, "spec", mission_type="research")
+    assert not is_substantive(spec, "spec", mission_type="software-dev")
+
+    spec.write_text(populated.replace("**Scope**:", "**Other**:"), encoding="utf-8")
+    assert not is_substantive(spec, "spec", mission_type="research")
 
 
 def test_plan_real_all_peers_is_substantive() -> None:

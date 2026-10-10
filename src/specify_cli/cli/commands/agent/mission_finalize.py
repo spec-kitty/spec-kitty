@@ -96,6 +96,7 @@ from specify_cli.cli.commands.agent.finalization_eligibility import (
     FinalizationEligibility,
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.mission import get_mission_type
 from specify_cli.cli.commands.agent.mission_parsing import (
     _invalid_mission_specs_owned_files,
     _with_cli_version,
@@ -895,12 +896,13 @@ def _run_finalize_validation_gates(
     wp_files = list(tasks_dir.glob("WP*.md"))
     expected_wp_ids = _extract_wp_ids_from_task_files(wp_files)
 
+    mission_type = get_mission_type(planning_dir)
     (
         all_spec_requirement_ids,
         functional_spec_requirement_ids,
         requirement_extraction_warnings,
         spec_content,
-    ) = _read_spec_requirement_ids(planning_dir, json_output=json_output)
+    ) = _read_spec_requirement_ids(planning_dir, json_output=json_output, mission_type=mission_type)
 
     # Snapshot pre-existing primary-side files BEFORE any finalize writer runs
     # (WP02 / FR-006 / A-r1 — residue cleanup scoping, research R6).
@@ -921,7 +923,7 @@ def _run_finalize_validation_gates(
     wps_manifest = _load_manifest(planning_dir, json_output=json_output)
     concern_coverage_warnings = check_concern_refs_coverage(wps_manifest) if wps_manifest is not None else []
 
-    dep_resolution = _resolve_dependencies_and_refs(planning_dir, wps_manifest, wp_files, expected_wp_ids, json_output=json_output)
+    dep_resolution = _resolve_dependencies_and_refs(planning_dir, wps_manifest, wp_files, expected_wp_ids, json_output=json_output, mission_type=mission_type)
     _validate_dependency_graph(dep_resolution.wp_dependencies, json_output=json_output)
 
     wp_files = list(tasks_dir.glob("WP*.md"))
@@ -934,6 +936,7 @@ def _run_finalize_validation_gates(
         dep_resolution.wp_dependencies,
         spec_content,
         json_output=json_output,
+        mission_type=mission_type,
     )
 
     _detect_dependency_conflicts(wp_files, dep_resolution.wp_dependencies, json_output=json_output)

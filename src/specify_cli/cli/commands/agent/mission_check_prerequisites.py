@@ -188,7 +188,7 @@ def _is_assigned_mission_number(value: object) -> bool:
     """
     from specify_cli.consolidation.mission_number import is_assigned_mission_number
 
-    return is_assigned_mission_number(value)
+    return bool(is_assigned_mission_number(value))
 
 
 def _resume_meta_problems(meta: dict[str, Any], feature_dir: Path) -> list[str]:
@@ -419,22 +419,15 @@ def _build_resume_probe_payload(repo_root: Path, handle: str) -> dict[str, objec
     main_root = get_main_repo_root(repo_root)
     spec_is_committed = is_committed(spec_file, main_root)
     mission_type = str(meta["mission_type"])
-    # Decision 5 (#3832): this ``kind="spec"`` guard stays BEHAVIOURALLY
-    # UNCHANGED by the #3832 template-derived substantive-gate fix — this is
-    # a documented reconciliation, not an oversight. ``is_substantive(...,
-    # "spec")`` routes to ``_has_substantive_fr_row``, which is anchored to
-    # ``FR-###`` rows; ``research``'s and ``plan``'s own spec templates
-    # (research-spec-template.md, plan-spec-skeleton.md) contain ZERO
-    # ``FR-###`` rows (verified via ``grep -n "FR-"`` over both), so there is
-    # no FR-vocabulary in either type's spec template to derive a
-    # template-derived spec check from. The non-``software-dev`` branch of
-    # this guard therefore stays a blanket ``True`` (no FR-row check at all)
-    # for every other mission type, exactly as before this fix.
+    # Research has its own substantive schema; other non-software types keep
+    # the existing resume-probe behavior until their schemas are defined.
     return {
         "result": "success",
         "resume_state": "found",
         **identity_payload,
-        "spec_committed_and_substantive": (spec_is_committed and (mission_type != "software-dev" or is_substantive(spec_file, "spec"))),
+        "spec_committed_and_substantive": (
+            spec_is_committed and (mission_type not in {"software-dev", "research"} or is_substantive(spec_file, "spec", mission_type=mission_type))
+        ),
     }
 
 

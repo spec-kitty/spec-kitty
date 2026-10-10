@@ -1,6 +1,6 @@
 ---
 title: 'ADR: one requirement-ID grammar, one authority'
-description: 'Accepted: every requirement-ID surface reads FR/NFR/C/SC IDs through one shared grammar module, replacing six divergent parsers.'
+description: 'Accepted: every requirement-ID surface reads mission-scoped kinds through one shared grammar module, replacing six divergent parsers.'
 status: Accepted
 date: '2026-09-29'
 updated: '2026-09-30'
@@ -118,7 +118,10 @@ lowercase; the qualified form (`__str__`) renders `mission#canonical`
 
 Every pattern in the module is generated from one core kind alternation,
 `_KIND_ALT = "FR|NFR|SC|C"` (`grammar.py:74`), matched case-insensitively
-(`_KIND_DIGITS`, `grammar.py:87`); kinds are `FR`, `NFR`, `C`, `SC`. Declared-shape scanning
+(`_KIND_DIGITS`, `grammar.py:87`). The default `software-dev` kind set remains
+`FR`, `NFR`, `C`, `SC`; `research` adds `DR`, `AR`, `QR` through
+`grammar.kinds_for(mission_type)`. Unknown types use the software-dev set.
+All recognition patterns derive from this mission-scoped authority. Declared-shape scanning
 (`spec_scan=True`) accepts only a lowercase suffix; ref-item matching
 (`spec_scan=False`) is case-tolerant on the suffix (`find_all`, `grammar.py:247-275`;
 Decision Moment `01M3NRCVW5VPE1DC9J6G5F3RBC`: accept the letter suffix, lowercase

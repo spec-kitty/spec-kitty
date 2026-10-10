@@ -122,7 +122,7 @@ _REF_FIND_PATTERN = grammar._LEGACY_REF_FIND_PATTERN
 # silently truncated to a shorter well-formed prefix.
 
 
-def _declared_ids(spec_content: str) -> set[str]:
+def _declared_ids(spec_content: str, *, mission_type: str = "software-dev") -> set[str]:
     """Ids written as a table row, an id-naming heading, or a bold-led definition.
 
     Doc-wide (not scoped to a ``Functional Requirements``-style heading):
@@ -146,13 +146,13 @@ def _declared_ids(spec_content: str) -> set[str]:
     found: set[str] = set()
     blanked = grammar.blank_html_comments(spec_content)
     for line in blanked.splitlines():
-        for pattern in _DECLARED_ID_PATTERNS:
+        for pattern in grammar.declared_shape_patterns(mission_type):
             match = pattern.match(line)
             if match is None:
                 continue
             if grammar.is_compound_tail(line, match.end(1)):
                 continue
-            canonical_id = grammar.canonical(match.group(1))
+            canonical_id = grammar.canonical(match.group(1), mission_type=mission_type)
             if canonical_id is not None:
                 found.add(canonical_id)
             break
@@ -455,10 +455,13 @@ _KIND_TO_BUCKET: dict[str, str] = {
     "NFR": "non_functional",
     "C": "constraint",
     "SC": "success_criteria",
+    "DR": "data_collection",
+    "AR": "analysis",
+    "QR": "quality",
 }
 
 
-def parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]]:
+def parse_requirement_ids_from_spec_md(spec_content: str, *, mission_type: str = "software-dev") -> dict[str, list[str]]:
     """Parse DECLARED requirement IDs from spec.md content.
 
     Shared between map-requirements and finalize-tasks.
@@ -483,20 +486,23 @@ def parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]
         declared id (used to check a WP-declared ref is *known*);
         "functional" is the FR subset (used for FR coverage gating).
     """
-    declared = _declared_ids(spec_content)
-    buckets: dict[str, list[str]] = {"functional": [], "non_functional": [], "constraint": [], "success_criteria": []}
+    declared = _declared_ids(spec_content, mission_type=mission_type)
+    buckets: dict[str, list[str]] = {key: [] for key in _KIND_TO_BUCKET.values()}
     for req_id in declared:
-        requirement_id = grammar.parse(req_id)
+        requirement_id = grammar.parse(req_id, mission_type=mission_type)
         if requirement_id is None:
             continue
         buckets[_KIND_TO_BUCKET[requirement_id.kind]].append(req_id)
-    return {
+    result = {
         "all": sorted(declared),
         "functional": sorted(buckets["functional"]),
         "non_functional": sorted(buckets["non_functional"]),
         "constraint": sorted(buckets["constraint"]),
         "success_criteria": sorted(buckets["success_criteria"]),
     }
+    if any(buckets[key] for key in ("data_collection", "analysis", "quality")):
+        result.update({key: sorted(buckets[key]) for key in ("data_collection", "analysis", "quality")})
+    return result
 
 
 def _read_wp_frontmatter_values(

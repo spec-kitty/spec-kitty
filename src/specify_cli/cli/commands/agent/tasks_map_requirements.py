@@ -169,6 +169,7 @@ class _MapReqState:
     #: detector -- previously this text was read locally in this phase and
     #: discarded, leaving Phase D with no access to it.
     spec_content: str = ""
+    mission_type: str = "software-dev"
     new_mappings: dict[str, list[str]] = field(default_factory=dict)
     # --- phase D: pure decision ---
     mapping_plan: MappingPlan | None = None
@@ -356,7 +357,10 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
         raise typer.Exit(1)
 
     spec_content = spec_md.read_text(encoding="utf-8")
-    spec_ids = parse_requirement_ids_from_spec_md(spec_content)
+    from specify_cli.mission import get_mission_type
+
+    st.mission_type = get_mission_type(st.primary_dir)
+    spec_ids = parse_requirement_ids_from_spec_md(spec_content, mission_type=st.mission_type)
     st.all_spec_ids = set(spec_ids["all"])
     st.functional_ids = set(spec_ids["functional"])
     # #3394 review F1: non-blocking signal, never a gate -- see _mr_emit_output.
@@ -365,6 +369,7 @@ def _mr_resolve_read_dirs(st: _MapReqState, ports: TasksPorts) -> None:
     st.spec_content = spec_content
 
     _mr_build_new_mappings(st)
+    st.new_mappings = {wp_id: [grammar.canonical(ref, mission_type=st.mission_type) or ref for ref in refs] for wp_id, refs in st.new_mappings.items()}
 
     # #2107 / FR-004 (gate-read-surface-completion WP04): the WP ``tasks/*.md``
     # files are WORK_PACKAGE_TASK — a PRIMARY-partition kind. Resolve the read dir
@@ -419,7 +424,7 @@ def _mr_plan(st: _MapReqState) -> None:
             _parse_requirement_refs_from_tasks_md,
         )
 
-        tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_md_file.read_text(encoding="utf-8"))
+        tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_md_file.read_text(encoding="utf-8"), mission_type=st.mission_type)
 
     if st.tracker_only_mode:
         _mapping_mode = TRACKER_ONLY_MODE
@@ -438,6 +443,7 @@ def _mr_plan(st: _MapReqState) -> None:
             mode=_mapping_mode,
             replace=st.replace,
             bare_prose_requirement_ids=bare_prose_requirement_ids,
+            mission_type=st.mission_type,
         )
     )
 
@@ -563,7 +569,7 @@ def _mr_write_frontmatter(st: _MapReqState) -> None:
             )
 
 
-def _mr_classify_wp_refs(all_wp_raw: dict[str, list[str]], declared: set[str]) -> dict[str, dict[str, list[str]]]:
+def _mr_classify_wp_refs(all_wp_raw: dict[str, list[str]], declared: set[str], mission_type: str = "software-dev") -> dict[str, dict[str, list[str]]]:
     """Classify every raw token per WP into the three rejection-reason buckets.
 
     Pure (no I/O): one :func:`grammar.classify` verdict per raw token.
@@ -583,7 +589,7 @@ def _mr_classify_wp_refs(all_wp_raw: dict[str, list[str]], declared: set[str]) -
             grammar.FOREIGN_QUALIFIED: [],
         }
         for token in tokens:
-            verdict = grammar.classify(token, declared)
+            verdict = grammar.classify(token, declared, mission_type=mission_type)
             if isinstance(verdict, grammar.Rejected):
                 buckets[verdict.reason].append(verdict.raw)
         for bucket in buckets.values():
@@ -592,7 +598,7 @@ def _mr_classify_wp_refs(all_wp_raw: dict[str, list[str]], declared: set[str]) -
     return result
 
 
-def _mr_accepted_refs_by_wp(all_wp_raw: dict[str, list[str]], declared: set[str]) -> dict[str, list[str]]:
+def _mr_accepted_refs_by_wp(all_wp_raw: dict[str, list[str]], declared: set[str], mission_type: str = "software-dev") -> dict[str, list[str]]:
     """Per-WP ACCEPTED refs, canonical and sorted (FR-019 / #3396 C1).
 
     Companion to :func:`_mr_classify_wp_refs`: reads through the SAME raw
@@ -603,7 +609,13 @@ def _mr_accepted_refs_by_wp(all_wp_raw: dict[str, list[str]], declared: set[str]
     """
     result: dict[str, list[str]] = {}
     for wp_id, tokens in all_wp_raw.items():
-        accepted = sorted({verdict.requirement_id.canonical for token in tokens if isinstance(verdict := grammar.classify(token, declared), grammar.Accepted)})
+        accepted = sorted(
+            {
+                verdict.requirement_id.canonical
+                for token in tokens
+                if isinstance(verdict := grammar.classify(token, declared, mission_type=mission_type), grammar.Accepted)
+            }
+        )
         if accepted:
             result[wp_id] = accepted
     return result
@@ -625,7 +637,7 @@ def _mr_stale_gate(st: _MapReqState) -> None:
     from specify_cli.requirement_mapping import read_all_wp_raw_requirement_refs
 
     all_wp_raw = read_all_wp_raw_requirement_refs(st.tasks_dir)
-    classified = _mr_classify_wp_refs(all_wp_raw, st.all_spec_ids)
+    classified = _mr_classify_wp_refs(all_wp_raw, st.all_spec_ids, st.mission_type)
 
     stale_refs: dict[str, list[str]] = {}
     stale_ref_reasons: dict[str, dict[str, list[str]]] = {}
@@ -785,7 +797,7 @@ def _mr_emit_output(st: _MapReqState) -> None:
     # functional FR is either mapped or unmapped, so ``mapped = total - len(unmapped)``
     # is byte-identical to ``compute_coverage`` over the post-write state (WP04).
     all_wp_raw = read_all_wp_raw_requirement_refs(st.tasks_dir)
-    all_wp_refs = _mr_accepted_refs_by_wp(all_wp_raw, st.all_spec_ids)
+    all_wp_refs = _mr_accepted_refs_by_wp(all_wp_raw, st.all_spec_ids, st.mission_type)
     coverage: CoverageSummary = {
         "total_functional": len(st.functional_ids),
         "mapped_functional": len(st.functional_ids) - len(st.mapping_plan.unmapped_fr),

@@ -200,6 +200,43 @@ def _has_substantive_fr_row(body: str) -> bool:
     return False
 
 
+def _has_substantive_research_spec(body: str) -> bool:
+    """Require a populated research question and scope with native requirements."""
+    from charter.missions import MissionTemplateRepository
+
+    template = (MissionTemplateRepository.default_missions_root() / "research/templates/research-spec-template.md").read_text(encoding="utf-8")
+    template_lines: dict[str, str] = {}
+    for template_line in template.splitlines():
+        template_match = grammar.declared_shape_patterns("research")[2].match(template_line)
+        if template_match is not None:
+            template_lines[template_match.group(1)] = template_line.strip()
+    section = _extract_section_body(body, "Research Question & Scope")
+    if section is None:
+        return False
+    if re.search(r"(?m)^\s*\*\*Scope\*\*:\s*$", section) is None:
+        return False
+    for label in ("Primary Research Question", "In Scope"):
+        match = re.search(rf"(?m)^\s*(?:-\s*)?\*\*{re.escape(label)}\*\*:\s*(.+)$", section)
+        if match is None or "[" in match.group(1) or not _is_substantive_text(match.group(1)):
+            return False
+
+    requirements = _extract_section_body(body, "Research Requirements")
+    if requirements is None:
+        return False
+    found: set[str] = set()
+    for line in grammar.blank_html_comments(requirements).splitlines():
+        match = grammar.declared_shape_patterns("research")[2].match(line)
+        if match is None or grammar.is_compound_tail(line, match.end(1)):
+            continue
+        requirement_id = grammar.parse(match.group(1), mission_type="research")
+        if requirement_id is None or requirement_id.kind not in {"DR", "AR", "QR"}:
+            continue
+        description = line[match.end(1) :].lstrip("* :\t-")
+        if description and "[" not in description and _is_substantive_text(description) and line.strip() != template_lines.get(requirement_id.canonical):
+            found.add(requirement_id.kind)
+    return found == {"DR", "AR", "QR"}
+
+
 def _extract_fr_bullet_description(line: str) -> str | None:
     """Return a bullet FR description when ``line`` is a declared FR list item."""
     match = grammar.DECLARED_LIST_ITEM.match(line)
@@ -891,14 +928,9 @@ def is_substantive(
     Args:
         file_path: Path to the artifact file (spec.md or plan.md).
         kind: ``"spec"`` or ``"plan"``.
-        mission_type: The resolved mission type for ``kind="plan"`` callers
-            (Decision 5, #3832) — selects which per-type field declaration
-            (Decision 1/2) ``plan.md`` is checked against. Ignored for
-            ``kind="spec"`` (Decision 5's ``kind="spec"`` non-extension — see
-            ``mission_check_prerequisites.py:364``). Defaults to
-            ``"software-dev"`` so existing callers that do not pass this
-            keyword keep the exact pre-#3832 behaviour, which always checked
-            the software-dev shape regardless of the file's real type.
+        mission_type: Selects the research question/scope and DR/AR/QR gate
+            for research specs, or the per-type field declaration for plans.
+            Defaults to ``"software-dev"`` for existing callers.
         project_dir: Repository/project root used to discover a
             PACK-PROVIDED field declaration (#3830 FIX-1) for a
             ``mission_type`` with no built-in entry, resolved through the
@@ -919,6 +951,8 @@ def is_substantive(
     """
     body = file_path.read_text(encoding="utf-8")
     if kind == "spec":
+        if mission_type == "research":
+            return _has_substantive_research_spec(body)
         return _has_substantive_fr_row(body)
     if kind == "plan":
         return _is_plan_substantive_for_type(body, mission_type, project_dir=project_dir)

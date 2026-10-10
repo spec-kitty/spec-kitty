@@ -47,7 +47,7 @@ from specify_cli.cli.commands.agent.mission_parsing import (
 from specify_cli.cli.commands.agent.mission_finalize_seams import ISSUE_MATRIX_FILENAME, TASKS_MD_FILENAME
 
 
-def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool) -> tuple[set[str], set[str], list[str], str]:
+def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool, mission_type: str = "software-dev") -> tuple[set[str], set[str], list[str], str]:
     """Phase: parse spec.md requirement ids (all + functional) + #3394 F1 warnings.
 
     The third element is a (possibly empty) list of non-blocking warning
@@ -74,8 +74,11 @@ def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool) -> tupl
             _mf.console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
     spec_content = spec_md.read_text(encoding="utf-8")
-    spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_content)
+    spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_content, mission_type=mission_type)
     extraction_warnings = _find_undeclared_requirement_citations(spec_content)
+    if mission_type == "research":
+        native_ids = set(spec_requirement_ids.get("data_collection", []) + spec_requirement_ids.get("analysis", []) + spec_requirement_ids.get("quality", []))
+        return set(spec_requirement_ids["all"]), native_ids, extraction_warnings, spec_content
     return (
         set(spec_requirement_ids["all"]),
         set(spec_requirement_ids["functional"]),
@@ -240,6 +243,7 @@ def _resolve_dependencies_and_refs(
     expected_wp_ids: list[str],
     *,
     json_output: bool,
+    mission_type: str = "software-dev",
 ) -> _DependencyResolution:
     """Phase: TIER 1+ — 3-tier dependency + requirement-ref resolution.
 
@@ -293,7 +297,7 @@ def _resolve_dependencies_and_refs(
         _validate_tasks_md_coverage(res.tasks_md_dependencies, expected_wp_ids, json_output=json_output)
 
         # FALLBACK: tasks.md text (backward compat for pre-API projects)
-        for wp_id, refs in _parse_requirement_refs_from_tasks_md(tasks_content).items():
+        for wp_id, refs in _parse_requirement_refs_from_tasks_md(tasks_content, mission_type=mission_type).items():
             if refs and not res.wp_requirement_refs.get(wp_id):
                 res.wp_requirement_refs[wp_id] = refs
 
@@ -404,7 +408,7 @@ def _validate_dependency_graph(wp_dependencies: dict[str, list[str]], *, json_ou
             raise typer.Exit(1)
 
 
-def _classify_one_wp(refs: list[str], declared: set[str]) -> tuple[set[str], list[dict[str, str]]]:
+def _classify_one_wp(refs: list[str], declared: set[str], *, mission_type: str = "software-dev") -> tuple[set[str], list[dict[str, str]]]:
     """Classify one WP's raw refs via the grammar verdict table (FR-019).
 
     Returns the accepted refs' canonical ids (a set: duplicates collapse)
@@ -417,7 +421,7 @@ def _classify_one_wp(refs: list[str], declared: set[str]) -> tuple[set[str], lis
     accepted: set[str] = set()
     rejections: list[dict[str, str]] = []
     for raw in refs:
-        verdict = grammar.classify(raw, declared)
+        verdict = grammar.classify(raw, declared, mission_type=mission_type)
         if isinstance(verdict, grammar.Accepted):
             accepted.add(verdict.requirement_id.canonical)
         else:
@@ -429,6 +433,7 @@ def _classify_wp_requirement_refs(
     wp_ids: list[str],
     wp_requirement_refs: dict[str, list[str]],
     all_spec_requirement_ids: set[str],
+    mission_type: str = "software-dev",
 ) -> tuple[list[str], dict[str, list[str]], set[str], dict[str, list[dict[str, str]]]]:
     """Bucket each WP's requirement refs into missing/unknown/mapped (FR-019, FR-010).
 
@@ -457,7 +462,7 @@ def _classify_wp_requirement_refs(
 
     for wp_id in sorted(set(wp_ids)):
         refs = wp_requirement_refs.get(wp_id, [])
-        accepted, rejections = _classify_one_wp(refs, all_spec_requirement_ids)
+        accepted, rejections = _classify_one_wp(refs, all_spec_requirement_ids, mission_type=mission_type)
         if rejections:
             rejected_requirement_refs[wp_id] = rejections
             failing_refs = sorted(entry["ref"] for entry in rejections if entry["reason"] in FAILING_REASONS)
@@ -503,6 +508,7 @@ def _build_success_criteria_coverage(
     declared_success_criteria: list[str],
     wp_requirement_refs: dict[str, list[str]],
     all_spec_requirement_ids: set[str],
+    mission_type: str = "software-dev",
 ) -> dict[str, object]:
     """FR-007: track (never gate) which declared SC ids each WP references.
 
@@ -515,7 +521,7 @@ def _build_success_criteria_coverage(
     referenced: dict[str, list[str]] = {}
     for wp_id in sorted(wp_requirement_refs):
         for raw in wp_requirement_refs[wp_id]:
-            verdict = grammar.classify(raw, all_spec_requirement_ids)
+            verdict = grammar.classify(raw, all_spec_requirement_ids, mission_type=mission_type)
             if isinstance(verdict, grammar.Accepted) and verdict.requirement_id.is_success_criterion:
                 wps_for_sc = referenced.setdefault(verdict.requirement_id.canonical, [])
                 # A WP that lists the same SC twice (e.g. once bare, once
@@ -532,6 +538,7 @@ def _build_requirement_diagnostics(
     wp_requirement_refs: dict[str, list[str]],
     all_spec_requirement_ids: set[str],
     rejected_requirement_refs: dict[str, list[dict[str, str]]],
+    mission_type: str = "software-dev",
 ) -> dict[str, object]:
     """Phase: build the three additive FR-011/FR-007/FR-008 diagnostic keys.
 
@@ -540,14 +547,17 @@ def _build_requirement_diagnostics(
     every caller gets the SAME three keys with the SAME shape
     (``contracts/json-payload-deltas.md``).
     """
-    buckets = _parse_requirement_ids_from_spec_md(spec_content)
+    buckets = _parse_requirement_ids_from_spec_md(spec_content, mission_type=mission_type)
     parsed_spec_ids = {
         "functional": buckets["functional"],
         "non_functional": buckets["non_functional"],
         "constraint": buckets["constraint"],
         "success_criteria": buckets["success_criteria"],
     }
-    success_criteria_coverage = _build_success_criteria_coverage(buckets["success_criteria"], wp_requirement_refs, all_spec_requirement_ids)
+    for key in ("data_collection", "analysis", "quality"):
+        if key in buckets:
+            parsed_spec_ids[key] = buckets[key]
+    success_criteria_coverage = _build_success_criteria_coverage(buckets["success_criteria"], wp_requirement_refs, all_spec_requirement_ids, mission_type)
     return {
         "parsed_spec_ids": parsed_spec_ids,
         "rejected_requirement_refs": rejected_requirement_refs,
@@ -647,6 +657,7 @@ def _validate_requirement_mapping(
     spec_content: str = "",
     *,
     json_output: bool,
+    mission_type: str = "software-dev",
 ) -> dict[str, object]:
     """Phase: validate every WP maps to known requirement ids (FR coverage).
 
@@ -666,12 +677,12 @@ def _validate_requirement_mapping(
     ``typer.Exit(1)``.
     """
     missing_requirement_refs_wps, unknown_requirement_refs, mapped_requirement_ids, rejected_requirement_refs = _classify_wp_requirement_refs(
-        wp_ids, wp_requirement_refs, all_spec_requirement_ids
+        wp_ids, wp_requirement_refs, all_spec_requirement_ids, mission_type
     )
 
     unmapped_functional_requirements = sorted(functional_spec_requirement_ids - mapped_requirement_ids)
     bare_prose_requirement_ids = _detect_bare_prose_requirement_ids_fail_loud(spec_content)
-    requirement_diagnostics = _build_requirement_diagnostics(spec_content, wp_requirement_refs, all_spec_requirement_ids, rejected_requirement_refs)
+    requirement_diagnostics = _build_requirement_diagnostics(spec_content, wp_requirement_refs, all_spec_requirement_ids, rejected_requirement_refs, mission_type)
     if not (missing_requirement_refs_wps or unknown_requirement_refs or unmapped_functional_requirements or bare_prose_requirement_ids):
         return requirement_diagnostics
 

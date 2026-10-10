@@ -11,18 +11,20 @@ or tokenise a ``requirement_refs`` value; that boundary is enforced by
 
 See ``kitty-specs/requirement-id-grammar-01M3NRCA/data-model.md`` and
 ``kitty-specs/requirement-id-grammar-01M3NRCA/contracts/grammar.md`` for the
-full grammar contract this module implements verbatim:
+software-development grammar contract, with additional kinds for research Missions:
 
     id         := [qualifier "#"] kind "-" digits [suffix]
-    kind       := "FR" | "NFR" | "C" | "SC"          ; input case-insensitive
+    kind       := "FR" | "NFR" | "C" | "SC"  ; every Mission type
+                | "DR" | "AR" | "QR"       ; research only
+                                                        ; input case-insensitive
     digits     := DIGIT+                              ; verbatim, width significant
     suffix     := LOWER_LETTER                         ; spec scan: lowercase only
                                                         ; ref matching: either case
     qualifier  := slug                                 ; foreign citation, never resolved
     slug       := [a-z0-9][a-z0-9-]* ["-" 8[0-9A-Z]]    ; optional mid8 tail
 
-Every pattern below is generated from the one core kind alternation
-(``_KIND_ALT``) and compiled through :mod:`kernel._safe_re` (RE2, C-005): no
+Every pattern below is generated from the mission-scoped kind set
+(``_KIND_ALT`` plus research kinds) and compiled through :mod:`kernel._safe_re` (RE2, C-005): no
 lookbehind, no lookahead, no backreferences. Case-insensitivity is scoped to
 the kind only (``(?i:...)``); nothing here passes a global ``IGNORECASE``
 flag, because that would leak into the suffix and the qualifier's slug/mid8
@@ -32,7 +34,7 @@ classes.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 from kernel._safe_re import re
 
@@ -45,6 +47,7 @@ __all__ = [
     "Accepted",
     "Rejected",
     "RefVerdict",
+    "kinds_for",
     "parse",
     "canonical",
     "find_all",
@@ -63,17 +66,28 @@ __all__ = [
     "RULE_TEXT",
 ]
 
-Kind = Literal["FR", "NFR", "C", "SC"]
+Kind = Literal["FR", "NFR", "C", "SC", "DR", "AR", "QR"]
 
-#: The single detectable core literal (C-001): the ONE requirement-ID kind
-#: alternation in product code. Every pattern below -- ``MALFORMED_DECLARED_LEAD``
-#: included -- is generated from this one string; nothing else in this module
-#: (or anywhere outside it) hand-writes a second kind alternation. Order
+#: The default requirement-ID kind alternation (C-001). Research kinds are
+#: appended only when the Mission type is research. Order
 #: carries no matching semantics: every kind is prefix-disjoint from every
 #: other (no kind is a leading substring of another), so alternation order
 #: cannot shadow a longer match. The C-001 architectural gate's floor test
 #: asserts that the one grammar.py site it detects IS this named constant.
 _KIND_ALT: str = "FR|NFR|SC|C"
+_RESEARCH_KINDS: tuple[str, ...] = ("DR", "AR", "QR")
+
+
+def kinds_for(mission_type: str = "software-dev") -> frozenset[str]:
+    """Requirement kinds admitted by this Mission type."""
+    kinds = frozenset(("FR", "NFR", "SC", "C"))
+    return kinds | frozenset(_RESEARCH_KINDS) if mission_type == "research" else kinds
+
+
+def _kind_alt(mission_type: str) -> str:
+    allowed = kinds_for(mission_type)
+    return "|".join(kind for kind in (*_KIND_ALT.split("|"), *_RESEARCH_KINDS) if kind in allowed)
+
 
 #: Legacy kinds only -- the frozen, unqualified, unsuffixed alias below
 #: exists solely to keep ``tests/specify_cli/test_bare_prose_false_negative_sample.py``'s
@@ -105,8 +119,8 @@ _QUALIFIED_KIND_DIGITS = rf"(?:(?P<mission>{_SLUG})#)?(?P<kind>(?i:{_KIND_ALT}))
 def _normalize_kind(raw: str) -> Kind:
     """Uppercase *raw* onto the closed :data:`Kind` literal.
 
-    The regexes below only ever hand this a string that matched
-    ``(?i:FR|NFR|SC|C)``, so every branch is reachable; the final ``raise``
+    The regexes below only ever hand this a string that matched the selected
+    mission kind set, so every branch is reachable; the final ``raise``
     exists to keep the return type total for mypy --strict rather than to
     signal a real runtime possibility.
     """
@@ -119,6 +133,12 @@ def _normalize_kind(raw: str) -> Kind:
         return "SC"
     if upper == "C":
         return "C"
+    if upper == "DR":
+        return "DR"
+    if upper == "AR":
+        return "AR"
+    if upper == "QR":
+        return "QR"
     raise ValueError(f"unrecognized requirement-id kind: {raw!r}")
 
 
@@ -167,13 +187,19 @@ class RequirementId:
 _STRICT_REF_MATCH: Pattern[str] = re.compile(rf"^{_QUALIFIED_KIND_DIGITS}(?P<suffix>[a-zA-Z])?$")
 
 
-def parse(token: str) -> RequirementId | None:
+def parse(token: str, *, mission_type: str = "software-dev") -> RequirementId | None:
     """Strict full-match on *token* (qualifier optional, suffix case-tolerant).
 
     Used for ``map-requirements`` input, WP ref classification, and the
     consolidation retention constraint-row check.
     """
-    match = _STRICT_REF_MATCH.fullmatch(token)
+    pattern = _STRICT_REF_MATCH
+    if mission_type == "research":
+        pattern = re.compile(
+            rf"^(?:(?P<mission>{_SLUG})#)?(?P<kind>(?i:{_kind_alt(mission_type)}))"
+            r"-(?P<digits>\d+)(?P<suffix>[a-zA-Z])?$"
+        )
+    match = pattern.fullmatch(token)
     if match is None:
         return None
     suffix = match.group("suffix")
@@ -185,9 +211,9 @@ def parse(token: str) -> RequirementId | None:
     )
 
 
-def canonical(token: str) -> str | None:
+def canonical(token: str, *, mission_type: str = "software-dev") -> str | None:
     """The canonical string for *token* (qualified when *token* was), or ``None``."""
-    requirement_id = parse(token)
+    requirement_id = parse(token, mission_type=mission_type)
     return str(requirement_id) if requirement_id is not None else None
 
 
@@ -246,7 +272,7 @@ def _has_invalid_qualifier_prefix(text: str, match: Match[str]) -> bool:
     return lead == "#" or match.group("mission") is not None
 
 
-def find_all(text: str, *, spec_scan: bool) -> list[RequirementId]:
+def find_all(text: str, *, spec_scan: bool, mission_type: str = "software-dev") -> list[RequirementId]:
     """Every ID token in *text*, with the qualifier consumed.
 
     ``spec_scan=True`` recognises only a lowercase suffix (spec scanning);
@@ -259,6 +285,9 @@ def find_all(text: str, *, spec_scan: bool) -> list[RequirementId]:
     dropped.
     """
     pattern = _TOKEN_LOWER_SUFFIX if spec_scan else _TOKEN_ANY_SUFFIX
+    if mission_type == "research":
+        suffix = r"(?P<suffix>(?-i:[a-z]))?" if spec_scan else r"(?P<suffix>[a-zA-Z])?"
+        pattern = re.compile(rf"\b(?:(?P<mission>{_SLUG})#)?(?P<kind>(?i:{_kind_alt(mission_type)}))-(?P<digits>\d+){suffix}\b")
     found: list[RequirementId] = []
     for match in pattern.finditer(text):
         if is_compound_tail(text, match.end()):
@@ -328,6 +357,31 @@ DECLARED_SHAPE_PATTERNS: tuple[Pattern[str], ...] = (
     # Bold id leading a bare paragraph.
     re.compile(rf"^\s*\*\*({_DECLARED_CORE})\b"),
 )
+
+
+def declared_shape_patterns(mission_type: str = "software-dev") -> tuple[Pattern[str], ...]:
+    if mission_type != "research":
+        return DECLARED_SHAPE_PATTERNS
+    core = rf"(?i:{_kind_alt(mission_type)})-\d+(?:[a-z])?"
+    return (
+        re.compile(rf"^\s*\|\s*(?:\*\*|~~){{0,2}}({core})(?:\*\*|~~){{0,2}}\s*\|"),
+        re.compile(rf"^#{{1,6}}\s*({core})\b"),
+        re.compile(rf"^\s*(?:[-*]|\d+\.)\s*\*{{0,2}}({core})\b"),
+        re.compile(rf"^\s*\*\*({core})\b"),
+    )
+
+
+def malformed_declared_lead(mission_type: str = "software-dev") -> Pattern[str]:
+    if mission_type != "research":
+        return MALFORMED_DECLARED_LEAD
+    return cast(
+        "Pattern[str]",
+        re.compile(
+            r"^(?:\s*\|\s*(?:\*\*|~~){0,2}|#{1,6}\s*|\s*(?:[-*]|\d+\.)\s*\*{0,2}|\s*\*\*)"
+            rf"(?P<lead>(?:{_kind_alt(mission_type)})[-_][0-9A-Z][A-Za-z0-9_.\-]*)"
+        ),
+    )
+
 
 #: A kind-prefixed lead in a declared position, uppercase-kind-only and
 #: case-sensitive (FR-013). This is a LOCATOR: it finds the candidate lead
@@ -399,14 +453,14 @@ class Rejected:
 RefVerdict = Accepted | Rejected
 
 
-def classify(raw: str, declared: AbstractSet[str]) -> RefVerdict:
+def classify(raw: str, declared: AbstractSet[str], *, mission_type: str = "software-dev") -> RefVerdict:
     """Apply the FR-019 verdict table to *raw* against the *declared* canonical-ID set.
 
     Order: does not parse -> ``malformed``; has a qualifier ->
     ``foreign_qualified`` (never fails); not in ``declared`` by canonical
     form -> ``unknown_spec_id``; otherwise accepted.
     """
-    requirement_id = parse(raw)
+    requirement_id = parse(raw, mission_type=mission_type)
     if requirement_id is None:
         return Rejected(raw, MALFORMED)
     if requirement_id.mission is not None:
