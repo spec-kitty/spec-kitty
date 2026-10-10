@@ -24,6 +24,13 @@ from typer.core import TyperCommand, TyperGroup, TyperOption
 if TYPE_CHECKING:
     from charter.resolution import GitCommonDirUnavailableError, NotInsideRepositoryError
 
+    # Annotate typer-built objects with the click typer actually uses: typer>=0.26
+    # vendors click as ``typer._click`` and its classes share no types with the
+    # standalone ``click`` package. Type-only import; nothing reads it at runtime.
+    from typer._click.core import Context as TyperContext
+    from typer._click.core import Parameter as TyperParameter
+    from typer._click.formatting import HelpFormatter as TyperHelpFormatter
+
 from specify_cli.cli.console import CliConsole, console
 from specify_cli.cli.json_contract import json_error
 from specify_cli.core.config import BANNER
@@ -87,7 +94,7 @@ ROOT_COMMAND_ARGS_META_KEY = "spec_kitty.root_command_args"
 class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
 
-    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+    def parse_args(self, ctx: TyperContext, args: list[str]) -> list[str]:
         command_args = list(args)
         # The full command line, for the root gates: Click consumes ``ctx.args``
         # before the root callback runs, and ``sys.argv`` is not the command line
@@ -104,10 +111,10 @@ class BannerGroup(TyperGroup):
                 ctx.meta["upgrade_intent"] = parse_upgrade_intent(command, upgrade_args, project_available=(Path.cwd() / ".kittify").is_dir())
         return remaining
 
-    def list_commands(self, ctx: click.Context) -> list[str]:
+    def list_commands(self, ctx: TyperContext) -> list[str]:
         return sorted(super().list_commands(ctx))
 
-    def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+    def format_help(self, ctx: TyperContext, formatter: TyperHelpFormatter) -> None:
         if _should_use_simple_help():
             _format_simple_help(self, ctx, formatter)
             return
@@ -156,7 +163,7 @@ def _ignored_mission_option() -> TyperOption:
     )
 
 
-def _with_ignored_mission_option(params: list[click.Parameter]) -> list[click.Parameter]:
+def _with_ignored_mission_option(params: list[TyperParameter]) -> list[TyperParameter]:
     """Append the ignored ``--mission`` option unless ``params`` already declares one."""
     if any(_MISSION_OPTION_NAME in param.opts for param in params):
         return params
@@ -180,7 +187,7 @@ class MissionAgnosticCommand(TyperCommand):
     several declare it behind a ``feature`` parameter — are untouched.
     """
 
-    def get_params(self, ctx: click.Context) -> list[click.Parameter]:
+    def get_params(self, ctx: TyperContext) -> list[TyperParameter]:
         return _with_ignored_mission_option(super().get_params(ctx))
 
 
@@ -193,7 +200,7 @@ class MissionAgnosticGroup(TyperGroup):
     ``--mission`` rides on the group class.
     """
 
-    def get_params(self, ctx: click.Context) -> list[click.Parameter]:
+    def get_params(self, ctx: TyperContext) -> list[TyperParameter]:
         return _with_ignored_mission_option(super().get_params(ctx))
 
 
@@ -242,7 +249,7 @@ def _should_use_simple_help() -> bool:
     return bool(console.width < 100)
 
 
-def _format_simple_help(group: TyperGroup, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+def _format_simple_help(group: TyperGroup, ctx: TyperContext, formatter: TyperHelpFormatter) -> None:
     """Render machine-friendly help without Rich tables/banner noise."""
     formatter.write_usage(ctx.command_path, "[OPTIONS] COMMAND [ARGS]...")
 
