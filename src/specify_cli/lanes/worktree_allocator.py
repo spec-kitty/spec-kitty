@@ -27,7 +27,17 @@ from typing import TYPE_CHECKING, Literal
 
 from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
+from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.core.vcs.git import capture_branch_tip
+from specify_cli.git.destructive_guard import (
+    DestructiveOpRefused,
+    RemoveOutcome,
+    guarded_merge_abort,
+    guarded_reset_hard,
+    guarded_worktree_prune,
+    guarded_worktree_remove,
+)
 from specify_cli.git.merge_conclusion import MergeConclusionRefused, conclude_in_progress_op, run_committing_op
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import code_lane_branch_name, lane_branch_name, resolve_mid8, worktree_path as _worktree_path
@@ -1091,7 +1101,7 @@ def allocate_lane_worktree(
         # FR-009 (#2993) reuse-path self-heal: a lane created before this fix
         # (or before a later finalize-tasks re-run recorded a newer SHA) picks
         # up the recorded planning commit here. Idempotent no-op once merged.
-        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip)
+        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip, mission_slug=mission_slug)
         # #1684 reuse-path catch-up: a dependency lane may have been approved
         # *after* this worktree was created. Merge any newly-approved dep tips
         # so the dependent lane sees them. Idempotent: already-merged tips are
@@ -1143,12 +1153,7 @@ def allocate_lane_worktree(
             mission_branch=lanes_manifest.mission_branch,
             wp_id=wp_id,
         )
-        subprocess.run(
-            ["git", "worktree", "prune"],
-            cwd=str(repo_root),
-            capture_output=True,
-            text=True,
-        )
+        guarded_worktree_prune(repo_root)
         _recover_lane_worktree(repo_root, worktree_path, branch)
         _validate_worktree_clean(worktree_path, lane.lane_id)
         # #2514: re-register the sparse-checkout exclusion on recovery too —
@@ -1162,7 +1167,7 @@ def allocate_lane_worktree(
         )
         # FR-009 (#2993) crash-recovery self-heal: mirrors the reuse-path call
         # below — a re-attached lane picks up the recorded planning commit too.
-        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip)
+        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip, mission_slug=mission_slug)
         _merge_dependency_lane_tips(repo_root, worktree_path, mission_slug, lane, lanes_manifest)
         # #5115/WP07 (FR-018/FR-021): the branch survived (worktree dir was
         # lost) -- backfill/refresh its tip from the re-attached HEAD.
@@ -1269,13 +1274,13 @@ def allocate_lane_worktree(
     # re-tried forever via crash-recovery, which would just re-classify
     # `orphaned` again on every attempt until an operator re-pins.
     try:
-        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip)
+        _merge_recorded_planning_commit(repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha, target_tip, mission_slug=mission_slug)
     except PlanningCommitMergeConflictError:
         # Only the WORKTREE is removed, not the branch: a retry then resolves
         # via the crash-recovery path above (branch exists, worktree dir
         # gone), which re-attaches and re-merges rather than needing this
         # function to duplicate that recovery logic.
-        _remove_lane_worktree(repo_root, worktree_path)
+        _remove_lane_worktree(repo_root, worktree_path, mission_slug)
         raise
 
     # #1684 fresh-path propagation: merge approved dependency-lane tips on top
@@ -1319,12 +1324,51 @@ def _wp_task_file_conflict_paths(worktree_path: Path, env: dict[str, str]) -> li
     return sorted({str(path) for path in unmerged if path.parts[-2:-1] == ("tasks",) and path.name.startswith("WP")})
 
 
+def _lane_residue_context(repo_root: Path, worktree_path: Path, mission_slug: str) -> ResidueContext:
+    """The disposability context for destructive git ops in ``worktree_path`` (#5965 / #5966).
+
+    Built from the Mission's STORED topology and re-targeted to the checkout's
+    own role: a lane worktree is ``LANE``, the repository root checkout (a
+    planning lane) is ``REPOSITORY_ROOT``. When the topology cannot be read the
+    context uses ``LANES``, under which no coordination-partition file is
+    disposable (the strictest answer): the operation still runs, but refuses
+    over anything beyond spec-kitty's own ``meta.json``.
+    """
+    try:
+        context = ResidueContext.for_mission(repo_root, mission_slug, CheckoutRole.LANE)
+    except (OSError, MissionMetaReadError):
+        context = ResidueContext(role=CheckoutRole.LANE, mission_slug=mission_slug, topology=MissionTopology.LANES)
+    return context.for_checkout(repo_root, worktree_path)
+
+
+def _abort_merge_guarded(repo_root: Path, worktree_path: Path, mission_slug: str, env: dict[str, str] | None) -> None:
+    """``git merge --abort`` through the guard, only when a merge is actually in progress.
+
+    The merge's own conflict results are regenerable; an operator's own edit is
+    not, and its loss raises :class:`DestructiveOpRefused` before anything is
+    discarded. With no ``MERGE_HEAD`` there is nothing to abort (the merge
+    failed before it started), as the unguarded ``merge --abort`` silently
+    tolerated.
+    """
+    in_progress = subprocess.run(
+        ["git", "rev-parse", "-q", "--verify", "MERGE_HEAD"],
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    if in_progress.returncode == 0:
+        guarded_merge_abort(worktree_path, context=_lane_residue_context(repo_root, worktree_path, mission_slug), env=env)
+
+
 def _merge_recorded_planning_commit(
     repo_root: Path,
     worktree_path: Path,
     lane_id: str,
     planning_commit_sha: str | None,
     target_tip: str | None = None,
+    *,
+    mission_slug: str,
 ) -> None:
     """Merge the recorded finalize-tasks planning commit into a lane worktree.
 
@@ -1445,13 +1489,7 @@ def _merge_recorded_planning_commit(
         # conflict state (``None``: fail closed) still fall through to abort + raise.
         if wp_task_conflicts == [] and _auto_resolve_dependency_merge(worktree_path, env):
             return
-        subprocess.run(
-            ["git", "merge", "--abort"],
-            cwd=str(worktree_path),
-            capture_output=True,
-            text=True,
-            env=env,
-        )
+        _abort_merge_guarded(repo_root, worktree_path, mission_slug, env)
         raise PlanningCommitMergeConflictError(lane_id, planning_commit_sha, wp_task_conflicts=wp_task_conflicts)
 
 
@@ -1647,20 +1685,9 @@ def _merge_dependency_lane_tips(
                 # hard to the pre-loop ref so no EARLIER clean dep merge survives
                 # this LATER conflict. The worktree is left exactly as it was before
                 # the loop began — clean, for the operator's manual merge.
-                subprocess.run(
-                    ["git", "merge", "--abort"],
-                    cwd=str(worktree_path),
-                    capture_output=True,
-                    text=True,
-                    env=env,
-                )
+                _abort_merge_guarded(repo_root, worktree_path, mission_slug, env)
                 if pre_loop_ref is not None:
-                    subprocess.run(
-                        ["git", "reset", "--hard", pre_loop_ref],
-                        cwd=str(worktree_path),
-                        capture_output=True,
-                        text=True,
-                    )
+                    guarded_reset_hard(worktree_path, pre_loop_ref, context=_lane_residue_context(repo_root, worktree_path, mission_slug))
                 raise DependencyLaneMergeConflictError(lane.lane_id, dep_lane.lane_id, dep_branch)
 
 
@@ -1887,7 +1914,7 @@ def _recover_lane_worktree(
         raise RuntimeError(f"Failed to recover worktree at {worktree_path}: {result.stderr.strip()}")
 
 
-def _remove_lane_worktree(repo_root: Path, worktree_path: Path) -> None:
+def _remove_lane_worktree(repo_root: Path, worktree_path: Path, mission_slug: str) -> None:
     """Remove a just-created lane worktree (fresh-path atomicity, FR-006/#3281/T010).
 
     Sibling to :func:`_create_lane_worktree` / :func:`_recover_lane_worktree`.
@@ -1910,11 +1937,14 @@ def _remove_lane_worktree(repo_root: Path, worktree_path: Path) -> None:
     — leaving a worktree registered is a secondary, recoverable-by-operator
     hygiene concern, never the primary failure this WP fixes.
     """
-    result = subprocess.run(
-        ["git", "worktree", "remove", "--force", str(worktree_path)],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        print(f"Warning: failed to remove leftover lane worktree {worktree_path} after a planning-commit merge conflict: {result.stderr.strip()}")
+    try:
+        result = guarded_worktree_remove(
+            worktree_path,
+            retain=True,
+            context=_lane_residue_context(repo_root, worktree_path, mission_slug),
+        )
+    except (DestructiveOpRefused, RuntimeError, ValueError) as exc:
+        print(f"Warning: failed to remove leftover lane worktree {worktree_path} after a planning-commit merge conflict: {exc}")
+        return
+    if result.outcome is RemoveOutcome.RETAINED_DIRTY:
+        print(f"Warning: kept leftover lane worktree {worktree_path} after a planning-commit merge conflict: it holds local changes that exist nowhere else.")

@@ -274,6 +274,7 @@ def _seed_coord_surface_for_create(
         coordination_branch=coordination_branch,
         coordination_branch_created=meta_build.coordination_branch_created,
         pre_seed_coord_tip=meta_build.coordination_branch_pre_seed_tip,
+        creation_base=meta_build.coordination_branch_creation_base,
     )
     if rollback_journal is not None:
         rollback_journal.record_coord(rollback_ctx)

@@ -38,6 +38,7 @@ from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.diagnostics import mark_invocation_succeeded
+from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_branch_delete
 from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
@@ -148,6 +149,7 @@ def _capture_start_branch_rollback_state(
 
 def _restore_start_branch_after_failure(state: _StartBranchRollbackState) -> None:
     """Restore the original checkout and delete only a newly created branch."""
+    refusal: DestructiveOpRefused | None = None
     restore_args = ["switch", state.original_branch] if state.original_branch is not None else ["switch", "--detach", state.original_commit]
     subprocess.run(
         ["git", "-C", str(state.repo_root), *restore_args],
@@ -196,12 +198,13 @@ def _restore_start_branch_after_failure(state: _StartBranchRollbackState) -> Non
             check=False,
         )
         if branch_result.returncode == 0:
-            subprocess.run(
-                ["git", "-C", str(state.repo_root), "branch", "-D", state.start_branch],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
+            # Created by this run at ``original_commit``: deleted only while it
+            # has no commit beyond that base (FR-009); work added to it is kept
+            # and reported once the index is restored.
+            try:
+                guarded_branch_delete(state.repo_root, state.start_branch, creation_base=state.original_commit)
+            except DestructiveOpRefused as error:
+                refusal = error
 
     if state.original_index_tree is not None:
         subprocess.run(
@@ -210,6 +213,8 @@ def _restore_start_branch_after_failure(state: _StartBranchRollbackState) -> Non
             text=True,
             check=True,
         )
+    if refusal is not None:
+        raise refusal
 
 
 @contextmanager
@@ -225,7 +230,7 @@ def _rollback_start_branch_on_failure(
         if state is not None:
             try:
                 _restore_start_branch_after_failure(state)
-            except (OSError, subprocess.CalledProcessError, RefRestoreError) as rollback_error:
+            except (OSError, RuntimeError, subprocess.CalledProcessError, DestructiveOpRefused, RefRestoreError) as rollback_error:
                 error.add_note(f"Failed to restore checkout after create failure: {rollback_error}")
         raise
 
