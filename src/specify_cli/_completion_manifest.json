@@ -153,7 +153,7 @@
        "deprecated": false
       },
       "add-history": {
-       "help": "Append history entry to task activity log.\n\nExamples:\n    spec-kitty agent tasks add-history WP01 --note \"Completed implementation\" --json",
+       "help": "Record a history note in the WP status event log.\n\nExamples:\n    spec-kitty agent tasks add-history WP01 --note \"Completed implementation\" --json",
        "hidden": false,
        "deprecated": false
       },

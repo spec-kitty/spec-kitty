@@ -2,7 +2,7 @@
 title: Agent Subcommand Reference
 description: Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows.
 doc_status: active
-updated: '2026-10-04'
+updated: '2026-10-10'
 ---
 # Agent Subcommand Reference
 
@@ -1752,7 +1752,7 @@ _Task workflow commands for AI agents_
 │ mark-status          Update task checkbox status in tasks.md for one or more │
 │                      tasks.                                                  │
 │ list-tasks           List tasks with optional lane filtering.                │
-│ add-history          Append history entry to task activity log.              │
+│ add-history          Record a history note in the WP status event log.       │
 │ finalize-tasks       Parse tasks.md and inject dependencies into WP          │
 │                      frontmatter.                                            │
 │ map-requirements     Register requirement-to-WP mappings with immediate      │
@@ -1773,7 +1773,7 @@ _Task workflow commands for AI agents_
 ```
  Usage: spec-kitty agent tasks add-history [OPTIONS] TASK_ID
 
- Append history entry to task activity log.
+ Record a history note in the WP status event log.
 
  Examples:
  spec-kitty agent tasks add-history WP01 --note "Completed implementation"
