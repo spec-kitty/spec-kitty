@@ -243,7 +243,7 @@ def _activate_cascade_target(
     *,
     cascade: bool = False,
 ) -> ActivationResult:
-    """Activate one target, trying each org root in the chain in turn.
+    """Activate one target, trying each org root in the chain, last-declared first.
 
     Used for cascade targets and, since #5779, for the direct activation
     target too (which previously only ever saw org pack 1).
@@ -257,9 +257,11 @@ def _activate_cascade_target(
     mapping) to live in org pack 2..N would otherwise still fail here with
     "Unknown <kind> ID", because ``manager.activate``'s own availability scan
     only ever sees pack 1 through ``layer_roots``. This substitutes each
-    candidate org root from the chain, in declaration order, for
-    ``layer_roots["org"]`` and retries, so a chain artifact still activates
-    without widening ``ActiveCharterManager.activate``'s signature. When
+    candidate org root from the chain for ``layer_roots["org"]`` and retries,
+    last-declared pack first and returning on the first success, so an id
+    defined in several packs is validated against the pack that wins the
+    chain (docs/architecture/org-doctrine-layer.md: the last declared org
+    pack wins). A chain artifact thus still activates without widening ``ActiveCharterManager.activate``'s signature. When
     ``org_roots`` is empty/``None`` (no org packs, or none in the chain),
     exactly one attempt is made with the original *layer_roots* -- byte-for-
     byte the pre-T008 call shape (FR-001 AC4 no-org-pack regression).
@@ -273,7 +275,7 @@ def _activate_cascade_target(
     flow or the success path.
     """
     candidate_layer_roots: list[dict[str, Path] | None] = (
-        [{**(layer_roots or {}), "org": root} for root in org_roots]
+        [{**(layer_roots or {}), "org": root} for root in reversed(org_roots)]
         if org_roots
         else [layer_roots]
     )
@@ -291,7 +293,10 @@ def _activate_cascade_target(
             failures.append(exc)
     if len(failures) == 1:
         raise failures[-1]
-    joined = "; ".join(f"org root {i + 1}/{len(failures)}: {exc}" for i, exc in enumerate(failures))
+    # Candidates were tried last-declared first; label by declaration position.
+    joined = "; ".join(
+        f"org root {len(failures) - i}/{len(failures)}: {exc}" for i, exc in enumerate(failures)
+    )
     raise ValueError(
         f"No candidate org root could activate {kind_token}:{config_id} "
         f"({len(failures)} candidates tried): {joined}"

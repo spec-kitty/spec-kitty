@@ -10,6 +10,7 @@ used pack 2's.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 import yaml
@@ -100,3 +101,30 @@ class TestActivateSeesFullOrgChain:
         assert result.exit_code == 0, result.output
         config = yaml.safe_load((two_pack_project / ".kittify" / "config.yaml").read_text(encoding="utf-8"))
         assert "beta_only" in config["activated_directives"]
+
+
+class TestActivateValidatesAgainstWinningPack:
+    def test_colliding_id_is_validated_against_last_declared_pack(self, two_pack_project: Path) -> None:
+        # Direct and cascade targets share one helper; the pack an id is
+        # validated against must be the one that wins the chain (the last
+        # declared), not the first that happens to accept it.
+        from specify_cli.cli.commands.charter import activate as activate_mod
+
+        seen_org_roots: list[Path] = []
+
+        class _RecordingManager:
+            def activate(self, ctx_project, kind_token, config_id, *, cascade, layer_roots):
+                seen_org_roots.append(layer_roots["org"])
+                return object()
+
+        alpha, beta = two_pack_project / "packs" / "alpha", two_pack_project / "packs" / "beta"
+        activate_mod._activate_cascade_target(
+            cast("Any", _RecordingManager()),
+            cast("Any", None),
+            "directive",
+            "shared_one",
+            None,
+            [alpha, beta],
+            cascade=True,
+        )
+        assert seen_org_roots == [beta]
