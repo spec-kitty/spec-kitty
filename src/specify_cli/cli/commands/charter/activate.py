@@ -51,7 +51,7 @@ from charter.activation.kind_vocabulary import (
     resolve_artifact_urn,
 )
 from charter.activation.pack_context import ActiveCharterConfigError, PackContext
-from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
+from charter.activation.pack_manager import YAML_KEY_MAP, ActivationResult, ActiveCharterManager
 from charter.activation.preset_application import (
     PresetApplicationError,
     PresetPlan,
@@ -240,8 +240,13 @@ def _activate_cascade_target(
     config_id: str,
     layer_roots: dict[str, Path] | None,
     org_roots: list[Path] | None,
-) -> None:
-    """Activate one cascade target, trying each org root in the chain in turn.
+    *,
+    cascade: bool = False,
+) -> ActivationResult:
+    """Activate one target, trying each org root in the chain in turn.
+
+    Used for cascade targets and, since #5779, for the direct activation
+    target too (which previously only ever saw org pack 1).
 
     T009 (mission ``cascade-org-inert-01M07E9P``): :meth:`ActiveCharterManager.activate`
     validates artifact availability through its own ``layer_roots["org"]``
@@ -275,14 +280,13 @@ def _activate_cascade_target(
     failures: list[ValueError] = []
     for candidate in candidate_layer_roots:
         try:
-            manager.activate(
+            return manager.activate(
                 ctx_project,
                 kind_token,
                 config_id,
-                cascade=False,
+                cascade=cascade,
                 layer_roots=candidate,
             )
-            return
         except ValueError as exc:
             failures.append(exc)
     if len(failures) == 1:
@@ -1025,12 +1029,15 @@ def activate_cmd(
             from specify_cli.cli.commands.charter._resynthesis_preflight import preflight_resynthesis
 
             preflight_resynthesis(repo_root, kind, artifact_id, scope, registration.graph)
-        result = manager.activate(
+        # #5779: try every org pack in the chain, not just ``layer_roots``'s pack 1.
+        result = _activate_cascade_target(
+            manager,
             ctx_project,
             kind,
             artifact_id,
+            layer_roots,
+            resolve_org_root_chain(repo_root),
             cascade=scope is not None,
-            layer_roots=layer_roots,
         )
     except (ValueError, DRGLoadError) as exc:
         console.print(f"[red]Error:[/red] {exc}")

@@ -362,7 +362,7 @@ def build_charter_context_include(
     selector: str,
     *,
     action: str | None = None,
-    org_root: Path | None = None,
+    org_roots: list[Path] | None = None,
 ) -> str:
     """Render one fetch-deferred governance selector.
 
@@ -378,6 +378,11 @@ def build_charter_context_include(
 
     Unknown selector kinds fail closed with the canonical vocabulary error
     raised by :meth:`ArtifactKind.from_operator_token` (no silent fallback).
+
+    ``org_roots`` is the full declaration-ordered org-pack chain (later wins),
+    the same chain the bootstrap context resolves, so an id that only an org
+    pack 2..N defines resolves here and a colliding id renders the same body
+    as the bootstrap context (#5779).
     """
     from charter.offering.artifact_kinds import ArtifactKind
 
@@ -389,8 +394,6 @@ def build_charter_context_include(
 
     if kind == "section":
         return _render_section_include_selector(repo_root, selector, identifier, action)
-
-    org_roots = [org_root] if org_root is not None else None
 
     if kind == "artifact":
         service = _build_offering_service(repo_root, org_roots=org_roots)
