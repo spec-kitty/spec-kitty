@@ -278,6 +278,11 @@ def mission_write_lock(
     so there is nothing to read a key from and nothing to resolve. The key is the directory name (what a
     create from the repository root always resolved), so an owned checkout's create never re-derives the
     repository root from its own path (#5988).
+
+    The birth key is ``feature_dir.name`` and it serializes pre-meta writers only (the create itself and
+    writers of the same directory name). It converges with the ``<slug>-<mid8>`` key that post-birth
+    writers read from ``meta.json`` only because create directories embed the mid8 in their name; no
+    mid8 is known here without reading metadata, so the key is not cross-checked.
     """
     root = resolve_status_lock_root(feature_dir, repo_root)
     alias: str | None = None
