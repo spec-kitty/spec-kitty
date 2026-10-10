@@ -529,6 +529,7 @@ def _emit_check_prerequisites_result(
     paths_only: bool,
     target_branch: str,
     current_branch: str,
+    expected_checkout_branch: str | None = None,
 ) -> None:
     """Emit prerequisite-check output in JSON or human form."""
     if json_output:
@@ -538,6 +539,7 @@ def _emit_check_prerequisites_result(
                 payload,
                 target_branch=target_branch,
                 current_branch=current_branch,
+                expected_checkout_branch=expected_checkout_branch,
             )
         )
         return
@@ -734,6 +736,7 @@ def check_prerequisites(
             paths_only=paths_only,
             target_branch=target_branch,
             current_branch=current_branch,
+            expected_checkout_branch=owned.write_branch if owned else None,
         )
 
     except typer.Exit:

@@ -244,3 +244,74 @@ def test_protected_target_without_opt_out_is_still_refused_at_mint(make_owned_ch
     with pytest.raises(ActionContextError) as excinfo:
         _mint(checkouts)
     assert excinfo.value.code == "OWNED_BRANCH_REFUSED"
+
+
+@pytest.mark.parametrize("paths_only", [False, True])
+@pytest.mark.parametrize("explicit_owned", [False, True])
+def test_protected_mint_prerequisites_use_validated_write_branch(
+    protected_mint: OwnedCheckouts,
+    monkeypatch: pytest.MonkeyPatch,
+    paths_only: bool,
+    explicit_owned: bool,
+) -> None:
+    """#5877: tasks must accept the minted checkout while retaining the protected landing target."""
+    from specify_cli.cli.commands.agent.mission import app as mission_app
+    from tests.integration.test_explicit_checkout_commands import snapshot
+
+    monkeypatch.chdir(protected_mint.sibling if explicit_owned else protected_mint.owned_root)
+    roots = (protected_mint.repository_root, protected_mint.owned_root, protected_mint.sibling)
+    before = tuple(snapshot(root) for root in roots)
+    args = ["check-prerequisites", "--mission", protected_mint.mission_slug, "--json", "--include-tasks"]
+    if explicit_owned:
+        args += ["--owned-checkout", str(protected_mint.owned_root)]
+    if paths_only:
+        args += ["--paths-only"]
+
+    result = CliRunner().invoke(mission_app, args)
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    minted = _mission_branch(protected_mint)
+    assert payload["current_branch"] == minted
+    assert payload["target_branch"] == _TARGET
+    assert payload["planning_base_branch"] == _TARGET
+    assert payload["merge_target_branch"] == _TARGET
+    assert payload["branch_matches_target"] is True
+    assert payload["BRANCH_MATCHES_TARGET"] is True
+    assert payload["runtime_vars"]["branch_matches_target"] is True
+    assert payload["branch_context"]["matches_target"] is True
+    assert payload["branch_context"]["expected_checkout_branch"] == minted
+    paths = payload if paths_only else payload["paths"]
+    assert Path(paths["feature_dir"]) == protected_mint.mission_dir
+    assert tuple(snapshot(root) for root in roots) == before
+
+
+@pytest.mark.parametrize("paths_only", [False, True])
+def test_commit_to_target_prerequisites_keep_target_contract(commit_to_target: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch, paths_only: bool) -> None:
+    """#5877 control: an explicitly authorized target checkout still matches that target."""
+    from specify_cli.cli.commands.agent.mission import app as mission_app
+
+    monkeypatch.chdir(commit_to_target.owned_root)
+    args = ["check-prerequisites", "--mission", commit_to_target.mission_slug, "--json"]
+    if paths_only:
+        args += ["--paths-only"]
+    result = CliRunner().invoke(mission_app, args)
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["branch_matches_target"] is True
+    assert payload["target_branch"] == _TARGET
+    assert payload["branch_context"]["expected_checkout_branch"] == _TARGET
+
+
+def test_protected_mint_prerequisites_refuse_wrong_checkout_branch(protected_mint: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#5877 must not turn an invalid owned checkout into a successful branch capsule."""
+    from specify_cli.cli.commands.agent.mission import app as mission_app
+
+    _git(protected_mint.owned_root, "checkout", "-qb", "codex/wrong-branch")
+    monkeypatch.chdir(protected_mint.sibling)
+    result = CliRunner().invoke(
+        mission_app,
+        ["check-prerequisites", "--mission", protected_mint.mission_slug, "--json", "--owned-checkout", str(protected_mint.owned_root)],
+    )
+    assert result.exit_code != 0
+    assert json.loads(result.output)["error_code"] == "OWNED_BRANCH_REFUSED"
