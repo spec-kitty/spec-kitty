@@ -85,10 +85,10 @@ def _build_asset_repository() -> AssetRepository:
     repo_root = locate_project_root()
     if repo_root is not None:
         from charter.activation._project_root_candidates import resolve_project_root
-        from charter.drg import resolve_org_roots
+        from charter.activation.layer_roots import resolve_pack_chain
 
         project_root = resolve_project_root(repo_root)
-        org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
+        org_roots = resolve_pack_chain(repo_root, strict=False)
         pack_context = PackContext.from_config(repo_root)
 
     inner = CharterOfferingService(project_root=project_root, org_roots=org_roots)

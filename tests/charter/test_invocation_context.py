@@ -66,7 +66,6 @@ class TestProjectContextDefaults:
         ctx = ProjectContext()
         assert ctx.repo_root is None
         assert ctx.pack_context is None
-        assert ctx.org_root is None
         assert ctx.specs_dir is None
         assert ctx.architecture_dir is None
 

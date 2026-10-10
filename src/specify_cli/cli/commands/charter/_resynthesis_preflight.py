@@ -18,7 +18,7 @@ from charter.activation.synthesizer.errors import ProjectDRGValidationError
 from charter.drg import load_built_in_graph
 from charter.drg import DRGGraph
 from specify_cli.cli.commands.charter._common import _interview_path
-from charter.activation.layer_roots import resolve_layer_roots, resolve_org_root_chain
+from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
 from specify_cli.cli.commands.charter.generate import _is_inside_git_worktree, _load_interview_for_generate
 
 
@@ -72,7 +72,7 @@ def preflight_resynthesis(repo_root: Path, kind: str, artifact_id: str, scope: C
 
     include(kind, artifact_id)
     roots = resolve_layer_roots(repo_root)
-    org_roots = resolve_org_root_chain(repo_root)
+    org_roots = resolve_pack_chain(repo_root, strict=False)
     if scope is not None and kind != "mission-type":
         source = resolve_artifact_urn(
             ArtifactKind.from_operator_token(kind), artifact_id, offering_root=resolve_offering_root(), layer_roots=roots, org_roots=org_roots

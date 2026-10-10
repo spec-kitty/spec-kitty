@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from charter.activation.invocation_context import ProjectContext
-from charter.activation.layer_roots import resolve_layer_roots, resolve_org_root_chain
+from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
 from charter.activation.pack_manager import ActiveCharterManager
 from charter.offering.missions.mission_type_repository import (
     PROJECT_MISSION_TYPES_RELATIVE,
@@ -67,13 +67,13 @@ class TestOrgLayerRootUnchanged:
         roots = resolve_layer_roots(repo)
 
         assert roots["org"] == first
-        assert resolve_org_root_chain(repo) == [first, second]
+        assert resolve_pack_chain(repo, strict=False) == [first, second]
 
     def test_no_org_pack_has_no_org_key(self, tmp_path: Path) -> None:
         (tmp_path / ".kittify").mkdir()
 
         assert "org" not in resolve_layer_roots(tmp_path)
-        assert resolve_org_root_chain(tmp_path) == []
+        assert resolve_pack_chain(tmp_path, strict=False) == []
 
 
 class TestProjectMissionTypesWithMigratedLayout:

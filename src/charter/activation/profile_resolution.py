@@ -94,11 +94,11 @@ def _existing_org_roots(repo_root: Path) -> list[Path]:
     (never charter→specify_cli) so the layer rule holds.
     """
     try:
-        from charter.offering.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415
+        from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415
     except ImportError:
         return []
     try:
-        return [root for root in resolve_org_roots(repo_root) if root.exists()]
+        return resolve_pack_chain(repo_root, strict=False)
     except Exception:  # noqa: BLE001 — context rendering stays best-effort
         return []
 

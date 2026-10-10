@@ -415,10 +415,10 @@ def _promote_org_required_to_config(policy: OrgCharterPolicy, repo_root: Path) -
 
     from charter.activation.layer_roots import (
         resolve_layer_roots,
-        resolve_org_root_chain,
+        resolve_pack_chain,
     )
 
-    org_roots = resolve_org_root_chain(repo_root)
+    org_roots = resolve_pack_chain(repo_root, strict=False)
     layer_roots = resolve_layer_roots(repo_root)
     warnings: list[str] = []
     promotions: dict[str, list[str]] = {
@@ -955,7 +955,7 @@ def validate_org_required_directive_stems(repo_root: Path) -> None:
     """
     from charter.activation.catalog import resolve_offering_root
 
-    from charter.activation.layer_roots import resolve_layer_roots, resolve_org_root_chain
+    from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
 
     policy = load_org_charter_policies(repo_root)
     if policy.required_directives:
@@ -963,7 +963,7 @@ def validate_org_required_directive_stems(repo_root: Path) -> None:
             "directives",
             list(policy.required_directives),
             offering_root=resolve_offering_root(),
-            org_roots=resolve_org_root_chain(repo_root),
+            org_roots=resolve_pack_chain(repo_root, strict=False),
             layer_roots=resolve_layer_roots(repo_root),
         )
 

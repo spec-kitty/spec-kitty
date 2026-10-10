@@ -75,7 +75,7 @@ def context(
     )
     from charter.activation.context_contract import CONTEXT_SCHEMA_VERSION
 
-    from charter.drg import resolve_org_roots
+    from charter.activation.layer_roots import resolve_pack_chain
     from charter.activation.org_charter_loader import load_org_charter_json_block
 
     try:
@@ -83,7 +83,7 @@ def context(
         # WP07 T034: resolve the configured org doctrine snapshot in the
         # specify_cli layer and pass it as data into the charter layer.
         # ``charter`` must not import ``specify_cli`` (ADR 2026-03-27-1).
-        org_roots = [p for p in resolve_org_roots(repo_root) if p.exists()]
+        org_roots = resolve_pack_chain(repo_root, strict=False)
         # #5779: every path below gets the FULL declaration-ordered chain.
         # ``--include`` receives ``org_roots`` itself (it used to be truncated
         # to ``org_roots[0]``, hiding org packs 2..N). ``build_charter_context``

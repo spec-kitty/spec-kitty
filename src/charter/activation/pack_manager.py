@@ -690,6 +690,7 @@ class ActiveCharterManager:
         *,
         cascade: bool = False,  # noqa: ARG002 — kept for caller API stability
         layer_roots: dict[str, Path] | None = None,
+        org_root_chain: list[Path] | None = None,
     ) -> ActivationResult:
         """Activate ``artifact_id`` for ``kind`` in the project charter pack.
 
@@ -721,6 +722,11 @@ class ActiveCharterManager:
         layer_roots:
             Optional org/project doctrine roots, passed as data by CLI callers.
             When omitted, validation remains built-in-only for compatibility.
+        org_root_chain:
+            Optional full, declaration-ordered org-pack chain. When supplied,
+            availability is validated in one scan across every chain root
+            (last-declared first) instead of the single ``layer_roots["org"]``
+            slot; when ``None`` the single-slot behaviour is unchanged.
 
         Returns
         -------
@@ -741,7 +747,7 @@ class ActiveCharterManager:
         repo_root = ctx.require_repo_root()
         target_path, data, save = resolve_activation_write_target(repo_root)
 
-        available = self.list_available(ctx, kind, layer_roots=layer_roots)
+        available = self.list_available(ctx, kind, layer_roots=layer_roots, org_root_chain=org_root_chain)
         when_absent = self._effective_when_absent(kind)
         preserved, preservation_warnings, in_force = _preservation_set(repo_root, kind, yaml_key, data, available, when_absent)
 
@@ -871,6 +877,7 @@ class ActiveCharterManager:
         kind_token: str,
         *,
         layer_roots: dict[str, Path] | None,
+        org_root_chain: list[Path] | None = None,
     ) -> list[tuple[str, Path]]:
         """Return ``(layer, directory)`` pairs to scan for *kind_token*.
 
@@ -880,6 +887,11 @@ class ActiveCharterManager:
         root is the project pack root (``.kittify/charter-packs/``) and uses
         the flat ``<singular>`` kind layout. Non-existent directories are
         skipped so a layer that is simply not present contributes nothing.
+
+        When *org_root_chain* is non-empty, the ORG layer emits one scan pair
+        per chain root, last-declared first (the last declared pack wins),
+        replacing the single ``layer_roots["org"]`` slot. When ``None`` or
+        empty, the single-slot behaviour is unchanged.
         """
         kind = _resolve_kind(kind_token)
         base_dir, _glob, layered = _scan_layout_for(kind)
@@ -889,12 +901,13 @@ class ActiveCharterManager:
 
         dirs: list[tuple[str, Path]] = []
         for layer in _LAYER_SEGMENTS:
-            root = roots.get(layer)
-            if root is None:
-                continue
-            candidate = _resolve_layer_candidate(layer, root, kind, base_dir, layered=layered)
-            if candidate is not None and candidate.is_dir():
-                dirs.append((layer, candidate))
+            layer_candidates = org_root_chain[::-1] if layer == ORG and org_root_chain else [roots.get(layer)]
+            for root in layer_candidates:
+                if root is None:
+                    continue
+                candidate = _resolve_layer_candidate(layer, root, kind, base_dir, layered=layered)
+                if candidate is not None and candidate.is_dir():
+                    dirs.append((layer, candidate))
         return dirs
 
     def list_available_detailed(
@@ -903,6 +916,7 @@ class ActiveCharterManager:
         kind: str,
         *,
         layer_roots: dict[str, Path] | None = None,
+        org_root_chain: list[Path] | None = None,
     ) -> list[AvailableArtifact]:
         """Return available artifacts for *kind*, annotated by source layer.
 
@@ -922,6 +936,10 @@ class ActiveCharterManager:
             Optional mapping of layer name (``"org"`` / ``"project"``) to the
             resolved doctrine root for that layer. When omitted, only the
             built-in layer is scanned (backward compatible).
+        org_root_chain:
+            Optional full org-pack chain; when supplied the ORG layer is
+            scanned across every chain root (last-declared first) instead of
+            the single ``layer_roots["org"]`` slot.
 
         Returns
         -------
@@ -982,13 +1000,13 @@ class ActiveCharterManager:
             # mission-type paths agree, not a blast-radius change to
             # ``list_available_detailed``'s shared per-kind loop.
             mt_entries: list[AvailableArtifact] = []
-            for layer, scan_dir in self._scan_layer_dirs(kind, layer_roots=layer_roots):
+            for layer, scan_dir in self._scan_layer_dirs(kind, layer_roots=layer_roots, org_root_chain=org_root_chain):
                 for mission_type in scan_mission_types_dir(scan_dir):
                     mt_entries.append(AvailableArtifact(artifact_id=mission_type.id, layer=layer))
             return mt_entries
 
         entries: list[AvailableArtifact] = []
-        for layer, scan_dir in self._scan_layer_dirs(kind, layer_roots=layer_roots):
+        for layer, scan_dir in self._scan_layer_dirs(kind, layer_roots=layer_roots, org_root_chain=org_root_chain):
             for yaml_file in sorted(scan_dir.rglob(glob)):
                 # R-011-D: confirm the artifact declares an ``id:`` (parse it)
                 # rather than trusting the filename; surface the operator-facing
@@ -1004,6 +1022,7 @@ class ActiveCharterManager:
         kind: str,
         *,
         layer_roots: dict[str, Path] | None = None,
+        org_root_chain: list[Path] | None = None,
     ) -> frozenset[str]:
         """Return the set of available artifact IDs for *kind* across layers.
 
@@ -1022,6 +1041,8 @@ class ActiveCharterManager:
             Charter kind operator token (e.g. ``"directive"``).
         layer_roots:
             Optional mapping of org/project layer name to its doctrine root.
+        org_root_chain:
+            Optional full org-pack chain scanned in place of the single org slot.
 
         Returns
         -------
@@ -1034,7 +1055,8 @@ class ActiveCharterManager:
         ValueError
             If ``kind`` is not in the canonical charter kind universe.
         """
-        return frozenset(entry.artifact_id for entry in self.list_available_detailed(ctx, kind, layer_roots=layer_roots))
+        entries = self.list_available_detailed(ctx, kind, layer_roots=layer_roots, org_root_chain=org_root_chain)
+        return frozenset(entry.artifact_id for entry in entries)
 
 
 # Re-export the engine's structured errors for callers that import them from

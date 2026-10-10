@@ -234,9 +234,9 @@ def org_chain_graph(repo_root: Path) -> DRGGraph | None:
     measured ``load_built_in_graph`` + ``assert_valid`` at that order).
     """
     from charter.activation.drg_activation import load_org_drg  # noqa: PLC0415 -- function-local: keeps drg_activation (a sibling that imports other activation modules) out of this module's import-time graph
-    from charter.offering.drg.org_pack_config import resolve_existing_org_roots
+    from charter.activation.layer_roots import resolve_pack_chain
 
-    roots = resolve_existing_org_roots(repo_root)
+    roots = resolve_pack_chain(repo_root, strict=False)
     fragments = load_org_drg(repo_root, strict=False)
     if not roots and not fragments:
         return None

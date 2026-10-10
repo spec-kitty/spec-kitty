@@ -57,7 +57,7 @@ from specify_cli.cli.commands.charter.activate import (
 )
 from charter.activation.layer_roots import (
     resolve_layer_roots,
-    resolve_org_root_chain,
+    resolve_pack_chain,
 )
 from specify_cli.mission_step_contracts.profile_defaults import (
     mission_default_profile_warning,
@@ -92,7 +92,7 @@ def _source_urn(
     ``org_roots`` (T008/T010, mission ``cascade-org-inert-01M07E9P``): the
     full declaration-ordered org-pack chain, additive to ``layer_roots``'s
     single-pack-only ``roots["org"]`` — see
-    ``charter.activation.layer_roots.resolve_org_root_chain``.
+    ``charter.activation.layer_roots.resolve_pack_chain``.
     """
     try:
         kind_enum = ArtifactKind.from_operator_token(kind)
@@ -176,7 +176,7 @@ def _render_cascade_deactivation(
     """
     from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
-    org_roots = resolve_org_root_chain(repo_root)
+    org_roots = resolve_pack_chain(repo_root, strict=False)
     graph = load_validated_graph(
         repo_root,
         org_roots=org_roots,
@@ -334,7 +334,7 @@ def deactivate_cmd(
     # Only runs when a scope was supplied and the direct deactivation actually
     # removed the target (so we never cascade off a no-op removal).
     if scope is not None and result.deactivated:
-        target_urn = _source_urn(kind, artifact_id, layer_roots, resolve_org_root_chain(repo_root))
+        target_urn = _source_urn(kind, artifact_id, layer_roots, resolve_pack_chain(repo_root, strict=False))
         if target_urn is not None:
             _render_cascade_deactivation(
                 manager, ctx_project, target_urn, scope, repo_root, layer_roots

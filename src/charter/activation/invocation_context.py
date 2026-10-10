@@ -79,7 +79,6 @@ class ProjectContext:
 
     repo_root: Path | None = None
     pack_context: PackContext | None = None
-    org_root: Path | None = None
     specs_dir: Path | None = None
     architecture_dir: Path | None = None
 
@@ -92,20 +91,10 @@ class ProjectContext:
         """Construct a fully-populated ProjectContext from a repository root.
 
         Resolves PackContext via ``PackContext.from_config()``.
-        Resolves ``org_root`` as the first entry from ``resolve_org_roots()``
-        if any are found; ``None`` otherwise.
         ``specs_dir`` and ``architecture_dir`` are set only when the
         corresponding directories exist on disk.
         """
         from charter.activation.pack_context import PackContext  # runtime import — avoids circular
-
-        try:
-            from charter.offering.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415
-
-            org_roots = resolve_org_roots(repo_root)
-            org_root: Path | None = org_roots[0] if org_roots else None
-        except Exception:
-            org_root = None
 
         pack_ctx = PackContext.from_config(repo_root)
 
@@ -115,7 +104,6 @@ class ProjectContext:
         return cls(
             repo_root=repo_root,
             pack_context=pack_ctx,
-            org_root=org_root,
             specs_dir=specs_path if specs_path.is_dir() else None,
             architecture_dir=arch_path if arch_path.is_dir() else None,
         )

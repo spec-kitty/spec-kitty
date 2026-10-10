@@ -14,6 +14,7 @@ from ulid import ULID
 
 from charter.activation._drg_helpers import load_validated_graph
 from charter.activation.drg_activation import load_org_drg
+from charter.activation.layer_roots import resolve_pack_chain
 from charter.activation.synthesizer.manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
@@ -30,7 +31,6 @@ from charter.offering.packs.hashing import hash_content_bytes
 from charter.offering.drg.loader import has_graph_files, load_graph_or_dir, merge_layers
 from charter.offering.drg.migration.extractor import graph_document_to_dict
 from charter.offering.drg.models import DRGGraph
-from charter.offering.drg.org_pack_config import resolve_existing_org_roots
 from charter.offering.drg.project_scan import ProjectArtifact, project_reference_edges, scan_project_artifacts
 from charter.offering.drg.validator import assert_valid
 from kernel.charter_pack_paths import PROJECT_GRAPH_FILENAME, project_pack_path, project_pack_root
@@ -264,7 +264,7 @@ def plan_project_registration(repo_root: Path, *, base_graph: DRGGraph | None = 
         if base_graph is not None
         else load_validated_graph(
             root,
-            org_roots=resolve_existing_org_roots(root),
+            org_roots=resolve_pack_chain(root, strict=False),
             org_fragments=load_org_drg(root, strict=False),
         )
     )

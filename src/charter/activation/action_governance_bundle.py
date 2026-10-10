@@ -201,18 +201,14 @@ def _resolve_action_bundle(
     (e.g. a ``--org-root``-driven single-path caller) is honoured verbatim
     and does not widen into the chain.
     """
-    effective_org_root = org_root
-    effective_org_roots: list[Path] | None = None
-    if effective_org_root is None:
-        from charter.offering.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415
+    effective_org_roots: list[Path] | None
+    if org_root is not None:
+        effective_org_roots = [org_root]
+    else:
+        from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415
 
-        effective_org_roots = resolve_existing_org_roots(repo_root)
-        if effective_org_roots:
-            # Legacy single-root field, kept for org_root-only callers/back-compat
-            # (e.g. any consumer of ``_ActionGovernanceBundle`` that still expects a
-            # single representative root); the DRG merge itself uses the full
-            # ``effective_org_roots`` chain below, not this single value.
-            effective_org_root = effective_org_roots[0]
+        # Lenient: a governance bundle degrades on a missing pack, never refuses.
+        effective_org_roots = resolve_pack_chain(repo_root, strict=False)
 
     from charter.activation.pack_context import PackContext as _PackContext  # noqa: PLC0415
 
@@ -220,7 +216,6 @@ def _resolve_action_bundle(
         repo_root=repo_root,
         action=action,
         effective_depth=effective_depth,
-        org_root=effective_org_root,
         org_roots=effective_org_roots,
         pack_context=_PackContext.from_config(repo_root),
         mission_type=mission_type,
@@ -258,7 +253,6 @@ def _load_action_governance_bundle(
     repo_root: Path,
     action: str,
     effective_depth: int,
-    org_root: Path | None = None,
     org_roots: list[Path] | None = None,
     pack_context: PackContext | None = None,
     mission_type: str | None = None,
@@ -279,11 +273,8 @@ def _load_action_governance_bundle(
 
     #3525 Fold B: *org_roots*, when supplied, carries the full
     declaration-ordered org-pack chain and is threaded straight through to
-    :func:`charter.activation._drg_helpers.load_validated_graph` (which prefers it over
-    *org_root*) AND to the ``ActiveCharterService`` built below — both halves now
-    see every configured pack, not just *org_root*'s single representative
-    entry. Callers that only ever supplied *org_root* (no chain resolved)
-    keep the pre-fix single-root behaviour byte-identical.
+    :func:`charter.activation._drg_helpers.load_validated_graph` AND to the
+    ``ActiveCharterService`` built below — both halves see every configured pack.
     """
     from charter.activation._drg_helpers import DRGProjectValidationError, load_validated_graph
     from charter.activation.context import _build_offering_service  # noqa: PLC0415
@@ -295,7 +286,7 @@ def _load_action_governance_bundle(
 
     service = _build_offering_service(
         repo_root,
-        org_roots=org_roots if org_roots else ([org_root] if org_root else None),
+        org_roots=org_roots or None,
     )
     resolved_type = resolve_mission_type_key(mission_type=mission_type, feature_dir=feature_dir)
 
@@ -316,7 +307,6 @@ def _load_action_governance_bundle(
         try:
             merged = load_validated_graph(
                 repo_root,
-                org_root=org_root,
                 org_roots=org_roots,
                 org_fragments=load_org_drg(repo_root, strict=False),
                 project_degrade=True,

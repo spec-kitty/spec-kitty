@@ -188,9 +188,9 @@ def _self_resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     "does this org root exist" consumer now routes onto instead of
     re-implementing the filter comprehension independently.
     """
-    from charter.offering.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415
+    from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415
 
-    roots: list[Path] = resolve_existing_org_roots(repo_root)
+    roots: list[Path] = resolve_pack_chain(repo_root, strict=False)
     return roots
 
 

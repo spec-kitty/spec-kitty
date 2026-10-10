@@ -68,7 +68,7 @@ from charter.activation.charter_yaml_io import apply_yaml_write
 from charter.activation.catalog import resolve_offering_root
 from charter.activation.invocation_context import ProjectContext
 from charter.activation.kind_vocabulary import ResolutionPass, UnknownArtifactIdError, resolve_artifact_urn, resolve_config_id
-from charter.activation.layer_roots import resolve_layer_roots, resolve_org_root_chain
+from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
 from charter.activation.org_charter import REQUIRED_KIND_FIELDS, load_org_charter_policies
 from charter.activation.pack_context import ActiveCharterConfigError
 from charter.activation.pack_manager import ActiveCharterManager, prepare_activation_write, resolve_activation_write_target
@@ -76,7 +76,6 @@ from charter.offering.artifact_kinds import MISSION_TYPE_TOKEN, ArtifactKind
 from charter.offering.drg.migration.id_normalizer import normalize_directive_id
 from charter.offering.drg.loader import DRGLoadError
 from charter.offering.drg.models import DRGGraphSchemaError, NodeKind
-from charter.offering.drg.org_pack_config import require_declared_org_roots
 from charter.offering.drg.validator import DRGValidationError
 from charter.offering.pack_paths import built_in_root
 from charter.offering.packs.presets import (
@@ -298,7 +297,7 @@ def _load_anti_pattern_ids(repo_root: Path) -> frozenset[str]:
     from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415 -- the DRG load is only paid when a preset lists anti-patterns
     from charter.activation.drg_activation import load_org_drg  # noqa: PLC0415 -- same
 
-    graph = load_validated_graph(repo_root, org_roots=resolve_org_root_chain(repo_root), org_fragments=load_org_drg(repo_root, strict=False))
+    graph = load_validated_graph(repo_root, org_roots=resolve_pack_chain(repo_root, strict=False), org_fragments=load_org_drg(repo_root, strict=False))
     return frozenset(node.urn.split(":", 1)[1] for node in graph.nodes if node.kind == NodeKind.ANTI_PATTERN)
 
 
@@ -410,13 +409,13 @@ def _org_roots_or_refuse(repo_root: Path, preset: ActivationPreset) -> list[Path
     readable: a missing one would drop out of the id check and out of the
     ``required_<kind>`` union, freezing a key without that org's requirements.
     The check is the effective-set seam's own precondition
-    (:func:`~charter.offering.drg.org_pack_config.require_declared_org_roots`).
+    (:func:`~charter.activation.layer_roots.resolve_pack_chain` with ``strict=True``).
     A preset that lists neither reads only the existing roots (mission types).
     """
     if not _lists_ids(preset):
-        return list(resolve_org_root_chain(repo_root))
+        return list(resolve_pack_chain(repo_root, strict=False))
     try:
-        return require_declared_org_roots(repo_root)
+        return resolve_pack_chain(repo_root, strict=True)
     except ValueError as exc:
         raise PresetIdUnresolvedError(preset.source, {}, {_ORG_PACKS_KEY: str(exc)}) from exc
 

@@ -83,11 +83,11 @@ def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[
 
     from charter.activation.layer_roots import (
         resolve_layer_roots,
-        resolve_org_root_chain,
+        resolve_pack_chain,
     )
 
     offering_root = resolve_offering_root()
-    org_roots = resolve_org_root_chain(repo_root)
+    org_roots = resolve_pack_chain(repo_root, strict=False)
     layer_roots = resolve_layer_roots(repo_root)
     promotions: dict[str, list[str]] = {}
     warnings: list[str] = []
