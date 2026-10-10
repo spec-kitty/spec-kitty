@@ -163,6 +163,12 @@ categories:
       WP. The real consumer (`charter context --include template:<id>`) lands in a later mission/WP, so
       these two names are exported but currently have zero production importers. Follow-up tracker: #2761.'
     requires_issue: false
+  category_c_requirement_kinds_loader_seam_5956:
+    rationale: 'C. org-pack-chain-authority (#6006) WP06 requirement-kinds loader seam. ``RequirementKind``,
+      ``load_requirement_kinds`` and ``RequirementKindsSchemaError`` are deliberate forward public API: the
+      manifest loader and its typed schema error have no runtime consumer yet and are consumed when the
+      #5956 handlers land. Test-exercised. Follow-up tracker: #5956.'
+    requires_issue: false
   category_c_wp_in_flight_charter_yaml_io_write_helper:
     rationale: 'C. consolidate-charter-bundle WP01 shared write-helper vocabulary. ``charter.activation.charter_yaml_io.update_charter_yaml_section``
       (the INV-9 single writer the charter.yaml mutators -- activation_engine.commit_plan and
@@ -1101,6 +1107,15 @@ entries:
 - module: charter.activation.charter_yaml_io
   name: UnknownCharterYamlSectionError
   category: category_c_wp_in_flight_charter_yaml_io_write_helper
+- module: charter.activation.manifest_loader
+  name: RequirementKindsSchemaError
+  category: category_c_requirement_kinds_loader_seam_5956
+- module: charter.activation.manifest_loader
+  name: load_requirement_kinds
+  category: category_c_requirement_kinds_loader_seam_5956
+- module: charter.offering.missions.requirement_kinds
+  name: RequirementKind
+  category: category_c_requirement_kinds_loader_seam_5956
 - module: specify_cli.review.scope_source
   name: DeclaredCommandScopeSource
   category: category_c_scope_source_factory_constructed
