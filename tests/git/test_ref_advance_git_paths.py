@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.residue_predicate import residue_when
 from specify_cli.git import destructive_guard
 from specify_cli.git.destructive_guard import DestructiveOpRefused
 from specify_cli.git.ref_advance import (
@@ -140,11 +141,11 @@ def test_residue_classifier_sees_the_real_path(repo: Path) -> None:
     _write(repo, rel, "{}\n")
     seen: list[str] = []
 
-    def is_residue(path: str) -> bool:
+    def is_residue_stub(path: str) -> bool:
         seen.append(path)
         return True
 
-    assert _dirty_entries(repo, None, new_sha="HEAD", target_paths=frozenset(), is_residue=is_residue, treat_untracked_as_dirty=True) == []
+    assert _dirty_entries(repo, None, new_sha="HEAD", target_paths=frozenset(), is_disposable=is_residue_stub, treat_untracked_as_dirty=True) == []
     # Untracked files are listed one by one, so the classifier sees the file, not a collapsed directory.
     assert seen == ["src/local data/status.json"]
 
@@ -236,7 +237,7 @@ def test_assert_worktree_clean_refuses_a_quoted_collision(repo: Path) -> None:
     new_sha = _quoted_collision(repo)
 
     with pytest.raises(DestructiveOpRefused) as excinfo:
-        destructive_guard.assert_worktree_clean(repo, new_sha=new_sha, is_residue=lambda _path: False)
+        destructive_guard.assert_worktree_clean(repo, new_sha=new_sha, context=residue_when(lambda _path: False))
 
     assert any(entry.startswith("!! src/local data/") for entry in excinfo.value.dirty_entries), excinfo.value.dirty_entries
 
@@ -249,10 +250,10 @@ def test_guarded_worktree_remove_refuses_a_quoted_untracked_file(repo: Path) -> 
     _write(linked, "src/local data/notes.txt", _LOCAL)
 
     with pytest.raises(DestructiveOpRefused):
-        destructive_guard.guarded_worktree_remove(linked, retain=False, is_residue=lambda _path: False)
+        destructive_guard.guarded_worktree_remove(linked, retain=False, context=residue_when(lambda _path: False))
 
     assert (linked / "src/local data/notes.txt").read_text(encoding="utf-8") == _LOCAL
-    retained = destructive_guard.guarded_worktree_remove(linked, retain=True, is_residue=lambda _path: False)
+    retained = destructive_guard.guarded_worktree_remove(linked, retain=True, context=residue_when(lambda _path: False))
     assert retained.outcome is destructive_guard.RemoveOutcome.RETAINED_DIRTY
     assert linked.exists()
 
@@ -280,9 +281,9 @@ def test_residue_inside_a_new_untracked_directory_is_still_residue(repo: Path) -
     assert "?? newdir/" in _git(repo, "status", "--porcelain").splitlines()
     seen: list[str] = []
 
-    def is_residue(path: str) -> bool:
+    def is_residue_stub(path: str) -> bool:
         seen.append(path)
         return path.endswith("status.json")
 
-    assert _dirty_entries(repo, None, new_sha="HEAD", target_paths=frozenset(), is_residue=is_residue, treat_untracked_as_dirty=True) == []
+    assert _dirty_entries(repo, None, new_sha="HEAD", target_paths=frozenset(), is_disposable=is_residue_stub, treat_untracked_as_dirty=True) == []
     assert seen == ["newdir/status.json"]

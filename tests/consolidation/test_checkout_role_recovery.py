@@ -440,21 +440,21 @@ def test_the_resume_leg_refuses_a_dirty_mission_worktree_and_skips_the_root(tmp_
     state = _state({lag.branch: lag.base})
 
     with pytest.raises(DestructiveOpRefused) as refused:
-        entry_preflight._assert_mission_checkouts_clean(lag.repo, _no_lanes(), state, is_residue=lambda _path: False)
+        entry_preflight._assert_mission_checkouts_clean(lag.repo, _no_lanes(), state)
 
     assert refused.value.error_code == MERGE_UNSAFE_WORKTREE_DIRTY
     assert refused.value.worktree_path is not None and refused.value.worktree_path.resolve() == lag.worktree.resolve()
     # The root has ``main`` checked out: asking about ``main`` finds only the root, which this leg skips.
     (lag.repo / "alpha.txt").write_text("dirty root\n", encoding="utf-8")
     on_main: Any = SimpleNamespace(target_branch="main", mission_branch="main", lanes=[])
-    entry_preflight._assert_mission_checkouts_clean(lag.repo, on_main, state, is_residue=lambda _path: False)
+    entry_preflight._assert_mission_checkouts_clean(lag.repo, on_main, state)
 
 
 def test_the_resume_leg_passes_a_clean_mission_worktree(tmp_path: Path) -> None:
     lag = _build_lag(tmp_path)
     _git(lag.worktree, "reset", "-q", "--hard", "HEAD")
 
-    entry_preflight._assert_mission_checkouts_clean(lag.repo, _no_lanes(), _state({}), is_residue=lambda _path: False)
+    entry_preflight._assert_mission_checkouts_clean(lag.repo, _no_lanes(), _state({}))
 
 
 # --- wrapper wiring ------------------------------------------------------------------------

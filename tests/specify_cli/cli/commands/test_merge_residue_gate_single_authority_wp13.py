@@ -11,7 +11,7 @@ call-site kwarg below was updated accordingly; the observable contracts
 Three observable-contract cells, each paired with a negative control:
 
 * **T025** — the ``advance_branch_ref`` callers exclude coordination status
-  residue from the dirty gate (``is_residue=is_toolchain_generated_churn``).
+  residue from the dirty gate (``context=residue_when(is_toolchain_generated_churn)``).
   A post-write ff-advance with an obstructing ``status.events.jsonl`` / ``status.json``
   copy on the checked-out worktree does **not** raise
   ``RefAdvanceDirtyWorktreeError``; an obstructing **non-residue** file (an
@@ -46,6 +46,7 @@ import pytest
 # coordination<->status import-order cycle when a test imports merge directly.
 import specify_cli.status  # noqa: F401  # import-order guard
 
+from tests.residue_predicate import residue_when
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import (
     RefAdvanceDirtyWorktreeError,
@@ -153,7 +154,7 @@ def test_ff_advance_ignores_obstructing_coordination_status_residue(
 ) -> None:
     """T025: a post-write ff-advance does NOT raise when an obstructing
     coordination status copy is present on the checked-out worktree, because
-    the caller passes ``is_residue=is_toolchain_generated_churn``."""
+    the caller passes ``context=residue_when(is_toolchain_generated_churn)``."""
     repo = tmp_path / "repo"
     _init_git_repo(repo)
     branch = "kitty/mission-coord"
@@ -168,7 +169,7 @@ def test_ff_advance_ignores_obstructing_coordination_status_residue(
 
     # With the residue predicate, the gate does not abort the advance.
     advance_branch_ref(
-        repo, branch, new_sha, is_residue=is_toolchain_generated_churn
+        repo, branch, new_sha, context=residue_when(is_toolchain_generated_churn)
     )
 
     assert _rev_parse(repo, branch) == new_sha
@@ -195,7 +196,7 @@ def test_ff_advance_still_raises_on_obstructing_non_residue_file(
 
     with pytest.raises(RefAdvanceDirtyWorktreeError) as excinfo:
         advance_branch_ref(
-            repo, branch, new_sha, is_residue=is_toolchain_generated_churn
+            repo, branch, new_sha, context=residue_when(is_toolchain_generated_churn)
         )
 
     # Atomic refusal: nothing reset, the operator's bytes survive untouched.

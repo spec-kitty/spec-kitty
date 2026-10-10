@@ -328,14 +328,14 @@ def test_injected_residue_predicate_treats_ledger_as_real_work() -> None:
     ``consolidation/rollback.py``, ``consolidation/mission_number/bake.py``,
     ``orchestrator_api/commands.py`` and ``coordination/workspace.py`` each
     inject ``is_toolchain_generated_churn`` (via ``functools.partial(...,
-    mission_slug=mission_slug)``) as the ``is_residue`` callback a lower-level
+    mission_slug=mission_slug)``) as the ``churn`` callback a lower-level
     primitive (``restore_branch_ref`` / ``advance_branch_ref`` /
     ``guarded_worktree_remove``) consults before treating dirt as safely
     discardable. This pins the SAME call shape each of those four sites uses.
     """
-    is_residue = functools.partial(is_toolchain_generated_churn, mission_slug="some-mission")
-    assert is_residue("kitty-specs/some-mission/decisions/index.json") is False
-    assert is_residue("kitty-specs/some-mission/decisions/DM-01M1VRA2ABCDEFGHJKMNPQRS.md") is False
+    churn = functools.partial(is_toolchain_generated_churn, mission_slug="some-mission")
+    assert churn("kitty-specs/some-mission/decisions/index.json") is False
+    assert churn("kitty-specs/some-mission/decisions/DM-01M1VRA2ABCDEFGHJKMNPQRS.md") is False
 
 
 def test_mission_record_analysis_keeps_ledger_in_dirty_paths() -> None:

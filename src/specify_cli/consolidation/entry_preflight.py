@@ -10,7 +10,6 @@ Moved from ``consolidation/executor.py`` by epic #2026 with no logic change.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -225,7 +224,6 @@ def _assert_mission_checkouts_clean(
     state: ConsolidationState,
     *,
     context: ResidueClassifier | None = None,
-    is_residue: Callable[[str], bool] | None = None,
 ) -> None:
     """Resume leg of :func:`_pre_mutation_safety_preflight`: no worktree on the mission branch blocks the resume (#5613).
 
@@ -260,8 +258,7 @@ def _assert_mission_checkouts_clean(
         try:
             assert_worktree_clean(
                 checkout,
-                context=context.for_checkout(main_repo, checkout) if context is not None else None,
-                is_residue=is_residue,
+                context=context.for_checkout(main_repo, checkout) if context is not None else NothingIsResidue(),
             )
         except DestructiveOpRefused:
             lags = not anchors or any(has_unrefreshed_head_advance(checkout, base_sha=sha) for sha in anchors)
