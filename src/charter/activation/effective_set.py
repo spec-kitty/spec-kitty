@@ -57,10 +57,9 @@ from typing import Any
 
 from charter.activation.activation_engine import EffectiveSet
 from charter.activation.invocation_context import ProjectContext
-from charter.activation.layer_roots import resolve_layer_roots
+from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
 from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from charter.offering.artifact_kinds import MISSION_TYPE_TOKEN, ArtifactKind
-from charter.offering.drg.org_pack_config import require_declared_org_roots, resolve_org_roots
 from charter.offering.pack_paths import built_in_dir
 from kernel.charter_pack_paths import project_pack_root
 
@@ -97,7 +96,7 @@ def _token_for(yaml_key: str) -> str:
 def _declared_org_roots(repo_root: Path) -> tuple[Path, ...]:
     """Every declared org pack root, in declaration order; a missing one is unresolvable."""
     try:
-        return tuple(require_declared_org_roots(repo_root))
+        return tuple(resolve_pack_chain(repo_root, strict=True))
     except ValueError as exc:
         raise _UnresolvableError(str(exc)) from exc
 
@@ -173,7 +172,7 @@ def _readable_roots(repo_root: Path) -> list[dict[str, Path]]:
     if project.is_dir():
         base["project"] = project
     try:
-        org_roots = [root for root in resolve_org_roots(repo_root, quiet=True) if root.is_dir()]
+        org_roots = [root for root in resolve_pack_chain(repo_root, strict=False) if root.is_dir()]
     except Exception as exc:  # noqa: BLE001 — a malformed registry must not empty the fallback
         logger.debug("org pack registry unreadable for the fallback scan: %s", exc)
         org_roots = []

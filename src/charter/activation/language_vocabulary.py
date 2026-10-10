@@ -24,8 +24,8 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from charter.activation._project_root_candidates import resolve_project_root
+from charter.activation.layer_roots import resolve_pack_chain
 from charter.offering.artifact_kinds import PROJECT_KIND_DIRS, ArtifactKind
-from charter.offering.drg.org_pack_config import resolve_existing_org_roots
 from charter.offering.pack_paths import built_in_dir
 from charter.offering.shared.scoping import (
     RESERVED_LANGUAGE_TOKENS,
@@ -86,7 +86,7 @@ def _kind_directories(kind: ArtifactKind, repo_root: Path | None) -> list[Path]:
     project_root = resolve_project_root(repo_root)
     if project_root is not None:
         directories.append(project_root / PROJECT_KIND_DIRS[kind])
-    for org_root in resolve_existing_org_roots(repo_root):
+    for org_root in resolve_pack_chain(repo_root, strict=False):
         directories.extend(org_root / name for name in dict.fromkeys((kind.plural, PROJECT_KIND_DIRS[kind])))
     return directories
 

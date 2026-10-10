@@ -50,7 +50,7 @@ from charter.activation.kind_vocabulary import (
     resolve_artifact_urn,
 )
 from charter.activation.pack_context import ActiveCharterConfigError, PackContext
-from charter.activation.pack_manager import YAML_KEY_MAP, ActivationResult, ActiveCharterManager
+from charter.activation.pack_manager import YAML_KEY_MAP, ActiveCharterManager
 from charter.activation.preset_application import (
     PresetApplicationError,
     PresetPlan,
@@ -74,7 +74,7 @@ from specify_cli.cli.commands.charter._charter_write_root import (
 )
 from charter.activation.layer_roots import (
     resolve_layer_roots,
-    resolve_org_root_chain,
+    resolve_pack_chain,
 )
 
 __all__ = ["activate_cmd", "run_full_synthesize"]
@@ -232,76 +232,6 @@ def _validate_mission_type_activatable(kind: str, artifact_id: str, repo_root: P
     validate_activatable_mission_type(artifact_id, repo_root=repo_root)
 
 
-def _activate_cascade_target(
-    manager: ActiveCharterManager,
-    ctx_project: ProjectContext,
-    kind_token: str,
-    config_id: str,
-    layer_roots: dict[str, Path] | None,
-    org_roots: list[Path] | None,
-    *,
-    cascade: bool = False,
-) -> ActivationResult:
-    """Activate one target, trying each org root in the chain, last-declared first.
-
-    Used for cascade targets and, since #5779, for the direct activation
-    target too (which previously only ever saw org pack 1).
-
-    T009 (mission ``cascade-org-inert-01M07E9P``): :meth:`ActiveCharterManager.activate`
-    validates artifact availability through its own ``layer_roots["org"]``
-    single-``Path`` slot (``charter/pack_manager.py`` -- not owned by this WP;
-    its ``dict[str, Path]`` contract is load-bearing for ``charter list
-    --all-layers``, T013, so it cannot be widened there). A cascade target
-    that the T008 org-roots chain correctly resolved (DRG visibility + ID
-    mapping) to live in org pack 2..N would otherwise still fail here with
-    "Unknown <kind> ID", because ``manager.activate``'s own availability scan
-    only ever sees pack 1 through ``layer_roots``. This substitutes each
-    candidate org root from the chain for ``layer_roots["org"]`` and retries,
-    last-declared pack first and returning on the first success, so an id
-    defined in several packs is validated against the pack that wins the
-    chain (docs/architecture/org-doctrine-layer.md: the last declared org
-    pack wins). A chain artifact thus still activates without widening ``ActiveCharterManager.activate``'s signature. When
-    ``org_roots`` is empty/``None`` (no org packs, or none in the chain),
-    exactly one attempt is made with the original *layer_roots* -- byte-for-
-    byte the pre-T008 call shape (FR-001 AC4 no-org-pack regression).
-
-    R2-002 (pr-correctness.findings.yaml): when every candidate fails, the
-    raised error aggregates every candidate's failure reason rather than
-    surfacing only the last one. With a single candidate (the common
-    no-org-pack / single-org-pack case) this is still byte-identical to
-    raising that one exception directly -- aggregation only changes the
-    multi-candidate "none of them worked" diagnostic, never the control
-    flow or the success path.
-    """
-    candidate_layer_roots: list[dict[str, Path] | None] = (
-        [{**(layer_roots or {}), "org": root} for root in reversed(org_roots)]
-        if org_roots
-        else [layer_roots]
-    )
-    failures: list[ValueError] = []
-    for candidate in candidate_layer_roots:
-        try:
-            return manager.activate(
-                ctx_project,
-                kind_token,
-                config_id,
-                cascade=cascade,
-                layer_roots=candidate,
-            )
-        except ValueError as exc:
-            failures.append(exc)
-    if len(failures) == 1:
-        raise failures[-1]
-    # Candidates were tried last-declared first; label by declaration position.
-    joined = "; ".join(
-        f"org root {len(failures) - i}/{len(failures)}: {exc}" for i, exc in enumerate(failures)
-    )
-    raise ValueError(
-        f"No candidate org root could activate {kind_token}:{config_id} "
-        f"({len(failures)} candidates tried): {joined}"
-    ) from failures[-1]
-
-
 def _render_cascade_activation(
     manager: ActiveCharterManager,
     ctx_project: ProjectContext,
@@ -327,7 +257,7 @@ def _render_cascade_activation(
     """
     from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
-    org_roots = resolve_org_root_chain(repo_root)
+    org_roots = resolve_pack_chain(repo_root, strict=False)
     graph = load_validated_graph(
         repo_root,
         org_roots=org_roots,
@@ -345,8 +275,12 @@ def _render_cascade_activation(
                 f"{kind_value}:{cascade_drg_id}", offering_root, layer_roots, org_roots
             )
             try:
-                _activate_cascade_target(
-                    manager, ctx_project, kind_token, config_id, layer_roots, org_roots
+                manager.activate(
+                    ctx_project,
+                    kind_token,
+                    config_id,
+                    layer_roots=layer_roots,
+                    org_root_chain=org_roots,
                 )
             except ValueError as exc:
                 console.print(
@@ -461,7 +395,7 @@ def _render_no_cascade_warning(
     """
     from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415
 
-    org_roots = resolve_org_root_chain(repo_root)
+    org_roots = resolve_pack_chain(repo_root, strict=False)
     graph = load_validated_graph(
         repo_root,
         org_roots=org_roots,
@@ -1044,15 +978,15 @@ def activate_cmd(
             from specify_cli.cli.commands.charter._resynthesis_preflight import preflight_resynthesis
 
             preflight_resynthesis(repo_root, kind, artifact_id, scope, registration.graph)
-        # #5779: try every org pack in the chain, not just ``layer_roots``'s pack 1.
-        result = _activate_cascade_target(
-            manager,
+        # #5779/#6006: one availability scan across the whole org-pack chain
+        # (fail-closed on a declared-but-unfetched pack, #4984).
+        result = manager.activate(
             ctx_project,
             kind,
             artifact_id,
-            layer_roots,
-            resolve_org_root_chain(repo_root),
             cascade=scope is not None,
+            layer_roots=layer_roots,
+            org_root_chain=resolve_pack_chain(repo_root, strict=True),
         )
     except (ValueError, DRGLoadError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
@@ -1073,7 +1007,7 @@ def activate_cmd(
     # FR-013/014: cascade is driven from the CLI via the WP11 engine over the
     # merged DRG (pack_manager's own cascade is deferred — the live wiring is
     # here). Resolve the source URN; mission-type / non-DRG kinds short-circuit.
-    source_urn = _source_urn(kind, artifact_id, layer_roots, resolve_org_root_chain(repo_root))
+    source_urn = _source_urn(kind, artifact_id, layer_roots, resolve_pack_chain(repo_root, strict=False))
     if source_urn is not None:
         if scope is None:
             _render_no_cascade_warning(source_urn, repo_root, layer_roots)

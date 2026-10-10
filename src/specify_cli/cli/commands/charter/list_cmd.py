@@ -20,7 +20,7 @@ from charter.template_catalog import TemplateRef, TierRoot, discover_templates
 from kernel.errors import KittyInternalConsistencyError
 
 from specify_cli.cli.commands.charter._common import _emit_error
-from charter.activation.layer_roots import resolve_layer_roots
+from charter.activation.layer_roots import resolve_layer_roots, resolve_pack_chain
 
 __all__ = ["charter_list_app"]
 
@@ -82,11 +82,11 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
                 )
             )
 
-    # Org missions, if an org Charter Pack is configured. Flat layout
-    # (``<org_root>/missions``, no ``doctrine/`` subdir) and ``ResolutionTier.ORG``
-    # match what the resolver actually reads (WP03) — see FR-006/DEC-009.
-    org_root = layer_roots.get("org")
-    if org_root is not None:
+    # Org missions from EVERY configured, existing org Charter Pack (one ORG tier
+    # root per chain pack; last-declared wins). Flat layout (``<root>/missions``,
+    # no ``doctrine/`` subdir) and ``ResolutionTier.ORG`` match what the resolver
+    # reads (WP03) — see FR-006/DEC-009.
+    for org_root in resolve_pack_chain(repo_root, strict=False):
         missions = org_root / "missions"
         if missions.is_dir():
             tier_roots.append(
@@ -105,6 +105,34 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
     )
 
     return tier_roots
+
+
+def _available_over_chain(
+    manager: ActiveCharterManager,
+    ctx: ProjectContext,
+    kind: str,
+    layer_roots: dict[str, Path],
+    org_chain: list[Path],
+) -> list[AvailableArtifact]:
+    """Availability across the FULL org-pack chain (``layer_roots["org"]`` is pack 1 only).
+
+    Scans once with the supplied roots, then once per remaining chain pack as the
+    ``org`` root, adding only the org-layer entries (built-in/project are already
+    covered). Duplicates are dropped, preserving first-seen order.
+    """
+    entries = list(manager.list_available_detailed(ctx, kind, layer_roots=layer_roots))
+    seen = {(e.artifact_id, e.layer) for e in entries}
+    first_org = layer_roots.get("org")
+    for org_root in org_chain:
+        if org_root == first_org:
+            continue
+        scanned = manager.list_available_detailed(ctx, kind, layer_roots={**layer_roots, "org": org_root})
+        for entry in scanned:
+            key = (entry.artifact_id, entry.layer)
+            if entry.layer == "org" and key not in seen:
+                seen.add(key)
+                entries.append(entry)
+    return entries
 
 
 def _render_available(entries: list[AvailableArtifact], activated: frozenset[str]) -> str:
@@ -195,6 +223,7 @@ def list_cmd(
 
         # Resolve org/project roots once when we need the layer-aware view (C-008).
         layer_roots = resolve_layer_roots(repo_root) if all_layers else None
+        org_chain = resolve_pack_chain(repo_root, strict=False) if all_layers else []
 
         table = Table(title="Charter Activation State", show_lines=True)
         table.add_column("Kind", style="bold cyan", no_wrap=True)
@@ -241,8 +270,8 @@ def list_cmd(
                     # ``Raises`` type, see its docstring) since it subclasses
                     # ``ValueError`` in the pinned pydantic version.
                     try:
-                        entries = manager.list_available_detailed(
-                            ctx, kind, layer_roots=layer_roots
+                        entries = _available_over_chain(
+                            manager, ctx, kind, layer_roots or {}, org_chain
                         )
                     except ValueError as exc:
                         _emit_error(console, json_output=json_output, message=str(exc))

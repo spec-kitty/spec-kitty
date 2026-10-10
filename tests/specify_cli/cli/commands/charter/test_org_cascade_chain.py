@@ -35,7 +35,6 @@ from click.testing import Result
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import charter_app
-from specify_cli.cli.commands.charter import activate as activate_mod
 from specify_cli.cli.commands.charter import _cascade_shared as cascade_shared_mod
 from charter.activation.layer_roots import resolve_layer_roots
 
@@ -386,13 +385,12 @@ class TestListAllLayersBackCompat:
         )
         assert result.exit_code == 0, result.output
 
-    def test_list_all_shows_pack_one_but_not_pack_two_unchanged(
-        self, project_root: Path
-    ) -> None:
-        """Pack 1's artifact is listed (pre-existing, single-org-root behaviour);
-        pack 2's is not -- proving ``list --all``'s own display is genuinely
-        UNCHANGED by this WP (widening its display to pack 2+ is explicitly
-        out of scope, FR-001 AC7), not merely untested.
+    @pytest.mark.regression  # issue #6006
+    def test_list_all_shows_every_pack_in_the_chain(self, project_root: Path) -> None:
+        """Pack 1's artifact AND pack 2's are listed under ``--all`` (#6006).
+
+        Supersedes the former "pack 2 hidden" pin: ``charter list --all`` now
+        reads the full org-pack chain. Pack 1 (positive control) stays listed.
         """
         _write_two_pack_chain(project_root)
 
@@ -404,7 +402,7 @@ class TestListAllLayersBackCompat:
         assert result.exit_code == 0, result.output
         squashed = "".join(result.output.split())
         assert "a-directive" in squashed
-        assert "c-directive" not in squashed
+        assert "c-directive" in squashed
 
 
 # ---------------------------------------------------------------------------
@@ -414,7 +412,7 @@ class TestListAllLayersBackCompat:
 
 class TestNoOrgPackRegression:
     """Built-in-only cascade behaviour is byte-for-byte unchanged (no org
-    packs configured at all -- ``resolve_org_root_chain`` returns ``[]``,
+    packs configured at all -- ``resolve_pack_chain`` returns ``[]``,
     identical to the pre-fix no-org-roots-threaded call)."""
 
     _CASCADE_SOURCE_KIND = "agent-profile"
@@ -678,95 +676,3 @@ class TestFragmentYamlEdgeCascades:
             "ships no root-level DRG graph" in rec.message
             for rec in caplog.records
         ), [rec.message for rec in caplog.records]
-
-
-# ---------------------------------------------------------------------------
-# R2-002 (pr-correctness.findings.yaml) — _activate_cascade_target must not
-# discard every failure but the last when no org-root candidate succeeds.
-# ---------------------------------------------------------------------------
-
-
-class _FakeManagerMultiFail:
-    """Stand-in for ``ActiveCharterManager`` whose ``.activate`` raises a
-    distinct, caller-supplied ``ValueError`` on each successive call --
-    one per org-root candidate ``_activate_cascade_target`` tries."""
-
-    def __init__(self, messages: list[str]) -> None:
-        self._messages = list(messages)
-        self.calls = 0
-
-    def activate(self, ctx_project, kind_token, config_id, *, cascade, layer_roots):
-        message = self._messages[self.calls]
-        self.calls += 1
-        raise ValueError(message)
-
-
-class _FakeManagerFailsPerRoot:
-    """Stand-in whose ``.activate`` raises an error naming the org root it was
-    handed (``layer_roots["org"]``), so a test can check that each
-    ``org root n/N`` label sits next to its own root's failure regardless of
-    the order the helper tries the candidates in."""
-
-    def __init__(self) -> None:
-        self.calls = 0
-
-    def activate(self, ctx_project, kind_token, config_id, *, cascade, layer_roots):
-        self.calls += 1
-        raise ValueError(f"Unknown directive ID {config_id!r} in {layer_roots['org']}")
-
-
-class TestActivateCascadeTargetFailureAggregation:
-    """When every candidate org root fails, the raised error must name every
-    candidate's failure reason, not just the last one -- previously
-    ``raise failures[-1]`` silently discarded every earlier candidate's
-    reason, which could point an operator diagnosing a multi-org-pack
-    "Unknown ID" report at the wrong root."""
-
-    def test_all_candidates_fail_aggregates_every_reason(self) -> None:
-        manager = _FakeManagerMultiFail(
-            ["Unknown directive ID 'x' in pack1", "structural issue in pack2"]
-        )
-        org_roots = [Path("/org1"), Path("/org2")]
-
-        with pytest.raises(ValueError) as excinfo:
-            activate_mod._activate_cascade_target(
-                manager, None, "directive", "x", None, org_roots
-            )
-
-        message = str(excinfo.value)
-        assert "Unknown directive ID 'x' in pack1" in message, message
-        assert "structural issue in pack2" in message, message
-        assert manager.calls == 2
-
-    def test_each_label_names_its_own_roots_failure(self) -> None:
-        """Candidates are tried last-declared-first, but each ``org root n/N``
-        label keeps its declaration position and sits next to that root's
-        own error -- the renumbering must not swap the attributions."""
-        manager = _FakeManagerFailsPerRoot()
-        org_roots = [Path("/org1"), Path("/org2")]
-
-        with pytest.raises(ValueError) as excinfo:
-            activate_mod._activate_cascade_target(
-                manager, None, "directive", "x", None, org_roots
-            )
-
-        message = str(excinfo.value)
-        assert "org root 1/2: Unknown directive ID 'x' in /org1" in message, message
-        assert "org root 2/2: Unknown directive ID 'x' in /org2" in message, message
-        assert manager.calls == 2
-
-    def test_single_candidate_failure_is_unchanged(self) -> None:
-        """No org roots configured (or effectively a single-candidate
-        chain): the raised exception is the sole candidate's own error,
-        byte-identical to the pre-fix behaviour -- aggregation only changes
-        the diagnostic once there are 2+ candidates (FR-001 AC4 no-org-pack
-        regression, preserved)."""
-        manager = _FakeManagerMultiFail(["Unknown directive ID 'x'"])
-
-        with pytest.raises(ValueError) as excinfo:
-            activate_mod._activate_cascade_target(
-                manager, None, "directive", "x", None, None
-            )
-
-        assert str(excinfo.value) == "Unknown directive ID 'x'"
-        assert manager.calls == 1

@@ -66,7 +66,7 @@ def test_org_pack_root_contributes_its_scope(tmp_path: Path, monkeypatch: pytest
     _write_artifact(org_root, "tactics", "gleam-thing", "[gleam]", kind="tactic")
     from charter.activation import language_vocabulary
 
-    monkeypatch.setattr(language_vocabulary, "resolve_existing_org_roots", lambda _repo_root: [org_root])
+    monkeypatch.setattr(language_vocabulary, "resolve_pack_chain", lambda _repo_root, *, strict: [org_root])
 
     assert "gleam" in _vocabulary(tmp_path)
 

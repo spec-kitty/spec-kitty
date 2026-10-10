@@ -10,7 +10,7 @@ used pack 2's.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
+from typing import cast
 
 import pytest
 import yaml
@@ -98,33 +98,52 @@ class TestActivateSeesFullOrgChain:
 
 
 class TestActivateValidatesAgainstWinningPack:
-    def test_colliding_id_is_validated_against_last_declared_pack(self, two_pack_project: Path) -> None:
-        # Direct and cascade targets share one helper; the pack an id is
-        # validated against must be the one that wins the chain (the last
-        # declared), not the first that happens to accept it. Today the
-        # result is the same either way (activation records only the id), so
-        # this guards the seam for future pack-specific validation such as
-        # cascade edges -- it is not a shape pin to retire.
-        from specify_cli.cli.commands.charter import activate as activate_mod
-
-        seen_org_roots: list[Path] = []
-
-        class _RecordingManager:
-            def activate(self, ctx_project, kind_token, config_id, *, cascade, layer_roots):
-                seen_org_roots.append(layer_roots["org"])
-                return object()
+    def test_chain_scan_is_last_declared_first(self, two_pack_project: Path) -> None:
+        # One widened availability scan replaces the per-pack retry loop; the
+        # pack an id is found in must be ordered last-declared first so the
+        # winning (last declared) pack leads, matching kind_vocabulary._org_scan_dirs.
+        from charter.activation.pack_manager import ActiveCharterManager
 
         alpha, beta = two_pack_project / "packs" / "alpha", two_pack_project / "packs" / "beta"
-        activate_mod._activate_cascade_target(
-            cast("Any", _RecordingManager()),
-            cast("Any", None),
-            "directive",
-            "shared_one",
-            None,
-            [alpha, beta],
-            cascade=True,
-        )
-        assert seen_org_roots == [beta]
+        dirs = ActiveCharterManager()._scan_layer_dirs("directive", layer_roots=None, org_root_chain=[alpha, beta])
+        org_dirs = [path for layer, path in dirs if layer == "org"]
+        assert org_dirs == [beta / "directives", alpha / "directives"]
+
+
+@pytest.mark.regression
+class TestRetryLoopRetired6006:
+    """#6006: ``_activate_cascade_target`` is replaced by one widened chain scan."""
+
+    def test_cascade_retry_helper_is_gone(self) -> None:
+        from specify_cli.cli.commands.charter import activate as activate_mod
+
+        assert not hasattr(activate_mod, "_activate_cascade_target")
+
+    def test_pack_two_only_artifact_listed_via_chain(self, two_pack_project: Path) -> None:
+        from charter.activation.invocation_context import ProjectContext
+        from charter.activation.pack_manager import ActiveCharterManager
+
+        alpha, beta = two_pack_project / "packs" / "alpha", two_pack_project / "packs" / "beta"
+        manager = ActiveCharterManager()
+        ctx = cast("ProjectContext", None)
+        chained = manager.list_available_detailed(ctx, "directive", org_root_chain=[alpha, beta])
+        ids = {entry.artifact_id for entry in chained}
+        assert "beta_only" in ids  # positive control: pack-2-only artifact
+        assert "shared_one" in ids  # non-vacuity: pack-1 artifact still resolves
+
+    def test_none_chain_is_single_slot_fallback(self, two_pack_project: Path) -> None:
+        from charter.activation.invocation_context import ProjectContext
+        from charter.activation.pack_manager import ActiveCharterManager
+
+        alpha = two_pack_project / "packs" / "alpha"
+        manager = ActiveCharterManager()
+        ctx = cast("ProjectContext", None)
+        slot = manager.list_available_detailed(ctx, "directive", layer_roots={"org": alpha})
+        assert slot == manager.list_available_detailed(ctx, "directive", layer_roots={"org": alpha}, org_root_chain=None)
+        assert slot == manager.list_available_detailed(ctx, "directive", layer_roots={"org": alpha}, org_root_chain=[])
+        ids = {entry.artifact_id for entry in slot}
+        assert "shared_one" in ids
+        assert "beta_only" not in ids  # single slot sees pack 1 only
 
 
 class TestActivateUnknownInEveryPack:
@@ -136,6 +155,5 @@ class TestActivateUnknownInEveryPack:
             ["activate", "--repo-root", str(two_pack_project), "--no-compile", "directive", "no_such_id"],
         )
         assert result.exit_code == 1, result.output
-        assert "org root 1/2" in result.output
-        assert "org root 2/2" in result.output
+        assert "Unknown directive ID" in result.output
         assert config_path.read_text(encoding="utf-8") == before

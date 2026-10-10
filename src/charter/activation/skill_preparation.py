@@ -312,7 +312,7 @@ def prepare_project_skill_activations(repo_root: Path, *, installed_pack_skills:
     from charter.activation.active_charter_service_builder import build_active_charter_service
     from charter.activation.drg_activation import load_org_drg
     from charter.activation.org_pack_discovery import read_org_skill_namespace
-    from charter.offering.drg.org_pack_config import resolve_existing_org_roots
+    from charter.activation.layer_roots import resolve_pack_chain
 
     established = in_force if in_force is not None else establish_in_force_skill_ids(repo_root, installed_pack_skills=installed_pack_skills)
     if established.is_empty:
@@ -321,7 +321,7 @@ def prepare_project_skill_activations(repo_root: Path, *, installed_pack_skills:
     source, load_problems = _load_skill_source(service)
     graph = load_validated_graph(
         repo_root,
-        org_roots=resolve_existing_org_roots(repo_root),
+        org_roots=resolve_pack_chain(repo_root, strict=False),
         org_fragments=load_org_drg(repo_root, strict=False),
     )
     return _prepare_skill_activations(

@@ -11,10 +11,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from charter.offering.drg.org_pack_config import resolve_existing_org_roots, resolve_org_roots
+from charter.offering.drg.org_pack_config import (
+    require_declared_org_roots,
+    resolve_existing_org_roots,
+    resolve_org_roots,
+)
 from kernel.charter_pack_paths import project_pack_root
 
-__all__ = ["resolve_layer_roots", "resolve_org_root_chain"]
+__all__ = ["resolve_layer_roots", "resolve_pack_chain"]
 
 
 def resolve_layer_roots(repo_root: Path) -> dict[str, Path]:
@@ -45,43 +49,21 @@ def resolve_layer_roots(repo_root: Path) -> dict[str, Path]:
     return roots
 
 
-def resolve_org_root_chain(repo_root: Path) -> list[Path]:
-    """Return the full, declaration-ordered chain of existing org charter pack roots.
+def resolve_pack_chain(repo_root: Path, *, strict: bool) -> list[Path]:
+    """Return the ordered org-pack chain for *repo_root*: the single chain authority.
 
-    WP02 (mission ``cascade-org-inert-01M07E9P``) T008 — the ID-mapping half of
-    the cascade-org-inert fix. ``resolve_layer_roots``'s ``roots["org"]`` key
-    deliberately stays single-``Path`` (pack #1 only, unchanged): it is a
-    load-bearing back-compat contract for
-    :meth:`charter.activation.pack_manager.ActiveCharterManager.list_available_detailed`
-    (``charter list --all-layers`` — verified by
-    ``test_org_cascade_chain.py::TestListAllLayersBackCompat``) and every other
-    consumer typed ``layer_roots: dict[str, Path] | None``
-    (``pack_manager._scan_layer_dirs`` / ``kind_vocabulary._layer_scan_dirs``
-    unconditionally do ``root / ...`` assuming each dict value is a single
-    ``Path``). Smuggling a ``list[Path]`` chain into that dict under a new key
-    would either break those call sites outright or, worse, silently resolve
-    to a directory that never exists (an NFR-002 "silent success" the DoD
-    forbids) rather than raising -- so the chain is exposed as a SEPARATE
-    function instead of a new dict key.
+    Declaration order (last-declared-wins for consumers). ``strict`` toggles the
+    posture over the same chain:
 
-    Callers that need the full chain for ID-mapping
-    (``_cascade_shared.py``'s ``drg_urn_to_config_id`` and
-    ``activate.py``/``deactivate.py``'s ``_source_urn``/``_active_urns``)
-    pass this list through
-    :func:`charter.activation.kind_vocabulary.resolve_artifact_urn` /
-    ``resolve_config_id``'s existing, independent ``org_roots: list[Path] |
-    None`` keyword -- ``kind_vocabulary._org_scan_dirs`` already walks the
-    FULL supplied chain, not just its first entry -- so a cascade-reported DRG
-    ID that only resolves through org pack 2..N now maps back to its
-    config-stem ID correctly, not just pack 1's.
+    * ``strict=False`` -- existing-filtered: a declared pack whose root is absent
+      on disk is dropped (equivalent to ``resolve_existing_org_roots``).
+    * ``strict=True`` -- fail-closed: the registry is read strictly and a
+      declared-but-unfetched pack raises ``ValueError`` naming the pack and the
+      ``spec-kitty charter fetch`` remedy (equivalent to
+      ``require_declared_org_roots``).
 
-    A thin, single-authority delegation to
-    :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots` (the same
-    primitive #3525 introduced for ``load_validated_graph``'s ``org_roots``
-    threading), kept here rather than imported separately by both
-    ``activate.py`` and ``deactivate.py`` so the two CLI commands share one
-    resolution -- matching this module's role as the layer-root resolution
-    seam for the charter pack layers.
+    Zero declared packs yields ``[]`` in either posture; it never raises.
     """
-    chain: list[Path] = resolve_existing_org_roots(repo_root)
-    return chain
+    if strict:
+        return list(require_declared_org_roots(repo_root))
+    return list(resolve_existing_org_roots(repo_root))

@@ -55,12 +55,16 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import cast
 
 from pydantic import ValidationError
 
+from kernel.charter_pack_paths import project_pack_path
 from charter.offering.missions.expected_artifact_manifest import ExpectedArtifactManifest
 from charter.offering.missions.repository import MissionTemplateRepository
+from charter.offering.missions.requirement_kinds import (
+    RequirementKindDeclaration,
+    default_requirement_kinds,
+)
 
 # NOTE: `charter.offering.missions.repository.MalformedManifestError` is this
 # module's sibling error (see the "Sibling-error model" docstring section
@@ -72,8 +76,10 @@ from charter.offering.missions.repository import MissionTemplateRepository
 
 __all__ = [
     "ManifestSchemaError",
+    "RequirementKindsSchemaError",
     "clear_cache",
     "load_manifest",
+    "load_requirement_kinds",
 ]
 
 logger = logging.getLogger(__name__)
@@ -171,23 +177,16 @@ def _offering_template_repository() -> MissionTemplateRepository:
 def _resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     """Return configured org Charter Pack roots that exist on disk for *repo_root*.
 
-    Delegates to the shared
-    :func:`charter.offering.drg.org_pack_config.resolve_existing_org_roots`
-    primitive (#3525 Fold A) rather than re-implementing the filter
-    comprehension -- the same primitive every other "does this org root
-    exist" consumer routes onto: a stale/never-fetched ``local_path`` config
+    Delegates to the single chain authority
+    :func:`charter.activation.layer_roots.resolve_pack_chain` in its LENIENT
+    posture (``strict=False``): a stale/never-fetched ``local_path`` config
     entry degrades to "no org contribution" for this call rather than
-    raising.
+    raising. ``load_manifest``'s fail-closed concerns the *file*, not the
+    pack, so it deliberately stays lenient (do NOT make this strict).
     """
-    from charter.offering.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415
+    from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415
 
-    # `cast`, not a suppression: this module is checked under
-    # `[[tool.mypy.overrides]] module = ["charter.*"] follow_imports = "skip"`
-    # (pyproject.toml), so the lazily-imported `resolve_existing_org_roots`
-    # resolves to `Any` regardless of its real (already `list[Path]`)
-    # signature -- the same pre-existing gap affects the identical pattern in
-    # `charter.activation.active_charter_service_builder._self_resolve_existing_org_roots`.
-    return cast("list[Path]", resolve_existing_org_roots(repo_root))
+    return resolve_pack_chain(repo_root, strict=False)
 
 
 def load_manifest(mission_type: str, repo_root: Path | None = None) -> ExpectedArtifactManifest | None:
@@ -333,3 +332,81 @@ def clear_cache() -> None:
     hold a reference to either name observe the same, single cache.
     """
     _cache.clear()
+    _kinds_cache.clear()
+
+
+class RequirementKindsSchemaError(Exception):
+    """A *found* ``requirement-kinds.yaml`` failed schema validation.
+
+    Same shape as :class:`ManifestSchemaError` (not a ``ValidationError``
+    subclass; the pydantic error is chained via ``__cause__``).
+    """
+
+    def __init__(self, mission_type: str, origin: str) -> None:
+        self.mission_type = mission_type
+        self.origin = origin
+        super().__init__(mission_type, origin)
+
+    def __str__(self) -> str:
+        underlying = self.__cause__
+        detail = str(underlying) if underlying is not None else "unknown validation failure"
+        return f"requirement-kinds.yaml schema-invalid for mission type {self.mission_type!r} ({self.origin}): {detail}"
+
+
+#: Cache key ``(mission_type, repo_root, chain roots)``. ``repo_root`` is part of
+#: the key (unlike ``_cache``) because this loader has a project tier: two
+#: projects with the same (e.g. empty) chain but different project files must
+#: not share an entry. Errors are never cached.
+_kinds_cache: dict[tuple[str, str, tuple[str, ...]], RequirementKindDeclaration] = {}
+
+
+def load_requirement_kinds(mission_type: str, repo_root: Path) -> RequirementKindDeclaration:
+    """Resolve the requirement-kind set for *mission_type* (#5956 loader seam).
+
+    Tier walk, whole-file override (never field-merged): PROJECT
+    (``<project pack root>/missions/<type>/requirement-kinds.yaml``, i.e.
+    ``.kittify/charter-packs/...`` via :mod:`kernel.charter_pack_paths`, wins) ->
+    ORG chain (last matching file wins) -> built-in default constant.
+    Absence at every tier returns the default (not a refusal).
+
+    Two DELIBERATE divergences from :func:`load_manifest` -- do not "fix" them back:
+
+    * Divergence A: ``load_manifest`` has no project tier; this loader adds one
+      and the project file wins over org and built-in.
+    * Divergence B: ``load_manifest`` resolves its org chain leniently; this
+      loader uses ``resolve_pack_chain(strict=True)`` so a declared-but-missing
+      pack raises ``ValueError`` (checked even when a project file would win).
+
+    Raises:
+        ValueError: a declared org pack is missing on disk.
+        MalformedManifestError: a present file is unreadable / not a mapping.
+        RequirementKindsSchemaError: a present file fails schema validation.
+    """
+    from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415
+    from charter.activation.org_requirement_kinds import (  # noqa: PLC0415
+        REQUIREMENT_KINDS_FILENAME,
+        read_requirement_kinds_file,
+        resolve_org_requirement_kinds,
+    )
+
+    chain = resolve_pack_chain(repo_root, strict=True)  # Divergence B
+    cache_key = (mission_type, str(repo_root), tuple(str(root) for root in chain))
+    cached = _kinds_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    project_path = project_pack_path(repo_root, "missions", mission_type, REQUIREMENT_KINDS_FILENAME)
+    parsed = read_requirement_kinds_file(project_path)  # Divergence A: project wins
+    origin = str(project_path)
+    if parsed is None:
+        parsed = resolve_org_requirement_kinds(chain, mission_type)
+        origin = f"org-tier requirement-kinds.yaml for mission type {mission_type!r} (checked org roots: {', '.join(str(root) for root in chain)})"
+    if parsed is None:
+        declaration = default_requirement_kinds(mission_type)
+    else:
+        try:
+            declaration = RequirementKindDeclaration.model_validate(parsed)
+        except ValidationError as exc:
+            raise RequirementKindsSchemaError(mission_type, origin) from exc
+    _kinds_cache[cache_key] = declaration
+    return declaration
