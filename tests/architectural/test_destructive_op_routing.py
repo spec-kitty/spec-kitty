@@ -302,6 +302,20 @@ _ALLOWLIST: dict[CensusKey, str] = {
         op_ordinal=0,
     ): ("the chokepoint's OWN inline implementation (_remove_worktree_force, called only from guarded_worktree_remove) -- this IS the guard, not a bypass of it."),
     CensusKey(
+        rel="src/specify_cli/git/destructive_guard.py",
+        qualname="guarded_reset_hard",
+        token_line="_git_ok ( worktree , [ , , target ] , env )",
+        op="reset_hard",
+        op_ordinal=0,
+    ): ("the guard's OWN implementation (dirty-scans first) -- this IS the guard (#5965)."),
+    CensusKey(
+        rel="src/specify_cli/git/destructive_guard.py",
+        qualname="guarded_merge_abort",
+        token_line="_git_ok ( worktree , [ , ] , env )",
+        op="merge_abort",
+        op_ordinal=0,
+    ): ("the guard's OWN implementation (dirty-scans first) -- this IS the guard (#5965)."),
+    CensusKey(
         rel="src/specify_cli/lanes/consolidation.py",
         qualname="preview_mission_target_integration",
         token_line="[ , , , str ( tmp_path ) , ] ,",

@@ -49,6 +49,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Protocol
 
 # Downward-only imports into the zero-dependency kernel root. ``ref_advance`` is
 # git plumbing and must NOT import ``specify_cli`` (C-003, enforced by the
@@ -222,6 +223,65 @@ class _WorktreeEntry:
     lines: list[str] = field(default_factory=list)
 
 
+class ResidueClassifier(Protocol):
+    """What a destructive git operation needs to know to decide disposability (#5965 / #5966).
+
+    Structural so this module stays git plumbing (zero ``specify_cli`` imports,
+    C-003): the concrete implementation is
+    :class:`specify_cli.coordination.coherence.ResidueContext`. A caller passes
+    CONTEXT (which checkout, which Mission, which stored topology) instead of a
+    context-free predicate, so the wrong predicate cannot be written.
+    """
+
+    def is_disposable(self, path: str) -> bool:
+        """True when ``path`` (repo-relative) is regenerable residue a destroy may discard."""
+        ...
+
+    def for_checkout(self, repo_root: Path, worktree: Path) -> ResidueClassifier:
+        """The classifier for ``worktree`` itself (its role derives from where it lives)."""
+        ...
+
+
+def resolve_residue_predicate(
+    context: ResidueClassifier | None,
+    is_residue: Callable[[str], bool] | None,
+    *,
+    require_one: bool = False,
+    repo_root: Path | None = None,
+    worktree: Path | None = None,
+) -> Callable[[str], bool] | None:
+    """Turn the ``context`` / legacy ``is_residue`` pair into one predicate.
+
+    Passing both is a :class:`TypeError`. Passing neither is a :class:`TypeError`
+    when ``require_one`` (the guard, which never defaults to a destructive
+    answer), and otherwise the legacy "no exemption" ``None`` (strictest).
+    When ``repo_root`` and ``worktree`` are given, the context is re-targeted at
+    that checkout so each checkout is judged by its OWN role.
+    """
+    if context is not None and is_residue is not None:
+        raise TypeError("pass exactly one of `context` and `is_residue`, not both")
+    if context is None:
+        if is_residue is None and require_one:
+            raise TypeError("pass exactly one of `context` and `is_residue`")
+        return is_residue
+    if repo_root is not None and worktree is not None:
+        context = context.for_checkout(repo_root, worktree)
+    return context.is_disposable
+
+
+MAX_LISTED_ENTRIES = 20
+"""Refusal messages list at most this many entries, then a count (NFR-002)."""
+
+
+def format_entry_lines(entries: list[str], *, indent: str = "    ") -> str:
+    """Render ``entries`` one per line, truncated at :data:`MAX_LISTED_ENTRIES` plus a count."""
+    shown = [f"{indent}{entry}" for entry in entries[:MAX_LISTED_ENTRIES]]
+    hidden = len(entries) - MAX_LISTED_ENTRIES
+    if hidden > 0:
+        shown.append(f"{indent}... and {hidden} more")
+    return "\n".join(shown)
+
+
 class RefAdvanceDirtyWorktreeError(RuntimeError):
     """A worktree with the advanced branch checked out holds local state.
 
@@ -246,7 +306,7 @@ class RefAdvanceDirtyWorktreeError(RuntimeError):
         self.old_sha = old_sha
         self.new_sha = new_sha
         self.dirty_entries = dirty_entries
-        entries = "\n".join(f"    {entry}" for entry in dirty_entries)
+        entries = format_entry_lines(dirty_entries)
         super().__init__(
             f"Refusing to advance branch {branch!r} "
             f"({old_sha[:12]} -> {new_sha[:12]}): the worktree at "
@@ -602,6 +662,7 @@ def _checkouts_ready_for(
     *,
     old_sha: str,
     accept_at_target: bool = False,
+    context: ResidueClassifier | None = None,
 ) -> list[Path]:
     """List worktrees with ``branch`` checked out, refusing if any is dirty.
 
@@ -615,6 +676,7 @@ def _checkouts_ready_for(
     tracked verdicts are differences against the moved HEAD, not local work, so
     they are skipped; untracked/ignored obstructions still refuse.
     """
+    resolve_residue_predicate(context, is_residue)  # fail fast on a both-given call
     checkouts = worktrees_with_branch_checked_out(repo_root, branch, env=env)
     target_paths = _target_tree_paths(repo_root, new_sha, env)
     for worktree in checkouts:
@@ -623,7 +685,7 @@ def _checkouts_ready_for(
             env,
             new_sha=new_sha,
             target_paths=target_paths,
-            is_residue=is_residue,
+            is_residue=resolve_residue_predicate(context, is_residue, repo_root=repo_root, worktree=worktree),
         )
         if accept_at_target and verdicts and _checkout_content_equals(worktree, new_sha, env):
             verdicts = [verdict for verdict in verdicts if verdict[0] is not _DirtyReason.TRACKED]
@@ -670,6 +732,7 @@ def advance_branch_ref(
     expected_old_sha: str | None = None,
     env: dict[str, str] | None = None,
     is_residue: Callable[[str], bool] | None = None,
+    context: ResidueClassifier | None = None,
 ) -> None:
     """Advance ``refs/heads/<branch>`` to ``new_sha`` and resync checkouts.
 
@@ -710,6 +773,10 @@ def advance_branch_ref(
             (this module is git plumbing and does not import that classifier
             itself -- the caller injects it, keeping the dependency direction
             one-way).
+        context: Preferred over ``is_residue`` (never both, :class:`TypeError`):
+            a :class:`ResidueClassifier` (``ResidueContext``). Every checked-out
+            worktree is judged by its OWN role, so a coordination worktree's
+            review cycle is never discarded as residue (#5965).
 
     Raises:
         RefAdvanceDirtyWorktreeError: a worktree with ``branch`` checked out
@@ -721,6 +788,7 @@ def advance_branch_ref(
         RefResyncError: the ``RefAdvanceError`` subclass raised when the ref
             WAS advanced but a checked-out worktree could not be resynced.
     """
+    resolve_residue_predicate(context, is_residue)  # fail fast on a both-given call
     ref = f"refs/heads/{branch}"
 
     old_sha_result = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", ref], env=env)
@@ -741,7 +809,7 @@ def advance_branch_ref(
         if ff_check.returncode != 0:
             raise RefAdvanceError(f"Could not verify fast-forward ancestry for {branch}: {ff_check.stderr.strip() or ff_check.stdout.strip()}")
 
-    checkouts = _checkouts_ready_for(repo_root, branch, new_sha, env, is_residue, old_sha=old_sha)
+    checkouts = _checkouts_ready_for(repo_root, branch, new_sha, env, is_residue, old_sha=old_sha, context=context)
 
     expected_old = _cas_expected_old(expected_old_sha, old_sha)
     _report_advance_intent(branch, expected_old, new_sha)
@@ -773,6 +841,7 @@ def restore_branch_ref(
     resync_checkouts: bool = False,
     is_residue: Callable[[str], bool] | None = None,
     env: dict[str, str] | None = None,
+    context: ResidueClassifier | None = None,
 ) -> None:
     """Restore a branch ref with compare-and-swap semantics after failure.
 
@@ -797,6 +866,7 @@ def restore_branch_ref(
 
     Never reports an advance intent: a restore is not an advance.
     """
+    resolve_residue_predicate(context, is_residue)  # fail fast on a both-given call
     ref = f"refs/heads/{branch}"
     checkouts: list[Path] = []
     if resync_checkouts:
@@ -808,6 +878,7 @@ def restore_branch_ref(
             is_residue,
             old_sha=expected_current_sha,
             accept_at_target=True,
+            context=context,
         )
     # A checkout whose index and worktree already equal the restore target needs no
     # reset: its HEAD is a symref to the branch, so the CAS alone makes it consistent
@@ -832,6 +903,7 @@ def resync_checkouts_to_tip(
     *,
     is_residue: Callable[[str], bool] | None = None,
     env: dict[str, str] | None = None,
+    context: ResidueClassifier | None = None,
 ) -> list[Path]:
     """Bring every checkout of ``branch`` back to the branch's CURRENT tip; the ref never moves (#5638).
 
@@ -849,11 +921,12 @@ def resync_checkouts_to_tip(
         RefAdvanceError: the branch or its checkouts could not be read.
         RefResyncError: a reset failed.
     """
+    resolve_residue_predicate(context, is_residue)  # fail fast on a both-given call
     tip_result = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], env=env)
     if tip_result.returncode != 0:
         raise RefAdvanceError(f"Could not resolve {branch!r} to resync its checkouts: {tip_result.stderr.strip() or 'no such branch'}")
     tip = tip_result.stdout.strip()
-    checkouts = _checkouts_ready_for(repo_root, branch, tip, env, is_residue, old_sha=tip)
+    checkouts = _checkouts_ready_for(repo_root, branch, tip, env, is_residue, old_sha=tip, context=context)
     needs_reset = [worktree for worktree in checkouts if not _checkout_content_equals(worktree, tip, env)]
     _resync_checkouts(needs_reset, branch, env, context=f"Kept {branch} at {tip[:12]}")
     return needs_reset
