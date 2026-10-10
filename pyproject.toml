@@ -2484,6 +2484,13 @@ module = [
     "specify_cli.consolidation.mission_number",     # is_assigned_mission_number() -> bool (check-prerequisites)
     "charter.packs",                                # facade re-exporting RetiredPackFieldError (charter generate)
     "charter.offering.packs.retired_fields",        # RetiredPackFieldError.code (charter generate)
+    "specify_cli.cli.commands.charter._charter_write_root",# resolve_charter_write_root() -> Path (charter activate)
+    "charter.activation.context_renderers.template_include",# _render_*_include() -> str (charter/activation/context.py)
+    "charter.activation.org_pack_discovery",        # _missing_pack_diagnostic() -> str (charter/activation/context.py)
+    "charter.offering.missions",                    # facade re-exporting MissionTemplateRepository (template_include)
+    "charter.offering.missions.repository",         # MissionTemplateRepository.default_missions_root() -> Path (template_include)
+    "charter.offering.pack_paths",                  # built_in_missions_root() -> Path (missions repository)
+    "charter.offering.artifact_kinds",              # ArtifactKind enum facts (pack_paths)
     "specify_cli.decisions.index_fold",             # is_allowed_terminal_reopen() -> bool (decisions/service.py, #6002)
     "specify_cli.decisions.models",                 # decision models, imported by index_fold
 ]
