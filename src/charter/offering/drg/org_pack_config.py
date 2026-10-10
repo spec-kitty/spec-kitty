@@ -519,7 +519,7 @@ def require_declared_org_roots(repo_root: Path) -> list[Path]:
     return [root for _, root in named_roots]
 
 
-def resolve_existing_org_roots(repo_root: Path) -> list[Path]:
+def resolve_existing_org_roots(repo_root: Path, *, quiet: bool = False) -> list[Path]:
     """Return configured org doctrine local roots that exist on disk, in declaration order.
 
     Pure existence filter over :func:`resolve_org_roots` — the single primitive
@@ -536,8 +536,11 @@ def resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     this primitive keeps their behaviour byte-identical.
     :func:`resolve_org_dirs` is the subdir-joining sibling that layers the
     per-dropped-root WARNING (NFR-002) on top of the same existence check.
+
+    ``quiet`` is forwarded to :func:`resolve_org_roots` (best-effort scans
+    demote the unparseable-config warning to debug); the default is unchanged.
     """
-    return [root for root in resolve_org_roots(repo_root) if root.exists()]
+    return [root for root in resolve_org_roots(repo_root, quiet=quiet) if root.exists()]
 
 
 def resolve_org_dirs(repo_root: Path, subdir: str) -> list[Path]:
