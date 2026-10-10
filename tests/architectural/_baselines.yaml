@@ -156,7 +156,7 @@ test_no_dead_modules:
   # dossier.drift_detector, migration.envelope_seam) were each adjudicated
   # PRUNE and deleted outright -- none had a viable low-risk wiring target
   # after the sync transport's removal (issue #5). TODO(triage) notes burned.
-  category_7_grandfathered_orphans: 5  # justification: 8->5 after the latest main merge wired discovery_recursion, org_governance, and project_scan; the remaining orphan disposition is tracked by #925.
+  category_7_grandfathered_orphans: 2  # justification: 5 -> 2 (Cat-7 burn-down, #6009): charter.parser + charter.activation.template_resolver PRUNED as genuine orphans in one lockstep commit. The baseline was already drifted (recorded 5 vs live set 4; shrink-only ratchet, WARN-only) — this locks the real count. Survivors: specify_cli.auth.transport, specify_cli.policy.audit (out of scope). The prior stale #925 ref resolved to an unrelated closed issue post-org-move; #6009 is the canonical owner.
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
