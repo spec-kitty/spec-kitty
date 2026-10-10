@@ -1,13 +1,13 @@
 Usage: tasks map-requirements [OPTIONS]
 Register requirement-to-WP mappings with immediate validation.
 Options
---wp TEXT WP ID (e.g., WP04)
---refs TEXT Comma-separated requirement refs (e.g., FR-001,FR-002)
---batch TEXT JSON batch mapping (e.g., '{"WP01":["FR-001"],"WP02":["FR-003"]}')
+--wp <str> WP ID (e.g., WP04)
+--refs <str> Comma-separated requirement refs (e.g., FR-001,FR-002)
+--batch <str> JSON batch mapping (e.g., '{"WP01":["FR-001"],"WP02":["FR-003"]}')
 --replace Replace existing refs instead of merging (default: merge/union)
---tracker-ref TEXT External tracker reference (e.g., '#1298' or 'JIRA-123'). Repeatable; requires --wp. Persists to the WP frontmatter as tracker_refs.
---mission TEXT Mission slug
+--tracker-ref <str> External tracker reference (e.g., '#1298' or 'JIRA-123'). Repeatable; requires --wp. Persists to the WP frontmatter as tracker_refs.
+--mission <str> Mission slug
 --json Output JSON format
 --auto-commit --no-auto-commit Automatically commit WP file changes (default: from project config)
---owned-checkout PATH Run against an owned checkout: a linked checkout that owns this mission. Refuses the repository root checkout, lane worktrees and coordination worktrees.
+--owned-checkout <path> Run against an owned checkout: a linked checkout that owns this mission. Refuses the repository root checkout, lane worktrees and coordination worktrees.
 --help -h Show this message and exit.

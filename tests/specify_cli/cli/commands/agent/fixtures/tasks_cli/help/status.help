@@ -10,8 +10,8 @@ spec-kitty agent tasks status --mission 012-documentation-mission
 spec-kitty agent tasks status --json
 spec-kitty agent tasks status --stale-threshold 15
 Options
---mission TEXT Mission slug (optional when exactly one active mission exists)
+--mission <str> Mission slug (optional when exactly one active mission exists)
 --json Output as JSON
---stale-threshold INTEGER Minutes of inactivity before a WP is considered stale [default: 10]
---owned-checkout PATH Run against an owned checkout: a linked checkout that owns this mission. Refuses the repository root checkout, lane worktrees and coordination worktrees.
+--stale-threshold <int> Minutes of inactivity before a WP is considered stale [default: 10]
+--owned-checkout <path> Run against an owned checkout: a linked checkout that owns this mission. Refuses the repository root checkout, lane worktrees and coordination worktrees.
 --help -h Show this message and exit.

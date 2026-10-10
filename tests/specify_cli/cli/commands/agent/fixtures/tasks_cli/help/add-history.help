@@ -1,13 +1,13 @@
-Usage: tasks add-history [OPTIONS] TASK_ID
+Usage: tasks add-history [OPTIONS] {task_id}
 Record a history note in the WP status event log.
 Examples:
 spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
 Arguments
-* task_id TEXT Task ID (e.g., WP01) [required]
+* task_id <str> Task ID (e.g., WP01) [required]
 Options
-* --note TEXT History note [required]
---mission TEXT Mission slug
---agent TEXT Agent name
---shell-pid TEXT Shell PID
+* --note <str> History note [required]
+--mission <str> Mission slug
+--agent <str> Agent name
+--shell-pid <str> Shell PID
 --json Output JSON format
 --help -h Show this message and exit.

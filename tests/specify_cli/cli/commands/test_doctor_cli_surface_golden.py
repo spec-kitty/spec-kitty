@@ -181,8 +181,8 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "spec-kitty doctor tool-surfaces --kind command-skill --json",
         "spec-kitty doctor tool-surfaces --tool codex --fix",
         "Options",
-        "--kind TEXT Filter to surface kind(s), e.g. command-skill",
-        "--tool TEXT Filter to a single configured tool key",
+        "--kind <str> Filter to surface kind(s), e.g. command-skill",
+        "--tool <str> Filter to a single configured tool key",
         "--fix Repair missing or stale surfaces",
         "--json Machine-readable JSON output",
         "--help -h Show this message and exit.",
@@ -233,8 +233,8 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "spec-kitty doctor identity --fail-on legacy,orphan",
         "Options",
         "--json Emit structured JSON output (suitable for CI)",
-        "--mission TEXT Scope report to a single mission slug",
-        "--fail-on TEXT Exit non-zero if any mission is in the given state(s). Comma-separated list of: assigned, pending, legacy, orphan.",
+        "--mission <str> Scope report to a single mission slug",
+        "--fail-on <str> Exit non-zero if any mission is in the given state(s). Comma-separated list of: assigned, pending, legacy, orphan.",
         "--help -h Show this message and exit.",
     ],
     "topology": [
@@ -250,7 +250,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "spec-kitty doctor topology --mission 083-foo",
         "Options",
         "--json Emit structured JSON output (suitable for CI)",
-        "--mission TEXT Scope report to a single mission slug",
+        "--mission <str> Scope report to a single mission slug",
         "--help -h Show this message and exit.",
     ],
     "mission-type": [
@@ -271,8 +271,8 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "spec-kitty doctor mission-type --fail-on unknown,activated-unresolvable",
         "Options",
         "--json Emit structured JSON output (suitable for CI)",
-        "--mission TEXT Scope report to a single mission slug",
-        "--fail-on TEXT Exit non-zero if any mission is in the given state(s). "
+        "--mission <str> Scope report to a single mission slug",
+        "--fail-on <str> Exit non-zero if any mission is in the given state(s). "
         "Comma-separated list of: resolved, activated-unresolvable, unknown, "
         "typeless, legacy-key-only, error.",
         "--help -h Show this message and exit.",
@@ -354,7 +354,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "Options",
         "--json Machine-readable JSON output",
         "--close-stale Close open Ops older than --threshold as abandoned (closed_by=doctor_sweep)",
-        "--threshold FLOAT Staleness threshold in hours (default 24; 0 closes all). Requires --close-stale.",
+        "--threshold <float> Staleness threshold in hours (default 24; 0 closes all). Requires --close-stale.",
         "--help -h Show this message and exit.",
     ],
     "mission-state": [
@@ -365,11 +365,11 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "--fix Repair mission-state artifacts in place and write a migration manifest",
         "--teamspace-dry-run Synthesize canonical TeamSpace envelopes from local state and validate them",
         "--json Emit JSON report to stdout",
-        "--mission TEXT Scope to a single mission handle",
-        "--fail-on TEXT Exit 1 if findings meet a gate (error|warning|info|teamspace-blocker)",
-        "--fixture-dir PATH Override scan root (for testing)",
+        "--mission <str> Scope to a single mission handle",
+        "--fail-on <str> Exit 1 if findings meet a gate (error|warning|info|teamspace-blocker)",
+        "--fixture-dir <path> Override scan root (for testing)",
         "--include-fixtures Audit the bundled mission-state survey fixtures",
-        "--manifest-path PATH Path for --fix migration manifest",
+        "--manifest-path <path> Path for --fix migration manifest",
         "--allow-dirty Allow --fix when relevant git paths are already dirty",
         "--help -h Show this message and exit.",
     ],
@@ -445,7 +445,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "--check-staleness Also report coord-branch-vs-target-branch staleness "
         "(Gap-1, FR-008): non-blocking, whether the coord branch is behind or has "
         "diverged from its mission's target_branch.",
-        "--mission TEXT Scope the checks to a single mission handle (mission_id / mid8 / slug), resolved via the same resolver as `doctor mission-state`.",
+        "--mission <str> Scope the checks to a single mission handle (mission_id / mid8 / slug), resolved via the same resolver as `doctor mission-state`.",
         "--help -h Show this message and exit.",
     ],
     "cutover": [
@@ -480,7 +480,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "spec-kitty doctor review-cycle-reconcile --mission my-mission-01ABCD",
         "spec-kitty doctor review-cycle-reconcile --json",
         "Options",
-        "--mission TEXT Scope to a single mission (mission_id / mid8 / slug)",
+        "--mission <str> Scope to a single mission (mission_id / mid8 / slug)",
         "--json Machine-readable JSON output",
         "--help -h Show this message and exit.",
     ],
@@ -574,7 +574,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         "spec-kitty doctor decisions --mission my-mission-01ABCD --repair",
         "spec-kitty doctor decisions --mission my-mission-01ABCD --json",
         "Options",
-        "* --mission TEXT Mission handle (mission_id / mid8 / slug) [required]",
+        "* --mission <str> Mission handle (mission_id / mid8 / slug) [required]",
         "--json Machine-readable JSON output",
         "--repair Rebuild decisions/index.json from the event log (run offline; not against live decision traffic)",
         "--help -h Show this message and exit.",

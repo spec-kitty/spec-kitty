@@ -1,4 +1,4 @@
-Usage: tasks list-dependents [OPTIONS] WP_ID
+Usage: tasks list-dependents [OPTIONS] {wp_id}
 Find all WPs that depend on a given WP (downstream dependents).
 This answers "who depends on me?" - useful when reviewing a WP to understand
 the impact of requested changes on downstream work packages.
@@ -7,8 +7,8 @@ Examples:
 spec-kitty agent tasks list-dependents WP13
 spec-kitty agent tasks list-dependents WP01 --mission 001-my-feature --json
 Arguments
-* wp_id TEXT Work package ID (e.g., WP01) [required]
+* wp_id <str> Work package ID (e.g., WP01) [required]
 Options
---mission TEXT Mission slug
+--mission <str> Mission slug
 --json Output JSON format
 --help -h Show this message and exit.

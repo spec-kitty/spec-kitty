@@ -135,7 +135,7 @@
       "move-task"
     ],
     "exit_code": 2,
-    "stderr_contains": "Missing argument 'TASK_ID'"
+    "stderr_contains": "Missing argument 'task_id'"
   },
   "validation_error_mark_status": {
     "argv": [

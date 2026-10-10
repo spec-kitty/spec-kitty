@@ -8,6 +8,6 @@ finalize / lane-compute path (C-005).
 Examples:
 spec-kitty agent tasks check-terminability --mission my-mission --json
 Options
---mission TEXT Mission slug
+--mission <str> Mission slug
 --json Output JSON format
 --help -h Show this message and exit.

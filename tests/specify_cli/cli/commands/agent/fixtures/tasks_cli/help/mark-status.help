@@ -1,4 +1,4 @@
-Usage: tasks mark-status [OPTIONS] TASK_IDS...
+Usage: tasks mark-status [OPTIONS] {task_ids}...
 Update task checkbox status in tasks.md for one or more tasks.
 Accepts MULTIPLE task IDs separated by spaces. All tasks are updated
 in a single operation with one commit.
@@ -12,11 +12,11 @@ spec-kitty agent tasks mark-status T040 T041 T042 T043 T044 T045 --status done -
 # With JSON output:
 spec-kitty agent tasks mark-status T001 T002 --status done --json
 Arguments
-* task_ids TASK_IDS... Task ID(s) - space-separated (e.g., T001 T002 T003) [required]
+* task_ids <str> Task ID(s) - space-separated (e.g., T001 T002 T003) [required]
 Options
-* --status TEXT Status: done/pending [required]
---mission TEXT Mission slug
---owned-checkout PATH Explicit single-branch checkout root.
+* --status <str> Status: done/pending [required]
+--mission <str> Mission slug
+--owned-checkout <path> Explicit single-branch checkout root.
 --auto-commit --no-auto-commit Automatically commit tasks.md changes to target branch (default: from project config)
 --json Output JSON format
 --help -h Show this message and exit.
