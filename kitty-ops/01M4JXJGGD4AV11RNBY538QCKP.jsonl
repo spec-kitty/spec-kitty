@@ -1,0 +1,3 @@
+{"event": "started", "invocation_id": "01M4JXJGGD4AV11RNBY538QCKP", "profile_id": "python-pedro", "action": "generate", "request_text": "fix #5739: remove dead _INSCOPE_FILES mirror in test_feature_alias_scope.py", "actor": "claude", "mode_of_work": "task_execution", "governance_context_hash": "c39feeb10664cdad", "governance_context_available": true, "started_at": "2026-10-10T12:46:03.606325+00:00", "model_id": "claude-sonnet-5"}
+{"event": "completed", "invocation_id": "01M4JXJGGD4AV11RNBY538QCKP", "completed_at": "2026-10-10T12:53:24.439287+00:00", "outcome": "done", "closed_by": "agent"}
+{"event": "commit_link", "invocation_id": "01M4JXJGGD4AV11RNBY538QCKP", "at": "2026-10-10T12:53:24.439606+00:00", "sha": "cec4fb25"}
