@@ -24,7 +24,7 @@ from tests._perf_helpers import cli_argv
 
 pytestmark = [pytest.mark.fast]
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 _HELP_MODULE = "specify_cli.__init__"
 
 #: Modules that only the ``next`` command bodies need.
