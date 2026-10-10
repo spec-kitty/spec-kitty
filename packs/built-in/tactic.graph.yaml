@@ -930,6 +930,10 @@ edges:
   target: toolguide:typescript-mutation-tools
   relation: suggests
   when: Use when applying the mutation testing workflow to TypeScript projects.
+- source: tactic:occurrence-classification-workflow
+  target: directive:DIRECTIVE_035
+  relation: suggests
+  when: Classifying each matching occurrence by semantic context before a bulk edit, so every change is deliberate rather than a blind sweep.
 - source: tactic:op-or-mission-selection
   target: procedure:adversarial-squad-deployment
   relation: suggests

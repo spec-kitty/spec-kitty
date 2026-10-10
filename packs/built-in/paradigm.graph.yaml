@@ -126,6 +126,9 @@ edges:
 - source: paradigm:deep-module-design
   target: directive:DIRECTIVE_030
   relation: requires
+- source: paradigm:deep-module-design
+  target: directive:DIRECTIVE_039
+  relation: requires
 - source: paradigm:domain-driven-design
   target: anti_pattern:anemic-domain-model
   relation: rejects
