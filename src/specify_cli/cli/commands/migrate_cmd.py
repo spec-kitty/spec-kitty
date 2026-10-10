@@ -55,6 +55,7 @@ import click
 import typer
 from rich.console import Console
 from specify_cli.cli.console import console
+from specify_cli.cli.helpers import parameter_source_name
 from specify_cli.cli.console import err_console
 
 from kernel.paths import is_windows
@@ -175,8 +176,7 @@ def _usage_error_class(ctx: Any) -> Callable[..., Exception]:
 
 def _given_on_command_line(ctx: Any, name: str) -> bool:
     """True when ``name`` was typed on the command line (click-era agnostic)."""
-    source = ctx.get_parameter_source(name)
-    return getattr(source, "name", None) == _COMMANDLINE_SOURCE
+    return parameter_source_name(ctx, name) == _COMMANDLINE_SOURCE
 
 
 def _flag_display(opts: list[str]) -> str:

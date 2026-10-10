@@ -31,6 +31,7 @@ import typer
 from rich.console import Console
 from rich.markup import escape
 from specify_cli.cli.console import console
+from specify_cli.cli.helpers import parameter_source_name
 
 from charter.activation.cascade import (
     CascadeScope,
@@ -826,7 +827,7 @@ _PRESET_ONLY_OPTIONS: tuple[tuple[str, str], ...] = (("pack", "--pack"), ("force
 #: Compared by ``.name``, never against ``click.core.ParameterSource``: typer
 #: 0.26+ vendors its own click (``typer._click``) whose enum shares no identity
 #: with the real ``click`` package's, so an identity check flags every option
-#: as given (the same trap ``migrate_cmd._COMMANDLINE_SOURCE`` avoids, #4964).
+#: as given (see ``parameter_source_name``, #4964).
 _DEFAULT_SOURCE = "DEFAULT"
 
 
@@ -843,7 +844,7 @@ def _check_preset_flags(ctx: typer.Context, *, preset: str | None, positional: b
         if cascade is not None:
             ctx.fail("--cascade cannot be combined with --preset (presets do not cascade).")
         return
-    given = [flag for name, flag in _PRESET_ONLY_OPTIONS if getattr(ctx.get_parameter_source(name), "name", None) != _DEFAULT_SOURCE]
+    given = [flag for name, flag in _PRESET_ONLY_OPTIONS if parameter_source_name(ctx, name) != _DEFAULT_SOURCE]
     if given:
         ctx.fail(f"{', '.join(given)} only {'applies' if len(given) == 1 else 'apply'} with --preset.")
 
