@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
 
 if TYPE_CHECKING:
+    from mission_runtime import ActionContextError, OwnedCheckout
     from specify_cli.decisions.models import OriginFlow
     from specify_cli.decisions.service import DecisionError, DecisionEventLogReadError
     from specify_cli.decisions.store import DecisionIndexReadError
@@ -152,6 +153,52 @@ _HELP_DECISION_ID = "Decision ledger entry ID (ULID)"
 _HELP_ORIGIN_FLOW = "Origin flow: charter | specify | plan"
 _HELP_RATIONALE_REQUIRED = "Explanation of why (required)"
 _HELP_RESOLVED_BY = "Identity of the resolving/deferring/canceling party (falls back to --actor)"
+_HELP_OWNED_CHECKOUT = "Path to a linked owned checkout that owns this mission (single_branch only); omit for the repository-root checkout"
+
+
+def _fail_from_owned_error(cmd: str, exc: ActionContextError) -> NoReturn:
+    """Fail from an owned-checkout resolver refusal, guarding its code against the allow-list.
+
+    #5874: mirrors :func:`_fail_from_decision_error`. A contract-registered
+    code (e.g. ``MISSION_NOT_FOUND``) passes through verbatim; an owned
+    refusal code not yet in ``upstream_contract.json``'s orchestrator_api
+    ``allowed_error_codes`` (``OWNED_*``, ``FEATURE_CONTEXT_UNRESOLVED``,
+    ``MISSION_CONTEXT_CONFLICT``, ``OWNERSHIP_*``) degrades to the registered
+    fallback with the real code preserved as diagnostic ``data`` -- never
+    leaked verbatim onto the public ``error_code`` field, never silently
+    dropped. Registering the owned codes in the orchestrator_api contract is a
+    separate, contract-touching follow-up.
+    """
+    code = exc.code
+    if is_allowed_error_code("orchestrator_api", code):
+        _fail(cmd, code, str(exc))
+    _fail(cmd, _DECISION_UNREGISTERED_CODE_FALLBACK, str(exc), {"unregistered_error_code": code})
+
+
+def _resolve_owned_decision_context(cmd: str, mission: str, owned_checkout: str | None) -> tuple[Path, Path, OwnedCheckout | None]:
+    """Resolve the repo root, the mission dir (identity authority), and the validated owned fact.
+
+    #5874 orchestrator-api parity with the host CLI's
+    ``decision.py::_resolve_decision_context``: a validated ``--owned-checkout``
+    (or a flagless caller checkout that owns the mission) is threaded as
+    ``owned`` so every downstream placement reads and writes under the owned
+    checkout; a non-owned caller keeps the canonical repository-root resolution
+    (``_resolve_mission_dir_or_fail``). Ownership refusals fail before any
+    service call.
+    """
+    from mission_runtime import ActionContextError
+    from specify_cli.cli.commands._owned_checkout import resolve_owned_or_adopt
+    from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
+
+    main_repo_root = _common._get_main_repo_root()
+    claim = Path(owned_checkout) if owned_checkout else None
+    try:
+        owned = resolve_owned_or_adopt(main_repo_root, claim, mission, cwd=Path.cwd(), allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES)
+    except ActionContextError as exc:
+        _fail_from_owned_error(cmd, exc)
+    if owned is not None:
+        return main_repo_root, owned.mission_dir, owned
+    return main_repo_root, _common._resolve_mission_dir_or_fail(cmd, main_repo_root, mission), None
 
 
 def _validate_origin_flow_or_fail(cmd: str, origin: str) -> OriginFlow:
@@ -251,6 +298,7 @@ def open_decision(  # noqa: PLR0913
     options: str = typer.Option(None, "--options", help="Candidate answers as a JSON array string"),
     actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
     policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+    owned_checkout: str = typer.Option(None, "--owned-checkout", help=_HELP_OWNED_CHECKOUT),
 ) -> None:
     """Open a new Decision Moment ledger entry, or return idempotently if one
     already exists (FR-006). Wraps ``decisions/service.py.open_decision`` 1:1.
@@ -265,8 +313,7 @@ def open_decision(  # noqa: PLR0913
     origin_flow = _validate_origin_flow_or_fail(cmd, origin)
     parsed_options = _parse_decision_options_or_fail(cmd, options)
 
-    main_repo_root = _common._get_main_repo_root()
-    mission_dir = _common._resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+    main_repo_root, mission_dir, owned = _resolve_owned_decision_context(cmd, mission, owned_checkout)
 
     from specify_cli.decisions.service import DecisionError, DecisionEventLogReadError
     from specify_cli.decisions.service import open_decision as _svc_open_decision
@@ -283,6 +330,7 @@ def open_decision(  # noqa: PLR0913
             step_id=step_id,
             slot_key=slot_key,
             actor=actor,
+            owned=owned,
         )
     except DecisionError as exc:
         _fail_from_decision_error(cmd, exc)
@@ -316,6 +364,7 @@ def resolve_decision(  # noqa: PLR0913
     resolved_by: str = typer.Option(None, "--resolved-by", help=_HELP_RESOLVED_BY),
     actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
     policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+    owned_checkout: str = typer.Option(None, "--owned-checkout", help=_HELP_OWNED_CHECKOUT),
 ) -> None:
     """Resolve a decision with a concrete final answer (FR-007). Wraps
     ``decisions/service.py.resolve_decision`` 1:1.
@@ -335,8 +384,7 @@ def resolve_decision(  # noqa: PLR0913
         return
     _parse_policy_or_fail(cmd, policy)
 
-    main_repo_root = _common._get_main_repo_root()
-    mission_dir = _common._resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+    main_repo_root, mission_dir, owned = _resolve_owned_decision_context(cmd, mission, owned_checkout)
 
     from specify_cli.decisions.service import DecisionError, DecisionEventLogReadError
     from specify_cli.decisions.service import resolve_decision as _svc_resolve_decision
@@ -352,6 +400,7 @@ def resolve_decision(  # noqa: PLR0913
             rationale=rationale,
             resolved_by=resolved_by,
             actor=actor,
+            owned=owned,
         )
     except DecisionError as exc:
         _fail_from_decision_error(cmd, exc)
@@ -383,6 +432,7 @@ def defer_decision(
     resolved_by: str = typer.Option(None, "--resolved-by", help=_HELP_RESOLVED_BY),
     actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
     policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+    owned_checkout: str = typer.Option(None, "--owned-checkout", help=_HELP_OWNED_CHECKOUT),
 ) -> None:
     """Defer a decision for later resolution (FR-008). Wraps
     ``decisions/service.py.defer_decision`` 1:1.
@@ -395,8 +445,7 @@ def defer_decision(
     _parse_policy_or_fail(cmd, policy)
     _validate_rationale_or_fail(cmd, rationale)
 
-    main_repo_root = _common._get_main_repo_root()
-    mission_dir = _common._resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+    main_repo_root, mission_dir, owned = _resolve_owned_decision_context(cmd, mission, owned_checkout)
 
     from specify_cli.decisions.service import DecisionError, DecisionEventLogReadError
     from specify_cli.decisions.service import defer_decision as _svc_defer_decision
@@ -410,6 +459,7 @@ def defer_decision(
             rationale=rationale,
             resolved_by=resolved_by,
             actor=actor,
+            owned=owned,
         )
     except DecisionError as exc:
         _fail_from_decision_error(cmd, exc)
@@ -441,6 +491,7 @@ def cancel_decision(
     resolved_by: str = typer.Option(None, "--resolved-by", help=_HELP_RESOLVED_BY),
     actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
     policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+    owned_checkout: str = typer.Option(None, "--owned-checkout", help=_HELP_OWNED_CHECKOUT),
 ) -> None:
     """Cancel a decision (deemed no longer relevant) (FR-009). Wraps
     ``decisions/service.py.cancel_decision`` 1:1.
@@ -453,8 +504,7 @@ def cancel_decision(
     _parse_policy_or_fail(cmd, policy)
     _validate_rationale_or_fail(cmd, rationale)
 
-    main_repo_root = _common._get_main_repo_root()
-    mission_dir = _common._resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+    main_repo_root, mission_dir, owned = _resolve_owned_decision_context(cmd, mission, owned_checkout)
 
     from specify_cli.decisions.service import DecisionError, DecisionEventLogReadError
     from specify_cli.decisions.service import cancel_decision as _svc_cancel_decision
@@ -468,6 +518,7 @@ def cancel_decision(
             rationale=rationale,
             resolved_by=resolved_by,
             actor=actor,
+            owned=owned,
         )
     except DecisionError as exc:
         _fail_from_decision_error(cmd, exc)

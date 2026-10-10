@@ -39,7 +39,12 @@ if TYPE_CHECKING:
 
 from mission_runtime import ActionContextError, OwnedCheckout
 
-from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption
+from specify_cli.cli.commands._owned_checkout import (
+    OwnedCheckoutOption,
+    echo_stale_copy_warning,
+    resolve_owned_or_adopt,
+    stale_copy_payload,
+)
 
 from specify_cli.decisions import DecisionIndexReadError
 from specify_cli.decisions.models import (
@@ -207,6 +212,27 @@ def _handle_decision_error(exc: DecisionError) -> None:
     }
     typer.echo(json.dumps(payload, sort_keys=True), err=True)
     raise typer.Exit(1)
+
+
+def _echo_decision_payload(payload: dict[str, object], owned: OwnedCheckout | None) -> None:
+    if owned is not None:
+        payload.update(stale_copy_payload(owned))
+        echo_stale_copy_warning(owned)
+    typer.echo(json.dumps(payload, sort_keys=True))
+
+
+def _resolve_decision_context(mission_handle: str, owned_claim: Path | None) -> tuple[Path, str, OwnedCheckout | None]:
+    """Validate ownership once; reuse its mission directory as identity authority."""
+    if not _SAFE_SLUG_RE.match(mission_handle):
+        raise typer.BadParameter(f"Invalid --mission value {mission_handle!r}", param_hint="'--mission'")
+    from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
+
+    repo_root = locate_project_root() or Path.cwd()
+    owned = resolve_owned_or_adopt(repo_root, owned_claim, mission_handle, cwd=Path.cwd(), allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES)
+    if owned is not None:
+        return repo_root, owned.mission_dir.name, owned
+    repo_root, slug = _resolve_repo_root_and_slug(mission_handle)
+    return repo_root, slug, None
 
 
 def _handle_action_context_error(exc: ActionContextError) -> None:
@@ -404,6 +430,7 @@ def cmd_open(  # noqa: PLR0913
     actor: str = typer.Option("cli", "--actor", help="Identity of the opening actor"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate without writing"),
     json_out: bool = typer.Option(True, "--json/--no-json", help="Output JSON (default true)"),  # noqa: ARG001
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
     """Open a new Decision Moment or return idempotently if one already exists."""
     # Validate flow
@@ -443,7 +470,7 @@ def cmd_open(  # noqa: PLR0913
         parsed_options = tuple(str(item) for item in raw)
 
     try:
-        repo_root, mission_slug = _resolve_repo_root_and_slug(mission)
+        repo_root, mission_slug, owned = _resolve_decision_context(mission, owned_checkout)
     except ActionContextError as exc:
         _handle_action_context_error(exc)
         return  # unreachable — _handle_action_context_error raises
@@ -463,6 +490,7 @@ def cmd_open(  # noqa: PLR0913
             slot_key=slot_key,
             actor=actor,
             dry_run=dry_run,
+            owned=owned,
         )
     except DecisionError as exc:
         _handle_decision_error(exc)
@@ -494,19 +522,12 @@ def cmd_open(  # noqa: PLR0913
         # reachable from this call) is not shadowed.
         _handle_status_read_path_error(exc)
         return  # unreachable — _handle_status_read_path_error raises
+    except ActionContextError as exc:
+        _handle_action_context_error(exc)
 
-    typer.echo(
-        json.dumps(
-            _open_response_to_dict(
-                resp,
-                origin_flow=origin_flow,
-                mission_slug=mission_slug,
-                step_id=step_id,
-                slot_key=slot_key,
-                input_key=input_key,
-            ),
-            sort_keys=True,
-        )
+    _echo_decision_payload(
+        _open_response_to_dict(resp, origin_flow=origin_flow, mission_slug=mission_slug, step_id=step_id, slot_key=slot_key, input_key=input_key),
+        owned,
     )
 
 
@@ -526,10 +547,11 @@ def cmd_resolve(  # noqa: PLR0913
     actor: str = typer.Option("cli", "--actor", help="Identity of the acting agent"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate without writing"),
     json_out: bool = typer.Option(True, "--json/--no-json", help="Output JSON (default true)"),  # noqa: ARG001
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
     """Resolve a decision with a concrete final answer."""
     try:
-        repo_root, mission_slug = _resolve_repo_root_and_slug(mission)
+        repo_root, mission_slug, owned = _resolve_decision_context(mission, owned_checkout)
     except ActionContextError as exc:
         _handle_action_context_error(exc)
         return  # unreachable — _handle_action_context_error raises
@@ -548,6 +570,7 @@ def cmd_resolve(  # noqa: PLR0913
             resolved_by=resolved_by,
             actor=actor,
             dry_run=dry_run,
+            owned=owned,
         )
     except DecisionError as exc:
         _handle_decision_error(exc)
@@ -565,8 +588,10 @@ def cmd_resolve(  # noqa: PLR0913
         # #5113: the pre-write materialization gate refused.
         _handle_status_read_path_error(exc)
         return  # unreachable — _handle_status_read_path_error raises
+    except ActionContextError as exc:
+        _handle_action_context_error(exc)
 
-    typer.echo(json.dumps(_terminal_response_to_dict(resp), sort_keys=True))
+    _echo_decision_payload(_terminal_response_to_dict(resp), owned)
 
 
 # ---------------------------------------------------------------------------
@@ -583,6 +608,7 @@ def cmd_defer(
     actor: str = typer.Option("cli", "--actor", help="Identity of the acting agent"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate without writing"),
     json_out: bool = typer.Option(True, "--json/--no-json", help="Output JSON (default true)"),  # noqa: ARG001
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
     """Defer a decision for later resolution."""
     if not rationale.strip():
@@ -595,7 +621,7 @@ def cmd_defer(
         return
 
     try:
-        repo_root, mission_slug = _resolve_repo_root_and_slug(mission)
+        repo_root, mission_slug, owned = _resolve_decision_context(mission, owned_checkout)
     except ActionContextError as exc:
         _handle_action_context_error(exc)
         return  # unreachable — _handle_action_context_error raises
@@ -612,6 +638,7 @@ def cmd_defer(
             resolved_by=resolved_by,
             actor=actor,
             dry_run=dry_run,
+            owned=owned,
         )
     except DecisionError as exc:
         _handle_decision_error(exc)
@@ -629,8 +656,10 @@ def cmd_defer(
         # #5113: the pre-write materialization gate refused.
         _handle_status_read_path_error(exc)
         return  # unreachable — _handle_status_read_path_error raises
+    except ActionContextError as exc:
+        _handle_action_context_error(exc)
 
-    typer.echo(json.dumps(_terminal_response_to_dict(resp), sort_keys=True))
+    _echo_decision_payload(_terminal_response_to_dict(resp), owned)
 
 
 # ---------------------------------------------------------------------------
@@ -647,6 +676,7 @@ def cmd_cancel(
     actor: str = typer.Option("cli", "--actor", help="Identity of the acting agent"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Validate without writing"),
     json_out: bool = typer.Option(True, "--json/--no-json", help="Output JSON (default true)"),  # noqa: ARG001
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
     """Cancel a decision (deemed no longer relevant)."""
     if not rationale.strip():
@@ -659,7 +689,7 @@ def cmd_cancel(
         return
 
     try:
-        repo_root, mission_slug = _resolve_repo_root_and_slug(mission)
+        repo_root, mission_slug, owned = _resolve_decision_context(mission, owned_checkout)
     except ActionContextError as exc:
         _handle_action_context_error(exc)
         return  # unreachable — _handle_action_context_error raises
@@ -676,6 +706,7 @@ def cmd_cancel(
             resolved_by=resolved_by,
             actor=actor,
             dry_run=dry_run,
+            owned=owned,
         )
     except DecisionError as exc:
         _handle_decision_error(exc)
@@ -693,8 +724,10 @@ def cmd_cancel(
         # #5113: the pre-write materialization gate refused.
         _handle_status_read_path_error(exc)
         return  # unreachable — _handle_status_read_path_error raises
+    except ActionContextError as exc:
+        _handle_action_context_error(exc)
 
-    typer.echo(json.dumps(_terminal_response_to_dict(resp), sort_keys=True))
+    _echo_decision_payload(_terminal_response_to_dict(resp), owned)
 
 
 # ---------------------------------------------------------------------------
@@ -711,10 +744,11 @@ def cmd_verify(
         help="Exit non-zero when findings are present (default true)",
     ),
     json_out: bool = typer.Option(True, "--json/--no-json", help="Output JSON (default true)"),  # noqa: ARG001
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
     """Cross-check deferred decisions against inline sentinel markers."""
     try:
-        repo_root, mission_slug = _resolve_repo_root_and_slug(mission)
+        repo_root, mission_slug, owned = _resolve_decision_context(mission, owned_checkout)
     except ActionContextError as exc:
         _handle_action_context_error(exc)
         return  # unreachable — _handle_action_context_error raises
@@ -731,7 +765,10 @@ def cmd_verify(
     # reported a false "clean" (empty ledger, no markers) on a mission with a
     # real deferred decision. Reuse the ONE existing ledger-dir authority
     # (do not add a second/third resolver here).
-    mission_dir = _resolve_ledger_dir(repo_root, mission_slug)
+    try:
+        mission_dir = _resolve_ledger_dir(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
+    except ActionContextError as exc:
+        _handle_action_context_error(exc)
 
     try:
         result = _verify_decisions(mission_dir, mission_slug)
@@ -758,8 +795,10 @@ def cmd_verify(
     # widening ``verify()``'s public signature.
     from specify_cli.decisions.fork import detect_decision_forks  # noqa: PLC0415 — cold-import discipline
 
-    fork_report = detect_decision_forks(repo_root, mission_slug)
-    if fork_report.forked:
+    # Owned lifecycle missions are validated SINGLE_BRANCH; coordination
+    # fork detection applies only to the default coordination-capable path.
+    fork_report = detect_decision_forks(repo_root, mission_slug) if owned is None else None
+    if fork_report is not None and fork_report.forked:
         forked_decision_ids = sorted(
             {
                 decision_id
@@ -790,7 +829,7 @@ def cmd_verify(
         "findings": findings_list,
     }
 
-    typer.echo(json.dumps(payload, sort_keys=True))
+    _echo_decision_payload(payload, owned)
 
     # WP17 precedence decision (documented, per the binding-corrections
     # instruction to decide and document ``--no-fail-on-stale`` vs a fork):
@@ -800,7 +839,7 @@ def cmd_verify(
     # rule 5: "exits 1 by default", read here as "unconditionally", since a
     # fork is a data-loss risk, not a staleness nit an operator can opt out
     # of reporting as a failure).
-    if fork_report.forked:
+    if fork_report is not None and fork_report.forked:
         raise typer.Exit(1)
     if result.findings and fail_on_stale:
         raise typer.Exit(1)
@@ -834,6 +873,7 @@ def cmd_list(
     mission: str = typer.Option(..., "--mission", help="Mission handle (slug, mission_id, or mid8)"),
     status: str | None = typer.Option(None, "--status", help="Only list decisions in this status: open | resolved | deferred | canceled"),
     json_out: bool = typer.Option(True, "--json/--no-json", help="Output JSON (default true)"),  # noqa: ARG001
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
     """List the mission's recorded decision moments (read-only)."""
     # Optional status filter — validated at the CLI boundary the same way
@@ -855,7 +895,7 @@ def cmd_list(
             return  # unreachable — _handle_decision_error raises
 
     try:
-        repo_root, mission_slug = _resolve_repo_root_and_slug(mission)
+        repo_root, mission_slug, owned = _resolve_decision_context(mission, owned_checkout)
     except ActionContextError as exc:
         _handle_action_context_error(exc)
         return  # unreachable — _handle_action_context_error raises
@@ -867,7 +907,10 @@ def cmd_list(
     # ``resolve_handle_to_read_path``, which on a MATERIALIZED status-only
     # coord husk returns the COORD worktree the ledger writer never touches,
     # so ``list`` silently reported an empty ledger.
-    mission_dir = _resolve_ledger_dir(repo_root, mission_slug)
+    try:
+        mission_dir = _resolve_ledger_dir(repo_root, mission_slug, **({"owned": owned} if owned is not None else {}))
+    except ActionContextError as exc:
+        _handle_action_context_error(exc)
 
     from specify_cli.decisions.store import load_index
 
@@ -888,7 +931,7 @@ def cmd_list(
         "count": len(entries),
         "decisions": [_entry_to_dict(e) for e in entries],
     }
-    typer.echo(json.dumps(payload, sort_keys=True))
+    _echo_decision_payload(payload, owned)
 
 
 # ---------------------------------------------------------------------------
