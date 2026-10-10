@@ -1,15 +1,15 @@
 ---
 title: 'ADR: a scoped workspace handle layers onto the coordination/primary partition (it does not replace it)'
 description: 'The #3129 write-boundary class is one shared root cause; the fix is a capability-scoped write handle layered onto the existing partition (Option B), not a foreign shadow topology.'
-status: Proposed
+status: Accepted
 date: '2026-10-10'
 ---
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-10-10
 
-**Deciders:** Stijn Dejongh (owner, Option B chosen 2026-10-09), via the governed design-spike mission `scoped-shadow-workspace-write-boundary-01M4H5FQ` (merged in PR [#5986](https://github.com/spec-kitty/spec-kitty/pull/5986)). This ADR formalises and code-grounds that decision; it does not re-open it.
+**Deciders:** Stijn Dejongh (owner, Option B chosen 2026-10-09; ADR accepted 2026-10-10), via the governed design-spike mission `scoped-shadow-workspace-write-boundary-01M4H5FQ` (merged in PR [#5986](https://github.com/spec-kitty/spec-kitty/pull/5986)). This ADR formalises and code-grounds that decision; it does not re-open it.
 
 **Technical Story:** [#3129](https://github.com/spec-kitty/spec-kitty/issues/3129) — "scoped shadow workspaces: the shared root behind the worktree/write-path issue class" (design-spike, P1). The decision record and the options analysis live in the merged mission artifacts at `kitty-specs/scoped-shadow-workspace-write-boundary-01M4H5FQ/research.md` and `spec.md`. The first increment of the chosen direction already landed: PR [#5986](https://github.com/spec-kitty/spec-kitty/pull/5986) closed [#2334](https://github.com/spec-kitty/spec-kitty/issues/2334).
 
