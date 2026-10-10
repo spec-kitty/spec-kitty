@@ -440,3 +440,23 @@ def test_lane_merge_refuses_to_resync_over_an_operator_edit(tmp_path: Path) -> N
 
     assert (repo / "alpha.txt").read_text(encoding="utf-8") == "the operator's only copy\n"
     assert _git(repo, "rev-parse", "main") == main_before
+
+
+def test_discard_scratch_tree_keeps_a_live_registered_worktree_when_the_guard_refuses(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A refusal over a gitlink whose git dir still exists is never answered by dropping the link."""
+    repo = _init(tmp_path / "repo")
+    owned = tmp_path / "runtime"
+    owned.mkdir()
+    scratch = owned / "workspace"
+    _git(repo, "worktree", "add", "-q", "--detach", str(scratch), "HEAD")
+    (scratch / "alpha.txt").write_text("uncommitted only copy\n", encoding="utf-8")
+
+    def _refuse(path: Path, **_: object) -> None:
+        raise DestructiveOpRefused(error_code="DESTRUCTIVE_OP_ONLY_COPY", worktree_path=path, dirty_entries=["alpha.txt"], remediation="keep")
+
+    monkeypatch.setattr("specify_cli.consolidation.workspace.guarded_tree_delete", _refuse)
+
+    assert discard_scratch_tree(scratch, owned_root=owned, reason="test") is False
+
+    assert (scratch / "alpha.txt").read_text(encoding="utf-8") == "uncommitted only copy\n"
+    assert (scratch / ".git").is_file()
