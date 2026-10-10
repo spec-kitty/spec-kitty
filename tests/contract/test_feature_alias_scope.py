@@ -39,36 +39,6 @@ pytestmark = [pytest.mark.contract, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-# ---------------------------------------------------------------------------
-# The same list as INSCOPE_FEATURE_FREE_FILES in test_terminology_guards.py.
-# Kept in sync deliberately as a cross-file assertion boundary.
-# ---------------------------------------------------------------------------
-_INSCOPE_FILES: tuple[str, ...] = (
-    # Original 10 internal command files cleaned in the prior mission.
-    "src/specify_cli/cli/commands/agent/status.py",
-    "src/specify_cli/cli/commands/agent/tasks.py",
-    "src/specify_cli/cli/commands/agent/workflow.py",
-    "src/specify_cli/cli/commands/agent/context.py",
-    "src/specify_cli/cli/commands/agent/mission.py",
-    "src/specify_cli/cli/commands/charter/lint.py",
-    "src/specify_cli/cli/commands/materialize.py",
-    "src/specify_cli/cli/commands/validate_encoding.py",
-    "src/specify_cli/cli/commands/validate_tasks.py",
-    "src/specify_cli/cli/commands/verify.py",
-    # 8 user-facing command files de-aliased in mission feature-alias-removal-
-    # 01KW0N87 WP01–WP03.  Authority: spec.md FR-007.
-    "src/specify_cli/cli/commands/implement.py",
-    "src/specify_cli/cli/commands/implement_planning_commit.py",
-    "src/specify_cli/cli/commands/implement_claim.py",
-    "src/specify_cli/cli/commands/merge.py",
-    "src/specify_cli/cli/commands/next_cmd.py",
-    "src/specify_cli/cli/commands/research.py",
-    "src/specify_cli/cli/commands/context.py",
-    "src/specify_cli/cli/commands/accept.py",
-    "src/specify_cli/cli/commands/lifecycle.py",
-    "src/specify_cli/cli/commands/mission_type.py",
-)
-
 # Leaf command names that correspond to the in-scope files, used for the
 # first-party caller grep in T015.  These are the CLI surface names as exposed
 # in the app's command tree.
