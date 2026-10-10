@@ -217,4 +217,4 @@ def _write_create_meta(
                     "last_audit_date": None,
                     "coverage_percentage": 0.0,
                 }
-                set_documentation_state(feature_dir, doc_state)
+                set_documentation_state(feature_dir, doc_state, repo_root=write_root)

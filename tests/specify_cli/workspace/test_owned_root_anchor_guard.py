@@ -15,6 +15,7 @@ import pytest
 
 from specify_cli.core.mission_creation_meta import _write_create_meta
 from specify_cli.status import mission_write_lock
+from specify_cli.status.locking import feature_status_lock
 
 pytestmark = pytest.mark.fast
 
@@ -79,3 +80,30 @@ def test_birth_lock_on_owned_checkout_never_resolves_the_repository_root(linked_
     # so the guard above fails if the birth path ever regresses to it.
     with pytest.raises(AssertionError, match="resolved the repository root"), mission_write_lock(feature_dir, repo_root=owned):
         pass
+
+
+def test_documentation_create_on_owned_checkout_reenters_one_lock_root(linked_checkout: tuple[Path, Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+    """The nested documentation-state write re-enters the create's hold: one lock root, not two."""
+    _root, owned, feature_dir = linked_checkout
+    roots: list[Path] = []
+    real = feature_status_lock
+
+    def _recording(root: Path, *args: Any, **kwargs: Any) -> Any:
+        roots.append(root)
+        return real(root, *args, **kwargs)
+
+    monkeypatch.setattr("specify_cli.status.mission_write.feature_status_lock", _recording)
+    meta = {
+        "mission_slug": _SLUG,
+        "slug": _SLUG,
+        "friendly_name": "Demo",
+        "mission_id": "01ABCDEFGHJKMNPQRSTVWXYZ00",
+        "mission_type": "documentation",
+        "target_branch": "main",
+        "created_at": "2026-10-10T00:00:00+00:00",
+    }
+
+    _write_create_meta(feature_dir, meta, "documentation", write_root=owned)
+
+    assert len(roots) == 2  # positive control: the birth hold and the nested documentation-state write both ran
+    assert set(roots) == {owned}

@@ -830,9 +830,15 @@ def set_vcs_lock(
 def set_documentation_state(
     feature_dir: Path,
     state: dict[str, Any],
+    *,
+    repo_root: Path | None = None,
 ) -> dict[str, Any]:
-    """Set or replace ``documentation_state`` subtree."""
-    return locked_update_meta(feature_dir, lambda meta: meta.update(documentation_state=state))
+    """Set or replace ``documentation_state`` subtree.
+
+    *repo_root* is the caller's write root; a create passes its own so the write re-enters the
+    create's hold instead of resolving a second lock root.
+    """
+    return locked_update_meta(feature_dir, lambda meta: meta.update(documentation_state=state), repo_root=repo_root)
 
 
 def set_origin_ticket(
