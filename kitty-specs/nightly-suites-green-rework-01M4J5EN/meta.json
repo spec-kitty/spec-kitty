@@ -1,0 +1,37 @@
+{
+  "accept_commit": "af9dd609610a8dac2c82ef45e1291084aa4327ea",
+  "acceptance_history": [
+    {
+      "accept_commit": "af9dd609610a8dac2c82ef45e1291084aa4327ea",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-10T07:30:07.055268+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "4fefb89287956b38332f009e3527a98fb9fb3062"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-10T07:30:07.055268+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "4fefb89287956b38332f009e3527a98fb9fb3062",
+  "baseline_merge_commit": "beac5fd37a9702ebcbc3779e7872654ccabe543f",
+  "contracts": "none",
+  "contracts_rationale": "Test-remediation/bug-fix mission (restore nightly suites #5987-#5991). No new interfaces, APIs, or externally visible events are introduced; changes are internal boundary/lock threading, test/oracle hardening, a derived artifact, a doc, and a perf import shave.",
+  "created_at": "2026-10-10T05:44:26.287784+00:00",
+  "flattened": true,
+  "friendly_name": "Nightly Suites Green — coord & charter rework fallout",
+  "merged_at": "2026-10-10T07:32:15.319690+00:00",
+  "merged_commit": "a25428c43bbffbafc91a7feece9d704ce8688616",
+  "mid8": "01M4J5EN",
+  "mission_id": "01M4J5ENT8XAK1VJTVN6H75D9W",
+  "mission_number": 224,
+  "mission_slug": "nightly-suites-green-rework-01M4J5EN",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "After large internal reworks (the next coordination seam and the doctrine-to-charter cutover), the nightly escalated five P0 issues totalling 28 failing tests. This mission restores a green nightly by fixing one genuine ownership-boundary regression and realigning the remaining test/CI/doc/perf drift, preserving the red-CI-means-no-release discipline.",
+  "purpose_tldr": "Return the nightly test suites to green after the coordination and charter reworks so the 4.0.0 release gate stays honest.",
+  "slug": "nightly-suites-green-rework-01M4J5EN",
+  "status_phase": "1",
+  "target_branch": "fix/nightly-suites-green-rework",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-10T06:16:42.186659+00:00"
+}

@@ -1,0 +1,101 @@
+{
+  "rows": {
+    "#2614": {
+      "evidence_ref": "coordination-branch data-loss guard origin; cited as context for WP04's resolver fail-closed-to-present rule \u2014 no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5428": {
+      "evidence_ref": "docs/archive relocation context cited in WP07's terminology-exemption doc \u2014 no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5883": {
+      "evidence_ref": "introducing rework (canonical mission-lock, f815fc9b66); this mission fixes the regression it caused (#5988), not #5883 itself \u2014 context-only, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5987": {
+      "evidence_ref": "commit a54338601a; test_git_source_redacts_injected_oauth_token_from_stderr now patches real clone seam clone_repository, asserts token-absent + oauth2:<redacted>@ present, non-vacuity control; 26 passed, ruff clean",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#5988": {
+      "evidence_ref": "e7a69b9811: seam A (birth lock anchored on write_root, birth key=feature_dir.name, FR-001 pin passed_through==[]); seam B confirmed FALSE (root_resolver.py + 5 planned writers byte-unchanged; R-unchanged pins green with zero writer edits); 43/43 owned-lifecycle tests green incl. guard non-vacuous under 2-way mutation; status locks 294 passed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5989": {
+      "evidence_ref": "db33f67461",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP05"
+    },
+    "#5990": {
+      "evidence_ref": "docs/development/reference/terminology-exemptions.md Exempt Surface 6 (docs/archive/); gate test_terminology_exemption_policy_doc_is_present_and_consistent + test_no_legacy_terminology.py green (97 passed)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP07"
+    },
+    "#5991": {
+      "evidence_ref": "Follow-up: #5999 (full --help eager-import shave). Down-payment (next_cmd.py import deferral) lands in WP08; budget limit is operator/CI-owned (C-005).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP08"
+    }
+  },
+  "schema_version": 1
+}
