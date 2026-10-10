@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import tempfile
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.context import app
+from specify_cli.core.paths import locate_project_root
 from specify_cli.workspace.context import WorkspaceContext, save_context
 
 pytestmark = [pytest.mark.fast, pytest.mark.unit]
@@ -60,12 +62,20 @@ def test_4601_context_errors_are_json(project: Path, args: list[str], code: str,
         ["mission-resolve", "--wp", "WP01", "--mission", "missing"],
     ],
 )
-def test_non_project_context_errors_are_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, args: list[str]) -> None:
-    monkeypatch.chdir(tmp_path)
-    result = runner.invoke(app, [*args, "--json"])
-    assert result.exit_code == 1
-    assert json.loads(result.stdout)["error"]["code"] == "not_in_project"
-    assert result.stderr == ""
+def test_non_project_context_errors_are_json(monkeypatch: pytest.MonkeyPatch, args: list[str]) -> None:
+    # The CLI project walk-up has no ``stop=``; pytest's ``tmp_path`` can sit inside
+    # the repository checkout (e.g. ``--basetemp=<repo>/.tmp``), where the walk-up
+    # finds the enclosing project. Build the non-project cwd outside any checkout
+    # and skip if the host still has an enclosing project ancestor.
+    with tempfile.TemporaryDirectory(prefix="sk-non-project-") as raw:
+        cwd = Path(raw).resolve()
+        if locate_project_root(cwd) is not None:
+            pytest.skip("host temp dir has an enclosing Spec Kitty project; cannot exercise not_in_project")
+        monkeypatch.chdir(cwd)
+        result = runner.invoke(app, [*args, "--json"])
+        assert result.exit_code == 1
+        assert json.loads(result.stdout)["error"]["code"] == "not_in_project"
+        assert result.stderr == ""
 
 
 @pytest.mark.parametrize("args", [["list"], ["list", "--orphaned"]])
