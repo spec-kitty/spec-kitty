@@ -36,11 +36,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from charter.activation._drg_helpers import load_validated_graph
+from charter.activation.layer_roots import resolve_pack_chain
 from charter.drg import (
     NodeKind,
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
-    resolve_existing_org_roots,
     resolve_org_dirs,
 )
 from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
@@ -283,7 +283,7 @@ def _activated_msc_urns(
         if graph_loader is not None
         else load_validated_graph(
             repo_root,
-            org_roots=resolve_existing_org_roots(repo_root),
+            org_roots=resolve_pack_chain(repo_root, strict=True),
             org_fragments=load_org_drg(repo_root, strict=False),
         )
     )

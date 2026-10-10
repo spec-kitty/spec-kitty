@@ -346,11 +346,11 @@ def _still_resolves_via_org_pack(project_path: Path, retirement: Retirement) -> 
     ``packs/internal`` (or any other configured org pack) still resolves for
     a project that loads that pack, so nothing here should be removed.
     """
-    from charter.drg import resolve_existing_org_roots  # noqa: PLC0415 -- public door (doctrine census); lazy so migration-registry discovery does not import charter.offering (C-002)
+    from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415 -- single chain authority (#6012); lazy so migration-registry discovery does not import charter.offering (C-002)
 
     kind_dir = f"{retirement.reference_prefix.lower()}s"
     filename = f"{retirement.stem}.{retirement.reference_prefix.lower()}.yaml"
-    roots = [*resolve_existing_org_roots(project_path), *_retired_key_org_roots(project_path)]
+    roots = [*resolve_pack_chain(project_path, strict=False), *_retired_key_org_roots(project_path)]
     return any((root / kind_dir / filename).is_file() for root in roots)
 
 

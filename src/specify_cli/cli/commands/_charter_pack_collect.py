@@ -253,9 +253,9 @@ def _collect_profile_health(repo_root: Path) -> CharterPackHealthReport:
     try:
         from charter.offering.service import CharterOfferingService
         from charter.activation.resolver import ActiveCharterService
-        from charter.drg import resolve_org_roots
+        from charter.activation.layer_roots import resolve_pack_chain
 
-        org_roots = resolve_org_roots(repo_root)
+        org_roots = resolve_pack_chain(repo_root, strict=False)
         project_root = _project_pack_root_or_none(repo_root)
         inner = CharterOfferingService(
             org_roots=list(org_roots),
@@ -355,14 +355,14 @@ def _collect_glossary_pack_health(repo_root: Path) -> GlossaryPackHealth:
     """
     from charter.offering.service import CharterOfferingService
     from charter.activation.resolver import ActiveCharterService
-    from charter.drg import resolve_org_roots
+    from charter.activation.layer_roots import resolve_pack_chain
 
     from ._charter_pack_health import GlossaryPackHealth, SkippedGlossaryPack
 
     packs: list[GlossaryPack] = []
     invalid: list[SkippedGlossaryPack] = []
     try:
-        org_roots = resolve_org_roots(repo_root)
+        org_roots = resolve_pack_chain(repo_root, strict=False)
         project_root = _project_pack_root_or_none(repo_root)
         inner = CharterOfferingService(org_roots=list(org_roots), project_root=project_root)
         service = ActiveCharterService(inner, pack_context=None)
@@ -604,9 +604,9 @@ def _collect_layer_collisions(repo_root: Path) -> list[dict[str, object]]:
     from charter.drg import ArtifactLayerCollisionWarning
     from charter.offering.service import CharterOfferingService
     from charter.activation.resolver import ActiveCharterService
-    from charter.drg import resolve_org_roots
+    from charter.activation.layer_roots import resolve_pack_chain
 
-    org_roots = resolve_org_roots(repo_root)
+    org_roots = resolve_pack_chain(repo_root, strict=False)
     project_root = _project_pack_root_or_none(repo_root)
 
     inner = CharterOfferingService(
@@ -1204,13 +1204,13 @@ def _build_selection_block(repo_root: Path) -> dict[str, list[dict[str, str]]]:
     """
     from charter.offering.service import CharterOfferingService
     from charter.activation.resolver import ActiveCharterService
-    from charter.drg import resolve_org_roots
+    from charter.activation.layer_roots import resolve_pack_chain
 
     project_selections = _read_project_selections(repo_root)
     org_required = _read_org_required(repo_root)
 
     # ActiveCharterService instance for provenance lookup.
-    org_roots = resolve_org_roots(repo_root)
+    org_roots = resolve_pack_chain(repo_root, strict=False)
     project_root = _project_pack_root_or_none(repo_root)
     inner = CharterOfferingService(
         org_roots=list(org_roots),

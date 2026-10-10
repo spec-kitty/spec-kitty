@@ -5,7 +5,7 @@ Resolution tiers (checked in order):
 2. LEGACY          -- .kittify/{templates,command-templates}/ (deprecated; emits warning)
 3. ORG             -- <org_root>/missions/{mission}/{templates,command-templates}/
                       for each root returned by the lazy
-                      ``charter.drg.resolve_org_roots(project_dir)`` facade, in
+                      ``charter.activation.layer_roots.resolve_pack_chain(project_dir, strict=False)``, in
                       declaration order (first match wins). A no-op when no
                       org packs are configured (NFR-005).
 4. GLOBAL_MISSION  -- ~/.kittify/missions/{mission}/{templates,command-templates}/
@@ -302,7 +302,7 @@ def _resolve_asset(
 
     Tier 3 (org) probes each configured org charter pack root, in
     declaration order, before falling through to the global-mission tier.
-    Sourced via the lazy ``charter.drg.resolve_org_roots`` facade (DEC-003) --
+    Sourced via the lazy ``resolve_pack_chain(..., strict=False)`` chain authority (DEC-003) --
     never a direct ``doctrine.*`` import from this module.
 
     Args:
@@ -343,17 +343,15 @@ def _resolve_asset(
     # mirrors the five existing specify_cli/** call sites that route org-root
     # resolution through this facade (DEC-003) -- never a direct
     # ``doctrine.*`` import from runtime. No try/except around
-    # resolve_org_roots(): OrgPackSubdirEscapeError/OrgPackEnvVarUnsetError
+    # resolve_pack_chain(): OrgPackSubdirEscapeError/OrgPackEnvVarUnsetError
     # are deliberately raised and must propagate (DEC-005, NFR-001). With no
-    # org packs configured, resolve_org_roots() returns [] and this loop is a
-    # no-op (NFR-005). ``quiet=True``: this is a resolution hot path that may
-    # run many times per invocation -- an unparseable config.yaml with no
-    # readable org intent must not spam a UserWarning per call (see
-    # load_pack_registry's docstring). A genuinely declared-but-broken org
-    # pack still raises a loud UserWarning regardless.
-    from charter.drg import resolve_org_roots  # noqa: PLC0415 — lazy, mirrors existing pattern
+    # org packs configured, resolve_pack_chain() returns [] and this loop is a
+    # no-op (NFR-005). ``strict=False``: this is a lenient resolution hot
+    # path -- a declared pack whose root is absent on disk is dropped, not
+    # raised (existing-filtered posture, #6012).
+    from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415 — lazy, mirrors existing pattern
 
-    for org_root in resolve_org_roots(project_dir, quiet=True):
+    for org_root in resolve_pack_chain(project_dir, strict=False, quiet=True):
         org_path = org_root / "missions" / mission / subdir / name
         if org_path.is_file():
             return ResolutionResult(path=org_path, tier=ResolutionTier.ORG, mission=mission)
@@ -810,12 +808,12 @@ def resolve_mission(
 
     # Tier 3 -- org (sourced from configured org charter packs). Lazy import
     # mirrors _resolve_asset's org-tier import above (DEC-003); no
-    # try/except around resolve_org_roots() -- see the identical rationale
-    # in _resolve_asset above (DEC-005, NFR-001). ``quiet=True`` -- see the
+    # try/except around resolve_pack_chain() -- see the identical rationale
+    # in _resolve_asset above (DEC-005, NFR-001). ``strict=False`` -- see the
     # identical rationale in _resolve_asset above.
-    from charter.drg import resolve_org_roots  # noqa: PLC0415 — lazy, mirrors existing pattern
+    from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415 — lazy, mirrors existing pattern
 
-    for org_root in resolve_org_roots(project_dir, quiet=True):
+    for org_root in resolve_pack_chain(project_dir, strict=False, quiet=True):
         org_path = org_root / "missions" / name / filename
         if org_path.is_file():
             return ResolutionResult(path=org_path, tier=ResolutionTier.ORG, mission=name)

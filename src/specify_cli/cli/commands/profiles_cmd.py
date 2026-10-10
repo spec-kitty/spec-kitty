@@ -104,9 +104,9 @@ def _profile_catalog(
     # registry cannot see. The charter inner repository is read UNGATED so the
     # catalog view shows every layer; activation state is annotated separately.
     project_layer_profiles = project_pack_root(repo_root) / "agent_profiles"
-    from charter.drg import resolve_org_roots
+    from charter.activation.layer_roots import resolve_pack_chain
 
-    org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
+    org_roots = resolve_pack_chain(repo_root, strict=False)
     if project_layer_profiles.exists() or org_roots:
         from charter.activation.active_charter_service_builder import (
             build_active_charter_service,
