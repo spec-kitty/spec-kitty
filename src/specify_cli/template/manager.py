@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from kernel.clock import now_utc_compact_stamp
+from kernel.tree_removal import remove_tool_owned_tree
 from rich.console import Console
 
 console = Console()
@@ -192,7 +193,7 @@ def copy_package_tree(resource: Traversable, dest: Path, *, preserve_existing: b
         if preserve_existing:
             back_up_operator_subtrees(dest.parent, [dest.name])
         else:
-            shutil.rmtree(dest)
+            remove_tool_owned_tree(dest, owned_root=dest, reason="regenerable packaged-asset destination")
     dest.mkdir(parents=True, exist_ok=True)
     for child in resource.iterdir():
         target = dest / child.name
