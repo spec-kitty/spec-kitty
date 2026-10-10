@@ -254,7 +254,12 @@ def _phase_capture_and_baseline(run: _MergeRunState) -> None:
     # WP03/T011 (#4752): pass the target branch so the refresh's own
     # defense-in-depth guard can refuse a ``reset --hard`` against an
     # off-target checkout even if the earlier preflight were ever bypassed.
-    _refresh_primary_checkout_after_merge(run.main_repo, run.lanes_manifest.target_branch)
+    _refresh_primary_checkout_after_merge(
+        run.main_repo,
+        run.lanes_manifest.target_branch,
+        mission_slug=run.mission_slug,
+        lag_base_sha=run.state.pre_mutation_target_sha,
+    )
 
     assert run.canonical_events_path is not None
     assert run.canonical_status_path is not None

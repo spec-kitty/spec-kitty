@@ -16,6 +16,7 @@ import re
 import subprocess
 import tempfile
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -25,18 +26,22 @@ from kernel.git import (
     GitCommandError,
     StatusEntry,
     changed_entries,
+    changed_paths,
     commit_paths,
     status_entries,
     tree_entry,
 )
 from specify_cli.cli.console import console
+from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.core.git_ops import run_command
 from specify_cli.git.destructive_guard import (
     DestructiveOpRefused,
     assert_checkout_on_target,
+    guarded_reset_hard,
 )
+from specify_cli.git.ref_advance import ResidueClassifier
 from specify_cli.git.merge_tree_probe import merge_tree_write_tree_available
 from specify_cli.consolidation._constants import LINEAR_HISTORY_REJECTION_TOKENS, logger
 
@@ -209,7 +214,64 @@ def _emit_remediation_hint(hint_console: Console) -> None:
     )
 
 
-def _refresh_primary_checkout_after_merge(repo_root: Path, expected_branch: str | None = None) -> None:
+@dataclass(frozen=True)
+class LagResidueContext:
+    """What a ``reset --hard HEAD`` of a checkout that merely LAGS its own HEAD may discard (#5965 / #5966).
+
+    ``lag_paths`` are the paths HEAD changed since the checkout was last in step with it
+    (``base_sha``) while the checkout itself still matches ``base_sha``: the reset only
+    regenerates them from HEAD, so they are not an only copy. ``inner`` (a Mission
+    :class:`~specify_cli.coordination.coherence.ResidueContext`, when one is readable) adds
+    the Mission's own regenerable residue. Anything else dirty is the operator's.
+    """
+
+    lag_paths: frozenset[str]
+    inner: ResidueClassifier | None = None
+
+    def is_disposable(self, path: str) -> bool:
+        return path in self.lag_paths or (self.inner is not None and self.inner.is_disposable(path))
+
+    def for_checkout(self, repo_root: Path, worktree: Path) -> ResidueClassifier:
+        inner = self.inner.for_checkout(repo_root, worktree) if self.inner is not None else None
+        return LagResidueContext(self.lag_paths, inner)
+
+
+def lag_residue_context(checkout: Path, base_sha: str | None, inner: ResidueClassifier | None = None) -> LagResidueContext:
+    """The :class:`LagResidueContext` for ``checkout`` relative to the tip ``base_sha`` it was last in step with.
+
+    A path counts as lag only when HEAD changed it since ``base_sha`` AND neither the working
+    tree nor the index differs from ``base_sha`` there: an edit on top of the stale copy is
+    not regenerable. A missing ``base_sha`` or a git error yields no lag paths (strictest).
+    """
+    if base_sha is None:
+        return LagResidueContext(frozenset(), inner)
+    try:
+        head_moved = {path.as_posix() for path in changed_paths(checkout, base_sha, "HEAD")}
+        edited = {path.as_posix() for path in (*changed_paths(checkout, base_sha), *changed_paths(checkout, base_sha, cached=True))}
+    except GitCommandError:
+        return LagResidueContext(frozenset(), inner)
+    return LagResidueContext(frozenset(head_moved - edited), inner)
+
+
+def mission_residue_context(repo_root: Path, mission_slug: str | None) -> ResidueContext | None:
+    """The repository-root :class:`ResidueContext` of ``mission_slug``; ``None`` when it cannot be built (strictest)."""
+    if mission_slug is None:
+        return None
+    from specify_cli.core.paths import MissionMetaReadError
+
+    try:
+        return ResidueContext.for_mission(repo_root, mission_slug, CheckoutRole.REPOSITORY_ROOT)
+    except (FileNotFoundError, MissionMetaReadError):
+        return None
+
+
+def _refresh_primary_checkout_after_merge(
+    repo_root: Path,
+    expected_branch: str | None = None,
+    *,
+    mission_slug: str | None = None,
+    lag_base_sha: str | None = None,
+) -> None:
     """Force the primary checkout's tracked files to match HEAD.
 
     The target ref is advanced from a detached merge worktree, so the primary
@@ -227,6 +289,12 @@ def _refresh_primary_checkout_after_merge(repo_root: Path, expected_branch: str 
     reach this ``reset --hard`` against an off-target checkout. ``None`` (the
     default — used by call sites that exercise this helper directly, e.g.
     targeted unit tests) preserves the pre-guard behavior exactly.
+
+    The reset is routed through :func:`guarded_reset_hard` (#5965 / #5966): it discards the
+    stale lag the ref update left (``lag_base_sha``, the target tip this run started from) and
+    the Mission's own regenerable residue (``mission_slug``), and REFUSES, with a warning and
+    nothing reset, when anything else is dirty. Without either argument the context is the
+    strictest: only a clean checkout is reset.
     """
     if expected_branch is not None:
         try:
@@ -235,14 +303,14 @@ def _refresh_primary_checkout_after_merge(repo_root: Path, expected_branch: str 
             console.print(f"[yellow]Warning:[/yellow] skipping post-merge working-tree refresh: {repo_root} is not checked out on {expected_branch!r}.")
             return
 
-    ret_reset, out_reset, err_reset = run_command(
-        ["git", "reset", "--hard", "HEAD"],
-        capture=True,
-        check_return=False,
-        cwd=repo_root,
-    )
-    if ret_reset != 0:
-        console.print(f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: {(err_reset or out_reset or '').strip()}")
+    context = lag_residue_context(repo_root, lag_base_sha, mission_residue_context(repo_root, mission_slug))
+    try:
+        guarded_reset_hard(repo_root, "HEAD", context=context)
+    except DestructiveOpRefused as refusal:
+        console.print(f"[yellow]Warning:[/yellow] skipping post-merge working-tree refresh: it would discard local changes in {repo_root}.\n{refusal}")
+        return
+    except RuntimeError as failure:
+        console.print(f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: {failure}")
         return
 
     ret_refresh, out_refresh, err_refresh = run_command(
@@ -877,6 +945,9 @@ __all__ = [
     "_is_linear_history_rejection",
     "_emit_remediation_hint",
     "_refresh_primary_checkout_after_merge",
+    "LagResidueContext",
+    "lag_residue_context",
+    "mission_residue_context",
     "_paths_have_status_changes",
     "_is_git_repo",
     "_has_branch_ref",
