@@ -37,7 +37,7 @@ __all__ = [
 ]
 
 #: The single canonical spelling of the built-in tier token. Matches the
-#: on-disk ``packs/built-in/`` directory name (``kernel.paths._BUILT_IN_DIR_NAME``),
+#: on-disk ``packs/built-in/`` directory name (consumed by ``kernel.paths``),
 #: so a tier token used as a directory segment resolves unchanged.
 BUILT_IN: Final = "built-in"
 
