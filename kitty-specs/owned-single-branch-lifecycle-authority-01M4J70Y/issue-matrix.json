@@ -1,0 +1,101 @@
+{
+  "rows": {
+    "#5874": {
+      "evidence_ref": "WP01 commits 8f4a49ea1/7daf4df3b; tests test_decision_owned_checkout.py (12) + test_decision_verbs_owned.py (3) green; independent review APPROVE",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#5877": {
+      "evidence_ref": "WP02 commits 404d4deb1/815465bdc; test_owned_protected_single_branch.py 14 passed (4 were RED pre-fix); adopt-as-is from codex/5877",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#5878": {
+      "evidence_ref": "WP03 commits e571ff1ea/c10c55dba; test_owned_map_requirements.py + test_map_requirements_commit_result_json.py 16 passed (11 RED pre-fix); adopt-as-is; core/paths.py untouched; mission_write_lock composition green",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#5880": {
+      "evidence_ref": "WP04 commit abddb537f; owned finalize skips legacy recovery, preserves landing target; 45 passed (24 RED pre-fix)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#5882": {
+      "evidence_ref": "Out of scope per mission fence (spec.md C-002): #5882 is a separate runtime-domain specify-to-plan composition-stall, repro-gated in its own mission; cited here only to mark the boundary.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5892": {
+      "evidence_ref": "WP04 commit 7443bd821; validate-only lane preview uses stored single_branch topology+mission_branch (one lane-planning)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP04"
+    },
+    "#5893": {
+      "evidence_ref": "WP05 commits 1d8177c60 (recording) + 8d90ef05f (authority, DoctrineService->ActiveCharterService rebase) + 40bbf2628 (fmt); 96 passed (recording 28 RED + authority 21 RED pre-fix); terminology guard green; core/paths.py untouched",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP05"
+    },
+    "#5947": {
+      "evidence_ref": "The two named tests (test_owned_history_support.py) pass on current main/mission branch (25 passed incl new invariant); the red nightly ran on older f1e4e69c. Added defensive hardening: commit bd599fbfe scopes the owned review-cycle commit policy to resolve_for_owned + new by-construction test forbidding the R-only resolver. No get_main_repo_root reachable from any owned cycle.py arm. Next green nightly self-closes #5947.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP06"
+    }
+  },
+  "schema_version": 1
+}

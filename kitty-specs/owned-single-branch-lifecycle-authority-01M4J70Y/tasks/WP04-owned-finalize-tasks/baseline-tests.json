@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP04",
+  "captured_at": "2026-10-10T07:50:56Z",
+  "base_branch": "kitty/mission-owned-single-branch-lifecycle-authority-01M4J70Y",
+  "base_commit": "a029ed8140bdc1eb5c92d541736bcf4cd7f022ec",
+  "test_runner": "custom",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<declared-command>",
+      "error": "baseline command timed out after 300s",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "DeclaredCommandScopeSource/text"
+}
