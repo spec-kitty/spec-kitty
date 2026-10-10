@@ -63,6 +63,7 @@ def _emit_workspace_husk_fix(repo_root: Path, json_output: bool) -> None:
     remaining = [
         *fix_result.skipped_registered,
         *fix_result.skipped_appeared_valid,
+        *fix_result.skipped_unsafe,
     ]
     fix_payload: dict[str, object] = {
         **report.to_dict(),
@@ -83,6 +84,11 @@ def _emit_workspace_husk_fix(repo_root: Path, json_output: bool) -> None:
     for skipped in fix_result.skipped_appeared_valid:
         console.print(
             f"[yellow]Skipped path that became a git worktree:[/yellow] {skipped}"
+        )
+    for skipped in fix_result.skipped_unsafe:
+        console.print(
+            f"[yellow]Preserved husk holding local work:[/yellow] {skipped} "
+            "(inspect or move its contents, then remove it by hand)"
         )
     if not report.husks:
         console.print("[green]No workspace husks found.[/green]")

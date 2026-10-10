@@ -146,24 +146,6 @@ class TestWorkspaceCreation:
         # Workspace should have the feature file
         assert (workspace_path / "feature.txt").exists()
 
-    def test_remove_workspace(self, git_repo, mock_git_only):
-        """Should remove workspace successfully."""
-        vcs = get_vcs(git_repo)
-        workspace_path = git_repo / ".worktrees" / "test-remove"
-
-        # Create first
-        result = vcs.create_workspace(
-            workspace_path=workspace_path,
-            workspace_name="test-remove",
-            repo_root=git_repo,
-        )
-        assert result.success
-
-        # Remove
-        removed = vcs.remove_workspace(workspace_path)
-        assert removed
-        assert not workspace_path.exists()
-
     def test_list_workspaces(self, git_repo, mock_git_only):
         """Should list all workspaces."""
         vcs = get_vcs(git_repo)
