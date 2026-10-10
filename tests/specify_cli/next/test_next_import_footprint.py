@@ -22,6 +22,7 @@ B2 and is explicitly out of scope for this WP).
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -133,3 +134,71 @@ def test_next_fast_path_registers_only_next_command() -> None:
     )
     assert result.returncode == 0, f"registering commands on the next fast path failed.\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
     assert "HEAVY=[]" in result.stderr, f"register_commands imported sibling command modules (merge/init/upgrade) on the `next` fast path: {result.stderr}"
+
+
+# #5991 / FR-010: modules only the ``next`` command bodies need. ``next_cmd`` once imported them at module
+# scope, dragging them onto every ``--help`` (about 230 ms).
+FORBIDDEN_ON_HELP: tuple[str, ...] = (
+    "charter.activation",
+    "runtime.next._internal_runtime.schema",
+    "runtime.next.decision",
+    "status.dup_key_repair",
+)
+
+# Child program: record every ``import`` statement executed by ``next_cmd``'s module body. Recording the
+# *statement* (not whether the module loaded) keeps the check independent of what other modules already put
+# in ``sys.modules``.
+_MODULE_SCOPE_PROBE = r"""
+import builtins, json, sys
+module_scope = []
+real_import = builtins.__import__
+
+def hook(name, globals=None, locals=None, fromlist=(), level=0):
+    if globals is not None and globals.get("__name__") == "specify_cli.cli.commands.next_cmd":
+        if sys._getframe(1).f_code.co_name == "<module>":
+            module_scope.append(name)
+    return real_import(name, globals, locals, fromlist, level)
+
+builtins.__import__ = hook
+import specify_cli.cli.commands.next_cmd  # noqa: F401
+print(json.dumps({"loaded": "specify_cli.cli.commands.next_cmd" in sys.modules, "module_scope": module_scope}))
+"""
+
+
+def _is_forbidden(name: str) -> bool:
+    return any(name == f or name.startswith(f + ".") or name.endswith("." + f) for f in FORBIDDEN_ON_HELP)
+
+
+def _child_env() -> dict[str, str]:
+    import os
+
+    return {**os.environ, "PYTHONPATH": str(_SRC)}
+
+
+def test_next_cmd_defers_next_runtime_stack() -> None:
+    """``next_cmd.py``'s own module body must not import the ``next`` runtime stack (#5991)."""
+    result = subprocess.run([sys.executable, "-c", _MODULE_SCOPE_PROBE], cwd=_REPO_ROOT, env=_child_env(), capture_output=True, text=True, timeout=120)
+    assert result.returncode == 0, result.stderr[-2000:]
+    report = json.loads(result.stdout.strip().splitlines()[-1])
+    assert report["loaded"], "next_cmd was not imported: the control is vacuous"
+    names: list[str] = report["module_scope"]
+    assert "typer" in names, "probe saw no module-scope import in next_cmd: the control is vacuous"
+    leaked = sorted({n for n in names if _is_forbidden(n)})
+    assert not leaked, f"next_cmd imports at module scope: {leaked}"
+
+
+@pytest.mark.xfail(reason="whole-app --help still eagerly imports the next runtime stack via other modules; tracked in #5999", strict=True)
+def test_whole_app_help_does_not_import_next_runtime_stack() -> None:
+    result = subprocess.run(
+        [sys.executable, "-X", "importtime", "-m", "specify_cli", "--help"],
+        cwd=_REPO_ROOT,
+        env=_child_env(),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert result.returncode == 0, result.stderr[-2000:]
+    imported = set(_imported_module_names(result.stderr))
+    assert "specify_cli.cli.commands.next_cmd" in imported
+    leaked = sorted(n for n in imported if any(n == f or n.startswith(f + ".") for f in FORBIDDEN_ON_HELP))
+    assert not leaked, f"--help eagerly imports: {leaked}"
