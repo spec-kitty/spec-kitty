@@ -517,11 +517,15 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   governance-evidence seam (append-only policy-audit.jsonl);
         #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
-        # charter-activation-split (#806) restored EXPERIMENTAL replay
-        # semantics, leaving these activation-adjacent seams without static
-        # src/ callers. TODO(triage): #925 owns wire-or-prune disposition.
-        "charter.parser",
-        "charter.activation.template_resolver",
+        # charter.parser + charter.activation.template_resolver were PRUNED
+        # (Cat-7 burn-down, #6009): both were genuine orphans (zero static
+        # src/ callers; only the charter/__init__.py string-literal re-export
+        # facade + docstrings referenced them), deleted outright in one
+        # lockstep commit with their re-export entries, dedicated tests, and
+        # the surgical trim of tests/charter/test_resolver_tier_axis_via_factory.py.
+        # The former inline note cited #806/#925, both stale post-org-move
+        # numbers that resolve to unrelated closed issues; #6009 is the
+        # canonical owner. Shrink 4 -> 2 (survivors above).
         # sync.admission_operations: REMOVED (issue-5-delete-sync-transport,
         # 2026-08-25). The module was deleted outright with the sync transport;
         # its #3262 WP11 wiring consumer no longer exists, so there is nothing

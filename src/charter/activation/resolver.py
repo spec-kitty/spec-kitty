@@ -30,7 +30,8 @@ what lives here is the entry point — see the "6-tier resolution axis"
 section of :class:`ActiveCharterService`. Before WP05,
 ``charter.activation.template_resolver.CharterTemplateResolver`` was a *second*
 charter-layer object reaching ``charter.offering.resolver`` independently of this
-one; it is now a thin delegate onto these methods.
+one; WP05 reduced it to a thin delegate onto these methods, and it was later
+pruned as a Cat-7 dead module (#6009), leaving this module the sole door.
 """
 
 from __future__ import annotations
@@ -438,10 +439,10 @@ class ActiveCharterService:
     # imports the offering and never the reverse. What consolidates here is the *entry point*: before
     # WP05, ``charter.activation.template_resolver.CharterTemplateResolver`` reached
     # ``charter.offering.resolver`` independently of this class, giving the charter
-    # layer two doors onto the same chain (C-001 violation). It is now a thin
-    # delegate onto the methods below, and
-    # ``specify_cli/runtime/resolver.py``'s tier-6 routing calls them
-    # directly.
+    # layer two doors onto the same chain (C-001 violation). WP05 reduced it to a
+    # thin delegate onto the methods below; it was later pruned as a Cat-7 dead
+    # module (#6009). ``specify_cli/runtime/resolver.py``'s tier-6 routing calls
+    # these methods directly.
     #
     # ---- Ungated by design (do NOT add activation filtering here) --------
     # Unlike the nine gated properties above, these methods apply NO charter

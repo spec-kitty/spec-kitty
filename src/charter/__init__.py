@@ -14,13 +14,13 @@ Provides:
   longer extracts or writes anything (see ``charter.activation.sync`` module docstring).
 
 Lazy re-export table (mission ``charter-activation-split-01M16ZSE``, MAP-B):
-this module used to eagerly ``from .X import Y`` all 15 blocks below, which
+this module used to eagerly ``from .X import Y`` all 13 blocks below, which
 meant merely doing ``import charter.offering`` (or any single top-level
 offering facade) dragged the entire activation layer (interview, compiler,
 DRG activation filtering, pack management, ...) into the import graph. The
 ``__getattr__`` below (PEP 562) resolves each public name on first access and
 caches it on this module's ``globals()``, so ``charter.offering.*`` importers
-no longer pay for (or transitively depend on) the activation layer. All 15
+no longer pay for (or transitively depend on) the activation layer. All 13
 re-exports are verified side-effect-free at import time, so lazily deferring
 them changes nothing observable about *when* a name becomes available --
 only whether merely importing ``charter`` (or ``charter.offering``) forces
@@ -74,9 +74,6 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "default_interview": ("charter.activation.interview", "default_interview"),
     "read_interview_answers": ("charter.activation.interview", "read_interview_answers"),
     "write_interview_answers": ("charter.activation.interview", "write_interview_answers"),
-    # .parser (stays top-level -- shared primitive)
-    "CharterParser": ("charter.parser", "CharterParser"),
-    "CharterSection": ("charter.parser", "CharterSection"),
     # .schemas -> charter.activation.schemas
     "BranchStrategyConfig": ("charter.activation.schemas", "BranchStrategyConfig"),
     "CommitConfig": ("charter.activation.schemas", "CommitConfig"),
@@ -125,8 +122,6 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "collect_governance_diagnostics": ("charter.activation.resolver", "collect_governance_diagnostics"),
     "resolve_governance_for_profile": ("charter.activation.resolver", "resolve_governance_for_profile"),
     "resolve_project_governance": ("charter.activation.resolver", "resolve_project_governance"),
-    # .template_resolver -> charter.activation.template_resolver
-    "CharterTemplateResolver": ("charter.activation.template_resolver", "CharterTemplateResolver"),
     # .pack_context -> charter.activation.pack_context
     "PackContext": ("charter.activation.pack_context", "PackContext"),
     # .exceptions -> charter.activation.exceptions
@@ -173,8 +168,6 @@ __all__ = [
     "read_interview_answers",
     "write_interview_answers",
     "apply_answer_overrides",
-    "CharterParser",
-    "CharterSection",
     "BranchStrategyConfig",
     "CommitConfig",
     "GovernanceCharterConfig",
@@ -208,7 +201,6 @@ __all__ = [
     "UnknownMissionTypeError",
     "existing_mission_types",
     "resolve_mission_type_context",
-    "CharterTemplateResolver",
     "PackContext",
     "CharterActivationError",
     "ExtendsBaseNotFoundError",
