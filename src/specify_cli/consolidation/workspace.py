@@ -100,13 +100,35 @@ def abort_scratch_merge(worktree: Path, *, env: dict[str, str] | None = None) ->
     return True
 
 
+def _gitlink_dangles(git_entry: Path) -> bool:
+    """Whether ``git_entry`` is a ``.git`` file whose ``gitdir:`` target no longer exists.
+
+    Only a provably dead link qualifies. A link to a live (registered) git dir, an
+    unparseable file, or a ``.git`` directory is not dangling: the guard's refusal stands.
+    """
+    if not git_entry.is_file():
+        return False
+    try:
+        first_line = git_entry.read_text(encoding="utf-8").splitlines()[0]
+    except (OSError, UnicodeDecodeError, IndexError):
+        return False
+    prefix = "gitdir:"
+    if not first_line.startswith(prefix):
+        return False
+    target = Path(first_line[len(prefix) :].strip())
+    if not target.is_absolute():
+        target = git_entry.parent / target
+    return not target.exists()
+
+
 def discard_scratch_tree(path: Path, *, owned_root: Path, reason: str) -> bool:
     """Delete a scratch directory under ``owned_root`` that this tool created; best effort.
 
     A plain directory goes through :func:`remove_tool_owned_tree`. A directory that is
     (or was) a git checkout goes through :func:`guarded_tree_delete` with a tool-owned
-    context; one whose ``.git`` link dangles (the worktree registration is gone) is not
-    a checkout any more, so the dead link is dropped and the rest is deleted as a plain tree.
+    context; one whose ``.git`` link provably dangles (its ``gitdir:`` target is gone) is not
+    a checkout any more, so the dead link is dropped and the rest is deleted as a plain tree. A link to a live
+    git dir is never dropped on a refusal: the tree is kept.
     """
     git_entry = path / ".git"
     try:
@@ -115,7 +137,7 @@ def discard_scratch_tree(path: Path, *, owned_root: Path, reason: str) -> bool:
                 guarded_tree_delete(path, context=_TOOL_OWNED)
                 return True
             except DestructiveOpRefused:
-                if not git_entry.is_file():
+                if not _gitlink_dangles(git_entry):
                     raise
                 git_entry.unlink()
         return remove_tool_owned_tree(path, owned_root=owned_root, reason=reason, best_effort=True)
