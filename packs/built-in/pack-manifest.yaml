@@ -190,7 +190,7 @@ constituents:
   kind: directive
   path: directives/024-locality-of-change.directive.yaml
   provenance_path:
-- content_hash: 4552dcd9abb098c942cd0a17d17b436229287120e6692a1bc75305dd417a3e76
+- content_hash: 2daac8ecae64fcc9d8358fbeb7203066ed9f23a3066788c4a4fcb26f329be220
   id: DIRECTIVE_025
   kind: directive
   path: directives/025-boy-scout-rule.directive.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty charter pack regenerate-graph
-manifest_hash: c988d702015b149523232958b24aad2241a8838b3869fe541ed158ebb21aad13
+manifest_hash: 0fafa9efe08a49cc9e524d03d1abf8092c371b4ddd044c102c18ccd49939f4a1
 presets:
 - content_hash: f0e3e26b23029c9073d5d7799d41f5ca8bd35e7a13f370d7e1bf400705552fc7
   name: default
