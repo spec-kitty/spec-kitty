@@ -251,7 +251,10 @@ class TestImplementTemplateContent:
         assert "Post-Edit" in self.content and "Verification" in self.content
 
     def test_verification_checks_template_dirs(self) -> None:
-        assert "src/specify_cli/missions/*/command-templates/" in self.content
+        # Command templates moved from src/specify_cli/missions/*/command-templates/
+        # to packs/built-in/missions/mission-steps/ (doctrine-to-charter rework).
+        assert "packs/built-in/missions/mission-steps/" in self.content
+        assert "src/specify_cli/missions/*/command-templates/" not in self.content
 
     def test_verification_checks_agent_dirs(self) -> None:
         # At least one agent dir must be mentioned

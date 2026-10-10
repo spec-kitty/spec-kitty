@@ -298,7 +298,14 @@ After completing bulk renames:
    - **Missed rename**: Fix it
    - **New occurrence**: Introduced by parallel work -- rename if appropriate
 
-3. **Search the configured agent directories** explicitly. Resolve the agent
+3. **Search the template source directories** explicitly. Command templates now
+   live as step prompts under `packs/built-in/missions/mission-steps/`; edit
+   those SOURCE files, never the generated agent copies:
+   ```bash
+   grep -rn "old_term" packs/built-in/missions/mission-steps/
+   ```
+
+4. **Search the configured agent directories** explicitly. Resolve the agent
    command/skill directories this project actually has with
    `spec-kitty agent config list`, then grep each one for the old term, for
    example:
@@ -306,7 +313,7 @@ After completing bulk renames:
    grep -rn "old_term" .claude/commands/ .agents/skills/
    ```
 
-4. **Produce a verification report**:
+5. **Produce a verification report**:
    - Total occurrences found: N
    - Intentionally preserved: M (with reasons for each)
    - Missed renames fixed: K
