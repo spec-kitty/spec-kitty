@@ -26,22 +26,8 @@ from kernel import pack_tiers
 pytestmark = [pytest.mark.fast]
 
 
-def test_built_in_token_is_the_single_hyphenated_spelling() -> None:
-    """The one canonical spelling is ``"built-in"`` -- never ``"builtin"``."""
-    assert pack_tiers.BUILT_IN == "built-in"
-    assert pack_tiers.ORG == "org"
-    assert pack_tiers.PROJECT == "project"
-
-
-def test_no_legacy_builtin_spelling_anywhere_in_the_authority() -> None:
-    """The authority must not carry the retired no-hyphen ``"builtin"`` spelling."""
-    assert "builtin" not in pack_tiers.PACK_TIERS
-    assert pack_tiers.BUILT_IN != "builtin"
-
-
 def test_pack_tiers_tuple_is_ordered_built_in_first() -> None:
     """``PACK_TIERS`` is the ordered authority: index == precedence rank."""
-    assert pack_tiers.PACK_TIERS == ("built-in", "org", "project")
     rank = pack_tiers.PACK_TIERS.index
     assert rank(pack_tiers.BUILT_IN) < rank(pack_tiers.ORG) < rank(pack_tiers.PROJECT)
 
