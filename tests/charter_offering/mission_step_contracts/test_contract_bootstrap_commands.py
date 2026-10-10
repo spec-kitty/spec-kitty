@@ -86,5 +86,5 @@ def test_bootstrap_command_parses(contract_id: str, command: str) -> None:
             f"{exc.option_name!r}. A contract may not advertise a flag the parser does "
             f"not have — an operator or host runs this rendered string verbatim."
         )
-    except click.UsageError as exc:
+    except click.UsageError as exc:  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
         pytest.fail(f"{contract_id} bootstrap renders `{command}`, which does not parse: {exc}")

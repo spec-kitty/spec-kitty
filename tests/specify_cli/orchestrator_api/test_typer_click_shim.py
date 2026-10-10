@@ -28,13 +28,13 @@ pytestmark = [pytest.mark.fast, pytest.mark.unit]
 
 def _typer_027_like_click_module() -> types.SimpleNamespace:
     """A stand-in for ``typer._click`` as shipped in typer 0.27.2."""
-    return types.SimpleNamespace(exceptions=types.SimpleNamespace(UsageError=click.UsageError))
+    return types.SimpleNamespace(exceptions=types.SimpleNamespace(UsageError=click.UsageError))  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
 
 
 def test_vendored_lookup_returns_none_when_typer_027_omits_abort_and_exit(monkeypatch):
     monkeypatch.setattr(shim.typer_core, "_click", _typer_027_like_click_module(), raising=False)
 
-    assert shim._vendored_click_exception("UsageError") is click.UsageError
+    assert shim._vendored_click_exception("UsageError") is click.UsageError  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
     assert shim._vendored_click_exception("Abort") is None
     assert shim._vendored_click_exception("Exit") is None
 
@@ -55,9 +55,9 @@ def test_vendored_lookup_ignores_non_exception_attributes(monkeypatch):
 def test_exception_classes_drops_none_and_duplicates():
     assert shim._exception_classes(None) == ()
     # Two genuinely distinct classes: on typer <= 0.25 ``typer.Abort`` *is* ``click.Abort``.
-    assert shim._exception_classes(click.Abort, None, click.Abort, click.UsageError) == (
-        click.Abort,
-        click.UsageError,
+    assert shim._exception_classes(click.Abort, None, click.Abort, click.UsageError) == (  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
+        click.Abort,  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
+        click.UsageError,  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
     )
 
 
@@ -65,8 +65,8 @@ def test_catch_tuples_always_carry_typers_public_surface():
     """Whatever typer version is installed, typer's own classes must be caught."""
     assert typer.Abort in shim._CLICK_ABORTS
     assert typer.Exit in shim._EXIT
-    assert click.UsageError in shim._CLICK_USAGE_ERRORS
-    assert click.Abort in shim._CLICK_ABORTS
+    assert click.UsageError in shim._CLICK_USAGE_ERRORS  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
+    assert click.Abort in shim._CLICK_ABORTS  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
     for group in (shim._CLICK_USAGE_ERRORS, shim._CLICK_ABORTS, shim._EXIT):
         assert all(isinstance(cls, type) and issubclass(cls, BaseException) for cls in group)
 

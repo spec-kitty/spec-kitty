@@ -171,7 +171,7 @@ def _usage_error_class(ctx: Any) -> Callable[..., Exception]:
         candidate = getattr(exceptions_module, "UsageError", None)
         if isinstance(candidate, type) and issubclass(candidate, Exception):
             return candidate
-    return click.UsageError
+    return click.UsageError  # noqa: TID251 — documented last-resort fallback when ctx carries no click base (#4964)
 
 
 def _given_on_command_line(ctx: Any, name: str) -> bool:

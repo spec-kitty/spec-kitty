@@ -275,12 +275,12 @@ def _probe(args: list[str]) -> Callable[[], None]:
 
 
 def test_an_unknown_leaf_option_raises_the_usage_error() -> None:
-    with pytest.raises(click.UsageError, match="--doctrine-mode"):
+    with pytest.raises(click.UsageError, match="--doctrine-mode"):  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
         _probe(["tracker", "status", "WP01", "--doctrine-mode", "x"])()
 
 
 def test_an_unknown_group_option_raises_the_usage_error() -> None:
-    with pytest.raises(click.UsageError, match="--nope"):
+    with pytest.raises(click.UsageError, match="--nope"):  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
         _probe(["tracker", "--nope", "status"])()
 
 

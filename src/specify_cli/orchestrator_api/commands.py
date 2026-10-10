@@ -184,8 +184,8 @@ def _exception_classes(*candidates: type[BaseException] | None) -> tuple[type[Ba
     return tuple(classes)
 
 
-_CLICK_USAGE_ERRORS = _exception_classes(click.UsageError, _vendored_click_exception("UsageError"))
-_CLICK_ABORTS = _exception_classes(click.Abort, typer.Abort, _vendored_click_exception("Abort"))
+_CLICK_USAGE_ERRORS = _exception_classes(click.UsageError, _vendored_click_exception("UsageError"))  # noqa: TID251 — deliberately catches both click universes (standalone and typer-vendored)
+_CLICK_ABORTS = _exception_classes(click.Abort, typer.Abort, _vendored_click_exception("Abort"))  # noqa: TID251 — deliberately catches both click universes (standalone and typer-vendored)
 # ``typer.Exit`` is click's ``Exit`` on typer <= 0.25 and typer's own class on
 # >= 0.26, so it covers the standalone-click spelling in both eras (TID251).
 _EXIT = _exception_classes(typer.Exit, _vendored_click_exception("Exit"))
