@@ -139,7 +139,7 @@ class CommandsRenameMigration(BaseMigration):
                             changes.append(f"Would remove old commands/ from worktree {worktree.name}")
                         else:
                             try:
-                                remove_tool_owned_tree(wt_templates_commands, owned_root=wt_templates_commands, reason="worktree legacy templates/commands")
+                                remove_tool_owned_tree(wt_templates_commands, tool_root=wt_templates_commands, reason="worktree legacy templates/commands")
                                 changes.append(f"Removed old commands/ from worktree {worktree.name}")
                             except (OSError, ToolOwnedPathUnproven) as e:
                                 warnings.append(f"Could not remove old commands/ from worktree {worktree.name}: {e}")

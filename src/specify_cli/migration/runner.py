@@ -87,7 +87,7 @@ def _create_backup(repo_root: Path) -> Path | None:
     # Remove stale backup if present
     if backup_dir.exists():
         try:
-            remove_tool_owned_tree(backup_dir, owned_root=backup_dir, reason="stale migration backup")
+            remove_tool_owned_tree(backup_dir, tool_root=backup_dir, reason="stale migration backup")
         except (OSError, ToolOwnedPathUnproven) as exc:
             logger.warning("Could not remove stale backup: %s", exc)
 
@@ -128,7 +128,7 @@ def _restore_siblings(repo_root: Path, backup_dir: Path) -> bool:
             if kitty_specs.is_dir():
                 # Proof of ownership: kitty-specs/ is replaced by the snapshot taken at the start of this very
                 # run (kitty_specs_backup.is_dir() above); a failed copy keeps the backup (ok=False).
-                remove_tool_owned_tree(kitty_specs, owned_root=kitty_specs, reason="rollback restore of kitty-specs from this run's backup")
+                remove_tool_owned_tree(kitty_specs, tool_root=kitty_specs, reason="rollback restore of kitty-specs from this run's backup")
             shutil.copytree(kitty_specs_backup, kitty_specs)
             logger.info("Restored kitty-specs/ from backup")
         except (OSError, ToolOwnedPathUnproven) as exc:
@@ -170,7 +170,7 @@ def _restore_backup(repo_root: Path, backup_dir: Path) -> bool:
             continue
         try:
             if item.is_dir():
-                remove_tool_owned_tree(item, owned_root=item, reason="rollback restore of .kittify from this run's backup")
+                remove_tool_owned_tree(item, tool_root=item, reason="rollback restore of .kittify from this run's backup")
             else:
                 item.unlink()
         except (OSError, ToolOwnedPathUnproven) as exc:
@@ -201,7 +201,7 @@ def _cleanup_backup(repo_root: Path) -> bool:
     backup_dir = repo_root / ".kittify" / _BACKUP_DIR_NAME
     if backup_dir.exists():
         try:
-            remove_tool_owned_tree(backup_dir, owned_root=backup_dir, reason="migration backup cleanup")
+            remove_tool_owned_tree(backup_dir, tool_root=backup_dir, reason="migration backup cleanup")
             logger.debug("Backup directory removed")
         except (OSError, ToolOwnedPathUnproven) as exc:
             logger.warning("Could not remove backup dir: %s", exc)

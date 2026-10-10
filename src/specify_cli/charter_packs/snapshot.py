@@ -214,7 +214,7 @@ def _discard(path: Path, local_path: Path) -> None:
     Both are created beside ``local_path`` by :func:`write_snapshot`, so
     ``local_path.parent`` is the root this module owns (#5965 / #5966).
     """
-    remove_tool_owned_tree(path, owned_root=local_path.parent, reason="charter pack snapshot staging", best_effort=True)
+    remove_tool_owned_tree(path, tool_root=local_path.parent, reason="charter pack snapshot staging", best_effort=True)
 
 
 def _with_stored_etag(

@@ -261,7 +261,7 @@ def _stage(project_root: Path, rendered: list[_Rendered]) -> SkillRegistry | Non
         raise PackSkillCatalogError(f"pack-skill staging root is not a regular directory: {root}")
     if not rendered:
         if root.is_dir() and any(root.iterdir()):
-            remove_tool_owned_tree(root, owned_root=root, reason="stale pack-skill staging root")
+            remove_tool_owned_tree(root, tool_root=root, reason="stale pack-skill staging root")
         return None
     wanted = {item.prepared.rendered_name for item in rendered}
     if root.is_dir():
@@ -295,7 +295,7 @@ def _read_only_parent() -> Path:
         atexit.register(
             remove_tool_owned_tree,
             _READ_ONLY_ROOT,
-            owned_root=_READ_ONLY_ROOT,
+            tool_root=_READ_ONLY_ROOT,
             reason="read-only pack-skill temp root",
             best_effort=True,
         )
@@ -324,7 +324,7 @@ def _stage_read_only(rendered: list[_Rendered]) -> SkillRegistry | None:
     root = _read_only_parent() / _rendered_set_key(rendered)
     if not root.is_dir():
         building = root.with_name(f"{root.name}.building")
-        remove_tool_owned_tree(building, owned_root=building, reason="pack-skill build dir", best_effort=True)
+        remove_tool_owned_tree(building, tool_root=building, reason="pack-skill build dir", best_effort=True)
         for item in rendered:
             _write_staged(building / item.prepared.rendered_name / _SKILL_FILENAME, item.text)
         building.rename(root)
@@ -333,7 +333,7 @@ def _stage_read_only(rendered: list[_Rendered]) -> SkillRegistry | None:
 
 def _remove_node(path: Path) -> None:
     if path.is_dir() and not path.is_symlink():
-        remove_tool_owned_tree(path, owned_root=path, reason="stale pack-skill staging entry")
+        remove_tool_owned_tree(path, tool_root=path, reason="stale pack-skill staging entry")
     else:
         path.unlink()
 

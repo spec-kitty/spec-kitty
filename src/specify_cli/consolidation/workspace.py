@@ -121,8 +121,8 @@ def _gitlink_dangles(git_entry: Path) -> bool:
     return not target.exists()
 
 
-def discard_scratch_tree(path: Path, *, owned_root: Path, reason: str) -> bool:
-    """Delete a scratch directory under ``owned_root`` that this tool created; best effort.
+def discard_scratch_tree(path: Path, *, tool_root: Path, reason: str) -> bool:
+    """Delete a scratch directory under ``tool_root`` that this tool created; best effort.
 
     A plain directory goes through :func:`remove_tool_owned_tree`. A directory that is
     (or was) a git checkout goes through :func:`guarded_tree_delete` with a tool-owned
@@ -140,7 +140,7 @@ def discard_scratch_tree(path: Path, *, owned_root: Path, reason: str) -> bool:
                 if not _gitlink_dangles(git_entry):
                     raise
                 git_entry.unlink()
-        return remove_tool_owned_tree(path, owned_root=owned_root, reason=reason, best_effort=True)
+        return remove_tool_owned_tree(path, tool_root=tool_root, reason=reason, best_effort=True)
     except (DestructiveOpRefused, RuntimeError, OSError, ValueError) as exc:
         logger.debug("Scratch tree %s was not removed (%s): %s", path, reason, exc)
         return False
@@ -170,7 +170,7 @@ def create_merge_workspace(mission_id: str, target_branch: str, repo_root: Path)
         # Invalid state: remove and recreate
         discard_scratch_tree(
             workspace_path,
-            owned_root=get_merge_runtime_dir(mission_id, repo_root),
+            tool_root=get_merge_runtime_dir(mission_id, repo_root),
             reason="stale merge workspace",
         )
 
@@ -230,7 +230,7 @@ def cleanup_merge_workspace(mission_id: str, repo_root: Path) -> None:
             if child.name in _PRESERVED_FILES:
                 continue
             if child.is_dir():
-                discard_scratch_tree(child, owned_root=runtime_dir, reason="merge runtime artifact")
+                discard_scratch_tree(child, tool_root=runtime_dir, reason="merge runtime artifact")
             else:
                 child.unlink(missing_ok=True)
 

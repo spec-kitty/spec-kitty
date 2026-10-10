@@ -283,7 +283,7 @@ def discard_temp_source(root: Path) -> None:
     ``guarded_tree_delete``, which keeps it only when it holds local changes.
     """
     try:
-        remove_tool_owned_tree(root, owned_root=root, reason="template render temp source", best_effort=True)
+        remove_tool_owned_tree(root, tool_root=root, reason="template render temp source", best_effort=True)
     except ToolOwnedPathUnproven:
         _discard_clone(root)
 

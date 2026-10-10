@@ -436,7 +436,7 @@ def query_current_state(
         )
     finally:
         if ephemeral_run_store is not None:
-            remove_tool_owned_tree(ephemeral_run_store, owned_root=ephemeral_run_store, reason="ephemeral query run store", best_effort=True)
+            remove_tool_owned_tree(ephemeral_run_store, tool_root=ephemeral_run_store, reason="ephemeral query run store", best_effort=True)
 
 
 def _query_resolve_mission_context(

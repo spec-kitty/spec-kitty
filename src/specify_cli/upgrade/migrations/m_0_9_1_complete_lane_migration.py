@@ -321,7 +321,7 @@ class CompleteLaneMigration(BaseMigration):
                         try:
                             # Use shutil.rmtree for more robust removal
                             # This will remove the directory and all system files within it
-                            remove_tool_owned_tree(lane_dir, owned_root=lane_dir, reason="empty lane directory (system files only)")
+                            remove_tool_owned_tree(lane_dir, tool_root=lane_dir, reason="empty lane directory (system files only)")
                             changes.append(f"  Removed: {lane}/")
                             dirs_removed += 1
                         except (OSError, ToolOwnedPathUnproven) as e:
@@ -422,7 +422,7 @@ class CompleteLaneMigration(BaseMigration):
                                 commands_dir.unlink()
                                 changes.append(f"[{worktree_name}] Removed {agent_dir}/{subdir}/ symlink (inherits from main)")
                             elif commands_dir.is_dir():
-                                remove_tool_owned_tree(commands_dir, owned_root=commands_dir, reason="worktree agent commands dir")
+                                remove_tool_owned_tree(commands_dir, tool_root=commands_dir, reason="worktree agent commands dir")
                                 changes.append(f"[{worktree_name}] Removed {agent_dir}/{subdir}/ (inherits from main)")
 
                             # Clean up parent directory if now empty
@@ -450,7 +450,7 @@ class CompleteLaneMigration(BaseMigration):
                             scripts_dir.unlink()
                             changes.append(f"[{worktree_name}] Removed .kittify/scripts/ symlink (inherits from main)")
                         elif scripts_dir.is_dir():
-                            remove_tool_owned_tree(scripts_dir, owned_root=scripts_dir, reason="worktree .kittify/scripts")
+                            remove_tool_owned_tree(scripts_dir, tool_root=scripts_dir, reason="worktree .kittify/scripts")
                             changes.append(f"[{worktree_name}] Removed .kittify/scripts/ (inherits from main)")
                         cleaned_this_worktree = True
                     except (OSError, ToolOwnedPathUnproven) as e:

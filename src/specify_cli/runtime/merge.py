@@ -67,7 +67,7 @@ def merge_package_assets(source: Path | OwnerAssessment, dest: Path, *, consent:
         dst = dest / managed_dir
         if src.exists():
             if dst.exists():
-                remove_tool_owned_tree(dst, owned_root=dst, reason="package-managed runtime directory replaced on update")
+                remove_tool_owned_tree(dst, tool_root=dst, reason="package-managed runtime directory replaced on update")
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copytree(src, dst)
 

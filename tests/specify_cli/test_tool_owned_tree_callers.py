@@ -130,7 +130,7 @@ def test_read_only_parent_registers_tool_owned_cleanup(monkeypatch: pytest.Monke
         ((fn, args, kwargs),) = registered
         assert fn == remove_tool_owned_tree
         assert args == (root,)
-        assert kwargs["owned_root"] == root and kwargs["best_effort"] is True
+        assert kwargs["tool_root"] == root and kwargs["best_effort"] is True
         registered[0][0](*args, **kwargs)
         assert not root.exists()
     finally:
