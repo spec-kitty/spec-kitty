@@ -15,6 +15,7 @@ import os
 import warnings
 from pathlib import Path, PurePath, PurePosixPath
 
+from kernel.pack_tiers import BUILT_IN
 from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 
 #: Environment variable naming the pack root (default- or operator-supplied).
@@ -33,10 +34,6 @@ _PACKS_ROOT_ENV = "SPEC_KITTY_PACKS_ROOT"
 #: honoured for the asset-copy/template path, but only when ``PACKS_ROOT`` is
 #: not governing pack-root location (C-R3): ``PACKS_ROOT`` wins for *location*.
 _TEMPLATE_ROOT_ENV = "SPEC_KITTY_TEMPLATE_ROOT"
-
-#: The fixed ``built-in`` pack directory name, both as the child of a
-#: ``PACKS_ROOT`` override and as the ``packs/built-in`` sibling segment.
-_BUILT_IN_DIR_NAME = "built-in"
 
 #: Fail-closed message when no package mission assets can be located. Kept as a
 #: module constant so the door's two closed-error branches speak with one voice.
@@ -131,7 +128,7 @@ _MISSION_ASSETS_DIR_NAME = "missions"
 #: forking the literal. Built with the multi-argument ``PurePosixPath``
 #: constructor (not ``/`` joins) so the shape is a single owned constant, not a
 #: scattered ``<path> / "built-in"`` filesystem-join literal.
-BUILT_IN_PACK_SIBLING_PATTERN = PurePosixPath("packs", _BUILT_IN_DIR_NAME)
+BUILT_IN_PACK_SIBLING_PATTERN = PurePosixPath("packs", BUILT_IN)
 
 #: PUBLIC: the full ``packs/built-in/missions`` sibling shape -- the built-in
 #: pack pattern above composed with the ``missions`` leaf. The one owned
@@ -267,7 +264,7 @@ def get_built_in_pack_root() -> Path:
             -- so kernel need not know either upward-layer error type.
     """
     env_value = os.environ.get(_PACKS_ROOT_ENV)
-    env_override = Path(env_value) / _BUILT_IN_DIR_NAME if env_value else None
+    env_override = Path(env_value) / BUILT_IN if env_value else None
     if env_override is not None and not env_override.is_dir():
         warnings.warn(
             f"{_PACKS_ROOT_ENV}={env_value!r} does not resolve to a directory "
