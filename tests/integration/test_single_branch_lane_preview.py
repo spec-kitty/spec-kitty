@@ -34,13 +34,15 @@ def test_single_branch_preview_matches_real_finalize(request, monkeypatch, expli
         (owned / "docs").mkdir()
         (owned / "docs/plan.md").write_text("# Planning artifact\n", encoding="utf-8")
         wp01.write_text(
-            wp01.read_text(encoding="utf-8").replace("owned_files: [app.py]", "owned_files: [docs/plan.md]")
+            wp01.read_text(encoding="utf-8")
+            .replace("owned_files: [app.py]", "owned_files: [docs/plan.md]")
             .replace("authoritative_surface: app.py", "authoritative_surface: docs/")
-            .replace("execution_mode: code_change", "execution_mode: planning_artifact"), encoding="utf-8",
+            .replace("execution_mode: code_change", "execution_mode: planning_artifact"),
+            encoding="utf-8",
         )
     (mission / "tasks.md").write_text(
-        "# Tasks\n\n## Work Package WP01\n\n**Dependencies**: None\n\n"
-        "## Work Package WP02\n\n**Dependencies**: None\n", encoding="utf-8",
+        "# Tasks\n\n## Work Package WP01\n\n**Dependencies**: None\n\n## Work Package WP02\n\n**Dependencies**: None\n",
+        encoding="utf-8",
     )
     git(owned, "add", "-A")
     git(owned, "commit", "-qm", "fixture: two disjoint work packages")
@@ -145,11 +147,12 @@ def test_nonowned_single_branch_preview_matches_real_finalize(checkouts, monkeyp
     (primary / "app2.py").write_text("VALUE = 2\n", encoding="utf-8")
     wp01 = mission / "tasks/WP01-test.md"
     (mission / "tasks/WP02-test.md").write_text(
-        wp01.read_text(encoding="utf-8").replace("WP01", "WP02").replace("app.py", "app2.py"), encoding="utf-8",
+        wp01.read_text(encoding="utf-8").replace("WP01", "WP02").replace("app.py", "app2.py"),
+        encoding="utf-8",
     )
     (mission / "tasks.md").write_text(
-        "# Tasks\n\n## Work Package WP01\n\n**Dependencies**: None\n\n"
-        "## Work Package WP02\n\n**Dependencies**: None\n", encoding="utf-8",
+        "# Tasks\n\n## Work Package WP01\n\n**Dependencies**: None\n\n## Work Package WP02\n\n**Dependencies**: None\n",
+        encoding="utf-8",
     )
     git(primary, "add", "-A")
     git(primary, "commit", "-qm", "fixture: nonowned single-branch mission")
@@ -177,7 +180,8 @@ def test_meta_less_legacy_preview_keeps_default_lanes(tmp_path, monkeypatch):
     reports = []
     monkeypatch.setattr(mission_finalize, "_emit_json", reports.append)
     monkeypatch.setattr(
-        mission_finalize, "_bootstrap_canonical_state_via_mission",
+        mission_finalize,
+        "_bootstrap_canonical_state_via_mission",
         lambda *args, **kwargs: mission_finalize.BootstrapResult(2, 0, 2),
     )
     frontmatter = {
@@ -190,9 +194,15 @@ def test_meta_less_legacy_preview_keeps_default_lanes(tmp_path, monkeypatch):
     }
     before = list(tmp_path.iterdir())
     mission_finalize._emit_validate_only_report(
-        tmp_path, "legacy-mission", None,
+        tmp_path,
+        "legacy-mission",
+        None,
         mission_finalize._BootstrapState(inmemory_frontmatter=frontmatter),
-        ownership, {"WP01": [], "WP02": []}, {}, "main", json_output=True,
+        ownership,
+        {"WP01": [], "WP02": []},
+        {},
+        "main",
+        json_output=True,
     )
     assert reports[0]["validation"]["lanes_preview"]["lane_ids"] == ["lane-a", "lane-b"]
     assert list(tmp_path.iterdir()) == before

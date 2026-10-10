@@ -1,4 +1,5 @@
 """Only canonically selected package-identical global templates are report inputs."""
+
 from __future__ import annotations
 
 import json

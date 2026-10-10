@@ -39,7 +39,11 @@ def pr_bound_checkouts(checkouts, monkeypatch: pytest.MonkeyPatch):
 @pytest.mark.parametrize("validate_only", [False, True])
 @pytest.mark.parametrize("override", [False, True])
 def test_finalize_uses_owned_planning_and_preserves_landing(
-    pr_bound_checkouts, monkeypatch: pytest.MonkeyPatch, explicit: bool, validate_only: bool, override: bool,
+    pr_bound_checkouts,
+    monkeypatch: pytest.MonkeyPatch,
+    explicit: bool,
+    validate_only: bool,
+    override: bool,
 ):
     primary, owned, sibling = pr_bound_checkouts
     monkeypatch.chdir(sibling if explicit else owned)
@@ -149,7 +153,8 @@ def test_owned_non_pr_and_commit_to_target_controls(checkouts, monkeypatch, prot
         meta["commit_to_target"] = True
         meta_path.write_text(json.dumps(meta), encoding="utf-8")
         (owned / ".kittify/config.yaml").write_text(
-            "agents:\n  available: [codex]\nprotection:\n  protected_branches: [codex/owned]\n", encoding="utf-8",
+            "agents:\n  available: [codex]\nprotection:\n  protected_branches: [codex/owned]\n",
+            encoding="utf-8",
         )
         git(owned, "add", str(meta_path), ".kittify/config.yaml")
         git(owned, "commit", "-qm", "fixture: protected commit-to-target")

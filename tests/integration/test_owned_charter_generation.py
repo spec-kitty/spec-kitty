@@ -1,4 +1,5 @@
 """Explicit owned charter authoring keeps every write and staged path in P."""
+
 from __future__ import annotations
 
 import json
@@ -111,8 +112,11 @@ def test_owned_generation_destination_refuses_before_writes(checkouts, tmp_path,
         config.write_text(config.read_text() + f"charter: {target}\n")
     else:
         relative = {
-            "charter_dir": ".kittify/charter", "charter_yaml": ".kittify/charter/charter.yaml",
-            "config": ".kittify/config.yaml", "gitignore": ".gitignore", "library": ".kittify/charter/library",
+            "charter_dir": ".kittify/charter",
+            "charter_yaml": ".kittify/charter/charter.yaml",
+            "config": ".kittify/config.yaml",
+            "gitignore": ".gitignore",
+            "library": ".kittify/charter/library",
         }[destination]
         target = owned / relative
         target.parent.mkdir(parents=True, exist_ok=True)
