@@ -9,6 +9,7 @@ used pack 2's.
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 from typing import cast
 
@@ -156,4 +157,20 @@ class TestActivateUnknownInEveryPack:
         )
         assert result.exit_code == 1, result.output
         assert "Unknown directive ID" in result.output
+        assert config_path.read_text(encoding="utf-8") == before
+
+
+class TestActivateFailsClosedOnUnfetchedPack:
+    def test_declared_but_unfetched_pack_exits_1_with_fetch_remedy(self, two_pack_project: Path) -> None:
+        # Pack ``beta`` stays declared in config but is gone from disk (#4984).
+        shutil.rmtree(two_pack_project / "packs" / "beta")
+        config_path = two_pack_project / ".kittify" / "config.yaml"
+        before = config_path.read_text(encoding="utf-8")
+        result = runner.invoke(
+            charter_app,
+            ["activate", "--repo-root", str(two_pack_project), "--no-compile", "directive", "shared_one"],
+        )
+        assert result.exit_code == 1, result.output
+        assert "beta" in result.output
+        assert "charter fetch" in result.output
         assert config_path.read_text(encoding="utf-8") == before
