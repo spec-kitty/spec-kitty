@@ -46,7 +46,7 @@ validation_criteria:
 explicit_allowances:
   - Deferring an adjacent fix is allowed when it is genuinely large, risky, or out of scope — recorded with a one-line rationale and, where useful, a tracker reference.
   - When a touched-area failure is a pre-existing flake unrelated to the change, it may be deferred with a note rather than fixed inline.
-  - At a planning point-cut, an out-of-domain debt item may be noted in the Activity Log and explicitly deferred without a formal tracker issue when the team determines the item is too small or ephemeral to warrant tracking overhead — but the deferral decision must still be recorded explicitly.
+  - At a planning point-cut, an out-of-domain debt item may be recorded as a WP history note (`spec-kitty agent tasks add-history`) and explicitly deferred without a formal tracker issue when the team determines the item is too small or ephemeral to warrant tracking overhead — but the deferral decision must still be recorded explicitly.
 references:
   - type: directive
     id: DIRECTIVE_024
