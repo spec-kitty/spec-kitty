@@ -2628,8 +2628,7 @@ def test_corpus_fallback_list_equals_the_independent_derivation(corpus_run: Corp
     problems = difference_problems("scan fallbacks", run.scan.fallbacks, run.oracle.fallbacks)
     problems += difference_problems("scan fallback reasons", run.scan.fallbacks.items(), run.oracle.fallbacks.items())
     problems += difference_problems("Missions that raised CoordinationBranchDeleted", raised_the_named_fallback(run), run.oracle.fallbacks)
-    if run.oracle.remote_present:
-        problems.append(f"derived but present as remote-tracking ref (the resolver judges these present): {run.oracle.remote_present}")
+    print(f"drift fallbacks the derivation dropped because the branch is live on a remote (the resolver judges these present): {run.oracle.remote_present}")
     print(f"drift coordination fallbacks (environment-dependent, never floored): {len(run.scan.fallbacks)} {sorted(run.scan.fallbacks)}")
     assert not problems, "; ".join(problems)
     assert all(reason == FALLBACK_REASON for reason in run.scan.fallbacks.values())
@@ -3350,12 +3349,13 @@ def test_the_fallback_derivation_agrees_with_the_resolver_and_each_arm_it_does_n
         "stored topology without coordination": coordination_repo(scratch_git, "topology", None, meta={"topology": "lanes"}),
         "merged and reopened": coordination_repo(scratch_git, "reopened", None, meta=merged, extra_rows=[reopened]),
     }
-    # arm: (the resolver raises the named fallback, the derivation lists the Mission, the Mission is also a remote-tracking ref)
+    # arm: (the resolver raises the named fallback, the derivation lists the Mission, the Mission is present on a remote: a tracking ref or a live ls-remote hit)
+    # A branch live on a remote makes the resolver answer "present" (#4979 live arm), so the derivation must not list it (#5990).
     wanted = {
         "absent": (True, True, False),
         "local-head": (False, False, False),
-        "remote-tracking": (False, True, True),
-        "remote-only": (False, True, False),
+        "remote-tracking": (False, False, True),
+        "remote-only": (False, False, True),
         "stored topology without coordination": (False, True, False),
         "merged and reopened": (True, False, False),
     }
@@ -3365,7 +3365,25 @@ def test_the_fallback_derivation_agrees_with_the_resolver_and_each_arm_it_does_n
         outcome = drift.scan_drift(repo, memo, clock=FrozenClock(instant=NOW))
         expected = oracles.drift_oracle(repo, memo, NOW)
         got = (name in outcome.fallbacks, name in expected.fallbacks, expected.remote_present == [name])
-        assert outcome.status == 200 and got == wanted[arm], f"{arm}: (resolver raises, derivation lists, remote-tracking) is {got}, pinned {wanted[arm]}"
+        assert outcome.status == 200 and got == wanted[arm], f"{arm}: (resolver raises, derivation lists, remote-present) is {got}, pinned {wanted[arm]}"
+    _reset_remote_branch_lookup_cache()
+
+
+def test_the_live_remote_arm_is_re_derived_not_borrowed_from_the_resolver(scratch_git: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Independence (#5990 F6): a resolver whose live-remote arm regressed still diverges from the oracle on a remote-only branch."""
+    bare = scratch_git / "regress.git"
+    bare.mkdir()
+    _git(bare, "init", "--bare", "-q")
+    repo, name = coordination_repo(scratch_git, "regress", str(bare), branch_kind="remote-only")
+    _reset_remote_branch_lookup_cache()
+    memo = memo_module.ResolverMemo()
+    assert name not in drift.scan_drift(repo, memo, clock=FrozenClock(instant=NOW)).fallbacks, "the control: the live arm answers present"
+    assert name not in oracles.drift_oracle(repo, memo, NOW).fallbacks
+    _reset_remote_branch_lookup_cache()
+    monkeypatch.setattr("specify_cli.coordination.surface_resolver._coord_branch_exists_via_remote", lambda _root, _branch: False)
+    regressed = drift.scan_drift(repo, memo_module.ResolverMemo(), clock=FrozenClock(instant=NOW))
+    assert name in regressed.fallbacks, "the regressed resolver raises the fallback"
+    assert name not in oracles.drift_oracle(repo, memo_module.ResolverMemo(), NOW).fallbacks, "the oracle still says present: it does not borrow the resolver"
     _reset_remote_branch_lookup_cache()
 
 
