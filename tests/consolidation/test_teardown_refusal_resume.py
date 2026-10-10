@@ -220,6 +220,30 @@ def test_abort_teardown_with_only_copy_files_refuses_and_names_the_abort_remedy(
     assert kept.read_text(encoding="utf-8") == _TRACE_NOTES and worktree.is_dir()
 
 
+def test_abort_rerun_after_a_refusal_completes_once_the_only_copy_files_are_moved_out(idle_coord_mission: CoordMission, tmp_path: Path) -> None:
+    """A refused ``--abort`` leaves everything in place, so running ``--abort`` again finishes the teardown."""
+    from specify_cli.cli.commands.consolidate import _teardown_coordination_for_abort
+
+    mission = idle_coord_mission
+    worktree = _coord_worktree(mission)
+    kept = worktree / "kitty-specs" / mission.slug / "traces" / "notes.md"
+    kept.parent.mkdir(exist_ok=True)
+    kept.write_text(_TRACE_NOTES, encoding="utf-8")
+    state = ConsolidationState(mission_id=mission.mission_id, mission_slug=mission.slug, target_branch=mission.target_branch, wp_order=[])
+
+    with pytest.raises(typer.Exit) as first:
+        _teardown_coordination_for_abort(mission.repo, mission.slug, (mission.mission_id, state))
+    assert first.value.exit_code == COORD_TEARDOWN_KEPT_ONLY_COPY_EXIT_CODE
+    assert worktree.is_dir() and kept.read_text(encoding="utf-8") == _TRACE_NOTES
+
+    saved = tmp_path / "saved-notes.md"
+    shutil.move(str(kept), saved)
+    _teardown_coordination_for_abort(mission.repo, mission.slug, (mission.mission_id, state))
+
+    assert not worktree.exists()
+    assert saved.read_text(encoding="utf-8") == _TRACE_NOTES
+
+
 def test_abort_teardown_without_only_copy_files_removes_the_worktree(idle_coord_mission: CoordMission) -> None:
     from specify_cli.cli.commands.consolidate import _teardown_coordination_for_abort
 
