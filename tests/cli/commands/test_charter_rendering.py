@@ -411,7 +411,7 @@ def test_context_include_renders_selector_without_action(tmp_path: Path) -> None
         project,
         "section:regression-vigilance",
         action=None,
-        org_root=None,
+        org_roots=None,
     )
 
 
@@ -457,7 +457,7 @@ def test_activation_stanza_include_command_is_registered_cli_surface(
         project,
         "styleguide:caveman-comments",
         action=None,
-        org_root=None,
+        org_roots=None,
     )
 
 
