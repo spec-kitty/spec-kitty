@@ -375,7 +375,7 @@ constituents:
   kind: paradigm
   path: paradigms/c4-incremental-detail-modeling.paradigm.yaml
   provenance_path:
-- content_hash: 18a64a9f8ecf97f34e48340d0164f181eaedb656228b5cbea71b4d4c4497ea74
+- content_hash: 8fe95df88d8ac0277b89bb93328a0149ff75267d1620fbeef7784bcbcc69edaa
   id: deep-module-design
   kind: paradigm
   path: paradigms/deep-module-design.paradigm.yaml
@@ -965,7 +965,7 @@ constituents:
   kind: tactic
   path: tactics/testing/no-parallel-duplicate-test-runs.tactic.yaml
   provenance_path:
-- content_hash: 5ec95f1b3b522517c867b21349d113461f3698308740cb13f8e6a682b71cde0b
+- content_hash: d98c2c0294e090597528720a196715b2d7c8b7b477501c4e989721abeec2e3a1
   id: occurrence-classification-workflow
   kind: tactic
   path: tactics/occurrence-classification-workflow.tactic.yaml
@@ -1375,7 +1375,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty charter pack regenerate-graph
-manifest_hash: 0fafa9efe08a49cc9e524d03d1abf8092c371b4ddd044c102c18ccd49939f4a1
+manifest_hash: 7c322627b1cf0bd9d799280e7013babdbc232ddb4c3068bcec0b388a73558b4d
 presets:
 - content_hash: f0e3e26b23029c9073d5d7799d41f5ca8bd35e7a13f370d7e1bf400705552fc7
   name: default

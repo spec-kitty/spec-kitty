@@ -42,3 +42,10 @@ steps:
       "Bulk Edit Gate: BLOCKED" until the map is structurally complete.
     examples:
       - "spec-kitty agent mission finalize-tasks --mission my-mission  # runs the occurrence-map gate"
+references:
+  - name: Bulk Edit Occurrence Classification
+    type: directive
+    id: DIRECTIVE_035
+    when: >
+      Classifying each matching occurrence by semantic context before a bulk
+      edit, so every change is deliberate rather than a blind sweep.
