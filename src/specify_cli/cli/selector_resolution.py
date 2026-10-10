@@ -25,8 +25,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import click
 import typer
+from specify_cli.cli.click_context import current_click_context
 from specify_cli.cli.console import err_console as _err_console
 
 from specify_cli.context.mission_resolver import (
@@ -82,7 +82,7 @@ def _emit_deprecation_warning(
     """
 
     global _direct_invocation_counter
-    ctx = click.get_current_context(silent=True)
+    ctx = current_click_context()
     if ctx is not None:
         invocation_id = id(ctx)
     else:

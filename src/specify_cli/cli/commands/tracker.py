@@ -17,6 +17,7 @@ from typing import Any
 
 import typer
 from rich.console import Console
+from specify_cli.cli.click_context import current_click_context
 from specify_cli.cli.console import console
 from rich.table import Table
 
@@ -136,7 +137,6 @@ def _resolve_output_policy_for_tracker() -> str:
     Lazy-imports the coordinator to avoid an import cycle with
     ``specify_cli.tracker.saas_readiness``.
     """
-    import click  # noqa: PLC0415 — keep coordinator import-time cheap
     from specify_cli.readiness.coordinator import (  # noqa: PLC0415
         OutputPolicy,
         _derive_output_policy,
@@ -144,7 +144,7 @@ def _resolve_output_policy_for_tracker() -> str:
     )
 
     try:
-        click_ctx = click.get_current_context(silent=True)
+        click_ctx = current_click_context()
     except Exception:  # noqa: BLE001 — defensive: never raise out of the readiness renderer
         click_ctx = None
 

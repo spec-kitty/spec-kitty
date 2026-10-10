@@ -52,7 +52,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import typer
-import click
 
 if TYPE_CHECKING:
     from specify_cli.upgrade.assessment import PreparedUpgradeRepairs
@@ -63,6 +62,7 @@ from rich.markup import escape
 from rich.panel import Panel
 from rich.table import Table
 
+from specify_cli.cli.click_context import current_click_context
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import show_banner
 from specify_cli.cli.commands._confirm import safe_confirm
@@ -1731,7 +1731,7 @@ def _check_upgrade_intent_conflicts(
     no_worktrees: bool,
 ) -> None:
     """Preserve the parser conflict contract before dispatching upgrade work."""
-    current_context = click.get_current_context(silent=True)
+    current_context = current_click_context()
     intent = current_context.meta.get("upgrade_intent") if current_context is not None else None
     if intent is not None and intent.conflicts:
         message = "\n".join(intent.conflicts)
