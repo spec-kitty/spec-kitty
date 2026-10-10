@@ -410,6 +410,52 @@ def test_create_rejected_review_cycle_owned_commits_on_p_and_adopts_identical_re
     r_snapshot.assert_unchanged(before, r_snapshot.take(), tolerate_status_mutex_for=fact.mission_slug)
 
 
+def test_owned_review_cycle_commit_uses_owned_scoped_policy(
+    owned_checkouts: OwnedCheckouts,
+    fact: OwnedCheckout,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#5947 owned-correctness: the owned review-cycle commit builds its protection
+    policy from the validated owned fact (``resolve_for_owned(owned, mission_slug)``),
+    never the R-only, mission-unscoped ``resolve(main_repo_root)``. By-construction:
+    the R-only resolver is forbidden, so a regression that reinstates it fails here."""
+    from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+    from specify_cli.review import cycle
+    from specify_cli.review.cycle import create_rejected_review_cycle
+
+    _poison_main_repo_root(monkeypatch)
+
+    class _PrimaryPolicyUsed(AssertionError):
+        pass
+
+    def _forbid_primary(*_args: object, **_kwargs: object) -> Any:
+        raise _PrimaryPolicyUsed
+
+    real_owned = cycle.ProtectionPolicy.resolve_for_owned
+    owned_calls: list[tuple[object, object]] = []
+
+    def _spy_owned(owned: object, mission_slug: object = None) -> Any:
+        owned_calls.append((owned, mission_slug))
+        return real_owned(owned, mission_slug)
+
+    monkeypatch.setattr(cycle.ProtectionPolicy, "resolve", staticmethod(_forbid_primary))
+    monkeypatch.setattr(cycle.ProtectionPolicy, "resolve_for_owned", staticmethod(_spy_owned))
+
+    created = create_rejected_review_cycle(
+        main_repo_root=fact.repository_root,
+        mission_slug=fact.mission_slug,
+        wp_id=_WP_ID,
+        wp_slug=_WP_SLUG,
+        body=_FEEDBACK_BODY,
+        reviewer_agent="reviewer-renata",
+        commit_router=RealCoordCommitRouter(),
+        owned=fact,
+    )
+
+    assert created.persistence.classification == "durable", created.persistence.message
+    assert (fact, fact.mission_slug) in owned_calls
+
+
 # ---------------------------------------------------------------------------
 # T092 -- consolidation/baseline.py
 # ---------------------------------------------------------------------------
