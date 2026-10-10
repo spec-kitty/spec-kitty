@@ -19,6 +19,7 @@ from __future__ import annotations
 import functools
 import importlib
 import pathlib
+import sys
 import types
 
 import pytest
@@ -64,9 +65,7 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # (WP03/T010) so the wheel symbol gains a live in-repo caller. Identity
         # holds: ``charter.offering.api.ArtifactKind is charter.offering.artifact_kinds.ArtifactKind``.
         ("ArtifactKind", "charter.offering.api"),
-        # FACADE-ONLY: the one spelling of the core-kind plurals (#5538) that the
-        # specify_cli surfaces (org-layer lint, doctor doctrine, API source) read.
-        ("CORE_KIND_PLURALS", "charter.offering.artifact_kinds"),
+        # CORE_KIND_PLURALS re-export retired with ArtifactKind.core (#5824).
         ("EndpointResolutionError", "charter.offering.drg.merge"),
         ("resolve_edge_endpoint", "charter.offering.drg.merge"),
         ("dangling_endpoints", "charter.offering.drg.validator"),
@@ -136,6 +135,11 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("load_built_in_graph", "charter.offering.drg.loader"),
         ("merge_three_layers", "charter.offering.drg.merge"),
         ("model_to_graph_dict", "charter.offering.drg.migration.extractor"),
+        # Surfaced by the #5836 non-class re-export gate enhancement (WP01): a
+        # ``frozenset`` constant advertised in ``charter.drg.__all__`` that the old
+        # ``__module__``-only origin resolution silently skipped. Identity-verified
+        # live at add time. FACADE-ONLY.
+        ("FIELDS_WITHHELD_FROM_GRAPH_OUTPUT", "charter.offering.drg.migration.extractor"),
         # Promoted from a private doctrine helper during the #3321 landing (the
         # post-fold squad flagged charter surfacing ``charter.offering.drg.merge``'s
         # private ``_bridge_org_edge_to_drg_edge``). It is now a public symbol in
@@ -146,7 +150,6 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # A.3 #7): the charter-pack adapters (``api_source``, ``snapshot``) reach
         # the offering tier only through this facade once the
         # ``specify_cli/doctrine`` boundary exemption is deleted. FACADE-ONLY.
-        ("CORE_KIND_PLURALS", "charter.offering.artifact_kinds"),
         ("resolve_relative_path_within_root", "charter.offering.drg.org_pack_config"),
         # Added by WP05 (#3732): ``specify_cli.charter_packs.snapshot`` types its
         # fetch entry against the org pack config through this facade once
@@ -265,6 +268,11 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("render_example_preset", "charter.offering.packs.presets"),
         ("write_example_preset", "charter.offering.packs.presets"),
         ("RetiredPackFieldError", "charter.offering.packs.retired_fields"),
+        # Surfaced by the #5836 non-class re-export gate enhancement (WP01): a
+        # ``str`` constant advertised in ``charter.packs.__all__`` that the old
+        # ``__module__``-only origin resolution silently skipped. Identity-verified
+        # live at add time. FACADE-ONLY.
+        ("RETIRED_PACK_FIELD", "charter.offering.packs.pack_validator"),
     ],
     "charter.provenance": [
         ("is_built_in_pack_path", "charter.offering.provenance"),
@@ -379,11 +387,43 @@ def _requires_identity(origin: str) -> bool:
     return any(origin == prefix or origin.startswith(f"{prefix}.") for prefix in _IDENTITY_REQUIRED_ORIGINS)
 
 
+def _origin_by_identity(obj: object) -> str | None:
+    """Resolve the origin module of a plain value by identity-scanning the identity-required modules.
+
+    A plain value (``tuple`` / ``frozenset``) carries no usable ``__module__``, so its
+    ``__module__``-based origin is ``None`` and the fast path below skips it — which previously
+    let a non-class ``charter.offering`` constant be re-exported through a charter ``__all__``
+    without an identity contract. Scan the already-imported :data:`_IDENTITY_REQUIRED_ORIGINS`
+    modules (and their submodules) in ``sys.modules`` for an attribute that ``is`` ``obj`` and
+    report the first such module. Identity (``is``), never equality, so two equal-but-distinct
+    values are not conflated. The scan is confined to the identity-required origins — never a
+    broad ``sys.modules`` walk.
+    """
+    for name in sorted(sys.modules):
+        if not _requires_identity(name):
+            continue
+        module = sys.modules[name]
+        if module is None:
+            continue
+        try:
+            attrs = list(vars(module).values())
+        except TypeError:
+            continue
+        if any(attr is obj for attr in attrs):
+            return name
+    return None
+
+
 def _untabled_reexports(facade: types.ModuleType, covered: set[str]) -> list[tuple[str, str]]:
     """``(name, origin)`` for every ``__all__`` symbol that needs an identity contract and has none."""
     untabled: list[tuple[str, str]] = []
     for name in getattr(facade, "__all__", None) or []:
-        origin = getattr(getattr(facade, name, None), "__module__", None)
+        obj = getattr(facade, name, None)
+        # Fast path: classes/functions carry a usable ``__module__``.
+        origin = getattr(obj, "__module__", None)
+        if not origin and obj is not None:
+            # Plain value (no ``__module__``): resolve origin by identity instead.
+            origin = _origin_by_identity(obj)
         if origin and _requires_identity(origin) and name not in covered:
             untabled.append((name, origin))
     return untabled
@@ -408,6 +448,27 @@ def test_planted_non_identical_offering_reexport_is_reported() -> None:
     assert wrapper is not artifact_kinds.slug_for
     assert _untabled_reexports(planted, set()) == [("slug_for", "charter.offering.artifact_kinds")]
     assert _untabled_reexports(planted, {"slug_for"}) == []
+
+
+def test_planted_non_class_offering_reexport_is_reported() -> None:
+    """Self-test: a non-class ``charter.offering`` constant advertised in ``__all__`` is reported.
+
+    A plain value (``tuple`` / ``frozenset``) carries no usable ``__module__``, so the
+    ``__module__``-only resolution silently skipped it — a doctrine-origin constant could
+    be re-exported through a charter ``__all__`` without a ``_FACADE_TABLE`` row and stay
+    identity-UNCHECKED. Reusing a real ``charter.offering`` tuple keeps identity (``is``)
+    true, so origin is resolved by scanning the identity-required modules.
+    """
+    from charter.offering import artifact_kinds
+
+    planted = types.ModuleType("charter.planted_value_facade")
+    vars(planted).update(
+        LAYERED_REPOSITORY_KIND_PLURALS=artifact_kinds.LAYERED_REPOSITORY_KIND_PLURALS,
+        __all__=["LAYERED_REPOSITORY_KIND_PLURALS"],
+    )
+    assert planted.LAYERED_REPOSITORY_KIND_PLURALS is artifact_kinds.LAYERED_REPOSITORY_KIND_PLURALS
+    assert _untabled_reexports(planted, set()) == [("LAYERED_REPOSITORY_KIND_PLURALS", "charter.offering.artifact_kinds")]
+    assert _untabled_reexports(planted, {"LAYERED_REPOSITORY_KIND_PLURALS"}) == []
 
 
 @pytest.mark.parametrize("facade_module", _charter_modules())
