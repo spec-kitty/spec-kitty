@@ -9,4 +9,5 @@ Options
 --mission TEXT Mission slug
 --json Output JSON format
 --auto-commit --no-auto-commit Automatically commit WP file changes (default: from project config)
+--owned-checkout PATH Run against an owned checkout: a linked checkout that owns this mission. Refuses the repository root checkout, lane worktrees and coordination worktrees.
 --help -h Show this message and exit.
