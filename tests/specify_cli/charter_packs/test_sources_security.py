@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import contextlib
 import io
-import subprocess
 import tarfile
 import zipfile
 from pathlib import Path
@@ -393,25 +392,35 @@ class TestHttpsBundleSourceSizeLimits:
 
 
 def test_git_source_redacts_injected_oauth_token_from_stderr(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A fresh-dir clone failure never surfaces the injected token.
+
+    The fresh-directory path clones through the kernel ``clone_repository`` seam
+    (not ``GitSource._run_git``), so that is the seam faked here.
+    """
+    from kernel.git.runner import GitResult  # noqa: PLC0415
+    from specify_cli.charter_packs.sources import git_source  # noqa: PLC0415
     from specify_cli.charter_packs.sources.git_source import GitSource  # noqa: PLC0415
 
     token = "ghp_secret/with@reserved"
     monkeypatch.setenv("GIT_TOKEN", token)
     source = GitSource(url="https://github.com/acme/private-pack.git")
+    seen_urls: list[str] = []
+    leaked_stderr = "fatal: unable to access 'https://oauth2:ghp_secret/with@reserved@github.com/acme/private-pack.git/'"
 
-    def _fake_git(argv: list[str]) -> subprocess.CompletedProcess[str]:
-        assert all(token not in part for part in argv)
-        assert any(quote(token, safe="") in part for part in argv)
-        return subprocess.CompletedProcess(
-            argv,
-            128,
-            stdout="",
-            stderr=("fatal: unable to access 'https://oauth2:ghp_secret/with@reserved@github.com/acme/private-pack.git/'"),
-        )
+    def _fake_clone(url: str, dest: Path, **_kwargs: object) -> GitResult:
+        seen_urls.append(url)
+        return GitResult(returncode=128, stdout=b"", stderr=leaked_stderr.encode())
 
-    monkeypatch.setattr(source, "_run_git", _fake_git)
+    monkeypatch.setattr(git_source, "clone_repository", _fake_clone)
 
     result = source.fetch(tmp_path / "clone")
+
+    # Positive control: the fake seam was reached and the token really was injected
+    # (URL-encoded) into the clone URL, so the redaction assertions below are not vacuous.
+    assert len(seen_urls) == 1
+    assert token not in seen_urls[0]
+    assert quote(token, safe="") in seen_urls[0]
+    assert token in leaked_stderr
 
     assert result.ok is False
     error_text = " ".join(result.errors)
