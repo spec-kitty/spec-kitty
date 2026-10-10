@@ -44,6 +44,7 @@ from specify_cli.coordination.worktree_branch import coord_worktree_branch, norm
 __all__ = [
     "CheckoutRole",
     "CoordRepairOutcome",
+    "NothingIsResidue",
     "ResidueContext",
     "checkout_role_for",
     "is_disposable_residue",
@@ -55,6 +56,7 @@ __all__ = [
     "is_toolchain_generated_churn",
     "kind_across_mission_dir_names",
     "repair_coord_strand",
+    "residue_context_or_strictest",
     "status_log_commits_in_range",
 ]
 
@@ -459,6 +461,30 @@ class ResidueContext:
         )
 
 
+@dataclass(frozen=True)
+class NothingIsResidue:
+    """The strictest classifier: no path is disposable in any checkout (satisfies ``ResidueClassifier``)."""
+
+    def is_disposable(self, _path: str) -> bool:
+        return False
+
+    def for_checkout(self, _repo_root: Path, _worktree: Path) -> NothingIsResidue:
+        return self
+
+
+def residue_context_or_strictest(repo_root: Path, mission_slug: str, role: CheckoutRole) -> ResidueContext | NothingIsResidue:
+    """:meth:`ResidueContext.for_mission`, or the strictest classifier for a Mission with no ``meta.json``.
+
+    Without a stored topology there is nothing to judge residue by, so nothing is residue and a
+    destructive operation proceeds only on an entirely clean checkout. A CORRUPT ``meta.json`` is not
+    caught: it propagates, so the operation does not run.
+    """
+    try:
+        return ResidueContext.for_mission(repo_root, mission_slug, role)
+    except FileNotFoundError:
+        return NothingIsResidue()
+
+
 def checkout_role_for(repo_root: Path, worktree: Path) -> CheckoutRole:
     """The role of ``worktree`` relative to ``repo_root``, by the git worktree registry (C-SEAM-1).
 
@@ -506,7 +532,8 @@ def is_disposable_residue(path: str | Path, context: ResidueContext) -> bool:
     1. A tool-owned checkout: everything is disposable.
     2. Another Mission's artifact: never (#5966).
     3. spec-kitty's own bookkeeping (:func:`is_self_bookkeeping_churn`): disposable.
-    4. In a coordination worktree, anything else is the only copy (#5965).
+    4. In a coordination worktree, anything else is the only copy (#5965), except this
+       Mission's own regenerated status state (:func:`is_status_state_path`).
     5. Elsewhere, coordination-partition residue under the Mission's STORED topology
        (:func:`is_coord_residue_churn`): its stale copy is disposable.
 
@@ -520,7 +547,9 @@ def is_disposable_residue(path: str | Path, context: ResidueContext) -> bool:
     if is_self_bookkeeping_churn(path):
         return True
     if context.role is CheckoutRole.COORDINATION:
-        return False
+        # Only this Mission's regenerated status state (log + snapshot) is residue here; every other
+        # coordination-partition kind (review cycle, trace, matrices, decisions) is the only copy (#5965).
+        return bool(is_status_state_path(path, mission_slug=context.mission_slug, mission_dir_names=context.mission_dir_names or None))
     return is_coord_residue_churn(
         path,
         mission_slug=context.mission_slug,

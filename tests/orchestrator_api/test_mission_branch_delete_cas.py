@@ -16,7 +16,6 @@ worktree removal runs, i.e. inside the window the compare-and-swap protects.
 from __future__ import annotations
 
 import subprocess
-from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -24,6 +23,7 @@ import pytest
 from specify_cli.core.paths import RetentionDecision
 from specify_cli.git import destructive_guard
 from specify_cli.git.destructive_guard import RemoveResult
+from specify_cli.git.ref_advance import ResidueClassifier
 from specify_cli.lanes.branch_naming import worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.orchestrator_api.consolidation import _apply_lane_merge_cleanup
@@ -102,9 +102,9 @@ def test_mission_branch_that_moved_during_cleanup_is_kept_and_the_merge_fails(re
     real_remove = destructive_guard.guarded_worktree_remove
     landed: list[str] = []
 
-    def remove_after_late_commit(worktree: Path, *, retain: bool, is_residue: Callable[[str], bool]) -> RemoveResult:
+    def remove_after_late_commit(worktree: Path, *, retain: bool, context: ResidueClassifier) -> RemoveResult:
         landed.append(_land_commit_on_mission_branch(repo))
-        return real_remove(worktree, retain=retain, is_residue=is_residue)
+        return real_remove(worktree, retain=retain, context=context)
 
     monkeypatch.setattr(destructive_guard, "guarded_worktree_remove", remove_after_late_commit)
 

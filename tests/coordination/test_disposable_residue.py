@@ -26,8 +26,8 @@ _OWN = {
     "traces/notes.md": "coord",
     "acceptance-matrix.json": "coord",
     "issue-matrix.md": "coord",
-    "status.events.jsonl": "coord",
-    "status.json": "coord",
+    "status.events.jsonl": "status",
+    "status.json": "status",
     "meta.json": "bookkeeping",
     "spec.md": "never",
 }
@@ -36,8 +36,8 @@ _OWN = {
 def _expected(kind: str, role: CheckoutRole) -> bool:
     if kind == "never":
         return False
-    if kind == "bookkeeping":
-        return True
+    if kind in ("bookkeeping", "status"):
+        return True  # status state is this Mission's regenerated output in every role, the coordination worktree included
     return role is not CheckoutRole.COORDINATION
 
 
@@ -207,3 +207,10 @@ def test_for_checkout_retargets_the_role_and_keeps_the_mission(repo_with_worktre
     assert (coord_ctx.mission_slug, coord_ctx.topology) == (_SLUG, MissionTopology.COORD)
     assert coord_ctx.is_disposable(_REVIEW) is False
     assert root_ctx.is_disposable(_REVIEW) is True
+
+
+def test_coordination_role_keeps_another_missions_status_state() -> None:
+    context = ResidueContext(role=CheckoutRole.COORDINATION, mission_slug=_SLUG, topology=MissionTopology.COORD)
+
+    assert not is_disposable_residue(f"kitty-specs/{_OTHER}/status.json", context)
+    assert not is_disposable_residue(f"kitty-specs/{_OTHER}/status.events.jsonl", context)

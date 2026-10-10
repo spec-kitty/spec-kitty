@@ -58,6 +58,14 @@ COORD_MOVED_AFTER_LANDING_SUFFIX = f" Error code: {COORD_MOVED_AFTER_LANDING}."
 # be completed afterwards. Every other teardown refusal keeps exit 1.
 COORD_MOVED_AFTER_LANDING_EXIT_CODE = 75
 
+# The #5965 refusal (``COORD_TEARDOWN_KEPT_ONLY_COPY``, exit 76) is defined WITH its exception in
+# ``specify_cli.coordination.teardown`` (the lower layer, which this module may not be imported
+# from without dragging the consolidation package in). The landing is done and verified; the
+# coordination worktree holds the only copy of operator-authored files, so teardown kept the
+# coordination branch, worktree and marker and the target is NOT rolled back. 76 is unused
+# elsewhere (75 is the code above); the operator commits inside ``kitty-specs/<mission>/`` or
+# moves the files out, then runs ``spec-kitty consolidate --resume``. Not added to ``__all__``
+# (its set is pinned); import it from ``coordination.teardown``.
 # Stable code of the FR-006 / #5651 refusal: the coordination seed commit was refused
 # (a rejecting git hook, a protection policy, a transient git failure), so the seeded
 # status files sit uncommitted in the coordination worktree. ``spec-kitty consolidate``

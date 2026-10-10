@@ -568,6 +568,10 @@ def _stranded_coord_checkout(env: Env) -> tuple[str, Path]:
     worktree, and another actor commits on the branch so the CAS restore refuses.
     """
     coord = "kitty/coord-x"
+    # The rollback judges residue by the Mission's STORED topology, so the repository root carries its meta.json.
+    meta = env.repo / "kitty-specs" / _SLUG / "meta.json"
+    meta.parent.mkdir(parents=True, exist_ok=True)
+    meta.write_text('{"topology": "coord", "mission_slug": "' + _SLUG + '"}\n', encoding="utf-8")
     _git(env.repo, "branch", coord)
     worktree = env.repo.parent / "coord-wt"
     _git(env.repo, "worktree", "add", "-q", str(worktree), coord)

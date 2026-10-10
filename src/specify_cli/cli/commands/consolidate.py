@@ -169,6 +169,7 @@ from specify_cli.consolidation.executor import (
     _run_lane_based_consolidation_locked,
 )
 from specify_cli.consolidation.run_state import CoordinationTeardownError
+from specify_cli.coordination.teardown import CoordTeardownKeptOnlyCopy
 
 # WP09 (#2057): status-surface trust + final-bookkeeping snapshot/restore +
 # coord->target projection live in the merge seam's ``bookkeeping_projection``
@@ -428,10 +429,17 @@ def _teardown_coordination_for_abort(
         return
     # Aborting a merge is recovery, not successful mission completion.  Keep
     # the existing topology cleanup while bypassing the completion terminus.
-    teardown_coordination_topology(*abort_teardown_args, persist=False)
+    # #5965: a worktree holding the only copy of operator files is kept (never force-removed); the
+    # consolidation record is kept too, so re-running ``--abort`` after the files are saved finishes it.
+    try:
+        teardown_coordination_topology(*abort_teardown_args, persist=False, follow_up_command=_ABORT_COMMAND)
+    except CoordTeardownKeptOnlyCopy as exc:
+        console.print(f"[red]Error:[/red] coordination teardown refused: {escape(str(exc))}")
+        raise typer.Exit(exc.exit_code) from exc
 
 
 _GLOBAL_MERGE_LOCK = GLOBAL_MERGE_LOCK_ID
+_ABORT_COMMAND = "spec-kitty consolidate --abort"
 _ABORT_NO_SNAPSHOT_NOTICE = (
     "[yellow]Notice:[/yellow] no pre-mutation snapshot was recorded for this consolidation (older record); aborting without restoring branches."
 )
@@ -638,11 +646,13 @@ def _abort_lock_restore_clear(
         proceed, report = _abort_restore_or_keep_record(repo_root, active_state)
         if not proceed:
             _abort_exit_keeping_record(repo_root, active_state)
+        # Teardown BEFORE the record is cleared (#5965): a refusal (the coordination worktree holds the
+        # only copy of operator files) keeps the record, so ``--abort`` can simply be re-run once they are saved.
+        _teardown_coordination_for_abort(repo_root, resolved, state_entry)
         cleared = _clear_merge_state_for_mission(repo_root, resolved)
         if state_entry[0]:
             cleared = clear_state(repo_root, state_entry[0]) or cleared
         cleared = clear_state(repo_root, active_state.mission_id) or cleared
-        _teardown_coordination_for_abort(repo_root, resolved, state_entry)
     except BaseException:
         release_merge_lock_if_owned(_GLOBAL_MERGE_LOCK, repo_root, owner_token=active_state.mission_id)
         raise
@@ -856,6 +866,12 @@ def _run_real_merge(
         # #5570/#5613: a branch that moved after landing reports its own exit code
         # (``exc.exit_code``, 75); every other teardown refusal stays 1.
         console.print(f"[red]Error:[/red] coordination teardown incomplete: {exc}")
+        raise typer.Exit(exc.exit_code) from exc
+    except CoordTeardownKeptOnlyCopy as exc:
+        # #5965: the landing is done and verified (teardown runs after the rollback door, so nothing
+        # is rolled back); the coordination worktree holds the only copy of operator files, so the
+        # coordination branch, worktree and marker were all kept. Own exit code, remedy in the text.
+        console.print(f"[red]Error:[/red] coordination teardown refused: {escape(str(exc))}")
         raise typer.Exit(exc.exit_code) from exc
     except AliasFoldRefusal as exc:
         # #5750 / #5651: the one-directory fold of a bare-slug coordination Mission could not prove
