@@ -1,4 +1,11 @@
-"""Class gate: ``charter.activation.layer_roots`` is the only place that assembles the org-pack chain (FR-006, NFR-002).
+"""Class gate: no off-authority call to the org-pack chain primitives in the scoped dirs (FR-006, NFR-002).
+
+``charter.activation.layer_roots.resolve_pack_chain`` is the chain authority; this
+gate enforces only that the scoped callers do not invoke the chain PRIMITIVES
+directly. It does not prove every chain assembly goes through the authority:
+``resolve_org_dirs`` (the subdir-joining sibling, called in scope at
+``src/charter/activation/mission_type_profiles.py``) is a known in-scope
+chain-assembler not yet routed through it, tracked in follow-up #6012.
 
 Mission ``org-pack-chain-authority-01M4JXF5``. Every charter-activation and
 charter-CLI caller that needs the ordered org-pack roots asks

@@ -65,6 +65,10 @@ def resolve_pack_chain(repo_root: Path, *, strict: bool, quiet: bool = False) ->
       ``require_declared_org_roots``).
 
     Zero declared packs yields ``[]`` in either posture; it never raises.
+
+    The posture is intentionally chosen by each caller (governance surfaces use
+    ``strict=True``, display and best-effort surfaces ``strict=False``); the
+    per-call-site choice is deliberate, not accidental.
     """
     if strict:
         return list(require_declared_org_roots(repo_root))

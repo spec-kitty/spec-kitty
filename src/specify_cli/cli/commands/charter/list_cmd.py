@@ -120,6 +120,9 @@ def _available_over_chain(
     ``org`` root, adding only the org-layer entries (built-in/project are already
     covered). Duplicates are dropped, preserving first-seen order.
     """
+    # NOTE: this per-pack traversal is now partly obsoleted by the ``org_root_chain=``
+    # parameter added to ``list_available_detailed`` / ``_scan_layer_dirs`` (#6006).
+    # Unifying it onto that central scanner is tracked in #6012.
     entries = list(manager.list_available_detailed(ctx, kind, layer_roots=layer_roots))
     seen = {(e.artifact_id, e.layer) for e in entries}
     first_org = layer_roots.get("org")
