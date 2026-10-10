@@ -1,0 +1,159 @@
+{
+  "mission_slug": "charter-kind-tier-vocab-closeout-01M4H5RF",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Facade re-export gate now catches non-class re-exports by identity; test_charter_facades_reexport_offering.py 162 passed (incl. planted non-class self-test)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:26:29.492882+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "R1' padded-universe rule + migrated RECOGNISED_ARTIFACT_DIRS/_VALID_SELECTOR_KINDS; test_charter_kind_vocabulary_single_authority.py green, empty allowlist",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:26:34.744593+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "R4 glob-map rule + migrated _ARTIFACT_DIRS_AND_GLOBS; kind-vocab gate green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:26:39.860298+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "R5 operator-token-map rule + migrated _CLI_KIND_TO_DRG_SINGULAR; kind-vocab gate green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:26:44.825782+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "R6 ArtifactKind->NodeKind rule + migrated executor/project_drg maps; kind-vocab gate green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:26:50.149999+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "{directive,tactic,styleguide} restatements derive from SYNTHESIZABLE_KINDS",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:26:55.195521+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "All live kind-mirror sites derive; gate docstring follow-up note removed; allowlist empty (test_allowlist_is_empty)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:27:00.586008+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ArtifactKind.has_layered_repository (11 kinds) + own frozenset + distinct-fact docstring; tests/charter_offering/test_artifact_kinds.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:27:05.750001+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Collision scan + org dir count + org-layer lint + API 404 fallback cover glossary_pack/skill/asset; new coverage tests pass",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:27:10.569537+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "DEFAULT_KIND_GATE given own literal; test_charter_pack_cutover_snapshots.py::test_kind_gates green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:27:15.548230+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "core/_CORE_KINDS/CORE_KIND_PLURALS + charter.drg re-export deleted; zero-reference grep; facade gate green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:27:20.477337+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "kernel.pack_tiers single tier-token authority ('built-in'); tests/kernel/test_pack_tiers.py green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:27:25.494996+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Tier-token sites derive from authority (value-preserving); on-disk dir + _BUILT_IN_DIR_NAME unchanged; 8459 charter-trees green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:27:30.284021+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Net-new test_pack_tier_token_single_authority.py gate, empty allowlist, planted self-mutation; 182 gate tests green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:27:35.395051+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "13 dead spec-kitty-standalone.md copies deleted; graph.yml untouched; test_retired_activation.py 34 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T05:27:40.567188+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

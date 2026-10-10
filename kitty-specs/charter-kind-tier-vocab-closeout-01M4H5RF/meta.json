@@ -1,0 +1,31 @@
+{
+  "accept_commit": "cc87abbe0bfe1eb58d6f15396ff5099772b3c6eb",
+  "acceptance_history": [
+    {
+      "accept_commit": "cc87abbe0bfe1eb58d6f15396ff5099772b3c6eb",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-10T05:28:08.975076+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "0f270fe78c0f5894a9f5d7c9cde37ef84ef763b9"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-10T05:28:08.975076+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "0f270fe78c0f5894a9f5d7c9cde37ef84ef763b9",
+  "created_at": "2026-10-09T20:30:34.846008+00:00",
+  "flattened": false,
+  "friendly_name": "Charter kind/tier vocabulary cutover closeout",
+  "mid8": "01M4H5RF",
+  "mission_id": "01M4H5RFRWYDR3Y9R4S0WP840J",
+  "mission_number": null,
+  "mission_slug": "charter-kind-tier-vocab-closeout-01M4H5RF",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The doctrine-to-charter cutover merged without a compat layer. This mission completes the leftovers those PRs deferred: teaching the artifact-kind vocabulary gate the mirror shapes it still misses, retiring the transitional ArtifactKind.core in favour of a capability predicate, unifying the pack-tier token spelling under one kernel authority, fixing the facade re-export gate's blind spot for non-class values, and deleting dead generated residue.",
+  "purpose_tldr": "Finish the single-authority kind and pack-tier vocabulary left by the doctrine-to-charter cutover and clean its inert residue.",
+  "slug": "charter-kind-tier-vocab-closeout-01M4H5RF",
+  "status_phase": "1",
+  "target_branch": "feat/charter-kind-tier-vocab-closeout",
+  "topology": "single_branch"
+}
