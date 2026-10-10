@@ -65,7 +65,10 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # (WP03/T010) so the wheel symbol gains a live in-repo caller. Identity
         # holds: ``charter.offering.api.ArtifactKind is charter.offering.artifact_kinds.ArtifactKind``.
         ("ArtifactKind", "charter.offering.api"),
-        # CORE_KIND_PLURALS re-export retired with ArtifactKind.core (#5824).
+        # CORE_KIND_PLURALS re-export retired with ArtifactKind.core (#5824);
+        # LAYERED_REPOSITORY_KIND_PLURALS replaces it as the one spelling the
+        # specify_cli layered-surface diagnostics read through this facade (#5824).
+        ("LAYERED_REPOSITORY_KIND_PLURALS", "charter.offering.artifact_kinds"),
         ("EndpointResolutionError", "charter.offering.drg.merge"),
         ("resolve_edge_endpoint", "charter.offering.drg.merge"),
         ("dangling_endpoints", "charter.offering.drg.validator"),

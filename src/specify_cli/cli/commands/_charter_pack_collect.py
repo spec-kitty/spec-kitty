@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from charter.bundle import CHARTER_YAML
-from charter.drg import ArtifactKind
+from charter.drg import LAYERED_REPOSITORY_KIND_PLURALS
 from kernel.charter_pack_paths import PROJECT_PACK_ROOT_POSIX, pack_org_charter, project_pack_root
 from ._profile_health_render import _SELECTION_KIND_PLURALS
 
@@ -86,7 +86,7 @@ __all__ = [
 # (11 kinds) rather than the retired ``core`` set (8) so the scans also cover
 # ``glossary_packs``, ``skills`` and ``assets`` — the three later additions the
 # core-only value skipped.
-_ORG_ARTIFACT_DIRS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.has_layered_repository)
+_ORG_ARTIFACT_DIRS: tuple[str, ...] = LAYERED_REPOSITORY_KIND_PLURALS
 
 
 def _project_pack_root_or_none(repo_root: Path) -> Path | None:

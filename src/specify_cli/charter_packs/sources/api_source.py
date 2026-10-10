@@ -22,7 +22,7 @@ from typing import Any
 
 import requests
 
-from charter.drg import ArtifactKind
+from charter.drg import LAYERED_REPOSITORY_KIND_PLURALS
 
 from .protocol import FetchResult
 
@@ -51,7 +51,7 @@ def _validate_server_filename(filename: str) -> None:
 # ``skills`` and ``assets`` fetched, not just the eight pre-addition kinds.
 # Keyed on
 # :attr:`~charter.offering.artifact_kinds.ArtifactKind.has_layered_repository`.
-DEFAULT_ARTIFACT_TYPES: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.has_layered_repository)
+DEFAULT_ARTIFACT_TYPES: tuple[str, ...] = LAYERED_REPOSITORY_KIND_PLURALS
 
 
 @dataclass
