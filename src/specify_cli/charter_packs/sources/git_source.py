@@ -60,7 +60,7 @@ def _discard_tool_owned_tree(path: Path) -> None:
         if (path / ".git").exists():
             guarded_tree_delete(path, context=_TOOL_OWNED)
         else:
-            remove_tool_owned_tree(path, owned_root=path.parent, reason="pack clone scratch tree", best_effort=True)
+            remove_tool_owned_tree(path, tool_root=path.parent, reason="pack clone scratch tree", best_effort=True)
     except (OSError, RuntimeError, DestructiveOpRefused, ToolOwnedPathUnproven):
         _LOG.debug("could not discard pack scratch tree %s", path, exc_info=True)
 

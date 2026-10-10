@@ -446,7 +446,7 @@ def _cleanup_legacy_worktree_assets(project_path: Path, dry_run: bool) -> tuple[
                         if commands_dir.is_symlink():
                             commands_dir.unlink()
                         else:
-                            remove_tool_owned_tree(commands_dir, owned_root=commands_dir, reason="worktree agent commands dir")
+                            remove_tool_owned_tree(commands_dir, tool_root=commands_dir, reason="worktree agent commands dir")
                         parent = commands_dir.parent
                         if parent.exists() and not any(parent.iterdir()):
                             parent.rmdir()
@@ -463,7 +463,7 @@ def _cleanup_legacy_worktree_assets(project_path: Path, dry_run: bool) -> tuple[
                     if scripts_dir.is_symlink():
                         scripts_dir.unlink()
                     else:
-                        remove_tool_owned_tree(scripts_dir, owned_root=scripts_dir, reason="worktree .kittify/scripts")
+                        remove_tool_owned_tree(scripts_dir, tool_root=scripts_dir, reason="worktree .kittify/scripts")
                 except (OSError, ToolOwnedPathUnproven) as exc:
                     errors.append(f"[{root.name}] failed to remove .kittify/scripts/: {exc}")
 

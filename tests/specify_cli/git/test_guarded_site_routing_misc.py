@@ -361,16 +361,16 @@ def test_seed_scratch_removal_is_confined_to_the_scratch_root(tmp_path: Path) ->
     outside.mkdir(parents=True)
     (outside / "keep.txt").write_text("keep", encoding="utf-8")
 
-    coord_seed._remove_tree(stale, owned_root=scratch_root)
+    coord_seed._remove_tree(stale, tool_root=scratch_root)
 
     assert not stale.exists()
     with pytest.raises(ToolOwnedPathUnproven):
-        coord_seed._remove_tree(outside, owned_root=scratch_root)
+        coord_seed._remove_tree(outside, tool_root=scratch_root)
     assert (outside / "keep.txt").exists()
 
 
 def test_seed_scratch_removal_of_missing_path_is_a_noop(tmp_path: Path) -> None:
-    coord_seed._remove_tree(tmp_path / "gone", owned_root=tmp_path)
+    coord_seed._remove_tree(tmp_path / "gone", tool_root=tmp_path)
 
 
 # --------------------------------------------------------------------------- charter pack git source

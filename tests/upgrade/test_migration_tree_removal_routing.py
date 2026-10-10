@@ -175,12 +175,12 @@ def test_runtime_merge_replaces_managed_dir_and_refuses_checkout(tmp_path: Path)
     assert (old / ".git").exists()
 
 
-def test_safe_remove_defaults_owned_root_and_refuses_checkout(tmp_path: Path) -> None:
+def test_safe_remove_defaults_tool_root_and_refuses_checkout(tmp_path: Path) -> None:
     assert safe_remove(_tree(tmp_path / "t", False)) is True
     assert safe_remove(tmp_path / "t") is False
     checkout = _tree(tmp_path / "c", True)
     with pytest.raises(ToolOwnedPathUnproven):
         safe_remove(checkout)
     with pytest.raises(ToolOwnedPathUnproven):
-        safe_remove(_tree(tmp_path / "o" / "x", False), owned_root=tmp_path / "other")
+        safe_remove(_tree(tmp_path / "o" / "x", False), tool_root=tmp_path / "other")
     assert checkout.exists()

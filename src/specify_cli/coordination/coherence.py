@@ -442,7 +442,9 @@ class ResidueContext:
         from specify_cli.migration.backfill_topology import read_topology
         from specify_cli.missions._read_path_resolver import mission_dir_aliases
 
-        topology = read_topology(repo_root / KITTY_SPECS_DIR / mission_slug)
+        from specify_cli.core.paths import assert_safe_path_segment
+
+        topology = read_topology(repo_root / KITTY_SPECS_DIR / assert_safe_path_segment(mission_slug))
         return cls(role=role, mission_slug=mission_slug, topology=topology, mission_dir_names=mission_dir_aliases(repo_root, mission_slug))
 
     def is_disposable(self, path: str) -> bool:

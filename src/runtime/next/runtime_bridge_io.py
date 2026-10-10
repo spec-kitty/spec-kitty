@@ -774,7 +774,7 @@ def _start_ephemeral_query_run(
             template_path_override=template_path_override,
         )
     except Exception:
-        remove_tool_owned_tree(run_store, owned_root=run_store, reason="run store of a failed run start", best_effort=True)
+        remove_tool_owned_tree(run_store, tool_root=run_store, reason="run store of a failed run start", best_effort=True)
         raise
     return run_ref, run_store
 
@@ -879,7 +879,7 @@ def get_or_start_run(
             # it is cleaned even if resolving the winner raises (e.g. the winner's
             # cursor is missing / out-of-repo), then reuse the winner's run.
             orphan_dir = Path(run_ref.run_dir)
-            remove_tool_owned_tree(orphan_dir, owned_root=orphan_dir, reason="orphan run of a lost same-mission race", best_effort=True)
+            remove_tool_owned_tree(orphan_dir, tool_root=orphan_dir, reason="orphan run of a lost same-mission race", best_effort=True)
             return _run_ref_for_entry(existing, mission_slug=mission_slug, mission_id=resolved_mission_id, mission_type=mission_type, repo_root=repo_root)
         resolved_mission_type = _mission_key_for_run_ref(run_ref, mission_type)
         index[index_key] = {

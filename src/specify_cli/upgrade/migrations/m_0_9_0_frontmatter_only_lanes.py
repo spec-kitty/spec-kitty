@@ -269,7 +269,7 @@ class FrontmatterOnlyLanesMigration(BaseMigration):
                         try:
                             # Use shutil.rmtree for more robust removal
                             # This will remove the directory and all system files within it
-                            remove_tool_owned_tree(lane_dir, owned_root=lane_dir, reason="empty lane directory (system files only)")
+                            remove_tool_owned_tree(lane_dir, tool_root=lane_dir, reason="empty lane directory (system files only)")
                             changes.append(f"  Removed empty: {lane}/")
                         except (OSError, ToolOwnedPathUnproven) as e:
                             warnings.append(f"  Could not remove {lane}/: {e}")

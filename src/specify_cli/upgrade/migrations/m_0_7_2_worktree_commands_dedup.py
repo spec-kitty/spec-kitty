@@ -66,7 +66,7 @@ class WorktreeCommandsDedupMigration(BaseMigration):
                             changes.append(f"Would remove .claude/commands/ from worktree {worktree.name}")
                         else:
                             try:
-                                remove_tool_owned_tree(wt_commands, owned_root=wt_commands, reason="worktree .claude/commands dedup")
+                                remove_tool_owned_tree(wt_commands, tool_root=wt_commands, reason="worktree .claude/commands dedup")
                                 changes.append(
                                     f"Removed .claude/commands/ from worktree {worktree.name} (inherits from main repo)"
                                 )

@@ -415,7 +415,7 @@ def assemble_pack(
                 )
                 _maybe_write_conflicts(conflicts_out, result)
                 return result
-            remove_tool_owned_tree(output_dir, owned_root=output_dir, reason="forced overwrite of a recognised pack output dir")
+            remove_tool_owned_tree(output_dir, tool_root=output_dir, reason="forced overwrite of a recognised pack output dir")
             output_dir.mkdir(parents=True)
     else:
         output_dir.mkdir(parents=True)
@@ -441,7 +441,7 @@ def assemble_pack(
     validation = validate_pack(output_dir, check_drg_root=False, org_charter_check=org_charter_check)
     if not validation.ok:
         # Roll back partial output.
-        remove_tool_owned_tree(output_dir, owned_root=output_dir, reason="rollback of partial pack assembly output", best_effort=True)
+        remove_tool_owned_tree(output_dir, tool_root=output_dir, reason="rollback of partial pack assembly output", best_effort=True)
         result = AssemblyResult(
             ok=False,
             artifacts_written=0,

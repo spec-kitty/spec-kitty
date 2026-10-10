@@ -188,7 +188,7 @@ def copy_package_tree(resource: Traversable, dest: Path, *, preserve_existing: b
     rmtree'd. The default ``False`` (replace-in-place) is for genuinely
     regenerable destinations only, and for this function's own nested
     recursion into child subdirectories. ``preserve_existing=False`` is for
-    trees the tool itself created: ``dest`` is passed as its own ``owned_root``,
+    trees the tool itself created: ``dest`` is passed as its own ``tool_root``,
     so ownership proof reduces to ``remove_tool_owned_tree``'s ``.git`` check and
     nothing else shows the existing content is disposable.
     """
@@ -196,7 +196,7 @@ def copy_package_tree(resource: Traversable, dest: Path, *, preserve_existing: b
         if preserve_existing:
             back_up_operator_subtrees(dest.parent, [dest.name])
         else:
-            remove_tool_owned_tree(dest, owned_root=dest, reason="regenerable packaged-asset destination")
+            remove_tool_owned_tree(dest, tool_root=dest, reason="regenerable packaged-asset destination")
     dest.mkdir(parents=True, exist_ok=True)
     for child in resource.iterdir():
         target = dest / child.name

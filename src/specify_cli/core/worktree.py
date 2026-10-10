@@ -559,7 +559,7 @@ spec-kitty agent tasks move-task WP01 --to doing
         # Remove existing directory (from git worktree add). It is the shared
         # team-memory store's checkout/copy, regenerated just below, and lies
         # inside ``.kittify/`` of the worktree being set up.
-        remove_tool_owned_tree(worktree_memory, owned_root=worktree_kittify, reason="worktree .kittify/memory copy")
+        remove_tool_owned_tree(worktree_memory, tool_root=worktree_kittify, reason="worktree .kittify/memory copy")
 
     if use_copy:
         # Copy memory directory

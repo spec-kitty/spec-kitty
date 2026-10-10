@@ -130,7 +130,7 @@ def render_org_pack(request: RenderRequest) -> PipelineError | None:
         )
     finally:
         if staging is not None and staging.exists():
-            remove_tool_owned_tree(staging, owned_root=staging, reason="template render staging", best_effort=True)
+            remove_tool_owned_tree(staging, tool_root=staging, reason="template render staging", best_effort=True)
         _cleanup_source(source.root, source.cleanup)
 
     return None
@@ -182,7 +182,7 @@ def _force_swap(staging: Path, pack_path: Path) -> PipelineError | None:
     except OSError as exc:
         return _restore_backup(backup, pack_path, exc)
     if backup.is_dir():
-        remove_tool_owned_tree(backup, owned_root=backup, reason="force-swap backup of the replaced pack", best_effort=True)
+        remove_tool_owned_tree(backup, tool_root=backup, reason="force-swap backup of the replaced pack", best_effort=True)
     else:
         backup.unlink(missing_ok=True)
     return None

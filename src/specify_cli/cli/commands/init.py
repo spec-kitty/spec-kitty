@@ -442,7 +442,7 @@ def _remove_init_scratch(path: Path, *, reason: str, best_effort: bool = False) 
     kept and the path and the reason are reported. Returns whether anything was removed.
     """
     try:
-        return remove_tool_owned_tree(path, owned_root=path, reason=reason, best_effort=best_effort)
+        return remove_tool_owned_tree(path, tool_root=path, reason=reason, best_effort=best_effort)
     except ToolOwnedPathUnproven as exc:
         assert _console is not None
         _console.print(f"[yellow]Kept {path}:[/yellow] {exc}", markup=True, soft_wrap=True)

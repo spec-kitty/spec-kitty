@@ -224,13 +224,13 @@ def write_text_within_directory(path: Path, content: str, *, root: Path, encodin
     return safe_path
 
 
-def safe_remove(path: Path, *, owned_root: Path | None = None) -> bool:
+def safe_remove(path: Path, *, tool_root: Path | None = None) -> bool:
     """Remove a file or directory tree if it exists, returning True when something was removed.
 
-    ``owned_root`` is the root the caller owns (default: ``path`` itself); the removal is
+    ``tool_root`` is the root the caller owns (default: ``path`` itself); the removal is
     refused (``ToolOwnedPathUnproven``) when ``path`` is outside it or is a git checkout.
     """
-    return remove_tool_owned_tree(path, owned_root=owned_root or path, reason="core.utils.safe_remove")
+    return remove_tool_owned_tree(path, tool_root=tool_root or path, reason="core.utils.safe_remove")
 
 
 def get_platform() -> str:

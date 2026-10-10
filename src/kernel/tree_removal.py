@@ -2,7 +2,7 @@
 
 A bare ``shutil.rmtree`` cannot tell a temp or staging tree from a user's git
 checkout. :func:`remove_tool_owned_tree` makes the caller name the root it owns
-(``owned_root``) and proves, at run time, that ``path`` lies inside it and that
+(``tool_root``) and proves, at run time, that ``path`` lies inside it and that
 no directory between them is a git checkout. A git checkout is deleted only by
 ``specify_cli.git.destructive_guard.guarded_tree_delete``, which scans it for
 the only copy of a file first.
@@ -49,12 +49,12 @@ def _rmtree(path: Path) -> None:
         shutil.rmtree(path, onerror=_retry_writable)
 
 
-def _prove_owned(path: Path, owned_root: Path, reason: str) -> Path:
+def _prove_owned(path: Path, tool_root: Path, reason: str) -> Path:
     """Return ``path`` resolved, or raise :class:`ToolOwnedPathUnproven`."""
     resolved = path.resolve()
-    root = owned_root.resolve()
+    root = tool_root.resolve()
     if resolved != root and root not in resolved.parents:
-        raise ToolOwnedPathUnproven(f"{TOOL_OWNED_PATH_UNPROVEN}: {path} is not inside the owned root {owned_root} ({reason}); nothing was deleted")
+        raise ToolOwnedPathUnproven(f"{TOOL_OWNED_PATH_UNPROVEN}: {path} is not inside the owned root {tool_root} ({reason}); nothing was deleted")
     cursor = resolved
     while True:
         if (cursor / ".git").exists() or (cursor / ".git").is_symlink():
@@ -78,7 +78,7 @@ def _delete(path: Path, resolved: Path) -> None:
 def remove_tool_owned_tree(
     path: Path,
     *,
-    owned_root: Path,
+    tool_root: Path,
     reason: str,
     missing_ok: bool = True,
     best_effort: bool = False,
@@ -86,8 +86,8 @@ def remove_tool_owned_tree(
     """Delete ``path`` when it is provably a tool-owned tree; return whether anything was removed.
 
     Refuses with :class:`ToolOwnedPathUnproven` when ``path`` does not resolve
-    inside ``owned_root`` (a symlink resolving outside it included), or when ``path`` or
-    any directory up to and including ``owned_root`` holds a ``.git`` entry.
+    inside ``tool_root`` (a symlink resolving outside it included), or when ``path`` or
+    any directory up to and including ``tool_root`` holds a ``.git`` entry.
     Errors are never swallowed silently: a missing path returns ``False`` when
     ``missing_ok`` and raises ``FileNotFoundError`` otherwise; a failed removal
     raises unless ``best_effort``, which logs at debug level and returns ``False``.
@@ -96,7 +96,7 @@ def remove_tool_owned_tree(
         if missing_ok:
             return False
         raise FileNotFoundError(path)
-    resolved = _prove_owned(path, owned_root, reason)
+    resolved = _prove_owned(path, tool_root, reason)
     try:
         _delete(path, resolved)
     except OSError:
