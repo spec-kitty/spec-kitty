@@ -61,17 +61,19 @@ from __future__ import annotations
 
 from importlib.resources import files
 from pathlib import Path
-from typing import Literal
 
 from charter.offering.artifact_kinds import ArtifactKind
+from kernel.pack_tiers import BUILT_IN, PackTier
 from kernel.paths import MISSION_ASSETS_SIBLING_PATTERN, get_built_in_pack_root
 from kernel.sibling_paths import SiblingPathNotFound
 
-# ``PackTier`` is intentionally *not* exported: it is the internal annotation
-# for ``resolve_pack_root``'s ``tier`` parameter and has no external importer, so
-# listing it in ``__all__`` would trip the symbol-level dead-code gate
+# ``PackTier`` is a re-export of the single kernel authority
+# :data:`kernel.pack_tiers.PackTier` (WP04, #5825/#5961) -- the one place the
+# tier-token literal is spelled. It is intentionally *not* listed in ``__all__``:
+# it is the internal annotation for ``resolve_pack_root``'s ``tier`` parameter and
+# re-exporting it there would trip the symbol-level dead-code gate
 # (tests/architectural/test_no_dead_symbols.py). It stays a module-level name
-# usable as ``pack_paths.PackTier``; re-export it here once a real consumer imports it.
+# usable as ``pack_paths.PackTier``.
 #
 # ``resolve_pack_root`` is likewise not exported: after the built-in seam
 # consolidation (doctrine-built-in-seam-consolidation) every external caller
@@ -88,10 +90,6 @@ __all__ = [
     "built_in_root",
     "offering_package_dir",
 ]
-
-PackTier = Literal["built-in", "org", "project"]
-
-_BUILT_IN = "built-in"
 
 
 class PackRootNotFound(Exception):
@@ -238,7 +236,7 @@ def _resolve_built_in() -> Path:
     try:
         return get_built_in_pack_root()
     except SiblingPathNotFound as exc:
-        raise PackRootNotFound(_BUILT_IN) from exc
+        raise PackRootNotFound(BUILT_IN) from exc
 
 
 def offering_package_dir() -> Path | None:

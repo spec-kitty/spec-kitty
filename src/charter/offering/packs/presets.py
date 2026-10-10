@@ -28,7 +28,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 from ruamel.yaml import YAML
@@ -39,6 +39,7 @@ from charter.offering.drg.org_pack_config import load_pack_registry
 from charter.offering.pack_paths import built_in_root
 from charter.offering.packs.hashing import hash_content_bytes
 from kernel.charter_pack_paths import pack_presets_dir, project_pack_root
+from kernel.pack_tiers import BUILT_IN, PackTier
 
 __all__ = [
     "ACTIVATED_KINDS_KEY",
@@ -321,8 +322,6 @@ def load_preset(pack_root: Path, name: str) -> ActivationPreset:
 # Offering packs of a project (FR-004)
 # ---------------------------------------------------------------------------
 
-PackTier = Literal["built-in", "org", "project"]
-
 
 @dataclass(frozen=True)
 class OfferingPack:
@@ -351,7 +350,7 @@ def list_offering_packs(repo_root: Path) -> tuple[OfferingPack, ...]:
     :func:`discover_presets` returns ``()`` for it. No artifact id is resolved
     here.
     """
-    packs: list[OfferingPack] = [OfferingPack(_BUILT_IN_PACK_NAME, "built-in", built_in_root())]
+    packs: list[OfferingPack] = [OfferingPack(_BUILT_IN_PACK_NAME, BUILT_IN, built_in_root())]
     registry = load_pack_registry(repo_root, quiet=True)
     packs.extend(OfferingPack(entry.name, "org", entry.effective_root(repo_root)) for entry in registry.packs)
     packs.append(OfferingPack("project", "project", project_pack_root(repo_root)))

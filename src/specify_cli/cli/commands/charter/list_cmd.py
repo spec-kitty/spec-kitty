@@ -18,6 +18,7 @@ from charter.activation.pack_manager import AvailableArtifact, ActiveCharterMana
 from charter.resolution import ResolutionTier
 from charter.template_catalog import TemplateRef, TierRoot, discover_templates
 from kernel.errors import KittyInternalConsistencyError
+from kernel.pack_tiers import PACK_TIERS
 
 from specify_cli.cli.commands.charter._common import _emit_error
 from charter.activation.layer_roots import resolve_layer_roots
@@ -107,9 +108,14 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
     return tier_roots
 
 
+#: Identity labels for the canonical tier tokens, derived from the single
+#: kernel authority (never a hand-copied literal -- WP04, #5825/#5961).
+_LAYER_LABELS: dict[str, str] = {tier: tier for tier in PACK_TIERS}
+
+
 def _layer_label(layer: str) -> str:
     """Return a short, readable layer tag for table rendering."""
-    return {"built-in": "built-in", "org": "org", "project": "project"}.get(layer, layer)
+    return _LAYER_LABELS.get(layer, layer)
 
 
 def _render_available(entries: list[AvailableArtifact], activated: frozenset[str]) -> str:
