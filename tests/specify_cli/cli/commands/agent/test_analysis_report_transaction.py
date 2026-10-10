@@ -340,7 +340,7 @@ def test_dirty_existing_report_is_preserved(repo: Path):
     assert report.read_text() == "unreviewed analysis\n"
 
 
-def test_global_template_requires_committed_project_override(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_package_identical_global_template_and_project_override_are_supported(repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     from specify_cli.runtime import resolver
     from kernel.paths import get_package_asset_root
 
@@ -350,10 +350,10 @@ def test_global_template_requires_committed_project_override(repo: Path, tmp_pat
     monkeypatch.setattr(resolver, "get_kittify_home", lambda: global_home)
     for name in ("spec-template.md", "plan-template.md"):
         (templates / name).write_bytes((get_package_asset_root() / "software-dev/templates" / name).read_bytes())
-    refused = invoke("--report-only")
-    assert refused.exit_code == 1, refused.output
-    assert "External mutable global template authority" in refused.output
-    assert not (repo / REPORT).exists()
+    mirrored = invoke("--report-only")
+    assert mirrored.exit_code == 0, mirrored.output
+    assert json.loads(mirrored.output)["commit_status"] == "committed"
+    assert (repo / REPORT).is_file()
     override = repo / ".kittify/overrides/missions/software-dev/templates"
     override.mkdir(parents=True)
     for source in templates.iterdir():

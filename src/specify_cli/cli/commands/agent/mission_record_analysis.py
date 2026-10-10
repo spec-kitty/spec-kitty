@@ -18,7 +18,7 @@ from __future__ import annotations
 from pathlib import Path
 import subprocess
 import sys
-from typing import TYPE_CHECKING, Annotated
+from typing import TYPE_CHECKING, Annotated, cast
 
 if TYPE_CHECKING:
     from specify_cli.coordination.commit_router import CommitRouterResult
@@ -31,6 +31,7 @@ from mission_runtime import (
     ActionContextError,
     CommitTarget,
     MissionArtifactKind,
+    OwnedCheckout,
     resolve_topology,
     routes_through_coordination,
 )
@@ -49,6 +50,13 @@ from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _find_feature_directory,
 )
 from specify_cli.cli.commands.agent.mission_parsing import _emit_json
+from specify_cli.cli.commands._owned_checkout import (
+    OwnedCheckoutOption,
+    emit_owned_refusal,
+    resolve_owned_or_refuse,
+    stale_copy_payload,
+    success_false_envelope,
+)
 
 
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
@@ -97,7 +105,7 @@ def _git_dirty_paths(repo_root: Path) -> list[str]:
     return [path for entry in entries for path in status_entry_paths(entry)]
 
 
-def _resolve_record_analysis_placement_ref(repo_root: Path, feature_dir: Path) -> CommitTarget | None:
+def _resolve_record_analysis_placement_ref(repo_root: Path, feature_dir: Path, *, owned: OwnedCheckout | None = None) -> CommitTarget | None:
     """Resolve the ANALYSIS_REPORT write placement ref for ``record-analysis``.
 
     Routes through ``placement_seam(...).write_target(ANALYSIS_REPORT)`` — the
@@ -114,7 +122,7 @@ def _resolve_record_analysis_placement_ref(repo_root: Path, feature_dir: Path) -
     from mission_runtime import ActionContextError as _ActionContextError, placement_seam
 
     try:
-        return placement_seam(repo_root, feature_dir.name).write_target(MissionArtifactKind.ANALYSIS_REPORT)
+        return placement_seam(repo_root, feature_dir.name, **({"owned": owned} if owned else {})).write_target(MissionArtifactKind.ANALYSIS_REPORT)
     except _ActionContextError:
         return None
 
@@ -161,6 +169,7 @@ def _enforce_analysis_report_write_preflight(
     json_output: bool,
     placement_ref: CommitTarget | None = None,
     mission_slug: str | None = None,
+    owned: OwnedCheckout | None = None,
 ) -> None:
     """Fail before `record-analysis` mutates a mission artifact in unsafe git state.
 
@@ -191,7 +200,11 @@ def _enforce_analysis_report_write_preflight(
     # (never a per-ref ``.kind``). ``mission_slug`` is required to resolve the
     # stored topology; absent it, the residue filter is skipped (no slug ⇒ no
     # mission topology to route on) and the preflight gates on the full dirty set.
-    if placement_ref is not None and mission_slug is not None and routes_through_coordination(resolve_topology(repo_root, mission_slug)):
+    if (
+        placement_ref is not None
+        and mission_slug is not None
+        and routes_through_coordination(owned.topology if owned else resolve_topology(repo_root, mission_slug))
+    ):
         dirty_paths = [path for path in dirty_paths if not is_coord_residue_churn(path, mission_slug=mission_slug)]
     if dirty_paths:
         payload = {
@@ -245,6 +258,7 @@ def _commit_analysis_report(
     mission_slug: str,
     report_path: Path,
     target_branch: str,
+    owned: OwnedCheckout | None = None,
 ) -> CommitRouterResult | None:
     """Best-effort commit of the analysis report; ``None`` on a suppressed commit failure.
 
@@ -287,6 +301,7 @@ def _commit_analysis_report(
             # topology and NEVER transits the coordination branch.
             kind=MissionArtifactKind.ANALYSIS_REPORT,
             target_branch=target_branch,
+            **({"owned": owned} if owned else {}),
         )
     except (subprocess.CalledProcessError, OSError, RuntimeError, ValueError):
         return None
@@ -300,6 +315,7 @@ def _run_report_only(
     body: str,
     analyzer_agent: str | None,
     json_output: bool,
+    owned: OwnedCheckout | None = None,
 ) -> None:
     """The ``--report-only`` leg of :func:`record_analysis` (extracted for C901, NFR-004).
 
@@ -317,9 +333,12 @@ def _run_report_only(
         feature_dir=write_feature_dir,
         body=body,
         analyzer_agent=analyzer_agent,
-        target_branch=get_feature_target_branch(repo_root, feature_dir.name),
+        target_branch=owned.write_branch if owned else get_feature_target_branch(repo_root, feature_dir.name),
+        **({"owned": owned} if owned else {}),
     )
     payload = report_outcome.payload
+    if owned is not None:
+        payload = {**payload, **stale_copy_payload(owned)}
     if json_output:
         _emit_json(payload)
     else:
@@ -328,6 +347,41 @@ def _run_report_only(
             _warn_on_incomplete_surfaces(report_outcome.router_result, json_output=json_output)
     if not payload["success"]:
         raise typer.Exit(1)
+
+
+def _record_analysis_feature_dir(
+    repo_root: Path,
+    feature: str | None,
+    *,
+    owned: OwnedCheckout | None,
+    json_output: bool,
+) -> Path:
+    """Use the validated owned mission, retaining legacy selector errors otherwise."""
+    if owned is not None:
+        # Validate the actual destination before any renderer or transaction write.
+        from specify_cli.analysis_report import ANALYSIS_REPORT_FILENAME
+
+        try:
+            owned.files([owned.mission_dir / ANALYSIS_REPORT_FILENAME])
+        except ActionContextError as exc:
+            emit_owned_refusal(exc, json_output=json_output, envelope=success_false_envelope)
+        return owned.mission_dir
+    try:
+        return cast(Path, _find_feature_directory(repo_root, Path.cwd().resolve(), explicit_feature=feature))
+    except (ValueError, ActionContextError) as detection_error:
+        payload = _build_setup_plan_detection_error(
+            repo_root,
+            str(detection_error),
+            feature,
+            error_code="FEATURE_CONTEXT_UNRESOLVED",
+            command_name="record-analysis",
+            command_args=["--json"] if json_output else [],
+        )
+        if json_output:
+            _emit_json(payload)
+        else:
+            console.print(f"{_RED_ERROR_PREFIX}{payload['error']}")
+        raise typer.Exit(1) from None
 
 
 def record_analysis(
@@ -344,6 +398,7 @@ def record_analysis(
     report_only: Annotated[
         bool, typer.Option("--report-only", help="Commit only the report while preserving unrelated work; require clean material inputs")
     ] = False,
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
     """Persist `/spec-kitty.analyze` output as `analysis-report.md`."""
     try:
@@ -354,30 +409,20 @@ def record_analysis(
         cwd_repo_root = repo_root  # preserve CWD root for branch-protection check
         repo_root = get_main_repo_root(repo_root)
 
-        # WP06 / T020 (#1814): resolve the mission read/write surface FIRST (via
-        # the consolidated read primitive — no silent fallback) so the dirty-tree
-        # preflight can key off the context's placement ref and not deadlock on
-        # coord-residue in the primary checkout.
-        try:
-            feature_dir = _find_feature_directory(
-                repo_root,
-                Path.cwd().resolve(),
-                explicit_feature=feature,
-            )
-        except (ValueError, ActionContextError) as detection_error:
-            payload = _build_setup_plan_detection_error(
-                repo_root,
-                str(detection_error),
-                feature,
-                error_code="FEATURE_CONTEXT_UNRESOLVED",
-                command_name="record-analysis",
-                command_args=["--json"] if json_output else [],
-            )
-            if json_output:
-                _emit_json(payload)
-            else:
-                console.print(f"{_RED_ERROR_PREFIX}{payload['error']}")
-            raise typer.Exit(1) from None
+        from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
+
+        owned = resolve_owned_or_refuse(
+            repo_root,
+            owned_checkout,
+            feature,
+            cwd=Path.cwd(),
+            allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
+            json_output=json_output,
+            envelope=success_false_envelope,
+        )
+        if owned is not None:
+            repo_root = cwd_repo_root = owned.owned_root
+        feature_dir = _record_analysis_feature_dir(repo_root, feature, owned=owned, json_output=json_output)
 
         # C-PLACE-1: the placement ref is the ONE CommitTarget that planning
         # artifacts (incl. analysis-report) AND status events resolve to. The
@@ -385,7 +430,7 @@ def record_analysis(
         # T013 / D11: a genuine resolution failure fails closed here instead of
         # silently letting the preflight run with a conservative, un-filtered
         # dirty set (see ``_require_record_analysis_placement``).
-        placement_ref = _resolve_record_analysis_placement_ref(repo_root, feature_dir)
+        placement_ref = _resolve_record_analysis_placement_ref(repo_root, feature_dir, **({"owned": owned} if owned else {}))
         placement_ref = _require_record_analysis_placement(placement_ref, mission_slug=feature_dir.name)
         if not report_only:
             _enforce_analysis_report_write_preflight(
@@ -393,6 +438,7 @@ def record_analysis(
                 json_output=json_output,
                 placement_ref=placement_ref,
                 mission_slug=feature_dir.name,
+                **({"owned": owned} if owned else {}),
             )
 
         body = sys.stdin.read() if input_file == "-" else Path(input_file).read_text(encoding="utf-8")
@@ -431,7 +477,7 @@ def record_analysis(
         from specify_cli.cli.commands.agent.mission_feature_resolution import _kind_for_artifact
         from mission_runtime import placement_seam
 
-        write_feature_dir = placement_seam(repo_root, feature_dir.name).read_dir(_kind_for_artifact("spec"))
+        write_feature_dir = placement_seam(repo_root, feature_dir.name, **({"owned": owned} if owned else {})).read_dir(_kind_for_artifact("spec"))
 
         if report_only:
             _run_report_only(
@@ -441,6 +487,7 @@ def record_analysis(
                 body=body,
                 analyzer_agent=analyzer_agent,
                 json_output=json_output,
+                **({"owned": owned} if owned else {}),
             )
             return
 
@@ -471,10 +518,13 @@ def record_analysis(
             repo_root=repo_root,
             mission_slug=_analysis_mission_slug,
             report_path=result.path,
-            target_branch=get_feature_target_branch(repo_root, _analysis_mission_slug),
+            target_branch=owned.write_branch if owned else get_feature_target_branch(repo_root, _analysis_mission_slug),
+            **({"owned": owned} if owned else {}),
         )
 
         payload = {_PAYLOAD_KEY_SUCCESS: True, "result": "success", **result.to_dict()}
+        if owned is not None:
+            payload.update(stale_copy_payload(owned))
         if commit_result is not None and commit_result.surfaces:
             from specify_cli.coordination.commit_outcome import commit_outcome_payload
 

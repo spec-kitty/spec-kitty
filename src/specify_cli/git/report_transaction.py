@@ -13,15 +13,18 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
+from typing import cast
 
+from charter.bundle import CHARTER_MD, CHARTER_YAML
 from kernel.git import GitPath, IndexEntry, commit_paths, index_entries, status_entries, tracked_paths
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import ActionContextError, MissionArtifactKind, OwnedCheckout, placement_seam
 
 from specify_cli.analysis_inputs import collect_material_inputs
 from specify_cli.analysis_report import (
     ANALYSIS_REPORT_FILENAME,
     _sha256_file,
     _split_carrier,
+    collect_input_artifact_hashes,
     parse_structured_findings,
     render_analysis_report,
     report_semantics,
@@ -129,9 +132,10 @@ def _guard_unchanged_inputs(
     feature_dir: Path,
     relative: str,
     head: bytes,
-    index: tuple[bytes, ...],
+    index: tuple[IndexEntry, ...],
     working: dict[str, tuple[str, int]],
-    inputs: dict[str, object],
+    inputs: dict[str, dict[str, str | None]],
+    canonical_inputs: dict[str, dict[str, str | None]] | None = None,
 ) -> None:
     """Re-check the concurrency guard right before the commit.
 
@@ -144,6 +148,7 @@ def _guard_unchanged_inputs(
         or _index(repo_root, relative) != index
         or _working(repo_root, relative) != working
         or collect_material_inputs(feature_dir, repo_root) != inputs
+        or _canonical_inputs_changed(feature_dir, repo_root, canonical_inputs)
     ):
         raise ValueError("Repository changed before report commit; retained report is unqualified")
 
@@ -172,6 +177,7 @@ def _commit_report(
     report: Path,
     message: str,
     target_branch: str,
+    owned: OwnedCheckout | None = None,
 ) -> CommitRouterResult:
     """Commit *report* through the canonical router; raise on anything but a clean commit.
 
@@ -187,6 +193,7 @@ def _commit_report(
         policy=ProtectionPolicy.resolve(repo_root),
         kind=MissionArtifactKind.ANALYSIS_REPORT,
         target_branch=target_branch,
+        **({"owned": owned} if owned else {}),
     )
     # WP14 review correction (round 2, binding -- the WP13 precedent this
     # mission's spec_commit_cmd.py consumer was rejected over): the legacy
@@ -230,16 +237,63 @@ class ReportTransactionOutcome:
     router_result: CommitRouterResult | None = None
 
 
-def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, analyzer_agent: str | None, target_branch: str) -> ReportTransactionOutcome:
+def _owned_canonical_inputs(
+    feature_dir: Path,
+    repo_root: Path,
+    owned: OwnedCheckout | None,
+) -> dict[str, dict[str, str | None]] | None:
+    """Snapshot the renderer's actual input hashes, including the canonical R charter."""
+    if owned is None:
+        return None
+    if repo_root.resolve() != owned.owned_root:
+        raise ValueError("Owned report transactions must operate in the validated checkout")
+    owned.files([feature_dir / ANALYSIS_REPORT_FILENAME])
+    return cast(dict[str, dict[str, str | None]], collect_input_artifact_hashes(feature_dir, repo_root))
+
+
+def _canonical_inputs_changed(
+    feature_dir: Path,
+    repo_root: Path,
+    expected: dict[str, dict[str, str | None]] | None,
+) -> bool:
+    return expected is not None and collect_input_artifact_hashes(feature_dir, repo_root) != expected
+
+
+def _canonical_charter_dirt(owned: OwnedCheckout | None, inputs: dict[str, dict[str, str | None]] | None) -> set[str]:
+    """Gate only the canonical charter actually hashed by the owned renderer."""
+    if owned is None or inputs is None:
+        return set()
+    path = inputs["charter"]["path"]
+    candidates = {Path(path).as_posix()} if path is not None else set()
+    # Missing higher-priority authority is still an input: a dirty deletion
+    # must not become a clean fallback to Markdown or to no charter.
+    if path != CHARTER_YAML.as_posix():
+        candidates.add(CHARTER_YAML.as_posix())
+    if path is None:
+        candidates.add(CHARTER_MD.as_posix())
+    return candidates & _dirty_paths(owned.repository_root)
+
+
+def record_report_transaction(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    body: str,
+    analyzer_agent: str | None,
+    target_branch: str,
+    owned: OwnedCheckout | None = None,
+) -> ReportTransactionOutcome:
     """Record only the report; never reset or restore concurrent operator state."""
     report = feature_dir / ANALYSIS_REPORT_FILENAME
-    relative = report.relative_to(repo_root).as_posix()
+    relative = "" if owned else report.relative_to(repo_root).as_posix()
     message = f"docs(record-analysis): record analysis report for mission {feature_dir.name}"
     wrote = False
     committed: str | None = None
     head: bytes | None = None
     token = uuid4().hex
     try:
+        canonical_inputs = _owned_canonical_inputs(feature_dir, repo_root, owned)
+        relative = report.relative_to(repo_root).as_posix()
         parse_structured_findings(body)
         cursor = repo_root
         for part in report.relative_to(repo_root).parts:
@@ -247,14 +301,15 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
             if cursor.is_symlink():
                 raise ValueError("Report destination contains a symlink")
         _require_idle(repo_root)
-        target = placement_seam(repo_root, feature_dir.name).write_target(MissionArtifactKind.ANALYSIS_REPORT)
+        target = placement_seam(repo_root, feature_dir.name, **({"owned": owned} if owned else {})).write_target(MissionArtifactKind.ANALYSIS_REPORT)
         if target.ref != target_branch:
             raise ValueError("Analysis report placement changed before preflight")
-        preflight_commit(repo_root=repo_root, worktree_root=repo_root, target=target, message=message, paths=(report,))
+        preflight_commit(repo_root=repo_root, worktree_root=repo_root, target=target, message=message, paths=(report,), **({"owned": owned} if owned else {}))
         inputs = collect_material_inputs(feature_dir, repo_root)
         material_paths = {entry["path"] for entry in inputs.values()}
         dirty = _dirty_paths(repo_root)
         relevant = dirty & (material_paths | {relative})
+        relevant.update(_canonical_charter_dirt(owned, canonical_inputs))
         tracked = {str(path) for path in tracked_paths(repo_root)}
         relevant.update(path for path in material_paths if path is not None and (repo_root / path).is_file() and path not in tracked)
         if relevant:
@@ -279,6 +334,7 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
                 or _index(repo_root, relative) != index
                 or _working(repo_root, relative) != working
                 or collect_material_inputs(feature_dir, repo_root) != inputs
+                or _canonical_inputs_changed(feature_dir, repo_root, canonical_inputs)
                 or report.read_text(encoding="utf-8") != existing
             ):
                 raise ValueError("Repository changed during unchanged-report verification")
@@ -294,8 +350,24 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
         if report_hash is None or _sha256_file(report) != report_hash:
             raise ValueError("Report changed after rendering; retained report is unqualified")
         _require_idle(repo_root)
-        _guard_unchanged_inputs(repo_root=repo_root, feature_dir=feature_dir, relative=relative, head=head, index=index, working=working, inputs=inputs)
-        outcome = _commit_report(repo_root=repo_root, feature_dir=feature_dir, report=report, message=message, target_branch=target_branch)
+        _guard_unchanged_inputs(
+            repo_root=repo_root,
+            feature_dir=feature_dir,
+            relative=relative,
+            head=head,
+            index=index,
+            working=working,
+            inputs=inputs,
+            canonical_inputs=canonical_inputs,
+        )
+        outcome = _commit_report(
+            repo_root=repo_root,
+            feature_dir=feature_dir,
+            report=report,
+            message=message,
+            target_branch=target_branch,
+            **({"owned": owned} if owned else {}),
+        )
         committed = outcome.commit_hash
         parents = _git(repo_root, "rev-list", "--parents", "-n", "1", committed).split()
         changed = commit_paths(repo_root, committed)
@@ -306,6 +378,7 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
             or _index(repo_root, relative) != index
             or _working(repo_root, relative) != working
             or collect_material_inputs(feature_dir, repo_root) != inputs
+            or _canonical_inputs_changed(feature_dir, repo_root, canonical_inputs)
             or _sha256_file(report) != report_hash
             or _git(repo_root, "show", f"{committed}:{relative}") != report.read_bytes()
         ):
@@ -315,7 +388,7 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
             {**result.to_dict(), "success": True, "commit_status": "committed", "commit_hash": committed, **commit_outcome_payload(outcome)},
             router_result=outcome,
         )
-    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as exc:
+    except (ActionContextError, OSError, ValueError, RuntimeError, subprocess.CalledProcessError) as exc:
         if wrote and committed is None and head is not None:
             # A failing post-commit hook/router can throw after Git advanced.
             # Report the observed ref honestly; never reset it.
@@ -338,6 +411,8 @@ def record_report_transaction(*, repo_root: Path, feature_dir: Path, body: str, 
         # own outcome -- additively include its ``surfaces`` on the FAILURE
         # arm too, not only the success arm, so a text-mode caller can render
         # the per-surface outcome here as well.
+        if isinstance(exc, ActionContextError):
+            payload["error_code"] = exc.code
         refused_outcome = exc.outcome if isinstance(exc, ReportCommitRefused) else None
         if refused_outcome is not None:
             payload.update(commit_outcome_payload(refused_outcome))

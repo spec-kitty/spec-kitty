@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Annotated, Any, cast
 
 import typer
 
 from charter.packs import RetiredPackFieldError
 
 from specify_cli.task_utils import TaskCliError
+from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption, resolve_owned_or_refuse, success_false_envelope
 
 from specify_cli.cli.commands.charter._app import charter_app, console
 from specify_cli.cli.commands.charter._charter_write_root import (
@@ -417,6 +418,60 @@ def _provision_mission_types_or_exit(repo_root: Path, *, json_output: bool) -> N
         raise typer.Exit(code=1) from e
 
 
+def _validate_owned_charter_destinations(repo_root: Path) -> None:
+    """Validate the whole generator write batch inside P before provisioning."""
+    from ruamel.yaml import YAML
+    from charter.activation.compiler import _assert_safe_charter_output_dir
+    from charter.activation.pack_context import resolve_charter_yaml_pointer
+    from charter.bundle import CANONICAL_MANIFEST
+
+    config = repo_root / ".kittify/config.yaml"
+    charter_dir = repo_root / ".kittify/charter"
+    files = [config, repo_root / ".gitignore", *(repo_root / path for path in CANONICAL_MANIFEST.tracked_files)]
+    directories = [charter_dir, charter_dir / "library"]
+    destinations = [*files, *directories]
+    # Validate ancestors before traversing or reading an operator-selected path.
+    for path in destinations:
+        _assert_safe_charter_output_dir(path, repo_root=repo_root)
+    if any(path.exists() and not path.is_file() for path in files):
+        raise ValueError("Owned charter file destination is not a regular file")
+    if any(path.exists() and not path.is_dir() for path in directories):
+        raise ValueError("Owned charter directory destination is not a directory")
+    if config.exists():
+        data = YAML(typ="safe").load(config.read_text(encoding="utf-8"))
+        pointer = resolve_charter_yaml_pointer(repo_root, data if isinstance(data, dict) else {})
+        if pointer is not None:
+            _assert_safe_charter_output_dir(pointer, repo_root=repo_root)
+            if pointer.exists() and not pointer.is_file():
+                raise ValueError("Owned charter pointer is not a regular file")
+    if charter_dir.exists():
+        for path in charter_dir.rglob("*"):
+            _assert_safe_charter_output_dir(path, repo_root=repo_root)
+
+
+def _resolve_generate_write_root(owned_checkout: OwnedCheckoutOption, mission_handle: str | None, *, json_output: bool) -> Path:
+    """Opt in to validated ownership; preserve the shared default linked refusal."""
+    if owned_checkout is None:
+        if mission_handle is not None:
+            raise ValueError("--mission-handle requires --owned-checkout")
+        resolve_charter_write_root(Path.cwd())
+        return cast(Path, _charter_pkg.find_repo_root())
+    from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
+
+    owned = resolve_owned_or_refuse(
+        _charter_pkg.find_repo_root(),
+        owned_checkout,
+        mission_handle,
+        cwd=Path.cwd(),
+        allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
+        json_output=json_output,
+        envelope=success_false_envelope,
+    )
+    assert owned is not None  # Explicit claim either validates or exits.
+    _validate_owned_charter_destinations(owned.owned_root)
+    return cast(Path, owned.owned_root)
+
+
 @charter_app.command()
 def generate(
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults"),
@@ -430,6 +485,8 @@ def generate(
     profile: str = typer.Option("minimal", "--profile", help="Default profile when no interview is available"),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing charter bundle"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
+    owned_checkout: OwnedCheckoutOption = None,
+    mission_handle: Annotated[str | None, typer.Option("--mission-handle", help="Mission identity owned by the explicitly selected checkout")] = None,
 ) -> None:
     """Generate charter bundle from interview answers + doctrine references.
 
@@ -462,9 +519,7 @@ def generate(
         # worktree's ``.git`` pointer back to the PRIMARY checkout by
         # contract (C-002, not changed here), which would silently mask the
         # very condition this guard exists to catch.
-        resolve_charter_write_root(Path.cwd())
-
-        repo_root = _charter_pkg.find_repo_root()
+        repo_root = _resolve_generate_write_root(owned_checkout, mission_handle, json_output=json_output)
 
         # T030 (#841 fail-fast): verify we are inside a git working tree
         # BEFORE writing any artifact. Auto-tracking on success requires
