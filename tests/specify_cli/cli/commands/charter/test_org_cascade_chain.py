@@ -701,6 +701,20 @@ class _FakeManagerMultiFail:
         raise ValueError(message)
 
 
+class _FakeManagerFailsPerRoot:
+    """Stand-in whose ``.activate`` raises an error naming the org root it was
+    handed (``layer_roots["org"]``), so a test can check that each
+    ``org root n/N`` label sits next to its own root's failure regardless of
+    the order the helper tries the candidates in."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def activate(self, ctx_project, kind_token, config_id, *, cascade, layer_roots):
+        self.calls += 1
+        raise ValueError(f"Unknown directive ID {config_id!r} in {layer_roots['org']}")
+
+
 class TestActivateCascadeTargetFailureAggregation:
     """When every candidate org root fails, the raised error must name every
     candidate's failure reason, not just the last one -- previously
@@ -722,6 +736,23 @@ class TestActivateCascadeTargetFailureAggregation:
         message = str(excinfo.value)
         assert "Unknown directive ID 'x' in pack1" in message, message
         assert "structural issue in pack2" in message, message
+        assert manager.calls == 2
+
+    def test_each_label_names_its_own_roots_failure(self) -> None:
+        """Candidates are tried last-declared-first, but each ``org root n/N``
+        label keeps its declaration position and sits next to that root's
+        own error -- the renumbering must not swap the attributions."""
+        manager = _FakeManagerFailsPerRoot()
+        org_roots = [Path("/org1"), Path("/org2")]
+
+        with pytest.raises(ValueError) as excinfo:
+            activate_mod._activate_cascade_target(
+                manager, None, "directive", "x", None, org_roots
+            )
+
+        message = str(excinfo.value)
+        assert "org root 1/2: Unknown directive ID 'x' in /org1" in message, message
+        assert "org root 2/2: Unknown directive ID 'x' in /org2" in message, message
         assert manager.calls == 2
 
     def test_single_candidate_failure_is_unchanged(self) -> None:

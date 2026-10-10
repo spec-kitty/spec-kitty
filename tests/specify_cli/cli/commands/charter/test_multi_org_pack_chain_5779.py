@@ -101,7 +101,10 @@ class TestActivateValidatesAgainstWinningPack:
     def test_colliding_id_is_validated_against_last_declared_pack(self, two_pack_project: Path) -> None:
         # Direct and cascade targets share one helper; the pack an id is
         # validated against must be the one that wins the chain (the last
-        # declared), not the first that happens to accept it.
+        # declared), not the first that happens to accept it. Today the
+        # result is the same either way (activation records only the id), so
+        # this guards the seam for future pack-specific validation such as
+        # cascade edges -- it is not a shape pin to retire.
         from specify_cli.cli.commands.charter import activate as activate_mod
 
         seen_org_roots: list[Path] = []
