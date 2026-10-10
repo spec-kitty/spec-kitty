@@ -18,9 +18,11 @@ Spec IDs: FR-006, FR-007, NFR-003, SC-003.
 
 from __future__ import annotations
 
+import io
 from pathlib import Path
 
 import pytest
+from rich.console import Console
 
 from specify_cli.cli.commands import init as init_module
 from specify_cli.template import manager
@@ -256,3 +258,50 @@ def test_has_operator_authored_content_false_for_empty_subtree_dirs(tmp_path: Pa
     (kittify_root / "memory").mkdir(parents=True)
 
     assert init_module._has_operator_authored_content(project_path) is False
+
+
+# ---------------------------------------------------------------------------
+# Ownership refusal renders one line, not a traceback (#5965 / #5966)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def init_console(monkeypatch: pytest.MonkeyPatch) -> io.StringIO:
+    buffer = io.StringIO()
+    monkeypatch.setattr(init_module, "_console", Console(file=buffer, width=500, force_terminal=False))
+    return buffer
+
+
+def test_discard_failed_project_scaffold_keeps_a_checkout_and_says_why(tmp_path: Path, init_console: io.StringIO) -> None:
+    project_path = tmp_path / "myproject"
+    (project_path / ".git").mkdir(parents=True)
+    (project_path / "work.txt").write_text("only copy\n", encoding="utf-8")
+
+    init_module._discard_failed_project_scaffold(project_path, here=False)
+
+    assert (project_path / "work.txt").read_text(encoding="utf-8") == "only copy\n"
+    rendered = init_console.getvalue()
+    assert "Kept" in rendered and str(project_path) in rendered and "TOOL_OWNED_PATH_UNPROVEN" in rendered
+    assert "Traceback" not in rendered
+    assert len(rendered.strip().splitlines()) == 1
+
+
+def test_remove_init_scratch_removes_a_plain_resolver_scratch_dir(tmp_path: Path, init_console: io.StringIO) -> None:
+    scratch = tmp_path / ".resolved-abc"
+    scratch.mkdir()
+    (scratch / "f.txt").write_text("x\n", encoding="utf-8")
+
+    assert init_module._remove_init_scratch(scratch, reason="init resolver scratch dir", best_effort=True) is True
+
+    assert not scratch.exists()
+    assert init_console.getvalue() == ""
+
+
+def test_remove_init_scratch_keeps_a_resolver_scratch_dir_holding_a_checkout(tmp_path: Path, init_console: io.StringIO) -> None:
+    scratch = tmp_path / ".merged-abc"
+    (scratch / ".git").mkdir(parents=True)
+
+    assert init_module._remove_init_scratch(scratch, reason="init resolver scratch dir", best_effort=True) is False
+
+    assert (scratch / ".git").is_dir()
+    assert "Kept" in init_console.getvalue()

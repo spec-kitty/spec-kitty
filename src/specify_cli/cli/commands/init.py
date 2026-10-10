@@ -25,7 +25,7 @@ from specify_cli.core import (
 )
 from specify_cli.core.env import is_interactive
 from kernel.clock import now_utc_iso
-from kernel.tree_removal import remove_tool_owned_tree
+from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
 from specify_cli.core.constants import OCCURRENCE_MAP_FILENAME
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.core.vcs import (
@@ -434,6 +434,21 @@ def _has_operator_authored_content(project_path: Path) -> bool:
     return any((kittify / subtree_name).is_dir() and any((kittify / subtree_name).rglob("*")) for subtree_name in _OPERATOR_AUTHORED_SUBTREES)
 
 
+def _remove_init_scratch(path: Path, *, reason: str, best_effort: bool = False) -> bool:
+    """Remove a tree this init run owns; a refusal to prove ownership is one console line, not a traceback.
+
+    ``path`` is its own owned root. When the helper refuses (``ToolOwnedPathUnproven``: the
+    tree holds a ``.git`` entry, so it may hold the only copy of someone's work) the tree is
+    kept and the path and the reason are reported. Returns whether anything was removed.
+    """
+    try:
+        return remove_tool_owned_tree(path, owned_root=path, reason=reason, best_effort=best_effort)
+    except ToolOwnedPathUnproven as exc:
+        assert _console is not None
+        _console.print(f"[yellow]Kept {path}:[/yellow] {exc}", markup=True, soft_wrap=True)
+        return False
+
+
 def _discard_failed_project_scaffold(project_path: Path, *, here: bool) -> None:
     """Roll back a failed init for a project directory this run created.
 
@@ -458,7 +473,7 @@ def _discard_failed_project_scaffold(project_path: Path, *, here: bool) -> None:
         backup_parent=project_path.parent,
     )
     # Owned: ``project_path`` is the scaffold this same run created (``not here``); init runs no ``git init``.
-    remove_tool_owned_tree(project_path, owned_root=project_path, reason="failed init scaffold created by this run")
+    _remove_init_scratch(project_path, reason="failed init scaffold created by this run")
 
 
 def _wire_merge_driver_best_effort(project_path: Path) -> Literal["installed", "present", "customized"] | None:
@@ -1593,7 +1608,7 @@ def init(  # noqa: C901
     if kittify_dir.is_dir():
         for scratch in kittify_dir.iterdir():
             if scratch.is_dir() and (scratch.name.startswith(".resolved-") or scratch.name.startswith(".merged-")):
-                remove_tool_owned_tree(scratch, owned_root=scratch, reason="init resolver scratch dir", best_effort=True)
+                _remove_init_scratch(scratch, reason="init resolver scratch dir", best_effort=True)
 
 
 def register_init_command(
