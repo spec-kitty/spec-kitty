@@ -56,6 +56,7 @@ import typer
 import specify_cli.status  # noqa: F401  # import-order guard (see comment above)
 
 from tests.consolidation.approval_stamps import restamp_log_at_lane_tips
+from tests.residue_predicate import residue_when
 from specify_cli.cli.commands.consolidate import _run_lane_based_consolidation
 from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.git.ref_advance import (
@@ -724,7 +725,7 @@ def _setup_branch_with_dossier_snapshot_drift(
 def test_advance_branch_ref_dossier_snapshot_drift_blocks_without_residue_exemption(
     tmp_path: Path,
 ) -> None:
-    """RED baseline: without an injected ``is_residue``, dossier-snapshot drift
+    """RED baseline: without an injected ``context``, dossier-snapshot drift
     in the checked-out worktree blocks the advance like any other tracked
     modification -- documents WHY the exemption is needed, not a claim that
     production callers omit it (they all inject
@@ -745,7 +746,7 @@ def test_advance_branch_ref_dossier_snapshot_drift_blocks_without_residue_exempt
 def test_advance_branch_ref_dossier_snapshot_drift_does_not_block_with_residue_exemption(
     tmp_path: Path,
 ) -> None:
-    """FIX-M2-05 / GREEN: with the real production ``is_residue`` injection
+    """FIX-M2-05 / GREEN: with the real production ``context`` injection
     (``is_toolchain_generated_churn``, exactly as every ``advance_branch_ref``
     call site in the merge pipeline passes it -- ``lanes/merge.py``,
     ``merge/ordering.py``, ``coordination/commit_router.py``), dossier-snapshot
@@ -760,7 +761,7 @@ def test_advance_branch_ref_dossier_snapshot_drift_does_not_block_with_residue_e
         tmp_path
     )
 
-    advance_branch_ref(tmp_path, branch, new_sha, is_residue=is_toolchain_generated_churn)
+    advance_branch_ref(tmp_path, branch, new_sha, context=residue_when(is_toolchain_generated_churn))
 
     assert _rev_parse(tmp_path, branch) == new_sha
     assert _rev_parse(wt, "HEAD") == new_sha

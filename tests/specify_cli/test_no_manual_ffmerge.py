@@ -7,7 +7,7 @@ the primary branch must be up-to-date with the coordination branch without
 the operator running ``git merge --ff-only`` by hand.
 
 These tests assert the invariant at the unit level:
-  * ``advance_branch_ref`` with ``is_residue`` (WP13 retired the former
+  * ``advance_branch_ref`` with ``context`` (WP13 retired the former
     ``coord_owned_filenames`` frozenset param onto the canonical churn owner)
     does NOT abort when coord-owned residue (``status.events.jsonl``,
     ``status.json``) is present in a checked-out worktree.
@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.residue_predicate import residue_when
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import (
     advance_branch_ref,
@@ -187,12 +188,12 @@ def test_coord_owned_residue_does_not_abort_advance(tmp_path: Path) -> None:
     for filename in ("status.events.jsonl", "status.json"):
         (mission_dir / filename).write_text('{"event": "dummy"}\n', encoding="utf-8")
 
-    # advance_branch_ref WITH is_residue must succeed despite residue
+    # advance_branch_ref WITH a residue context must succeed despite residue
     advance_branch_ref(
         repo,
         primary_branch,
         coord_sha,
-        is_residue=is_toolchain_generated_churn,
+        context=residue_when(is_toolchain_generated_churn),
     )
 
     primary_sha = _sha(repo, primary_branch)
@@ -211,7 +212,7 @@ def test_tracked_coord_owned_status_change_no_longer_blocks_advance(tmp_path: Pa
     the OPPOSITE (a tracked status-file edit blocks the advance) under the
     narrower, pre-WP13 ``coord_owned_filenames`` mechanism, which only ever
     excluded UNTRACKED entries. WP13 routes ``_dirty_entries`` through
-    ``is_residue`` for BOTH tracked and untracked entries, so this scenario now
+    ``context`` for BOTH tracked and untracked entries, so this scenario now
     exempts rather than blocks -- matching ``merge/git_probes.py`` /
     ``review/dirty_classifier.py``, which already treated a tracked-modified
     status/matrix file as benign churn before this WP.
@@ -239,7 +240,7 @@ def test_tracked_coord_owned_status_change_no_longer_blocks_advance(tmp_path: Pa
         repo,
         primary_branch,
         coord_sha,
-        is_residue=is_toolchain_generated_churn,
+        context=residue_when(is_toolchain_generated_churn),
     )
 
     assert _sha(repo, primary_branch) == coord_sha, "a tracked, locally-edited status.json is toolchain churn post-WP13; the advance must succeed, not refuse."
@@ -306,7 +307,7 @@ def test_genuine_dirty_tracked_changes_still_block_advance(tmp_path: Path) -> No
             repo,
             primary_branch,
             coord_sha,
-            is_residue=is_toolchain_generated_churn,
+            context=residue_when(is_toolchain_generated_churn),
         )
 
 

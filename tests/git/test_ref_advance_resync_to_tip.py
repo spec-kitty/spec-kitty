@@ -11,12 +11,12 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import MissionTopology
+from tests.residue_predicate import residue_when
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
 from specify_cli.git.ref_advance import (
     RefAdvanceDirtyWorktreeError,
     RefAdvanceError,
     advance_branch_ref,
-    restore_branch_ref,
     resync_checkouts_to_tip,
 )
 
@@ -57,7 +57,7 @@ def test_residue_only_drift_is_reset_to_the_tip_and_the_ref_stays(tmp_path: Path
     repo, worktree, tip = _repo_with_checkout(tmp_path)
     (worktree / _STATUS).write_text("approved\n", encoding="utf-8")
 
-    reset = resync_checkouts_to_tip(repo, _BRANCH, is_residue=_is_status)
+    reset = resync_checkouts_to_tip(repo, _BRANCH, context=residue_when(_is_status))
 
     assert [p.resolve() for p in reset] == [worktree.resolve()]
     assert (worktree / _STATUS).read_text(encoding="utf-8") == "approved\ndone\n"
@@ -68,7 +68,7 @@ def test_residue_only_drift_is_reset_to_the_tip_and_the_ref_stays(tmp_path: Path
 def test_a_consistent_checkout_is_left_alone(tmp_path: Path) -> None:
     repo, _worktree, _tip = _repo_with_checkout(tmp_path)
 
-    assert resync_checkouts_to_tip(repo, _BRANCH, is_residue=_is_status) == []
+    assert resync_checkouts_to_tip(repo, _BRANCH, context=residue_when(_is_status)) == []
 
 
 def test_a_non_residue_edit_refuses_and_nothing_is_reset(tmp_path: Path) -> None:
@@ -77,7 +77,7 @@ def test_a_non_residue_edit_refuses_and_nothing_is_reset(tmp_path: Path) -> None
     (worktree / "notes.md").write_text("operator edit\n", encoding="utf-8")
 
     with pytest.raises(RefAdvanceDirtyWorktreeError):
-        resync_checkouts_to_tip(repo, _BRANCH, is_residue=_is_status)
+        resync_checkouts_to_tip(repo, _BRANCH, context=residue_when(_is_status))
 
     assert (worktree / "notes.md").read_text(encoding="utf-8") == "operator edit\n"
     assert (worktree / _STATUS).read_text(encoding="utf-8") == "approved\n"
@@ -113,17 +113,6 @@ def _mission_repo_on_main(tmp_path: Path) -> Path:
     _git(repo, "add", "-A")
     _git(repo, "commit", "--quiet", "-m", "base")
     return repo
-
-
-def test_context_and_is_residue_together_is_a_type_error(tmp_path: Path) -> None:
-    repo, _worktree, _tip = _repo_with_checkout(tmp_path)
-
-    with pytest.raises(TypeError, match="exactly one"):
-        resync_checkouts_to_tip(repo, _BRANCH, is_residue=_is_status, context=_ctx())
-    with pytest.raises(TypeError, match="exactly one"):
-        advance_branch_ref(repo, _BRANCH, _git(repo, "rev-parse", "HEAD"), is_residue=_is_status, context=_ctx())
-    with pytest.raises(TypeError, match="exactly one"):
-        restore_branch_ref(repo, _BRANCH, "0" * 40, expected_current_sha="0" * 40, resync_checkouts=True, is_residue=_is_status, context=_ctx())
 
 
 def test_a_coordination_checkouts_uncommitted_review_cycle_refuses_the_resync(tmp_path: Path) -> None:

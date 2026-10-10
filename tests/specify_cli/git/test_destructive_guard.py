@@ -14,11 +14,13 @@ from __future__ import annotations
 
 import ast
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
 from mission_runtime import MissionTopology
+from tests.residue_predicate import residue_when
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
 from specify_cli.git.destructive_guard import (
     BRANCH_HAS_UNIQUE_COMMITS,
@@ -150,7 +152,7 @@ def test_clean_worktree_passes(tmp_path: Path) -> None:
     (root / "README.md").write_text("seed\n", encoding="utf-8")
     _commit_all(root, "seed")
 
-    assert assert_worktree_clean(root, is_residue=_never_residue) is None
+    assert assert_worktree_clean(root, context=residue_when(_never_residue)) is None
 
 
 def test_tracked_dirty_raises(tmp_path: Path) -> None:
@@ -162,7 +164,7 @@ def test_tracked_dirty_raises(tmp_path: Path) -> None:
     tracked.write_text("v2 - local edit\n", encoding="utf-8")
 
     with pytest.raises(DestructiveOpRefused) as excinfo:
-        assert_worktree_clean(root, is_residue=_never_residue)
+        assert_worktree_clean(root, context=residue_when(_never_residue))
 
     exc = excinfo.value
     assert exc.error_code == "MERGE_UNSAFE_WORKTREE_DIRTY"
@@ -182,7 +184,7 @@ def test_tracked_dirty_honors_error_code_override(tmp_path: Path) -> None:
     with pytest.raises(DestructiveOpRefused) as excinfo:
         assert_worktree_clean(
             root,
-            is_residue=_never_residue,
+            context=residue_when(_never_residue),
             error_code="MERGE_UNSAFE_PRIMARY_DIRTY",
         )
 
@@ -223,7 +225,7 @@ def test_untracked_obstruction_raises(tmp_path: Path) -> None:
     (generated_dir / "output.txt").write_text("local untracked content\n", encoding="utf-8")
 
     with pytest.raises(DestructiveOpRefused) as excinfo:
-        assert_worktree_clean(root, new_sha=target_sha, is_residue=_never_residue)
+        assert_worktree_clean(root, new_sha=target_sha, context=residue_when(_never_residue))
 
     exc = excinfo.value
     assert exc.error_code == "MERGE_UNSAFE_WORKTREE_DIRTY"
@@ -240,7 +242,7 @@ def test_untracked_only_passes_by_default(tmp_path: Path) -> None:
     _commit_all(root, "seed")
     (root / "scratch.txt").write_text("untracked, non-obstructing\n", encoding="utf-8")
 
-    assert assert_worktree_clean(root, is_residue=_never_residue) is None
+    assert assert_worktree_clean(root, context=residue_when(_never_residue)) is None
 
 
 def test_untracked_only_raises_when_treat_untracked_as_dirty(tmp_path: Path) -> None:
@@ -254,7 +256,7 @@ def test_untracked_only_raises_when_treat_untracked_as_dirty(tmp_path: Path) -> 
     (root / "scratch.txt").write_text("untracked local work\n", encoding="utf-8")
 
     with pytest.raises(DestructiveOpRefused) as excinfo:
-        assert_worktree_clean(root, is_residue=_never_residue, treat_untracked_as_dirty=True)
+        assert_worktree_clean(root, context=residue_when(_never_residue), treat_untracked_as_dirty=True)
 
     assert any("scratch.txt" in entry for entry in excinfo.value.dirty_entries)
 
@@ -279,7 +281,7 @@ def test_residue_only_meta_json_change_passes(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    assert assert_worktree_clean(root, is_residue=_residue_for_meta_json) is None
+    assert assert_worktree_clean(root, context=residue_when(_residue_for_meta_json)) is None
 
 
 def test_residue_classifier_does_not_exempt_unrelated_files(tmp_path: Path) -> None:
@@ -293,7 +295,7 @@ def test_residue_classifier_does_not_exempt_unrelated_files(tmp_path: Path) -> N
     tracked.write_text("v2 - local edit\n", encoding="utf-8")
 
     with pytest.raises(DestructiveOpRefused):
-        assert_worktree_clean(root, is_residue=_residue_for_meta_json)
+        assert_worktree_clean(root, context=residue_when(_residue_for_meta_json))
 
 
 # --- guarded_worktree_remove ---------------------------------------------------
@@ -313,7 +315,7 @@ def test_guarded_worktree_remove_clean_removes(tmp_path: Path) -> None:
     _add_worktree(root, worktree, "lane-clean")
     assert worktree.exists()
 
-    result = guarded_worktree_remove(worktree, retain=False, is_residue=_never_residue)
+    result = guarded_worktree_remove(worktree, retain=False, context=residue_when(_never_residue))
 
     assert result.outcome is RemoveOutcome.REMOVED
     assert result.worktree_path == worktree
@@ -332,7 +334,7 @@ def test_guarded_worktree_remove_dirty_no_retain_raises(tmp_path: Path) -> None:
     (worktree / "tracked.txt").write_text("local edit, uncommitted\n", encoding="utf-8")
 
     with pytest.raises(DestructiveOpRefused) as excinfo:
-        guarded_worktree_remove(worktree, retain=False, is_residue=_never_residue)
+        guarded_worktree_remove(worktree, retain=False, context=residue_when(_never_residue))
 
     assert excinfo.value.error_code == "MERGE_UNSAFE_WORKTREE_DIRTY"
     # Fail-closed: the worktree must survive the refusal untouched.
@@ -351,7 +353,7 @@ def test_guarded_worktree_remove_retain_dirty_keeps(tmp_path: Path) -> None:
     _add_worktree(root, worktree, "lane-retain-dirty")
     (worktree / "tracked.txt").write_text("local edit, uncommitted\n", encoding="utf-8")
 
-    result = guarded_worktree_remove(worktree, retain=True, is_residue=_never_residue)
+    result = guarded_worktree_remove(worktree, retain=True, context=residue_when(_never_residue))
 
     assert result.outcome is RemoveOutcome.RETAINED_DIRTY
     assert result.worktree_path == worktree
@@ -378,7 +380,7 @@ def test_guarded_worktree_remove_untracked_only_no_retain_raises(tmp_path: Path)
     (worktree / "scratch.txt").write_text("implementer's in-progress notes\n", encoding="utf-8")
 
     with pytest.raises(DestructiveOpRefused) as excinfo:
-        guarded_worktree_remove(worktree, retain=False, is_residue=_never_residue)
+        guarded_worktree_remove(worktree, retain=False, context=residue_when(_never_residue))
 
     assert excinfo.value.error_code == "MERGE_UNSAFE_WORKTREE_DIRTY"
     assert any("scratch.txt" in entry for entry in excinfo.value.dirty_entries)
@@ -399,7 +401,7 @@ def test_guarded_worktree_remove_untracked_only_retain_retains(tmp_path: Path) -
     _add_worktree(root, worktree, "lane-untracked-only-retain")
     (worktree / "scratch.txt").write_text("in-progress notes\n", encoding="utf-8")
 
-    result = guarded_worktree_remove(worktree, retain=True, is_residue=_never_residue)
+    result = guarded_worktree_remove(worktree, retain=True, context=residue_when(_never_residue))
 
     assert result.outcome is RemoveOutcome.RETAINED_DIRTY
     assert worktree.exists()
@@ -420,7 +422,7 @@ def test_guarded_worktree_remove_residue_untracked_still_exempt(tmp_path: Path) 
     _add_worktree(root, worktree, "lane-residue-untracked")
     (worktree / "meta.json").write_text('{"slug": "residue"}\n', encoding="utf-8")
 
-    result = guarded_worktree_remove(worktree, retain=False, is_residue=_residue_for_meta_json)
+    result = guarded_worktree_remove(worktree, retain=False, context=residue_when(_residue_for_meta_json))
 
     assert result.outcome is RemoveOutcome.REMOVED
     assert not worktree.exists()
@@ -439,7 +441,7 @@ def test_guarded_worktree_remove_retain_clean_still_removes(tmp_path: Path) -> N
     worktree = tmp_path / "wt-retain-clean"
     _add_worktree(root, worktree, "lane-retain-clean")
 
-    result = guarded_worktree_remove(worktree, retain=True, is_residue=_never_residue)
+    result = guarded_worktree_remove(worktree, retain=True, context=residue_when(_never_residue))
 
     assert result.outcome is RemoveOutcome.REMOVED
     assert not worktree.exists()
@@ -504,29 +506,21 @@ def _snapshot(root: Path) -> tuple[str, str, dict[str, bytes]]:
     return head, status, files
 
 
-def test_context_and_is_residue_together_is_a_type_error(tmp_path: Path) -> None:
+def test_a_missing_context_is_a_type_error(tmp_path: Path) -> None:
+    """The guard never defaults to a destructive answer: ``context`` is required."""
     root = _mission_repo(tmp_path)
 
-    with pytest.raises(TypeError, match="exactly one"):
-        assert_worktree_clean(root, context=_ctx(), is_residue=_never_residue)
-    with pytest.raises(TypeError, match="exactly one"):
-        guarded_worktree_remove(root, retain=False, context=_ctx(), is_residue=_never_residue)
-
-
-def test_neither_context_nor_is_residue_is_a_type_error(tmp_path: Path) -> None:
-    root = _mission_repo(tmp_path)
-
-    with pytest.raises(TypeError, match="exactly one"):
+    with pytest.raises(TypeError, match="context"):
         assert_worktree_clean(root)
-    with pytest.raises(TypeError, match="exactly one"):
+    with pytest.raises(TypeError, match="context"):
         guarded_worktree_remove(root, retain=False)
 
 
-def test_legacy_is_residue_still_works(tmp_path: Path) -> None:
+def test_a_predicate_context_exempts_only_what_it_accepts(tmp_path: Path) -> None:
     root = _mission_repo(tmp_path)
     (root / "kitty-specs" / _SLUG / "meta.json").write_text('{"a": 1}\n', encoding="utf-8")
 
-    assert_worktree_clean(root, is_residue=_residue_for_meta_json)
+    assert_worktree_clean(root, context=residue_when(_residue_for_meta_json))
 
 
 def test_assert_clean_with_context_refuses_another_missions_traces(tmp_path: Path) -> None:
@@ -809,3 +803,163 @@ def test_tree_delete_refuses_a_directory_that_is_not_a_checkout(tmp_path: Path) 
 
 def test_tree_delete_of_a_missing_path_is_a_no_op(tmp_path: Path) -> None:
     guarded_tree_delete(tmp_path / "gone", context=_ctx())
+
+
+# --- WP08 folds (#5965 / #5966) ------------------------------------------------------------
+
+
+def _conflict_file(root: Path) -> Path:
+    return root / "src.py"
+
+
+def test_guarded_merge_abort_refuses_an_operators_edit_of_a_conflicted_path(tmp_path: Path) -> None:
+    """T046b: a half-done resolution of a conflicted path is the operator's work, not the merge's."""
+    root = _conflicting_merge(tmp_path)
+    original = _conflict_file(root).read_text(encoding="utf-8")
+    _conflict_file(root).write_text(original.replace("x = main", "x = my_hand_resolved_value"), encoding="utf-8")
+    before = _snapshot(root)
+
+    with pytest.raises(DestructiveOpRefused) as info:
+        guarded_merge_abort(root, context=_ctx())
+
+    assert info.value.error_code == DESTRUCTIVE_OP_ONLY_COPY
+    assert any("src.py" in entry for entry in info.value.dirty_entries)
+    assert _snapshot(root) == before
+    assert (root / ".git" / "MERGE_HEAD").exists()
+
+
+def test_guarded_merge_abort_refuses_a_fully_resolved_conflict(tmp_path: Path) -> None:
+    root = _conflicting_merge(tmp_path)
+    _conflict_file(root).write_text("x = resolved\n", encoding="utf-8")
+
+    with pytest.raises(DestructiveOpRefused):
+        guarded_merge_abort(root, context=_ctx())
+
+    assert _conflict_file(root).read_text(encoding="utf-8") == "x = resolved\n"
+
+
+def test_guarded_merge_abort_proceeds_over_an_untouched_conflict(tmp_path: Path) -> None:
+    """T046b positive control: the conflict exactly as git left it (markers included) is regenerable."""
+    root = _conflicting_merge(tmp_path)
+    assert "<<<<<<<" in _conflict_file(root).read_text(encoding="utf-8")
+
+    guarded_merge_abort(root, context=_ctx())
+
+    assert not (root / ".git" / "MERGE_HEAD").exists()
+
+
+class _FakeRmtree:
+    """A ``shutil.rmtree`` stand-in with the 3.12 signature (``onexc``) that records how it was called."""
+
+    def __init__(self, real: Callable[..., None]) -> None:
+        self.real = real
+        self.kwargs: dict[str, object] = {}
+
+    def __call__(self, path: Path, **kwargs: object) -> None:
+        self.kwargs = kwargs
+        handler = kwargs["onexc"]
+        assert callable(handler)
+        # shutil's own legacy ``onerror`` hook receives (func, path, exc_info); ``onexc`` hands over the exception.
+        self.real(path, onerror=lambda func, name, _exc_info: handler(func, name, None))
+
+
+@pytest.mark.parametrize("version", [(3, 11), (3, 12), (3, 13)])
+def test_rmtree_writable_removes_a_read_only_tree_on_every_supported_python(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, version: tuple[int, int]) -> None:
+    """T046c: the 3.12+ branch used to call itself (RecursionError) instead of ``shutil.rmtree(onexc=...)``."""
+    import os
+    import shutil
+    import stat
+    import sys
+
+    from specify_cli.git import destructive_guard
+
+    tree = tmp_path / "ro"
+    (tree / "sub").mkdir(parents=True)
+    (tree / "sub" / "f.txt").write_text("x", encoding="utf-8")
+    os.chmod(tree / "sub" / "f.txt", stat.S_IRUSR)
+    os.chmod(tree / "sub", stat.S_IRUSR | stat.S_IXUSR)
+    fake = _FakeRmtree(shutil.rmtree)
+    monkeypatch.setattr(sys, "version_info", (*version, 0, "final", 0))
+    if version >= (3, 12):
+        monkeypatch.setattr(destructive_guard.shutil, "rmtree", fake)
+
+    destructive_guard._rmtree_writable(tree)
+
+    assert not tree.exists()
+    if version >= (3, 12):
+        assert "onexc" in fake.kwargs and "onerror" not in fake.kwargs
+
+
+def test_tree_delete_refuses_an_ignored_file_in_a_husk_under_an_ignored_directory(tmp_path: Path) -> None:
+    """T046e: ``git status`` hides ignored entries, so a husk under an ignored ``.worktrees/`` looked clean."""
+    root = _mission_repo(tmp_path)
+    (root / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
+    _commit_all(root, "ignore worktrees")
+    husk = root / ".worktrees" / "h"
+    husk.mkdir(parents=True)
+    (husk / "work.py").write_text("only copy\n", encoding="utf-8")
+
+    with pytest.raises(DestructiveOpRefused) as info:
+        guarded_tree_delete(husk, context=_ctx())
+
+    assert info.value.error_code == DESTRUCTIVE_OP_ONLY_COPY
+    assert (husk / "work.py").read_text(encoding="utf-8") == "only copy\n"
+
+
+def test_tree_delete_removes_an_empty_husk_under_an_ignored_directory(tmp_path: Path) -> None:
+    """T046e positive control."""
+    root = _mission_repo(tmp_path)
+    (root / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
+    _commit_all(root, "ignore worktrees")
+    husk = root / ".worktrees" / "h"
+    (husk / "empty-dir").mkdir(parents=True)
+
+    guarded_tree_delete(husk, context=_ctx())
+
+    assert not husk.exists()
+
+
+def test_tree_delete_removes_ignored_debris_the_context_proves_disposable(tmp_path: Path) -> None:
+    root = _mission_repo(tmp_path)
+    (root / ".gitignore").write_text("scratch/\n", encoding="utf-8")
+    _commit_all(root, "ignore scratch")
+    (root / "scratch").mkdir()
+    (root / "scratch" / "cache.bin").write_text("c", encoding="utf-8")
+
+    guarded_tree_delete(root / "scratch", context=residue_when(lambda path: path.startswith("scratch/")))
+
+    assert not (root / "scratch").exists()
+
+
+def test_branch_delete_accepts_a_branch_name_that_looks_like_an_option(tmp_path: Path) -> None:
+    """T046g: without ``--`` the name ``-x`` is parsed as a flag by ``git branch -D``."""
+    root = _mission_repo(tmp_path)
+    _git(root, "update-ref", "refs/heads/-x", "HEAD")
+
+    guarded_branch_delete(root, "-x", creation_base=None)
+
+    listing = subprocess.run(["git", "for-each-ref", "refs/heads/-x"], cwd=str(root), capture_output=True, text=True, check=True).stdout
+    assert listing == ""
+
+
+def test_branch_delete_with_force_recreate_intent_skips_the_unique_commit_check(tmp_path: Path) -> None:
+    """T046d: the operator asked for the branch to be discarded; nothing else may pass this intent."""
+    from specify_cli.git.destructive_guard import FORCE_RECREATE_INTENT
+
+    root = _mission_repo(tmp_path)
+    _branch_with_commit(root, "discard-me")
+
+    with pytest.raises(DestructiveOpRefused):
+        guarded_branch_delete(root, "discard-me", creation_base=None)
+    guarded_branch_delete(root, "discard-me", creation_base=None, operator_intent=FORCE_RECREATE_INTENT)
+
+    assert subprocess.run(["git", "for-each-ref", "refs/heads/discard-me"], cwd=str(root), capture_output=True, text=True, check=True).stdout == ""
+
+
+def test_branch_delete_rejects_an_unknown_operator_intent(tmp_path: Path) -> None:
+    root = _mission_repo(tmp_path)
+    _branch_with_commit(root, "keep-me")
+
+    with pytest.raises(ValueError, match="operator_intent"):
+        guarded_branch_delete(root, "keep-me", creation_base=None, operator_intent="because")
+    assert subprocess.run(["git", "for-each-ref", "refs/heads/keep-me"], cwd=str(root), capture_output=True, text=True, check=True).stdout != ""

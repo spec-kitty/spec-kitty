@@ -18,9 +18,8 @@ standard library. Disposability is decided from a caller-supplied CONTEXT
 (``coordination.coherence.ResidueContext``, structurally a
 :class:`ref_advance.ResidueClassifier`): the caller says which checkout and
 Mission it is destroying, and the guard asks the context whether each dirty
-path is regenerable residue (#5965 / #5966). The legacy context-free
-``is_residue`` predicate is still accepted until the call sites have moved;
-this module never imports the classifier itself (#1878 / #2795 / FR-012).
+path is regenerable residue (#5965 / #5966). This module
+never imports the classifier itself (#1878 / #2795 / FR-012).
 
 :class:`DestructiveOpRefused` is a NEW, distinct typed refusal. It must
 never be conflated with
@@ -36,12 +35,13 @@ import shutil
 import stat
 import subprocess
 import sys
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-from kernel.git import GitPath
+from kernel.git import GitPath, status_entries
 
 from . import ref_advance
 from .ref_advance import ResidueClassifier
@@ -51,6 +51,9 @@ MERGE_UNSAFE_PRIMARY_DIRTY = "MERGE_UNSAFE_PRIMARY_DIRTY"
 MERGE_UNSAFE_WORKTREE_DIRTY = "MERGE_UNSAFE_WORKTREE_DIRTY"
 DESTRUCTIVE_OP_ONLY_COPY = "DESTRUCTIVE_OP_ONLY_COPY"
 BRANCH_HAS_UNIQUE_COMMITS = "BRANCH_HAS_UNIQUE_COMMITS"
+
+FORCE_RECREATE_INTENT = "force_recreate"
+"""``operator_intent`` of ``mission create --force-recreate``: the operator asked for the branch to be discarded."""
 
 _RESUME_NOTE = "then resume the operation (e.g. `spec-kitty consolidate --resume`)"
 
@@ -169,8 +172,7 @@ def assert_worktree_clean(
     worktree: Path,
     *,
     new_sha: str | None = None,
-    context: ResidueClassifier | None = None,
-    is_residue: Callable[[str], bool] | None = None,
+    context: ResidueClassifier,
     env: dict[str, str] | None = None,
     error_code: str = MERGE_UNSAFE_WORKTREE_DIRTY,
     treat_untracked_as_dirty: bool = False,
@@ -179,7 +181,7 @@ def assert_worktree_clean(
 
     Delegates to :func:`ref_advance._dirty_entries` (residue-aware,
     ``--ignored``, tree-obstruction, meta-lock exemption) with the injected
-    ``is_residue`` classifier — this module introduces no new, parallel
+    ``context`` classifier — this module introduces no new, parallel
     dirty predicate (INV-3).
 
     ``new_sha`` is optional: when supplied, an untracked/ignored path that
@@ -193,11 +195,10 @@ def assert_worktree_clean(
     primary checkout (US1 AC2 / FR-002). The refusal semantics are identical;
     only the operator-facing code differs.
 
-    Exactly one of ``context`` (preferred: the guard decides disposability from
-    the checkout role, #5965 / #5966) and the legacy ``is_residue`` must be
-    given; anything else is a :class:`TypeError`, so a missing context can never
-    default to a destructive answer. ``context`` is applied to ``worktree``
-    as-is: the caller names the role of the checkout it guards.
+    ``context`` is required (the guard decides disposability from the checkout
+    role, #5965 / #5966), so a missing context can never default to a
+    destructive answer. It is applied to ``worktree`` as-is: the caller names
+    the role of the checkout it guards.
 
     ``treat_untracked_as_dirty`` (#4753 Finding A): forwarded to
     :func:`ref_advance._dirty_entries` unchanged — see that function's
@@ -206,14 +207,13 @@ def assert_worktree_clean(
     destroyed by the removal, unlike a ``reset --hard``'s obstruction-only
     exposure). Defaults to ``False``.
     """
-    predicate = ref_advance.resolve_residue_predicate(context, is_residue, require_one=True)
     target_paths: frozenset[GitPath] = ref_advance._target_tree_paths(worktree, new_sha, env) if new_sha else frozenset()
     dirty = ref_advance._dirty_entries(
         worktree,
         env,
         new_sha=new_sha or "HEAD",
         target_paths=target_paths,
-        is_residue=predicate,
+        is_disposable=context.is_disposable,
         treat_untracked_as_dirty=treat_untracked_as_dirty,
     )
     if not dirty:
@@ -247,7 +247,7 @@ def _remove_worktree_force(worktree: Path, env: dict[str, str] | None) -> None:
     repo_root = _repo_root_for_worktree(worktree, env)
     result = _run_git(
         repo_root,
-        ["worktree", "remove", str(worktree), "--force"],
+        ["worktree", "remove", "--force", "--", str(worktree)],
         env=env,
     )
     if result.returncode != 0:
@@ -258,8 +258,7 @@ def guarded_worktree_remove(
     worktree: Path,
     *,
     retain: bool,
-    context: ResidueClassifier | None = None,
-    is_residue: Callable[[str], bool] | None = None,
+    context: ResidueClassifier,
     env: dict[str, str] | None = None,
 ) -> RemoveResult:
     """The shared removal chokepoint every live destroy site routes through.
@@ -277,12 +276,10 @@ def guarded_worktree_remove(
     default, which is correct only for a ``reset --hard``) must still be
     detected before it is destroyed.
     """
-    predicate = ref_advance.resolve_residue_predicate(context, is_residue, require_one=True)
     if not retain:
         assert_worktree_clean(
             worktree,
             context=context,
-            is_residue=is_residue,
             env=env,
             treat_untracked_as_dirty=True,
         )
@@ -294,7 +291,7 @@ def guarded_worktree_remove(
         env,
         new_sha="HEAD",
         target_paths=frozenset(),
-        is_residue=predicate,
+        is_disposable=context.is_disposable,
         treat_untracked_as_dirty=True,
     )
     if dirty:
@@ -339,6 +336,60 @@ def _merge_owned_paths(worktree: Path, env: dict[str, str] | None) -> frozenset[
     return frozenset(changed.stdout.split("\n")) - {""} if changed.returncode == 0 else frozenset()
 
 
+def _stage_blob(worktree: Path, stage: int, path: str, env: dict[str, str] | None) -> bytes | None:
+    """The bytes of ``path`` at index ``stage`` (1 base, 2 ours, 3 theirs), or ``None`` when that stage is absent."""
+    result = subprocess.run(["git", "show", f":{stage}:{path}"], cwd=str(worktree), capture_output=True, check=False, env=env)
+    return result.stdout if result.returncode == 0 else None
+
+
+def _strip_conflict_markers(data: bytes) -> bytes:
+    """``data`` without conflict-marker lines and without a diff3 base section.
+
+    Marker labels and the conflict style differ between ``git merge`` and
+    ``git merge-file`` (and with the operator's ``merge.conflictStyle``); the
+    ours/theirs content between the markers does not.
+    """
+    kept: list[bytes] = []
+    in_base = False
+    for line in data.split(b"\n"):
+        if line.startswith(b"|||||||"):
+            in_base = True
+        elif line.startswith(b"======="):
+            in_base = False
+        elif not in_base and not line.startswith((b"<<<<<<<", b">>>>>>>")):
+            kept.append(line)
+    return b"\n".join(kept)
+
+
+def _git_conflict_result(worktree: Path, path: str, env: dict[str, str] | None) -> bytes | None:
+    """The file as ``git merge`` leaves it for an unmerged ``path`` (markers included), or ``None`` when git cannot say."""
+    ours, theirs = _stage_blob(worktree, 2, path, env), _stage_blob(worktree, 3, path, env)
+    if ours is None or theirs is None:
+        return ours if theirs is None else theirs
+    base = _stage_blob(worktree, 1, path, env) or b""
+    with tempfile.TemporaryDirectory() as scratch:
+        files = [Path(scratch) / name for name in ("ours", "base", "theirs")]
+        for file, blob in zip(files, (ours, base, theirs), strict=True):
+            file.write_bytes(blob)
+        merged = subprocess.run(["git", "merge-file", "-p", *(str(file) for file in files)], capture_output=True, check=False)
+    return merged.stdout if merged.returncode >= 0 and merged.returncode < 128 else None
+
+
+def _edited_conflicts(worktree: Path, env: dict[str, str] | None) -> list[str]:
+    """Display lines for unmerged paths whose working-tree file differs from git's own conflict result (an operator edit)."""
+    edited: list[str] = []
+    for entry in status_entries(worktree, env=env):
+        if not entry.is_conflicted:
+            continue
+        rel = str(entry.path)
+        expected = _git_conflict_result(worktree, rel, env)
+        file = worktree / rel
+        actual = file.read_bytes() if file.is_file() else None
+        if expected is None or actual is None or _strip_conflict_markers(actual) != _strip_conflict_markers(expected):
+            edited.append(f"{entry.display()} (conflict resolution edited in the working tree)")
+    return edited
+
+
 def guarded_merge_abort(
     worktree: Path,
     *,
@@ -347,8 +398,10 @@ def guarded_merge_abort(
 ) -> None:
     """``git merge --abort`` in ``worktree``, refusing when it would discard an operator's own edit.
 
-    The merge's own conflict and auto-merge results are regenerable and exempt;
-    every other local change is judged by ``context``.
+    The merge's own results are regenerable and exempt: a cleanly merged path
+    outright, a conflicted path only while its working-tree file still equals
+    what git left (an operator's half-done resolution of it is refused). Every
+    other local change is judged by ``context``.
     """
     merge_paths = _merge_owned_paths(worktree, env)
     dirty = ref_advance._dirty_entries(
@@ -356,8 +409,9 @@ def guarded_merge_abort(
         env,
         new_sha="HEAD",
         target_paths=frozenset(),
-        is_residue=lambda path: path in merge_paths or context.is_disposable(path),
+        is_disposable=lambda path: path in merge_paths or context.is_disposable(path),
     )
+    dirty = [*dirty, *_edited_conflicts(worktree, env)]
     if dirty:
         raise DestructiveOpRefused(
             error_code=DESTRUCTIVE_OP_ONLY_COPY,
@@ -410,6 +464,7 @@ def guarded_branch_delete(
     branch: str,
     *,
     creation_base: str | None,
+    operator_intent: str | None = None,
     env: dict[str, str] | None = None,
 ) -> None:
     """``git branch -D <branch>``, refused while the branch holds commits that exist nowhere else (FR-009).
@@ -417,8 +472,19 @@ def guarded_branch_delete(
     Deletion is allowed when the branch has no commit beyond ``creation_base``
     or every commit is reachable from another ref. A branch that does not exist
     is a no-op.
+
+    ``operator_intent`` names the one explicit request that skips the
+    unique-commit check: :data:`FORCE_RECREATE_INTENT` (``mission create
+    --force-recreate``, where the operator asked for the branch to be discarded).
+    Any other value is a :class:`ValueError`. A routing gate pins the single
+    caller allowed to pass it.
     """
+    if operator_intent not in (None, FORCE_RECREATE_INTENT):
+        raise ValueError(f"unknown operator_intent {operator_intent!r}; expected None or {FORCE_RECREATE_INTENT!r}")
     if _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], env=env).returncode != 0:
+        return
+    if operator_intent is not None:
+        _git_ok(repo_root, ["branch", "-D", "--", branch], env)
         return
     unique = _unique_commits(repo_root, branch, [], env)
     if unique and creation_base is not None:
@@ -430,11 +496,11 @@ def guarded_branch_delete(
             dirty_entries=[f"{sha[:12]} (only on {branch})" for sha in unique],
             remediation=f"Merge or keep branch {branch!r}; nothing was deleted.",
         )
-    _git_ok(repo_root, ["branch", "-D", branch], env)
+    _git_ok(repo_root, ["branch", "-D", "--", branch], env)
 
 
 def _make_writable_and_retry(function: Callable[[str], object], name: str, _exc: object) -> None:
-    """``shutil.rmtree`` error hook: clear a read-only bit (git objects on Windows) and retry once."""
+    """``shutil.rmtree`` error hook (``onerror`` and ``onexc`` alike): clear a read-only bit (git objects on Windows) and retry once."""
     for target in (Path(name), Path(name).parent):
         os.chmod(target, stat.S_IRWXU)  # removal is governed by the parent's write bit on POSIX
     function(name)
@@ -443,7 +509,7 @@ def _make_writable_and_retry(function: Callable[[str], object], name: str, _exc:
 def _rmtree_writable(path: Path) -> None:
     # ``onexc`` replaced the deprecated ``onerror`` in 3.12; the project floor is 3.11.
     if sys.version_info >= (3, 12):
-        _rmtree_writable(path)
+        shutil.rmtree(path, onexc=_make_writable_and_retry)
     else:
         shutil.rmtree(path, onerror=_make_writable_and_retry)
 
@@ -451,6 +517,22 @@ def _rmtree_writable(path: Path) -> None:
 def _checkout_toplevel(path: Path, env: dict[str, str] | None) -> Path | None:
     result = _run_git(path, ["rev-parse", "--show-toplevel"], env=env)
     return Path(result.stdout.strip()).resolve() if result.returncode == 0 else None
+
+
+def _ignored_local_state(toplevel: Path, prefix: str, context: ResidueClassifier, env: dict[str, str] | None) -> list[str]:
+    """Display lines for ignored files under ``prefix`` that ``context`` does not prove disposable.
+
+    A directory that is not itself a checkout root lies in its enclosing
+    checkout, where ``git status`` hides ignored entries (an ignored
+    ``.worktrees/`` husk holding ``work.py`` looks clean). Nothing there is
+    regenerable unless the classifier says so, so each ignored file counts.
+    """
+    entries = status_entries(toplevel, untracked="all", ignored=True, env=env)
+    return [
+        f"{entry.display()} (ignored by the enclosing checkout, so git status hides it)"
+        for entry in entries
+        if entry.is_ignored and str(entry.path).startswith(prefix) and not context.is_disposable(str(entry.path))
+    ]
 
 
 def guarded_tree_delete(
@@ -483,9 +565,11 @@ def guarded_tree_delete(
         env,
         new_sha="HEAD",
         target_paths=frozenset(),
-        is_residue=lambda rel: (not rel.startswith(prefix)) or context.is_disposable(rel),
+        is_disposable=lambda rel: (not rel.startswith(prefix)) or context.is_disposable(rel),
         treat_untracked_as_dirty=True,
     )
+    if prefix:
+        dirty += _ignored_local_state(toplevel, prefix, context, env)
     if dirty:
         raise DestructiveOpRefused(
             error_code=DESTRUCTIVE_OP_ONLY_COPY,

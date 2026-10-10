@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.residue_predicate import residue_when
 from specify_cli.git.ref_advance import (
     RefAdvanceDirtyWorktreeError,
     RefRestoreError,
@@ -105,7 +106,7 @@ def test_residue_paths_are_excluded_from_the_dirty_check(advanced: dict[str, obj
         str(advanced["base"]),
         expected_current_sha=str(advanced["feat_tip"]),
         resync_checkouts=True,
-        is_residue=lambda path: path == "more.txt",
+        context=residue_when(lambda path: path == "more.txt"),
     )
 
     assert _git(repo, "rev-parse", "feat") == advanced["base"]

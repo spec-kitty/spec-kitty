@@ -244,26 +244,18 @@ class ResidueClassifier(Protocol):
 
 def resolve_residue_predicate(
     context: ResidueClassifier | None,
-    is_residue: Callable[[str], bool] | None,
     *,
-    require_one: bool = False,
     repo_root: Path | None = None,
     worktree: Path | None = None,
 ) -> Callable[[str], bool] | None:
-    """Turn the ``context`` / legacy ``is_residue`` pair into one predicate.
+    """Turn ``context`` into the one disposability predicate the dirty scan consults.
 
-    Passing both is a :class:`TypeError`. Passing neither is a :class:`TypeError`
-    when ``require_one`` (the guard, which never defaults to a destructive
-    answer), and otherwise the legacy "no exemption" ``None`` (strictest).
-    When ``repo_root`` and ``worktree`` are given, the context is re-targeted at
-    that checkout so each checkout is judged by its OWN role.
+    ``None`` is the strictest answer (no path is disposable). When ``repo_root``
+    and ``worktree`` are given, the context is re-targeted at that checkout so
+    each checkout is judged by its OWN role.
     """
-    if context is not None and is_residue is not None:
-        raise TypeError("pass exactly one of `context` and `is_residue`, not both")
     if context is None:
-        if is_residue is None and require_one:
-            raise TypeError("pass exactly one of `context` and `is_residue`")
-        return is_residue
+        return None
     if repo_root is not None and worktree is not None:
         context = context.for_checkout(repo_root, worktree)
     return context.is_disposable
@@ -467,7 +459,7 @@ def _dirty_entries(
     *,
     new_sha: str,
     target_paths: Collection[GitPath],
-    is_residue: Callable[[str], bool] | None = None,
+    is_disposable: Callable[[str], bool] | None = None,
     treat_untracked_as_dirty: bool = False,
 ) -> list[str]:
     """The display lines of :func:`_dirty_verdicts` (for messages; never decide on them)."""
@@ -476,7 +468,7 @@ def _dirty_entries(
         env,
         new_sha=new_sha,
         target_paths=target_paths,
-        is_residue=is_residue,
+        is_disposable=is_disposable,
         treat_untracked_as_dirty=treat_untracked_as_dirty,
     )
     return [line for _, line in verdicts]
@@ -488,7 +480,7 @@ def _dirty_verdicts(
     *,
     new_sha: str,
     target_paths: Collection[GitPath],
-    is_residue: Callable[[str], bool] | None = None,
+    is_disposable: Callable[[str], bool] | None = None,
     treat_untracked_as_dirty: bool = False,
 ) -> list[tuple[_DirtyReason, str]]:
     """Return typed ``(reason, display line)`` pairs for the entries that a ``reset --hard`` would destroy.
@@ -505,7 +497,7 @@ def _dirty_verdicts(
     caller — that command deletes the entire worktree directory tree,
     obstruction or not, so an untracked-only operator file is destroyed even
     though this predicate's default reading called it safe. When True, every
-    untracked (``??``) entry not exempted by ``is_residue`` counts as dirty,
+    untracked (``??``) entry not exempted by ``is_disposable`` counts as dirty,
     regardless of obstruction. Ignored (``!!``) entries are unaffected — they
     remain obstruction-gated, since an ignored path (build output, ``.venv``,
     caches) is expected disposable debris in either a reset or a removal.
@@ -513,18 +505,18 @@ def _dirty_verdicts(
     byte-unchanged.
 
     Everything staged or unstaged against tracked paths is also unique local
-    state and blocks the resync -- UNLESS ``is_residue`` recognizes it (see
+    state and blocks the resync -- UNLESS ``is_disposable`` recognizes it (see
     below), closing the #2795 / FR-012 cross-gate disagreement: a tracked
     entry used to have only the narrow ``_META_FILENAME`` vcs-lock escape, so
     a general toolchain-generated churn path (coordination-branch status
     residue, spec-kitty's own bookkeeping) was fatal here while every other
     churn-classifying gate (``merge/git_probes.py``,
     ``review/dirty_classifier.py``) already exempted it -- same file, opposite
-    verdict. Consulting ``is_residue`` first, for BOTH tracked and untracked
+    verdict. Consulting ``is_disposable`` first, for BOTH tracked and untracked
     entries, makes this gate agree with the others (WP13 / IC-07c).
 
     Args:
-        is_residue: Predicate returning True for a repo-relative path that is
+        is_disposable: Predicate returning True for a repo-relative path that is
             toolchain-generated churn (coordination-branch status/matrix
             residue, spec-kitty's own bookkeeping such as ``meta.json``) a
             caller wants excluded from the dirty check, for both untracked and
@@ -547,7 +539,7 @@ def _dirty_verdicts(
             entry,
             new_sha=new_sha,
             target_paths=target_paths,
-            is_residue=is_residue,
+            is_disposable=is_disposable,
             treat_untracked_as_dirty=treat_untracked_as_dirty,
         )
         if reason is not None:
@@ -562,12 +554,12 @@ def _dirty_reason(
     *,
     new_sha: str,
     target_paths: Collection[GitPath],
-    is_residue: Callable[[str], bool] | None,
+    is_disposable: Callable[[str], bool] | None,
     treat_untracked_as_dirty: bool,
 ) -> tuple[_DirtyReason, str] | None:
     """The typed verdict and display line for *entry*, or ``None`` when a reset leaves it alone (see :func:`_dirty_verdicts`)."""
     path = str(entry.path)
-    if is_residue is not None and is_residue(path):
+    if is_disposable is not None and is_disposable(path):
         return None
     if entry.is_untracked and treat_untracked_as_dirty:
         return _DirtyReason.REMOVAL, f"{entry.display()} ({_REMOVAL_NOTE})"
@@ -658,7 +650,6 @@ def _checkouts_ready_for(
     branch: str,
     new_sha: str,
     env: dict[str, str] | None,
-    is_residue: Callable[[str], bool] | None,
     *,
     old_sha: str,
     accept_at_target: bool = False,
@@ -676,7 +667,6 @@ def _checkouts_ready_for(
     tracked verdicts are differences against the moved HEAD, not local work, so
     they are skipped; untracked/ignored obstructions still refuse.
     """
-    resolve_residue_predicate(context, is_residue)  # fail fast on a both-given call
     checkouts = worktrees_with_branch_checked_out(repo_root, branch, env=env)
     target_paths = _target_tree_paths(repo_root, new_sha, env)
     for worktree in checkouts:
@@ -685,7 +675,7 @@ def _checkouts_ready_for(
             env,
             new_sha=new_sha,
             target_paths=target_paths,
-            is_residue=resolve_residue_predicate(context, is_residue, repo_root=repo_root, worktree=worktree),
+            is_disposable=resolve_residue_predicate(context, repo_root=repo_root, worktree=worktree),
         )
         if accept_at_target and verdicts and _checkout_content_equals(worktree, new_sha, env):
             verdicts = [verdict for verdict in verdicts if verdict[0] is not _DirtyReason.TRACKED]
@@ -731,7 +721,6 @@ def advance_branch_ref(
     *,
     expected_old_sha: str | None = None,
     env: dict[str, str] | None = None,
-    is_residue: Callable[[str], bool] | None = None,
     context: ResidueClassifier | None = None,
 ) -> None:
     """Advance ``refs/heads/<branch>`` to ``new_sha`` and resync checkouts.
@@ -763,18 +752,8 @@ def advance_branch_ref(
             ``merge/ordering.py``, ``coordination/commit_router.py``).
         env: Optional subprocess environment (merge pipeline passes its
             ``_make_merge_env()`` result through).
-        is_residue: Optional predicate excluding toolchain-generated-churn
-            paths (coordination-branch status/matrix residue, e.g.
-            ``status.events.jsonl`` / ``status.json``; spec-kitty's own
-            bookkeeping, e.g. ``meta.json``) from the dirty-file check --
-            for BOTH untracked and tracked entries -- so they do not abort a
-            post-write ff-advance (#1878 / #2795 / FR-012). Pass
-            ``specify_cli.coordination.coherence.is_toolchain_generated_churn``
-            (this module is git plumbing and does not import that classifier
-            itself -- the caller injects it, keeping the dependency direction
-            one-way).
-        context: Preferred over ``is_residue`` (never both, :class:`TypeError`):
-            a :class:`ResidueClassifier` (``ResidueContext``). Every checked-out
+        context: A :class:`ResidueClassifier` (``ResidueContext``); ``None`` exempts
+            nothing. Every checked-out
             worktree is judged by its OWN role, so a coordination worktree's
             review cycle is never discarded as residue (#5965).
 
@@ -788,7 +767,6 @@ def advance_branch_ref(
         RefResyncError: the ``RefAdvanceError`` subclass raised when the ref
             WAS advanced but a checked-out worktree could not be resynced.
     """
-    resolve_residue_predicate(context, is_residue)  # fail fast on a both-given call
     ref = f"refs/heads/{branch}"
 
     old_sha_result = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", ref], env=env)
@@ -809,7 +787,7 @@ def advance_branch_ref(
         if ff_check.returncode != 0:
             raise RefAdvanceError(f"Could not verify fast-forward ancestry for {branch}: {ff_check.stderr.strip() or ff_check.stdout.strip()}")
 
-    checkouts = _checkouts_ready_for(repo_root, branch, new_sha, env, is_residue, old_sha=old_sha, context=context)
+    checkouts = _checkouts_ready_for(repo_root, branch, new_sha, env, old_sha=old_sha, context=context)
 
     expected_old = _cas_expected_old(expected_old_sha, old_sha)
     _report_advance_intent(branch, expected_old, new_sha)
@@ -839,7 +817,6 @@ def restore_branch_ref(
     *,
     expected_current_sha: str,
     resync_checkouts: bool = False,
-    is_residue: Callable[[str], bool] | None = None,
     env: dict[str, str] | None = None,
     context: ResidueClassifier | None = None,
 ) -> None:
@@ -854,7 +831,7 @@ def restore_branch_ref(
     diagnosis. With ``resync_checkouts=True`` every worktree that has
     ``branch`` checked out is dirty-checked BEFORE the ref moves (a dirty
     checkout raises :class:`RefAdvanceDirtyWorktreeError` and nothing is
-    mutated; ``is_residue`` excludes toolchain churn exactly as in
+    mutated; ``context`` excludes toolchain churn exactly as in
     :func:`advance_branch_ref`), the ref then moves under the same
     compare-and-swap, and each checkout is hard-reset to the restored ref via
     the shared :func:`_resync_checkouts` (HEAD == index == worktree). A
@@ -866,7 +843,6 @@ def restore_branch_ref(
 
     Never reports an advance intent: a restore is not an advance.
     """
-    resolve_residue_predicate(context, is_residue)  # fail fast on a both-given call
     ref = f"refs/heads/{branch}"
     checkouts: list[Path] = []
     if resync_checkouts:
@@ -875,7 +851,6 @@ def restore_branch_ref(
             branch,
             restored_sha,
             env,
-            is_residue,
             old_sha=expected_current_sha,
             accept_at_target=True,
             context=context,
@@ -901,14 +876,13 @@ def resync_checkouts_to_tip(
     repo_root: Path,
     branch: str,
     *,
-    is_residue: Callable[[str], bool] | None = None,
     env: dict[str, str] | None = None,
     context: ResidueClassifier | None = None,
 ) -> list[Path]:
     """Bring every checkout of ``branch`` back to the branch's CURRENT tip; the ref never moves (#5638).
 
     For a branch a rollback left where it is: a checkout whose tracked files
-    differ from the tip only in toolchain residue (``is_residue``) is reset to
+    differ from the tip only in toolchain residue (per ``context``) is reset to
     the tip through the shared :func:`_resync_checkouts`. Every checkout is
     dirty-checked first exactly as :func:`advance_branch_ref` does, so any
     non-residue change refuses before anything is reset.
@@ -921,12 +895,11 @@ def resync_checkouts_to_tip(
         RefAdvanceError: the branch or its checkouts could not be read.
         RefResyncError: a reset failed.
     """
-    resolve_residue_predicate(context, is_residue)  # fail fast on a both-given call
     tip_result = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], env=env)
     if tip_result.returncode != 0:
         raise RefAdvanceError(f"Could not resolve {branch!r} to resync its checkouts: {tip_result.stderr.strip() or 'no such branch'}")
     tip = tip_result.stdout.strip()
-    checkouts = _checkouts_ready_for(repo_root, branch, tip, env, is_residue, old_sha=tip, context=context)
+    checkouts = _checkouts_ready_for(repo_root, branch, tip, env, old_sha=tip, context=context)
     needs_reset = [worktree for worktree in checkouts if not _checkout_content_equals(worktree, tip, env)]
     _resync_checkouts(needs_reset, branch, env, context=f"Kept {branch} at {tip[:12]}")
     return needs_reset
