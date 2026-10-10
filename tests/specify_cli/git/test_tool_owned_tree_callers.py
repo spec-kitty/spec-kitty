@@ -23,7 +23,7 @@ from specify_cli.template import asset_generator, manager
 
 pytestmark = pytest.mark.fast
 
-_REPO_SRC = Path(__file__).resolve().parents[2] / "src"
+_REPO_SRC = Path(__file__).resolve().parents[3] / "src"
 
 
 def _tree(root: Path) -> Path:
