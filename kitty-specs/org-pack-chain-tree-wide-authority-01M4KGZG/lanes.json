@@ -1,0 +1,102 @@
+{
+  "version": 1,
+  "mission_slug": "org-pack-chain-tree-wide-authority-01M4KGZG",
+  "mission_id": "01M4KGZGCQCDV2KH7VCSFC1RJF",
+  "mission_branch": "kitty/mission-org-pack-chain-tree-wide-authority-01M4KGZG",
+  "target_branch": "feat/org-pack-chain-tree-wide-authority",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/runtime/next/_internal_runtime/discovery.py",
+        "src/runtime/next/runtime_bridge_io.py",
+        "src/specify_cli/mission_loader/command.py",
+        "src/specify_cli/runtime/resolver.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_charter_pack_collect.py",
+        "src/specify_cli/cli/commands/profiles_cmd.py",
+        "src/specify_cli/invocation/org_profiles.py",
+        "src/specify_cli/skills/catalog.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/mission_step_contracts/executor.py",
+        "src/specify_cli/review/gate_bindings.py",
+        "src/specify_cli/tool_surface/providers/agent_profiles.py",
+        "tests/specify_cli/mission_step_contracts/test_executor_origin_strict.py",
+        "tests/specify_cli/review/test_gate_bindings_origin_strict.py",
+        "tests/specify_cli/tool_surface/test_agent_profiles_origin_strict.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/_retired_activation.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/architectural/test_org_pack_chain_single_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-10T18:42:38.923950+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "4a281678040885e52e6e1bef88b79cc646871725"
+}

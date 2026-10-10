@@ -37,9 +37,9 @@ from charter.drg import (
     load_graph_or_dir,
     load_org_pack,
     resolve_context,
-    resolve_existing_org_roots,
     resolve_org_dirs,
 )
+from charter.activation.layer_roots import resolve_pack_chain
 from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
 from kernel.charter_pack_paths import pack_drg_fragment, project_pack_root
 from charter.mission_steps import (
@@ -191,7 +191,7 @@ class StepContractExecutor:
         # #3525 Fold B: resolve the FULL declaration-ordered org-pack chain
         # (mirrors charter/action_governance_bundle.py:_resolve_action_bundle),
         # not just the first configured pack.
-        effective_org_roots = resolve_existing_org_roots(context.repo_root)
+        effective_org_roots = resolve_pack_chain(context.repo_root, strict=True)
         graph = self._graph or self._load_graph_degrading_malformed_org_pack(
             context.repo_root, effective_org_roots
         )

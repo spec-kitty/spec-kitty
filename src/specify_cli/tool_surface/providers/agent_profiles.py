@@ -563,7 +563,8 @@ def _input_states(roots: tuple[Path, ...]) -> tuple[tuple[Path, FileState], ...]
 
 def _profile_input_roots(root: Path) -> tuple[Path, ...]:
     from charter.activation.pack_context import PackContext, resolve_charter_yaml_pointer
-    from charter.drg import ArtifactKind, resolve_org_roots
+    from charter.activation.layer_roots import resolve_pack_chain
+    from charter.drg import ArtifactKind
     from charter.pack_paths import built_in_dir
     from ruamel.yaml import YAML
 
@@ -571,7 +572,7 @@ def _profile_input_roots(root: Path) -> tuple[Path, ...]:
     package = built_in_dir(ArtifactKind.AGENT_PROFILE)
     if not package.is_dir():
         raise ValueError(f"Required built-in profile sources unavailable: {package}")
-    org_roots = tuple(resolve_org_roots(root))
+    org_roots = tuple(resolve_pack_chain(root, strict=True))
     for org in org_roots:
         if observe_node(org).kind != "directory":
             raise ValueError(f"Required org profile root unavailable: {org}")
