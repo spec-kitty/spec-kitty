@@ -269,7 +269,7 @@ class TestMergeRecordedPlanningCommit:
         repo = tmp_path / "repo"
         _init_repo(repo)
         before = _git(repo, "rev-parse", "HEAD")
-        _merge_recorded_planning_commit(repo, repo, "lane-a", None)
+        _merge_recorded_planning_commit(repo, repo, "lane-a", None, mission_slug="010-feat")
         assert _git(repo, "rev-parse", "HEAD") == before
 
     def test_already_ancestor_sha_is_a_noop(self, tmp_path: Path) -> None:
@@ -278,7 +278,7 @@ class TestMergeRecordedPlanningCommit:
         head = _git(repo, "rev-parse", "HEAD")
         # HEAD is trivially its own ancestor -- merging it in must not create
         # a new commit (idempotency, exercised on the reuse/recovery paths).
-        _merge_recorded_planning_commit(repo, repo, "lane-a", head)
+        _merge_recorded_planning_commit(repo, repo, "lane-a", head, mission_slug="010-feat")
         assert _git(repo, "rev-parse", "HEAD") == head
 
     def test_conflicting_merge_fails_closed_and_leaves_worktree_clean(
@@ -312,7 +312,7 @@ class TestMergeRecordedPlanningCommit:
         head_before = _git(repo, "rev-parse", "HEAD")
 
         with pytest.raises(PlanningCommitMergeConflictError) as exc_info:
-            _merge_recorded_planning_commit(repo, repo, "lane-a", other_sha, other_sha)
+            _merge_recorded_planning_commit(repo, repo, "lane-a", other_sha, other_sha, mission_slug="010-feat")
 
         assert exc_info.value.lane_id == "lane-a"
         assert exc_info.value.planning_commit_sha == other_sha

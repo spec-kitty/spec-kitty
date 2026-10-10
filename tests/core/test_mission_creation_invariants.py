@@ -180,6 +180,7 @@ def test_inv2_coordination_rollback_tears_down_worktree_before_deleting_branch(t
             mid8=result.meta["mid8"],
             coordination_branch=coordination_branch,
             coordination_branch_created=True,
+            creation_base=_git(repo, "merge-base", coordination_branch, _TOPIC),
         )
     )
 

@@ -58,6 +58,10 @@ class _MetaBuild:
     # branch was newly minted this run (``coordination_branch_created=True``)
     # or when there is no real coordination branch.
     coordination_branch_pre_seed_tip: str | None = None
+    #: The tip of a branch this run newly minted, read right after it was cut
+    #: (before any seed commit): the creation base rollback hands the
+    #: destructive guard (FR-009). ``None`` for a reused branch.
+    coordination_branch_creation_base: str | None = None
 
 
 def _build_create_meta(
@@ -139,6 +143,7 @@ def _build_create_meta(
     coordination_branch_created_flag = False
     coordination_branch_skipped_reason: str | None = None
     coordination_branch_pre_seed_tip: str | None = None
+    coordination_branch_creation_base: str | None = None
     if topology_mints_coordination_branch(topology):
         from specify_cli.missions._create import ensure_coordination_branch
 
@@ -157,6 +162,8 @@ def _build_create_meta(
         # CAS-reset anchor if this create later fails.
         if coordination_outcome.skipped_reason is None and not coordination_branch_created_flag:
             coordination_branch_pre_seed_tip = _mc._rev_parse_or_none(resolved_root, coordination_outcome.branch_name)
+        elif coordination_outcome.skipped_reason is None:
+            coordination_branch_creation_base = _mc._rev_parse_or_none(resolved_root, coordination_outcome.branch_name)
 
     from mission_runtime import classify_topology
 
@@ -176,6 +183,7 @@ def _build_create_meta(
         coordination_branch_created=coordination_branch_created_flag,
         coordination_branch_skipped_reason=coordination_branch_skipped_reason,
         coordination_branch_pre_seed_tip=coordination_branch_pre_seed_tip,
+        coordination_branch_creation_base=coordination_branch_creation_base,
     )
 
 
