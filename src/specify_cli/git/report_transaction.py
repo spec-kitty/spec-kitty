@@ -193,7 +193,7 @@ def _commit_report(
         policy=ProtectionPolicy.resolve(repo_root),
         kind=MissionArtifactKind.ANALYSIS_REPORT,
         target_branch=target_branch,
-        **({"owned": owned} if owned else {}),
+        owned=owned,
     )
     # WP14 review correction (round 2, binding -- the WP13 precedent this
     # mission's spec_commit_cmd.py consumer was rejected over): the legacy
@@ -285,7 +285,10 @@ def record_report_transaction(
 ) -> ReportTransactionOutcome:
     """Record only the report; never reset or restore concurrent operator state."""
     report = feature_dir / ANALYSIS_REPORT_FILENAME
-    relative = "" if owned else report.relative_to(repo_root).as_posix()
+    # Exception-path placeholder: for an owned checkout ``report`` may live outside
+    # ``repo_root`` until ``_owned_canonical_inputs`` validates it, so the real
+    # repo-relative path is only (re)assigned inside the ``try`` below.
+    relative = "" if owned is not None else report.relative_to(repo_root).as_posix()
     message = f"docs(record-analysis): record analysis report for mission {feature_dir.name}"
     wrote = False
     committed: str | None = None
@@ -301,10 +304,10 @@ def record_report_transaction(
             if cursor.is_symlink():
                 raise ValueError("Report destination contains a symlink")
         _require_idle(repo_root)
-        target = placement_seam(repo_root, feature_dir.name, **({"owned": owned} if owned else {})).write_target(MissionArtifactKind.ANALYSIS_REPORT)
+        target = placement_seam(repo_root, feature_dir.name, owned=owned).write_target(MissionArtifactKind.ANALYSIS_REPORT)
         if target.ref != target_branch:
             raise ValueError("Analysis report placement changed before preflight")
-        preflight_commit(repo_root=repo_root, worktree_root=repo_root, target=target, message=message, paths=(report,), **({"owned": owned} if owned else {}))
+        preflight_commit(repo_root=repo_root, worktree_root=repo_root, target=target, message=message, paths=(report,), owned=owned)
         inputs = collect_material_inputs(feature_dir, repo_root)
         material_paths = {entry["path"] for entry in inputs.values()}
         dirty = _dirty_paths(repo_root)
@@ -366,7 +369,7 @@ def record_report_transaction(
             report=report,
             message=message,
             target_branch=target_branch,
-            **({"owned": owned} if owned else {}),
+            owned=owned,
         )
         committed = outcome.commit_hash
         parents = _git(repo_root, "rev-list", "--parents", "-n", "1", committed).split()

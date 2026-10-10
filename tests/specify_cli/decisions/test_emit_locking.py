@@ -68,7 +68,7 @@ class _FakeWriteLocation:
 
 
 class _StubMissionDirSeam:
-    def __init__(self, repo_root: Path, mission_slug: str) -> None:
+    def __init__(self, repo_root: Path, mission_slug: str, *, owned: object = None) -> None:
         self._repo_root = repo_root
         self._mission_slug = mission_slug
 
