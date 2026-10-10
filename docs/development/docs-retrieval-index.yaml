@@ -3624,6 +3624,28 @@ pages:
     - {slug: "considered-options", text: "Considered Options", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/4.x/2026-10-10-1-scoped-shadow-workspace-write-boundary-layers-onto-the-partition.md"
+    title: "ADR: a scoped workspace handle layers onto the coordination/primary partition (it does not replace it)"
+    divio_type: "none"
+    abstract: "The #3129 write-boundary class is one shared root cause; the fix is a capability-scoped write handle layered onto the existing partition (Option B), not a foreign shadow topology."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "the-three-question-verdict-code-grounded", text: "The three-question verdict (code-grounded)", level: 2}
+    - {slug: "1-coherent-yes", text: "1. Coherent — YES", level: 3}
+    - {slug: "2-active-yes-with-reduced-but-non-zero-residual-risk", text: "2. Active — YES, with reduced but non-zero residual risk", level: 3}
+    - {slug: "3-solvable-by-aligning-to-the-existing-design-yes", text: "3. Solvable by aligning to the existing design — YES", level: 3}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "where-the-write-boundary-sits-and-which-ssot-seam-owns-it", text: "Where the write boundary sits, and which SSOT seam owns it", level: 3}
+    - {slug: "incremental-roadmap", text: "Incremental roadmap", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "option-a-replace-the-partition", text: "Option A — replace the partition", level: 3}
+    - {slug: "option-b-layer-onto-the-partition-chosen", text: "Option B — layer onto the partition (chosen)", level: 3}
+    - {slug: "option-c-incompatible-name-reason-x", text: "Option C — incompatible; name reason X", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
