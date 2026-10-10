@@ -133,7 +133,9 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
     ),
     # Explicit opt-in added by analysis-report-transaction-01M38YDX; the
     # default broad dirty-tree guard remains the contract below.
-    "record-analysis": frozenset({"--mission", "--input-file", "--agent", "--json", "--report-only"}),
+    # `--owned-checkout` added by owned-single-branch-lifecycle-authority (#5893):
+    # record-analysis resolves and writes under the validated owned checkout.
+    "record-analysis": frozenset({"--mission", "--input-file", "--agent", "--json", "--report-only", "--owned-checkout"}),
     # `--owned-checkout` added by owned-checkout-lifecycle-authority WP09
     # (2026-09-29, FR-005): an owned mission can be planned entirely in P.
     "setup-plan": frozenset({"--mission", "--json", "--owned-checkout"}),
