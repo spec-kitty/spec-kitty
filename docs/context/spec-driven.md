@@ -2,7 +2,7 @@
 title: Specification-Driven Development (SDD)
 description: Specification-Driven Development methodology behind Spec Kitty — how executable specifications and implementation plans generate code, inverting the code-first power structure.
 doc_status: active
-updated: '2026-09-29'
+updated: '2026-10-10'
 audience: docs/context/audience/internal/system-architect.md
 type: explanation
 ---
@@ -207,14 +207,14 @@ Provides a structured hand-off gate for work packages with `lane: "for_review"`:
 1. **Selection**: Auto-detects first WP with `lane: "for_review"` (or accepts an explicit WP ID passed through the slash command).
 2. **Auto-move to doing**: Moves WP to `lane: "doing"` and displays full prompt with review instructions.
 3. **Deep Review**: Agent reviews prompt, supporting docs, and code changes before rendering findings.
-4. **Decision Flow**: Agent uses workflow commands to update `lane` to "done" (approved) or "planned" (changes requested), which updates frontmatter and activity logs with agent + PID data.
+4. **Decision Flow**: Agent uses workflow commands to update `lane` to "done" (approved) or "planned" (changes requested), which records the transition (with agent + PID data) in `status.events.jsonl`.
 4. **Automation Hooks**: Invokes helper scripts to flip task checkboxes in `tasks.md` when review passes, keeping status in sync with the kanban board.
 
 ### The `/spec-kitty.accept` Command
 
 Use this command after every work package is in `tasks/done/` and the checklist is complete:
 
-1. **Readiness Checks**: Confirms no work packages remain in `planned`, `doing`, or `for_review`; validates frontmatter metadata (`lane`, `agent`, `assignee`, `shell_pid`) and ensures Activity Log entries exist for each lane transition.
+1. **Readiness Checks**: Confirms no work packages remain in `planned`, `doing`, or `for_review`; validates frontmatter metadata (`lane`, `agent`, `assignee`, `shell_pid`) and ensures the status event log has an entry for each lane transition.
 2. **Artifact Audit**: Verifies `spec.md`, `plan.md`, `tasks.md`, and supporting documents are present and free from `NEEDS CLARIFICATION` markers; confirms all checkboxes in `tasks.md` are checked.
 3. **Acceptance Metadata**: Records timestamp, actor, mode, and parent commit in `kitty-specs/<feature>/meta.json`, creating an acceptance commit unless run in dry-run mode.
 4. **Guidance Output**: Produces merge instructions for either hosted PRs or local merges, plus cleanup commands to remove the feature worktree and branch once merged.
@@ -239,7 +239,7 @@ Before any coding begins, `/spec-kitty.implement` requires each work package to 
    agent: "claude"  # or codex, gemini, copilot, etc.
    shell_pid: "12345"  # from echo $$
    ```
-3. **Add activity log entry**: Timestamped ISO 8601 entry recording the lane transition
+3. **Record the lane transition**: The status event log (`status.events.jsonl`) gets a timestamped event; add context with `spec-kitty agent tasks add-history WPxx --note "..."`
 4. **Commit the move**: Preserve git history of the workflow transition
 
 **Validation Checkpoint:**
@@ -248,7 +248,7 @@ The agent must verify before proceeding to implementation:
 - Prompt file exists in flat `tasks/` directory
 - Frontmatter shows `lane: "doing"`
 - `shell_pid` is captured
-- Activity log has "Started implementation" entry
+- `spec-kitty agent tasks status` shows the WP as `in_progress`
 - Changes are committed to git
 
 **Automation Helpers:**
@@ -256,7 +256,7 @@ The agent must verify before proceeding to implementation:
 Spec Kitty ships with helper scripts to streamline the workflow:
 
 - `spec-kitty agent action implement WPxx` – Modern workflow command that auto-advances lanes (planned → doing → for_review)
-- `.kittify/scripts/bash/tasks-add-history-entry.sh FEATURE-SLUG WPxx --note "Resumed after dependency install"` – Appends structured history without moving lanes.
+- `spec-kitty agent tasks add-history WPxx --note "Resumed after dependency install"` – Records a history note in the status event log without moving lanes.
 - `.kittify/scripts/bash/tasks-list-lanes.sh FEATURE-SLUG` – Shows the current lane, agent, and assignee for every work package.
 - `.kittify/scripts/bash/tasks-rollback-move.sh FEATURE-SLUG WPxx` – Returns a prompt to its previous lane if a move was made in error.
 - `scripts/bash/validate-task-workflow.sh WPxx kitty-specs/FEATURE` – Validates prompt is in correct lane with required metadata before implementation starts.
@@ -266,10 +266,10 @@ Spec Kitty ships with helper scripts to streamline the workflow:
 
 After implementing the work package, the agent must:
 
-1. Add completion entry to activity log
+1. Record a completion note: `spec-kitty agent tasks add-history WPxx --note "..."`
 2. Move to review: Use `spec-kitty agent action implement WPxx` (auto-advances to for_review when work complete)
 3. Update frontmatter: `lane: "for_review"`
-4. Add review-ready activity log entry
+4. Optionally add a review-ready history note with `add-history`
 5. Commit the transition
 
 This discipline ensures:

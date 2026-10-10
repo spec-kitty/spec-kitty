@@ -1,8 +1,8 @@
 ---
 title: Parallel Implementation Tracking
-description: Track several agents implementing a roadmap in parallel and give leadership continuous visibility through Spec Kitty status views and activity logs.
+description: Track several agents implementing a roadmap in parallel and give leadership continuous visibility through Spec Kitty status views and the WP status event log.
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-10-10'
 type: how-to
 audience: docs/context/audience/external/architect-evaluator.md
 ---
@@ -25,12 +25,11 @@ Use this recipe when multiple agents implement a roadmap in parallel and leaders
    spec-kitty agent action implement WP01
    ```
 
-4. **Record activity logs** – Agents append ISO 8601 entries to the prompt's "Activity Log" section for auditability:
-   ```markdown
-   ## Activity Log
-   - 2025-01-15T09:30:00Z – claude – shell_pid=12345 – lane=doing – Started implementation
-   - 2025-01-15T11:45:00Z – claude – shell_pid=12345 – lane=for_review – Ready for review
+4. **Record history notes** – Lane moves are recorded automatically in the Mission's `status.events.jsonl`. Agents add free-form notes to the same event log for auditability:
+   ```bash
+   spec-kitty agent tasks add-history WP01 --note "Resumed after dependency install"
    ```
+   Read notes back with `spec-kitty agent tasks status`.
 
 5. **Monitor task completion** – Review `kitty-specs/<feature>/tasks.md` checklist to ensure all subtasks are checked before merge.
 
@@ -41,7 +40,7 @@ Use this recipe when multiple agents implement a roadmap in parallel and leaders
 
 ## Reporting
 - Export `tasks.md` and `spec-kitty agent tasks status` output at daily stand-up
-- Summarize agent throughput using the Activity Log entries in work package files
+- Summarize agent throughput using the lane events and history notes in `status.events.jsonl`
 - Identify bottlenecks by checking lane distribution in the status output
 - Use `/spec-kitty.accept --mode checklist` to generate readiness report
 - Use `/spec-kitty.merge --dry-run` to produce merge preview for executives

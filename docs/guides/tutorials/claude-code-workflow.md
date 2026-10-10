@@ -2,7 +2,7 @@
 title: Claude Code Workflow
 description: End-to-end guide for running Spec Kitty with the Claude Code CLI and lane-based status tracking.
 doc_status: active
-updated: '2026-08-11'
+updated: '2026-10-10'
 type: tutorial
 audience: docs/context/audience/external/project-owner.md
 related:
@@ -78,7 +78,7 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 ## Status Integration
 
 - Lane transitions triggered by action commands (`spec-kitty agent action implement/review`) surface immediately in `spec-kitty agent tasks status`. The full lane model is: `planned`, `claimed`, `in_progress` (alias: `doing`), `for_review`, `in_review`, `approved`, `done`, `blocked`, and `canceled`; `approved` means review passed and merge pending, while `done` means merged/integrated.
-- Each lane move records `agent` and `shell_pid` as event metadata in `status.events.jsonl`—Claude should still add an ISO 8601 entry to the prompt file's **Activity Log** summarizing what changed.
+- Each lane move records `agent` and `shell_pid` as event metadata in `status.events.jsonl`—Claude can add a summary note with `spec-kitty agent tasks add-history WP02 --note "..."`, which is also recorded in the event log.
 - When Claude finishes a work package, use the workflow command to move it to `for_review` so the status log and reviewers stay in sync:
   ```bash
   spec-kitty agent action review WP02
@@ -98,7 +98,7 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 | Claude asks for missing context | Prompt not in `in_progress` lane yet | Move prompt to `in_progress` (or `doing` alias) via action commands so metadata is injected |
 | Claude edits unexpected files | Prompt instructions unclear | Refine `tasks.md` and regenerate prompt |
 | Status shows stale lane | Prompt moved manually | Always use `spec-kitty agent action` commands for lane transitions |
-| Claude session interrupted | CLI lost connection | Resume by re-running Claude against the same prompt file; the activity log in the WP frontmatter tracks prior progress |
+| Claude session interrupted | CLI lost connection | Resume by re-running Claude against the same prompt file; `status.events.jsonl` tracks prior progress |
 
 ## Merge and Cleanup
 
