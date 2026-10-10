@@ -7,7 +7,7 @@ import sys
 from dataclasses import replace
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, Any, NoReturn
 
 import click
 import typer
@@ -120,6 +120,16 @@ class BannerGroup(TyperGroup):
 # ---------------------------------------------------------------------------
 
 _MISSION_OPTION_NAME = "--mission"
+
+
+def parameter_source_name(ctx: Any, name: str) -> str | None:
+    """Name of the ``ParameterSource`` member behind ``name`` (``"COMMANDLINE"``, ``"DEFAULT"``, ...).
+
+    ``typer>=0.26`` vendors its own click (``typer._click``), whose
+    ``ParameterSource`` enum shares no identity with ``click.core.ParameterSource``,
+    so callers compare this name instead of the enum member (#4964).
+    """
+    return getattr(ctx.get_parameter_source(name), "name", None)
 
 
 def _ignored_mission_option() -> TyperOption:
