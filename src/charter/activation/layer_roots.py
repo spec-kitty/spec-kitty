@@ -49,14 +49,16 @@ def resolve_layer_roots(repo_root: Path) -> dict[str, Path]:
     return roots
 
 
-def resolve_pack_chain(repo_root: Path, *, strict: bool) -> list[Path]:
+def resolve_pack_chain(repo_root: Path, *, strict: bool, quiet: bool = False) -> list[Path]:
     """Return the ordered org-pack chain for *repo_root*: the single chain authority.
 
     Declaration order (last-declared-wins for consumers). ``strict`` toggles the
     posture over the same chain:
 
     * ``strict=False`` -- existing-filtered: a declared pack whose root is absent
-      on disk is dropped (equivalent to ``resolve_existing_org_roots``).
+      on disk is dropped (equivalent to ``resolve_existing_org_roots``). Only
+      this lenient posture accepts ``quiet`` (forwarded to the registry read to
+      demote the unparseable-config warning to debug); ``strict`` ignores it.
     * ``strict=True`` -- fail-closed: the registry is read strictly and a
       declared-but-unfetched pack raises ``ValueError`` naming the pack and the
       ``spec-kitty charter fetch`` remedy (equivalent to
@@ -66,4 +68,4 @@ def resolve_pack_chain(repo_root: Path, *, strict: bool) -> list[Path]:
     """
     if strict:
         return list(require_declared_org_roots(repo_root))
-    return list(resolve_existing_org_roots(repo_root))
+    return list(resolve_existing_org_roots(repo_root, quiet=quiet))

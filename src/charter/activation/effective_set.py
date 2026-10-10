@@ -172,7 +172,7 @@ def _readable_roots(repo_root: Path) -> list[dict[str, Path]]:
     if project.is_dir():
         base["project"] = project
     try:
-        org_roots = [root for root in resolve_pack_chain(repo_root, strict=False) if root.is_dir()]
+        org_roots = [root for root in resolve_pack_chain(repo_root, strict=False, quiet=True) if root.is_dir()]
     except Exception as exc:  # noqa: BLE001 — a malformed registry must not empty the fallback
         logger.debug("org pack registry unreadable for the fallback scan: %s", exc)
         org_roots = []
