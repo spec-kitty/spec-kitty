@@ -130,12 +130,6 @@ _GUARD_CALL = "guard_destructive_removal("
 _RESEARCH_PY_REL = "src/specify_cli/cli/commands/research.py"
 _GIT_SOURCE_REL = "src/specify_cli/charter_packs/sources/git_source.py"
 
-#: The ONLY first-argument variable names a git_source.py raw removal may
-#: target: the ephemeral ``.tmp-<uuid>`` clone and the ``.old-<uuid>``
-#: move-aside backup THIS fetch created — never ``target_dir`` (the operator's
-#: hand-authored pack). See ``test_git_source_removal_literals_only_target_ephemeral_temps``.
-_GIT_SOURCE_EPHEMERAL_TARGETS: frozenset[str] = frozenset({"tmp_dir", "old_dir"})
-
 
 def _module_set() -> list[Path]:
     return [
@@ -292,49 +286,6 @@ _ALLOWLIST: dict[CensusKey, str] = {
         "cannot lose content."
     ),
     # --- charter_packs/sources/git_source.py (4): ephemeral temp-clone teardown -
-    CensusKey(
-        rel="src/specify_cli/charter_packs/sources/git_source.py",
-        qualname="GitSource._first_install",
-        token_line="shutil . rmtree ( tmp_dir , ignore_errors = True )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): (
-        "ephemeral temp cleanup (#4960): removes ONLY the `.tmp-<uuid>` clone dir this "
-        "fetch created when `git clone` fails — target_dir is left exactly as found, never "
-        "touched (scanned-not-routed: git_source.py preserves via temp-clone + move-aside, "
-        "not the removal guard)."
-    ),
-    CensusKey(
-        rel="src/specify_cli/charter_packs/sources/git_source.py",
-        qualname="GitSource._first_install",
-        token_line="shutil . rmtree ( tmp_dir , ignore_errors = True )",
-        op="shutil.rmtree",
-        op_ordinal=1,
-    ): (
-        "ephemeral temp cleanup (#4960): removes ONLY the `.tmp-<uuid>` clone dir this fetch created when `git checkout <ref>` fails — target_dir is never touched."
-    ),
-    CensusKey(
-        rel="src/specify_cli/charter_packs/sources/git_source.py",
-        qualname="GitSource._promote",
-        token_line="shutil . rmtree ( tmp_dir , ignore_errors = True )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): (
-        "ephemeral temp cleanup (#4960): _promote removes ONLY the `.tmp-<uuid>` clone dir on "
-        "an OSError during the move-aside promote; a moved-aside target is restored from its "
-        "`.old-<uuid>` backup, never rmtree'd."
-    ),
-    CensusKey(
-        rel="src/specify_cli/charter_packs/sources/git_source.py",
-        qualname="GitSource._promote",
-        token_line="shutil . rmtree ( old_dir , ignore_errors = True )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): (
-        "ephemeral backup cleanup (#4960): _promote's finally-block removes the `.old-<uuid>` "
-        "move-aside backup ONLY after `promoted` is True (a successful promote) — the previous "
-        "content is already safely in place at target_dir."
-    ),
     # --- cli/commands/agent/config.py (1): empty-only rmdir after guard ----
     CensusKey(
         rel="src/specify_cli/cli/commands/agent/config.py", qualname="_remove_project_agent_surface", token_line="root . rmdir ( )", op="Path.rmdir", op_ordinal=0
@@ -353,29 +304,6 @@ _ALLOWLIST: dict[CensusKey, str] = {
     ): (
         "package-state marker: unlinks the .kittify pending-command-skills record only after a "
         "changed-check raises — a machine-written pointer, never user content."
-    ),
-    CensusKey(
-        rel="src/specify_cli/cli/commands/init.py",
-        qualname="_discard_failed_project_scaffold",
-        token_line="shutil . rmtree ( project_path )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): (
-        "backup-guarded: _discard_failed_project_scaffold runs back_up_operator_subtrees(...) to "
-        "project_path.parent FIRST, so operator subtrees are archived before the scaffold rmtree."
-    ),
-    CensusKey(rel="src/specify_cli/cli/commands/init.py", qualname="init", token_line="shutil . rmtree ( scratch )", op="shutil.rmtree", op_ordinal=0): (
-        "ephemeral scratch: best-effort sweep of .kittify/.resolved-* / .merged-* resolver scratch "
-        "dirs (name-prefixed, package-generated this run); the #4861 command-templates cleanup just "
-        "above is routed through the guard (literal-free). Re-pinned from :1596 (WP02, mission "
-        "ownership-boundary-overwrite-hardening-01M35ER3): WP03's cleanup edits shifted this single "
-        "line down by 20 — verified LINE-SHIFT-ONLY (same op-kinds, same count of 4 literals in "
-        "init.py as base; 136/453/677 sit above the edit region and are unaffected). Re-pinned again "
-        "from :1616 (pre-PR squad BLOCKER, #4931 re-arm fix): the `copy_specify_base_from_local`/"
-        "`copy_specify_base_from_package` call sites now capture a `TemplateCopyResult` and set "
-        "`templates_dir_created_this_run` from its `templates_created` field instead of "
-        "unconditionally, shifting this single line down by 6 — verified LINE-SHIFT-ONLY (same "
-        "op-kinds, same count of 4 literals in init.py as base; 136/453/677 unaffected)."
     ),
     # --- m_0_10_0 (3): empty-only rmdir after preserve-all -----------------
     CensusKey(
@@ -483,21 +411,7 @@ _ALLOWLIST: dict[CensusKey, str] = {
         op="shutil.move",
         op_ordinal=0,
     ): ("relocation: rename_dir moves a package-generated commands dir to its new name (move)."),
-    CensusKey(
-        rel="src/specify_cli/upgrade/migrations/m_0_6_5_commands_rename.py",
-        qualname="CommandsRenameMigration.apply",
-        token_line="shutil . rmtree ( wt_templates_commands )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): ("worktree teardown: removes a worktree's package-generated .kittify/templates/commands dir (regenerated from main), never operator content."),
     # --- m_0_7_2 (1): worktree teardown ------------------------------------
-    CensusKey(
-        rel="src/specify_cli/upgrade/migrations/m_0_7_2_worktree_commands_dedup.py",
-        qualname="WorktreeCommandsDedupMigration.apply",
-        token_line="shutil . rmtree ( wt_commands )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): ("worktree teardown: dedups a worktree's package-generated commands dir that inherits from main."),
     # --- m_0_8_0_remove_active_mission (1): package-state marker -----------
     CensusKey(
         rel="src/specify_cli/upgrade/migrations/m_0_8_0_remove_active_mission.py",
@@ -522,13 +436,6 @@ _ALLOWLIST: dict[CensusKey, str] = {
         op="Path.unlink",
         op_ordinal=0,
     ): ("source-after-move: removes the original task md only after its content was written to the new tasks/ location (relocation, not loss)."),
-    CensusKey(
-        rel="src/specify_cli/upgrade/migrations/m_0_9_0_frontmatter_only_lanes.py",
-        qualname="FrontmatterOnlyLanesMigration._migrate_feature",
-        token_line="shutil . rmtree ( lane_dir )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): ("lane teardown, emptiness-checked: removes a legacy lane dir only after _get_real_contents confirms no real files remain (only .DS_Store/.gitkeep)."),
     # --- m_0_9_1 (7): source-after-move, lane + worktree teardown ----------
     CensusKey(
         rel="src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py",
@@ -539,25 +446,11 @@ _ALLOWLIST: dict[CensusKey, str] = {
     ): ("source-after-move: removes the original file only after it was relocated to its new path."),
     CensusKey(
         rel="src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py",
-        qualname="CompleteLaneMigration._migrate_remaining_files",
-        token_line="shutil . rmtree ( lane_dir )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): ("lane teardown, emptiness-checked: removes a legacy lane dir once its real contents are gone."),
-    CensusKey(
-        rel="src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py",
         qualname="CompleteLaneMigration._cleanup_worktrees",
         token_line="commands_dir . unlink ( )",
         op="Path.unlink",
         op_ordinal=0,
     ): ("worktree teardown: removes a worktree commands symlink that inherits from main."),
-    CensusKey(
-        rel="src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py",
-        qualname="CompleteLaneMigration._cleanup_worktrees",
-        token_line="shutil . rmtree ( commands_dir )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): ("worktree teardown: removes a worktree's package-generated commands dir (inherits from main)."),
     CensusKey(
         rel="src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py",
         qualname="CompleteLaneMigration._cleanup_worktrees",
@@ -572,13 +465,6 @@ _ALLOWLIST: dict[CensusKey, str] = {
         op="Path.unlink",
         op_ordinal=0,
     ): ("worktree teardown: removes a worktree .kittify/scripts symlink that inherits from main."),
-    CensusKey(
-        rel="src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py",
-        qualname="CompleteLaneMigration._cleanup_worktrees",
-        token_line="shutil . rmtree ( scripts_dir )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): ("worktree teardown: removes a worktree's package-generated .kittify/scripts dir."),
     # --- m_2_0_0 (1): already-content-guarded exemplar ---------------------
     CensusKey(
         rel="src/specify_cli/upgrade/migrations/m_2_0_0_retire_git_hooks.py",
@@ -598,13 +484,6 @@ _ALLOWLIST: dict[CensusKey, str] = {
     CensusKey(
         rel="src/specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py",
         qualname="_cleanup_legacy_worktree_assets",
-        token_line="shutil . rmtree ( commands_dir )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): ("worktree teardown: removes a worktree's package-generated commands dir."),
-    CensusKey(
-        rel="src/specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py",
-        qualname="_cleanup_legacy_worktree_assets",
         token_line="parent . rmdir ( )",
         op="Path.rmdir",
         op_ordinal=0,
@@ -616,13 +495,6 @@ _ALLOWLIST: dict[CensusKey, str] = {
         op="Path.unlink",
         op_ordinal=0,
     ): ("worktree teardown: removes a worktree .kittify/scripts symlink that inherits from main."),
-    CensusKey(
-        rel="src/specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py",
-        qualname="_cleanup_legacy_worktree_assets",
-        token_line="shutil . rmtree ( scripts_dir )",
-        op="shutil.rmtree",
-        op_ordinal=0,
-    ): ("worktree teardown: removes a worktree's package-generated .kittify/scripts dir."),
     # --- m_2_0_7 (3): already-guarded exemplar + empty-only rmdir ----------
     CensusKey(
         rel="src/specify_cli/upgrade/migrations/m_2_0_7_fix_stale_overrides.py",
@@ -908,39 +780,19 @@ def _git_source_removal_targets() -> dict[int, str | None]:
 
 
 def test_git_source_removal_literals_only_target_ephemeral_temps() -> None:
-    """git_source.py (#4960/#4989) is scanned-but-NOT-routed: it preserves
-    hand-authored packs via a temp-clone + move-aside pattern and a
-    dirty/ahead-guarded reset, NOT ``guard_destructive_removal``. Its only
-    legitimate raw removals are of the ephemeral ``.tmp-<uuid>`` clone and the
-    ``.old-<uuid>`` move-aside backup THIS fetch created — never ``target_dir``
-    (the operator's pack).
+    """git_source.py (#4960/#4989, routed by #5965/#5966) carries NO raw removal literal.
 
-    Mirrors ``test_research_py_removal_literals_are_never_allowlisted``: without
-    this static, fail-closed guard an implementer could satisfy the live census
-    by adding a ``shutil.rmtree(target_dir)`` (destroying the operator pack) to
-    ``_ALLOWLIST`` behind a benign rationale, and the census would go green while
-    the destroyer silently returned. Independent of the live scan: every
-    allowlisted ``git_source.py`` removal literal must, in the actual on-disk
-    source, pass one of ``_GIT_SOURCE_EPHEMERAL_TARGETS`` as its first positional
-    argument. A line with no recognised removal call (``None``) also fails —
-    fail-closed against a stale entry whose content key no longer matches a live site."""
-    targets = _git_source_removal_targets()
-    live_linenos = _census_keys(read_sources([_GIT_SOURCE_PY]))
-    offenders: dict[str, str | None] = {}
-    for key in _ALLOWLIST:
-        if key.rel != _GIT_SOURCE_REL:
-            continue
-        lineno = live_linenos.get(key)
-        target = targets.get(lineno) if lineno is not None else None
-        if target not in _GIT_SOURCE_EPHEMERAL_TARGETS:
-            offenders[render_census_key(key, lineno)] = target
-    assert not offenders, (
-        "Allowlisted git_source.py removal literal(s) do not target an ephemeral "
-        f"temp/backup ({sorted(_GIT_SOURCE_EPHEMERAL_TARGETS)}) — a user-content "
-        "removal (e.g. shutil.rmtree(target_dir)) must NEVER be allowlisted; route "
-        "the fix or fix the key. Offending entry -> first-arg name: "
-        f"{offenders}"
-    )
+    Its removals of the ephemeral ``.tmp-<uuid>`` clone and the ``.old-<uuid>``
+    move-aside backup THIS fetch created go through ``_discard_tool_owned_tree`` (a
+    ``guarded_tree_delete`` / ``remove_tool_owned_tree`` call that proves ownership at
+    run time), and the persistent pack clone is only ever reset through
+    ``guarded_reset_hard``. So: no ``shutil.rmtree`` or other destructive-removal call
+    is left in the module, and none may be allowlisted -- the previous per-variable
+    check (first argument is ``tmp_dir``/``old_dir``, never ``target_dir``) became a
+    runtime proof. The recursive-deletion gate in ``test_destructive_op_routing`` keeps
+    a raw ``shutil.rmtree`` out of this module for good."""
+    assert _git_source_removal_targets() == {}, "git_source.py grew a raw destructive-removal call; route it through the tool-owned helpers"
+    assert not [key for key in _ALLOWLIST if key.rel == _GIT_SOURCE_REL], "git_source.py must never be allowlisted: route the removal"
 
 
 def test_allowlisted_files_exist() -> None:

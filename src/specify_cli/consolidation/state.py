@@ -778,24 +778,24 @@ def detect_git_merge_state(repo_root: Path) -> bool:
 
 
 def abort_git_merge(repo_root: Path) -> bool:
-    """Abort an in-progress git merge at *repo_root*.
+    """Abort an in-progress git merge in a spec-kitty-owned merge workspace.
 
     Despite the parameter name (kept for backward compatibility with existing
-    call sites and test monkeypatches), this is a generic "abort whatever git
-    merge is in progress at this working tree path" primitive -- it does NOT
-    know or care whether the path is the caller's repository root or a
-    scoped worktree.
+    call sites and test monkeypatches), the path is NOT the operator's
+    repository root: it is a scoped worktree the tool created (the persisted
+    per-mission merge workspace at ``.kittify/runtime/merge/<mission_id>/workspace/``
+    or an ephemeral lane-consolidation tmp worktree). The abort runs through
+    :func:`specify_cli.consolidation.workspace.abort_scratch_merge`, i.e. the
+    destructive-op guard with a tool-owned context (#5965 / #5966).
 
     #4754: callers MUST NOT invoke this with the operator's own repository
     root unless they have already confirmed active spec-kitty consolidate state
     exists for that root. The merge pipeline runs ``git merge`` exclusively
-    inside spec-kitty-owned worktrees (an ephemeral lane-consolidation tmp worktree
-    and the persisted per-mission merge workspace at
-    ``.kittify/runtime/merge/<mission_id>/workspace/``) -- never directly
-    against a repository's primary checkout. A ``MERGE_HEAD`` found in an
-    operator's primary checkout is always THEIR OWN in-progress merge and
-    must never be touched. See ``cli.commands.merge._dispatch_abort`` for the
-    gated, workspace-scoped call site.
+    inside spec-kitty-owned worktrees -- never directly against a repository's
+    primary checkout. A ``MERGE_HEAD`` found in an operator's primary checkout
+    is always THEIR OWN in-progress merge and must never be touched. See
+    ``cli.commands.merge._dispatch_abort`` for the gated, workspace-scoped call
+    site.
 
     Returns:
         True if merge was aborted, False if no merge was in progress
@@ -803,12 +803,9 @@ def abort_git_merge(repo_root: Path) -> bool:
     if not detect_git_merge_state(repo_root):
         return False
 
-    subprocess.run(
-        ["git", "merge", "--abort"],
-        cwd=str(repo_root),
-        check=False,
-    )
-    return True
+    from specify_cli.consolidation.workspace import abort_scratch_merge  # deferred: workspace imports this module
+
+    return bool(abort_scratch_merge(repo_root))
 
 
 # ---------------------------------------------------------------------------
