@@ -550,7 +550,7 @@ _HELP_ANSWER_RESULT = "Outcome of the current issuance: success | failed | block
 _HELP_ANSWER_DECISION_ID = "Run-snapshot pending decision id to answer (auto-resolved when omitted and exactly one decision is pending)"
 
 # Single canonical source, shared with the host CLI's own
-# ``next_cmd._VALID_RESULTS`` (``next_cmd.py:51``) and mirroring
+# ``next_cmd._valid_results()`` and mirroring
 # ``runtime.next._internal_runtime.engine.ResultType``: both CLI-facing
 # validators import ``VALID_RESULT_VALUES`` from ``runtime.next.decision``
 # instead of each keeping an independent literal copy (fold-in review
@@ -564,7 +564,7 @@ def _validate_answer_result_or_fail(cmd: str, result: str) -> None:
 
     Mirrors the host CLI's own ``_validate_result_and_answer`` guard
     (``next_cmd.py:610-613``) verbatim: identical condition
-    (``result not in _VALID_RESULTS``), identical message shape
+    (``result not in _valid_results()``), identical message shape
     (``"--result must be one of {...}, got '{result}'"``), and identical
     POSITION in the call sequence -- called AFTER the mission-existence gate
     (``_resolve_mission_dir_or_fail``, this verb's analogue of the host
