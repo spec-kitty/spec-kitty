@@ -78,21 +78,6 @@ class VCSProtocol(Protocol):
         """
         ...
 
-    def remove_workspace(self, workspace_path: Path) -> bool:
-        """
-        Remove a workspace and clean up.
-
-        Args:
-            workspace_path: Path to the workspace to remove
-
-        Returns:
-            True if successful, False otherwise
-
-        Implementation notes:
-            - Git: Uses `git worktree remove`
-        """
-        ...
-
     def get_workspace_info(self, workspace_path: Path) -> WorkspaceInfo | None:
         """
         Get information about a workspace.

@@ -17,10 +17,11 @@ file was deleted) is never removed automatically; it is reported for manual
 
 from __future__ import annotations
 
-import shutil
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_tree_delete
 
 __all__ = [
     "WORKTREES_DIRNAME",
@@ -75,13 +76,31 @@ class HuskFixResult:
     removed: list[str] = field(default_factory=list)
     skipped_registered: list[str] = field(default_factory=list)
     skipped_appeared_valid: list[str] = field(default_factory=list)
+    # Husks the destructive guard refused to delete because they hold the only
+    # copy of something (#5965): preserved in place for the operator to inspect.
+    skipped_unsafe: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
         return {
             "removed": list(self.removed),
             "skipped_registered": list(self.skipped_registered),
             "skipped_appeared_valid": list(self.skipped_appeared_valid),
+            "skipped_unsafe": list(self.skipped_unsafe),
         }
+
+
+class _HuskResidue:
+    """Residue context for a husk: it belongs to no known Mission, so nothing in it is regenerable.
+
+    A husk whose ``.git`` entry is gone can still hold the only copy of a lane's
+    work, so no path is disposable and the guard decides on local state alone.
+    """
+
+    def is_disposable(self, path: str) -> bool:  # noqa: ARG002 -- ResidueClassifier protocol signature
+        return False
+
+    def for_checkout(self, repo_root: Path, worktree: Path) -> _HuskResidue:  # noqa: ARG002 -- ResidueClassifier protocol signature
+        return self
 
 
 @dataclass(frozen=True)
@@ -169,6 +188,7 @@ def fix_workspace_husks(repo_root: Path) -> tuple[HuskReport, HuskFixResult]:
     removed: list[str] = []
     skipped_registered: list[str] = []
     skipped_appeared_valid: list[str] = []
+    skipped_unsafe: list[str] = []
     for entry in report.husks:
         if entry.registered:
             skipped_registered.append(entry.path)
@@ -177,10 +197,15 @@ def fix_workspace_husks(repo_root: Path) -> tuple[HuskReport, HuskFixResult]:
         if (husk_path / ".git").exists():
             skipped_appeared_valid.append(entry.path)
             continue
-        shutil.rmtree(husk_path)
+        try:
+            guarded_tree_delete(husk_path, context=_HuskResidue())
+        except DestructiveOpRefused:
+            skipped_unsafe.append(entry.path)
+            continue
         removed.append(entry.path)
     return report, HuskFixResult(
         removed=removed,
         skipped_registered=skipped_registered,
         skipped_appeared_valid=skipped_appeared_valid,
+        skipped_unsafe=skipped_unsafe,
     )

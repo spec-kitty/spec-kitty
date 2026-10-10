@@ -229,38 +229,6 @@ class GitVCS:
 
         return None
 
-    def remove_workspace(self, workspace_path: Path) -> bool:
-        """
-        Remove a git worktree.
-
-        Args:
-            workspace_path: Path to the workspace to remove
-
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            # Find repo root to run git commands from
-            repo_root = self.get_repo_root(workspace_path)
-            if repo_root is None:
-                # Try parent directory if workspace_path is the worktree itself
-                repo_root = self.get_repo_root(workspace_path.parent)
-            if repo_root is None:
-                return False
-
-            result = subprocess.run(
-                ["git", "worktree", "remove", str(workspace_path), "--force"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=30,
-                cwd=str(repo_root),
-            )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, OSError):
-            return False
-
     def get_workspace_info(self, workspace_path: Path) -> WorkspaceInfo | None:
         """
         Get information about a workspace.

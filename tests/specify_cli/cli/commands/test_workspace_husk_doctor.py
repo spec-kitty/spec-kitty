@@ -103,6 +103,7 @@ class _FixResult:
     removed: list[str] = field(default_factory=list)
     skipped_registered: list[str] = field(default_factory=list)
     skipped_appeared_valid: list[str] = field(default_factory=list)
+    skipped_unsafe: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {"removed": self.removed}
@@ -160,7 +161,7 @@ def test_fix_human_with_skips(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -
 
     report = _Report(husks=[])
     fix_result = _FixResult(
-        removed=["r"], skipped_registered=["reg"], skipped_appeared_valid=["v"]
+        removed=["r"], skipped_registered=["reg"], skipped_appeared_valid=["v"], skipped_unsafe=["u"]
     )
     monkeypatch.setattr(status_mod, "fix_workspace_husks", lambda _r: (report, fix_result))
     with pytest.raises(typer.Exit) as exc:

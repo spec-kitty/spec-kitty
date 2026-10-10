@@ -223,21 +223,6 @@ class TestWorkspaceOperations:
         assert result.success is False
         assert result.error is not None
 
-    def test_remove_workspace(self, git_repo, git_vcs):
-        """remove_workspace should remove a worktree."""
-        workspace_path = git_repo / ".worktrees" / "test-remove"
-
-        # Create workspace first
-        create_result = git_vcs.create_workspace(workspace_path, "test-remove", repo_root=git_repo)
-        assert create_result.success is True, f"Create failed: {create_result.error}"
-        assert workspace_path.exists()
-
-        # Remove it
-        result = git_vcs.remove_workspace(workspace_path)
-
-        assert result is True
-        assert not workspace_path.exists()
-
     def test_get_workspace_info(self, git_repo, git_vcs):
         """get_workspace_info should return workspace details."""
         workspace_path = git_repo / ".worktrees" / "test-info"
