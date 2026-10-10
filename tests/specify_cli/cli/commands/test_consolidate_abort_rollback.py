@@ -490,12 +490,12 @@ def test_as4_a_release_binds_to_the_sha_it_was_given_at(repo: Path, monkeypatch:
 
 
 def test_release_help_explains_what_is_kept_without_a_destructive_recipe() -> None:
-    import click
+    from tests import _click_universe as typer_click
 
     app = typer.Typer(add_completion=False)
     app.command()(consolidate.consolidate)
     command = typer.main.get_command(app)
-    helps = {opt: (param.help or "") for param in command.params if isinstance(param, click.Option) for opt in param.opts}
+    helps = {opt: (param.help or "") for param in command.params if isinstance(param, typer_click.Option) for opt in param.opts}
 
     release_help = helps["--release-branch"]
     assert "--abort" in release_help and "unverified" in release_help

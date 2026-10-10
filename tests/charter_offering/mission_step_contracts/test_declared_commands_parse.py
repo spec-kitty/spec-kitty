@@ -21,10 +21,10 @@ from __future__ import annotations
 import shlex
 
 import pytest
-import click
 from typer.main import get_command
 
 from charter.offering.missions.step_contracts import MissionStepContractRepository
+from tests import _click_universe as typer_click
 
 pytestmark = [pytest.mark.fast, pytest.mark.corpus]
 
@@ -85,13 +85,13 @@ def test_declared_command_parses(contract_id: str, step_id: str, command: str) -
     leaf, remaining = _resolve(argv[1:])
     try:
         leaf.make_context(leaf.name, list(remaining), resilient_parsing=False).close()
-    except click.NoSuchOption as exc:  # the #4031 failure mode, called out by name
+    except typer_click.NoSuchOption as exc:  # the #4031 failure mode, called out by name
         pytest.fail(
             f"{contract_id}:{step_id} declares `{command}`, but the CLI rejects "
             f"{exc.option_name!r}. A contract may not advertise a flag the parser "
             f"does not have — an operator or host runs this string verbatim."
         )
-    except click.UsageError as exc:  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
+    except typer_click.UsageError as exc:
         pytest.fail(f"{contract_id}:{step_id} declares `{command}`, which does not parse: {exc}")
 
 

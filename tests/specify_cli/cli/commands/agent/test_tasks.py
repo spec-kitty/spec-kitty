@@ -20,16 +20,15 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
-from kernel.clock import now_utc, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import click
 import pytest
 from click.testing import Result
 from typer.main import get_command
 from typer.testing import CliRunner
 
+from kernel.clock import now_utc, timedelta
 from specify_cli.cli.commands.agent.tasks import (
     _VALID_VERDICTS,
     _lane_targets_for_emit,
@@ -50,6 +49,7 @@ from specify_cli.status.models import (
     actor_identity_str,
 )
 from specify_cli.status.store import append_annotations_atomic_verified, append_event
+from tests import _click_universe as typer_click
 from tests.mocked_env import setup_mocked_env
 from tests.utils import run
 
@@ -64,12 +64,12 @@ def test_move_task_help_surfaces_review_artifact_override_audit_path() -> None:
 
     assert result.exit_code == 0, result.output
     group = get_command(app)
-    assert isinstance(group, click.Group)
+    assert isinstance(group, typer_click.Group)
     click_command = group.commands["move-task"]
     skip_review_help = next(
         param.help
         for param in click_command.params
-        if isinstance(param, click.Option) and param.name == "skip_review_artifact_check"
+        if isinstance(param, typer_click.Option) and param.name == "skip_review_artifact_check"
     )
     assert skip_review_help is not None
 

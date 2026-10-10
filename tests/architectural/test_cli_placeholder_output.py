@@ -12,6 +12,7 @@ import pytest
 from click.testing import CliRunner
 from typer.main import get_command
 
+from tests import _click_universe as typer_click
 from tests.architectural.test_json_contract_enumeration import walk_commands
 
 pytestmark = pytest.mark.architectural
@@ -37,7 +38,7 @@ def isolate_global_io(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture(scope="module")
-def callback_graph() -> click.Command:
+def callback_graph() -> typer_click.Command:
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(sys, "argv", ["spec-kitty"])
         import specify_cli
@@ -45,13 +46,13 @@ def callback_graph() -> click.Command:
         return get_command(specify_cli.app)
 
 
-def test_callback_inventory(callback_graph: click.Command) -> None:
-    actual = {path for path, cmd in walk_commands(callback_graph) if isinstance(cmd, click.Group) and cmd.invoke_without_command}
+def test_callback_inventory(callback_graph: typer_click.Command) -> None:
+    actual = {path for path, cmd in walk_commands(callback_graph) if isinstance(cmd, typer_click.Group) and cmd.invoke_without_command}
     assert actual == CALLBACK_PATHS, f"Classify newly registered callbacks: {actual ^ CALLBACK_PATHS}"
 
 
 @pytest.mark.parametrize("path", sorted(CALLBACK_PATHS))
-def test_no_subcommand_callback_output(callback_graph: click.Command, path: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_no_subcommand_callback_output(callback_graph: typer_click.Command, path: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["spec-kitty", *path.split()])
     isolate_global_io(monkeypatch)
@@ -73,7 +74,7 @@ def test_no_subcommand_callback_output(callback_graph: click.Command, path: str,
 
 
 @pytest.mark.parametrize("marker", ["OptionInfo", "ArgumentInfo", "typer.models.OptionInfo"])
-def test_placeholder_mutation_is_rejected(callback_graph: click.Command, marker: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_placeholder_mutation_is_rejected(callback_graph: typer_click.Command, marker: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     command = dict(walk_commands(callback_graph))["context"]
     callback: Callable[..., Any] | None = command.callback

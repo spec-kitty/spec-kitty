@@ -16,15 +16,15 @@ from __future__ import annotations
 
 import os
 
-import click
 import pytest
 from typer.main import get_command
 
 from specify_cli import app as _typer_app
+from tests import _click_universe as typer_click
 
 pytestmark = [pytest.mark.architectural]
 
-cli: click.Group = get_command(_typer_app)  # type: ignore[assignment]
+cli: typer_click.Group = get_command(_typer_app)  # type: ignore[assignment]
 
 
 @pytest.fixture(autouse=True)
@@ -33,16 +33,16 @@ def _pin_no_upgrade_check(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_NO_UPGRADE_CHECK", os.environ.get("SPEC_KITTY_NO_UPGRADE_CHECK", "1"))
 
 
-def _walk_leaf_commands(group: click.Group, prefix: tuple[str, ...] = ()):
+def _walk_leaf_commands(group: typer_click.Group, prefix: tuple[str, ...] = ()):
     for name, cmd in group.commands.items():
         path = prefix + (name,)
-        if isinstance(cmd, click.Group):
+        if isinstance(cmd, typer_click.Group):
             yield from _walk_leaf_commands(cmd, path)
         else:
             yield path, cmd
 
 
-def _param_declares_feature_flag(param: click.Parameter) -> bool:
+def _param_declares_feature_flag(param: typer_click.Parameter) -> bool:
     declared = list(getattr(param, "opts", []) or []) + list(getattr(param, "secondary_opts", []) or [])
     return "--feature" in declared
 

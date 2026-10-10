@@ -3,13 +3,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-import click
 import pytest
 from typer.main import get_command
 
 from specify_cli import app
 from specify_cli.skills.registry import SkillRegistry
-
+from tests import _click_universe as typer_click
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -120,7 +119,7 @@ def test_skill_command_literals_resolve_against_live_cli() -> None:
                     break
                 if token.startswith("<") and token.endswith(">"):
                     break
-                if not isinstance(command, click.Group):
+                if not isinstance(command, typer_click.Group):
                     break
                 next_command = command.commands.get(token)
                 if next_command is None:

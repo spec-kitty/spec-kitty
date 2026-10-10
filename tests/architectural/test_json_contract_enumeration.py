@@ -6,8 +6,8 @@ Resolved Click metadata preserves Typer binding and every registration alias.
 
 from __future__ import annotations
 
-import json
 import importlib.util
+import json
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -19,28 +19,30 @@ import pytest
 from click.testing import CliRunner, Result
 from typer.main import get_command
 
+from tests import _click_universe as typer_click
+
 pytestmark = pytest.mark.architectural
 
 
-def walk_commands(command: click.Command, path: str = "", ancestors: tuple[int, ...] = ()) -> Iterator[tuple[str, click.Command]]:
+def walk_commands(command: typer_click.Command, path: str = "", ancestors: tuple[int, ...] = ()) -> Iterator[tuple[str, typer_click.Command]]:
     """Ancestor-only cycle protection keeps aliases of the same group visible."""
     assert id(command) not in ancestors, f"Command graph cycle at {path}"
     yield path, command
-    if isinstance(command, click.Group):
+    if isinstance(command, typer_click.Group):
         for name, child in command.commands.items():
             yield from walk_commands(child, f"{path} {name}".strip(), (*ancestors, id(command)))
 
 
-def json_commands(root: click.Command) -> dict[str, click.Command]:
+def json_commands(root: typer_click.Command) -> dict[str, typer_click.Command]:
     return {
         path: command
         for path, command in walk_commands(root)
-        if any(isinstance(p, click.Option) and "--json" in p.opts and isinstance(p.type, click.types.BoolParamType) for p in command.params)
+        if any(isinstance(p, typer_click.Option) and "--json" in p.opts and isinstance(p.type, typer_click.BoolParamType) for p in command.params)
     }
 
 
 @pytest.fixture(scope="module")
-def graph() -> click.Command:
+def graph() -> typer_click.Command:
     # Do not inherit pytest argv or a live-work reduced registration surface.
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(sys, "argv", ["spec-kitty"])
@@ -74,7 +76,7 @@ def assert_json_result(result: Result, *, adopted: bool, exit_code: int) -> Any:
     return payload
 
 
-def test_real_zero_wp_status(graph: click.Command, outside: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_real_zero_wp_status(graph: typer_click.Command, outside: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     subprocess.run(["git", "init", "-q", "-b", "main", str(outside)], check=True)
     (outside / ".kittify").mkdir()
     (outside / ".kittify/config.yaml").write_text("{}\n", encoding="utf-8")
@@ -554,7 +556,7 @@ DEFERRED: dict[str, tuple[tuple[str, ...], str, str]] = {
 }
 
 
-def assert_inventory(root: click.Command) -> None:
+def assert_inventory(root: typer_click.Command) -> None:
     actual = set(json_commands(root))
     known = set(ADOPTED) | set(PARSEABLE) | set(DEFERRED)
     assert not (set(ADOPTED) & set(PARSEABLE) or set(ADOPTED) & set(DEFERRED) or set(PARSEABLE) & set(DEFERRED))
@@ -564,7 +566,7 @@ def assert_inventory(root: click.Command) -> None:
     assert all("Follow-up: #4664" in evidence for _args, _fixture, evidence in DEFERRED.values())
 
 
-def test_all_json_registrations_are_classified(graph: click.Command) -> None:
+def test_all_json_registrations_are_classified(graph: typer_click.Command) -> None:
     assert_inventory(graph)
 
 
@@ -603,7 +605,7 @@ def prepare_case(kind: str, directory: Path, monkeypatch: pytest.MonkeyPatch) ->
 
 
 @pytest.mark.parametrize("path", sorted(set(ADOPTED) | set(PARSEABLE)))
-def test_parse_allowlist(graph: click.Command, outside: Path, monkeypatch: pytest.MonkeyPatch, path: str) -> None:
+def test_parse_allowlist(graph: typer_click.Command, outside: Path, monkeypatch: pytest.MonkeyPatch, path: str) -> None:
     adopted = path in ADOPTED
     args, expected_exit, fixture = (ADOPTED | PARSEABLE)[path]
     prepare_case(fixture, outside, monkeypatch)
@@ -627,7 +629,7 @@ def test_parse_allowlist(graph: click.Command, outside: Path, monkeypatch: pytes
         ("charter mission-type list", ()),
     ],
 )
-def test_real_empty_list_results(graph: click.Command, outside: Path, path: str, args: tuple[str, ...]) -> None:
+def test_real_empty_list_results(graph: typer_click.Command, outside: Path, path: str, args: tuple[str, ...]) -> None:
     subprocess.run(["git", "init", "-q", str(outside)], check=True)
     (outside / ".kittify/glossaries").mkdir(parents=True)
     (outside / ".kittify/config.yaml").write_text("mission_type_activations: []\n", encoding="utf-8")
@@ -635,7 +637,7 @@ def test_real_empty_list_results(graph: click.Command, outside: Path, path: str,
     assert assert_json_result(result, adopted=False, exit_code=0) == []
 
 
-def test_root_preserves_json_stream(graph: click.Command, outside: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_root_preserves_json_stream(graph: typer_click.Command, outside: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from tests.architectural.test_cli_placeholder_output import isolate_global_io
 
     isolate_global_io(monkeypatch)
@@ -645,7 +647,7 @@ def test_root_preserves_json_stream(graph: click.Command, outside: Path, monkeyp
 
 
 @pytest.mark.parametrize("mutation", ["prose", "wrong-envelope"])
-def test_output_mutations_fail_same_guard(graph: click.Command, outside: Path, monkeypatch: pytest.MonkeyPatch, mutation: str) -> None:
+def test_output_mutations_fail_same_guard(graph: typer_click.Command, outside: Path, monkeypatch: pytest.MonkeyPatch, mutation: str) -> None:
     command = json_commands(graph)["context info"]
     original = command.callback
     assert original is not None
@@ -666,18 +668,20 @@ def test_output_mutations_fail_same_guard(graph: click.Command, outside: Path, m
         assert_json_result(result, adopted=True, exit_code=1)
 
 
-def test_unclassified_registration_mutation_fails(graph: click.Command, monkeypatch: pytest.MonkeyPatch) -> None:
-    assert isinstance(graph, click.Group)
-    new_command = click.Command("future", params=[click.Option(["--json"], is_flag=True)])
+def test_unclassified_registration_mutation_fails(graph: typer_click.Command, monkeypatch: pytest.MonkeyPatch) -> None:
+    assert isinstance(graph, typer_click.Group)
+    new_command = typer_click.LeafCommand("future", params=[typer_click.Option(param_decls=["--json"], is_flag=True)])
     monkeypatch.setitem(graph.commands, "future", new_command)
     with pytest.raises(AssertionError, match="Unclassified JSON registrations.*future"):
         assert_inventory(graph)
 
 
 def test_discovery_uses_flag_types_and_preserves_aliases() -> None:
-    command = click.Command("leaf", params=[click.Option(["--json", "arbitrary_python_name"], is_flag=True)])
-    misleading = click.Command("not-json", params=[click.Option(["--format", "json_output"]), click.Option(["--json"], type=str)])
-    group = click.Group("g", commands={"leaf": command})
-    paired = click.Command("paired", params=[click.Option(["--json/--no-json"], default=False)])
-    root = click.Group(commands={"first": group, "alias": group, "not-json": misleading, "paired": paired})
+    command = typer_click.LeafCommand("leaf", params=[typer_click.Option(param_decls=["--json", "arbitrary_python_name"], is_flag=True)])
+    misleading = typer_click.LeafCommand(
+        "not-json", params=[typer_click.Option(param_decls=["--format", "json_output"]), typer_click.Option(param_decls=["--json"], type=str)]
+    )
+    group = typer_click.Group(name="g", commands={"leaf": command})
+    paired = typer_click.LeafCommand("paired", params=[typer_click.Option(param_decls=["--json/--no-json"], default=False)])
+    root = typer_click.Group(commands={"first": group, "alias": group, "not-json": misleading, "paired": paired})
     assert set(json_commands(root)) == {"first leaf", "alias leaf", "paired"}

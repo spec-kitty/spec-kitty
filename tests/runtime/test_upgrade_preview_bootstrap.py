@@ -1,32 +1,29 @@
 """Global owner regressions; public startup wiring is separately owned by WP10."""
 
-from pathlib import Path
-from collections.abc import Callable, Mapping
-from dataclasses import replace
-import shutil
 import ast
-from contextlib import contextmanager
-from collections.abc import Iterator
 import inspect
 import json
 import os
+import shutil
 import sys
-from typing import Any, cast
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
+from dataclasses import replace
+from pathlib import Path
 from types import SimpleNamespace
-
-import click
-from typer.main import get_command
+from typing import Any, cast
 
 import pytest
+from typer.main import get_command
 
 from specify_cli.runtime import agent_commands, agent_skills, bootstrap
-from specify_cli.skills.registry import SkillRegistry
-from tests.upgrade.preview_support.snapshot import Snapshot, assert_unchanged
-from tests.upgrade.preview_support.snapshot import net_delta
-from tests.upgrade.preview_support.snapshot import snapshot as _raw_snapshot
 from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
+from specify_cli.skills.registry import SkillRegistry
 from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment
-from specify_cli.upgrade.intent import _click_exceptions, parse_upgrade_intent
+from specify_cli.upgrade.intent import _click_of, parse_upgrade_intent
+from tests import _click_universe as typer_click
+from tests.upgrade.preview_support.snapshot import Snapshot, assert_unchanged, net_delta
+from tests.upgrade.preview_support.snapshot import snapshot as _raw_snapshot
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -202,12 +199,12 @@ def test_existing_scoped_command_repair_has_no_churn(owner_home: Path) -> None:
     assert_unchanged(before, snapshot({"home": owner_home}))
 
 
-def _actual_upgrade_command() -> click.Command:
+def _actual_upgrade_command() -> typer_click.Command:
     from specify_cli import _get_app
 
     root = get_command(_get_app())
-    assert isinstance(root, click.Group)
-    command = root.get_command(click.Context(root), "upgrade")
+    assert isinstance(root, typer_click.Group)
+    command = root.get_command(typer_click.Context(root), "upgrade")
     assert command is not None
     return command
 
@@ -234,7 +231,7 @@ def test_intent_uses_actual_definitions(argv: list[str], available: bool, mode: 
 @pytest.mark.parametrize("argv", [["--target"], ["--unknown"], ["extra"]])
 def test_intent_retains_click_usage_errors(argv: list[str]) -> None:
     command = _actual_upgrade_command()
-    with pytest.raises(_click_exceptions(command).UsageError):
+    with pytest.raises(_click_of(command)[1].UsageError):
         parse_upgrade_intent(command, argv, project_available=True)
 
 
@@ -253,7 +250,7 @@ def test_intent_alias_equals_order_and_callback_denial(monkeypatch: pytest.Monke
     assert not intent.include_worktrees
     target = next(p for p in command.params if p.name == "target")
     monkeypatch.setattr(target, "default", forbidden)
-    with pytest.raises(_click_exceptions(command).UsageError, match="callable default"):
+    with pytest.raises(_click_of(command)[1].UsageError, match="callable default"):
         parse_upgrade_intent(command, [], project_available=True)
 
 
@@ -858,6 +855,7 @@ def test_skill_selection_subset_and_shared_agent_dispatch(owner_home: Path, tmp_
 
 def test_skill_selection_snapshots_mutable_caller_inputs(owner_home: Path, tmp_path: Path) -> None:
     from dataclasses import FrozenInstanceError, fields
+
     from specify_cli.runtime.asset_preparation import assess_global_assets
 
     skills = _selection_catalog(tmp_path).discover_skills()[:1]

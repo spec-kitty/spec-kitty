@@ -28,7 +28,6 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
-import click
 import pytest
 from typer.main import get_command
 from typer.testing import CliRunner
@@ -39,6 +38,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import _MoveTaskState
 from specify_cli.review import pre_review_gate
 from specify_cli.review.gate_bindings import GateBindingResolution, GateCoverage
 from specify_cli.status import Lane
+from tests import _click_universe as typer_click
 
 pytestmark = pytest.mark.fast
 
@@ -311,12 +311,12 @@ def test_skip_pre_review_gate_flag_is_registered_on_move_task_help() -> None:
 
     assert result.exit_code == 0, result.output
     group = get_command(app)
-    assert isinstance(group, click.Group)
+    assert isinstance(group, typer_click.Group)
     click_command = group.commands["move-task"]
     option = next(
         param
         for param in click_command.params
-        if isinstance(param, click.Option) and param.name == "skip_pre_review_gate"
+        if isinstance(param, typer_click.Option) and param.name == "skip_pre_review_gate"
     )
     assert "--skip-pre-review-gate" in option.opts
     assert option.default is False

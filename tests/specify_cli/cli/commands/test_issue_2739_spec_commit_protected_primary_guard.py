@@ -47,7 +47,6 @@ import typer
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.spec_commit_cmd import spec_commit_command
-
 from tests.git.protected_target_fixtures import build_protected_target_repo
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -83,8 +82,9 @@ def _spec_commit_help_text() -> str:
     on the fragile panel layer. A callback forces group mode so the subcommand is
     addressable by name across Typer versions.
     """
-    import click
     from typer.main import get_command
+
+    from tests import _click_universe as typer_click
 
     app = typer.Typer(add_completion=False)
 
@@ -94,7 +94,7 @@ def _spec_commit_help_text() -> str:
 
     app.command("spec-commit")(spec_commit_command)
     group = get_command(app)
-    assert isinstance(group, click.Group)  # the callback above forces group mode
+    assert isinstance(group, typer_click.Group)  # the callback above forces group mode
     command = group.commands["spec-commit"]
     return (command.help or "").lower()
 

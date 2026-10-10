@@ -56,6 +56,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import migrate_cmd
 from specify_cli.cli.commands.migrate_cmd import app as migrate_app
+from tests import _click_universe as typer_click
 from tests.unit.migration._backfill_fixture import build_mission
 
 pytestmark = [pytest.mark.integration]
@@ -134,9 +135,9 @@ def test_hard_isolation_guard_is_non_vacuous() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _click_group() -> click.Group:
+def _click_group() -> typer_click.Group:
     group = get_command(migrate_app)
-    assert isinstance(group, click.Group)
+    assert isinstance(group, typer_click.Group)
     return group
 
 
@@ -144,11 +145,11 @@ def _registered_subcommand_names() -> list[str]:
     return sorted(_click_group().commands)
 
 
-def _declares_param(cmd: click.Command, param_name: str) -> bool:
+def _declares_param(cmd: typer_click.Command, param_name: str) -> bool:
     return any(param.name == param_name for param in cmd.params)
 
 
-def _required_arg_values(cmd: click.Command) -> list[str]:
+def _required_arg_values(cmd: typer_click.Command) -> list[str]:
     """Minimal CLI tokens satisfying *cmd*'s REQUIRED options.
 
     Click parses (and enforces required-ness on) a subcommand's own params
@@ -160,15 +161,15 @@ def _required_arg_values(cmd: click.Command) -> list[str]:
     """
     args: list[str] = []
     for param in cmd.params:
-        if isinstance(param, click.Option) and param.required:
+        if isinstance(param, typer_click.Option) and param.required:
             args.extend([param.opts[0], f"dummy-{param.name}"])
     return args
 
 
 @contextmanager
-def _spy_on_subcommand(name: str) -> Iterator[tuple[click.Group, list[dict[str, Any]]]]:
-    """Build a fresh click.Group from the live app and replace subcommand
-    *name*'s ``click.Command.callback`` with a recorder.
+def _spy_on_subcommand(name: str) -> Iterator[tuple[typer_click.Group, list[dict[str, Any]]]]:
+    """Build a fresh typer_click.Group from the live app and replace subcommand
+    *name*'s ``typer_click.Command.callback`` with a recorder.
 
     Deliberately does NOT patch ``CommandInfo.callback`` on
     ``migrate_app.registered_commands``: typer derives a subcommand's own
@@ -178,7 +179,7 @@ def _spy_on_subcommand(name: str) -> Iterator[tuple[click.Group, list[dict[str, 
     with a generic ``**kwargs`` recorder there would silently erase the very
     params under test. Instead this builds the group ONCE via
     ``typer.main.get_command`` (params derived from the REAL signature),
-    then mutates the already-built ``click.Command.callback`` in place —
+    then mutates the already-built ``typer_click.Command.callback`` in place —
     Click invokes whatever object sits at ``.callback`` at dispatch time
     without re-deriving params from it. The caller must invoke this SAME
     returned group (not re-fetch one via ``typer.testing.CliRunner``, which
@@ -186,7 +187,7 @@ def _spy_on_subcommand(name: str) -> Iterator[tuple[click.Group, list[dict[str, 
     unpatched originals — on every call).
     """
     group = get_command(migrate_app)
-    assert isinstance(group, click.Group)
+    assert isinstance(group, typer_click.Group)
     command = group.commands[name]
     original = command.callback
     calls: list[dict[str, Any]] = []
@@ -556,9 +557,9 @@ def test_usage_error_class_falls_back_to_real_click_without_a_click_context() ->
     assert migrate_cmd._usage_error_class(object()) is click.UsageError  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
 
 
-def test_usage_error_class_resolves_the_real_click_for_a_real_context() -> None:
-    ctx = click.Context(_click_group())
-    assert migrate_cmd._usage_error_class(ctx) is click.UsageError  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
+def test_usage_error_class_resolves_the_commands_own_click_for_a_real_context() -> None:
+    ctx = typer_click.Context(_click_group())
+    assert migrate_cmd._usage_error_class(ctx) is typer_click.UsageError
 
 
 def test_usage_error_class_skips_a_core_module_without_exceptions(monkeypatch: pytest.MonkeyPatch) -> None:

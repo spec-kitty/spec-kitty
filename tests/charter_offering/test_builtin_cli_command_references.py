@@ -17,10 +17,10 @@ import re
 import sys
 from collections.abc import Iterator
 
-import click
 import pytest
 from typer.main import get_command
 
+from tests import _click_universe as typer_click
 from tests.charter_offering.conftest import REPO_ROOT
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
@@ -58,14 +58,14 @@ def _code_segments(text: str) -> Iterator[tuple[int, str]]:
             yield line_number, match.group(1)
 
 
-def _unresolved_prefix(root: click.Group, tokens: list[str]) -> str | None:
+def _unresolved_prefix(root: typer_click.Group, tokens: list[str]) -> str | None:
     """Return the first unresolvable command path, or ``None`` if it resolves."""
-    command: click.Command = root
+    command: typer_click.Command = root
     walked: list[str] = []
     for token in tokens:
-        if not isinstance(command, click.Group):
+        if not isinstance(command, typer_click.Group):
             return None  # reached a leaf command; remaining tokens are arguments
-        sub = command.get_command(click.Context(command), token)
+        sub = command.get_command(typer_click.Context(command), token)
         if sub is None:
             return " ".join([*walked, token])
         walked.append(token)
@@ -81,7 +81,7 @@ def _unresolved_prefix(root: click.Group, tokens: list[str]) -> str | None:
 _MINIMUM_REFERENCES_CHECKED = 150
 
 
-def _collect_unresolved(root: click.Group) -> tuple[list[str], int]:
+def _collect_unresolved(root: typer_click.Group) -> tuple[list[str], int]:
     violations: list[str] = []
     checked = 0
     for path in sorted(BUILT_IN_PACK.rglob("*")):
@@ -99,7 +99,7 @@ def _collect_unresolved(root: click.Group) -> tuple[list[str], int]:
 
 
 @pytest.fixture(scope="module")
-def cli_root() -> click.Group:
+def cli_root() -> typer_click.Group:
     # Build the command tree with a pinned argv, mirroring
     # ``tests/architectural/test_json_contract_enumeration.py`` — the cached
     # ``specify_cli._get_app()`` must not depend on pytest's own argv, or
@@ -109,11 +109,11 @@ def cli_root() -> click.Group:
         from specify_cli import _get_app
 
         root = get_command(_get_app())
-    assert isinstance(root, click.Group)
+    assert isinstance(root, typer_click.Group)
     return root
 
 
-def test_built_in_pack_names_only_real_cli_commands(cli_root: click.Group) -> None:
+def test_built_in_pack_names_only_real_cli_commands(cli_root: typer_click.Group) -> None:
     violations, checked = _collect_unresolved(cli_root)
     assert checked >= _MINIMUM_REFERENCES_CHECKED, (
         f"Only checked {checked} spec-kitty command references in packs/built-in/ "
@@ -130,7 +130,7 @@ def test_intentional_negative_references_are_still_present() -> None:
         assert f"spec-kitty {command}" in text, (relative, command)
 
 
-def test_extractor_flags_a_retired_command(cli_root: click.Group) -> None:
+def test_extractor_flags_a_retired_command(cli_root: typer_click.Group) -> None:
     """The walker reports the first unresolvable token, not the whole line."""
     assert _unresolved_prefix(cli_root, ["agent", "tasks", "transition", "wp01"]) == "agent tasks transition"
     assert _unresolved_prefix(cli_root, ["agent", "tasks", "move-task", "wp01"]) is None
