@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
+from types import ModuleType
 from typing import Literal
 
 import click
@@ -30,13 +32,33 @@ class UpgradeIntent:
     hidden_options: tuple[tuple[str, object], ...] = ()
 
 
+def _click_of(command: click.Command) -> tuple[ModuleType, ModuleType]:
+    """Return the ``(core, exceptions)`` modules of the click that built ``command``.
+
+    typer 0.26+ vendors its own click (``typer._click``) whose classes share no
+    identity with the real ``click`` package's. A real-click ``UsageError``
+    raised inside a vendored-click dispatch escapes typer's handler as a
+    traceback instead of a clean exit 2, so the context and the errors must come
+    from the command's own click (the same resolution ``migrate_cmd`` uses, #4964).
+    """
+    for klass in type(command).__mro__:
+        module_name = klass.__module__
+        if klass.__name__ == "Command" and module_name.endswith(".core"):
+            exceptions = sys.modules.get(f"{module_name.rsplit('.', 1)[0]}.exceptions")
+            core = sys.modules.get(module_name)
+            if core is not None and exceptions is not None:
+                return core, exceptions
+    return click.core, click.exceptions
+
+
 def _parse_values(command: click.Command, argv: Sequence[str]) -> tuple[dict[str, object], frozenset[str]]:
     # Click's parser owns aliases, equals syntax, arity, flags and usage errors.
     # Command.parse_args/Parameter.handle_parse_result would also run callbacks.
-    context = click.Context(command, info_name=command.name, resilient_parsing=False)
+    core, errors = _click_of(command)
+    context = core.Context(command, info_name=command.name, resilient_parsing=False)
     values, remaining, _order = command.make_parser(context).parse_args(list(argv))
     if remaining and not command.allow_extra_args:
-        raise click.UsageError(f"Got unexpected extra arguments ({' '.join(remaining)})", context)
+        raise errors.UsageError(f"Got unexpected extra arguments ({' '.join(remaining)})", context)
     supplied = frozenset(values)
     result: dict[str, object] = {}
     for param in command.get_params(context):
@@ -49,9 +71,9 @@ def _parse_values(command: click.Command, argv: Sequence[str]) -> tuple[dict[str
                 value = param.get_default(context, call=False)
             if callable(value):
                 # A parse-only caller cannot safely resolve a dynamic default.
-                raise click.UsageError(f"Cannot resolve callable default for {param.name} without dispatch", context)
+                raise errors.UsageError(f"Cannot resolve callable default for {param.name} without dispatch", context)
         if param.required and value is None:
-            raise click.MissingParameter(ctx=context, param=param)
+            raise errors.MissingParameter(ctx=context, param=param)
         result[param.name] = param.type_cast_value(context, value)
     return result, supplied
 
@@ -103,7 +125,7 @@ def parse_upgrade_intent(
         representation = "legacy" if mode in {"preview", "guidance"} else "outcome"
     target = values.get("target")
     if target is not None and not isinstance(target, str):
-        raise click.BadParameter("Upgrade target definition must produce text", param_hint="--target")
+        raise _click_of(command)[1].BadParameter("Upgrade target definition must produce text", param_hint="--target")
     return UpgradeIntent(
         mode,
         representation,
