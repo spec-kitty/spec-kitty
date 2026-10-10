@@ -8,11 +8,14 @@ Real git, real ``spec-kitty consolidate`` CLI, nothing mocked. Used by
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
+import sys
+from collections.abc import Sequence
 from pathlib import Path
 
-from tests.terminus.conftest import CoordMission, build_coord_mission, plant_canceled_commit, restamp_approvals_at_lane_tips, run_terminus
+from tests.terminus.conftest import _SRC, CoordMission, build_coord_mission, plant_canceled_commit, restamp_approvals_at_lane_tips, run_terminus
 from tests.terminus.conftest import _git as git
 
 _REPORT_HEADER = "Rollback to the pre-consolidation snapshot:"
@@ -124,3 +127,33 @@ def failing_gate_run(tmp_path: Path, mid8: str) -> tuple[CoordMission, str, dict
     result = run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
     assert result.returncode != 0, f"fixture precondition: the run must gate-FAIL. output={flat(result)}"
     return mission, planted, before, reflog_before, result
+
+
+# Replaces the in-process rollback with a hard kill: print the original failure (the
+# traceback the operator would see), flush, and die before any ref is restored.
+_HARD_KILL = """
+import os, sys, traceback
+import specify_cli
+from specify_cli.consolidation import executor
+
+def _killed_before_rollback(*_args, **_kwargs):
+    traceback.print_exc()
+    sys.stdout.flush()
+    sys.stderr.flush()
+    os._exit(137)
+
+executor._report_rollback = _killed_before_rollback
+executor._refuse_protected_status_target_or_continue = lambda *_a, **_k: None  # WP02 (#5385): let the protected shape reach the post-squash crash
+sys.argv = ["spec-kitty", *sys.argv[1:]]
+specify_cli.main()
+"""
+
+
+def run_hard_killed(mission: CoordMission, args: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    """Run the REAL CLI like :func:`run_terminus`, but kill the process at the rollback door (models a SIGKILL)."""
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(_SRC)
+    env["HOME"] = str(mission.home)
+    env["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
+    env.pop("VIRTUAL_ENV", None)
+    return subprocess.run([sys.executable, "-c", _HARD_KILL, *args], cwd=str(mission.repo), env=env, capture_output=True, text=True, check=False)

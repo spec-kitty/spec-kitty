@@ -1,4 +1,4 @@
-"""Red-first reproduction of #5966: ``consolidate --abort`` of Mission A destroys Mission B's edits.
+"""``consolidate --abort`` of Mission A keeps Mission B's uncommitted edits (#5966).
 
 Two Missions share one repository. Mission A (``lanes`` topology, protected ``main``) is
 hard-killed after its squash landed on the target, leaving a persisted pre-mutation snapshot
@@ -16,9 +16,8 @@ modified tracked file is what the reset destroys.
 
 The fixed behaviour is a refusal that names the files and leaves the checkout untouched, so the
 red test asserts survival first and then that refusal (non-zero exit naming both paths).
-The red test is a ``p0_repro`` (ADR 2026-07-17-1) and runs only in the nightly ``p0-repro`` lane
-(``SPEC_KITTY_RUN_P0_REPRO=1``); the fix PR removes the marker. The positive control is green
-today and must stay green.
+Converted from the red-first reproduction (ADR 2026-07-17-1): the transitional ``p0_repro`` /
+``regression`` markers are dropped, the assertions are unchanged, and the positive control stays.
 """
 
 from __future__ import annotations
@@ -30,8 +29,7 @@ import pytest
 
 from tests.terminus.conftest import CoordMission, run_terminus
 from tests.terminus.lanes_fixture import build_lanes_mission
-from tests.terminus.rollback_harness import flat
-from tests.terminus.test_abort_restores_snapshot import _run_hard_killed
+from tests.terminus.rollback_harness import flat, run_hard_killed
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -62,7 +60,7 @@ def _crashed_mission_a_next_to_mission_b(tmp_path: Path) -> CoordMission:
     _git(mission.repo, "add", "-A")
     _git(mission.repo, "commit", "-qm", "chore(fixture): Mission B review cycle and traces")
 
-    crashed = _run_hard_killed(mission, ["consolidate", "--mission", mission.slug, "--yes"])
+    crashed = run_hard_killed(mission, ["consolidate", "--mission", mission.slug, "--yes"])
     assert crashed.returncode != 0, f"fixture invalid: the run must crash after the squash. output={flat(crashed)}"
     assert (mission.repo / ".kittify" / "runtime" / "merge" / mission.mission_id / "state.json").is_file(), (
         "fixture invalid: a crashed run leaves a snapshot record"
@@ -70,8 +68,6 @@ def _crashed_mission_a_next_to_mission_b(tmp_path: Path) -> CoordMission:
     return mission
 
 
-@pytest.mark.p0_repro(issue=5966)
-@pytest.mark.regression
 def test_5966_abort_of_mission_a_keeps_mission_b_uncommitted_files(tmp_path: Path) -> None:
     mission = _crashed_mission_a_next_to_mission_b(tmp_path)
     review_cycle, notes = mission.repo / _REVIEW_CYCLE, mission.repo / _TRACE_NOTES
@@ -91,7 +87,6 @@ def test_5966_abort_of_mission_a_keeps_mission_b_uncommitted_files(tmp_path: Pat
     assert "review-cycle-1.md" in output and "notes.md" in output, f"the refusal must name Mission B's files. output={output}"
 
 
-@pytest.mark.regression
 def test_5966_control_mission_a_stale_status_copy_alone_is_cleaned_by_abort(tmp_path: Path) -> None:
     """The resync still cleans Mission A's own regenerated status copy, so the fix must not turn residue into a blocker."""
     mission = _crashed_mission_a_next_to_mission_b(tmp_path)

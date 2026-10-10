@@ -11,7 +11,7 @@ squash advanced the target and AFTER the post-mutation tips were recorded for th
 ``_phase_mission_to_target`` phase. Since #5385 the driver's rollback door restores
 that crash in-process, so a real run only leaves crash residue (advanced ``main`` +
 advanced mission branch + a resumable ``state.json``) when the process dies between
-the failure and the in-process rollback. :func:`_run_hard_killed` models exactly that
+the failure and the in-process rollback. :func:`tests.terminus.rollback_harness.run_hard_killed` models exactly that
 hard kill: it runs the REAL CLI in a subprocess whose ``_report_rollback`` prints the
 original traceback and calls ``os._exit(137)`` -- everything before it (git, the
 policy refusal, the recorded tips) is real. The same wrapper disables the up-front
@@ -42,10 +42,7 @@ across a crashed resume, and a deleted lane branch. Guards:
 
 from __future__ import annotations
 
-import os
 import subprocess
-import sys
-from collections.abc import Sequence
 from pathlib import Path
 
 import pytest
@@ -54,7 +51,6 @@ from specify_cli.consolidation.state import (
     get_state_path,
 )
 from tests.terminus.conftest import (
-    _SRC,
     CoordMission,
     blob_present_at,
     run_terminus,
@@ -64,6 +60,7 @@ from tests.terminus.rollback_harness import (
     flat,
     ref_shas,
     restored_pairs,
+    run_hard_killed,
 )
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo, pytest.mark.regression]
@@ -77,41 +74,11 @@ def _state_path(mission: CoordMission) -> Path:
     return get_state_path(mission.repo, mission.mission_id)
 
 
-# Replaces the in-process rollback with a hard kill: print the original failure (the
-# traceback the operator would see), flush, and die before any ref is restored.
-_HARD_KILL = """
-import os, sys, traceback
-import specify_cli
-from specify_cli.consolidation import executor
-
-def _killed_before_rollback(*_args, **_kwargs):
-    traceback.print_exc()
-    sys.stdout.flush()
-    sys.stderr.flush()
-    os._exit(137)
-
-executor._report_rollback = _killed_before_rollback
-executor._refuse_protected_status_target_or_continue = lambda *_a, **_k: None  # WP02 (#5385): let the protected shape reach the post-squash crash
-sys.argv = ["spec-kitty", *sys.argv[1:]]
-specify_cli.main()
-"""
-
-
-def _run_hard_killed(mission: CoordMission, args: Sequence[str]) -> subprocess.CompletedProcess[str]:
-    """Run the REAL CLI like :func:`run_terminus`, but kill the process at the rollback door (models a SIGKILL)."""
-    env = os.environ.copy()
-    env["PYTHONPATH"] = str(_SRC)
-    env["HOME"] = str(mission.home)
-    env["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
-    env.pop("VIRTUAL_ENV", None)
-    return subprocess.run([sys.executable, "-c", _HARD_KILL, *args], cwd=str(mission.repo), env=env, capture_output=True, text=True, check=False)
-
-
 def _crashed_lanes_run(tmp_path: Path, mid8: str) -> tuple[CoordMission, dict[str, str]]:
     """LANES mission on protected ``main``: a post-squash crash (#5385) hard-killed before the rollback, refs advanced."""
     mission = build_lanes_mission(tmp_path, wps=("WP01", "WP02"), target_branch="main", mid8=mid8)
     before = ref_shas(mission)
-    result = _run_hard_killed(mission, ["consolidate", "--mission", mission.slug, "--yes"])
+    result = run_hard_killed(mission, ["consolidate", "--mission", mission.slug, "--yes"])
     output = flat(result)
     assert result.returncode != 0, f"fixture precondition: the run must crash. output={output}"
     assert "PROTECTED_BRANCH_REFUSED" in output, f"fixture precondition: the crash must be the #5385 policy refusal. output={output}"

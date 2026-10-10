@@ -1,4 +1,4 @@
-"""Red-first reproduction of #5965: coordination teardown destroys the only copy of review feedback.
+"""``consolidate`` keeps the only copy of review feedback and traces in a coordination worktree (#5965).
 
 A coordination-topology Mission rejects a Work Package through the REAL
 ``spec-kitty agent tasks move-task WP02 --to planned --no-auto-commit``. That call
@@ -25,9 +25,10 @@ Fixture choices, all driven through production entry points:
   ``consolidate`` reaches the coordination teardown. The review-cycle file written by the
   rejection stays uncommitted through the cancellation.
 
-The red test is a ``p0_repro`` (ADR 2026-07-17-1): it fails by design until #5965 is
-fixed and runs only in the nightly ``p0-repro`` lane (``SPEC_KITTY_RUN_P0_REPRO=1``). The
-fix PR removes the marker. The positive control is green today and must stay green.
+Before the fix, ``consolidate`` exited 0 and the feedback was gone; the guard now refuses
+(``COORD_TEARDOWN_KEPT_ONLY_COPY``, exit 76) and keeps the worktree. Converted from the
+red-first reproduction (ADR 2026-07-17-1): the transitional ``p0_repro`` / ``regression``
+markers are dropped, the assertions are unchanged, and the positive control stays.
 """
 
 from __future__ import annotations
@@ -38,6 +39,7 @@ from pathlib import Path
 import pytest
 
 from tests.terminus.conftest import CoordMission, build_coord_mission, run_terminus
+from tests.terminus.rollback_harness import flat
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -74,10 +76,6 @@ def _consolidate(mission: CoordMission) -> subprocess.CompletedProcess[str]:
     return run_terminus(mission, ["consolidate", "--mission", mission.slug, "--yes"])
 
 
-def _flat(result: subprocess.CompletedProcess[str]) -> str:
-    return " ".join((result.stdout + result.stderr).split())
-
-
 @pytest.fixture
 def two_wp_coord_mission(tmp_path: Path) -> CoordMission:
     mission = build_coord_mission(tmp_path, wps=("WP01", "WP02"), mid8="01M5965A")
@@ -85,8 +83,6 @@ def two_wp_coord_mission(tmp_path: Path) -> CoordMission:
     return mission
 
 
-@pytest.mark.p0_repro(issue=5965)
-@pytest.mark.regression
 def test_5965_consolidate_keeps_uncommitted_review_feedback_and_traces(two_wp_coord_mission: CoordMission, tmp_path: Path) -> None:
     mission = two_wp_coord_mission
     worktree = _coord_worktree(mission)
@@ -109,10 +105,9 @@ def test_5965_consolidate_keeps_uncommitted_review_feedback_and_traces(two_wp_co
     assert traces.is_file() and traces.read_text(encoding="utf-8") == _TRACE_NOTES, f"#5965: the hand-written traces/notes.md was destroyed by teardown\n{output}"
     assert worktree.is_dir(), f"#5965: the coordination worktree holding the only copies was removed\n{output}"
     assert result.returncode != 0, f"#5965: consolidate must refuse (non-zero) instead of reporting success over the loss\n{output}"
-    assert str(review_cycle.relative_to(worktree)) in _flat(result) or review_cycle.name in _flat(result), f"the refusal must name the kept file\n{output}"
+    assert str(review_cycle.relative_to(worktree)) in flat(result) or review_cycle.name in flat(result), f"the refusal must name the kept file\n{output}"
 
 
-@pytest.mark.regression
 def test_5965_control_regenerated_tool_output_alone_does_not_block_teardown(two_wp_coord_mission: CoordMission) -> None:
     """FR-002 no-op guard: the Mission's own status files are the only dirt, so teardown still removes the worktree.
 
