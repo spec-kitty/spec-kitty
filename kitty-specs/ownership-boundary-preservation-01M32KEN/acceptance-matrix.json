@@ -1,0 +1,109 @@
+{
+  "mission_slug": "ownership-boundary-preservation-01M32KEN",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated-test",
+      "evidence": "WP01 tests/specify_cli/asset_preservation (provers prove ownership by manifest/managed_path/canonical_content; name is never proof)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T09:04:33.601120+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated-test",
+      "evidence": "WP01 guard: preserve-in-place when parent survives, archive verbatim when parent removed; unprovable never deleted",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T09:04:57.825769+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated-test",
+      "evidence": "WP01/WP02 owned-delete tests: proven-owned assets still removed + manifest entry pruned",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T09:05:06.858267+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated-test",
+      "evidence": "WP02 m_3_2_0rc45 routed; unmanifested/drifted retired skill preserved, manifest-owned removed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T09:05:15.921252+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated-test",
+      "evidence": "WP03 init.py:1568 routed via ManagedPathProver; user command-templates preserved, templates/.scratch removed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T09:05:25.150779+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated-test",
+      "evidence": "WP04 m_3_1_1 Skipped governance file preserved (archived), residual dir still removed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T09:05:34.326211+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated-test",
+      "evidence": "WP01 single asset_preservation guard; all 11 sites route through it (WP09 positive-routing pin)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T09:05:43.481040+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated-test",
+      "evidence": "Migrations/init exit success on preservation; signalled by diagnostic not exit code",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T09:05:52.830988+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated-test",
+      "evidence": "WP01 OwnershipVerdict.diagnostic names path+reason+backup; surfaced in warnings",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T09:06:02.395116+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated-test",
+      "evidence": "WP05-08 route the residual class; WP09 gate asserts 11 routed modules literal-free + 55-entry allowlist",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-22T09:06:11.804969+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

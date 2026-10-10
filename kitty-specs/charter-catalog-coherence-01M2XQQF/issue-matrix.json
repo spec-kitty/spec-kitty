@@ -1,0 +1,137 @@
+{
+  "rows": {
+    "#2524": {
+      "evidence_ref": "Dangler-class origin PR (merged); this mission closes the activate dangler by construction (WP03)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3270": {
+      "evidence_ref": "prune=False sentinel-prune defense already in place; WP03 preserves it in run_full_synthesize",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#4042": {
+      "evidence_ref": "Cross-reference only; out of mission scope per spec.md C-005; remains tracked in #4042",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4226": {
+      "evidence_ref": "Cross-reference only; out of mission scope per spec.md C-005; remains tracked in #4226",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4250": {
+      "evidence_ref": "CLI-charter-write half folded (WP02/WP03/WP04); hosted-binding half + saas#1713 remain, tracked in #4250 (cross-linked)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#4251": {
+      "evidence_ref": "Follow-up: worktree-safety reworked in this mission #4785 (WP02/WP03/WP04); PR #4251 was the closed-unmerged prior attempt",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4614": {
+      "evidence_ref": "Cross-reference only; out of mission scope per spec.md C-005; remains tracked in #4614",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4615": {
+      "evidence_ref": "Cross-reference only; out of mission scope per spec.md C-005; remains tracked in #4615",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4618": {
+      "evidence_ref": "Cross-reference only; out of mission scope per spec.md C-005; remains tracked in #4618",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4784": {
+      "evidence_ref": "Cross-reference only; out of mission scope per spec.md C-005; remains tracked in #4784",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#4785": {
+      "evidence_ref": "Mission target: activation catalog coherence, worktree-safety, complete summaries (WP01-WP04)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

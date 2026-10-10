@@ -1,0 +1,139 @@
+{
+  "mission_slug": "mission-handle-resolution-consistency-01M2TPWG",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 research existence gate; guarded by test_research_missing_mission.py + WP06 T029 snapshot",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:41:48.809183+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 plan not-found; test_mission_handle_not_found.py + WP06 T028",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:41:57.732183+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 tasks not-found; test_mission_handle_not_found.py + WP06 T028",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:42:06.722650+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 merge fresh+resume not-found; test_merge_missing_mission.py + WP06 T028",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:42:15.736899+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 abort tolerance; test_merge_missing_mission.py abort test",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:42:24.677642+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 canonical constant + consumers; WP06 T028 cross-command",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:42:33.604583+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 next auto-select; test_next_missing_mission_discovery.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:42:42.516014+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 next list; test_next_missing_mission_discovery.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:42:51.353486+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 next nudge (no preflight bypass); test_next_missing_mission_discovery.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:43:00.283373+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 no usage error; semantics assertions",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:43:09.161895+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03/WP05 JSON parity (scoped); discovery + not-found JSON tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:43:18.118237+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 shared population + WP05 consumer; WP06 T031 legacy count agreement",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:43:27.050363+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 correct-commands-stay-correct; T030 envelope preservation",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-18T20:43:35.970356+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
