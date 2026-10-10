@@ -187,7 +187,10 @@ def copy_package_tree(resource: Traversable, dest: Path, *, preserve_existing: b
     pre-existing operator tree is archived before the refresh rather than
     rmtree'd. The default ``False`` (replace-in-place) is for genuinely
     regenerable destinations only, and for this function's own nested
-    recursion into child subdirectories.
+    recursion into child subdirectories. ``preserve_existing=False`` is for
+    trees the tool itself created: ``dest`` is passed as its own ``owned_root``,
+    so ownership proof reduces to ``remove_tool_owned_tree``'s ``.git`` check and
+    nothing else shows the existing content is disposable.
     """
     if dest.exists():
         if preserve_existing:
