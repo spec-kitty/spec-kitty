@@ -822,7 +822,12 @@ def _commit_review_cycle_artifact(
         mission_slug=mission_slug,
         owned=owned,
     )
-    policy = ProtectionPolicy.resolve(main_repo_root)
+    # #5947 owned-correctness: when a validated owned checkout is in hand, the
+    # protection decision must consume that fact (owned.repository_root + the
+    # owned checkout's own config, scoped to this mission's write) rather than an
+    # R-only, mission-unscoped policy built from main_repo_root. Non-owned
+    # callers keep the repository-root resolve unchanged.
+    policy = ProtectionPolicy.resolve_for_owned(owned, mission_slug) if owned is not None else ProtectionPolicy.resolve(main_repo_root)
     operation_root = _operation_root(main_repo_root, owned)
     evidence_root = surface_root if surface_root is not None else operation_root
 
