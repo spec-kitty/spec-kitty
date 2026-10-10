@@ -128,3 +128,19 @@ class TestActivateValidatesAgainstWinningPack:
             cascade=True,
         )
         assert seen_org_roots == [beta]
+
+
+class TestActivateUnknownInEveryPack:
+    def test_unknown_id_exits_1_names_both_packs_and_leaves_config_unchanged(
+        self, two_pack_project: Path
+    ) -> None:
+        config_path = two_pack_project / ".kittify" / "config.yaml"
+        before = config_path.read_text(encoding="utf-8")
+        result = runner.invoke(
+            charter_app,
+            ["activate", "--repo-root", str(two_pack_project), "--no-compile", "directive", "no_such_id"],
+        )
+        assert result.exit_code == 1, result.output
+        assert "org root 1/2" in result.output
+        assert "org root 2/2" in result.output
+        assert config_path.read_text(encoding="utf-8") == before
