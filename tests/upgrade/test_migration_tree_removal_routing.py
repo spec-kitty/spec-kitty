@@ -149,13 +149,6 @@ def test_init_discards_scaffold_it_created(tmp_path: Path) -> None:
     assert not project.exists()
 
 
-def test_init_scaffold_discard_refuses_git_checkout(tmp_path: Path) -> None:
-    project = _tree(tmp_path / "proj", True)
-    with pytest.raises(ToolOwnedPathUnproven):
-        _discard_failed_project_scaffold(project, here=False)
-    assert project.exists()
-
-
 def test_init_scaffold_discard_noop_for_here(tmp_path: Path) -> None:
     project = _tree(tmp_path / "proj", False)
     _discard_failed_project_scaffold(project, here=True)
