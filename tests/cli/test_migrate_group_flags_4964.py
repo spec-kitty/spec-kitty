@@ -553,17 +553,17 @@ def test_unknown_subcommand_is_a_no_op() -> None:
 
 
 def test_usage_error_class_falls_back_to_real_click_without_a_click_context() -> None:
-    assert migrate_cmd._usage_error_class(object()) is click.UsageError
+    assert migrate_cmd._usage_error_class(object()) is click.UsageError  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
 
 
 def test_usage_error_class_resolves_the_real_click_for_a_real_context() -> None:
     ctx = click.Context(_click_group())
-    assert migrate_cmd._usage_error_class(ctx) is click.UsageError
+    assert migrate_cmd._usage_error_class(ctx) is click.UsageError  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
 
 
 def test_usage_error_class_skips_a_core_module_without_exceptions(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delitem(sys.modules, f"{_FAKE_CLICK}.exceptions", raising=False)
-    assert migrate_cmd._usage_error_class(_fake_ctx(None, [], given={})) is click.UsageError
+    assert migrate_cmd._usage_error_class(_fake_ctx(None, [], given={})) is click.UsageError  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
 
 
 # ---------------------------------------------------------------------------

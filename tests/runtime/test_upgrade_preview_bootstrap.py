@@ -26,7 +26,7 @@ from tests.upgrade.preview_support.snapshot import net_delta
 from tests.upgrade.preview_support.snapshot import snapshot as _raw_snapshot
 from specify_cli.runtime.asset_preparation import apply_assets, recheck_assets
 from specify_cli.tool_surface.operations import ApplyConsent, OwnerAssessment
-from specify_cli.upgrade.intent import parse_upgrade_intent
+from specify_cli.upgrade.intent import _click_exceptions, parse_upgrade_intent
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -233,8 +233,9 @@ def test_intent_uses_actual_definitions(argv: list[str], available: bool, mode: 
 
 @pytest.mark.parametrize("argv", [["--target"], ["--unknown"], ["extra"]])
 def test_intent_retains_click_usage_errors(argv: list[str]) -> None:
-    with pytest.raises(click.UsageError):
-        parse_upgrade_intent(_actual_upgrade_command(), argv, project_available=True)
+    command = _actual_upgrade_command()
+    with pytest.raises(_click_exceptions(command).UsageError):
+        parse_upgrade_intent(command, argv, project_available=True)
 
 
 def test_intent_alias_equals_order_and_callback_denial(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -252,7 +253,7 @@ def test_intent_alias_equals_order_and_callback_denial(monkeypatch: pytest.Monke
     assert not intent.include_worktrees
     target = next(p for p in command.params if p.name == "target")
     monkeypatch.setattr(target, "default", forbidden)
-    with pytest.raises(click.UsageError, match="callable default"):
+    with pytest.raises(_click_exceptions(command).UsageError, match="callable default"):
         parse_upgrade_intent(command, [], project_available=True)
 
 

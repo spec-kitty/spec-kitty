@@ -91,7 +91,7 @@ def test_declared_command_parses(contract_id: str, step_id: str, command: str) -
             f"{exc.option_name!r}. A contract may not advertise a flag the parser "
             f"does not have — an operator or host runs this string verbatim."
         )
-    except click.UsageError as exc:
+    except click.UsageError as exc:  # noqa: TID251 — test names the click universe of the command it built itself, or deliberately the standalone-click spelling
         pytest.fail(f"{contract_id}:{step_id} declares `{command}`, which does not parse: {exc}")
 
 
