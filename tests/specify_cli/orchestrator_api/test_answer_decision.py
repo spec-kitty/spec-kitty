@@ -635,7 +635,7 @@ def test_answer_decision_field_parity_with_host_cli_next_answer(tmp_path: Path) 
 # WP08-001 (fold-in review finding, severity 3) -- ``--result`` enum
 # validation, host-CLI parity. Pre-fix, ``answer-decision`` only checked
 # ``result is None`` (``RESULT_REQUIRED``); any out-of-enum string (not in
-# ``next_cmd.py``'s own ``_VALID_RESULTS = ("success", "failed", "blocked")``,
+# ``next_cmd.py``'s own ``_valid_results() -> ("success", "failed", "blocked")``,
 # ``next_cmd.py:53``) was silently accepted, the DAG still advanced, and
 # ``pair_previous_lifecycle_record`` wrote the garbage value into the
 # lifecycle record's ``reason`` field -- a live behavioural fork from the

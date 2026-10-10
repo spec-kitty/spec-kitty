@@ -680,7 +680,7 @@ def _resolve_plan_result_state(*, is_substantive: bool, is_pristine: bool, commi
     happy-path scaffold write is a non-error state, not ``blocked``. Does NOT
     introduce a new ``result`` value — ``setup-plan``'s JSON is a distinct
     contract from `next --result`'s fixed vocabulary
-    (``next_cmd.py`` ``_VALID_RESULTS``), which never sees this field.
+    (``next_cmd.py`` ``_valid_results()``), which never sees this field.
 
     Args:
         is_substantive: ``plan.md`` passes the #846 substantive-content gate.

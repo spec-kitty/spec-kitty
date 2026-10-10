@@ -37,6 +37,7 @@ from mission_runtime import MissionArtifactKind, placement_seam
 # path never loads them (tests/specify_cli/next/test_next_import_footprint.py).
 if TYPE_CHECKING:
     from mission_runtime import OwnedCheckout
+    from runtime.next.decision import AnalysisCurrency, AnalysisVerdict
     from specify_cli.context.mission_resolver import MissionListing
 
 from specify_cli.cli.commands._owned_checkout import (
@@ -54,9 +55,24 @@ from specify_cli.core.paths import (
     get_main_repo_root,
     locate_project_root,
 )
-from runtime.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
-from runtime.next.decision import VALID_RESULT_VALUES as _VALID_RESULTS
-from runtime.next.decision import AnalysisCurrency, AnalysisVerdict
+
+
+def maybe_emit_runtime_pkg_notice() -> None:
+    """Lazy forwarder to the runtime-package notice (kept patchable on this module).
+
+    ``runtime.next`` pulls ``charter.activation`` and the runtime schema onto the
+    ``--help`` path, so the real import happens only when ``next`` runs (#5991).
+    """
+    from runtime.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice as _emit
+
+    _emit()
+
+
+def _valid_results() -> tuple[str, ...]:
+    """The accepted ``--result`` values, imported lazily (#5991)."""
+    from runtime.next.decision import VALID_RESULT_VALUES
+
+    return VALID_RESULT_VALUES
 
 
 def _analysis_verdict(freshness) -> AnalysisVerdict:
@@ -66,6 +82,8 @@ def _analysis_verdict(freshness) -> AnalysisVerdict:
     (carrier format, unreadable frontmatter, unqualified transaction) the
     freshness reason stands in, so a stale verdict is never nameless.
     """
+    from runtime.next.decision import AnalysisVerdict
+
     if freshness.ok:
         return AnalysisVerdict("current")
     if freshness.missing:
@@ -997,8 +1015,9 @@ def _emit_read_path_error(exc: Exception, json_output: bool) -> None:
 
 
 def _validate_result_and_answer(result: str | None, answer: str | None, json_output: bool) -> None:
-    if result is not None and result not in _VALID_RESULTS:
-        print(f"Error: --result must be one of {_VALID_RESULTS}, got '{result}'", file=sys.stderr)
+    valid_results = _valid_results()
+    if result is not None and result not in valid_results:
+        print(f"Error: --result must be one of {valid_results}, got '{result}'", file=sys.stderr)
         raise typer.Exit(1)
 
     if answer is not None and result is None:
