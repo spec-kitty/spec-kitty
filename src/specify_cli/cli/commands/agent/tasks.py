@@ -1130,7 +1130,7 @@ def add_history(
     shell_pid: Annotated[str | None, typer.Option("--shell-pid", help="Shell PID")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
-    """Append history entry to task activity log.
+    """Record a history note in the WP status event log.
 
     Examples:
         spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
