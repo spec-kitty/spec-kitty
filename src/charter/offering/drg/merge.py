@@ -50,6 +50,7 @@ from charter.offering.drg.models import (
     is_valid_urn,
 )
 from charter.offering.drg.org_pack_loader import ORG_PLURAL_TO_SINGULAR_KIND, OrgDRGFragment
+from kernel.pack_tiers import BUILT_IN
 
 # WP04 (org-doctrine-profile-integrity-closeout): ``_tag_source`` is generic
 # over the concrete frozen-model type so callers (DRGNode / DRGEdge) retain
@@ -956,7 +957,7 @@ def _resolve_builtin_collision(
         conflicts.append(
             OrgDRGConflict(
                 kind="node_override",
-                conflicting_layers=["built-in", source_marker],
+                conflicting_layers=[BUILT_IN, source_marker],
                 target_id=urn,
                 built_in_value=built_in_node.model_dump(),
                 org_value=org_node.model_dump(),
@@ -969,7 +970,7 @@ def _resolve_builtin_collision(
     conflicts.append(
         OrgDRGConflict(
             kind="node_override",
-            conflicting_layers=["built-in", source_marker],
+            conflicting_layers=[BUILT_IN, source_marker],
             target_id=urn,
             built_in_value=built_in_node.model_dump(),
             org_value=org_node.model_dump(),
@@ -1281,10 +1282,10 @@ def merge_three_layers(
 
     # Seed the merged maps with the built-in layer.
     merged_nodes: dict[str, DRGNode] = {
-        n.urn: _tag_source(n, "built-in") for n in built_in.nodes
+        n.urn: _tag_source(n, BUILT_IN) for n in built_in.nodes
     }
     merged_edges: list[DRGEdge] = [
-        _tag_source(e, "built-in") for e in built_in.edges
+        _tag_source(e, BUILT_IN) for e in built_in.edges
     ]
 
     invariant_urns = _built_in_invariant_ids(built_in)

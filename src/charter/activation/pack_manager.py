@@ -105,6 +105,7 @@ from charter.offering.artifact_kinds import (
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
 )
+from kernel.pack_tiers import BUILT_IN, ORG, PACK_TIERS, PROJECT
 
 if TYPE_CHECKING:
     from charter.activation.invocation_context import ProjectContext
@@ -187,7 +188,7 @@ ACTIVATION_YAML_KEYS: tuple[str, ...] = ("activated_kinds", *YAML_KEY_MAP.values
 #: Layer segments scanned for artifact availability (FR-026), in precedence
 #: order. ``specify_cli`` resolves the org/project *roots* (C-008); this module
 #: only knows the directory-segment names.
-_LAYER_SEGMENTS: tuple[str, ...] = ("built-in", "org", "project")
+_LAYER_SEGMENTS: tuple[str, ...] = PACK_TIERS
 _KITTIFY_DIRNAME = ".kittify"
 _CONFIG_FILENAME = "config.yaml"
 #: The project-tier overlay directory name per kind is the single canonical
@@ -299,13 +300,13 @@ def _resolve_layer_candidate(
     then skips that layer for this kind (mirrors the pre-extraction
     ``else: continue`` branch).
     """
-    if layered and layer == "project" and kind is not None:
+    if layered and layer == PROJECT and kind is not None:
         # ``root`` is the project pack root (``.kittify/charter-packs/``).
         kind_dir = _PROJECT_KIND_DIRS.get(kind, kind.plural)
         return cast(Path, root / kind_dir)
-    if layered and layer == "org" and kind is not None:
+    if layered and layer == ORG and kind is not None:
         return _resolve_org_layer_dir(root, kind)
-    if layered and layer == "built-in" and kind is not None:
+    if layered and layer == BUILT_IN and kind is not None:
         # The built-in layer relocated from ``src/charter/offering/<plural>/built-in``
         # to the flattened ``packs/built-in/<plural>`` tree
         # (mission relocate-builtin-doctrine-packs). Resolve it through the
@@ -324,7 +325,7 @@ def _resolve_layer_candidate(
         return cast(Path, built_in_dir(kind))
     if layered:
         return root / base_dir / layer
-    if layer == "built-in":
+    if layer == BUILT_IN:
         # Flat-directory kinds (mission-type / step contracts) only have
         # the built-in layer. Their content lives under
         # packs/built-in/missions/<segment> (mission #3091/FR-005
@@ -346,7 +347,7 @@ def _resolve_layer_candidate(
         # the missions root. (`root` here is `_SRC_ROOT`, deliberately
         # unused in this branch.)
         return cast(Path, MissionTemplateRepository.default_missions_root() / Path(base_dir).name)
-    if kind is None and layer == "org":
+    if kind is None and layer == ORG:
         # FR-003: the org-layer mission-type roster is flat --
         # <pack_root>/mission_types/*.yaml (CL-005; see ADR
         # docs/adr/3.x/2026-08-13-1-mission-type-roster-layering-seam.md).
@@ -359,7 +360,7 @@ def _resolve_layer_candidate(
         # resolve_layered_mission_types scans -- never a locally re-spelled
         # literal.
         return root / ORG_MISSION_TYPES_SUBDIR
-    if kind is None and layer == "project":
+    if kind is None and layer == PROJECT:
         # FR-005: the project-layer mission-type roster is flat and
         # non-recursive -- .kittify/missions/mission_types/*.yaml (CL-005).
         # `root` here is the project pack root (see
@@ -882,7 +883,7 @@ class ActiveCharterManager:
         """
         kind = _resolve_kind(kind_token)
         base_dir, _glob, layered = _scan_layout_for(kind)
-        roots: dict[str, Path] = {"built-in": _SRC_ROOT}
+        roots: dict[str, Path] = {BUILT_IN: _SRC_ROOT}
         if layer_roots:
             roots.update(layer_roots)
 
