@@ -1,0 +1,11 @@
+enforcement: required
+id: PROJECT_003
+intent: >
+  Define the risk appetite boundaries that constrain the scope and reversibility
+  of changes made to this project.
+procedures:
+- "Flag changes with broad blast radius for explicit risk review."
+- "Prefer reversible changes; escalate irreversible ones."
+schema_version: '1.0'
+scope: "All change proposals and architectural decisions."
+title: Risk Appetite Directive

@@ -1,0 +1,17 @@
+anti_patterns:
+- bad_example: "except: pass"
+  description: Catching all exceptions silently hides bugs.
+  good_example: "except ValueError as exc: logger.warning('...')"
+  name: Bare except clauses
+id: python-style-guide
+principles:
+- "Follow PEP 8 and enforce with ruff."
+- "Use type annotations on all public functions and class attributes."
+- "Prefer explicit over implicit — avoid magic and monkey-patching."
+schema_version: '1.0'
+scope: code
+title: Python Style Guide
+tooling:
+  formatter: ruff
+  linter: ruff
+  type_checker: mypy

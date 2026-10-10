@@ -602,7 +602,7 @@ catalog:
   - id: DIRECTIVE:DIRECTIVE_038
     kind: directive
     title: Structured Prompt Change-Boundary
-    summary: "When the SPDD/REASONS doctrine pack is active, an implementation must remain inside the approved canvas's Requirements, Operations, Norms, and Safeguards unless a deviation is explicitly recorded. Applies to implement and review actions on projects whose charter selection includes the SPDD paradigm, either REASONS canvas tactic, or this directive.\n"
+    summary: "When the SPDD/REASONS artifacts are active, an implementation must remain inside the approved canvas's Requirements, Operations, Norms, and Safeguards unless a deviation is explicitly recorded. Applies to implement and review actions on projects whose active charter includes the SPDD paradigm, either REASONS canvas tactic, or this directive.\n"
     source_path: ''
     local_path: _LIBRARY/directive-directive-038.md
   - id: DIRECTIVE:DIRECTIVE_039
@@ -761,6 +761,36 @@ catalog:
     summary: "Software design guided by a deep model of the business domain. Strategic design decomposes a system into Bounded Contexts connected through explicit Context Mapping patterns (ACL, OHS, Shared Kernel, Published Language, etc.). Within each context a Ubiquitous Language keeps code, model, and domain expert communication aligned. Tactical patterns (Aggregates, Entities, Value Objects, Domain Events, Repositories, Domain Services) enforce invariants at the model boundary. DDD treats the domain model as the primary artifact — code is a direct expression of that model, not a translation layer above a database schema or UI framework.\n"
     source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/domain-driven-design.paradigm.yaml
     local_path: _LIBRARY/paradigm-domain-driven-design.md
+  - id: PARADIGM:execution-lanes
+    kind: paradigm
+    title: Execution Lanes
+    summary: "The default Spec Kitty implementation workspace paradigm. Each work package runs in an isolated execution-lane worktree so agents can implement, test, review, and hand off changes without mutating another lane's checkout. Execution lanes keep task status, branch state, prompt files, and verification evidence aligned around one work package at a time. Shared mainline state is reached only through explicit review, merge, and quality gates.\n"
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/execution-lanes.paradigm.yaml
+    local_path: _LIBRARY/paradigm-execution-lanes.md
+  - id: PARADIGM:extract-then-publish-separation
+    kind: paradigm
+    title: Extract-Then-Publish Separation
+    summary: "The meeting-minutes workflow separates extraction, validation, and chat presentation from optional deterministic publishing. Those stages must never be collapsed.\nExtraction (agent-powered, non-deterministic) converts an unstructured transcript into structured minutes, validates them (format contract plus ACTION_ITEM_ATTRIBUTION), and posts the result as Markdown in the originating chat. That validated Markdown is the canonical content. This stage is the mandatory default. It requires no wiki publish credentials. Unresolved attribution gaps are asked about in the same chat before any final minutes are returned and before any publish handoff.\nPublishing is optional, human-operated, and occurs only when the user explicitly requests it and identifies a wiki/knowledge-base destination. Rendering for that target is deterministic: it reuses the same validated Markdown already shown in chat. No second extraction. No LLM in the render/publish path. Chat-only runs skip this stage entirely.\nThis separation has three concrete consequences:\n1. Chat delivery does not depend on a wiki. A user who only wants minutes\n   in the originating chat never needs publish-surface credentials.\n\n2. Validation gates sit before both chat return and optional publish\n   handoff. Ownerless action items stop the workflow at the boundary.\n\n3. Agent extraction cost is incurred once per meeting. The validated\n   Markdown is the durable content. Re-publishing that same Markdown\n   does not require a second extraction.\n\nNever merge extraction and publishing into a single step. Never call the LLM from inside the publish path. Never treat `.minutes.json` or `.wiki.txt` as mandatory artifacts; the validated Markdown in chat is canonical.\n"
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/extract-then-publish-separation.paradigm.yaml
+    local_path: _LIBRARY/paradigm-extract-then-publish-separation.md
+  - id: PARADIGM:git-flow
+    kind: paradigm
+    title: Git Flow
+    summary: "A branch-management paradigm built around long-lived integration and release branches, with Git Flow \"feature\" and \"hotfix\" branches feeding controlled release points. In Spec Kitty this exists as a resolvable compatibility paradigm for projects whose charter already requires Git Flow. It is not the default implementation workspace model; execution-lane worktrees remain the supported default when no project-specific branching paradigm is selected.\n"
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/git-flow.paradigm.yaml
+    local_path: _LIBRARY/paradigm-git-flow.md
+  - id: PARADIGM:semantic-compression
+    kind: paradigm
+    title: Semantic Compression
+    summary: "Treat a software system as an over-expanded expression of observable behavior. The work is to remove accidental implementation complexity while preserving semantics: first map the behavior that must not change, then find duplicated or dead expressions of that behavior, extract one concept per responsibility, collapse parallel behavioral paths, and verify equivalence. The goal is not prettier code or architectural purity. The goal is a smaller implementation that still produces the same externally observable behavior, with evidence strong enough for the risk of the reduction.\n"
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/semantic-compression.paradigm.yaml
+    local_path: _LIBRARY/paradigm-semantic-compression.md
+  - id: PARADIGM:shared-branch-ci
+    kind: paradigm
+    title: Shared-Branch CI
+    summary: "A collaborative workspace paradigm where multiple contributors integrate through a shared branch protected by continuous integration, staging hygiene, and explicit commit attribution. In Spec Kitty this is a resolvable compatibility paradigm for teams whose charter selects a shared branch model. It must still preserve isolated verification evidence and quality gates before shared state is promoted.\n"
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/shared-branch-ci.paradigm.yaml
+    local_path: _LIBRARY/paradigm-shared-branch-ci.md
   - id: PARADIGM:specification-by-example
     kind: paradigm
     title: Specification by Example
@@ -773,6 +803,12 @@ catalog:
     summary: "Treat structured prompts and REASONS canvases as governed change-intent and decision-boundary artifacts. Code remains the source of truth for current behavior; canvases record approved intent, boundaries, and safeguards for a mission or work package. Applies to high-risk and multi-WP missions where change-boundary clarity reduces drift; not appropriate for tiny fixes, throwaway spikes, or purely visual exploration where canvas authoring is overhead.\n"
     source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/structured-prompt-driven-development.paradigm.yaml
     local_path: _LIBRARY/paradigm-structured-prompt-driven-development.md
+  - id: PARADIGM:trunk-based
+    kind: paradigm
+    title: Trunk-Based Development
+    summary: "A branch-management paradigm where contributors integrate small, verified changes into the mainline frequently, avoiding long-lived divergence. In Spec Kitty this exists as a resolvable compatibility paradigm for projects whose charter selects trunk-based development. Work remains gated by targeted staging, commit attribution, and test/typecheck verification before mainline integration.\n"
+    source_path: ${SPEC_KITTY_PACKS_ROOT}/built-in/paradigms/trunk-based.paradigm.yaml
+    local_path: _LIBRARY/paradigm-trunk-based.md
   - id: PROCEDURE:adversarial-squad-deployment
     kind: procedure
     title: Adversarial Squad Deployment
@@ -872,7 +908,7 @@ catalog:
   - id: PROCEDURE:onboard-external-agent-to-pack
     kind: procedure
     title: Onboard an External Agent into the Pack
-    summary: "Guide a team member through bringing an agent that was built outside the framework — in any tool or format — into the doctrine pack as typed YAML artifacts. The source agent might be a set of Cursor rules, a system prompt, a no-code bot, a framework script (LangChain, CrewAI, AutoGen), a custom GPT, or an assistant described only in a wiki page or Markdown document; the procedure treats them all the same way. It first ensures the agent is fully understood — interviewing the owner (who may not be technical) and gathering all supporting documentation — then decomposes the agent's embedded knowledge into the correct artifact kinds (directive, tactic, procedure, paradigm, styleguide, toolguide, template, and optionally an agent profile), registers them in the DRG, and validates the result. Intended audience: anyone who has a working agent built outside the pack and wants it governed and shareable. This is distinct from the procedure that migrates an existing project-guidance or charter document into a Spec Kitty charter; that path starts from a body of legacy doctrine, whereas this one starts from an agent that was authored from scratch.\n"
+    summary: "Guide a team member through bringing an agent that was built outside the framework — in any tool or format — into a Charter Pack as typed YAML artifacts. The source agent might be a set of Cursor rules, a system prompt, a no-code bot, a framework script (LangChain, CrewAI, AutoGen), a custom GPT, or an assistant described only in a wiki page or Markdown document; the procedure treats them all the same way. It first ensures the agent is fully understood — interviewing the owner (who may not be technical) and gathering all supporting documentation — then decomposes the agent's embedded knowledge into the correct artifact kinds (directive, tactic, procedure, paradigm, styleguide, toolguide, template, and optionally an agent profile), registers them in the DRG, and validates the result. Intended audience: anyone who has a working agent built outside the pack and wants it governed and shareable. This is distinct from the procedure that migrates an existing project-guidance or charter document into a Spec Kitty charter; that path starts from a body of legacy doctrine, whereas this one starts from an agent that was authored from scratch.\n"
     source_path: ''
     local_path: _LIBRARY/procedure-onboard-external-agent-to-pack.md
   - id: PROCEDURE:post-merge-arch-gate-adjudication
@@ -1831,7 +1867,7 @@ catalog:
     local_path: _LIBRARY/user-project-profile.md
 overrides: {}
 metadata:
-  generated_at: '2026-10-06T12:11:11Z'
+  generated_at: '2026-10-10T18:08:22Z'
   bundle_schema_version: 2
 activated_directives:
 - 001-architectural-integrity-standard
@@ -2073,3 +2109,18 @@ activated_agent_profiles:
 - scribe-sally
 - synthesizer-sam
 - doctrine-daphne
+activated_paradigms:
+- atomic-design
+- behaviour-driven-development
+- brownfield-onboarding
+- c4-incremental-detail-modeling
+- deep-module-design
+- domain-driven-design
+- execution-lanes
+- extract-then-publish-separation
+- git-flow
+- semantic-compression
+- shared-branch-ci
+- specification-by-example
+- structured-prompt-driven-development
+- trunk-based

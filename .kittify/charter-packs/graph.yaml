@@ -1,0 +1,26 @@
+edges: []
+generated_at: '2026-10-10T18:08:15+00:00'
+generated_by: spec-kitty project registration
+nodes:
+- kind: directive
+  label: Mission Type Scope Directive
+  urn: directive:PROJECT_001
+- kind: directive
+  label: Neutrality Posture Directive
+  urn: directive:PROJECT_002
+- kind: directive
+  label: Risk Appetite Directive
+  urn: directive:PROJECT_003
+- kind: tactic
+  label: How We Apply DIRECTIVE_003
+  urn: tactic:how-we-apply-directive-003
+- kind: tactic
+  label: Testing Philosophy Tactic
+  urn: tactic:testing-philosophy-tactic
+- kind: styleguide
+  label: Python Style Guide
+  urn: styleguide:python-style-guide
+- kind: styleguide
+  label: Testing Style Guide
+  urn: styleguide:testing-style-guide
+schema_version: '1.0'
