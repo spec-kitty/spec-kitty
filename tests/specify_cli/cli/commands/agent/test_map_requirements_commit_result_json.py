@@ -108,6 +108,8 @@ def test_map_requirements_json_serializes_real_commit_result(
 
     primary_root, primary_mission_dir, coord_root = _build_primary_and_coord(tmp_path)
     coord_mission_dir = coord_root / "kitty-specs" / MISSION_SLUG
+    # Ownership discovery must use this fixture, not the source checkout cwd.
+    monkeypatch.chdir(primary_root)
 
     placement = CommitTarget(
         ref=f"kitty/mission-{MISSION_SLUG}",
