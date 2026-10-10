@@ -770,6 +770,9 @@ class TestPackManifest:
         _populate_valid_pack(local_path)
         (local_path / "directives.graph.yaml").write_text("nodes: []\nedges: []\n")
         (local_path / "actions.graph.yaml").write_text("nodes: []\nedges: []\n")
+        # A layered kind with no built-in content dir must still be counted (#5824).
+        (local_path / "mission_step_contracts").mkdir()
+        (local_path / "mission_step_contracts" / "x.yaml").write_text("id: x\n")
 
         write_pack_manifest(
             local_path,
@@ -783,3 +786,4 @@ class TestPackManifest:
         assert manifest["artifact_counts"]["drg_fragments"] == 2
         # Unrelated dir buckets remain intact (no double-counting).
         assert manifest["artifact_counts"]["directives"] == 1
+        assert manifest["artifact_counts"]["mission_step_contracts"] == 1
