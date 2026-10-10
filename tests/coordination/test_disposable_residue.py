@@ -1,4 +1,4 @@
-"""Context-aware disposability: ``ResidueContext`` / ``is_disposable_residue`` / ``checkout_role_for`` (#5965 / #5966)."""
+"""Context-aware disposability: ``ResidueContext`` / ``_is_disposable_residue`` / ``_checkout_role_for`` (#5965 / #5966)."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ from mission_runtime import MissionTopology
 from specify_cli.coordination.coherence import (
     CheckoutRole,
     ResidueContext,
-    checkout_role_for,
-    is_disposable_residue,
+    _checkout_role_for,
+    _is_disposable_residue,
 )
 
 _SLUG = "m-01ABCDEF"
@@ -46,20 +46,20 @@ def _expected(kind: str, role: CheckoutRole) -> bool:
 def test_own_mission_paths_by_role(rel: str, role: CheckoutRole) -> None:
     context = ResidueContext(role=role, mission_slug=_SLUG, topology=MissionTopology.COORD)
 
-    assert is_disposable_residue(f"kitty-specs/{_SLUG}/{rel}", context) is _expected(_OWN[rel], role)
+    assert _is_disposable_residue(f"kitty-specs/{_SLUG}/{rel}", context) is _expected(_OWN[rel], role)
 
 
 def test_5965_review_cycle_in_the_coordination_worktree_is_the_only_copy() -> None:
     context = ResidueContext(CheckoutRole.COORDINATION, _SLUG, MissionTopology.COORD)
 
-    assert is_disposable_residue(_REVIEW, context) is False
+    assert _is_disposable_residue(_REVIEW, context) is False
 
 
 def test_normal_path_repository_root_keeps_cleaning_its_own_stale_status_copy() -> None:
     context = ResidueContext(CheckoutRole.REPOSITORY_ROOT, _SLUG, MissionTopology.COORD)
 
-    assert is_disposable_residue(f"kitty-specs/{_SLUG}/status.json", context) is True
-    assert is_disposable_residue(f"kitty-specs/{_SLUG}/status.events.jsonl", context) is True
+    assert _is_disposable_residue(f"kitty-specs/{_SLUG}/status.json", context) is True
+    assert _is_disposable_residue(f"kitty-specs/{_SLUG}/status.events.jsonl", context) is True
 
 
 @pytest.mark.parametrize("role", [CheckoutRole.REPOSITORY_ROOT, CheckoutRole.MISSION, CheckoutRole.LANE, CheckoutRole.COORDINATION])
@@ -67,35 +67,35 @@ def test_normal_path_repository_root_keeps_cleaning_its_own_stale_status_copy() 
 def test_5966_another_missions_artifact_is_never_disposable(rel: str, role: CheckoutRole) -> None:
     context = ResidueContext(role, _SLUG, MissionTopology.COORD)
 
-    assert is_disposable_residue(f"kitty-specs/{_OTHER}/{rel}", context) is False
+    assert _is_disposable_residue(f"kitty-specs/{_OTHER}/{rel}", context) is False
 
 
 def test_the_composed_coordination_directory_counts_as_the_missions_own() -> None:
     composed = f"{_SLUG}-01ABCDEF"
     context = ResidueContext(CheckoutRole.REPOSITORY_ROOT, _SLUG, MissionTopology.COORD, frozenset({_SLUG, composed}))
 
-    assert is_disposable_residue(f"kitty-specs/{composed}/status.json", context) is True
-    assert is_disposable_residue(f"kitty-specs/{composed}/meta.json", context) is True
+    assert _is_disposable_residue(f"kitty-specs/{composed}/status.json", context) is True
+    assert _is_disposable_residue(f"kitty-specs/{composed}/meta.json", context) is True
 
 
 @pytest.mark.parametrize("topology", [MissionTopology.LANES, MissionTopology.SINGLE_BRANCH])
 def test_without_coordination_topology_nothing_is_coord_residue(topology: MissionTopology) -> None:
     context = ResidueContext(CheckoutRole.REPOSITORY_ROOT, _SLUG, topology)
 
-    assert is_disposable_residue(f"kitty-specs/{_SLUG}/status.json", context) is False
-    assert is_disposable_residue(f"kitty-specs/{_SLUG}/meta.json", context) is True
+    assert _is_disposable_residue(f"kitty-specs/{_SLUG}/status.json", context) is False
+    assert _is_disposable_residue(f"kitty-specs/{_SLUG}/meta.json", context) is True
 
 
 def test_a_source_file_is_never_disposable() -> None:
     for role in (CheckoutRole.REPOSITORY_ROOT, CheckoutRole.COORDINATION, CheckoutRole.LANE):
-        assert is_disposable_residue("src/app.py", ResidueContext(role, _SLUG, MissionTopology.COORD)) is False
+        assert _is_disposable_residue("src/app.py", ResidueContext(role, _SLUG, MissionTopology.COORD)) is False
 
 
 def test_a_tool_owned_checkout_is_disposable_throughout() -> None:
     context = ResidueContext(role=CheckoutRole.TOOL_OWNED)
 
-    assert is_disposable_residue("anything/at/all.py", context) is True
-    assert is_disposable_residue(f"kitty-specs/{_OTHER}/traces/n.md", context) is True
+    assert _is_disposable_residue("anything/at/all.py", context) is True
+    assert _is_disposable_residue(f"kitty-specs/{_OTHER}/traces/n.md", context) is True
     assert context.for_checkout(Path("/r"), Path("/r/.worktrees/x")) is context
 
 
@@ -173,9 +173,9 @@ def repo_with_worktrees(tmp_path: Path) -> Path:
 def test_checkout_role_resolves_each_checkout_by_the_registry(repo_with_worktrees: Path) -> None:
     repo = repo_with_worktrees
 
-    assert checkout_role_for(repo, repo) is CheckoutRole.REPOSITORY_ROOT
-    assert checkout_role_for(repo, repo / ".worktrees" / f"{_SLUG}-coord") is CheckoutRole.COORDINATION
-    assert checkout_role_for(repo, repo / ".worktrees" / f"{_SLUG}-lane-a") is CheckoutRole.LANE
+    assert _checkout_role_for(repo, repo) is CheckoutRole.REPOSITORY_ROOT
+    assert _checkout_role_for(repo, repo / ".worktrees" / f"{_SLUG}-coord") is CheckoutRole.COORDINATION
+    assert _checkout_role_for(repo, repo / ".worktrees" / f"{_SLUG}-lane-a") is CheckoutRole.LANE
 
 
 @pytest.mark.git_repo
@@ -184,8 +184,8 @@ def test_checkout_role_fails_toward_the_strictest_role(repo_with_worktrees: Path
     husk = repo / ".worktrees" / "husk-lane-b"
     husk.mkdir()
 
-    assert checkout_role_for(repo, husk) is CheckoutRole.COORDINATION
-    assert checkout_role_for(repo, tmp_path / "somewhere-else") is CheckoutRole.COORDINATION
+    assert _checkout_role_for(repo, husk) is CheckoutRole.COORDINATION
+    assert _checkout_role_for(repo, tmp_path / "somewhere-else") is CheckoutRole.COORDINATION
 
 
 @pytest.mark.git_repo
@@ -193,7 +193,7 @@ def test_checkout_role_with_an_unreadable_registry_is_the_strictest(tmp_path: Pa
     not_a_repo = tmp_path / "plain"
     (not_a_repo / ".worktrees" / "x-lane-a").mkdir(parents=True)
 
-    assert checkout_role_for(not_a_repo, not_a_repo / ".worktrees" / "x-lane-a") is CheckoutRole.COORDINATION
+    assert _checkout_role_for(not_a_repo, not_a_repo / ".worktrees" / "x-lane-a") is CheckoutRole.COORDINATION
 
 
 @pytest.mark.git_repo
@@ -212,5 +212,5 @@ def test_for_checkout_retargets_the_role_and_keeps_the_mission(repo_with_worktre
 def test_coordination_role_keeps_another_missions_status_state() -> None:
     context = ResidueContext(role=CheckoutRole.COORDINATION, mission_slug=_SLUG, topology=MissionTopology.COORD)
 
-    assert not is_disposable_residue(f"kitty-specs/{_OTHER}/status.json", context)
-    assert not is_disposable_residue(f"kitty-specs/{_OTHER}/status.events.jsonl", context)
+    assert not _is_disposable_residue(f"kitty-specs/{_OTHER}/status.json", context)
+    assert not _is_disposable_residue(f"kitty-specs/{_OTHER}/status.events.jsonl", context)

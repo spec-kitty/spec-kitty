@@ -46,8 +46,6 @@ __all__ = [
     "CoordRepairOutcome",
     "NothingIsResidue",
     "ResidueContext",
-    "checkout_role_for",
-    "is_disposable_residue",
     "coord_incoherent_done_wps",
     "is_coord_residue_churn",
     "is_coordination_kind_file",
@@ -448,15 +446,15 @@ class ResidueContext:
         return cls(role=role, mission_slug=mission_slug, topology=topology, mission_dir_names=mission_dir_aliases(repo_root, mission_slug))
 
     def is_disposable(self, path: str) -> bool:
-        """:func:`is_disposable_residue` for this context (the ``ResidueClassifier`` seam)."""
-        return is_disposable_residue(path, self)
+        """:func:`_is_disposable_residue` for this context (the ``ResidueClassifier`` seam)."""
+        return _is_disposable_residue(path, self)
 
     def for_checkout(self, repo_root: Path, worktree: Path) -> ResidueContext:
         """The same Mission judged against ``worktree``'s own role (a tool-owned context stays tool-owned)."""
         if self.role is CheckoutRole.TOOL_OWNED:
             return self
         return ResidueContext(
-            role=checkout_role_for(repo_root, worktree),
+            role=_checkout_role_for(repo_root, worktree),
             mission_slug=self.mission_slug,
             topology=self.topology,
             mission_dir_names=self.mission_dir_names,
@@ -487,7 +485,7 @@ def residue_context_or_strictest(repo_root: Path, mission_slug: str, role: Check
         return NothingIsResidue()
 
 
-def checkout_role_for(repo_root: Path, worktree: Path) -> CheckoutRole:
+def _checkout_role_for(repo_root: Path, worktree: Path) -> CheckoutRole:
     """The role of ``worktree`` relative to ``repo_root``, by the git worktree registry (C-SEAM-1).
 
     Fails toward the STRICTEST role (``COORDINATION``: only spec-kitty's own
@@ -528,7 +526,7 @@ def _is_other_mission_path(path: str, context: ResidueContext) -> bool:
     return after[0] not in (context.mission_dir_names or {context.mission_slug})
 
 
-def is_disposable_residue(path: str | Path, context: ResidueContext) -> bool:
+def _is_disposable_residue(path: str | Path, context: ResidueContext) -> bool:
     """Whether a destructive operation on ``context``'s checkout may discard ``path`` (first match wins).
 
     1. A tool-owned checkout: everything is disposable.

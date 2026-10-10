@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from kernel import tree_removal
-from kernel.tree_removal import TOOL_OWNED_PATH_UNPROVEN, ToolOwnedPathUnproven, remove_tool_owned_tree
+from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
 
 
 def _tree(root: Path) -> Path:
@@ -47,7 +47,7 @@ def test_refuses_a_path_outside_the_tool_root(tmp_path: Path) -> None:
     outsider = tmp_path / "elsewhere"
     outsider.mkdir()
 
-    with pytest.raises(ToolOwnedPathUnproven, match=TOOL_OWNED_PATH_UNPROVEN):
+    with pytest.raises(ToolOwnedPathUnproven, match="TOOL_OWNED_PATH_UNPROVEN"):
         remove_tool_owned_tree(outsider, tool_root=tmp_path / "owned", reason="test")
     assert outsider.exists()
 

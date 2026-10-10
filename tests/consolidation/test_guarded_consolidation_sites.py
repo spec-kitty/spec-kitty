@@ -23,7 +23,7 @@ from specify_cli.consolidation.workspace import (
     abort_scratch_merge,
     cleanup_merge_workspace,
     create_merge_workspace,
-    discard_scratch_tree,
+    _discard_scratch_tree,
     get_merge_runtime_dir,
     get_merge_workspace_path,
     remove_scratch_worktree,
@@ -239,7 +239,7 @@ def test_discard_scratch_tree_removes_a_plain_tree_under_its_tool_root(tmp_path:
     (tree / "deep").mkdir(parents=True)
     (tree / "deep" / "f.txt").write_text("x\n", encoding="utf-8")
 
-    assert discard_scratch_tree(tree, tool_root=owned, reason="test") is True
+    assert _discard_scratch_tree(tree, tool_root=owned, reason="test") is True
 
     assert not tree.exists()
 
@@ -251,7 +251,7 @@ def test_discard_scratch_tree_refuses_a_path_outside_its_tool_root(tmp_path: Pat
     outside.mkdir()
     (outside / "f.txt").write_text("keep\n", encoding="utf-8")
 
-    assert discard_scratch_tree(outside, tool_root=owned, reason="test") is False
+    assert _discard_scratch_tree(outside, tool_root=owned, reason="test") is False
 
     assert (outside / "f.txt").read_text(encoding="utf-8") == "keep\n"
 
@@ -264,7 +264,7 @@ def test_discard_scratch_tree_removes_a_checkout_through_the_guard(tmp_path: Pat
     _git(repo, "worktree", "add", "-q", "--detach", str(scratch), "HEAD")
     (scratch / "generated.txt").write_text("tool output\n", encoding="utf-8")
 
-    assert discard_scratch_tree(scratch, tool_root=owned, reason="test") is True
+    assert _discard_scratch_tree(scratch, tool_root=owned, reason="test") is True
 
     assert not scratch.exists()
 
@@ -276,7 +276,7 @@ def test_discard_scratch_tree_drops_a_dangling_gitlink(tmp_path: Path) -> None:
     (stale / ".git").write_text(f"gitdir: {tmp_path}/gone/.git/worktrees/workspace\n", encoding="utf-8")
     (stale / "left.txt").write_text("left over\n", encoding="utf-8")
 
-    assert discard_scratch_tree(stale, tool_root=owned, reason="test") is True
+    assert _discard_scratch_tree(stale, tool_root=owned, reason="test") is True
 
     assert not stale.exists()
 
@@ -287,7 +287,7 @@ def test_discard_scratch_tree_keeps_a_directory_whose_git_dir_cannot_be_read(tmp
     (broken / ".git").mkdir(parents=True)
     (broken / "work.txt").write_text("nothing proves this disposable\n", encoding="utf-8")
 
-    assert discard_scratch_tree(broken, tool_root=owned, reason="test") is False
+    assert _discard_scratch_tree(broken, tool_root=owned, reason="test") is False
 
     assert (broken / "work.txt").read_text(encoding="utf-8") == "nothing proves this disposable\n"
 
@@ -456,7 +456,7 @@ def test_discard_scratch_tree_keeps_a_live_registered_worktree_when_the_guard_re
 
     monkeypatch.setattr("specify_cli.consolidation.workspace.guarded_tree_delete", _refuse)
 
-    assert discard_scratch_tree(scratch, tool_root=owned, reason="test") is False
+    assert _discard_scratch_tree(scratch, tool_root=owned, reason="test") is False
 
     assert (scratch / "alpha.txt").read_text(encoding="utf-8") == "uncommitted only copy\n"
     assert (scratch / ".git").is_file()
