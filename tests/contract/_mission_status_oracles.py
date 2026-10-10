@@ -178,6 +178,42 @@ def remote_tracking_names(repo_root: Path) -> frozenset[str]:
     return frozenset(line.removeprefix("refs/remotes/").partition("/")[2] for line in result.stdout.splitlines() if line)
 
 
+@dataclass(frozen=True)
+class LiveRemoteHeads:
+    """The branch names every configured remote lists right now, and whether any remote could not be asked."""
+
+    heads: frozenset[str]
+    inconclusive: bool
+
+    def holds(self, branch: str) -> bool:
+        """Present when a remote lists the branch; an inconclusive answer fails closed toward present (the #2614 guard)."""
+        return branch in self.heads or self.inconclusive
+
+
+def live_remote_heads(repo_root: Path, *, timeout: float = PROBE_TIMEOUT) -> LiveRemoteHeads:
+    """Ask every remote once for all of its heads with raw ``git ls-remote --heads``, as the resolver's last arm asks per branch.
+
+    It never calls the resolver or its memoized lookup, so a regression of that arm still shows as a disagreement. One listing
+    per remote (not one call per Mission) keeps the oracle's cost at the number of remotes.
+    """
+    listing = run_git(repo_root, "remote", timeout=timeout)
+    if listing.returncode != 0:
+        return LiveRemoteHeads(frozenset(), True)
+    heads: set[str] = set()
+    inconclusive = False
+    for remote in sorted(listing.stdout.split()):
+        try:
+            answer = run_git(repo_root, "ls-remote", "--heads", remote, timeout=timeout)
+        except (subprocess.TimeoutExpired, OSError):
+            inconclusive = True
+            continue
+        if answer.returncode != 0:
+            inconclusive = True
+            continue
+        heads.update(line.partition("\trefs/heads/")[2] for line in answer.stdout.splitlines() if "\trefs/heads/" in line)
+    return LiveRemoteHeads(frozenset(heads), inconclusive)
+
+
 def current_branch(repo_root: Path) -> str | None:
     """The branch ``HEAD`` points at (with or without a commit), asked of git; None for a detached ``HEAD`` or a name this contract cannot carry."""
     result = run_git(repo_root, "symbolic-ref", "--short", "-q", "HEAD")
@@ -205,11 +241,6 @@ def derive_fallbacks(repo_root: Path, names: list[str], heads: frozenset[str], w
         if branch not in heads and branch not in worktrees:
             found[name] = FALLBACK_REASON
     return found
-
-
-def derived_but_remote_present(repo_root: Path, fallbacks: Mapping[str, str], remote_names: frozenset[str]) -> list[str]:
-    """The derived fallback Missions whose branch exists as a remote-tracking ref: the resolver judges those present (FRESH4-004)."""
-    return sorted(name for name in fallbacks if raw_meta(repo_root, name)["coordination_branch"] in remote_names)
 
 
 # ---------------------------------------------------------------------------
@@ -374,10 +405,14 @@ class DriftOracle:
 def drift_oracle(repo_root: Path, memo: ResolverMemo, now: datetime) -> DriftOracle:
     """The independent expectation of the project-wide drift read: fallbacks, kinds 1 to 3, and the named lists."""
     names = mission_names(repo_root)
-    fallbacks = derive_fallbacks(repo_root, names, local_heads(repo_root), worktree_branches(repo_root))
+    derived = derive_fallbacks(repo_root, names, local_heads(repo_root), worktree_branches(repo_root))
+    # The resolver answers "present" for a branch held as a remote-tracking ref or live on a remote (#4979); the derivation follows.
+    tracked = remote_tracking_names(repo_root)
+    live = live_remote_heads(repo_root) if derived else LiveRemoteHeads(frozenset(), False)
+    remote_present = sorted(name for name in derived if (branch := raw_meta(repo_root, name)["coordination_branch"]) in tracked or live.holds(branch))
+    fallbacks = {name: reason for name, reason in derived.items() if name not in remote_present}
     dirs = read_directories(repo_root, names, fallbacks, memo)
     kind3 = kind_three(repo_root, names, dirs.dirs, now)
-    remote_present = derived_but_remote_present(repo_root, fallbacks, remote_tracking_names(repo_root))
     return DriftOracle(names, fallbacks, remote_present, dirs.resolver_errors, kinds_one_and_two(repo_root, names, dirs.dirs), kind3)
 
 
