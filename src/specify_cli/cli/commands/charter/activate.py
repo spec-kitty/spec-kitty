@@ -845,7 +845,7 @@ def _check_preset_flags(ctx: typer.Context, *, preset: str | None, positional: b
         return
     given = [flag for name, flag in _PRESET_ONLY_OPTIONS if getattr(ctx.get_parameter_source(name), "name", None) != _DEFAULT_SOURCE]
     if given:
-        ctx.fail(f"{', '.join(given)} only apply with --preset.")
+        ctx.fail(f"{', '.join(given)} only {'applies' if len(given) == 1 else 'apply'} with --preset.")
 
 
 def _render_preset_plan(plan: PresetPlan) -> None:

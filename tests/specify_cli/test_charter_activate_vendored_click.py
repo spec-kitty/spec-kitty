@@ -48,7 +48,7 @@ def test_defaults_from_a_foreign_enum_are_not_reported_as_given() -> None:
 
 def test_a_flag_typed_on_the_command_line_is_refused_through_ctx_fail() -> None:
     ctx = _FakeContext({"pack": _ForeignParameterSource.COMMANDLINE})
-    with pytest.raises(_UsageError, match=r"^--pack only apply with --preset\.$"):
+    with pytest.raises(_UsageError, match=r"^--pack only applies with --preset\.$"):
         _check_preset_flags(ctx, preset=None, positional=True, cascade=None)  # type: ignore[arg-type]
 
 
