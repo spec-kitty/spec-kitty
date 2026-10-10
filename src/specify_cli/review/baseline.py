@@ -29,6 +29,7 @@ from kernel.guarded_read import read_guarded
 from pathlib import Path
 from typing import Any
 
+from specify_cli.consolidation.workspace import remove_scratch_worktree
 from specify_cli.configured_command import ConfiguredCommandUnsupported, run_configured_command_template
 from specify_cli.review.scope_source import (
     UNKNOWN_SOURCE_IDENTITY,
@@ -289,16 +290,9 @@ def _baseline_worktree(repo_root: Path, base_branch: str) -> Iterator[Path | Non
         try:
             yield tmp_worktree
         finally:
-            try:
-                subprocess.run(
-                    ["git", "worktree", "remove", str(tmp_worktree), "--force"],
-                    cwd=str(repo_root),
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
-            except OSError as exc:
-                logger.warning("Could not remove temporary worktree: %s", exc)
+            # The baseline worktree is this function's own scratch checkout (tool-owned, #5965).
+            if not remove_scratch_worktree(tmp_worktree):
+                logger.warning("Could not remove temporary worktree: %s", tmp_worktree)
 
 
 def capture_baseline(

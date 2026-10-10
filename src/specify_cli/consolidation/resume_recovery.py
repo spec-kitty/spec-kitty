@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from specify_cli.lanes.models import LanesManifest
 
 from specify_cli.cli.console import console
-from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import (
     MissionMetaReadError,
     RetentionDecision,
@@ -31,9 +30,11 @@ from specify_cli.git.destructive_guard import (
     MERGE_UNSAFE_PRIMARY_DIRTY,
     MERGE_UNSAFE_WORKTREE_DIRTY,
     DestructiveOpRefused,
+    guarded_reset_hard,
 )
 from specify_cli.git.ref_advance import RefAdvanceError
 
+from specify_cli.consolidation.git_probes import lag_residue_context
 from specify_cli.consolidation.state import (
     ConsolidationState,
     ConsolidationStateReadError,
@@ -378,14 +379,16 @@ def _recover_behind_head_primary_on_resume(
         return False
     if not is_pure_behind_head_lag(checkout.path, base_sha=checkout.base_sha(state)):
         return False
-    reset_ret, _out, reset_err = run_command(
-        ["git", "reset", "--hard", "HEAD"],
-        capture=True,
-        check_return=False,
-        cwd=checkout.path,
-    )
-    if reset_ret != 0:
-        console.print(f"[red]Error:[/red] behind-own-HEAD recovery `git reset --hard HEAD` failed in {checkout.path}: {reset_err.strip()}")
+    # The proof above makes every dirty path a pure lag path, so the context is the lag alone;
+    # the guard re-checks that right before the reset (a path edited since the proof refuses).
+    context = lag_residue_context(checkout.path, checkout.base_sha(state))
+    try:
+        guarded_reset_hard(checkout.path, "HEAD", context=context)
+    except DestructiveOpRefused as refusal:
+        console.print(f"[red]Error:[/red] behind-own-HEAD recovery would discard local changes in {checkout.path}; nothing was reset: {escape(str(refusal))}")
+        return False
+    except RuntimeError as failure:
+        console.print(f"[red]Error:[/red] behind-own-HEAD recovery `git reset --hard HEAD` failed in {checkout.path}: {escape(str(failure))}")
         return False
     console.print(f"[yellow]Recovered a behind-own-HEAD {checkout.label} (git reset --hard HEAD over phantom staged deletions); continuing resume.[/yellow]")
     return True

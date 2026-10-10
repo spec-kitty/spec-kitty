@@ -228,6 +228,8 @@ def test_mission_to_target_merge_sets_the_two_way_opt_out_and_lane_to_mission_do
         return subprocess.CompletedProcess(cmd, 0, "", "")
 
     monkeypatch.setattr(lanes_consolidation.subprocess, "run", fake_run)
+    monkeypatch.setattr(lanes_consolidation, "remove_scratch_worktree", lambda worktree, **kwargs: True)
+    monkeypatch.setattr(lanes_consolidation, "abort_scratch_merge", lambda worktree, **kwargs: True)
     # The squash path now mints a FreshWorktree proof first (#5443), and this test fakes all git output.
     monkeypatch.setattr(lanes_consolidation, "mint_fresh_worktree", lambda worktree, env: None)
     monkeypatch.setattr(lanes_consolidation, "conclude_in_progress_op", lambda worktree, **kwargs: subprocess.CompletedProcess(["git", "commit"], 0, "", ""))

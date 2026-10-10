@@ -307,10 +307,10 @@ def test_a_failed_reset_is_reported_and_does_not_recover(tmp_path: Path, capsys:
     lag = _build_lag(tmp_path)
     _persist_state(lag, coord_sha=lag.base)
 
-    with patch_executor_family("run_command", return_value=(1, "", "fatal: unable to write index\n")) as mock_run:
+    with patch.object(resume_recovery, "guarded_reset_hard", side_effect=RuntimeError("fatal: unable to write index\n")) as mock_reset:
         assert _recover(lag, _worktree_refusal(lag.coord), lag.coord) is False
 
-    assert mock_run.call_args.kwargs["cwd"] == lag.coord
+    assert mock_reset.call_args.args[0] == lag.coord
     assert f"`git reset --hard HEAD` failed in {lag.coord}" in " ".join(capsys.readouterr().out.split())
 
 

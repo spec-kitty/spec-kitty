@@ -19,7 +19,6 @@ the command shim.
 
 from __future__ import annotations
 
-import functools
 import logging
 from pathlib import Path
 from typing import Any
@@ -31,11 +30,11 @@ from specify_cli.core.paths import (
     assert_safe_path_segment,
     load_meta_fail_closed,
 )
-from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import advance_branch_ref
 from specify_cli.consolidation._constants import logger as _merge_logger
 from specify_cli.consolidation.baseline import MissionNumberVerificationError
-from specify_cli.consolidation.git_probes import _has_branch_ref, _is_git_repo, path_is_under_worktrees
+from specify_cli.consolidation.git_probes import _has_branch_ref, _is_git_repo, mission_residue_context, path_is_under_worktrees
+from specify_cli.consolidation.workspace import remove_scratch_worktree
 from specify_cli.consolidation.mission_number import is_assigned_mission_number
 from specify_cli.consolidation.state import ConsolidationState
 from kernel.atomic import observe_writes, stop_observing_writes
@@ -244,11 +243,8 @@ def _compute_next_mission_number_or_none(
 
         return assign_next_mission_number(scan_root, scan_specs)
     finally:
-        _subprocess.run(
-            ["git", "worktree", "remove", str(tmp_path), "--force"],
-            cwd=str(main_repo),
-            capture_output=True,
-        )
+        # The scan worktree is this function's own scratch checkout (tool-owned, #5965).
+        remove_scratch_worktree(tmp_path)
 
 
 def _surface_unbaked_mission_number(
@@ -691,15 +687,12 @@ def _write_mission_number_to_branch(
             main_repo,
             mission_branch,
             new_sha,
-            is_residue=functools.partial(is_toolchain_generated_churn, mission_slug=mission_slug),
+            context=mission_residue_context(main_repo, mission_slug),
         )
         return True
     finally:
-        _subprocess.run(
-            ["git", "worktree", "remove", str(mission_tmp_path), "--force"],
-            cwd=str(main_repo),
-            capture_output=True,
-        )
+        # The numbering worktree is this function's own scratch checkout (tool-owned, #5965).
+        remove_scratch_worktree(mission_tmp_path)
 
 
 def _refuse_unassignable_mission_slug(mission_slug: str) -> None:

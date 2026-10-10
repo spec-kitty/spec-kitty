@@ -27,6 +27,7 @@ This module performs all subprocess and filesystem I/O. The classifier in
 from __future__ import annotations
 
 import asyncio
+import logging
 import re
 import subprocess
 from dataclasses import dataclass, field
@@ -53,7 +54,10 @@ from specify_cli.consolidation.conflict_classifier import (
 )
 from specify_cli.state.contract import is_target_owned_path
 from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts
-from specify_cli.coordination.coherence import is_coord_residue_churn
+from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_coord_residue_churn
+from specify_cli.consolidation.git_probes import LagResidueContext
+from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_merge_abort
+from specify_cli.git.ref_advance import ResidueClassifier
 from mission_runtime import (
     MissionArtifactKind,
     kind_for_mission_file,
@@ -152,6 +156,29 @@ _RE_CONFLICT_REGION = re.compile(
     r"<{7}[^\n]*\n.*?>{7}[^\n]*\n",
     re.DOTALL,
 )
+
+
+_LOG = logging.getLogger(__name__)
+
+
+# The strictest classifier: no lag path and no Mission residue, so an abort may discard only the merge's own paths.
+_NOTHING_DISPOSABLE = LagResidueContext(frozenset())
+
+
+def _abort_context(repo_root: Path, mission_slug: str | None) -> ResidueClassifier:
+    """The context a failed auto-rebase aborts its lane worktree's merge under (#5965 / #5966).
+
+    The lane worktree's own role, judged for ``mission_slug`` from its stored topology. With no
+    slug, or a topology that cannot be read, nothing beyond the merge's own paths is disposable.
+    """
+    from specify_cli.core.paths import MissionMetaReadError
+
+    if mission_slug is None:
+        return _NOTHING_DISPOSABLE
+    try:
+        return ResidueContext.for_mission(repo_root, mission_slug, CheckoutRole.LANE)
+    except (FileNotFoundError, MissionMetaReadError):
+        return _NOTHING_DISPOSABLE
 
 
 def _run(
@@ -745,13 +772,23 @@ def _run_ruff_imports_fix(worktree: Path, file_path: Path) -> tuple[bool, str]:
 
 
 def _abort_with_failure(
+    context: ResidueClassifier,
     worktree_path: Path,
     lane_id: str,
     classifications: list[ConflictClassification],
     halt_reason: str,
 ) -> AutoRebaseReport:
-    """Run ``git merge --abort`` and return a failure ``AutoRebaseReport``."""
-    _run(["git", "merge", "--abort"], worktree_path)
+    """Abort the lane worktree's merge, guarded, and return a failure ``AutoRebaseReport``.
+
+    The abort refuses, leaving the merge in progress, when it would discard a local edit of the
+    operator's that is not part of the merge itself; the report then says so.
+    """
+    try:
+        guarded_merge_abort(worktree_path, context=context, env=_make_merge_env())
+    except DestructiveOpRefused as refusal:
+        halt_reason = f"{halt_reason}; the merge was left in progress because aborting it would discard local changes: {refusal.remediation}"
+    except RuntimeError as failure:
+        _LOG.debug("No merge was aborted in %s: %s", worktree_path, failure)
     sparse_error = _reapply_sparse_checkout(worktree_path)
     if sparse_error is not None:
         halt_reason = f"{halt_reason}; sparse checkout cleanup failed: {sparse_error}"
@@ -876,13 +913,14 @@ def _finalize_auto_rebase(
     init_py_touched: list[Path],
     uvlock_seen: bool,
     branch: str,
+    context: ResidueClassifier,
 ) -> AutoRebaseReport:
     """Run post-resolution steps: uv.lock regen, ruff fix, commit."""
     if uvlock_seen:
         ok, message = _attempt_resolve_uv_lock(worktree_path, repo_root)
         if not ok:
             return _abort_with_failure(
-                worktree_path, lane_id, classifications,
+                context, worktree_path, lane_id, classifications,
                 f"{RULE_ID_UVLOCK}: {message}",
             )
 
@@ -890,7 +928,7 @@ def _finalize_auto_rebase(
         ok, message = _run_ruff_imports_fix(worktree_path, init_path)
         if not ok:
             return _abort_with_failure(
-                worktree_path, lane_id, classifications,
+                context, worktree_path, lane_id, classifications,
                 f"{RULE_ID_INIT_IMPORTS}: ruff failed: {message}",
             )
         _run(
@@ -901,13 +939,13 @@ def _finalize_auto_rebase(
     halt_reason = _refresh_status_json_for_staged_artifacts(worktree_path, classifications)
     if halt_reason is not None:
         return _abort_with_failure(
-            worktree_path, lane_id, classifications, halt_reason,
+            context, worktree_path, lane_id, classifications, halt_reason,
         )
 
     sparse_error = _reapply_sparse_checkout(worktree_path)
     if sparse_error is not None:
         return _abort_with_failure(
-            worktree_path, lane_id, classifications,
+            context, worktree_path, lane_id, classifications,
             f"sparse checkout cleanup failed: {sparse_error}",
         )
 
@@ -926,11 +964,11 @@ def _finalize_auto_rebase(
         commit_result = conclude_in_progress_op(worktree_path, env=_make_merge_env(), message=message)
     except MergeConclusionRefused as exc:
         return _abort_with_failure(
-            worktree_path, lane_id, classifications, f"merge commit failed: {exc}",
+            context, worktree_path, lane_id, classifications, f"merge commit failed: {exc}",
         )
     if commit_result.returncode != 0:
         return _abort_with_failure(
-            worktree_path, lane_id, classifications,
+            context, worktree_path, lane_id, classifications,
             f"merge commit failed: "
             f"{(commit_result.stderr or commit_result.stdout).strip()}",
         )
@@ -956,6 +994,8 @@ def attempt_auto_rebase(
     mission_branch: str,
     repo_root: Path,
     worktree_path: Path,
+    *,
+    mission_slug: str | None = None,
 ) -> AutoRebaseReport:
     """Attempt a stale-lane auto-rebase.
 
@@ -968,7 +1008,12 @@ def attempt_auto_rebase(
     4. Applies ``Auto`` resolutions, regenerates ``uv.lock`` if needed, runs
        ``ruff --fix --select I001`` on touched ``__init__.py`` files, and
        commits with the audit message.
+
+    ``mission_slug`` names the Mission whose lane worktree this is, so a failed attempt's
+    ``merge --abort`` can tell the Mission's own regenerable residue from the operator's
+    edits (#5965 / #5966); without it nothing but the merge's own paths is treated as residue.
     """
+    context = _abort_context(repo_root, mission_slug)
     _git_user_env_ready(worktree_path)
 
     halt_reason = _refuse_preexisting_lane_status_deletions(
@@ -1002,13 +1047,13 @@ def attempt_auto_rebase(
         )
         if halt_reason is not None:
             return _abort_with_failure(
-                worktree_path, lane.lane_id, clean_classifications, halt_reason,
+                context, worktree_path, lane.lane_id, clean_classifications, halt_reason,
             )
 
         sparse_error = _reapply_sparse_checkout(worktree_path)
         if sparse_error is not None:
             return _abort_with_failure(
-                worktree_path, lane.lane_id, clean_classifications,
+                context, worktree_path, lane.lane_id, clean_classifications,
                 f"sparse checkout cleanup failed: {sparse_error}",
             )
 
@@ -1016,7 +1061,7 @@ def attempt_auto_rebase(
             commit_result = conclude_in_progress_op(worktree_path, env=_make_merge_env())
             if commit_result.returncode != 0:
                 return _abort_with_failure(
-                    worktree_path, lane.lane_id, clean_classifications,
+                    context, worktree_path, lane.lane_id, clean_classifications,
                     f"merge commit failed: "
                     f"{(commit_result.stderr or commit_result.stdout).strip()}",
                 )
@@ -1031,7 +1076,7 @@ def attempt_auto_rebase(
     conflicted = _list_conflicted_files(worktree_path)
     if not conflicted:
         return _abort_with_failure(
-            worktree_path, lane.lane_id, [],
+            context, worktree_path, lane.lane_id, [],
             f"git merge failed without conflicts on {branch}: "
             f"{(merge_result.stderr or merge_result.stdout).strip()}",
         )
@@ -1044,7 +1089,7 @@ def attempt_auto_rebase(
     )
     if halt_reason is not None:
         return _abort_with_failure(
-            worktree_path, lane.lane_id, classifications, halt_reason,
+            context, worktree_path, lane.lane_id, classifications, halt_reason,
         )
 
     for file_path in conflicted:
@@ -1063,12 +1108,12 @@ def attempt_auto_rebase(
         classifications.extend(file_classifications)
         if halt_reason is not None:
             return _abort_with_failure(
-                worktree_path, lane.lane_id, classifications, halt_reason,
+                context, worktree_path, lane.lane_id, classifications, halt_reason,
             )
         if is_init:
             init_py_touched.append(file_path)
 
     return _finalize_auto_rebase(
         lane.lane_id, worktree_path, repo_root,
-        classifications, init_py_touched, uvlock_seen, branch,
+        classifications, init_py_touched, uvlock_seen, branch, context,
     )
