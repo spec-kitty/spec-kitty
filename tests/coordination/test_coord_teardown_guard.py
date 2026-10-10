@@ -22,12 +22,19 @@ anything.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 
 import pytest
 
 from specify_cli.coordination import CoordinationWorkspace
+from specify_cli.coordination.teardown import (
+    COORD_TEARDOWN_KEPT_ONLY_COPY,
+    COORD_TEARDOWN_KEPT_ONLY_COPY_EXIT_CODE,
+    CoordTeardownKeptOnlyCopy,
+    teardown_coordination_topology,
+)
 from specify_cli.git.destructive_guard import DestructiveOpRefused
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regression]
@@ -114,3 +121,88 @@ def test_teardown_is_idempotent_on_already_removed_worktree(
 
     # Second call must not raise.
     CoordinationWorkspace.teardown(repo, SLUG, MID8)
+
+
+# -- #5965: the coordination worktree is judged by its ROLE, with the Mission's stored topology ---------
+
+
+def _write_mission_meta(repo: Path, topology: str = "coord") -> Path:
+    mission_dir = repo / "kitty-specs" / SLUG
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps({"mission_id": MISSION_ID, "mid8": MID8, "mission_slug": SLUG, "topology": topology, "coordination_branch": f"kitty/mission-{SLUG}"}),
+        encoding="utf-8",
+    )
+    return mission_dir
+
+
+def _coord_artifact(repo: Path, relative: str) -> Path:
+    path = CoordinationWorkspace.worktree_path(repo, SLUG, MID8) / "kitty-specs" / SLUG / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("only copy\n", encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize("relative", ["tasks/WP02-work/review-cycle-1.md", "traces/notes.md", "issue-matrix.json"])
+def test_teardown_keeps_coordination_kind_files_the_old_predicate_called_residue(coord_repo: tuple[Path, str], relative: str) -> None:
+    """With the Mission's stored topology the coordination worktree holds the ONLY copy of these, so they refuse (#5965)."""
+    repo, _branch = coord_repo
+    _write_mission_meta(repo)
+    kept = _coord_artifact(repo, relative)
+
+    with pytest.raises(DestructiveOpRefused) as refused:
+        CoordinationWorkspace.teardown(repo, SLUG, MID8)
+
+    assert kept.name in str(refused.value)
+    assert kept.read_text(encoding="utf-8") == "only copy\n"
+    assert CoordinationWorkspace.is_present(repo, SLUG, MID8)
+
+
+def test_teardown_with_meta_still_removes_a_clean_worktree(coord_repo: tuple[Path, str]) -> None:
+    repo, _branch = coord_repo
+    _write_mission_meta(repo)
+
+    CoordinationWorkspace.teardown(repo, SLUG, MID8)
+
+    assert not CoordinationWorkspace.is_present(repo, SLUG, MID8)
+
+
+def test_teardown_without_meta_treats_nothing_as_residue(coord_repo: tuple[Path, str]) -> None:
+    """No stored topology to judge by: even a status file refuses (the strictest answer), a clean worktree goes."""
+    repo, _branch = coord_repo
+    status = CoordinationWorkspace.worktree_path(repo, SLUG, MID8) / "status.json"
+    status.write_text("{}\n", encoding="utf-8")
+
+    with pytest.raises(DestructiveOpRefused):
+        CoordinationWorkspace.teardown(repo, SLUG, MID8)
+
+    status.unlink()
+    CoordinationWorkspace.teardown(repo, SLUG, MID8)
+    assert not CoordinationWorkspace.is_present(repo, SLUG, MID8)
+
+
+def test_teardown_seam_turns_the_refusal_into_kept_only_copy_with_the_callers_follow_up(coord_repo: tuple[Path, str]) -> None:
+    """``teardown_coordination_topology`` no longer swallows the guard: it reports the kept files and the follow-up command."""
+    repo, branch = coord_repo
+    _write_mission_meta(repo)
+    kept = _coord_artifact(repo, "traces/notes.md")
+
+    with pytest.raises(CoordTeardownKeptOnlyCopy) as excinfo:
+        teardown_coordination_topology(repo, SLUG, MID8, persist=False, check_ledger=False, follow_up_command="spec-kitty consolidate --abort")
+
+    error = excinfo.value
+    assert error.error_code == COORD_TEARDOWN_KEPT_ONLY_COPY and error.exit_code == COORD_TEARDOWN_KEPT_ONLY_COPY_EXIT_CODE
+    assert any("notes.md" in entry for entry in error.kept_files)
+    assert "spec-kitty consolidate --abort" in str(error)
+    assert kept.is_file() and _git(repo, "branch", "--list", branch).stdout.strip() != ""
+
+
+def test_teardown_seam_still_swallows_other_failures(coord_repo: tuple[Path, str], monkeypatch: pytest.MonkeyPatch) -> None:
+    repo, _branch = coord_repo
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError("disk on fire")
+
+    monkeypatch.setattr(CoordinationWorkspace, "teardown", boom)
+
+    assert teardown_coordination_topology(repo, SLUG, MID8, persist=False, check_ledger=False) is False

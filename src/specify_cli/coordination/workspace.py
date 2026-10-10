@@ -31,20 +31,19 @@ real per-worktree gitdir path via
 
 from __future__ import annotations
 
-import functools
 import subprocess
 import threading
 from pathlib import Path
 
 from mission_runtime import OwnedRefusalCode
 
-from specify_cli.coordination.coherence import is_toolchain_generated_churn
+from specify_cli.coordination.coherence import CheckoutRole, residue_context_or_strictest
 from specify_cli.coordination.worktree_branch import (
     normalize_ref as _normalize_ref,
     probe_coord_branch,
 )
 from specify_cli.core.errors import StructuredError
-from specify_cli.git.destructive_guard import guarded_worktree_remove
+from specify_cli.git.destructive_guard import guarded_worktree_prune, guarded_worktree_remove
 from specify_cli.lanes.branch_naming import (
     coord_dir_name as _seam_coord_dir_name,
     coord_mission_dir_name as _seam_coord_mission_dir_name,
@@ -248,26 +247,16 @@ def _has_stale_worktree_registration(repo_root: Path, path: Path) -> bool:
     return False
 
 
-def _remove_worktree_registration(repo_root: Path, path: Path) -> None:
-    """Prune a stale/prunable worktree registration. GUARD-EXEMPT (C-003/NFR-006).
+def _remove_worktree_registration(repo_root: Path) -> None:
+    """Prune a stale/prunable worktree registration through the guard.
 
-    Only ever called when ``path`` does NOT exist on disk (git already
-    reports the registration ``prunable``): there is no working tree left to
-    inspect, let alone user work to lose. The shared
-    :func:`~specify_cli.git.destructive_guard.guarded_worktree_remove` seam
-    cannot run here even in principle -- it resolves the repository root by
-    executing git *inside* ``worktree`` (``git -C <worktree> rev-parse
-    --git-common-dir``), which requires the directory to exist. This is
-    therefore an explicit, inline-rationalized exemption from the guard (per
-    the routing-invariant.md allowlist convention), not an unrouted/unexplained
-    raw force-remove: the removal target is git's own administrative
-    bookkeeping for an already-gone directory, never a live worktree that
-    could hold local state.
+    Only ever called when ``path`` does NOT exist on disk (git already reports
+    the registration ``prunable``): there is no working tree left to inspect.
+    :func:`~specify_cli.git.destructive_guard.guarded_worktree_prune` drops git's
+    own administrative record for already-gone directories and refuses if any
+    other registration it would drop still has a directory on disk.
     """
-    subprocess.run(
-        ["git", "-C", str(repo_root), _GIT_WORKTREE, "remove", "--force", str(path)],
-        check=True,
-    )
+    guarded_worktree_prune(repo_root)
 
 
 class CoordinationWorkspace:
@@ -339,7 +328,7 @@ class CoordinationWorkspace:
             # exists (WP03's mission create does this).
             path.parent.mkdir(parents=True, exist_ok=True)
             if _has_stale_worktree_registration(repo_root, path):
-                _remove_worktree_registration(repo_root, path)
+                _remove_worktree_registration(repo_root)
             add_argv = ["git", "-C", str(repo_root), _GIT_WORKTREE, "add", str(path), branch]
             add_result = subprocess.run(add_argv, capture_output=True, text=True, check=False)
             if add_result.returncode != 0:
@@ -374,13 +363,11 @@ class CoordinationWorkspace:
         path = cls.worktree_path(repo_root, mission_slug, mid8)
         if not path.exists():
             if _has_stale_worktree_registration(repo_root, path):
-                _remove_worktree_registration(repo_root, path)
+                _remove_worktree_registration(repo_root)
             return
-        guarded_worktree_remove(
-            path,
-            retain=False,
-            is_residue=functools.partial(is_toolchain_generated_churn, mission_slug=mission_slug),
-        )
+        # A Mission with no ``meta.json`` is judged by the strictest classifier (a corrupt one propagates and the worktree is kept).
+        context = residue_context_or_strictest(repo_root, mission_slug, CheckoutRole.COORDINATION)
+        guarded_worktree_remove(path, retain=False, context=context)
 
     @classmethod
     def is_present(

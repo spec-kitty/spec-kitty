@@ -66,6 +66,14 @@ def _state(mission: DivergentMission, **overrides: object) -> ConsolidationState
         target_branch=mission.manifest.target_branch,
         wp_order=_all_wp_ids(mission),
     )
+    # A real run snapshots every lane tip before it mutates anything; the guarded lane-branch delete
+    # treats commits up to that tip as landed (squash leaves them unreachable from any ref).
+    for _worktree, lane_branch in mission.lanes.values():
+        tip = subprocess.run(
+            ["git", "-C", str(mission.repo_root), "rev-parse", "--verify", f"refs/heads/{lane_branch}"], capture_output=True, text=True, check=False
+        )
+        if tip.returncode == 0:
+            state.pre_mutation_refs[lane_branch] = tip.stdout.strip()
     for key, value in overrides.items():
         setattr(state, key, value)
     return state

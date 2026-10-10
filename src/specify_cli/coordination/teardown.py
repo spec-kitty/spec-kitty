@@ -65,6 +65,41 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Stable code and exit code of the #5965 refusal: the landing is done, but the coordination
+# worktree holds the only copy of operator-authored files, so the coordination branch, worktree
+# and marker were all kept. 76 is unused elsewhere (75 is COORD_MOVED_AFTER_LANDING, 1 the generic
+# refusal): the operator must act (commit inside the Mission directory, or move the files out)
+# before ``spec-kitty consolidate --resume`` can finish. Re-exported by ``consolidation._constants``.
+COORD_TEARDOWN_KEPT_ONLY_COPY = "COORD_TEARDOWN_KEPT_ONLY_COPY"
+COORD_TEARDOWN_KEPT_ONLY_COPY_EXIT_CODE = 76
+RESUME_COMMAND = "spec-kitty consolidate --resume"
+_KEPT_ONLY_COPY_REMEDY = "Commit the files inside kitty-specs/<mission>/ on the coordination branch, or move them out of the worktree, then run `{command}`."
+
+
+class CoordTeardownKeptOnlyCopy(RuntimeError):
+    """The coordination worktree holds the only copy of files, so teardown kept the whole triple (#5965).
+
+    Raised after the retrospective was persisted and before anything was
+    destroyed; the coordination branch, worktree and marker survive together.
+    A consolidation that reached this point has already landed and verified its
+    target, so the refusal never rolls the landing back. Carries the stable
+    ``error_code`` and the distinct ``exit_code`` automation keys on.
+    """
+
+    error_code = COORD_TEARDOWN_KEPT_ONLY_COPY
+    exit_code = COORD_TEARDOWN_KEPT_ONLY_COPY_EXIT_CODE
+
+    def __init__(self, *, worktree_path: Path, kept_files: list[str], follow_up_command: str = RESUME_COMMAND) -> None:
+        from specify_cli.git.ref_advance import format_entry_lines  # noqa: PLC0415 (acyclic-import discipline)
+
+        self.worktree_path = worktree_path
+        self.kept_files = list(kept_files)
+        super().__init__(
+            f"the coordination worktree {worktree_path} holds the only copy of these files, so the coordination branch, "
+            f"worktree and marker were kept:\n{format_entry_lines(self.kept_files)}\n  {_KEPT_ONLY_COPY_REMEDY.format(command=follow_up_command)} "
+            f"Error code: {COORD_TEARDOWN_KEPT_ONLY_COPY}."
+        )
+
 
 @dataclass(frozen=True)
 class ProjectionTeardownGate:
@@ -250,7 +285,14 @@ def _destroy_coordination_worktree(repo_root: Path, mission_slug: str, mid8: str
     Exception`` swallow that the three former call sites each carried: a teardown
     failure is non-fatal and never blocks a successful merge / close / abort. The
     import is function-local for symmetry with the persist leg.
+
+    The ONE failure that is not swallowed is the guard's refusal (#5965): a
+    worktree holding the only copy of operator files is kept, and the refusal
+    propagates (:func:`teardown_coordination_topology` translates it into
+    :class:`CoordTeardownKeptOnlyCopy`) instead of reporting success.
     """
+    from specify_cli.git.destructive_guard import DestructiveOpRefused  # noqa: PLC0415
+
     try:
         from specify_cli.coordination.workspace import (  # noqa: PLC0415
             CoordinationWorkspace,
@@ -258,6 +300,8 @@ def _destroy_coordination_worktree(repo_root: Path, mission_slug: str, mid8: str
 
         CoordinationWorkspace.teardown(repo_root, mission_slug, mid8)
         return True
+    except DestructiveOpRefused:
+        raise
     except Exception as exc:  # noqa: BLE001 — destroy is best-effort cleanup
         logger.warning(
             "Coordination worktree teardown failed (non-fatal) for %s-%s: %s",
@@ -278,6 +322,7 @@ def teardown_coordination_topology(
     projection_gate: ProjectionTeardownGate | None = None,
     check_ledger: bool = True,
     on_persist_commit: Callable[[str], None] | None = None,
+    follow_up_command: str = RESUME_COMMAND,
 ) -> bool:
     """Persist the retrospective, then destroy the coordination worktree.
 
@@ -327,6 +372,9 @@ def teardown_coordination_topology(
         on_persist_commit: Called with the SHA of the bookkeeping commit the persist leg
             made, when it made one (#5570). The consolidation executor uses it to carry its
             verified-landing anchor over exactly its own commit.
+        follow_up_command: The command a refusal tells the operator to re-run once the kept
+            files are committed or moved (``consolidate --resume`` by default, ``consolidate
+            --abort`` for the abort path).
 
     Returns:
         ``True`` when the destroy leg succeeded (or no-op'd cleanly), ``False``
@@ -336,6 +384,9 @@ def teardown_coordination_topology(
         ProjectionTeardownAbort: ``projection_gate`` was supplied and its
             reachability or compare-and-swap precondition failed; nothing was
             mutated (fail-closed, non-zero terminus exit).
+        CoordTeardownKeptOnlyCopy: the coordination worktree holds files that exist
+            nowhere else (#5965); the retrospective was persisted, the worktree,
+            branch and marker were all kept.
 
     Note:
         Persist is intentionally NOT wrapped in the destroy swallow: an
@@ -370,4 +421,13 @@ def teardown_coordination_topology(
         # still ran. Mirror CoordinationWorkspace.teardown's idempotent no-op.
         return True
 
-    return _destroy_coordination_worktree(repo_root, mission_slug, mid8)
+    from specify_cli.git.destructive_guard import DestructiveOpRefused  # noqa: PLC0415
+
+    try:
+        return _destroy_coordination_worktree(repo_root, mission_slug, mid8)
+    except DestructiveOpRefused as refusal:
+        raise CoordTeardownKeptOnlyCopy(
+            worktree_path=refusal.worktree_path or repo_root,
+            kept_files=refusal.dirty_entries,
+            follow_up_command=follow_up_command,
+        ) from refusal

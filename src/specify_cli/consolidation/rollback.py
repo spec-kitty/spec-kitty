@@ -78,7 +78,8 @@ from enum import StrEnum
 from pathlib import Path
 
 from specify_cli.consolidation.state import UNSETTLED_ALL, ConsolidationState, reconciliation_passed_for_tip, save_state
-from specify_cli.coordination.coherence import is_toolchain_generated_churn
+from specify_cli.coordination.coherence import CheckoutRole, ResidueContext, is_status_state_path
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.git.ref_advance import (
     RefAdvanceDirtyWorktreeError,
     RefAdvanceError,
@@ -685,7 +686,54 @@ def _missing_branch_outcome(state: ConsolidationState, branch: str, snapshot: st
     return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, "", reason=f"branch {branch} {hint}")
 
 
-def _restore_one(repo_root: Path, branch: str, snapshot: str, restore_to: str, live: str, expected: str, *, adopted: bool) -> BranchOutcome:
+@dataclass(frozen=True)
+class _RunResidue:
+    """The run's :class:`ResidueContext` plus the one exemption a rollback of THIS run is owed.
+
+    A rollback undoes the run's own bookkeeping, so the Mission's own status log and snapshot
+    (``status.events.jsonl`` / ``status.json``, regenerated from the events the rollback restores)
+    are disposable in whatever checkout the rollback resets, under every topology. Everything else
+    is the context's verdict, so another Mission's files, and every coordination-kind file of this
+    Mission in a coordination worktree, still refuse (#5965 / #5966). Satisfies the
+    ``ResidueClassifier`` protocol of ``git.ref_advance``; each checkout is judged by its own role.
+    """
+
+    context: ResidueContext
+
+    def is_disposable(self, path: str) -> bool:
+        # Classification is scoped to this Mission's directory names, so another Mission's log never matches.
+        own_status = bool(is_status_state_path(path, mission_slug=self.context.mission_slug, mission_dir_names=self.context.mission_dir_names or None))
+        return own_status or bool(self.context.is_disposable(path))
+
+    def for_checkout(self, repo_root: Path, worktree: Path) -> _RunResidue:
+        return _RunResidue(self.context.for_checkout(repo_root, worktree))
+
+
+def _run_residue_context(repo_root: Path, state: ConsolidationState) -> _RunResidue | None:
+    """The run's own residue context: its Mission slug and STORED topology, judged per checkout (#5966).
+
+    Built once per rollback, not per branch. The ref-advance guard re-targets it at each checked-out
+    worktree's own role, so another Mission's files are never residue. ``None`` when the Mission's
+    metadata cannot be read: the callers then pass no exemption at all (the strictest answer), so an
+    unreadable Mission can only make the rollback refuse a dirty checkout, never discard one.
+    """
+    try:
+        return _RunResidue(ResidueContext.for_mission(repo_root, state.mission_slug, CheckoutRole.REPOSITORY_ROOT))
+    except (FileNotFoundError, MissionMetaReadError, ValueError, OSError):
+        return None
+
+
+def _restore_one(
+    repo_root: Path,
+    branch: str,
+    snapshot: str,
+    restore_to: str,
+    live: str,
+    expected: str,
+    *,
+    adopted: bool,
+    context: _RunResidue | None,
+) -> BranchOutcome:
     try:
         restore_branch_ref(
             repo_root,
@@ -693,7 +741,7 @@ def _restore_one(repo_root: Path, branch: str, snapshot: str, restore_to: str, l
             restore_to,
             expected_current_sha=expected,
             resync_checkouts=True,
-            is_residue=is_toolchain_generated_churn,
+            context=context,
         )
     except (RefRestoreError, RefAdvanceDirtyWorktreeError, RefAdvanceError) as exc:
         return BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, expected, str(exc))
@@ -708,7 +756,7 @@ def _kept_if_released(state: ConsolidationState, refused: BranchOutcome) -> Bran
     return replace(refused, kind=BranchOutcomeKind.KEPT_BY_OPERATOR, expected_sha=None, reason=reason)
 
 
-def _rollback_branch(repo_root: Path, state: ConsolidationState, branch: str, snapshot: str) -> BranchOutcome:
+def _rollback_branch(repo_root: Path, state: ConsolidationState, branch: str, snapshot: str, context: _RunResidue | None) -> BranchOutcome:
     live = _live_tip(repo_root, branch)
     if live is None:
         return _missing_branch_outcome(state, branch, snapshot)
@@ -722,7 +770,7 @@ def _rollback_branch(repo_root: Path, state: ConsolidationState, branch: str, sn
         reason = _UNRECORDED_MOVE_REASON if post is None else _MOVED_BY_OTHER_REASON
         return _kept_if_released(state, BranchOutcome(branch, BranchOutcomeKind.NOT_RESTORED, snapshot, live, post, reason))
     adopted = post != state.post_mutation_refs.get(branch)
-    return _restore_one(repo_root, branch, snapshot, restore_to, live, post, adopted=adopted)
+    return _restore_one(repo_root, branch, snapshot, restore_to, live, post, adopted=adopted, context=context)
 
 
 def _settle_outcomes(state: ConsolidationState, outcomes: Iterable[BranchOutcome]) -> None:
@@ -759,7 +807,7 @@ def _clear_bookkeeping(state: ConsolidationState, outcomes: Iterable[BranchOutco
     state.release_reasons = {}
 
 
-def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outcomes: Iterable[BranchOutcome]) -> str | None:
+def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outcomes: Iterable[BranchOutcome], context: _RunResidue | None) -> str | None:
     """Bring the checkout of a coordination branch the rollback left in place back to its tip (#5638).
 
     The bookkeeping byte-restore writes the pre-``done`` status bytes into the
@@ -770,12 +818,13 @@ def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outc
     is discarded; any other change refuses the resync and the checkout is left
     as found. The committed strand stays, recorded by the reconcile marker.
 
-    Residue is decided by ``is_toolchain_generated_churn``, which counts
-    ``kitty-specs/*/status.events.jsonl`` and ``status.json`` as residue. An
-    uncommitted status-log line in the checkout (for example from an interrupted
-    write) is therefore reset with the rest. Those bytes were already overwritten
-    by the rollback's own byte-restore, so no operator-authored work is lost, but
-    the reset is silent. The predicate is deliberately unchanged.
+    Residue is decided by the run's own :class:`ResidueContext` (this Mission's slug
+    and stored topology, judged against each checkout's own role). Its status log and
+    snapshot are residue of THIS Mission, so an uncommitted status-log line (for
+    example from an interrupted write) is reset with the rest: those bytes were
+    already overwritten by the rollback's own byte-restore, so no operator-authored
+    work is lost. Another Mission's files, and every coordination-kind file in a
+    coordination worktree, are NOT residue and refuse the resync (#5966).
 
     Returns the reason the checkout was left as found, or ``None``.
     """
@@ -783,7 +832,7 @@ def _resync_kept_coord_checkout(repo_root: Path, state: ConsolidationState, outc
     if not coord_ref or not any(o.branch == coord_ref and o.kind in _COORD_KEPT_KINDS and o.observed_sha for o in outcomes):
         return None
     try:
-        resync_checkouts_to_tip(repo_root, coord_ref, is_residue=is_toolchain_generated_churn)
+        resync_checkouts_to_tip(repo_root, coord_ref, context=context)
     except (RefAdvanceDirtyWorktreeError, RefAdvanceError) as exc:
         return f"{exc}\n  {_COORD_RESYNC_REMEDY}"
     return None
@@ -797,11 +846,12 @@ def rollback_to_snapshot(repo_root: Path, state: ConsolidationState, *, target_b
     if refused is not None:
         return refused
     seeded = set(state.resume_seeded_refs)
+    context = _run_residue_context(repo_root, state)
     outcomes = tuple(
         replace(outcome, resume_seeded=outcome.branch in seeded)
-        for outcome in (_rollback_branch(repo_root, state, branch, snapshot) for branch, snapshot in state.pre_mutation_refs.items())
+        for outcome in (_rollback_branch(repo_root, state, branch, snapshot, context) for branch, snapshot in state.pre_mutation_refs.items())
     )
-    report = RollbackReport(outcomes=outcomes, coord_checkout_note=_resync_kept_coord_checkout(repo_root, state, outcomes))
+    report = RollbackReport(outcomes=outcomes, coord_checkout_note=_resync_kept_coord_checkout(repo_root, state, outcomes, context))
     _settle_outcomes(state, outcomes)
     if any(o.branch == target_branch and o.kind is BranchOutcomeKind.RESTORED for o in outcomes):
         # F4: the target left the landing the PASS anchor verified; never keep a stale anchor.
