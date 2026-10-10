@@ -199,13 +199,13 @@ def test_non_json_error_preserves_bracketed_tokens() -> None:
     This is the error-path twin of the #5061 ``markup=False`` success-path fix.
     It drives the real Typer CLI so the production error-rendering path
     (``_emit_error``) is exercised, not a helper, and patches a *dependency*
-    (``resolve_org_roots``) rather than the code under test. Positive control:
+    (``resolve_pack_chain``) rather than the code under test. Positive control:
     the plain-text sibling ``not a repo`` message above proves ordinary error
     text is unaffected. Red-first: without ``rich.markup.escape`` the token is
     silently stripped and this assertion fails.
     """
     with patch(
-        "charter.drg.resolve_org_roots",
+        "charter.activation.layer_roots.resolve_pack_chain",
         side_effect=TaskCliError("unresolved selector [build] in doctrine request"),
     ):
         result = runner.invoke(charter_app, ["context", "--action", "implement"])

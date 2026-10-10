@@ -112,7 +112,6 @@ if TYPE_CHECKING:
 
 __all__ = [
     "ACTIVATION_YAML_KEYS",
-    "ActivationResult",
     "AvailableArtifact",
     "ActiveCharterManager",
     "YAML_KEY_MAP",
