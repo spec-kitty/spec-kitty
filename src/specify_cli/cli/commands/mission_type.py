@@ -1236,17 +1236,16 @@ def _bookkeeping_branch_base(repo_root: Path, branch_name: str, target: str | No
     base = _existing_ref(repo_root, target)
     if base is None or _existing_ref(repo_root, branch_name) is None:
         return base
-    diff = _subprocess.run(
-        ["git", "diff", "--name-only", "--diff-filter=d", f"{base}...refs/heads/{branch_name}"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    tip = _subprocess.run(["git", "rev-parse", f"refs/heads/{branch_name}"], cwd=repo_root, capture_output=True, text=True, check=False)
-    if diff.returncode != 0 or tip.returncode != 0:
+    from kernel.git import GitCommandError, changed_paths
+
+    try:
+        changed = changed_paths(repo_root, f"{base}...refs/heads/{branch_name}", diff_filter="d")
+    except GitCommandError:
         return base
-    paths = [line for line in diff.stdout.splitlines() if line]
+    tip = _subprocess.run(["git", "rev-parse", f"refs/heads/{branch_name}"], cwd=repo_root, capture_output=True, text=True, check=False)
+    if tip.returncode != 0:
+        return base
+    paths = [path.as_posix() for path in changed]
     # ``kitty-specs/<mission dir>/<relpath>``: classify the part below the Mission directory.
     if all(path.startswith(f"{KITTY_SPECS_DIR}/") and is_coordination_kind_file("/".join(path.split("/")[2:])) for path in paths):
         return tip.stdout.strip()
