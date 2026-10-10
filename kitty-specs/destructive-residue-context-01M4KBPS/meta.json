@@ -1,0 +1,36 @@
+{
+  "accept_commit": "8b048135399dfd747466497220e37d4177b19920",
+  "acceptance_history": [
+    {
+      "accept_commit": "8b048135399dfd747466497220e37d4177b19920",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-10T20:19:24.133496+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "6e1dc3f2eed40d62def96b57b407a5a93b9cbe51"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-10T20:19:24.133496+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "6e1dc3f2eed40d62def96b57b407a5a93b9cbe51",
+  "baseline_merge_commit": "cdbd5a7c691bbac27b54fb1842c03dcb0a4b677a",
+  "created_at": "2026-10-10T16:52:57.752499+00:00",
+  "flattened": false,
+  "friendly_name": "Destructive ops never delete the only copy",
+  "merged_at": "2026-10-10T20:20:45.603825+00:00",
+  "merged_commit": "3ec80eb1a42030374fafa30e49edec6a133c209c",
+  "mid8": "01M4KBPS",
+  "mission_id": "01M4KBPS5YJZESN67MC26CBDQR",
+  "mission_number": 226,
+  "mission_slug": "destructive-residue-context-01M4KBPS",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Consolidating a Mission, or aborting one, can silently delete a reviewer's uncommitted rejection feedback, hand-written traces, or another Mission's in-progress edits while reporting success. This Mission makes every destructive cleanup know which Mission and which checkout it is touching, refuse rather than delete the only copy, and stops new unguarded destructive commands from being added.",
+  "purpose_tldr": "Stop consolidate and its abort from destroying uncommitted review feedback and notes that exist nowhere else.",
+  "slug": "destructive-residue-context-01M4KBPS",
+  "status_phase": "1",
+  "target_branch": "fix/5965-5966-destructive-residue-context",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-10T17:36:54.091783+00:00"
+}

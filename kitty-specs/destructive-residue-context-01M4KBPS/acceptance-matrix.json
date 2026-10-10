@@ -1,0 +1,109 @@
+{
+  "mission_slug": "destructive-residue-context-01M4KBPS",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/coordination/test_disposable_residue.py (ResidueContext rejects missing slug/topology); test_destructive_guard.py missing-context TypeError (WP02/WP08)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T20:18:58.078909+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/coordination/test_disposable_residue.py COORDINATION-role cases; tests/consolidation/test_teardown_keeps_only_copy.py (WP03)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T20:19:00.524877+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/coordination/test_disposable_residue.py other-Mission cases; tests/consolidation/test_abort_keeps_other_mission_edits.py",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T20:19:02.983297+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_abort_keeps_other_mission_edits.py; rollback.py run context (WP03)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T20:19:05.371323+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005a",
+      "description": "Verify FR-005a is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_teardown_refusal_resume.py: exit 76 COORD_TEARDOWN_KEPT_ONLY_COPY, landing kept, coord triple intact, --abort refusal",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T20:19:07.781348+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005b",
+      "description": "Verify FR-005b is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/consolidation/test_teardown_refusal_resume.py: resume after move-out and after commit inside Mission dir; outside-dir late commit refuses",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T20:19:10.183088+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_destructive_op_routing.py widened needles + rmtree + TOOL_OWNED checks, no allowlist, non-vacuity tests (WP08)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T20:19:12.571755+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04/WP05/WP06/WP07/WP09 routing + test_guarded_*_sites tests; gate shows 0 raw destructive ops outside the guard",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T20:19:15.016781+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 red-first repros (commit 38a9dcb501) red on base, green after WP03; moved to functional homes in WP08 with assertions unchanged",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T20:19:17.429518+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/git/test_destructive_guard.py guarded_branch_delete cases; tests/specify_cli/git/test_guarded_site_routing.py just-created branch deleted",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T20:19:19.820469+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

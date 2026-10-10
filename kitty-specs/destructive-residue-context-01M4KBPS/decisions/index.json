@@ -1,0 +1,78 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-10T16:53:08.659927Z",
+      "decision_id": "01M4KBQ3XKF64MMPEV8QTM6TF6",
+      "final_answer": "Route all through the guard in this Mission; no shrink-only ledger (ledgers persist as standing debt). Gate allowlist holds only the guard itself plus named tool-owned scratch worktrees.",
+      "input_key": "unguarded_sites_scope",
+      "mission_id": "01M4KBPS5YJZESN67MC26CBDQR",
+      "mission_slug": "destructive-residue-context-01M4KBPS",
+      "opened_by": "cli",
+      "options": [
+        "Ledger them now, fix later (recommended)",
+        "Route all through the guard in this Mission",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "The ~10 other raw destructive git calls outside consolidate (worktree_allocator, mission_type, git_source, core/vcs) \u2014 fix them in this Mission, or freeze them in a shrink-only ledger and fix later?",
+      "rationale": null,
+      "resolved_at": "2026-10-10T16:54:37.840158Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.unguarded-sites",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-10T16:56:17.677984Z",
+      "decision_id": "01M4KBWWGDW6NZ0NA7PMEK3175",
+      "final_answer": "A: keep the verified landing, keep the coordination branch+worktree+marker as one triple, skip the branch delete, exit non-zero with a new refusal code; consolidate --resume finishes teardown after the operator commits/moves the files.",
+      "input_key": "teardown_refusal_after_landing",
+      "mission_id": "01M4KBPS5YJZESN67MC26CBDQR",
+      "mission_slug": "destructive-residue-context-01M4KBPS",
+      "opened_by": "cli",
+      "options": [
+        "Keep landing, keep coord triple, exit non-zero (recommended)",
+        "Roll the landing back",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Coord teardown runs after the lanes already landed on the target. When it refuses over only-copy files: keep the landing, keep coord branch+worktree, exit non-zero with a new code (re-run consolidate --resume to finish teardown); or roll the landing back?",
+      "rationale": null,
+      "resolved_at": "2026-10-10T17:11:27.754140Z",
+      "resolved_by": null,
+      "slot_key": "plan.design.teardown-refusal-after-landing",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-10-10T16:58:04.347733Z",
+      "decision_id": "01M4KC04NV3A879MWDYGAK4EJA",
+      "final_answer": "Yes: the gate also forbids shutil.rmtree of a git checkout path outside the destructive guard.",
+      "input_key": "rmtree_in_gate",
+      "mission_id": "01M4KBPS5YJZESN67MC26CBDQR",
+      "mission_slug": "destructive-residue-context-01M4KBPS",
+      "opened_by": "cli",
+      "options": [
+        "Yes",
+        "No",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Should the architectural gate also forbid shutil.rmtree of a git checkout outside the destructive guard?",
+      "rationale": null,
+      "resolved_at": "2026-10-10T16:58:05.954900Z",
+      "resolved_by": null,
+      "slot_key": "plan.scope.rmtree-in-gate",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M4KBPS5YJZESN67MC26CBDQR",
+  "version": 1
+}
