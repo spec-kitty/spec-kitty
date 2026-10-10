@@ -27,9 +27,7 @@ import contextlib
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
 
-import click
 import typer
-from click.core import ParameterSource
 from rich.console import Console
 from rich.markup import escape
 from specify_cli.cli.console import console
@@ -825,18 +823,29 @@ _RESYNTHESIS_FAILED = "RESYNTHESIS_FAILED"
 
 _PRESET_ONLY_OPTIONS: tuple[tuple[str, str], ...] = (("pack", "--pack"), ("force", "--force"), ("json_output", "--json"))
 
+#: Compared by ``.name``, never against ``click.core.ParameterSource``: typer
+#: 0.26+ vendors its own click (``typer._click``) whose enum shares no identity
+#: with the real ``click`` package's, so an identity check flags every option
+#: as given (the same trap ``migrate_cmd._COMMANDLINE_SOURCE`` avoids, #4964).
+_DEFAULT_SOURCE = "DEFAULT"
+
 
 def _check_preset_flags(ctx: typer.Context, *, preset: str | None, positional: bool, cascade: str | None) -> None:
-    """Enforce the ``--preset`` flag rules through Click's usage path (exit 2, before any I/O)."""
+    """Enforce the ``--preset`` flag rules through Click's usage path (exit 2, before any I/O).
+
+    Refusals go through ``ctx.fail``, which raises the ``UsageError`` of the click
+    universe that built ``ctx``: a real-click ``UsageError`` raised inside a
+    vendored-click dispatch escapes typer's handler as a traceback.
+    """
     if preset is not None:
         if positional:
-            raise click.UsageError("--preset cannot be combined with a positional KIND ARTIFACT_ID.", ctx=ctx)
+            ctx.fail("--preset cannot be combined with a positional KIND ARTIFACT_ID.")
         if cascade is not None:
-            raise click.UsageError("--cascade cannot be combined with --preset (presets do not cascade).", ctx=ctx)
+            ctx.fail("--cascade cannot be combined with --preset (presets do not cascade).")
         return
-    given = [flag for name, flag in _PRESET_ONLY_OPTIONS if ctx.get_parameter_source(name) is not ParameterSource.DEFAULT]
+    given = [flag for name, flag in _PRESET_ONLY_OPTIONS if getattr(ctx.get_parameter_source(name), "name", None) != _DEFAULT_SOURCE]
     if given:
-        raise click.UsageError(f"{', '.join(given)} only apply with --preset.", ctx=ctx)
+        ctx.fail(f"{', '.join(given)} only apply with --preset.")
 
 
 def _render_preset_plan(plan: PresetPlan) -> None:
