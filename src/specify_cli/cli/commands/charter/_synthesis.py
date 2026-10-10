@@ -582,7 +582,7 @@ def _has_generated_artifacts(repo_root: Path) -> bool:
     # (plurals via ArtifactKind) rather than a re-listed tuple (#5823). Imported
     # locally to keep this CLI module's import-time charter surface small.
     from charter.activation.synthesizer.topic_resolver import SYNTHESIZABLE_KINDS  # noqa: PLC0415
-    from charter.offering.artifact_kinds import ArtifactKind  # noqa: PLC0415
+    from charter.drg import ArtifactKind  # noqa: PLC0415
 
     for sub in sorted(ArtifactKind(kind).plural for kind in SYNTHESIZABLE_KINDS):
         sub_dir = generated_root / sub
