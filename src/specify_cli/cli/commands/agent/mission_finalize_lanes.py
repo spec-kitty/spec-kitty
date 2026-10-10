@@ -389,7 +389,7 @@ def _compute_and_write_lanes(
             wp_dependencies,
             wp_frontmatters,
             wp_bodies,
-            target_branch,
+            _mf._resolve_merge_target_branch(planning_dir, target_branch) if owned else target_branch,
             planning_commit_sha=resolved_sha,
             mission_id=mission_id,
             topology=topology,
