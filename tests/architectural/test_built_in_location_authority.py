@@ -521,10 +521,16 @@ def test_join_allowlist_survives_line_drift(
         assert _count_for(drifted[1], rel_posix) == expected
 
 
-#: The formerly pinned ``src/kernel/paths.py`` line (a dead ``(file, lineno)``
-#: pin: ``if is_windows():`` inside ``get_kittify_home``).
+#: The formerly pinned ``src/kernel/paths.py`` site (a dead ``(file, lineno)``
+#: pin: ``if is_windows():`` inside ``get_kittify_home``). Located by content,
+#: not by line number, so an edit above it cannot shift the probe into a comment.
 _FORMER_PIN_FILE = "src/kernel/paths.py"
-_FORMER_PIN_LINE = 88
+_FORMER_PIN_ANCHOR = "    if is_windows():\n"
+
+
+def _former_pin_line(source: str) -> int:
+    """Return the 1-based line of the formerly pinned ``if is_windows():`` site."""
+    return source.splitlines(keepends=True).index(_FORMER_PIN_ANCHOR) + 1
 
 
 def test_new_join_at_formerly_pinned_line_is_caught(
@@ -533,15 +539,16 @@ def test_new_join_at_formerly_pinned_line_is_caught(
     """A dead line pin must never re-bless a new violation planted at that line."""
     sources = _sources_of(src_source_tree)
     target = _REPO_ROOT / _FORMER_PIN_FILE
+    pin_line = _former_pin_line(sources[target])
     lines = sources[target].splitlines(keepends=True)
     planted = '    _probe = Path("root") / "built-in"\n'
-    lines.insert(_FORMER_PIN_LINE - 1, planted)
+    lines.insert(pin_line - 1, planted)
     mutated_source = "".join(lines)
     sources[target] = mutated_source
 
-    planted_key = (_FORMER_PIN_FILE, *composite_key(mutated_source, _FORMER_PIN_LINE))
+    planted_key = (_FORMER_PIN_FILE, *composite_key(mutated_source, pin_line))
     unexpected, suppressed = _join_partition(sources)
-    assert planted_key in unexpected, f"planted join at {_FORMER_PIN_FILE}:{_FORMER_PIN_LINE} was not reported (suppressed: {planted_key in suppressed})"
+    assert planted_key in unexpected, f"planted join at {_FORMER_PIN_FILE}:{pin_line} was not reported (suppressed: {planted_key in suppressed})"
 
 
 def test_duplicated_allowlisted_join_is_suppressed_once(
