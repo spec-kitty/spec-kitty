@@ -179,7 +179,13 @@ def _build_create_meta(
     )
 
 
-def _write_create_meta(feature_dir: Path, meta: dict[str, Any], mission: str | None) -> None:
+def _write_create_meta(
+    feature_dir: Path,
+    meta: dict[str, Any],
+    mission: str | None,
+    *,
+    write_root: Path | None = None,
+) -> None:
     """Persist ``meta.json`` (and the documentation mission's initial state).
 
     The tail of the former single-step ``_build_create_meta``, verbatim: the orchestrator
@@ -191,12 +197,13 @@ def _write_create_meta(feature_dir: Path, meta: dict[str, Any], mission: str | N
     (a reopen, discard or tracker binding of the same slug) is serialised rather
     than silently overwritten. ``fallback_to_dir_name`` covers the window before a
     coordination key is readable; the nested ``set_documentation_state`` re-enters
-    the same re-entrant lock on this thread.
+    the same re-entrant lock on this thread. ``write_root`` is the create's write root
+    (``P`` for an owned checkout), so the lock converges with the sibling create writers.
     """
     from specify_cli.mission_metadata import set_documentation_state, write_meta
     from specify_cli.status import mission_write_lock
 
-    with mission_write_lock(feature_dir, fallback_to_dir_name=True):
+    with mission_write_lock(feature_dir, repo_root=write_root, fallback_to_dir_name=True, birth=True):
         write_meta(feature_dir, meta)
 
         if mission == "documentation":

@@ -247,6 +247,7 @@ def mission_write_lock(
     repo_root: Path | None = None,
     timeout: float = MISSION_WRITE_LOCK_TIMEOUT_SECONDS,
     fallback_to_dir_name: bool = False,
+    birth: bool = False,
 ) -> Iterator[Path]:
     """Hold the Mission write lock for *feature_dir*; re-entrant per thread.
 
@@ -272,15 +273,22 @@ def mission_write_lock(
     * ``upgrade/migrations/m_2_0_6_consistency_sweep.py``: the meta, work-package and ``tasks.md`` repairs
     * ``migration/backfill_ownership.py``: the work-package ownership backfill
     * ``mission_metadata.py``: ``flatten_coordination_metadata`` (it heals a Mission whose coordination key cannot be read)
+
+    *birth* is for the create's ``meta.json`` birth write only: the Mission records no ``meta.json`` yet,
+    so there is nothing to read a key from and nothing to resolve. The key is the directory name (what a
+    create from the repository root always resolved), so an owned checkout's create never re-derives the
+    repository root from its own path (#5988).
     """
     root = resolve_status_lock_root(feature_dir, repo_root)
+    alias: str | None = None
     try:
-        key = mission_lock_key(feature_dir, repo_root=root)
+        key = feature_dir.name if birth else mission_lock_key(feature_dir, repo_root=root)
     except MissionLockKeyUnresolved:
         if not fallback_to_dir_name:
             raise
         key = feature_dir.name
-    alias = _primary_alias(root, key) if feature_dir.name == key else None
+    if not birth and feature_dir.name == key:
+        alias = _primary_alias(root, key)
     with (
         feature_status_lock(root, key, timeout=timeout) as held,
         registered_hold(root, feature_dir.name, key),

@@ -680,7 +680,7 @@ def _create_mission_core_impl(
         meta=meta_build.meta,
         protection=protection,
     )
-    _write_create_meta(scaffold.feature_dir, meta_build.meta, mission)
+    _write_create_meta(scaffold.feature_dir, meta_build.meta, mission, write_root=write_root)
     meta_build = replace(meta_build, minted_mission_branch=minted_mission_branch)
     if meta_build.minted_mission_branch is not None:
         # #5100 (6.7): the scaffold commit must land on the branch the mint

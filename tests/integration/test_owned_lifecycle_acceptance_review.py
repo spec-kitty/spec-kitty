@@ -48,7 +48,7 @@ from tests._factories import provision_test_charter
 from tests._owned_fixtures import RSnapshotter
 from tests.integration.conftest import OwnedCheckouts, _init_repo, _write_mission, _write_single_lane_manifest
 from tests.integration.test_owned_next_runtime import _finalize, _provision_charter
-from tests.runtime._next_mission_scaffold import advance_to_step
+from tests.runtime._next_mission_scaffold import advance_to_step, analysis_is_current
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -67,6 +67,12 @@ _GOVERNANCE_TAG_P = "P-ONLY-GOVERNANCE-MARKER"
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _analysis_gate_passes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These rows are about the owned review base, not the analysis report (#5885): the wrapper's check reports a current report."""
+    monkeypatch.setattr(next_cmd, "analysis_currency_for", lambda *_a, **_k: analysis_is_current)
 
 
 def _git(root: Path, *args: str) -> str:
@@ -126,11 +132,11 @@ def _ignore_derived_views(root: Path) -> None:
 
 
 def _owned_at_tasks(checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Finalized owned mission whose run is parked at the ``tasks`` step."""
+    """Finalized owned mission whose run is parked at the ``analyze`` step (the DAG's step between ``tasks`` and ``implement``)."""
     _provision_charter(checkouts)
     _ignore_derived_views(checkouts.owned_root)
     _finalize(checkouts, monkeypatch)
-    advance_to_step(checkouts.owned_root, checkouts.mission_slug, "software-dev", "tasks")
+    advance_to_step(checkouts.owned_root, checkouts.mission_slug, "software-dev", "analyze")
 
 
 def _owned_review_ready(checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
