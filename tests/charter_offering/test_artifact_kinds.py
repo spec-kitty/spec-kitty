@@ -6,8 +6,10 @@ import pytest
 
 from charter.offering.artifact_kinds import (
     CHARTER_KIND_TOKENS,
+    LAYERED_REPOSITORY_KIND_PLURALS,
     PROJECT_KIND_DIRS,
     ArtifactKind,
+    _HAS_LAYERED_REPOSITORY_KINDS,
     _NON_AUGMENTATION_ELIGIBLE_KINDS,
     _SINGULAR_PROJECT_DIR_KINDS,
 )
@@ -183,6 +185,113 @@ class TestProjectKindDirs:
         # asset`` writes under this directory, and CharterOfferingService (WP04) reads
         # the same authority for the project tier.
         assert PROJECT_KIND_DIRS[ArtifactKind.ASSET] == "assets"
+
+
+class TestHasLayeredRepository:
+    """T030 (#5824): the ``has_layered_repository`` predicate and its derived tuple.
+
+    The predicate names the kinds that resolve through a layered repository
+    (built-in + org + project), the axis the four diagnostic surfaces (org-pack
+    collision scan, org dir count, org-layer override lint, API 404 fallback)
+    scan. It is exactly the 11 kinds EXCEPT ``TEMPLATE`` (mission-tier, empty
+    glob) and ``ANTI_PATTERN`` (a re-kinded graph node, no standalone repo).
+    """
+
+    _EXPECTED_LAYERED = frozenset(
+        {
+            ArtifactKind.DIRECTIVE,
+            ArtifactKind.TACTIC,
+            ArtifactKind.STYLEGUIDE,
+            ArtifactKind.TOOLGUIDE,
+            ArtifactKind.PARADIGM,
+            ArtifactKind.PROCEDURE,
+            ArtifactKind.AGENT_PROFILE,
+            ArtifactKind.MISSION_STEP_CONTRACT,
+            ArtifactKind.ASSET,
+            ArtifactKind.GLOSSARY_PACK,
+            ArtifactKind.SKILL,
+        }
+    )
+
+    def test_backing_frozenset_is_exactly_the_eleven_layered_kinds(self) -> None:
+        assert _HAS_LAYERED_REPOSITORY_KINDS == self._EXPECTED_LAYERED
+        assert len(_HAS_LAYERED_REPOSITORY_KINDS) == 11
+
+    def test_predicate_matches_the_backing_set(self) -> None:
+        assert {k for k in ArtifactKind if k.has_layered_repository} == self._EXPECTED_LAYERED
+
+    def test_excludes_only_template_and_anti_pattern(self) -> None:
+        excluded = {k for k in ArtifactKind if not k.has_layered_repository}
+        assert excluded == {ArtifactKind.TEMPLATE, ArtifactKind.ANTI_PATTERN}
+
+    def test_covers_the_three_later_additions(self) -> None:
+        # The #5824 defect class: surfaces covering only the 8 core kinds skip
+        # these three. The layered predicate must include them.
+        for kind in (ArtifactKind.ASSET, ArtifactKind.GLOSSARY_PACK, ArtifactKind.SKILL):
+            assert kind.has_layered_repository is True
+
+    def test_distinct_from_selection_overlayable(self) -> None:
+        overlayable = {k for k in ArtifactKind if k.selection_overlayable}
+        assert len(overlayable) == 8
+        assert overlayable != _HAS_LAYERED_REPOSITORY_KINDS
+        # The three later additions are the exact difference.
+        assert self._EXPECTED_LAYERED - overlayable == {
+            ArtifactKind.ASSET,
+            ArtifactKind.GLOSSARY_PACK,
+            ArtifactKind.SKILL,
+        }
+
+    def test_distinct_from_has_built_in_content_dir(self) -> None:
+        built_in = {k for k in ArtifactKind if k.has_built_in_content_dir}
+        assert len(built_in) == 10
+        assert built_in != _HAS_LAYERED_REPOSITORY_KINDS
+        # Layered adds mission_step_contract (a package-resource kind with a
+        # layered repo but no shipped content dir), which content-dir omits.
+        assert self._EXPECTED_LAYERED - built_in == {ArtifactKind.MISSION_STEP_CONTRACT}
+
+    def test_coincides_with_org_requirable_today(self) -> None:
+        # The docstring's load-bearing claim: membership-identical to
+        # org_requirable TODAY, but a distinct fact (different home, different
+        # meaning). A future divergence must not be blocked here.
+        org_requirable = {k for k in ArtifactKind if k.org_requirable}
+        assert org_requirable == _HAS_LAYERED_REPOSITORY_KINDS
+
+    def test_derived_plurals_tuple_is_declaration_ordered(self) -> None:
+        assert tuple(
+            kind.plural for kind in ArtifactKind if kind.has_layered_repository
+        ) == LAYERED_REPOSITORY_KIND_PLURALS
+        assert LAYERED_REPOSITORY_KIND_PLURALS == (
+            "directives",
+            "tactics",
+            "styleguides",
+            "toolguides",
+            "paradigms",
+            "procedures",
+            "agent_profiles",
+            "mission_step_contracts",
+            "assets",
+            "glossary_packs",
+            "skills",
+        )
+
+    def test_plurals_tuple_in_all(self) -> None:
+        from charter.offering import artifact_kinds
+
+        assert "LAYERED_REPOSITORY_KIND_PLURALS" in artifact_kinds.__all__
+
+
+class TestCoreKindRetired:
+    """T035 (#5824): ``ArtifactKind.core`` / ``CORE_KIND_PLURALS`` are gone."""
+
+    def test_core_property_removed(self) -> None:
+        assert not hasattr(ArtifactKind.DIRECTIVE, "core")
+
+    def test_core_kind_plurals_symbol_removed(self) -> None:
+        from charter.offering import artifact_kinds
+
+        assert not hasattr(artifact_kinds, "CORE_KIND_PLURALS")
+        assert "CORE_KIND_PLURALS" not in artifact_kinds.__all__
+        assert not hasattr(artifact_kinds, "_CORE_KINDS")
 
 
 class TestNonAugmentationEligibleKinds:

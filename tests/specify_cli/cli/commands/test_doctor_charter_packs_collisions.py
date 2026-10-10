@@ -69,6 +69,85 @@ def _resolve_built_in_directive_id(repo_root: Path) -> str:
     raise RuntimeError("no shipped directive found")
 
 
+def _write_glossary_pack(path: Path, pack_id: str, description: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        textwrap.dedent(
+            f"""
+            id: {pack_id}
+            description: "{description}"
+            provenance: org
+            terms:
+            - definition: A test term definition.
+              surface: test term
+              status: active
+              confidence: 0.9
+            """
+        ).lstrip(),
+        encoding="utf-8",
+    )
+
+
+def test_org_artifact_dirs_cover_the_three_later_kinds() -> None:
+    """T031 (#5824): the collision-scan + dir-count accessor set covers the
+    three later additions, not just the eight pre-addition kinds.
+
+    ``_ORG_ARTIFACT_DIRS`` drives BOTH the org-pack directory count
+    (:func:`_count_pack_artifacts`) and the collision-scan accessor loop
+    (:func:`_collect_layer_collisions`), so including ``glossary_packs``,
+    ``skills`` and ``assets`` here is what makes both surfaces cover them.
+    """
+    from charter.offering.artifact_kinds import LAYERED_REPOSITORY_KIND_PLURALS
+    from specify_cli.cli.commands._charter_pack_collect import _ORG_ARTIFACT_DIRS
+
+    assert set(_ORG_ARTIFACT_DIRS) >= {"glossary_packs", "skills", "assets"}
+    assert "mission_step_contracts" in _ORG_ARTIFACT_DIRS
+    assert tuple(_ORG_ARTIFACT_DIRS) == LAYERED_REPOSITORY_KIND_PLURALS
+
+
+def test_count_pack_artifacts_includes_the_three_later_kind_dirs(tmp_path: Path) -> None:
+    """T031 (#5824): the org-pack dir count covers glossary_packs/skills/assets."""
+    from specify_cli.cli.commands._charter_pack_collect import _count_pack_artifacts
+
+    snapshot = tmp_path / "snapshot"
+    for plural in ("glossary_packs", "skills", "assets"):
+        d = snapshot / plural
+        d.mkdir(parents=True)
+        (d / "x.yaml").write_text("id: x\n", encoding="utf-8")
+
+    counts = _count_pack_artifacts(snapshot)
+    assert counts["glossary_packs"] == 1
+    assert counts["skills"] == 1
+    assert counts["assets"] == 1
+
+
+def test_collect_layer_collisions_reports_glossary_pack_shadowing(tmp_path: Path) -> None:
+    """T031 (#5824): an org glossary pack shadowing a built-in one is reported.
+
+    Previously the collision scan covered only the eight core kinds, so a
+    ``glossary_pack`` (or ``skill`` / ``asset``) override went unreported. The
+    built-in pack ships the ``spec-kitty-core`` glossary pack, which an org pack
+    here overrides.
+    """
+    from specify_cli.cli.commands._charter_pack_collect import _collect_layer_collisions
+
+    pack_dir = tmp_path / "pack"
+    _write_glossary_pack(
+        pack_dir / "glossary_packs" / "override.glossary-pack.yaml",
+        pack_id="spec-kitty-core",
+        description="Org override of the built-in core glossary pack",
+    )
+    _write_kittify_config_with_pack(tmp_path, pack_dir)
+
+    collisions = _collect_layer_collisions(tmp_path)
+    glossary_hits = [c for c in collisions if c["item_id"] == "spec-kitty-core"]
+    assert glossary_hits, f"expected a glossary_pack collision, got {collisions!r}"
+    hit = glossary_hits[0]
+    assert hit["higher_layer"] == "org"
+    assert hit["lower_layer"] == "builtin"
+    assert "glossary" in str(hit["kind"]).lower()
+
+
 def test_doctor_charter_packs_text_shows_collisions(tmp_path: Path) -> None:
     """When an org pack shadows a shipped directive, `doctor charter-packs` lists it."""
     real_repo = Path(__file__).resolve().parents[4]

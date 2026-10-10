@@ -214,6 +214,59 @@ class TestLintOrgOverridesAdvisory:
         assert "DIRECTIVE_001" in first.id
 
 
+class TestLintOrgOverridesLaterKinds:
+    """T032 (#5824): the org-overrides-builtin advisory covers the later kinds.
+
+    Before #5824 the override lint scanned only the eight pre-addition kinds, so
+    an org pack overriding a ``glossary_pack`` (or ``skill`` / ``asset``) was
+    never flagged. The scan now derives from ``has_layered_repository``.
+    """
+
+    def test_overridable_artifact_types_cover_the_three_later_kinds(self) -> None:
+        from charter.offering.artifact_kinds import LAYERED_REPOSITORY_KIND_PLURALS
+        from specify_cli.charter_runtime.lint.checks.org_layer import (
+            _OVERRIDABLE_ARTIFACT_TYPES,
+        )
+
+        assert set(_OVERRIDABLE_ARTIFACT_TYPES) >= {"glossary_packs", "skills", "assets"}
+        assert tuple(_OVERRIDABLE_ARTIFACT_TYPES) == LAYERED_REPOSITORY_KIND_PLURALS
+
+    def test_org_glossary_pack_override_is_flagged(self, tmp_path: Path) -> None:
+        """An org pack shadowing the built-in ``spec-kitty-core`` glossary pack
+        produces an ``org_overrides_builtin`` advisory (keyed on the layered
+        predicate, which now includes ``glossary_pack``)."""
+        from specify_cli.charter_runtime.lint.checks.org_layer import (
+            OrgOverridesBuiltinChecker,
+        )
+
+        org_root = tmp_path / "org"
+        glossary_dir = org_root / "glossary_packs"
+        glossary_dir.mkdir(parents=True)
+        (glossary_dir / "override.glossary-pack.yaml").write_text(
+            "id: spec-kitty-core\n"
+            "description: Org override of the built-in core glossary pack\n"
+            "provenance: org\n"
+            "terms:\n"
+            "- definition: A test term definition.\n"
+            "  surface: test term\n"
+            "  status: active\n"
+            "  confidence: 0.9\n",
+            encoding="utf-8",
+        )
+
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+        write_org_packs(repo_root, [{"name": "acme", "local_path": org_root}])
+
+        findings = OrgOverridesBuiltinChecker(repo_root=repo_root).run(drg=None)
+        glossary_findings = [
+            f for f in findings if f.type == "org_overrides_builtin" and "glossary_packs:spec-kitty-core" in f.id
+        ]
+        assert glossary_findings, f"expected a glossary_pack override advisory, got {[f.id for f in findings]!r}"
+        assert glossary_findings[0].severity == "low"
+        assert glossary_findings[0].category == "org_layer"
+
+
 class TestLintEngineWithOrgChecksOnly:
     """LintEngine accepts the new check names without raising."""
 

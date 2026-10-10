@@ -80,7 +80,13 @@ __all__ = [
 ]
 
 
-_ORG_ARTIFACT_DIRS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.core)
+# The org-pack artifact directories the dir-count and collision scans cover:
+# every kind resolved through a layered repository (#5824). Keyed on
+# :attr:`~charter.offering.artifact_kinds.ArtifactKind.has_layered_repository`
+# (11 kinds) rather than the retired ``core`` set (8) so the scans also cover
+# ``glossary_packs``, ``skills`` and ``assets`` — the three later additions the
+# core-only value skipped.
+_ORG_ARTIFACT_DIRS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.has_layered_repository)
 
 
 def _project_pack_root_or_none(repo_root: Path) -> Path | None:
@@ -644,6 +650,10 @@ def _collect_layer_collisions(repo_root: Path) -> list[dict[str, object]]:
                 "inherited": int(m.group("inherited")),
             }
         )
+    # Stable order across the now-11 scanned kinds (#5824): sort by (kind, item_id)
+    # so the rendered/JSON collision list is deterministic regardless of
+    # warning-capture order.
+    collisions.sort(key=lambda c: (str(c["kind"]), str(c["item_id"])))
     return collisions
 
 

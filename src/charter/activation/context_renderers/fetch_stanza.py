@@ -28,6 +28,8 @@ from __future__ import annotations
 
 import re
 
+from charter.offering.artifact_kinds import ArtifactKind
+
 __all__ = [
     "DEFAULT_WHEN_CLAUSE",
     "fetch_stanza",
@@ -95,19 +97,16 @@ def _normalize_when_clause(clause: str) -> str:
     return f"need to {anchored}"
 
 
-_VALID_SELECTOR_KINDS: frozenset[str] = frozenset(
-    {
-        "agent_profile",
-        "directive",
-        "mission_step_contract",
-        "paradigm",
-        "procedure",
-        "section",
-        "styleguide",
-        "tactic",
-        "toolguide",
-    }
-)
+# The selector kinds the ``charter context --include`` surface accepts: the
+# charter-activatable kind singulars plus the non-kind ``section`` selector.
+# Derived from the single :class:`ArtifactKind` authority
+# (:attr:`~charter.offering.artifact_kinds.ArtifactKind.activatable`) rather than
+# hand-listed so it cannot drift from the enum; ``section`` is not a kind, so it
+# is unioned in explicitly. This set is behaviorally inert — ``format_selector``'s
+# valid and invalid branches are identical — so keying it on ``activatable`` (the
+# honest "kinds ``charter context --include`` accepts" set) rather than the
+# retired ``core`` set (#5824) carries no behavior change.
+_VALID_SELECTOR_KINDS: frozenset[str] = frozenset(k.value for k in ArtifactKind if k.activatable) | {"section"}
 
 
 def format_selector(kind: str, identifier: str) -> str:

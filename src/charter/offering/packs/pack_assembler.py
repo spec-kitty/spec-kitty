@@ -38,6 +38,7 @@ from typing import TYPE_CHECKING, Any
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.override_policy import (
     PACK_POLICY_FILENAME,
     OverridePolicyError,
@@ -114,16 +115,17 @@ class AssemblyResult:
 # ---------------------------------------------------------------------------
 
 
-_ARTIFACT_DIRS_AND_GLOBS: dict[str, str] = {
-    "directives": "*.directive.yaml",
-    "tactics": "*.tactic.yaml",
-    "styleguides": "*.styleguide.yaml",
-    "toolguides": "*.toolguide.yaml",
-    "paradigms": "*.paradigm.yaml",
-    "procedures": "*.procedure.yaml",
-    "agent_profiles": "*.agent.yaml",
-    "mission_step_contracts": "*.step-contract.yaml",
-}
+# The pack content directories and their artifact glob patterns, derived from
+# the single :class:`ArtifactKind` authority (plural directory name + canonical
+# ``glob_pattern``) so neither the directory names nor the globs can drift from
+# the enum. Keyed on
+# :attr:`~charter.offering.artifact_kinds.ArtifactKind.has_built_in_content_dir`
+# (the kinds that ship a ``packs/built-in/<plural>/`` content directory) rather
+# than the retired ``core`` set (#5824): the built-in pack ships ``assets/``,
+# ``glossary_packs/`` and ``skills/`` directories and no ``mission_step_contracts/``
+# directory, so this now scans/copies the three real directories the 8-``core``
+# value skipped. Declaration order preserves a stable scan/copy order.
+_ARTIFACT_DIRS_AND_GLOBS: dict[str, str] = {k.plural: k.glob_pattern for k in ArtifactKind if k.has_built_in_content_dir}
 
 
 # ---------------------------------------------------------------------------

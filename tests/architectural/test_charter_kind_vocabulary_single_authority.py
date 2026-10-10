@@ -41,6 +41,10 @@ one of:
   call over one — whose string constants are ALL artifact-kind names (singular
   OR plural), with ``>= 8`` distinct (``8/12`` — a universe-scale restatement, as
   opposed to a small curated selection).
+* **R1' — padded universe literal** (#5823): the same universe-scale display
+  (``>= 8`` kind-name string constants) tolerating a SINGLE non-kind padding
+  string — the pack-layout dir set (8 plurals + ``"drg"``) and the selector set
+  (8 singulars + ``"section"``) are exactly this shape and slipped past R1.
 * **R2 — plural alias map**: a ``dict`` display with ``>= 8`` artifact-kind-name
   string *keys* and at least one artifact-kind-name string *value* (a
   kind→kind universe/alias map, e.g. the org-pack canonical-kind map).
@@ -48,17 +52,29 @@ one of:
   string key is an artifact-kind **singular** and its value equals that kind's
   canonical **plural** — a restatement of the authority's own
   singular→plural relationship.
+* **R4 — plural→glob map** (#5823): a ``dict`` display, ``>= 8`` entries, whose
+  every string key is a kind **plural** and whose value equals that kind's
+  ``glob_pattern`` — the pack-assembler's dirs/globs restatement.
+* **R5 — operator-token→singular map** (#5823): a ``dict`` display, ``>= 8``
+  entries, whose every string key is a kind **operator token** (the hyphenated
+  CLI surface) mapping to that kind's canonical singular — the
+  CLI-kind→DRG-singular restatement that R2 misses because hyphenated tokens are
+  not kind *names*.
+* **R6 — ArtifactKind→NodeKind identity map** (#5823): a ``dict`` display whose
+  every key is an ``ArtifactKind`` member and every value a ``NodeKind`` member
+  (attribute form ``ArtifactKind.X`` or constructor form ``ArtifactKind("x")``) —
+  a per-member restatement of the kind↔node-kind identity.
 
 Deliberately NOT flagged (a different concern, not the kind universe):
 per-kind dispatch tables whose values are callables / ``NodeKind`` members /
-``activated_<kind>`` field names (only the *keys* are kinds); small curated
-plural subsets (``< 8``) used for ordered rendering; and singular→singular
-subdir maps. These do not restate the kind universe or its singular↔plural
-relationship, so they are not drift mirrors. Known shapes the rules do not yet
-recognise (hyphenated operator-token maps, ``ArtifactKind``→``NodeKind``
-identity maps, glob- or suffix-valued maps, universe sets padded with one
-non-kind string, tuples of ``ArtifactKind`` members, the 3-kind synthesizable
-subset) are tracked in #5823 rather than allowlisted here.
+``activated_<kind>`` field names keyed by non-kind strings (only the *keys* are
+kinds, or only the values are node kinds — never both-as-members); small curated
+plural subsets (``< 8``) used for ordered rendering; singular→singular subdir
+maps; a ``str``→``NodeKind`` legacy-field map (keys are plural strings, not
+``ArtifactKind`` members, so not R6); and a ``typing.Literal[...]`` kind alias
+(its slice tuple cannot consume a derived ``frozenset``, so it is exempt — see
+:func:`_literal_slice_tuples`). These do not restate the kind universe or any
+authority-owned relationship, so they are not drift mirrors.
 """
 
 from __future__ import annotations
@@ -86,6 +102,10 @@ _KIND_SINGULARS: frozenset[str] = frozenset(k.value for k in ArtifactKind)
 _KIND_PLURALS: frozenset[str] = frozenset(k.plural for k in ArtifactKind)
 _KIND_NAMES: frozenset[str] = _KIND_SINGULARS | _KIND_PLURALS
 _SINGULAR_TO_PLURAL: dict[str, str] = {k.value: k.plural for k in ArtifactKind}
+
+#: Authority relationships the dict rules check a literal's values against.
+_PLURAL_TO_GLOB: dict[str, str] = {k.plural: k.glob_pattern for k in ArtifactKind}  # R4
+_OPERATOR_TOKEN_TO_SINGULAR: dict[str, str] = {k.operator_token: k.value for k in ArtifactKind}  # R5
 
 _UNIVERSE_SCALE = 8  # 8 of 12 kinds -> a universe restatement, not a curated subset
 
@@ -117,18 +137,45 @@ def _display_elements(node: ast.expr) -> list[ast.expr] | None:
     return None
 
 
+def _is_member_ref(node: ast.expr, enum_name: str) -> bool:
+    """True iff *node* references a member of the enum called *enum_name*.
+
+    Matches both the attribute form (``ArtifactKind.DIRECTIVE``) and the
+    constructor-call form (``ArtifactKind("directive")``). Used by R6 to tell
+    an ``ArtifactKind``→``NodeKind`` identity map (a kind-vocabulary mirror)
+    from a dispatch table keyed by strings or valued by callables.
+    """
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == enum_name:
+        return True
+    return isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == enum_name
+
+
+def _string_pairs(value: ast.Dict) -> list[tuple[str, str]]:
+    """Return the ``(key, value)`` pairs of *value* whose key AND value are string constants."""
+    return [
+        (k.value, v.value)
+        for k, v in zip(value.keys, value.values, strict=True)
+        if isinstance(k, ast.Constant) and isinstance(v, ast.Constant) and isinstance(k.value, str) and isinstance(v.value, str)
+    ]
+
+
 def _violation(value: ast.expr) -> str | None:
     """Classify *value* (an assignment RHS); return a reason string if it is a mirror."""
     members = _display_elements(value)
     if members is not None:
         strings = _str_consts(members)
-        # A universe-scale membership restatement: every string element is an
-        # artifact-kind name (singular OR plural — the plural forms name the
+        # A universe-scale membership restatement: >= 8 of the 12 kinds appear
+        # as string elements (singular OR plural — the plural forms name the
         # repository/universe axis, but a hand-authored singular universe set is
-        # equally a mirror) and >= 8 of the 12 kinds appear.
-        kinds = {s for s in strings if s in _KIND_NAMES}
-        if len(kinds) >= _UNIVERSE_SCALE and len(kinds) == len(set(strings)):
-            return f"R1 universe membership literal of {len(kinds)} kind names"
+        # equally a mirror). R1' tolerates a SINGLE non-kind padding string
+        # (``"drg"`` in the pack-layout dir set, ``"section"`` in the selector
+        # set) that the #5409 R1 required to be absent.
+        distinct = set(strings)
+        kinds = {s for s in distinct if s in _KIND_NAMES}
+        non_kind = len(distinct) - len(kinds)
+        if len(kinds) >= _UNIVERSE_SCALE and non_kind <= 1:
+            label = "R1 universe membership literal" if non_kind == 0 else "R1' padded universe membership literal"
+            return f"{label} of {len(kinds)} kind names"
 
     if isinstance(value, ast.Dict):
         key_strings = [k.value for k in value.keys if isinstance(k, ast.Constant) and isinstance(k.value, str)]
@@ -139,13 +186,29 @@ def _violation(value: ast.expr) -> str | None:
             return f"R2 kind→kind alias map with {len(kind_keys)} kind keys"
         # R3: every string key is a kind singular mapped to its canonical plural.
         if len(key_strings) >= 2 and all(k in _KIND_SINGULARS for k in key_strings):
-            pairs = [
-                (k.value, v.value)
-                for k, v in zip(value.keys, value.values, strict=True)
-                if isinstance(k, ast.Constant) and isinstance(v, ast.Constant) and isinstance(k.value, str) and isinstance(v.value, str)
-            ]
+            pairs = _string_pairs(value)
             if pairs and all(_SINGULAR_TO_PLURAL.get(k) == v for k, v in pairs):
                 return f"R3 singular→plural map of {len(pairs)} kinds"
+        # R4: a universe-scale plural→glob map whose every value equals that
+        # kind's canonical ``glob_pattern`` (the pack-assembler dirs/globs map).
+        if len(key_strings) >= _UNIVERSE_SCALE and all(k in _KIND_PLURALS for k in key_strings):
+            pairs = _string_pairs(value)
+            if len(pairs) == len(value.keys) and all(_PLURAL_TO_GLOB.get(k) == v for k, v in pairs):
+                return f"R4 plural→glob map of {len(pairs)} kinds"
+        # R5: a universe-scale operator-token→canonical-singular map (the
+        # hyphenated CLI surface restated — the CLI-kind→DRG-singular map).
+        if len(key_strings) >= _UNIVERSE_SCALE and all(k in _OPERATOR_TOKEN_TO_SINGULAR for k in key_strings):
+            pairs = _string_pairs(value)
+            if len(pairs) == len(value.keys) and all(_OPERATOR_TOKEN_TO_SINGULAR.get(k) == v for k, v in pairs):
+                return f"R5 operator-token→singular map of {len(pairs)} kinds"
+        # R6: an ``ArtifactKind``→``NodeKind`` identity map — keys are
+        # ArtifactKind members, values NodeKind members (attribute or
+        # constructor-call form). A dispatch table keyed by strings, or valued
+        # by callables / field-name strings, is NOT this shape.
+        keys_are_artifact_kinds = bool(value.keys) and all(k is not None and _is_member_ref(k, "ArtifactKind") for k in value.keys)
+        vals_are_node_kinds = bool(value.values) and all(_is_member_ref(v, "NodeKind") for v in value.values)
+        if keys_are_artifact_kinds and vals_are_node_kinds:
+            return f"R6 ArtifactKind→NodeKind identity map of {len(value.keys)} kinds"
     return None
 
 
@@ -176,18 +239,43 @@ def _assignment_names(tree: ast.AST) -> dict[int, str]:
 _DISPLAY_NODES = (ast.Set, ast.Tuple, ast.List, ast.Dict)
 
 
+def _literal_slice_tuples(tree: ast.AST) -> set[int]:
+    """Return the ``id()`` of every tuple that is the slice of a ``Literal[...]``.
+
+    A ``typing.Literal[...]`` with two or more members carries an
+    :class:`ast.Tuple` slice of string constants (e.g.
+    ``Literal["directive", "tactic", "styleguide"]``). That tuple is a type
+    alias, not a runtime collection — a ``Literal`` cannot consume a derived
+    ``frozenset`` over ``ArtifactKind``, so it is the one display the gate must
+    exempt rather than demand be migrated. Keyed by node identity so only the
+    Literal's own slice is skipped, never an unrelated tuple at the same depth.
+    """
+    skip: set[int] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Subscript):
+            continue
+        base = node.value
+        base_name = base.id if isinstance(base, ast.Name) else base.attr if isinstance(base, ast.Attribute) else None
+        if base_name == "Literal" and isinstance(node.slice, ast.Tuple):
+            skip.add(id(node.slice))
+    return skip
+
+
 def _scan_source(source: str, filename: str = "<planted>") -> list[tuple[int, str, str]]:
     """Return ``(lineno, name, reason)`` for every mirror display in *source*.
 
     Walks every expression node, so a display is classified wherever it sits:
     module or class attribute, function-local variable, or a bare ``return``
-    / subscript display that is never bound to a name at all.
+    / subscript display that is never bound to a name at all. The slice of a
+    ``typing.Literal[...]`` kind alias is exempt (see
+    :func:`_literal_slice_tuples`).
     """
     tree = ast.parse(source, filename)
     names = _assignment_names(tree)
+    exempt = _literal_slice_tuples(tree)
     findings: list[tuple[int, str, str]] = []
     for node in ast.walk(tree):
-        if not isinstance(node, _DISPLAY_NODES):
+        if not isinstance(node, _DISPLAY_NODES) or id(node) in exempt:
             continue
         reason = _violation(node)
         if reason is None:
@@ -292,3 +380,95 @@ def test_gate_leaves_a_derived_map_alone() -> None:
     """The derived form the gate asks for is not itself flagged."""
     source = "MAPPING = {k.plural: k.value for k in ArtifactKind}\n"
     assert _scan_source(source) == []
+
+
+# ---------------------------------------------------------------------------
+# #5823: the five previously-unrecognised mirror shapes (R1' / R4 / R5 / R6),
+# each with a red-first self-mutation test planting a mirror built from the
+# authority and asserting the classifier flags it.
+# ---------------------------------------------------------------------------
+
+
+def test_gate_detects_a_padded_universe_set() -> None:
+    """R1': a universe-scale membership set padded with one non-kind string.
+
+    The #5409 R1 rule only caught a set whose every element is a kind name;
+    a padded universe set (e.g. ``RECOGNISED_ARTIFACT_DIRS`` = the built-in
+    content-dir plurals + ``"drg"``, ``_VALID_SELECTOR_KINDS`` = the
+    activatable singulars + ``"section"``) carries one non-kind padding
+    element, so it slipped through. R1' closes that. (Both live sites are now
+    derived comprehensions, so this rule guards against a hand-authored
+    regression rather than the live values.)
+    """
+    plurals = ", ".join(f'"{p}"' for p in sorted(_KIND_PLURALS))
+    padded = "X = {" + plurals + ', "drg"}'
+    assert _violation(ast.parse(padded).body[0].value) is not None, "R1' must flag a padded universe set"  # type: ignore[attr-defined]
+
+    singulars = ", ".join(f'"{s}"' for s in sorted(_KIND_SINGULARS))
+    padded_singular = "X = {" + singulars + ', "section"}'
+    assert _violation(ast.parse(padded_singular).body[0].value) is not None, "R1' must flag a padded singular universe set"  # type: ignore[attr-defined]
+
+
+def test_gate_detects_a_plural_to_glob_map() -> None:
+    """R4: a plural→glob map whose values are each the kind's glob pattern."""
+    pairs = ", ".join(f'"{k.plural}": "{k.glob_pattern}"' for k in ArtifactKind if k.has_built_in_content_dir)
+    planted = "X = {" + pairs + "}"
+    assert _violation(ast.parse(planted).body[0].value) is not None, "R4 must flag a plural→glob map"  # type: ignore[attr-defined]
+
+
+def test_gate_detects_an_operator_token_to_singular_map() -> None:
+    """R5: an operator-token→canonical-singular map (universe-scale restatement).
+
+    Mirrors the live ``_CLI_KIND_TO_DRG_SINGULAR`` shape: the hyphenated
+    operator tokens (``agent-profile``, ``mission-step-contract``,
+    ``glossary-pack``) are NOT kind *names*, so fewer than eight bare kind
+    names appear as keys and the #5409 R2 rule cannot see it — R5, which keys
+    off the operator-token surface, must.
+    """
+    drg_kinds = [k for k in ArtifactKind if k not in {ArtifactKind.TEMPLATE, ArtifactKind.ASSET, ArtifactKind.ANTI_PATTERN, ArtifactKind.SKILL}]
+    pairs = ", ".join(f'"{k.operator_token}": "{k.value}"' for k in drg_kinds)
+    planted = "X = {" + pairs + "}"
+    assert _violation(ast.parse(planted).body[0].value) is not None, "R5 must flag an operator-token→singular map"  # type: ignore[attr-defined]
+
+
+@pytest.mark.parametrize(
+    ("form", "render"),
+    [
+        ("attribute", lambda k: f"ArtifactKind.{k.name}: NodeKind.{k.name}"),
+        ("constructor-call", lambda k: f'ArtifactKind("{k.value}"): NodeKind("{k.value}")'),
+    ],
+)
+def test_gate_detects_an_artifactkind_to_nodekind_map(form: str, render: object) -> None:
+    """R6: an ``ArtifactKind``→``NodeKind`` identity map, attribute or call form."""
+    pairs = ", ".join(render(k) for k in ArtifactKind if k not in {ArtifactKind.ANTI_PATTERN, ArtifactKind.SKILL})  # type: ignore[operator]
+    planted = "X = {" + pairs + "}"
+    assert _violation(ast.parse(planted).body[0].value) is not None, f"R6 must flag an ArtifactKind→NodeKind map ({form})"  # type: ignore[attr-defined]
+
+
+def test_gate_leaves_legitimate_constructs_alone() -> None:
+    """None of the known-good shapes are mirror literals (no false positives).
+
+    Pins the tight scoping of R1'/R4/R5/R6 against the six shapes that look
+    kind-adjacent but restate neither the kind universe nor a singular↔plural/
+    glob/node-kind relationship the authority owns (#5823).
+    """
+    # DIRECT_WRITE_KINDS: a curated 5-tuple (< 8) — a selection, not a universe.
+    direct_write = 'X = ("directive", "tactic", "styleguide", "procedure", "agent_profile")\n'
+    assert _scan_source(direct_write) == [], "curated 5-tuple is not a universe restatement"
+
+    # PROJECT_KIND_DIRS: the intentionally-total ArtifactKind→str directory map.
+    project_dirs = "X = {" + ", ".join(f"ArtifactKind.{k.name}: {k.value!r}" for k in ArtifactKind) + "}\n"
+    assert _scan_source(project_dirs) == [], "ArtifactKind→str dir map is not a kind-vocabulary mirror"
+
+    # _KIND_BY_LEGACY_FIELD: a str(plural)→NodeKind map (NOT R6 — keys are strings).
+    legacy = "X = {" + ", ".join(f"{k.plural!r}: NodeKind.{k.name}" for k in ArtifactKind) + "}\n"
+    assert _scan_source(legacy) == [], "str→NodeKind map is not an ArtifactKind→NodeKind identity map"
+
+    # typing.Literal[...] kind aliases: a Literal cannot consume a runtime
+    # frozenset, so even an 8+-kind Literal slice is exempt (ast.Subscript).
+    literal = "X = Literal[" + ", ".join(f'"{p}"' for p in sorted(_KIND_PLURALS)) + "]\n"
+    assert _scan_source(literal) == [], "Literal[...] kind alias must be exempt"
+
+    # Per-kind dispatch table: NodeKind values keyed by non-kind strings.
+    dispatch = 'X = {"first": NodeKind.DIRECTIVE, "second": NodeKind.TACTIC, "third": NodeKind.STYLEGUIDE}\n'
+    assert _scan_source(dispatch) == [], "a dispatch table keyed by non-kind strings is not a mirror"

@@ -72,7 +72,6 @@ from __future__ import annotations
 # charter.offering.artifact_kinds.ArtifactKind`` (mission ``doctrine-public-api-surface``
 # WP03, FR-003 / NFR-002 / contract C1).
 from charter.offering.api import ArtifactKind, slug_for
-from charter.offering.artifact_kinds import CORE_KIND_PLURALS
 from charter.offering.base import ArtifactLayerCollisionWarning
 from charter.offering.drg import (
     DRGLoadError,
@@ -129,7 +128,6 @@ __all__ = [
     "resolve_edge_endpoint",
     "merge_three_layers",
     "ArtifactKind",
-    "CORE_KIND_PLURALS",
     "OrgPackConfig",
     "DRGEdge",
     "DRGGraph",

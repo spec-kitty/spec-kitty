@@ -25,7 +25,7 @@ import re
 from collections.abc import Mapping
 from types import MappingProxyType
 
-from charter.drg import CORE_KIND_PLURALS
+from charter.drg import ArtifactKind
 
 __all__ = ["DEFAULT_KIND_GATE", "DEFAULT_SNAPSHOTS", "MINIMAL_KIND_GATE", "MINIMAL_SNAPSHOTS", "normalise_id"]
 
@@ -551,12 +551,28 @@ DEFAULT_SNAPSHOTS: Mapping[str, tuple[frozenset[str], ...]] = MappingProxyType(
     }
 )
 
-#: The ``activated_kinds`` of every released ``default.yaml``: the core kinds.
-#: Derived from the ``ArtifactKind`` authority (no hand-copied kind literal,
-#: ``test_charter_kind_vocabulary_single_authority``); the released value is
-#: frozen by ``test_charter_pack_cutover_snapshots.py::test_kind_gates``, which
-#: fails if the authority ever drifts from it.
-DEFAULT_KIND_GATE: frozenset[str] = frozenset(CORE_KIND_PLURALS)
+#: The ``activated_kinds`` of every released ``default.yaml``: the eight
+#: pre-addition kinds the released snapshots actually gated. This is a FROZEN
+#: release-snapshot value, NOT a live predicate — it must not follow any current
+#: authority set (the ``core`` predicate it used to read was deleted in #5824,
+#: and ``has_layered_repository`` is the wrong, wider set). It is pinned, member
+#: by member, to exactly the eight kinds that shipped — their ``.plural`` values
+#: are read from the ``ArtifactKind`` authority (so the strings cannot be
+#: hand-mistyped) but the MEMBERSHIP is frozen and does not change when the enum
+#: gains or re-kinds a member. The released value is frozen by
+#: ``test_charter_pack_cutover_snapshots.py::test_kind_gates``.
+DEFAULT_KIND_GATE: frozenset[str] = frozenset(
+    {
+        ArtifactKind.DIRECTIVE.plural,
+        ArtifactKind.TACTIC.plural,
+        ArtifactKind.STYLEGUIDE.plural,
+        ArtifactKind.TOOLGUIDE.plural,
+        ArtifactKind.PARADIGM.plural,
+        ArtifactKind.PROCEDURE.plural,
+        ArtifactKind.AGENT_PROFILE.plural,
+        ArtifactKind.MISSION_STEP_CONTRACT.plural,
+    }
+)
 
 #: The ``activated_kinds`` of every released ``minimal.yaml`` (a defect; DM-01M497F0NAQARAK3JZFVWF1SD0).
 MINIMAL_KIND_GATE: frozenset[str] = frozenset(

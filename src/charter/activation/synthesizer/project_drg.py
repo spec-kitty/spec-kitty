@@ -54,29 +54,35 @@ from .request import SynthesisTarget
 #: not emitted at the project tier. ``AGENT_PROFILE`` was admitted in M6 (#3038)
 #: so a hand-authored project profile becomes a cascade-reachable node.
 #:
-#: ``ArtifactKind``-keyed (not string-keyed) so the totality gate
-#: (``tests/charter_offering/drg/test_kind_mapping_totality.py``) is *guard-visible* to
-#: it. The map is a deliberate partial listed in that gate's
-#: ``_EXEMPT_GET_PARTIALS`` (the sole read site :func:`_node_kind_for` reads via
-#: ``.get``, treating a miss as "not emitted at the project tier"), so this
-#: entry itself never reddens the enum-keyed guard. The protection is indirect:
-#: a future ``ArtifactKind`` reddens the *non-exempt* authority tables
-#: (``PROJECT_KIND_DIRS`` et al.), forcing a developer through the kind surface
-#: — at which point the decision to emit it at the project tier (extend this
-#: map) or not (leave it out) is a conscious one, not a silent omission.
+#: Derived from the single :class:`ArtifactKind` authority (#5823): each
+#: emitted kind maps to its identically-named ``NodeKind`` via
+#: ``NodeKind(k.value)``, so the kind↔node-kind identity never drifts from the
+#: enums. The explicit four-member iterable IS the contract — a kind's
+#: **absence** from it is deliberate, not an oversight (``asset`` (#3037),
+#: ``procedure``, ``paradigm``, ``toolguide``, ``glossary_pack``,
+#: ``mission_step_contract``, ``template`` and ``anti_pattern`` are not emitted
+#: at the project tier; ``AGENT_PROFILE`` was admitted in M6 (#3038)). Written
+#: as a comprehension (not an enum-keyed dict literal) so it satisfies the
+#: kind-vocabulary single-authority gate's R6 rule; it is therefore no longer
+#: scanned by the totality gate
+#: (``tests/charter_offering/drg/test_kind_mapping_totality.py``), but derivation
+#: makes it drift-proof by construction, and the forward-compat protection still
+#: flows indirectly through the non-exempt authority tables
+#: (``PROJECT_KIND_DIRS`` et al.): a future ``ArtifactKind`` reddens those,
+#: forcing a conscious emit-or-not decision through the kind surface. The sole
+#: read site :func:`_node_kind_for` reads via ``.get``, so a kind outside the
+#: iterable resolves to ``None`` ("not emitted at the project tier").
 #:
 #: NOTE: the ``AGENT_PROFILE`` entry drives the *answer-driven* synthesis-target
 #: path (:func:`_node_kind_for`); the hand-authored filesystem-walk path
 #: (:func:`charter.offering.drg.project_scan.walk_project_agent_profile_nodes`)
 #: hardcodes ``NodeKind.AGENT_PROFILE`` directly. The answer-driven path does
 #: not produce ``agent_profile`` targets today (interview sections map only to
-#: directive/tactic/styleguide), so the entry primarily buys gate visibility and
-#: forward-compatibility rather than an active answer-driven emission.
+#: directive/tactic/styleguide), so the entry primarily buys forward-
+#: compatibility rather than an active answer-driven emission.
 _KIND_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
-    ArtifactKind.DIRECTIVE: NodeKind.DIRECTIVE,
-    ArtifactKind.TACTIC: NodeKind.TACTIC,
-    ArtifactKind.STYLEGUIDE: NodeKind.STYLEGUIDE,
-    ArtifactKind.AGENT_PROFILE: NodeKind.AGENT_PROFILE,
+    kind: NodeKind(kind.value)
+    for kind in (ArtifactKind.DIRECTIVE, ArtifactKind.TACTIC, ArtifactKind.STYLEGUIDE, ArtifactKind.AGENT_PROFILE)
 }
 
 

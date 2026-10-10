@@ -227,25 +227,37 @@ class ArtifactKind(StrEnum):
         return self in _SELECTION_OVERLAYABLE_KINDS
 
     @property
-    def core(self) -> bool:
-        """Whether this is one of the eight core kinds (#5538).
+    def has_layered_repository(self) -> bool:
+        """Whether this kind resolves through a layered repository (#5824).
 
-        The core kinds are the eight that predate the later additions
-        (``GLOSSARY_PACK``, ``ASSET``, ``SKILL``, ``TEMPLATE``,
-        ``ANTI_PATTERN``): directive, tactic, styleguide, toolguide, paradigm,
-        procedure, agent profile and mission step contract. Several surfaces
-        still cover exactly this set -- the org-layer override lint, the
-        ``doctor charter-packs`` org-pack directory count and collision scan, and
-        the API source's fallback type list. They read it from here instead of
-        restating it; a surface that should also cover a later kind switches
-        to a broader predicate rather than editing this set (#5824 tracks
-        which of them should). Backs :data:`CORE_KIND_PLURALS`.
+        ``True`` for the 11 kinds whose artifacts are read through a
+        built-in + org + project layered repository — every kind EXCEPT
+        ``TEMPLATE`` (mission-tier, empty glob, resolved specially) and
+        ``ANTI_PATTERN`` (a re-kinded node inside another kind's graph
+        fragment, never a standalone layered artifact). The base is
+        ``charter.offering.base.BaseArtifactRepository``; ``AGENT_PROFILE`` is
+        layered via its own three-source repository though it is not a
+        ``BaseArtifactRepository`` subclass.
 
-        This set equals :attr:`selection_overlayable` today by coincidence, not
-        because they are the same fact: do not merge them. It is transitional;
-        delete it once #5824 lands.
+        This is the axis the four org-layer diagnostic surfaces scan — the
+        ``doctor charter-packs`` org-pack directory count and collision scan,
+        the org-layer override lint, and the API source's 404 fallback type
+        list — each of which must therefore cover ``glossary_pack``, ``skill``
+        and ``asset``, not just the eight pre-addition kinds (the #5824 defect
+        class). Backs :data:`LAYERED_REPOSITORY_KIND_PLURALS`.
+
+        This set is **membership-identical to** :attr:`org_requirable` **today**
+        but is a **distinct fact**: "has a layered repository" (a resolution
+        axis) is not "an org pack may declare ``required_<plural>`` for it" (a
+        governance-policy axis). They are kept apart deliberately — this
+        predicate has its OWN backing frozenset
+        (:data:`_HAS_LAYERED_REPOSITORY_KINDS`) and must NOT be merged with, or
+        derived from, :data:`_ORG_REQUIRABLE_KINDS` or
+        :attr:`has_built_in_content_dir` (which excludes
+        ``MISSION_STEP_CONTRACT`` — a layered kind with no shipped content
+        directory — so it is the wrong axis for these surfaces).
         """
-        return self in _CORE_KINDS
+        return self in _HAS_LAYERED_REPOSITORY_KINDS
 
     @property
     def effective_when_absent(self) -> Literal["all", "required"]:
@@ -327,22 +339,22 @@ class ArtifactKind(StrEnum):
 #: :attr:`ArtifactKind.effective_when_absent`.
 _REQUIRED_WHEN_ABSENT_KINDS: frozenset[ArtifactKind] = frozenset({ArtifactKind.SKILL})
 
-#: The eight core members. Single home of the fact behind :attr:`ArtifactKind.core`.
-_CORE_KINDS: frozenset[ArtifactKind] = frozenset(
-    {
-        ArtifactKind.DIRECTIVE,
-        ArtifactKind.TACTIC,
-        ArtifactKind.STYLEGUIDE,
-        ArtifactKind.TOOLGUIDE,
-        ArtifactKind.PARADIGM,
-        ArtifactKind.PROCEDURE,
-        ArtifactKind.AGENT_PROFILE,
-        ArtifactKind.MISSION_STEP_CONTRACT,
-    }
-)
+#: The 11 members that resolve through a layered repository (#5824). Single home
+#: of the fact behind :attr:`ArtifactKind.has_layered_repository`: every kind
+#: EXCEPT ``TEMPLATE`` and ``ANTI_PATTERN``. This set is membership-identical to
+#: :data:`_ORG_REQUIRABLE_KINDS` today but is a DISTINCT fact (a resolution axis,
+#: not a governance-policy axis) — it is declared independently and must never be
+#: aliased to, or derived from, ``_ORG_REQUIRABLE_KINDS`` or
+#: :attr:`ArtifactKind.has_built_in_content_dir`.
+_HAS_LAYERED_REPOSITORY_KINDS: frozenset[ArtifactKind] = frozenset(ArtifactKind) - {
+    ArtifactKind.TEMPLATE,
+    ArtifactKind.ANTI_PATTERN,
+}
 
-#: Plurals of the core kinds, in :class:`ArtifactKind` declaration order.
-CORE_KIND_PLURALS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.core)
+#: Plurals of the layered-repository kinds, in :class:`ArtifactKind` declaration
+#: order. The single derived source the four org-layer diagnostic surfaces read
+#: so each covers ``glossary_packs``/``skills``/``assets`` (#5824).
+LAYERED_REPOSITORY_KIND_PLURALS: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.has_layered_repository)
 
 #: Members for which an org pack may declare ``required_<plural>`` (mirroring the ``OrgCharterPolicy.required_*`` fields; pinned by
 #: ``tests/architectural/test_kind_table_derivation.py``). Single home of the
@@ -545,8 +557,8 @@ __all__ = [
     "CHARTER_ACTIVATABLE_PLURAL_TO_SINGULAR",
     "CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL",
     "CHARTER_KIND_TOKENS",
-    "CORE_KIND_PLURALS",
     "DIRECT_WRITE_KINDS",
+    "LAYERED_REPOSITORY_KIND_PLURALS",
     "MISSION_TYPE_TOKEN",
     "ORG_REQUIRABLE_KIND_FIELDS",
     "PROJECT_KIND_DIRS",
