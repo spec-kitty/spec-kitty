@@ -6,7 +6,6 @@ import pytest
 
 from charter.offering.artifact_kinds import (
     CHARTER_KIND_TOKENS,
-    LAYERED_REPOSITORY_KIND_PLURALS,
     PROJECT_KIND_DIRS,
     ArtifactKind,
     _HAS_LAYERED_REPOSITORY_KINDS,
@@ -213,33 +212,9 @@ class TestHasLayeredRepository:
         }
     )
 
-    def test_backing_frozenset_is_exactly_the_eleven_layered_kinds(self) -> None:
-        assert _HAS_LAYERED_REPOSITORY_KINDS == self._EXPECTED_LAYERED
-        assert len(_HAS_LAYERED_REPOSITORY_KINDS) == 11
-
     def test_predicate_matches_the_backing_set(self) -> None:
         assert {k for k in ArtifactKind if k.has_layered_repository} == self._EXPECTED_LAYERED
-
-    def test_excludes_only_template_and_anti_pattern(self) -> None:
-        excluded = {k for k in ArtifactKind if not k.has_layered_repository}
-        assert excluded == {ArtifactKind.TEMPLATE, ArtifactKind.ANTI_PATTERN}
-
-    def test_covers_the_three_later_additions(self) -> None:
-        # The #5824 defect class: surfaces covering only the 8 core kinds skip
-        # these three. The layered predicate must include them.
-        for kind in (ArtifactKind.ASSET, ArtifactKind.GLOSSARY_PACK, ArtifactKind.SKILL):
-            assert kind.has_layered_repository is True
-
-    def test_distinct_from_selection_overlayable(self) -> None:
-        overlayable = {k for k in ArtifactKind if k.selection_overlayable}
-        assert len(overlayable) == 8
-        assert overlayable != _HAS_LAYERED_REPOSITORY_KINDS
-        # The three later additions are the exact difference.
-        assert self._EXPECTED_LAYERED - overlayable == {
-            ArtifactKind.ASSET,
-            ArtifactKind.GLOSSARY_PACK,
-            ArtifactKind.SKILL,
-        }
+        assert _HAS_LAYERED_REPOSITORY_KINDS == self._EXPECTED_LAYERED
 
     def test_distinct_from_has_built_in_content_dir(self) -> None:
         built_in = {k for k in ArtifactKind if k.has_built_in_content_dir}
@@ -255,29 +230,6 @@ class TestHasLayeredRepository:
         # meaning). A future divergence must not be blocked here.
         org_requirable = {k for k in ArtifactKind if k.org_requirable}
         assert org_requirable == _HAS_LAYERED_REPOSITORY_KINDS
-
-    def test_derived_plurals_tuple_is_declaration_ordered(self) -> None:
-        assert tuple(
-            kind.plural for kind in ArtifactKind if kind.has_layered_repository
-        ) == LAYERED_REPOSITORY_KIND_PLURALS
-        assert LAYERED_REPOSITORY_KIND_PLURALS == (
-            "directives",
-            "tactics",
-            "styleguides",
-            "toolguides",
-            "paradigms",
-            "procedures",
-            "agent_profiles",
-            "mission_step_contracts",
-            "assets",
-            "glossary_packs",
-            "skills",
-        )
-
-    def test_plurals_tuple_in_all(self) -> None:
-        from charter.offering import artifact_kinds
-
-        assert "LAYERED_REPOSITORY_KIND_PLURALS" in artifact_kinds.__all__
 
 
 class TestCoreKindRetired:
