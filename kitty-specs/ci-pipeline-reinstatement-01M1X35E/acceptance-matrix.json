@@ -1,0 +1,267 @@
+{
+  "mission_slug": "ci-pipeline-reinstatement-01M1X35E",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "CL-01-P1-census",
+      "description": "P1: dead/retired code is excluded from CI by a machine census oracle, not prose (paramount operator directive)",
+      "proof_type": "automated_test",
+      "evidence": "WP02 tests/architectural/_p1_census_oracle.py + test_p1_census_oracle.py; WP15 test_p1_planted_regression.py (automated self-mutation proves the exclusion gate fires)",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "C-006/FR-013. Bidirectional guardrail: dead dropped only with independent evidence; known-live never marked dead."
+    },
+    {
+      "criterion_id": "CL-02-retirement-scrub",
+      "description": "CI test-selection basis re-derived against LIVE src/** (6 retired surfaces excluded, 17 live kept)",
+      "proof_type": "automated_test",
+      "evidence": "WP05 tests/architectural/test_retirement_scrub.py + tests/release/ci_retirement_scrub.json",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "CL-03-enforcement-allowlists",
+      "description": "Dead-symbol/retired-subsystem ENFORCEMENT allowlists stay always-on (catch real defects) \u2014 NOT demoted",
+      "proof_type": "automated_test",
+      "evidence": "WP15 (planted retired-import/dead-symbol still red) + WP16 shape_guard_membership.yaml classes all 4 as enforcement-allowlist; C-007 partition un-gameable",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "C-006/C-007. Operator: keep enforcement allowlists always-on."
+    },
+    {
+      "criterion_id": "CL-04-P2-demotion",
+      "description": "P2: low-ROI whitelist/golden-count/frozen-baseline SHAPE guards demoted off the blocking gate (paramount operator directive)",
+      "proof_type": "automated_test",
+      "evidence": "WP16 test_golden_count_ban.py (assert\u2192warn), twelve-agent parity source-derived, tests/architectural/shape_guard_membership.yaml (E4 committed membership)",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "C-007/FR-014. #3458 evidence: 0 catches / 2 forced annotations."
+    },
+    {
+      "criterion_id": "CL-05-router-two-authority",
+      "description": "Path-scoped change router with exactly two hand-authored authorities + fail-closed unmatched\u2192run-all",
+      "proof_type": "automated_test",
+      "evidence": "WP07 .github/workflows/ci-router.yml + scripts/ci/gate_selection.py; test_ci_quality_path_filters.py + test_gate_selection_authority.py",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "FR-004/FR-005/FR-016. Single gate-selection authority (parses, not re-encodes) \u2014 closes #2476 duplication."
+    },
+    {
+      "criterion_id": "CL-06-full-tree-modular",
+      "description": "Full-tree modularization as a matrix over a committed module registry (\u226420 reusable-workflows/caller), duration-balanced shards",
+      "proof_type": "automated_test",
+      "evidence": "WP08 .github/ci-module-registry.yml + ci-shard-timings.json (real --durations run, skew\u226420%); WP09 module-tests.yml + ci-modules.yml (matrix over 17 modules)",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "FR-006/NFR-001/NFR-005."
+    },
+    {
+      "criterion_id": "CL-07-artefact-aggregation",
+      "description": "Per-shard coverage/xunit aggregated under the preserved naming contract + diff-cover \u226590% PR gate + fail-loud on missing shard",
+      "proof_type": "automated_test",
+      "evidence": "WP10 .github/workflows/ci-aggregate.yml + test_coverage_artefact_contract.py (shipped-script completeness verified; census-dead denominator excluded)",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "FR-007/FR-009/C-005/NFR-003/SC-005."
+    },
+    {
+      "criterion_id": "CL-08-dual-mode",
+      "description": "Dual-mode: PR=fail-fast (red predecessor short-circuits), full/nightly=run-all-regardless; skipped\u2260green merge-eligibility",
+      "proof_type": "automated_test",
+      "evidence": "WP11 test_dual_mode_contract.py (4/4 mutation battery proves non-vacuity; skipped\u2260green behaviorally proven) + per-workflow mode wiring",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "FR-018/FR-019/NFR-008/SC-009."
+    },
+    {
+      "criterion_id": "CL-09-manual-dispatch",
+      "description": "Every reinstated workflow is manually dispatchable (workflow_dispatch)",
+      "proof_type": "automated_test",
+      "evidence": "WP11 contract test asserts workflow_dispatch across the on-disk workflow set (ci-router/module-tests/ci-modules/ci-aggregate/sonar/ci-nightly/packs)",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "SC-010/C-009."
+    },
+    {
+      "criterion_id": "CL-10-sonar",
+      "description": "SonarQube/SonarCloud restored net-new: nightly/dispatch, fork-safe skip-green, stock runners, identity verified before wiring",
+      "proof_type": "automated_test",
+      "evidence": "WP12 .github/workflows/sonar.yml + sonar-project.properties + sonar-identity-verification.md (live C-008 verification: Priivacy-ai_spec-kitty current)",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "FR-010/C-008. SONAR_TOKEN provisioning flagged REQUIRES-OPERATOR-CONFIRMATION."
+    },
+    {
+      "criterion_id": "CL-11-nightly-cadence",
+      "description": "Performance + expensive e2e + interpreter matrix run at nightly/dispatch cadence only \u2014 never on the per-PR blocking path",
+      "proof_type": "automated_test",
+      "evidence": "WP13 .github/workflows/ci-nightly.yml (schedule+dispatch only) + test_performance_marker_guard.py (mis-mark guard #3665); SC-011",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "FR-020/FR-021. #3189 explicitly out of scope."
+    },
+    {
+      "criterion_id": "CL-12-packs",
+      "description": "Separate packs workflow: built-in (public) + internal (maintainer-only, never ships) lanes + retired-dir __pycache__ sweep",
+      "proof_type": "automated_test",
+      "evidence": "WP14 .github/workflows/packs.yml + test_pycache_sweep.py (packaging-safety negative guard; trigger independence)",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "FR-011/US6."
+    },
+    {
+      "criterion_id": "CL-13-integrity-oracle",
+      "description": "CI-integrity/collection-completeness oracle: no test selected by zero gates; non-vacuity floor + planted-orphan; #2967 fixed",
+      "proof_type": "automated_test",
+      "evidence": "WP17 tests/architectural/_ci_integrity_oracle.py + test_ci_integrity_oracle_nonvacuous.py + _gate_coverage.py (#2967 zero-producer false-pass fixed)",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "FR-016/#2967/SC-004."
+    },
+    {
+      "criterion_id": "CL-14-local-parity",
+      "description": "Local pre-PR gate-selection parity consumer reuses the SINGLE authority (no second parser) \u2014 #2476 closed",
+      "proof_type": "automated_test",
+      "evidence": "WP18 scripts/ci/local_gate_parity.py (imports gate_selection.py) + test_local_gate_parity.py + make ci-parity; parity proven docs-only/single-module/unmatched",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "#2476/FR-016."
+    },
+    {
+      "criterion_id": "CL-15-governance-map",
+      "description": "Governance verdict map reconciled: defer\u2192restore + net-new `introduced` disposition, enforced in lockstep (C-001)",
+      "proof_type": "automated_test",
+      "evidence": "WP01 docs/convergence/interim-ci-producer.md (introduced disposition, 7 net-new frozen) + tests/release/test_release_ci_ownership.py",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "FR-012/C-001."
+    },
+    {
+      "criterion_id": "CL-16-experimental-archived",
+      "description": "Dead EXPERIMENTAL Blacksmith ci.yml neutralized; reinstated CI is the sole/primary public producer; stock runners, no SK_CI_TOKEN on public jobs",
+      "proof_type": "automated_test",
+      "evidence": "WP01 deleted .github/workflows/ci.yml + retired the repo-identity fence; test_release_ci_ownership.py asserts stock-runner + no-SK_CI_TOKEN invariants",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "FR-017/C-010."
+    },
+    {
+      "criterion_id": "CL-17-base-red-precondition",
+      "description": "Base-red precondition discharged: #3284 triaged (resolved by #3921, census-authorized, 0 unevidenced drops) + #3283 warmup/bootstrap fixed BEFORE shard freeze",
+      "proof_type": "automated_test",
+      "evidence": "WP03 triage-3284.md + test_mission_v1_compat_unit.py (non-fakeable guard); WP04 .github/actions/warmup/action.yml + test_warmup_action.py",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": "#3284/#3283."
+    },
+    {
+      "criterion_id": "CL-18-fix-before-wiring",
+      "description": "Active strict-xfail landmines + env-leakers fixed before wiring the suite into CI",
+      "proof_type": "automated_test",
+      "evidence": "WP06 test_transition_gate_parity/test_sc6_planning_placement_e2e/test_egress_consent_boundary/test_init_integration/test_context_validation_unit/test_check_cli_reference_freshness + conftest.py",
+      "pass_fail": "pass",
+      "verified_by": "claude (independent per-WP review + approval; reject\u2192rework cycles on WP06/WP09/WP10)",
+      "verified_at": "2026-09-07T00:00:00+00:00",
+      "notes": ""
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NEG-P1-no-dead-code-tests",
+      "description": "No test over census-DEAD/retired code is present in the blocking CI selection basis (paramount P1)",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/architectural/test_retirement_scrub.py tests/architectural/test_p1_planted_regression.py",
+      "result": "confirmed_absent",
+      "evidence": "WP05 scrub excludes 6 retired surfaces; WP02 census authorizes; WP15 planted-regression self-mutation proves the exclusion gate fires",
+      "verified_ref": "56293781314be113160eeee0363053cc79d35b82",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NEG-P1-no-live-surface-dropped",
+      "description": "No known-live (dynamically-reached, importer-0) surface is dropped as dead",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/architectural/test_p1_census_oracle.py -k known_live",
+      "result": "confirmed_absent",
+      "evidence": "WP02 'known-live is never dead' guard; WP03 mission_v1 (17 importers) retained, 0 unevidenced drops",
+      "verified_ref": "56293781314be113160eeee0363053cc79d35b82",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NEG-P2-no-allowlist-weakening",
+      "description": "No enforcement allowlist is weakened by the P2 shape-guard demotion (paramount P2)",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/architectural/test_shape_guard_membership.py",
+      "result": "confirmed_absent",
+      "evidence": "WP16 C-007 membership partition un-gameable both directions; enforcement gates untouched (empty diff); WP15 allowlist-preservation",
+      "verified_ref": "56293781314be113160eeee0363053cc79d35b82",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NEG-no-masked-failure-merge",
+      "description": "No short-circuit-SKIPPED successor is counted as a pass (no masked-failure merge)",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/architectural/test_dual_mode_contract.py -k skipped",
+      "result": "confirmed_absent",
+      "evidence": "WP11 skipped\u2260green required-check assertion + 4/4 mutation battery",
+      "verified_ref": "56293781314be113160eeee0363053cc79d35b82",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NEG-internal-pack-never-ships",
+      "description": "No internal/spk-internal pack content ships in the built wheel",
+      "verification_method": "custom_command",
+      "verification_command": "pytest -k test_wheel_contains_only_known_packages",
+      "result": "confirmed_absent",
+      "evidence": "WP14 packaging-safety negative guard wired into the packs internal lane",
+      "verified_ref": "56293781314be113160eeee0363053cc79d35b82",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NEG-no-blacksmith-no-sk-token",
+      "description": "No Blacksmith runner and no SK_CI_TOKEN on public reinstated jobs (stock runners only)",
+      "verification_method": "grep_absence",
+      "verification_command": "blacksmith|SK_CI_TOKEN",
+      "result": "confirmed_absent",
+      "evidence": "WP01/07/09/10/12/13/14 tests assert 'blacksmith' not in text + no SK_CI_TOKEN; enforced by test_release_ci_ownership.py",
+      "verified_ref": "56293781314be113160eeee0363053cc79d35b82",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    },
+    {
+      "invariant_id": "NEG-no-code-shards-on-docs-or-packs-only",
+      "description": "No code shard runs for a docs-only or packs-only PR (path-scoped shift-left)",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/architectural/test_ci_quality_path_filters.py -k docs_only",
+      "result": "confirmed_absent",
+      "evidence": "WP07 fail-closed router (docs-only selects 0 code shards) + WP14 packs trigger independence",
+      "verified_ref": "56293781314be113160eeee0363053cc79d35b82",
+      "verified_surface_kind": "primary",
+      "provenance_origin": "recorded"
+    }
+  ]
+}

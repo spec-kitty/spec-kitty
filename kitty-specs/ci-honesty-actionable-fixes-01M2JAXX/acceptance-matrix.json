@@ -1,0 +1,69 @@
+{
+  "mission_slug": "ci-honesty-actionable-fixes-01M2JAXX",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_reconcile_shards.py \u2014 selected-shard completeness; diff-scoped run w/ selected fresh + empty previous \u2192 complete (44 passed).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (orchestrator review)",
+      "verified_at": "2026-09-15T15:30:00Z",
+      "notes": "Verified via targeted tests + diff review; live CI run is the acceptance test for workflow plumbing."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_reconcile_shards.py \u2014 unselected shards backfill-if-available, never fatal; selected-absent stays fatal (must_be_fresh).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (orchestrator review)",
+      "verified_at": "2026-09-15T15:30:00Z",
+      "notes": "Verified via targeted tests + diff review; live CI run is the acceptance test for workflow plumbing."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "scripts/ci/reconcile_shards.py extracted + imported by ci-aggregate.yml; unit-tested (mypy --strict clean).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (orchestrator review)",
+      "verified_at": "2026-09-15T15:30:00Z",
+      "notes": "Verified via targeted tests + diff review; live CI run is the acceptance test for workflow plumbing."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_gate_selection_authority.py \u2014 tests-only diff selects SAME module set as src (registry-derived, Option B); SSOT guards green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (orchestrator review)",
+      "verified_at": "2026-09-15T15:30:00Z",
+      "notes": "Verified via targeted tests + diff review; live CI run is the acceptance test for workflow plumbing."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_dual_mode_contract.py \u2014 router_gate.classify reports timed_out distinctly; blocking verdict byte-identical (130 passed).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (orchestrator review)",
+      "verified_at": "2026-09-15T15:30:00Z",
+      "notes": "Verified via targeted tests + diff review; live CI run is the acceptance test for workflow plumbing."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_performance_marker_guard.py::test_nightly_suite_steps_are_fail_loud \u2014 RED on base, GREEN on fix; run-all preserved (10 passed).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (orchestrator review)",
+      "verified_at": "2026-09-15T15:30:00Z",
+      "notes": "Verified via targeted tests + diff review; live CI run is the acceptance test for workflow plumbing."
+    }
+  ],
+  "negative_invariants": []
+}

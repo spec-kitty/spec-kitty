@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#2816": {
+      "evidence_ref": "Context-only citation: #2816 (event-sourced subtasks) is coordinated-around, mission owes no work. No truthful 'not-applicable' verdict exists on installed CLI; this mission adds it. Follow-up: #3469.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3454": {
+      "evidence_ref": "Context-only citation: #3454 is the umbrella parent, not an implementation target. No work owed. Follow-up: #3469.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3469": {
+      "evidence_ref": "This mission's target issue (#3469). Follow-up: #3469.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    },
+    "#4330": {
+      "evidence_ref": "Context-only citation: #4330 already landed (error-string + batching); this mission builds on it, owes no work. Follow-up: #3469.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

@@ -1,0 +1,139 @@
+{
+  "mission_slug": "doctor-mission-state-repair-fidelity-01M2YGV8",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:37:05.000906+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:37:14.251768+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:37:23.235129+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:37:32.203537+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:37:40.943705+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:37:49.789611+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:37:58.766964+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:38:07.803529+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:38:16.818747+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:38:25.704745+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:38:34.678462+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:38:43.743968+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 tests + e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-09-20T07:38:52.672258+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

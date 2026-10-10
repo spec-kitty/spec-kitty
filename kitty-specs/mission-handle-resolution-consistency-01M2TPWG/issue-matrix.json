@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#4631": {
+      "evidence_ref": "All 6 WPs approved; research phantom-write killed (WP02), plan/tasks/merge truthful not-found (WP03/WP04), cross-command net green (WP06).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP06"
+    },
+    "#4682": {
+      "evidence_ref": "next discovery (auto-select/list/nudge) shipped in WP05; verified by WP06 legacy-count net.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP05"
+    }
+  },
+  "schema_version": 1
+}
