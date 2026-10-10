@@ -377,12 +377,6 @@ def _check_stale_failed_dirs(repo_root: Path, result: BundleValidationResult) ->
             )
 
 
-#: Directory leaves a synthesis writer can double-append onto a base that
-#: already ends in that same leaf (#3819): ``provenance_root`` (the
-#: provenance sidecar tree) and each per-kind doctrine subdirectory.
-_DOUBLED_LEAF_BASES: tuple[str, ...] = ("directive", "tactic", "styleguide")
-
-
 def _check_no_doubled_leaf_paths(
     repo_root: Path,
     provenance_root: Path,
@@ -400,9 +394,18 @@ def _check_no_doubled_leaf_paths(
     an ``rglob`` walk, so a doubled copy sharing its correctly-placed
     sibling's basename never trips a missing/orphaned-sidecar error. This
     check inspects the directory structure directly instead.
+
+    The per-kind doctrine subdirectories a synthesis writer can double-append
+    are exactly the synthesizable kinds; they are read from the single
+    :data:`~charter.activation.synthesizer.topic_resolver.SYNTHESIZABLE_KINDS`
+    authority rather than re-listed (#5823), imported locally because the
+    synthesizer package imports :mod:`charter.bundle` (a module-level import
+    here would be a cycle).
     """
+    from charter.activation.synthesizer.topic_resolver import SYNTHESIZABLE_KINDS  # noqa: PLC0415
+
     candidates = [(provenance_root, "provenance")]
-    candidates.extend((pack_root / kind, kind) for kind in _DOUBLED_LEAF_BASES)
+    candidates.extend((pack_root / kind, kind) for kind in sorted(SYNTHESIZABLE_KINDS))
 
     for base, leaf in candidates:
         doubled_dir = base / leaf

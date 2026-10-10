@@ -48,6 +48,7 @@ from charter.bundle import compute_bundle_content_hash
 from charter.activation.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 
 from .artifact_naming import artifact_filename, pack_kind_subdir
+from .topic_resolver import SYNTHESIZABLE_KINDS
 from .errors import NeutralityGateViolation, StagingPromoteError
 from .evidence import EvidenceBundle
 from .manifest import (
@@ -509,7 +510,10 @@ def _ensure_live_dirs(guard: PathGuard, repo_root: Path) -> None:
     Uses ``pack_kind_subdir()`` so the names match the .gitignore
     whitelist (step 3 prep).
     """
-    for kind in ("directive", "tactic", "styleguide"):
+    # The synthesizable doctrine kinds, from the single SYNTHESIZABLE_KINDS
+    # authority rather than a re-listed tuple (#5823); order is irrelevant here
+    # (each kind's directory is created independently).
+    for kind in sorted(SYNTHESIZABLE_KINDS):
         guard.mkdir(
             project_pack_path(repo_root, _pack_kind_subdir(kind)),
             caller="write_pipeline.promote[mkdir-doctrine]",

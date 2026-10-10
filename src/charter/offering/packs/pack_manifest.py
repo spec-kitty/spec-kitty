@@ -298,20 +298,19 @@ def resolve_counts(
 #: Name of the generated manifest file at a pack (or snapshot) root.
 _PACK_MANIFEST_FILENAME = "pack-manifest.yaml"
 
-#: Recognised artifact subdirectories per the pack-layout contract.
-RECOGNISED_ARTIFACT_DIRS: frozenset[str] = frozenset(
-    {
-        "directives",
-        "tactics",
-        "styleguides",
-        "toolguides",
-        "paradigms",
-        "procedures",
-        "agent_profiles",
-        "mission_step_contracts",
-        "drg",
-    }
-)
+#: Recognised artifact subdirectories per the pack-layout contract: every kind
+#: that ships a ``packs/built-in/<plural>/`` content directory plus the ``drg``
+#: fragment directory. Derived from the single :class:`ArtifactKind` authority
+#: via :attr:`~charter.offering.artifact_kinds.ArtifactKind.has_built_in_content_dir`
+#: rather than hand-listed, so it cannot drift from the enum; the ``"drg"`` leaf
+#: is not a kind, so it is unioned in explicitly.
+#:
+#: Keyed on ``has_built_in_content_dir`` (10 kinds), NOT the retired ``core``
+#: set (#5824): the built-in pack actually ships ``assets/``, ``glossary_packs/``
+#: and ``skills/`` content directories and has NO ``mission_step_contracts/``
+#: directory, so the 8-``core`` value recognised a phantom directory and skipped
+#: three real ones. This is a correctness fix to the pack scan, not mere parity.
+RECOGNISED_ARTIFACT_DIRS: frozenset[str] = frozenset(k.plural for k in ArtifactKind if k.has_built_in_content_dir) | {"drg"}
 
 
 def write_pack_manifest(

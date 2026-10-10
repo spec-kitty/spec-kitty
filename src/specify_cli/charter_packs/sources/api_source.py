@@ -22,7 +22,7 @@ from typing import Any
 
 import requests
 
-from charter.drg import CORE_KIND_PLURALS
+from charter.drg import ArtifactKind
 
 from .protocol import FetchResult
 
@@ -46,7 +46,12 @@ def _validate_server_filename(filename: str) -> None:
 
 
 # Default artifact type list used when /artifact-types is unavailable (404).
-DEFAULT_ARTIFACT_TYPES: tuple[str, ...] = CORE_KIND_PLURALS
+# Widened to the 11 layered-repository kinds (#5824, operator decision) so a
+# server with no /artifact-types endpoint still has its ``glossary_packs``,
+# ``skills`` and ``assets`` fetched, not just the eight pre-addition kinds.
+# Keyed on
+# :attr:`~charter.offering.artifact_kinds.ArtifactKind.has_layered_repository`.
+DEFAULT_ARTIFACT_TYPES: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.has_layered_repository)
 
 
 @dataclass

@@ -577,7 +577,14 @@ def _has_generated_artifacts(repo_root: Path) -> bool:
     generated_root = repo_root / ".kittify" / "charter" / "generated"
     if not generated_root.is_dir():
         return False
-    for sub in ("directives", "tactics", "styleguides"):
+    # The generated-artifact subdirectories are the plural forms of the
+    # synthesizable kinds, derived from the single SYNTHESIZABLE_KINDS authority
+    # (plurals via ArtifactKind) rather than a re-listed tuple (#5823). Imported
+    # locally to keep this CLI module's import-time charter surface small.
+    from charter.activation.synthesizer.topic_resolver import SYNTHESIZABLE_KINDS  # noqa: PLC0415
+    from charter.offering.artifact_kinds import ArtifactKind  # noqa: PLC0415
+
+    for sub in sorted(ArtifactKind(kind).plural for kind in SYNTHESIZABLE_KINDS):
         sub_dir = generated_root / sub
         if sub_dir.is_dir() and any(sub_dir.glob("*.yaml")):
             return True

@@ -104,18 +104,18 @@ _DRG_SOURCE_KINDS: frozenset[str] = frozenset({"directive", "tactic", "styleguid
 # Not all CLI kinds have a DRG representation; absent entries are skipped in
 # DRG traversal.
 # ---------------------------------------------------------------------------
+# Derived from the single :class:`ArtifactKind` authority: each key is the
+# kind's operator token (hyphenated CLI surface) and each value its canonical
+# singular, so the token↔singular relationship never drifts from the enum
+# (#5823). The kind SELECTION stays explicit via the exclusion set below:
+# "template"/"asset"/"anti_pattern" have no DRG singular, and "skill" is
+# omitted on purpose -- the parity loop loads the graph without org fragments,
+# so org skills would read as false gaps. ("mission-type" is not an
+# ArtifactKind member at all, so it is never iterated here.)
 _CLI_KIND_TO_DRG_SINGULAR: dict[str, str] = {
-    "directive": "directive",
-    "tactic": "tactic",
-    "styleguide": "styleguide",
-    "toolguide": "toolguide",
-    "paradigm": "paradigm",
-    "procedure": "procedure",
-    "agent-profile": "agent_profile",
-    "mission-step-contract": "mission_step_contract",
-    "glossary-pack": "glossary_pack",
-    # "mission-type" has no DRG singular; omitted intentionally.
-    # "skill" is omitted on purpose: the parity loop loads the graph without org fragments, so org skills would read as false gaps.
+    kind.operator_token: kind.value
+    for kind in ArtifactKind
+    if kind not in {ArtifactKind.TEMPLATE, ArtifactKind.ASSET, ArtifactKind.ANTI_PATTERN, ArtifactKind.SKILL}
 }
 
 # Inverse: DRG singular → CLI kind (for DRG edge traversal lookups).

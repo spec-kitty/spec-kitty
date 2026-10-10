@@ -1444,6 +1444,20 @@ class TestApiSource:
         assert "/artifact-types" in called_suffixes
         assert "/artifacts/directives" in called_suffixes
         assert "/artifacts/agent_profiles" in called_suffixes
+        # T033 (#5824): the 404 fallback is widened to the 11 layered-repository
+        # kinds, so glossary_packs/skills/assets are fetched too — not just the
+        # eight pre-addition kinds.
+        assert "/artifacts/glossary_packs" in called_suffixes
+        assert "/artifacts/skills" in called_suffixes
+        assert "/artifacts/assets" in called_suffixes
+
+    def test_default_artifact_types_is_the_eleven_layered_kinds(self) -> None:
+        """T033 (#5824): the 404-fallback type list equals the layered-kind plurals."""
+        from charter.offering.artifact_kinds import LAYERED_REPOSITORY_KIND_PLURALS
+        from specify_cli.charter_packs.sources.api_source import DEFAULT_ARTIFACT_TYPES
+
+        assert tuple(DEFAULT_ARTIFACT_TYPES) == LAYERED_REPOSITORY_KIND_PLURALS
+        assert len(DEFAULT_ARTIFACT_TYPES) == 11
 
     def test_auth_header_override(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         target = tmp_path / "snapshot"

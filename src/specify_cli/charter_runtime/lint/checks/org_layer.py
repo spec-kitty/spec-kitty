@@ -22,7 +22,12 @@ from specify_cli.charter_runtime.lint.findings import LintFinding
 
 KITTIFY_DIR_NAME = ".kittify"
 
-_OVERRIDABLE_ARTIFACT_TYPES: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.core)
+# The artifact types the org-overrides-builtin advisory scans: every kind
+# resolved through a layered repository (#5824). Keyed on
+# :attr:`~charter.offering.artifact_kinds.ArtifactKind.has_layered_repository`
+# (11 kinds) rather than the retired ``core`` set (8) so an org override of
+# ``glossary_pack``, ``skill`` or ``asset`` is flagged too.
+_OVERRIDABLE_ARTIFACT_TYPES: tuple[str, ...] = tuple(kind.plural for kind in ArtifactKind if kind.has_layered_repository)
 
 
 def _find_repo_root_from_drg(drg: Any) -> Path | None:

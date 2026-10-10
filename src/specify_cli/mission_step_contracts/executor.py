@@ -60,18 +60,13 @@ from specify_cli.mission_step_contracts.profile_defaults import (
 logger = logging.getLogger(__name__)
 
 
+# Derived from the single :class:`ArtifactKind` authority: each kind maps to
+# the identically-named ``NodeKind`` member (``NodeKind(k.value)``), so this
+# never drifts from the enums (#5823). ``ANTI_PATTERN`` and ``SKILL`` are
+# excluded -- they carry no step-contract delegation node kind here (preserving
+# the prior 11-entry contents exactly).
 _ARTIFACT_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
-    ArtifactKind.DIRECTIVE: NodeKind.DIRECTIVE,
-    ArtifactKind.TACTIC: NodeKind.TACTIC,
-    ArtifactKind.PARADIGM: NodeKind.PARADIGM,
-    ArtifactKind.STYLEGUIDE: NodeKind.STYLEGUIDE,
-    ArtifactKind.TOOLGUIDE: NodeKind.TOOLGUIDE,
-    ArtifactKind.PROCEDURE: NodeKind.PROCEDURE,
-    ArtifactKind.AGENT_PROFILE: NodeKind.AGENT_PROFILE,
-    ArtifactKind.MISSION_STEP_CONTRACT: NodeKind.MISSION_STEP_CONTRACT,
-    ArtifactKind.TEMPLATE: NodeKind.TEMPLATE,
-    ArtifactKind.ASSET: NodeKind.ASSET,
-    ArtifactKind.GLOSSARY_PACK: NodeKind.GLOSSARY_PACK,
+    kind: NodeKind(kind.value) for kind in ArtifactKind if kind not in {ArtifactKind.ANTI_PATTERN, ArtifactKind.SKILL}
 }
 
 
