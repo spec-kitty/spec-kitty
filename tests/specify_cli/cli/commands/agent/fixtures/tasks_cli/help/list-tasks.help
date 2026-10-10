@@ -4,7 +4,7 @@ Examples:
 spec-kitty agent tasks list-tasks --json
 spec-kitty agent tasks list-tasks --lane doing --json
 Options
---lane TEXT Filter by lane
---mission TEXT Mission slug
+--lane <str> Filter by lane
+--mission <str> Mission slug
 --json Output JSON format
 --help -h Show this message and exit.

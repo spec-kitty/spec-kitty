@@ -1,4 +1,4 @@
-Usage: tasks move-task [OPTIONS] TASK_ID
+Usage: tasks move-task [OPTIONS] {task_id}
 Move task between lanes (planned → doing → for_review → approved → done).
 Review-rejection edges (a backward move out of review — ``--to planned`` from
 in_progress/for_review/in_review/approved, or ``in_review → in_progress``) MUST
@@ -23,29 +23,29 @@ spec-kitty agent tasks move-task WP03 --to approved --reason "Review passed"
 spec-kitty agent tasks move-task WP03 --to done --done-override-reason "Branch deleted after hotfix merge"
 spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md
 Arguments
-* task_id TEXT Task ID (e.g., WP01) [required]
+* task_id <str> Task ID (e.g., WP01) [required]
 Options
-* --to TEXT Target lane (planned/doing/for_review/approved/done) [required]
---mission TEXT Mission slug
---agent,--actor TEXT Agent name (alias: --actor, matching issue-verdict's vocabulary). If both --agent and --actor are given, the one supplied LAST on the command line wins.
---model TEXT Dispatch-resolved model actual
---profile TEXT Dispatch-resolved agent profile actual
---invocation-id TEXT Authoritative dispatch Op record id
---assignee TEXT Assignee name, recorded on this transition regardless of the target lane (not limited to --to doing).
---shell-pid TEXT Shell PID
---note,--reason TEXT History note (alias: --reason, matching issue-verdict's vocabulary). If both --note and --reason are given, the one supplied LAST on the command line wins.
---review-feedback-file PATH Path to review feedback file. Required for review-rejection edges (--to planned, incl. with --force; and in_review->in_progress). Recorded as the transition's on-wire review_ref rationale; omitting it makes the status event contract-invalid and hosted sync drops it.
---approval-ref TEXT Approval reference for approval/done transitions (e.g., PR#42)
---reviewer TEXT Reviewer name (auto-detected from git if omitted)
+* --to <str> Target lane (planned/doing/for_review/approved/done) [required]
+--mission <str> Mission slug
+--agent,--actor <str> Agent name (alias: --actor, matching issue-verdict's vocabulary). If both --agent and --actor are given, the one supplied LAST on the command line wins.
+--model <str> Dispatch-resolved model actual
+--profile <str> Dispatch-resolved agent profile actual
+--invocation-id <str> Authoritative dispatch Op record id
+--assignee <str> Assignee name, recorded on this transition regardless of the target lane (not limited to --to doing).
+--shell-pid <str> Shell PID
+--note,--reason <str> History note (alias: --reason, matching issue-verdict's vocabulary). If both --note and --reason are given, the one supplied LAST on the command line wins.
+--review-feedback-file <path> Path to review feedback file. Required for review-rejection edges (--to planned, incl. with --force; and in_review->in_progress). Recorded as the transition's on-wire review_ref rationale; omitting it makes the status event contract-invalid and hosted sync drops it.
+--approval-ref <str> Approval reference for approval/done transitions (e.g., PR#42)
+--reviewer <str> Reviewer name (auto-detected from git if omitted)
 --self-review-fallback Record that approval is a self-review fallback after the intended reviewer failed.
---intended-reviewer TEXT Reviewer that should have reviewed this WP before fallback.
---reviewer-failure-reason TEXT Reason the intended reviewer failed.
---done-override-reason TEXT Required when --to done and merge ancestry cannot be verified; recorded in history/event reason
+--intended-reviewer <str> Reviewer that should have reviewed this WP before fallback.
+--reviewer-failure-reason <str> Reason the intended reviewer failed.
+--done-override-reason <str> Required when --to done and merge ancestry cannot be verified; recorded in history/event reason
 --force Force move even with unchecked subtasks (does not bypass planned rollback feedback requirement). Out of in_review or approved it needs --note.
---tracker-ref TEXT External tracker reference (e.g., '#1298' or 'JIRA-123'). Repeatable; appended to the WP frontmatter tracker_refs.
+--tracker-ref <str> External tracker reference (e.g., '#1298' or 'JIRA-123'). Repeatable; appended to the WP frontmatter tracker_refs.
 --skip-review-artifact-check Override a rejected latest review artifact when arbiter-approving; requires --note and records override evidence.
 --auto-commit --no-auto-commit Automatically commit WP file changes to target branch (default: from project config)
 --json Output JSON format
 --skip-pre-review-gate Skip the pre-review regression gate on a --to for_review move (also honored via the SPEC_KITTY_SKIP_PRE_REVIEW_GATE env var). The gate still runs and enforces by default.
---owned-checkout PATH Use an owned single_branch checkout for the local review lifecycle (force/skip, done, and arbiter modes unsupported).
+--owned-checkout <path> Use an owned single_branch checkout for the local review lifecycle (force/skip, done, and arbiter modes unsupported).
 --help -h Show this message and exit.
