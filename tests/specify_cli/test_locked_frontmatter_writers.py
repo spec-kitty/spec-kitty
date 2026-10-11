@@ -14,7 +14,6 @@ from __future__ import annotations
 import importlib
 import json
 import subprocess
-import sys
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -23,14 +22,14 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
-from typer.testing import CliRunner
+import typer
 
 import specify_cli.frontmatter as frontmatter_module
 from kernel.atomic import atomic_write
 from specify_cli.cli.commands.agent.finalize_status_surface import StatusSurfaceGuard
 from specify_cli.cli.commands.agent import mission_finalize_bootstrap as bootstrap
 from specify_cli.cli.commands.agent import mission_finalize_commit as finalize_commit
-from specify_cli.cli.commands.agent.tasks import app as tasks_app
+from specify_cli.cli.commands.agent.tasks import map_requirements
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 from specify_cli.status.locking import feature_status_lock_path, holds_status_lock
 from tests._meta_overlap import run_overlap
@@ -162,22 +161,25 @@ def test_two_locked_frontmatter_writers_both_keep_their_field(monkeypatch: pytes
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture
-def restore_std_streams() -> Iterator[None]:
-    """``CliRunner.invoke`` swaps the process-wide std streams; two threads must not leave them swapped."""
-    saved = (sys.stdin, sys.stdout, sys.stderr)
-    try:
-        yield
-    finally:
-        sys.stdin, sys.stdout, sys.stderr = saved
-
-
 def _map_requirements(refs: str) -> int:
-    result = CliRunner().invoke(tasks_app, ["map-requirements", "--wp", WP_ID, "--refs", refs, "--no-auto-commit", "--json"])
-    return result.exit_code
+    """Invoke the ``map-requirements`` command body directly, not through ``CliRunner``.
+
+    ``CliRunner.invoke`` isolates output by swapping the process-wide
+    ``sys.stdout``/``sys.stderr`` (click ``isolation()``), which is not
+    thread-safe: two concurrent invocations corrupt each other's capture
+    buffer and raise ``ValueError: I/O operation on closed file`` from
+    ``CliRunner``'s own ``getvalue()`` -- noise unrelated to the write overlap
+    this test exercises. The command body writes JSON to the real (pytest-
+    captured) stdout, so calling it directly still runs the full command path
+    and the mission-locked frontmatter write, without a per-thread stream swap.
+    """
+    try:
+        map_requirements(wp=WP_ID, refs=refs, auto_commit=False, json_output=True)
+    except typer.Exit as exc:
+        return int(exc.exit_code)
+    return 0
 
 
-@pytest.mark.usefixtures("restore_std_streams")
 def test_two_overlapping_map_requirements_invocations_keep_both_refs(monkeypatch: pytest.MonkeyPatch, mission: tuple[Path, Path, Path]) -> None:
     repo, _primary, wp_file = mission
     monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
