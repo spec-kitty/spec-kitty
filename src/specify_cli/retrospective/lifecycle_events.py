@@ -449,6 +449,15 @@ def emit_captured(
     # topology, resolved above through the single durable-home authority — never
     # the materialized ``-coord`` husk (the #1771 coord-leak this mission cures).
     canonical_path = feature_dir / RETROSPECTIVE_FILENAME
+    # #5868: persist a repository-relative ``record_path`` so the tracked event
+    # log never leaks the operator's absolute home path (hand-scrubbed on #5856).
+    # Anchor on the SAME base ``resolve_retrospective_home`` composed the home
+    # from — the MAIN repo root (``_compose_primary_feature_dir`` joins
+    # ``KITTY_SPECS_DIR`` onto ``get_main_repo_root(repo_root)``) — so a worktree
+    # or unresolved ``repo_root`` can never make ``relative_to`` raise.
+    from specify_cli.core.paths import get_main_repo_root
+
+    record_relative_path = canonical_path.relative_to(get_main_repo_root(repo_root)).as_posix()
 
     def _build(lamport: int) -> RetrospectiveCaptured:
         return RetrospectiveCaptured(
@@ -463,7 +472,7 @@ def emit_captured(
             force=False,
             execution_mode=execution_mode,
             findings_status=record.findings_status,
-            record_path=str(canonical_path),
+            record_path=record_relative_path,
             generator_version=record.generator_version,
             policy_source=dict(record.policy_source),
             provenance_kind=provenance_kind,

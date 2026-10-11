@@ -2521,7 +2521,8 @@ class TestCreateHarness:
         assert [gap["summary"] for gap in record["gaps"]] == [_GENERATED_GAP]
         assert len(record["evidence_refs"]) == 6
         (captured,) = project.rows("RetrospectiveCaptured")
-        assert captured["record_path"] == str(project.record_path)
+        # #5868: the tracked event records a repository-relative record_path.
+        assert captured["record_path"] == project.record_path.relative_to(project.repo).as_posix()
         assert captured["findings_status"] == "has_findings"
         assert captured["evidence_ref_count"] == 6
         assert captured["provenance_kind"] == "explicit_create"

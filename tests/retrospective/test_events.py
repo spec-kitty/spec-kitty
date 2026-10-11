@@ -252,6 +252,21 @@ class TestEmitCaptured:
         assert events[0]["event_id"] == event.event_id
         assert events[0]["mission_id"] == MISSION_ID
 
+    def test_emit_captured_record_path_is_repository_relative(self, tmp_path: Path) -> None:
+        """#5868: record_path is repository-relative POSIX, never an absolute host path."""
+        record = make_gen_record()
+        feature_dir = tmp_path / "kitty-specs" / MISSION_SLUG
+        feature_dir.mkdir(parents=True)
+
+        emit_captured(record, tmp_path, provenance_kind="explicit_create", actor=_RUNTIME_ACTOR)
+
+        events = _read_events(feature_dir)
+        assert len(events) == 1
+        record_path = events[0]["record_path"]
+        assert record_path == f"kitty-specs/{MISSION_SLUG}/retrospective.yaml"
+        assert not record_path.startswith("/")
+        assert str(tmp_path) not in record_path
+
     def test_emit_captured_returns_ulid(self, tmp_path: Path) -> None:
         """emit_captured returns an event with a ULID event_id."""
         record = make_gen_record()

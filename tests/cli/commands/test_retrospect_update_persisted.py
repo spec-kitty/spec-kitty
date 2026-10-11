@@ -174,7 +174,9 @@ def test_captured_event_row_matches_persisted_record_and_report(tmp_path: Path) 
     event = captured[0]
 
     assert event["mission_id"] == MISSION_ID_COMPLETED
-    assert event["record_path"] == str(record_path)
+    # #5868: the tracked event records a repository-relative record_path (never the
+    # absolute on-disk path, which leaked the operator's home into tracked history).
+    assert event["record_path"] == record_path.relative_to(tmp_path).as_posix()
     assert event["findings_status"] == on_disk["findings_status"] == reported["findings_status"]
     assert event["proposal_count"] == len(on_disk.get("proposals", [])) == reported["counts"]["proposals"]
     assert event["evidence_ref_count"] == len(on_disk.get("evidence_refs", [])) == reported["counts"]["evidence_refs"]

@@ -159,14 +159,15 @@ def test_create_writes_and_commits_the_captured_event_on_the_coordination_branch
     exit_code, stdout, stderr = _run_create(repo, mission.slug, monkeypatch)
 
     assert exit_code == 0, stderr
-    record_path = json.loads(stdout)["record_path"]
     # The canonical (coordination) event log gained exactly one RetrospectiveCaptured row, and the
     # coordination branch carries it.
     committed_coord_log = git_out(repo, "show", f"{mission.coord_branch}:{events_rel}")
     assert _event_types(committed_coord_log).count("RetrospectiveCaptured") == 1
     captured = json.loads(committed_coord_log.splitlines()[-1])
     assert captured["type"] == "RetrospectiveCaptured"
-    assert captured["record_path"] == record_path
+    # #5868: the tracked event records the repository-relative path (not the absolute
+    # record_path the CLI echoes to stdout for the operator's convenience).
+    assert captured["record_path"] == f"kitty-specs/{mission.slug}/retrospective.yaml"
     assert git_out(coord_root, "status", "--porcelain", "--", events_rel) == ""
     # Nothing was stranded in the primary checkout's copy of the log.
     assert (repo / events_rel).read_text(encoding="utf-8") == primary_log_before
