@@ -42,7 +42,7 @@ from specify_cli.lanes.implement_support import (
 )
 from specify_cli.lanes.worktree_allocator import ORPHANED_PIN_RECOVERY_HINT
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.status.store import append_event
+from specify_cli.status.store import append_event, read_events
 
 pytestmark = [pytest.mark.fast, pytest.mark.git_repo]
 
@@ -192,12 +192,21 @@ def _seed_wp_lane(repo: Path, wp_id: str, lane: Lane) -> None:
     ``append_event`` production entry point ``emit_status_transition`` itself
     calls, exercising the REAL reader (``read_events`` + ``reduce``) the
     predicate under test consumes.
+
+    ``from_lane`` is the lane the log currently holds for *wp_id* (``planned``
+    when it has no event yet). The shared reducer drops an event whose
+    ``from_lane`` contradicts the folded state, so a second seed that claims
+    ``planned`` after an ``approved`` one would be silently ignored (#6066).
     """
+    current = Lane.PLANNED
+    for prior in read_events(_feature_dir(repo)):
+        if prior.wp_id == wp_id:
+            current = Lane(prior.to_lane)
     event = StatusEvent(
         event_id=str(ULID()),
         mission_slug=_MISSION_SLUG,
         wp_id=wp_id,
-        from_lane=Lane.PLANNED,
+        from_lane=current,
         to_lane=lane,
         at="2026-08-26T00:00:00+00:00",
         actor="test",
