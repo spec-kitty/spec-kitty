@@ -2345,3 +2345,74 @@ def test_json_ownership_refusal_is_typed_and_writes_no_verdict_authority(
         text=True,
     ).stdout.strip()
     assert head_after == head_before
+
+
+def test_adopted_review_cycle_survives_transition_revert(tmp_path: Path) -> None:
+    """#5969 RED-FIRST: a retry that ADOPTS a prior run's already-committed
+    review-cycle must NOT have that artifact deleted by the transition-emit
+    compensator.
+
+    The #5969 wedge: a rejection (``move-task --to planned --review-feedback-
+    file F``) is interrupted after it committed ``review-cycle-1.md`` and
+    appended its ``in_review -> planned`` event, but before its own status-
+    transition commit. The reviewer's retry re-runs the identical rejection;
+    ``_adopt_or_allocate_review_cycle_locked`` ADOPTS the already-committed
+    cycle-1 (``already_committed`` true), reports it as this run's durable
+    write, then the transition emit fails (``Illegal transition: planned ->
+    planned``) and ``revert_committed_verdict_write`` DELETES the adopted
+    cycle-1 -- destroying evidence a PRIOR run durably committed. From then on
+    the implementer's ``agent action implement`` exits 1 "feedback artifact is
+    missing".
+
+    FR-002's compensator exists to undo a verdict *this run* committed after
+    *this run's* transition failed -- never to delete a prior run's durable
+    commit this run merely adopted. This asserts the GREEN post-fix contract:
+    the adopted artifact survives on disk AND at HEAD.
+    """
+    repo = tmp_path
+    feature_dir = _setup_fixture(repo)
+    wp_dir = _wp_dir(repo)
+    cycle1 = wp_dir / "review-cycle-1.md"
+    relpath = f"kitty-specs/{_MISSION}/tasks/{_WP_ID}-test/review-cycle-1.md"
+    # Precondition: the prior (interrupted) run already committed cycle-1.
+    assert cycle1.exists()
+    assert _git_head_has_file(repo, relpath)
+
+    # The RETRY: the identical rejection (same reviewer + body) adopts the
+    # already-committed cycle-1 rather than allocating a fresh record.
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=_MISSION,
+        wp_id=_WP_ID,
+        wp_slug=f"{_WP_ID}-test",
+        body="Needs another pass.\n",
+        reviewer_agent="reviewer-renata",
+        verdict="rejected",
+        commit_router=RealCoordCommitRouter(),
+    )
+    assert "already committed" in created.persistence.message.lower(), (
+        "fixture did not reproduce the adoption path -- the retry must adopt "
+        f"the prior commit, got persistence={created.persistence!r}"
+    )
+
+    # Build the durability signal exactly as the move-task writer does, then
+    # run the transition-emit compensation the wedged retry would run.
+    signal = _tvp._build_durability_signal(created)
+    assert signal.durably_persisted
+    st = _minimal_state(
+        repo, resolved_auto_commit=True, skip_target_branch_commit=False
+    )
+    st.target_branch = "main"
+    _tvp.revert_committed_verdict_write(st, signal)
+
+    # The adopted artifact (a PRIOR run's durable commit) must survive -- both
+    # on disk and at HEAD. Deleting it is the #5969 data loss that wedges the
+    # implementer's fix cycle (the rejection event still references it).
+    assert cycle1.exists(), (
+        "the compensator deleted an ADOPTED review-cycle artifact -- a prior "
+        "run's durable verdict this run did not create (#5969 data loss)"
+    )
+    assert _git_head_has_file(repo, relpath), (
+        "the adopted review-cycle-1.md is no longer reachable at HEAD -- the "
+        "compensator committed its deletion (#5969 data loss)"
+    )
