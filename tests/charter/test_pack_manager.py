@@ -16,6 +16,7 @@ Covers:
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -121,7 +122,17 @@ def test_preparation_refuses_broken_required_inputs(tmp_path: Path, problem: str
         before_stat = target.lstat()
         with pytest.raises(PermissionError):
             prepare_activation_write(tmp_path, {"mission_type_activations": ["research"]})
-        assert target.lstat() == before_stat and config.read_bytes() == before_config
+
+        # "unchanged" means the file was not MODIFIED -- compare only the
+        # modification-relevant stat fields, never the whole ``os.stat_result``.
+        # A bare ``==`` on ``stat_result`` also compares ``st_atime``/``st_ctime``,
+        # which a refusal path's stat/exists probe can bump without touching the
+        # file, flaking this gate nondeterministically by filesystem atime policy.
+        def _modification_facts(st: os.stat_result) -> tuple[int, int, int, int]:
+            return (st.st_mode, st.st_size, st.st_mtime_ns, st.st_ino)
+
+        assert _modification_facts(target.lstat()) == _modification_facts(before_stat)
+        assert config.read_bytes() == before_config
     else:
         before = snapshot({"project": tmp_path})
         with pytest.raises((ValueError, OSError, YAMLError, ActiveCharterConfigError)) as caught:
