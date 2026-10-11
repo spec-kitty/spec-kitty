@@ -197,16 +197,7 @@ spec-kitty agent status doctor --mission 034-feature-name
 | Materialization drift | Warning | `status.json` does not match reducer output |
 | Derived-view drift | Error | Materialized snapshot differs from canonical event log |
 
-Doctor validates the canonical log before using `status.json`. An unreadable log
-produces `event_log_error` with the resolved path and actual reason; malformed
-records include their physical 1-based line, while whole-file access or decoding
-failures have no invented record line. Text and `--json` output exit 1; JSON
-reports `healthy: false`. Doctor leaves both files and missing-file states
-unchanged. Preserve the log and snapshot as evidence, restore trusted history or
-correct file access, then rerun doctor. Do not delete history or use backfill or
-materialization as a substitute for restoring readable authority. Until then,
-all log-dependent checks are skipped, including reviewer self-approval; independent
-issue-matrix, sparse-checkout and duplicate-frontmatter checks still run.
+Doctor reads the canonical event log before trusting `status.json`. If the log is corrupt or unreadable it reports `event_log_error` (ERROR, exit 1, JSON `healthy: false`) naming the resolved path, the reason, and the 1-based line for malformed records. Log-dependent checks (stale claims, drift, reviewer self-approval, WP reconciliation) are skipped; independent checks still run. Doctor never modifies either file: preserve both, restore trusted history or fix file access, then rerun. Backfill and materialization do not substitute for a readable log.
 
 ### `spec-kitty agent status migrate`
 
