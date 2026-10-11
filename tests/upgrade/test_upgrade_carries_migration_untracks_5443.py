@@ -29,7 +29,7 @@ from tests.upgrade._legacy_upgrade_fixture import (
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox, pytest.mark.regression]
 
-_SKILL = ".agents/skills/demo/SKILL.md"
+_SKILL = ".agents/skills/spec-kitty.plan/SKILL.md"
 _SKILL_BYTES = "demo skill\n"
 _EXTRA = {_SKILL: _SKILL_BYTES, ".claude/commands/spec-kitty.implement.md": MARKED_COMMAND_FILE}
 

@@ -44,6 +44,13 @@ from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, safe_commit
 from kernel.paths import to_posix
+from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill import (
+    is_projected_skills_path,
+    manifest_owned_skills_paths,
+)
+
+#: Shared ``.agents/skills/`` projection root (see the 3.2.5 gitignore backfill).
+_SKILLS_ROOT_PREFIX = ".agents/skills/"
 
 UPGRADE_COMMIT_SKIP_WARNING = "Could not auto-commit upgrade changes; please review and commit manually."
 
@@ -477,7 +484,14 @@ def migration_index_untracks(checkout: Path, baseline_paths: set[str] | None) ->
     except GitCommandError:
         return []
     ignored_now = {_normalize_status_path(str(entry.path)) for entry in entries if entry.is_ignored}
-    return [Path(path) for path in candidates if path in ignored_now]
+    # Defense-in-depth for #5964: never carry a non-projected ``.agents/skills/``
+    # deletion into the upgrade commit, even if some path reached the index some
+    # other way. The migration that owns the untrack is already scoped, but the
+    # commit builder refuses team-owned content as a second, independent gate.
+    manifest_owned = manifest_owned_skills_paths(checkout)
+    return [
+        Path(path) for path in candidates if path in ignored_now and (not path.startswith(_SKILLS_ROOT_PREFIX) or is_projected_skills_path(path, manifest_owned))
+    ]
 
 
 def commit_touched_checkout(
