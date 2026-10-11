@@ -115,7 +115,9 @@ def _untrack_tracked_paths(project_path: Path, entries: list[str]) -> list[str]:
             capture_output=True,
             check=True,
         )
-    except (GitCommandError, OSError, subprocess.CalledProcessError):
+    except (GitCommandError, OSError, subprocess.CalledProcessError, ValueError):
+        # ``ValueError``: the project path is not under the repository top level (odd symlink
+        # layout) -- keep everything tracked rather than guess a project-relative path.
         return []
 
     # Report paths relative to the project, as before.
