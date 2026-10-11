@@ -371,9 +371,26 @@ def test_repeat_real_restore_move_and_public_replay_has_no_churn(
     recover(repo)
     assert inventory(repo) == before
     for path in gate.SNAPSHOTS:
-        result, _ = cli(repo, "agent", "status", "materialize", "--mission", Path(path).parent.name, "--json")
+        directory = Path(path).parent
+        frozen = (repo / path).read_bytes()
+        reducer_output = materialize_to_json(materialize_snapshot(repo / directory)).encode("utf-8")
+        result, _ = cli(repo, "agent", "status", "materialize", "--mission", directory.name, "--json")
         assert result.returncode == 0, result.stderr
-        assert inventory(repo) == before
+        if reducer_output == frozen:
+            assert inventory(repo) == before
+            continue
+        # ADR 2026-10-11-1: a reducer generation may re-point a terminal
+        # transition id, so the public command legitimately rewrites such a
+        # snapshot to the current reducer bytes. It must preserve the OUTCOME,
+        # and everything else must still be untouched; the frozen bytes are
+        # then restored for the byte-pinned gate below (#6058).
+        assert (repo / path).read_bytes() == reducer_output
+        gate._assert_replay_preserves_outcome(path, directory.as_posix(), reducer_output, frozen)
+        (repo / path).write_bytes(frozen)
+        after = inventory(repo)
+        assert {k: v for k, v in after.items() if k != path} == {k: v for k, v in before.items() if k != path}
+        assert after[path][2] == before[path][2]
+        before[path] = after[path]
     run_gate(repo, monkeypatch)
     # A same-byte rewrite is visible to this independent mtime oracle.
     target = repo / gate.SNAPSHOTS[0]
