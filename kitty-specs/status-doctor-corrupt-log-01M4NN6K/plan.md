@@ -20,7 +20,7 @@ Engineering alignment is already confirmed by the supplied small-defect scenario
 **Project Type**: Single existing Python CLI repository
 **Performance Goals**: Preserve existing synchronous doctor behavior; no new scans, network access or benchmark effort for this bounded defect
 **Constraints**: ERROR not false healthy/crash; path/reason and physical 1-based record line when available; no fabricated I/O lines; new-code coverage ≥90%; no full heavy local suite
-**Scale/Scope**: One issue, one WP, doctor.py plus status tests; store.py only the approved annotation/transition decoder AttributeError tuple additions, with direct store regressions
+**Scale/Scope**: One issue, one WP, doctor.py plus status tests; store.py only the approved annotation/transition decoder AttributeError tuple additions, with direct store regressions; uninitialized_hint.py only the authored-only WP dependency reader selection
 
 ## Charter Check
 
@@ -28,7 +28,7 @@ Engineering alignment is already confirmed by the supplied small-defect scenario
 
 - Canonical authority: reuse store reader, no doctor-local parser. Source packs own templates when old global prompts drift.
 - ATDD first: acceptance tests committed RED before any production fix; transitional regression markers removed with fix.
-- Locality: candidate files doctor.py and test_doctor.py, optional focused status test; store.py and test_store.py only for witnessed annotation/transition decoder normalization. Opening campsite check is a preceding distinct step or recorded no-enabler conclusion; no unrelated cleanup.
+- Locality: candidate files doctor.py and test_doctor.py, optional focused status test; store.py and test_store.py only for witnessed annotation/transition decoder normalization; uninitialized_hint.py only selects authored WP metadata for dependency-cycle detection (dependencies have no runtime ownership). Opening campsite check is a preceding distinct step or recorded no-enabler conclusion; no unrelated cleanup.
 - Evidence preservation: no repair writes or blind deletion guidance. Independent reviewer proves both snapshot halves and byte integrity.
 - Mission hygiene: three canonical-helper tracer seeds; issue-matrix.json #5924 in-mission, WP01, owner Ivan-Melck recorded in evidence_ref because canonical schema has no owner column. Assignment/claim verified by parent.
 - Git: current/base/mission target all issue-5924-status-doctor-corrupt-log, resolver match true, single_branch. PR to main only; NO merge/consolidate, local main changes or main push. Leave eventual approved/accepted mission pending PR integration.
@@ -59,6 +59,7 @@ kitty-specs/status-doctor-corrupt-log-01M4NN6K/
 ```text
 src/specify_cli/status/doctor.py        # candidate production change
 src/specify_cli/status/store.py         # narrow annotation/transition decoder AttributeError normalization
+src/specify_cli/status/uninitialized_hint.py # authored-only dependency metadata, no hidden log reread
 tests/status/test_store.py              # direct canonical reader regression
 src/specify_cli/cli/commands/agent/status.py  # existing CLI contract, no planned production edit
 tests/status/test_doctor.py             # existing doctor + CLI coverage
@@ -115,7 +116,7 @@ Record exact commands/counts, changed-line coverage ≥90%, and strict type-chec
 
 ## Review Cycle 1 Amendment
 
-Independent correctness review witnessed an otherwise valid transition with mission_slug=123 escaping as AttributeError, plus expected late-read failures in drift and reviewer-self-approval. Fold both within existing FR-001/FR-003: add AttributeError to the existing transition decoder catch, guard all dependent rereads with StoreError/OSError/UnicodeError, discard partial dependent advice on failure, and preserve independent checks. Add RED-first direct/store/doctor/CLI and late-read tests. Fold the readable ReviewerSelfApproval corruption/restoration control. Earlier annotation-only statements in the research history describe the first implementation, not the amended current constraint.
+Independent correctness review witnessed an otherwise valid transition with mission_slug=123 escaping as AttributeError, plus expected late-read failures in drift and reviewer-self-approval. Fold both within existing FR-001/FR-003: add AttributeError to the existing transition decoder catch, guard all dependent rereads with StoreError/OSError/UnicodeError, discard partial dependent advice on failure, and preserve independent checks. Add RED-first direct/store/doctor/CLI and late-read tests. Fold the readable ReviewerSelfApproval corruption/restoration control. Earlier annotation-only statements in the research history describe the first implementation, not the amended current constraint. Expanded RED-first tests then witnessed an empty-snapshot dependency-cycle reader swallowing a later PermissionError via runtime overlay. Approved two-line fold: select read_authored_wp_frontmatter in uninitialized_hint.py, because dependency edges are authored, not runtime state. No shared metadata implementation or schema change; existing cycle callers must be verified.
 
 ## Complexity Tracking
 

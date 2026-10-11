@@ -712,7 +712,7 @@ def _partition_event_stream_from_text(feature_dir: Path, content: str) -> EventS
                 # Inject resolved value so from_dict() populates the field
                 obj = {**obj, "mission_id": resolved_mission_id}
             event = StatusEvent.from_dict(obj)
-        except (KeyError, ValueError, TypeError) as exc:
+        except (KeyError, ValueError, TypeError, AttributeError) as exc:
             raise StoreError(f"Invalid event structure on line {line_number}: {exc}") from exc
         transitions.append(event)
     return EventStream(transitions=transitions, annotations=annotations)

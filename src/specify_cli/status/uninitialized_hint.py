@@ -20,7 +20,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from specify_cli.frontmatter import FrontmatterError
-from specify_cli.status.wp_metadata import read_wp_frontmatter
+from specify_cli.status.wp_metadata import read_authored_wp_frontmatter
 
 __all__ = [
     "find_wp_dependency_cycles",
@@ -43,7 +43,7 @@ def _build_wp_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
 
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
         try:
-            meta, _body = read_wp_frontmatter(wp_file)
+            meta, _body = read_authored_wp_frontmatter(wp_file)
         except (FrontmatterError, ValidationError, OSError):
             continue
         wp_id = meta.work_package_id

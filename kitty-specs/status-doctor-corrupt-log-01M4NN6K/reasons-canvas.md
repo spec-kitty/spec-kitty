@@ -22,6 +22,7 @@
 ## Structure
 - Candidate production surface: `src/specify_cli/status/doctor.py`; tests `tests/status/test_doctor.py`, optional focused status test file.
 - Existing reader: `src/specify_cli/status/store.py`; touch only add AttributeError to existing annotation and transition decoder catch tuples for witnessed malformed delta/subtasks and identity shapes, preserving canonical physical-line StoreError; add tests/status/test_store.py regressions. Existing CLI renderer is an acceptance surface, not a planned production change.
+- Dependency-cycle detection in uninitialized_hint.py selects authored-only WP frontmatter; dependencies are authored and need no best-effort runtime-overlay log read. Only import and call selection may change; verify existing cycle callers.
 - One WP01; implementer owns product/tests, reviewer is independent, planner owns this reasoning and sequencing only. No external-package, reducer or decision-domain change.
 
 ## Operations
@@ -48,3 +49,4 @@
 2026-10-11 — WP01 — Initially no store adjustment needed — parent verified canonical annotation-aware parser and physical-line diagnostics.
 - 2026-10-11 — WP01 — Approved minimal annotation error normalization — parent then witnessed delta=[] AttributeError; add AttributeError only to existing annotation decoder catch tuple with direct store/doctor regressions. Note overlap with PR #5953; no general parser/model refactor.
 - 2026-10-11 — WP01 review cycle 1 — Approved the same normalization at the existing transition decoder after a witnessed non-string identity crash. Guard late dependent rereads against the same expected failures, discard partial dependent advice, and add the readable ReviewerSelfApproval recovery control. No new domain or parser authority.
+- 2026-10-11 — WP01 cycle-1 expanded matrix — A retained failing empty-snapshot test witnessed dependency-cycle metadata swallowing a later PermissionError. Authorize only the import/call switch to authored-only WP metadata in uninitialized_hint.py, removing that irrelevant hidden log access; preserve all authored dependency semantics and verify callers.

@@ -345,29 +345,39 @@ def late_read_failure(
 
 
 def _late_read_error(kind: str, mission: Path) -> Exception:
-    return {
+    errors: dict[str, Exception] = {
         "unicode": UnicodeDecodeError("utf-8", b"\xff", 0, 1, "late decode failure"),
         "permission": PermissionError(13, "late permission failure", str(mission / EVENTS_FILENAME)),
         "store": StoreError("Invalid event structure on line 6: late store failure"),
-    }[kind]
+    }
+    return errors[kind]
 
 
 @pytest.mark.parametrize("kind", ["unicode", "permission", "store"])
+@pytest.mark.parametrize("snapshot_state", ["claimed", "done", "empty"])
 def test_late_read_failure_discards_dependent_advice_and_keeps_independent_checks(
     mission_dir: Path,
     late_read_failure: Callable[[Exception], int],
     monkeypatch: pytest.MonkeyPatch,
     kind: str,
+    snapshot_state: str,
 ) -> None:
     _add_independent_findings(mission_dir, monkeypatch)
     # A present, stale snapshot produces provisional advice BEFORE the failed reread.
     snapshot_path = mission_dir / SNAPSHOT_FILENAME
     if snapshot_path.exists():
-        snapshot_path.write_text(
-            json.dumps({"work_packages": {"WP01": {"lane": "claimed", "agent": "", "last_transition_at": "2020-01-01T00:00:00Z"}}}),
-            encoding="utf-8",
-        )
+        (mission_dir.parents[1] / ".worktrees" / f"{SLUG}-lane-a").mkdir(parents=True)
+        wps = {} if snapshot_state == "empty" else {"WP01": {"lane": snapshot_state, "agent": "", "last_transition_at": "2020-01-01T00:00:00Z"}}
+        snapshot_path.write_text(json.dumps({"work_packages": wps}), encoding="utf-8")
     before = _evidence(mission_dir)
+    readable = run_doctor(mission_dir, SLUG, mission_dir.parents[1])
+    categories = [f.category for f in readable.findings]
+    assert Category.MATERIALIZATION_DRIFT in categories and Category.WP_FILE_DRIFT in categories
+    # Membership must still follow ALL independent findings on trusted history.
+    assert categories[-4:] == [Category.ISSUE_MATRIX, Category.SPARSE_CHECKOUT, Category.DUPLICATE_FRONTMATTER_KEY, Category.WP_FILE_DRIFT]
+    if snapshot_path.exists():
+        assert {"claimed": Category.STALE_CLAIM, "done": Category.ORPHAN_WORKSPACE, "empty": Category.UNINITIALIZED_STATUS}[snapshot_state] in categories
+    assert _evidence(mission_dir) == before
     error = _late_read_error(kind, mission_dir)
     assert late_read_failure(error) > 1
 
@@ -417,6 +427,17 @@ def test_cli_reports_late_read_failure_without_partial_advice(
         assert "event_log_error" in result.output and "error" in result.output
         assert str(error) in result.output
         assert "materialization_drift" not in result.output and "wp_file_drift" not in result.output
+    assert _evidence(mission_dir) == before
+
+
+def test_late_unexpected_programming_error_is_not_reported_as_log_corruption(
+    mission_dir: Path,
+    late_read_failure: Callable[[Exception], int],
+) -> None:
+    before = _evidence(mission_dir)
+    late_read_failure(RuntimeError("unexpected later reader defect"))
+    with pytest.raises(RuntimeError, match="^unexpected later reader defect$"):
+        run_doctor(mission_dir, SLUG, mission_dir.parents[1])
     assert _evidence(mission_dir) == before
 
 

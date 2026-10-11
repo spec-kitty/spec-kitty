@@ -23,7 +23,7 @@ from specify_cli.status_lanes import TERMINAL_LANES
 from specify_cli.frontmatter import FrontmatterError
 from .models import Lane, StatusEvent, WPInnerStateDelta
 from .reducer import SNAPSHOT_FILENAME, reduce
-from .store import EVENTS_FILENAME, StoreError, read_events
+from .store import EVENTS_FILENAME, StoreError, read_events, read_events_raw
 from .wp_metadata import read_authored_wp_frontmatter, wp_task_files
 
 logger = logging.getLogger(__name__)
@@ -412,15 +412,13 @@ def check_reviewer_self_approval(feature_dir: Path) -> list[Finding]:
     """Flag explicit self-review fallback events as review-independence risk."""
     findings: list[Finding] = []
     try:
-        from specify_cli.status.lifecycle_events import (
-            REVIEWER_SELF_APPROVAL,
-            mission_event_log_path,
-            read_lifecycle_events,
-        )
+        from specify_cli.status.lifecycle_events import REVIEWER_SELF_APPROVAL
     except ImportError:
         return findings
 
-    for event in read_lifecycle_events(mission_event_log_path(feature_dir)):
+    # The best-effort lifecycle accessor hides OSError as empty history. Doctor
+    # needs the canonical strict raw reader so late failures reach its guard.
+    for event in read_events_raw(feature_dir):
         if event.get("event_type") != REVIEWER_SELF_APPROVAL:
             continue
         payload = event.get("payload", {})
@@ -732,6 +730,44 @@ def check_sparse_checkout(repo_root: Path) -> list[Finding]:
     return findings
 
 
+def _collect_log_dependent_findings(
+    feature_dir: Path,
+    mission_slug: str,
+    repo_root: Path,
+    *,
+    stale_claimed_days: int,
+    stale_in_progress_days: int,
+) -> tuple[list[Finding], list[Finding]]:
+    """Collect provisionally; any failed reread invalidates all dependent advice.
+
+    Membership findings are returned separately to preserve their original
+    position after the independent checks in the public result.
+    """
+    events = read_events(feature_dir)
+    snapshot = _load_or_reduce_snapshot(feature_dir, events)
+    findings = check_uninitialized_status(feature_dir, snapshot)
+    if snapshot:
+        findings.extend(
+            check_stale_claims(
+                feature_dir,
+                snapshot,
+                claimed_threshold_days=stale_claimed_days,
+                in_progress_threshold_days=stale_in_progress_days,
+            )
+        )
+        findings.extend(check_orphan_workspaces(repo_root, mission_slug, snapshot))
+        findings.extend(check_drift(feature_dir))
+        findings.extend(check_blanked_runtime_slots(snapshot))
+    findings.extend(check_reviewer_self_approval(feature_dir))
+
+    membership: list[Finding] = []
+    if events:
+        event_wps = reduce(events).work_packages
+        terminal = frozenset(wp_id for wp_id, state in event_wps.items() if state.get("lane") in TERMINAL_LANES)
+        membership = check_wp_file_reconciliation(feature_dir, set(event_wps), terminal)
+    return findings, membership
+
+
 def run_doctor(
     feature_dir: Path,
     mission_slug: str,
@@ -764,13 +800,18 @@ def run_doctor(
 
     result = DoctorResult(mission_slug=mission_slug)
 
-    # A snapshot cannot establish authority's readability (#5924). None means
-    # read failure, not empty history: skip every log-dependent check in that case.
-    events: list[StatusEvent] | None
+    # A snapshot cannot establish authority's readability (#5924). Keep every
+    # dependent finding provisional until ALL log-dependent work succeeds.
+    membership: list[Finding] = []
     try:
-        events = read_events(feature_dir)
+        dependent, membership = _collect_log_dependent_findings(
+            feature_dir,
+            mission_slug,
+            repo_root,
+            stale_claimed_days=stale_claimed_days,
+            stale_in_progress_days=stale_in_progress_days,
+        )
     except (StoreError, OSError, UnicodeError) as exc:
-        events = None
         result.findings.append(
             Finding(
                 severity=Severity.ERROR,
@@ -781,24 +822,7 @@ def run_doctor(
             )
         )
     else:
-        snapshot = _load_or_reduce_snapshot(feature_dir, events)
-        # #1589: genuinely missing/empty status still needs initialization advice.
-        result.findings.extend(check_uninitialized_status(feature_dir, snapshot))
-        if snapshot:
-            result.findings.extend(
-                check_stale_claims(
-                    feature_dir,
-                    snapshot,
-                    claimed_threshold_days=stale_claimed_days,
-                    in_progress_threshold_days=stale_in_progress_days,
-                )
-            )
-            result.findings.extend(check_orphan_workspaces(repo_root, mission_slug, snapshot))
-            result.findings.extend(check_drift(feature_dir))
-            # FR-014 (#2960): blanked attribution on active WPs is corrupt state.
-            result.findings.extend(check_blanked_runtime_slots(snapshot))
-        # This check also reads status.events.jsonl, so it cannot run on failure.
-        result.findings.extend(check_reviewer_self_approval(feature_dir))
+        result.findings.extend(dependent)
     # coord-commit-integrity SURFACE A #1c (superseded IC-01b/IC-shared, WP02):
     # route the issue-matrix read through the shared two-partition split
     # helper (:func:`~mission_runtime.issue_matrix_partition.
@@ -818,11 +842,7 @@ def run_doctor(
     # own artifact tree; appended at the tail for the same order-stability reason.
     result.findings.extend(check_duplicate_frontmatter_keys(feature_dir))
 
-    # Compare with the event log itself: status.json is a derived view and may
-    # be stale, so its WP set cannot establish canonical membership.
-    if events:
-        event_wps = reduce(events).work_packages
-        terminal = frozenset(wp_id for wp_id, state in event_wps.items() if state.get("lane") in TERMINAL_LANES)
-        result.findings.extend(check_wp_file_reconciliation(feature_dir, set(event_wps), terminal))
+    # Canonical membership still follows the independent findings, as before.
+    result.findings.extend(membership)
 
     return result

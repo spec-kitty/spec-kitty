@@ -135,7 +135,7 @@ Use the returned workspace; planner has not called this command.
 - Preserve existing tests and source authority; identify any touched-area smell.
 - If no enabler is needed, record a concise no-enabler conclusion.
 - Any tidy step must be local, behavior-preserving, distinct and independently green.
-- Store scope is only approved annotation/transition normalization; no CLI/reducer/unrelated edits.
+- Store scope is only approved annotation/transition normalization. Also select authored-only WP metadata in uninitialized_hint.py dependency-cycle detection: dependency edges are authored, and the runtime overlay hides later log PermissionError. Verify existing cycle callers. No CLI/reducer/unrelated edits.
 - Parent baseline doctor.py tests: 55 passed.
 - Parent make test-fast: 2501 passed, 5 skipped, one stale retired dashboard pyc failure.
 - Environment report: https://github.com/spec-kitty/spec-kitty/issues/6050.
