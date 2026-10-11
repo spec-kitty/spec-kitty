@@ -429,6 +429,15 @@ class CreatedRejectedReviewCycle:
     review_result: ReviewResult
     persistence: VerdictPersistenceOutcome
     warnings: tuple[str, ...] = ()
+    #: #5969: True when this record ADOPTED an identical artifact a PRIOR run
+    #: had already committed (``_adopt_or_allocate_review_cycle_locked``
+    #: returned ``already_committed``), rather than allocating/writing it this
+    #: run. The transition-emit compensator
+    #: (``tasks_verdict_persistence.revert_committed_verdict_write``) must NOT
+    #: delete an adopted artifact: it is a prior run's durable work this run
+    #: did not create, and deleting it destroys the review-cycle file the
+    #: rejection event still references (wedging the implementer's fix cycle).
+    adopted: bool = False
 
 
 def _validate_segment(name: str, value: str) -> str:
@@ -1506,4 +1515,5 @@ def create_rejected_review_cycle(
         artifact=artifact,
         review_result=review_result,
         persistence=persistence,
+        adopted=already_committed,
     )

@@ -184,6 +184,15 @@ class VerdictDurabilitySignal:
     artifact_path: Path | None = None
     cycle_number: int | None = None
     review_cycle: CreatedRejectedReviewCycle | None = None
+    #: #5969: True when ``artifact_path`` was ADOPTED from a PRIOR run's
+    #: already-committed identical record (not written by THIS run). T048's
+    #: revert-compensator must no-op for it: FR-002 undoes a verdict THIS run
+    #: committed after THIS run's transition failed, never a prior run's
+    #: durable commit this run merely adopted. Deleting an adopted artifact is
+    #: the #5969 data loss -- the rejection event still references the file, so
+    #: the implementer's ``agent action implement`` then refuses "feedback
+    #: artifact is missing".
+    adopted: bool = False
 
     @property
     def durably_persisted(self) -> bool:
@@ -297,6 +306,11 @@ def revert_committed_verdict_write(st: _MoveTaskState, signal: VerdictDurability
     """Serialize compensation through the same checkout-wide verdict queue."""
     if not signal.durably_persisted or signal.artifact_path is None:
         return
+    if signal.adopted:
+        # #5969: this run ADOPTED a prior run's already-committed record; it is
+        # not this run's write to undo. Deleting it destroys a prior run's
+        # durable verdict the rejection event still references.
+        return
     try:
         queue_root = st.owned.owned_root if st.owned is not None else st.main_repo_root
         with acquire_verdict_save_queue(queue_root):
@@ -366,6 +380,11 @@ def _revert_committed_verdict_write_held(st: _MoveTaskState, signal: VerdictDura
     """
     if not signal.durably_persisted or signal.artifact_path is None:
         return
+    if signal.adopted:
+        # #5969: an adopted prior-run commit is never this run's to revert (see
+        # ``VerdictDurabilitySignal.adopted`` and the queue-wrapper guard). Held
+        # too so a direct call cannot bypass the no-op.
+        return
     if not signal.artifact_path.exists():
         return  # already reverted (or never landed) -- idempotent no-op
     original_path = signal.artifact_path
@@ -419,6 +438,7 @@ def _build_durability_signal(
         artifact_path=review_cycle.artifact_path,
         cycle_number=review_cycle.artifact.cycle_number,
         review_cycle=review_cycle,
+        adopted=review_cycle.adopted,
     )
 
 
