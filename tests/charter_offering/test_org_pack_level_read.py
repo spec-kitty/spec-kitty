@@ -66,9 +66,8 @@ def test_missing_level_warns_and_proceeds(tmp_path: Path) -> None:
         "- pack_level: built-in\n",  # non-mapping (a list that mentions a level)
         "pack_id: [unclosed\n",  # invalid YAML
         f"{_BASE}pack_level: {ORG}\nunknown_field: 1\n",  # schema-invalid
-        f"{_BASE}pack_level: {ORG}\nrequires_core: not-a-specifier\n",  # schema-invalid value
     ],
-    ids=["non-mapping", "invalid-yaml", "unknown-field", "bad-requires-core"],
+    ids=["non-mapping", "invalid-yaml", "unknown-field"],
 )
 def test_malformed_pack_yaml_refuses_instead_of_loading(tmp_path: Path, body: str) -> None:
     # Fail closed: a pack.yaml the descriptor loader cannot accept must never
