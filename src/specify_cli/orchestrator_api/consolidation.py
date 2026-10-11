@@ -539,7 +539,7 @@ def _execute_lane_merge(
     from specify_cli.lanes.consolidation import consolidate_lane_into_mission, integrate_mission_into_target
     from specify_cli.lanes.persistence import require_lanes_json
     from specify_cli.consolidation.config import MergeStrategy
-    from specify_cli.consolidation.entry_preflight import _pre_mutation_safety_preflight
+    from specify_cli.consolidation.entry_preflight import pre_mutation_safety_preflight
     from specify_cli.policy.config import load_policy_config
     from specify_cli.policy.merge_gates import evaluate_merge_gates
     from mission_runtime import MissionArtifactKind, placement_seam
@@ -607,7 +607,7 @@ def _execute_lane_merge(
     # state on this path, so the resume leg is inert. No snapshot/rollback machinery
     # is built here, so a refusal is byte-identical to pre-invocation (NFR-001).
     primary_meta_dir = placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
-    _pre_mutation_safety_preflight(
+    pre_mutation_safety_preflight(
         main_repo_root,
         mission_slug,
         target_branch,

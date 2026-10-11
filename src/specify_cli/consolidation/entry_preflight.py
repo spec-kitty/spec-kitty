@@ -213,6 +213,11 @@ def _pre_mutation_safety_preflight(
         assert_worktree_clean(coord_worktree, context=_as_mission_checkout(base_context), treat_untracked_as_dirty=True)
 
 
+#: Public name for callers outside the consolidation package (``orchestrator_api``): the same
+#: refuse-before-destroy preflight, importable without reaching for the private name.
+pre_mutation_safety_preflight = _pre_mutation_safety_preflight
+
+
 def _as_mission_checkout(context: ResidueContext | NothingIsResidue) -> ResidueContext | NothingIsResidue:
     """The same Mission judged as a MISSION checkout (a strictest classifier has no role to change)."""
     return replace(context, role=CheckoutRole.MISSION) if isinstance(context, ResidueContext) else context
