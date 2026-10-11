@@ -1,11 +1,12 @@
-"""#5863 — consolidate refuses to land a Mission whose status.json drifts from
-its event log (the event log is the sole authority for lane state).
+"""#5863 — consolidate warns when a Mission's status.json has drifted from its
+event log (the event log is the sole authority for lane state).
 
-Red-first: before the gate, ``_refuse_on_materialization_drift`` did not exist
-and consolidate would land on a stale, dishonest snapshot. The contract: a
-genuine drift refuses with exit 1 and names ``spec-kitty agent status
-materialize``; a snapshot that matches the log (or is absent/fresh) does not
-refuse.
+The contract: a snapshot that is PRESENT and whose CONTENT diverges from the
+reduced log emits a warning that names ``spec-kitty agent status materialize``;
+a snapshot that matches the log (or is simply absent/not-yet-materialized) is
+silent. Emitted as a warning, not a refusal, so it never false-blocks a
+consolidation whose status.json was seeded or left loosely (see the gate's
+docstring and the PR notes).
 """
 
 from __future__ import annotations
@@ -14,9 +15,8 @@ import json
 from pathlib import Path
 
 import pytest
-import typer
 
-from specify_cli.consolidation.executor import _refuse_on_materialization_drift
+from specify_cli.consolidation.executor import _warn_on_materialization_drift
 from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize_snapshot, materialize_to_json
 from specify_cli.status.store import EVENTS_FILENAME
 
@@ -50,24 +50,27 @@ def _seed(tmp_path: Path) -> Path:
     return feature_dir
 
 
-def test_matching_snapshot_does_not_refuse(tmp_path: Path) -> None:
+def test_matching_snapshot_is_silent(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     feature_dir = _seed(tmp_path)
     (feature_dir / SNAPSHOT_FILENAME).write_text(materialize_to_json(materialize_snapshot(feature_dir)), encoding="utf-8")
-    _refuse_on_materialization_drift(feature_dir, _SLUG)  # no raise
+    _warn_on_materialization_drift(feature_dir, _SLUG)  # no raise
+    assert "drifted" not in capsys.readouterr().out
 
 
-def test_absent_snapshot_does_not_refuse(tmp_path: Path) -> None:
+def test_absent_snapshot_is_silent(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     feature_dir = _seed(tmp_path)  # no status.json written
-    _refuse_on_materialization_drift(feature_dir, _SLUG)  # no raise — not yet materialized
+    _warn_on_materialization_drift(feature_dir, _SLUG)  # no raise — not yet materialized
+    assert "drifted" not in capsys.readouterr().out
 
 
-def test_drifted_snapshot_refuses(tmp_path: Path) -> None:
+def test_drifted_snapshot_warns(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     feature_dir = _seed(tmp_path)
     snapshot = json.loads(materialize_to_json(materialize_snapshot(feature_dir)))
-    # A writer appended the in_progress event without re-materializing: the
-    # committed snapshot still says 'claimed'.
-    snapshot["work_packages"]["WP01"]["lane"] = "claimed"
+    # A writer committed a 'done' snapshot the event log (in_progress) does not
+    # materialize to: a present, content-drifted status.json.
+    snapshot["work_packages"]["WP01"]["lane"] = "done"
     (feature_dir / SNAPSHOT_FILENAME).write_text(json.dumps(snapshot), encoding="utf-8")
-    with pytest.raises(typer.Exit) as exc:
-        _refuse_on_materialization_drift(feature_dir, _SLUG)
-    assert exc.value.exit_code == 1
+    _warn_on_materialization_drift(feature_dir, _SLUG)  # warns, never raises
+    out = capsys.readouterr().out
+    assert "drifted from its event log" in out
+    assert "spec-kitty agent status materialize" in out

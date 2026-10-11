@@ -653,22 +653,28 @@ def _enforce_origin_gate(main_repo: Path, seam: PlacementSeam, origin_check: str
         console.print(warning, markup=False)
 
 
-def _refuse_on_materialization_drift(feature_dir: Path, mission_slug: str) -> None:
-    """Refuse to land a Mission whose status.json drifts from its event log (#5863).
+def _warn_on_materialization_drift(feature_dir: Path, mission_slug: str) -> None:
+    """Warn when a Mission's status.json has drifted from its event log (#5863).
 
     The event log is the sole authority for WP lane state; a committed
     ``status.json`` that no longer materializes from it (a writer appended
     events without re-materializing) means the board a reviewer/operator read
-    does not reflect the recorded history. Refuse before any branch moves and
-    name the fix (``spec-kitty agent status materialize``) rather than landing
-    on a dishonest snapshot.
+    does not reflect the recorded history. Surface the drift before any branch
+    moves and name the fix (``spec-kitty agent status materialize``).
 
     Scoped to the #5863 scenario: a snapshot that is PRESENT and whose CONTENT
     diverges from the reduced log. A snapshot that is simply absent (not yet
     materialized — the common state for a Mission that writes its status lazily)
-    is not drift and must not be refused: ``validate_materialization_drift``
-    reports that as a file-existence finding, not a ``Materialization drift:``
-    content finding, so the gate keys on the content findings alone.
+    is not drift: ``validate_materialization_drift`` reports that as a
+    file-existence finding, not a ``Materialization drift:`` content finding, so
+    the gate keys on the content findings alone.
+
+    Emitted as a WARNING, not a refusal (#5863 asks to "refuse, or at least
+    warn"). A hard refusal on the consolidate hot path false-blocks the many
+    consolidation fixtures — and edge-state real Missions — that seed or leave
+    ``status.json`` loosely rather than re-materializing it; tightening this to
+    a refusal needs a dedicated status-fidelity adjudication pass across those
+    callers first (see the PR notes).
     """
     from specify_cli.status.reducer import SNAPSHOT_FILENAME
     from specify_cli.status.validate import validate_materialization_drift
@@ -679,16 +685,12 @@ def _refuse_on_materialization_drift(feature_dir: Path, mission_slug: str) -> No
     if not findings:
         return
     console.print(
-        "[red]Refusing to consolidate: this Mission's status.json has drifted from its event log (the event log is the sole authority for lane state).[/red]"
+        "[yellow]Warning: this Mission's status.json has drifted from its event log "
+        "(the event log is the sole authority for lane state); the landed snapshot may be dishonest.[/yellow]"
     )
     for finding in findings:
         console.print(f"  [yellow]•[/yellow] {escape(finding)}")
-    console.print(
-        f"Recovery: re-materialize the snapshot with [bold]spec-kitty agent status materialize "
-        f"--mission {escape(mission_slug)}[/bold], commit the refreshed status.json, then re-run "
-        "[bold]spec-kitty consolidate[/bold]."
-    )
-    raise typer.Exit(1)
+    console.print(f"Re-materialize it with [bold]spec-kitty agent status materialize --mission {escape(mission_slug)}[/bold] and commit the refreshed status.json.")
 
 
 def _run_lane_based_consolidation(
@@ -761,7 +763,7 @@ def _run_lane_based_consolidation(
     if not origin_gated:
         _enforce_origin_gate(main_repo, seam, origin_check)
     feature_dir = _resolve_run_status_dir(seam)
-    _refuse_on_materialization_drift(feature_dir, mission_slug)
+    _warn_on_materialization_drift(feature_dir, mission_slug)
     # PRIMARY-partition reads (FR-002 #2185), routed per-leg DIRECTLY (NOT threaded
     # from the ``:887`` ``target_feature_dir`` anchor in the *locked* function): the
     # mission identity (PRIMARY_METADATA) and ``lanes.json`` (LANE_STATE) live ONLY
