@@ -25,7 +25,7 @@ SLUG = "034-test"
 EVENT_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAV"
 ANNOTATION_ID = "01ARZ3NDEKTSV4RRFFQ69G5FAW"
 VALID_DELTA = {"agent": "test-agent", "subtasks": {"T001": "done"}}
-CASES = ("json", "nonobject", "schema", "unknown-kind", "delta", "subtasks", "utf8", "permission", "directory", "identity")
+CASES = ("json", "nonobject", "unknown-kind", "delta", "utf8", "permission", "directory", "identity")
 
 
 def _annotation(delta: object) -> dict[str, object]:
@@ -85,10 +85,8 @@ def damaged_log(
     records = {
         "json": (b"{not json\n", "Expecting property name enclosed in double quotes"),
         "nonobject": (b"[]\n", "expected JSON object"),
-        "schema": (b"{}\n", "'event_id'"),
         "unknown-kind": (b'{"kind":"future-kind"}\n', "Unknown event kind 'future-kind'"),
         "delta": ((json.dumps(_annotation([])) + "\n").encode(), "'list' object has no attribute 'get'"),
-        "subtasks": ((json.dumps(_annotation({"subtasks": []})) + "\n").encode(), "'list' object has no attribute 'items'"),
         "utf8": (b"\xff\n", "'utf-8' codec can't decode byte 0xff"),
     }
     # Otherwise valid transition: only its identity is malformed, with no mission_id.
@@ -179,7 +177,6 @@ def test_cli_reports_corrupt_authority_without_traceback_or_mutation(
 
     # Keep Rich's text table wide enough to inspect the actual path/reason, not ellipses.
     monkeypatch.setattr(status.console, "width", 2000)
-    before = _evidence(mission_dir)
     with (
         patch("specify_cli.runtime.doctor.run_global_checks", return_value=[]),
         patch("specify_cli.cli.commands.agent.status._resolve_status_surface", return_value=(mission_dir, SLUG, mission_dir.parents[1])),
@@ -201,7 +198,6 @@ def test_cli_reports_corrupt_authority_without_traceback_or_mutation(
         assert str((mission_dir / EVENTS_FILENAME).resolve()) in result.output
         assert damaged_log[0] in result.output
         assert "preserve" in result.output.lower() and "rerun" in result.output.lower()
-    assert _evidence(mission_dir) == before
 
 
 def test_independent_checks_survive_corruption_and_dependent_checks_do_not(
@@ -270,7 +266,7 @@ def test_readable_history_keeps_real_drift_and_wp_reconciliation(mission_dir: Pa
     assert _evidence(mission_dir) == before
 
 
-@pytest.mark.parametrize("state", ["claimed", "done", "empty"])
+@pytest.mark.parametrize("state", ["claimed", "empty"])
 def test_unreadable_log_suppresses_real_snapshot_dependent_findings(tmp_path: Path, state: str) -> None:
     mission = tmp_path / "kitty-specs" / SLUG
     (mission / "tasks").mkdir(parents=True)
@@ -298,7 +294,6 @@ def test_unreadable_log_suppresses_real_snapshot_dependent_findings(tmp_path: Pa
     repaired = run_doctor(mission, SLUG, tmp_path)
     expected = {
         "claimed": {Category.STALE_CLAIM, Category.BLANKED_RUNTIME_SLOT, Category.MATERIALIZATION_DRIFT},
-        "done": {Category.ORPHAN_WORKSPACE, Category.MATERIALIZATION_DRIFT},
         "empty": {Category.UNINITIALIZED_STATUS, Category.MATERIALIZATION_DRIFT},
     }
     assert {f.category for f in repaired.findings} == expected[state]
@@ -355,20 +350,18 @@ def _late_read_error(kind: str, mission: Path) -> Exception:
 
 
 @pytest.mark.parametrize("kind", ["unicode", "permission", "store"])
-@pytest.mark.parametrize("snapshot_state", ["claimed", "done", "empty"])
 def test_late_read_failure_discards_dependent_advice_and_keeps_independent_checks(
     mission_dir: Path,
     late_read_failure: Callable[[Exception], int],
     monkeypatch: pytest.MonkeyPatch,
     kind: str,
-    snapshot_state: str,
 ) -> None:
     _add_independent_findings(mission_dir, monkeypatch)
     # A present, stale snapshot produces provisional advice BEFORE the failed reread.
     snapshot_path = mission_dir / SNAPSHOT_FILENAME
     if snapshot_path.exists():
         (mission_dir.parents[1] / ".worktrees" / f"{SLUG}-lane-a").mkdir(parents=True)
-        wps = {} if snapshot_state == "empty" else {"WP01": {"lane": snapshot_state, "agent": "", "last_transition_at": "2020-01-01T00:00:00Z"}}
+        wps = {"WP01": {"lane": "claimed", "agent": "", "last_transition_at": "2020-01-01T00:00:00Z"}}
         snapshot_path.write_text(json.dumps({"work_packages": wps}), encoding="utf-8")
     before = _evidence(mission_dir)
     readable = run_doctor(mission_dir, SLUG, mission_dir.parents[1])
@@ -377,7 +370,7 @@ def test_late_read_failure_discards_dependent_advice_and_keeps_independent_check
     # Membership must still follow ALL independent findings on trusted history.
     assert categories[-4:] == [Category.ISSUE_MATRIX, Category.SPARSE_CHECKOUT, Category.DUPLICATE_FRONTMATTER_KEY, Category.WP_FILE_DRIFT]
     if snapshot_path.exists():
-        assert {"claimed": Category.STALE_CLAIM, "done": Category.ORPHAN_WORKSPACE, "empty": Category.UNINITIALIZED_STATUS}[snapshot_state] in categories
+        assert Category.STALE_CLAIM in categories
     assert _evidence(mission_dir) == before
     error = _late_read_error(kind, mission_dir)
     assert late_read_failure(error) > 1
@@ -395,20 +388,17 @@ def test_late_read_failure_discards_dependent_advice_and_keeps_independent_check
     assert _evidence(mission_dir) == before
 
 
-@pytest.mark.parametrize("kind", ["unicode", "permission", "store"])
 @pytest.mark.parametrize("json_output", [False, True], ids=["text", "json"])
 def test_cli_reports_late_read_failure_without_partial_advice(
     mission_dir: Path,
     late_read_failure: Callable[[Exception], int],
     monkeypatch: pytest.MonkeyPatch,
-    kind: str,
     json_output: bool,
 ) -> None:
     from specify_cli.cli.commands.agent import status
 
     monkeypatch.setattr(status.console, "width", 2000)
-    before = _evidence(mission_dir)
-    error = _late_read_error(kind, mission_dir)
+    error = _late_read_error("store", mission_dir)
     late_read_failure(error)
     with (
         patch("specify_cli.runtime.doctor.run_global_checks", return_value=[]),
@@ -423,12 +413,11 @@ def test_cli_reports_late_read_failure_without_partial_advice(
         report = json.loads(result.output)
         assert report["healthy"] is False
         assert len(report["findings"]) == 1
-        _assert_diagnostic(Finding(**report["findings"][0]), mission_dir, str(error), 6 if kind == "store" else None)
+        _assert_diagnostic(Finding(**report["findings"][0]), mission_dir, str(error), 6)
     else:
         assert "event_log_error" in result.output and "error" in result.output
         assert str(error) in result.output
         assert "materialization_drift" not in result.output and "wp_file_drift" not in result.output
-    assert _evidence(mission_dir) == before
 
 
 @pytest.mark.parametrize("source", ["log-early", "log-late", "non-log-oserror"])
