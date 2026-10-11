@@ -68,3 +68,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-11 | [the archive-freeze gate verifies reducer OUTCOME reproduction, not byte-identity](2026-10-11-1-archive-freeze-verifies-reducer-outcome-not-byte-identity.md) |
 | 2026-10-11 | [a Charter Pack declares its level in pack.yaml](2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md) |
 | 2026-10-11 | [acceptance testing and BDD support: Gherkin scenarios, a per-PR tag check and a black-box Cucumber-JVM nightly](2026-10-11-3-acceptance-testing-and-bdd-support.md) |
+| 2026-10-12 | [the test baseline is captured at for_review, at the lane fork point, not at the claim](2026-10-12-1-baseline-captured-at-for-review-not-claim.md) |

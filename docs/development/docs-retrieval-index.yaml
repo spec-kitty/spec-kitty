@@ -3681,6 +3681,15 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "open-questions", text: "Open Questions", level: 2}
+  - path: "docs/adr/4.x/2026-10-12-1-baseline-captured-at-for-review-not-claim.md"
+    title: "ADR: the test baseline is captured at for_review, at the lane fork point, not at the claim"
+    divio_type: "none"
+    abstract: "Test-baseline capture runs capture-if-missing on the in_progress to for_review edge, at the lane merge-base, lock-free and fail-open; the claim never runs the suite."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
