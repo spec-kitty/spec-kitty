@@ -125,11 +125,15 @@ _GUARD_INTERNAL_MODULES: dict[str, str] = {
 }
 
 #: Roots the census scans (the destructive set can live in any layer that shells out to git).
-_SCAN_ROOTS: tuple[Path, ...] = tuple(SRC_ROOT / name for name in ("specify_cli", "runtime", "charter", "kernel"))
+#: Every source layer is scanned -- the enforced chain is
+#: ``kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`` -- so that
+#: a destructive op added under any of them is seen by the no-allowlist gate, not just the
+#: four layers that hold one today.
+_SCAN_ROOTS: tuple[Path, ...] = tuple(SRC_ROOT / name for name in ("specify_cli", "runtime", "mission_runtime", "charter", "glossary", "kernel"))
 
-#: Files-scanned floor (NFR-002): the widened scan covered 1395 files when the allowlist was emptied.
+#: Files-scanned floor (NFR-002): the six-layer scan covers 1433 files.
 #: A scan that silently shrinks below it is vacuous.
-_FILES_SCANNED_FLOOR = 1390
+_FILES_SCANNED_FLOOR = 1428
 
 
 def _is_forced_clean(tokens: list[str | None]) -> bool:
