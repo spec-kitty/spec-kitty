@@ -58,3 +58,22 @@ def test_missing_level_warns_and_proceeds(tmp_path: Path) -> None:
     with pytest.warns(UserWarning, match="PACK_LEVEL_MISSING"):
         fragment = load_org_pack("acme", pack_root, 1)
     assert fragment.pack_name == "acme"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "- pack_level: built-in\n",  # non-mapping (a list that mentions a level)
+        "pack_id: [unclosed\n",  # invalid YAML
+        f"{_BASE}pack_level: {ORG}\nunknown_field: 1\n",  # schema-invalid
+        f"{_BASE}pack_level: {ORG}\nrequires_core: not-a-specifier\n",  # schema-invalid value
+    ],
+    ids=["non-mapping", "invalid-yaml", "unknown-field", "bad-requires-core"],
+)
+def test_malformed_pack_yaml_refuses_instead_of_loading(tmp_path: Path, body: str) -> None:
+    # Fail closed: a pack.yaml the descriptor loader cannot accept must never
+    # let the org pack load (the check shares the descriptor authority).
+    pack_root = _org_pack(tmp_path / "p", pack_yaml=body)
+    with pytest.raises(OrgPackSchemaError) as caught:
+        load_org_pack("acme", pack_root, 1)
+    assert caught.value.source_file == str(pack_root / "pack.yaml")

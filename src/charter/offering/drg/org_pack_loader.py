@@ -39,7 +39,8 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
+from ruamel.yaml.error import YAMLError
 
 from charter.offering.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
 from charter.offering.drg.models import NodeKind, Relation
@@ -516,24 +517,25 @@ _PACK_DESCRIPTOR_FILENAME = "pack.yaml"
 
 
 def _check_org_pack_level(pack_root: Path) -> None:
-    """Read ``pack.yaml`` and run the FR-006/FR-007 level checks for the org position.
+    """Run the FR-006/FR-007 level checks for the org position through the descriptor authority.
 
-    Bounded, cross-layer-free: reads the raw ``pack_level`` value rather than
-    importing the descriptor model (which would couple this ``drg`` loader to
-    the ``packs`` schema). A declared level other than ``org`` is a
-    ``PACK_LEVEL_MISMATCH`` refusal (:class:`OrgPackSchemaError`, attributed to
-    ``pack.yaml``); an absent level — whether the ``pack.yaml`` omits
-    ``pack_level`` or there is no ``pack.yaml`` at all — is a
-    ``PACK_LEVEL_MISSING`` warning during the deprecation window (the load
-    proceeds). An unreadable ``pack.yaml`` is unchanged — the pack validator
-    owns descriptor parse faults.
+    ``pack.yaml`` is read by :func:`~charter.offering.packs.pack_descriptor.load_pack_descriptor`
+    (the single parser; imported lazily to keep the ``packs`` schema off this
+    cold loader's import surface). Fail closed: an unreadable, non-YAML,
+    non-mapping or schema-invalid ``pack.yaml`` is an :class:`OrgPackSchemaError`
+    attributed to the file, and a declared level other than ``org`` is a
+    ``PACK_LEVEL_MISMATCH`` refusal. Only an absent file, or an absent
+    ``pack_level`` key, is a ``PACK_LEVEL_MISSING`` warning during the
+    deprecation window (the load proceeds).
     """
+    from charter.offering.packs.pack_descriptor import (  # noqa: PLC0415 — lazy: single authority for descriptor parsing and code strings, kept off this cold loader's import surface
+        PACK_LEVEL_MISMATCH,
+        PACK_LEVEL_MISSING,
+        load_pack_descriptor,
+    )
+
     pack_yaml = pack_root / _PACK_DESCRIPTOR_FILENAME
     if not pack_yaml.is_file():
-        from charter.offering.packs.pack_descriptor import (  # noqa: PLC0415 — lazy: single authority for the code strings, kept off this cold loader's import surface
-            PACK_LEVEL_MISSING,
-        )
-
         warnings.warn(
             f"{PACK_LEVEL_MISSING}: {pack_root} (org pack) has no '{_PACK_DESCRIPTOR_FILENAME}'; "
             f"add one declaring 'pack_level: {ORG}' (required once the deprecation window closes)",
@@ -541,28 +543,31 @@ def _check_org_pack_level(pack_root: Path) -> None:
         )
         return
     try:
-        raw = yaml.safe_load(pack_yaml.read_text(encoding="utf-8"))
-    except (OSError, yaml.YAMLError):
-        return
-    if not isinstance(raw, dict):
-        return
-    from charter.offering.packs.pack_descriptor import (  # noqa: PLC0415 — lazy: single authority for the code strings, kept off this cold loader's import surface
-        PACK_LEVEL_MISMATCH,
-        PACK_LEVEL_MISSING,
-    )
-
-    level = raw.get("pack_level")
-    if level is None:
-        warnings.warn(
-            f"{PACK_LEVEL_MISSING}: {pack_yaml} has no 'pack_level'; add 'pack_level: {ORG}' (required once the deprecation window closes)",
-            stacklevel=2,
-        )
-        return
-    if level != ORG:
+        try:
+            descriptor = load_pack_descriptor(pack_yaml)
+        except ValidationError as exc:
+            if not _only_pack_level_missing(exc):
+                raise
+            warnings.warn(
+                f"{PACK_LEVEL_MISSING}: {pack_yaml} has no 'pack_level'; add 'pack_level: {ORG}' (required once the deprecation window closes)",
+                stacklevel=2,
+            )
+            descriptor = load_pack_descriptor(pack_yaml, inferred_level=ORG)
+    except (ValidationError, ValueError, YAMLError, OSError) as exc:
         raise OrgPackSchemaError(
-            f"{PACK_LEVEL_MISMATCH}: {pack_yaml} declares pack_level {level!r} but it is configured as a {ORG!r} org pack",
+            f"Org pack {pack_yaml}: invalid pack descriptor: {exc}",
+            source_file=pack_yaml,
+        ) from exc
+    if descriptor.pack_level != ORG:
+        raise OrgPackSchemaError(
+            f"{PACK_LEVEL_MISMATCH}: {pack_yaml} declares pack_level {descriptor.pack_level!r} but it is configured as a {ORG!r} org pack",
             source_file=pack_yaml,
         )
+
+
+def _only_pack_level_missing(exc: ValidationError) -> bool:
+    """True when *exc*'s sole fault is the absent ``pack_level`` key (the window case)."""
+    return all(err["type"] == "missing" and err["loc"] == ("pack_level",) for err in exc.errors())
 
 
 def load_org_pack(
