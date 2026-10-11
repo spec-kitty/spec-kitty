@@ -539,8 +539,10 @@ def _execute_lane_merge(
     from specify_cli.lanes.consolidation import consolidate_lane_into_mission, integrate_mission_into_target
     from specify_cli.lanes.persistence import require_lanes_json
     from specify_cli.consolidation.config import MergeStrategy
+    from specify_cli.consolidation.entry_preflight import _pre_mutation_safety_preflight
     from specify_cli.policy.config import load_policy_config
     from specify_cli.policy.merge_gates import evaluate_merge_gates
+    from mission_runtime import MissionArtifactKind, placement_seam
 
     # lanes.json is PRIMARY-partition — read from the primary surface, not the
     # coord worktree mission_dir (#2118).
@@ -584,6 +586,36 @@ def _execute_lane_merge(
         raise RuntimeError("; ".join(blocking) or "Merge gates failed.")
 
     _refuse_post_approval_lane_content(main_repo_root, mission_dir, mission_slug, lanes_manifest)
+
+    # #4796: hoist the shared refuse-before-destroy preflight to PRE-mutation, at
+    # parity with the CLI path (``executor.py`` runs
+    # ``_pre_mutation_safety_preflight_with_recovery`` before any ref moves). The
+    # orchestrator code-lane path previously ran its FIRST lane-worktree dirty check
+    # only at post-merge cleanup (``_apply_lane_merge_cleanup`` ->
+    # ``guarded_worktree_remove``), so a completed+pushed merge was reported
+    # ``PREFLIGHT_FAILED`` — truthful reason, false timing. Running the same shared
+    # check HERE, before the lane/mission/target mutations below, makes that envelope
+    # fire truthfully pre-mutation (the ``DestructiveOpRefused`` is caught in
+    # ``consolidate_mission`` and enveloped ``PREFLIGHT_FAILED`` unchanged). Gate the
+    # lane-worktree leg on the SAME resolved ``remove_worktree`` the cleanup's own
+    # removal loop uses (``retention.remove_worktree``), so a retaining merge is never
+    # refused for a worktree it would keep. ``teardown_coordination=False``:
+    # ``_apply_lane_merge_cleanup`` deletes only the mission branch and never tears
+    # down the coordination triple (a documented orchestrator-api limitation — see
+    # ``_resolve_lane_merge_retention``), so guarding the coord worktree (leg 3) here
+    # would refuse on dirt this path never disturbs (NFR-002). There is no resume
+    # state on this path, so the resume leg is inert. No snapshot/rollback machinery
+    # is built here, so a refusal is byte-identical to pre-invocation (NFR-001).
+    primary_meta_dir = placement_seam(main_repo_root, mission_slug).read_dir(MissionArtifactKind.PRIMARY_METADATA)
+    _pre_mutation_safety_preflight(
+        main_repo_root,
+        mission_slug,
+        target_branch,
+        lanes_manifest,
+        primary_meta_dir,
+        remove_worktree=retention.remove_worktree,
+        teardown_coordination=False,
+    )
 
     for lane in lanes_manifest.lanes:
         lane_result = consolidate_lane_into_mission(main_repo_root, mission_slug, lane.lane_id, lanes_manifest)
