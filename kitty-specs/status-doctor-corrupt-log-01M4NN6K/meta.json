@@ -1,4 +1,18 @@
 {
+  "accept_commit": "01aa744175bdf88bca271ba6a7cd95116ef61ed7",
+  "acceptance_history": [
+    {
+      "accept_commit": "01aa744175bdf88bca271ba6a7cd95116ef61ed7",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-11T16:09:07.583991+00:00",
+      "accepted_by": "pi:gpt-6.1-sol:reviewer-renata:reviewer",
+      "accepted_from_commit": "7bb37c6d060fffec9de19f83503073d48647ef43"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-11T16:09:07.583991+00:00",
+  "accepted_by": "pi:gpt-6.1-sol:reviewer-renata:reviewer",
+  "accepted_from_commit": "7bb37c6d060fffec9de19f83503073d48647ef43",
   "created_at": "2026-10-11T14:17:21.869616+00:00",
   "flattened": false,
   "friendly_name": "Status doctor corrupt-log diagnostics",
@@ -11,6 +25,7 @@
   "purpose_context": "Address issue #5924 for operators diagnosing Mission status: expose actionable errors with or without a snapshot, preserve history, and retain valid-log diagnostics.",
   "purpose_tldr": "Report unreadable Mission status history reliably instead of declaring it healthy or crashing.",
   "slug": "status-doctor-corrupt-log-01M4NN6K",
+  "status_phase": "1",
   "target_branch": "issue-5924-status-doctor-corrupt-log",
   "topology": "single_branch"
 }

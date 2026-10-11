@@ -43,6 +43,7 @@ execution_mode: code_change
 owned_files:
 - src/specify_cli/status/doctor.py
 - src/specify_cli/status/store.py
+- src/specify_cli/status/uninitialized_hint.py
 - tests/status/test_store.py
 - tests/status/test_doctor.py
 - tests/status/test_doctor_log_errors.py
@@ -196,7 +197,7 @@ Use the returned workspace; planner has not called this command.
 - Avoid repeated non-trivial diagnostic literals and inert exception handlers.
 - Do not call materialize/write/repair helpers from doctor.
 
-**Files**: doctor.py and approved tuple addition in store.py only.
+**Files**: doctor.py, approved decoder tuple additions in store.py, and the two-line authored dependency reader selection in uninitialized_hint.py.
 **Parallel?** No.
 **Validation**: Both T002 snapshot cases turn GREEN through production path.
 

@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: status-doctor-corrupt-log-01M4NN6K
 mission_id: 01M4NN6K3M7NAZRY8XQXZ030M2
-generated_at: '2026-10-11T15:42:00.138235+00:00'
+generated_at: '2026-10-11T16:01:46.736206+00:00'
 analyzer_agent: pi:orchestrator
 input_artifacts:
   spec.md:
@@ -1287,7 +1287,7 @@ input_artifacts:
     sha256: 5b305a519646a5c48bec31d79f68d4050f165038d5ecadd8aeb6e4cd9ee031ca
   material:docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md:
     path: docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md
-    sha256: f40e4c31c1285d31bfdaeee5af7412bce3610fd4ee287f5e25ed7ffdc6d4ae9c
+    sha256: c70e894f8575a6b3fd9412ab69ffe075d6dbf6b571649dbde44ad711c4772042
   material:docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md:
     path: docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md
     sha256: faeb10fddda59626856acca73761cf46258cecd688b7bc17bbcbe56b5790cc66
@@ -1435,9 +1435,15 @@ input_artifacts:
   material:docs/adr/4.x/2026-10-10-1-scoped-shadow-workspace-write-boundary-layers-onto-the-partition.md:
     path: docs/adr/4.x/2026-10-10-1-scoped-shadow-workspace-write-boundary-layers-onto-the-partition.md
     sha256: 848ed81c936f8bab90189d951524d062f22062e3beda2552334bc5dfc8907392
+  material:docs/adr/4.x/2026-10-11-1-archive-freeze-verifies-reducer-outcome-not-byte-identity.md:
+    path: docs/adr/4.x/2026-10-11-1-archive-freeze-verifies-reducer-outcome-not-byte-identity.md
+    sha256: b765a3fb15e0b767837351ee5d7c3bee6b554f6a81626911b6cfc48220bd7f1a
+  material:docs/adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md:
+    path: docs/adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md
+    sha256: 1c07b5c27381af2ba906771ab6bf25c5a17d787d458681ee6dd009d1d5a6f883
   material:docs/adr/4.x/index.md:
     path: docs/adr/4.x/index.md
-    sha256: bfcfef9f4d27ade2545db0ec3f120b237ebb8bf32519b54c87434609abe98398
+    sha256: eaf7b4e05b0a4547c41e5aa428ced11c868cea01be87461cb732fad698991b27
   material:docs/context:
     path: docs/context
     sha256: directory
@@ -1593,7 +1599,7 @@ input_artifacts:
     sha256: fc82ec6c08bd1a35d4038aabafa1bf4b5cb4acb992a06d91e68a204e84b38f37
   material:kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks/WP01-status-doctor-log-errors.md:
     path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks/WP01-status-doctor-log-errors.md
-    sha256: 651f3f102f886e75973ca0e37a1e85e1c653c85b62606eaf3745cf75626f6e27
+    sha256: 24a2976c2d3eab02a136fe72969d8204cce556ad5c8aac8a0ed958d1a22ea150
   material:kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks.md:
     path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks.md
     sha256: 3cd66056a5a27c20c489758a0dc3c584c304d65663e4e3721ab82d69126c8945
@@ -1833,13 +1839,13 @@ input_artifacts:
     sha256: 3b4a7589c7391ab75697ecaea4daf739f11cde151339a7bdee1074082015f2a5
 verdict: ready
 issue_counts:
-  medium: 0
-  high: 0
-  low: 0
   critical: 0
+  medium: 0
+  low: 0
+  high: 0
   info: 0
 findings: []
-report_transaction: b1bc9d6d59d34a0a95fd401db3de99d1
+report_transaction: 026bd47527cd4639b8aeacb21f514f35
 material_manifest_version: 1
 ---
 
