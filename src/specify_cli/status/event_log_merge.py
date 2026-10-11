@@ -46,6 +46,61 @@ def _read_event_file(path: Path) -> list[dict[str, Any]]:
     return read_event_log_text(path.read_text(encoding="utf-8"), source=str(path))
 
 
+def detect_concurrent_fork(
+    base_events: list[dict[str, Any]],
+    ours_events: list[dict[str, Any]],
+    theirs_events: list[dict[str, Any]],
+) -> str | None:
+    """Return a conflict description when ours and theirs diverge concurrently (#5967).
+
+    The union merge driver cannot safely fold two teammates' logs when both
+    sides, from the SAME lane for the SAME work package, independently
+    transitioned it to DIFFERENT lanes — e.g. one clone's ``in_progress ->
+    canceled`` against another's stale ``in_progress -> for_review``, or one
+    reviewer's ``in_review -> planned`` rejection against another's stale
+    ``in_review -> approved``. The wall-clock LWW reducer would silently apply
+    whichever row sorts last and bury the other, landing descoped or rejected
+    work at exit 0.
+
+    A fork is reported only when BOTH sides carry a non-base ("extra")
+    transition departing the same ``from_lane`` and the union of their
+    ``to_lane``s has more than one value. A one-sided extension, the same
+    decision on both sides, and concurrent work on DIFFERENT work packages are
+    not forks and still merge cleanly. Reported, not resolved: the caller fails
+    the merge so git leaves a conflict for a human (the safe pre-#5759
+    behaviour). Returns ``None`` when there is no concurrent fork.
+    """
+    base_ids = {event.get("event_id") for event in base_events}
+
+    def _departures(events: list[dict[str, Any]]) -> dict[str, dict[str, set[str]]]:
+        by_wp: dict[str, dict[str, set[str]]] = {}
+        for event in events:
+            if event.get("event_id") in base_ids:
+                continue  # shared history, never a concurrent departure
+            from_lane = event.get("from_lane")
+            to_lane = event.get("to_lane")
+            wp_id = event.get("wp_id")
+            if not from_lane or not to_lane or not wp_id:
+                continue  # annotations / non-transition rows carry no lane edge
+            by_wp.setdefault(str(wp_id), {}).setdefault(str(from_lane), set()).add(str(to_lane))
+        return by_wp
+
+    ours = _departures(ours_events)
+    theirs = _departures(theirs_events)
+    for wp_id in sorted(ours.keys() & theirs.keys()):
+        for from_lane in sorted(ours[wp_id].keys() & theirs[wp_id].keys()):
+            destinations = ours[wp_id][from_lane] | theirs[wp_id][from_lane]
+            if len(destinations) > 1:
+                return (
+                    f"work package {wp_id}: concurrent transitions from "
+                    f"'{from_lane}' to {sorted(destinations)} were made in two "
+                    "clones without a pull between them; a union merge would "
+                    "silently drop one. Pull, reconcile the divergence by hand "
+                    "(keep the cancel/rejection, redo the other), then re-run."
+                )
+    return None
+
+
 def merge_event_payloads(*event_groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Union event payloads, dedupe by event_id, sort by timestamp."""
     merged: dict[str, dict[str, Any]] = {}

@@ -214,6 +214,7 @@ from .bootstrap import (
 )
 from .event_log_merge import (
     EventLogMergeError,
+    detect_concurrent_fork,
     merge_event_log_files,
     merge_event_log_texts,
 )
@@ -503,6 +504,7 @@ __all__ = [
     "wp_task_files",
     "CoordAuthorityUnavailable",
     "EventLogMergeError",
+    "detect_concurrent_fork",
     "BOUNDED_STATUS_LOCK_TIMEOUT_SECONDS",
     "UNBOUNDED_LOCK_WAIT",
     "FeatureStatusLockTimeoutError",

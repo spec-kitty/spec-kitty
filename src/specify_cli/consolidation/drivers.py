@@ -98,7 +98,7 @@ from specify_cli.decisions.index_fold import is_allowed_terminal_reopen
 from specify_cli.decisions.models import DecisionIndex, DecisionStatus
 from specify_cli.migration.backfill_topology import FLATTEN_COUPLED_KEYS
 from specify_cli.mission_metadata import MERGE_FIELDS, parse_meta_file
-from specify_cli.status import EventLogMergeError, merge_event_log_files
+from specify_cli.status import EventLogMergeError, detect_concurrent_fork, merge_event_log_files
 from specify_cli.tasks.issue_matrix import _SCAFFOLD_VERDICT_PLACEHOLDER, ISSUE_MATRIX_SCHEMA_VERSION
 
 # meta.json serialization identical to ``mission_metadata.write_meta`` so the
@@ -214,9 +214,38 @@ def _resolve_merge_driver_paths(base_path: str, ours_path: str, theirs_path: str
     return resolved
 
 
+def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+    """Parse a ``status.events.jsonl`` merge-blob, tolerating an absent/blank side."""
+    if not path.exists():
+        return []
+    rows: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        try:
+            payload = json.loads(stripped)
+        except json.JSONDecodeError:
+            # Let merge_event_log_files raise the precise, line-numbered error.
+            return []
+        if isinstance(payload, dict):
+            rows.append(payload)
+    return rows
+
+
 def run_event_log_driver(base_path: str, ours_path: str, theirs_path: str) -> MergeDriverOutcome:
-    """Merge ``status.events.jsonl`` conflict inputs using event-log semantics."""
+    """Merge ``status.events.jsonl`` conflict inputs using event-log semantics.
+
+    #5967: a union fold cannot safely resolve two teammates' CONCURRENT
+    divergence on the same work package (one side cancels/rejects while the
+    other, not pulled, moves it elsewhere). Refuse such a fold so git leaves a
+    conflict for a human (the safe pre-#5759 behaviour), rather than silently
+    LWW-dropping the pushed cancel/rejection.
+    """
     base, ours, theirs = _resolve_merge_driver_paths(base_path, ours_path, theirs_path)
+    fork = detect_concurrent_fork(_read_jsonl(base), _read_jsonl(ours), _read_jsonl(theirs))
+    if fork is not None:
+        raise MergeDriverError(fork)
     try:
         merge_event_log_files(
             base_path=base,
