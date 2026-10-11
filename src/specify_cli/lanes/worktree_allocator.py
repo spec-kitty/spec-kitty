@@ -1092,14 +1092,11 @@ def allocate_lane_worktree(
     # ``.spec-kitty/review-lock.json`` dropped by ``spec-kitty review``) never
     # surfaces as untracked drift in a lane worktree's ``git status`` and trips
     # ``_validate_worktree_clean``'s ``DirtyWorktreeError`` on the REUSE /
-    # CRASH_RECOVERY routes below. ``repo_root`` is the MAIN repository (its
-    # ``.git`` is a directory), which is the only exclude git honours for every
-    # linked worktree: git ignores a worktree's own per-worktree ``info/exclude``.
-    # ``exclude_from_git_index`` writes to ``<repo_root>/.git/info/exclude`` and
-    # no-ops when that file is absent (as it would be in a linked worktree, whose
-    # ``.git`` is a file, not a directory) -- so running it here, at the single
-    # code-lane choke point before both ``_validate_worktree_clean`` calls, is
-    # safe and idempotent.
+    # CRASH_RECOVERY routes below. ``exclude_from_git_index`` resolves the COMMON git dir, the
+    # only ``info/exclude`` git honours for every linked worktree (a worktree's own per-worktree
+    # ``info/exclude`` is ignored), so it lands in the shared file whether ``repo_root`` is the
+    # main checkout or a linked worktree. Running it here, at the single code-lane choke point
+    # before both ``_validate_worktree_clean`` calls, is safe and idempotent.
     exclude_from_git_index(repo_root, [".spec-kitty/"])
 
     if worktree_path.exists():

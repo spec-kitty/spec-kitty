@@ -137,6 +137,23 @@ def test_exclude_from_git_index(tmp_path):
 
 
 @pytest.mark.usefixtures("_git_identity")
+def test_exclude_from_git_index_from_linked_worktree_writes_the_common_dir(tmp_path):
+    """From a linked worktree (whose ``.git`` is a file) the shared common-dir exclude is updated (#5434)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    run_command(["git", "init"], cwd=repo)
+    (repo / "README.md").write_text("seed\n", encoding="utf-8")
+    run_command(["git", "add", "-A"], cwd=repo)
+    run_command(["git", "commit", "-q", "-m", "seed"], cwd=repo)
+    linked = tmp_path / "linked"
+    run_command(["git", "worktree", "add", "-q", "-b", "side", str(linked)], cwd=repo)
+
+    exclude_from_git_index(linked, [".spec-kitty/"])
+
+    assert ".spec-kitty/" in (repo / ".git" / "info" / "exclude").read_text()
+
+
+@pytest.mark.usefixtures("_git_identity")
 def test_exclude_from_git_index_duplicate(tmp_path):
     """Test exclude_from_git_index doesn't duplicate existing patterns."""
     # Setup git repo

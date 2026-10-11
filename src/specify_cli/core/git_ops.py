@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from rich.console import Console
 from rich.markup import escape
 
+from kernel.git_topology import GitTopologyError, git_common_dir
 from specify_cli.cli.console import sanitize_terminal_text
 
 ConsoleType = Console | None
@@ -220,18 +221,34 @@ def has_remote(repo_path: Path, remote_name: str = "origin") -> bool:
         return False
 
 
+def git_exclude_file(repo_path: Path) -> Path | None:
+    """Path of the ``info/exclude`` file git honours for *repo_path*, or ``None``.
+
+    Git reads ``info/exclude`` from the COMMON git directory only, for the main checkout and every
+    linked worktree alike; a linked worktree's own ``.git`` is a file, not a directory. The common
+    directory is resolved through ``kernel.git_topology`` so a linked worktree (or a subdirectory of
+    a checkout) reaches the shared file. ``None`` when *repo_path* is not in a git repository.
+    """
+    if (repo_path / ".git").is_dir():
+        return repo_path / ".git" / "info" / "exclude"
+    try:
+        return git_common_dir(repo_path) / "info" / "exclude"
+    except GitTopologyError:
+        return None
+
+
 def exclude_from_git_index(repo_path: Path, patterns: list[str]) -> None:
-    """Add patterns to .git/info/exclude to prevent git tracking.
+    """Add patterns to the common-dir ``info/exclude`` to prevent git tracking.
 
     This is a local-only exclusion (never committed, unlike .gitignore).
     Useful for build artifacts, worktrees, and other local-only files.
 
     Args:
-        repo_path: Repository root path
+        repo_path: Repository root path, or any linked worktree of it
         patterns: List of patterns to exclude (e.g., [".worktrees/"])
     """
-    exclude_file = repo_path / ".git" / "info" / "exclude"
-    if not exclude_file.exists():
+    exclude_file = git_exclude_file(repo_path)
+    if exclude_file is None or not exclude_file.exists():
         return
 
     # Read existing exclusions
@@ -483,6 +500,7 @@ def resolve_target_branch(
 __all__ = [
     "BranchResolution",
     "exclude_from_git_index",
+    "git_exclude_file",
     "get_current_branch",
     "has_remote",
     "has_unborn_head",
