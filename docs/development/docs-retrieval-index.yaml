@@ -3670,6 +3670,16 @@ pages:
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
+  - path: "docs/adr/4.x/2026-10-11-3-acceptance-testing-and-bdd-support.md"
+    title: "ADR: acceptance testing and BDD support with Gherkin scenarios and a black-box Cucumber-JVM runner"
+    divio_type: "none"
+    abstract: "Promise-tagged Gherkin scenarios live in tests/scenarios, a per-PR Python check guards their tags, and a nightly Cucumber-JVM job drives the built CLI as a black box."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "open-questions", text: "Open Questions", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
