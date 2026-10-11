@@ -4,7 +4,7 @@ description: Canonical changelog for the Spec Kitty CLI and templates, following
 doc_status: active
 type: reference
 audience: docs/context/audience/external/project-owner.md
-updated: '2026-10-10'
+updated: '2026-10-11'
 ---
 # Changelog
 
@@ -96,6 +96,7 @@ this section at publish._
 
 ### Fixed
 
+- **The 4.0.0 nightly interpreter and integration shards are green again; seven P0 escalations are closed** (#6024, #6025, #6026, #6027, #6028, #6029, #6030). **Before:** four shards failed on tests the product had already moved past — the `charter lint` orphan exact-set still expected the directives #6017 wired in, the org-tier template unit tests injected an org root the #6006 chain authority no longer reads, two concurrent `map-requirements` invocations raced `CliRunner`'s process-global stdout isolation, and a coord-worktree branch-mismatch row expected a refusal path the fail-closed guard now pre-empts. **After:** four (#6024, #6025, #6028, #6029) were already fixed on `main` by the #6006 and #6017 landings and self-close on the next green nightly; the other three are test-only re-pins to the current product reality (with a positive control so the orphan check cannot pass vacuously), with no product change.
 - **`consolidate` and `consolidate --abort` no longer delete review feedback, traces or another Mission's uncommitted edits** (#5965, #5966). **Before:** teardown and the abort's ref restore called a file "regenerable" without knowing its checkout or Mission, so a `review-cycle-N.md`, a hand-written `traces/` note or a sibling Mission's tracked file was removed and `consolidate` exited 0. **After:** the destructive guard decides from the checkout's role and the Mission's stored topology and refuses over the only copy, naming the files. A refused coordination teardown keeps the verified landing, the coordination branch, worktree and marker together and exits **76** with `COORD_TEARDOWN_KEPT_ONLY_COPY` (`orchestrator-api consolidate-mission` reports the same code); `consolidate --resume` finishes it once you commit, move or delete the kept files.
   - Every destructive git operation (`reset --hard`, `worktree remove --force`, `worktree prune`, `merge --abort`, `branch -D`) and every recursive checkout deletion now goes through one guard, and a routing gate with an empty allowlist fails any new site that bypasses it.
   - **Behavior changes:** a lane retry reset, a Mission-creation rollback, an auto-rebase abort and the doctor's husk cleanup now refuse over unique work instead of discarding it. `agent mission create --force-recreate` still discards the coordination branch it was asked to recreate. `orchestrator-api consolidate-mission` keeps a lane branch whose commits no other ref reaches (for example one that was squash-landed) and logs a warning instead of deleting it.
