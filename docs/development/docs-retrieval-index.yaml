@@ -10544,6 +10544,7 @@ pages:
     - {slug: "glossary-strictness-policy", text: "Glossary Strictness Policy", level: 3}
     - {slug: "clarification-burst-policy", text: "Clarification Burst Policy", level: 3}
     - {slug: "precedence-rule", text: "Precedence Rule", level: 3}
+    - {slug: "pack-level", text: "Pack Level", level: 3}
     - {slug: "charter-interview", text: "Charter Interview", level: 3}
     - {slug: "charter-compiler", text: "Charter Compiler", level: 3}
     - {slug: "governance-resolution", text: "Governance Resolution", level: 3}

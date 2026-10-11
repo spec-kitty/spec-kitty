@@ -2,7 +2,7 @@
 title: 'Context: Governance'
 description: 'Glossary context for governance: rule ownership, precedence, and policy controls in Spec Kitty, including the charter and doctrine-selection terms.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-11'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/charter.md
@@ -69,6 +69,18 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
 | **Operational order (strictness)** | CLI override > step metadata > mission config > global default |
+
+---
+
+### Pack Level
+
+| | |
+|---|---|
+| **Definition** | The tier a Charter Pack occupies, declared by the `pack_level` field in the pack's `pack.yaml` — one of `built-in`, `org` or `project`, in ascending precedence ([ADR 2026-10-11-2](../adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md)). The level is no longer inferred from where a pack is wired in; a pack states its own level. The three level names have one authority, `kernel.pack_tiers`, and the tier token and the provenance/layer value share a single spelling, `built-in` (the former no-hyphen `builtin` provenance spelling is folded away). Loading refuses a pack whose declared level disagrees with where it is configured (`PACK_LEVEL_MISMATCH`), and a `pack.yaml` that omits the field (`PACK_LEVEL_MISSING`); for one release an org pack with no `pack.yaml` loads with a deprecation warning that names the file to add, before the refusal takes effect. |
+| **Context** | Governance |
+| **Status** | canonical |
+| **Applicable to** | `4.x` |
+| **Related terms** | [Charter Pack](./charter.md#charter-pack), [Precedence Rule](#precedence-rule) |
 
 ---
 

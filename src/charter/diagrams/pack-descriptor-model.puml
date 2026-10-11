@@ -1,0 +1,136 @@
+@startuml pack-descriptor-model
+' =============================================================================
+' Charter Pack descriptor model (pack.yaml) — entity / relationship view.
+'
+' TARGET schema, as it stands AFTER missions #6048 (pack_level) and
+' #6046 (requires_core) land. See ADR docs/adr/4.x/2026-10-11-2-a-pack-
+' declares-its-level-in-pack-yaml.md.
+'
+' Design intent:
+'   * PackDescriptor is AUTHORED (hand-edited pack.yaml), one per Charter Pack.
+'   * PackManifest is GENERATED (machine-written pack-manifest.yaml), its
+'     one-per-pack sibling — the authored-vs-generated split is the central
+'     distinction, carried by stereotype AND fill AND the legend (never colour
+'     alone, per the docs-accessibility styleguide).
+'   * PackTier (kernel.pack_tiers) is the single authority the pack_level field
+'     draws its value from.
+' Diffable, re-themable, structure over decoration.
+' =============================================================================
+
+title Charter Pack descriptor model — pack.yaml schema and its relationships
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam linetype ortho
+skinparam defaultFontName "Helvetica"
+skinparam defaultFontColor #15202B
+skinparam ArrowColor #30475E
+skinparam ArrowFontColor #30475E
+
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #30475E
+  FontColor #15202B
+  AttributeFontColor #15202B
+  StereotypeFontColor #30475E
+}
+
+' --- Authored descriptor: the one hand-edited pack.yaml per Charter Pack ------
+class "PackDescriptor\n(pack.yaml)" as PackDescriptor <<authored>> #E8F0FE {
+  .. identity ..
+  + pack_id : str  «ULID, 26 chars, required, immutable»
+  + pack_version : str  «required when pack_level==built-in; else optional»
+  + name : str  «required, human handle»
+  .. placement ..
+  + pack_level : PackTier  «required: built-in | org | project»
+  + requires_core : str | None  «core version-specifier range (#6046)»
+  .. lineage ..
+  + parent_pack : str | None  «parent pack_id — the "extends" edge»
+  .. pointers (pack-relative paths) ..
+  + active_charter : str | None  «e.g. org-charter.yaml»
+  + pack_drg : str | None  «e.g. drg/fragment.yaml»
+}
+
+note top of PackDescriptor
+  pydantic BaseModel · extra="forbid" · frozen=True
+  AUTHORED, hand-edited. Never machine-rewritten.
+  Exactly one per Charter Pack.
+end note
+
+' --- Value vocabulary: the single authority for the three level tokens --------
+enum "PackTier" as PackTier <<value vocabulary>> #EDE7F6 {
+  built-in
+  org
+  project
+  --
+  kernel.pack_tiers (single authority)
+  precedence: built-in < org < project
+}
+
+' --- Generated sibling: machine-written, never hand-edited --------------------
+class "PackManifest\n(pack-manifest.yaml)" as PackManifest <<generated>> #FBE4D5 {
+  + schema_version : str
+  + pack_version : str | None  «provenance copy»
+  + snapshot_sha256 : str | None
+  + artifact_counts : dict[str, int] | None
+  + manifest_hash : str | None
+  + constituents : list[Constituent]
+  + charter : CharterProfile | None
+  + presets : list[PresetEntry] | None
+}
+
+note bottom of PackManifest
+  GENERATED, machine-written. Never hand-edited
+  (tests/architectural/test_pack_manifest_no_author_edit.py).
+  One generated sibling per authored descriptor.
+end note
+
+' --- Artifacts the descriptor points at ---------------------------------------
+class "Active charter file" as ActiveCharter <<pack file>> #EEEEEE {
+  e.g. org-charter.yaml
+  --
+  the charter the pack
+  enforces / suggests
+}
+
+class "DRG source" as DrgSource <<pack file>> #EEEEEE {
+  the pack's Doctrine
+  Relationship Graph fragment
+  --
+  layout varies by pack_level
+  (see note)
+}
+
+note right of DrgSource
+  DRG layout per level:
+  • built-in : sharded *.graph.yaml
+               + generated pack-manifest.yaml
+  • org      : single drg/fragment.yaml
+  • project  : graph.yaml + overlays
+end note
+
+' --- Relationships ------------------------------------------------------------
+' Self-referential lineage: a pack optionally extends a parent pack.
+PackDescriptor "child 0..1" --> "parent 0..1" PackDescriptor : parent_pack\n(extends / lineage)
+
+' pack_level draws its value from the single authority.
+PackDescriptor "*" ..> "1" PackTier : pack_level\n(constrained by)
+
+' Pointer fields resolve to pack-relative files.
+PackDescriptor "1" --> "0..1" ActiveCharter : active_charter
+PackDescriptor "1" --> "0..1" DrgSource : pack_drg
+
+' Authored descriptor and its generated sibling, one-to-one per pack.
+PackDescriptor "1\nauthored" -- "1\ngenerated" PackManifest : sibling in pack\n(same directory)
+
+' --- Legend: carry the authored/generated/value distinction in text, not just
+'     in fill colour (docs-accessibility: never rely on colour alone). ---------
+legend right
+  | Fill | Stereotype | Meaning |
+  |<#E8F0FE>  | «authored» | hand-edited pack.yaml |
+  |<#FBE4D5>  | «generated» | machine-written sibling |
+  |<#EDE7F6>  | «value vocabulary» | kernel.pack_tiers authority |
+  |<#EEEEEE>  | «pack file» | file a pointer resolves to |
+endlegend
+
+@enduml

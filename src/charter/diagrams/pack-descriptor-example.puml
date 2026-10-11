@@ -1,0 +1,17 @@
+@startyaml
+' Concrete pack.yaml example — the org-level "internal" Charter Pack, as it
+' will be authored AFTER #6048 (pack_level) and #6046 (requires_core) land.
+' Secondary illustrative view of the PackDescriptor schema; the authoritative
+' relationships are in pack-descriptor-model.puml.
+title: pack.yaml — org-level example (the "internal" pack)
+#highlight "pack_level"
+#highlight "requires_core"
+pack_id: "01JBXR8Z7Q9V3K2M4N6P8T0C1E"
+pack_version: null          # optional for org packs (required only for built-in)
+name: "internal"
+pack_level: "org"           # built-in | org | project  (required, #6048)
+requires_core: ">=4.0,<5.0" # core compatibility range (#6046)
+parent_pack: null           # root pack: extends nothing
+active_charter: "org-charter.yaml"
+pack_drg: "drg/fragment.yaml"
+@endyaml

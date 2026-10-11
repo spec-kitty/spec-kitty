@@ -70,9 +70,10 @@ The level names themselves have no single owner either. Code spells the built-in
 1. **Every Charter Pack has a `pack.yaml`, and it declares `pack_level`.** It is a required
    field of `PackDescriptor` and must be one of `built-in`, `org` or `project`. `pack_id`,
    `pack_version`, `parent_pack` and `name` are unchanged.
-2. **The level names have one authority.** A single enum in `charter.offering.packs` owns the
-   three values. Every layer literal, including the `"builtin"` spelling (#5961, #5992),
-   derives from it.
+2. **The level names have one authority.** `kernel.pack_tiers` is the single authority for the
+   three level names; the descriptor reuses its `PackTier` Literal — no second enum is
+   introduced. Every layer literal, including the former no-hyphen `"builtin"` provenance
+   spelling (#5961, #5992), derives from it (this mission performs that fold).
 3. **Loading refuses a mismatch.** A pack whose declared `pack_level` disagrees with where it
    was configured is refused with `PACK_LEVEL_MISMATCH`, naming the file, the declared level
    and the configured one. A `pack.yaml` without the field is refused with
@@ -112,10 +113,26 @@ Rejected:
   authors meet one schema bump, not two.
 * The open-packs layout fix waits for a core release that ships the field.
 
+#### Provenance-spelling fold (retires NFR-003)
+
+* This mission **retires the NFR-003 provenance-spelling freeze**. The earlier carve-out
+  language (in `kernel.pack_tiers`, the pack-tier gate docstring, and the first draft of this
+  ADR) asserted that the fold had not happened and that two spellings — `"built-in"` (tier
+  token) and `"builtin"` (provenance/layer/rank) — coexisted. That freeze is lifted: the two
+  vocabularies become one. Every layer literal now derives from `kernel.pack_tiers`, which
+  strengthens single-authority rather than weakening it.
+* **Cross-version persisted-value note.** The fold changes the serialized provenance spelling
+  from `"builtin"` to `"built-in"`. This is verified safe for the current CLI: no read-back path
+  compares a loaded value to the string `"builtin"`, regenerated JSON and the dogfood
+  `pack-manifest.yaml` self-heal on the next write, and nothing persists the old spelling as a
+  lookup key. The only theoretical edge is an *older* CLI reading a new-spelling artifact after
+  an upgrade; no such mixed-version read path is exercised today, so no data migration ships.
+
 ### Confirmation
 
 * `charter pack validate` refuses a pack without `pack_level` once the window closes, and
   refuses one whose level disagrees with its configured position.
-* An architectural test pins that every layer literal in `src/` derives from the single enum.
+* An architectural test pins that every layer literal in `src/` derives from the single
+  `kernel.pack_tiers` authority (the `PackTier` Literal), not a second enum.
 * In open-packs, the built-in pack moves to `packs/built-in/` with `pack_level: built-in`, and
   `validate-packs.sh` registers only `pack_level: org` packs.
