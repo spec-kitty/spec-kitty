@@ -1,0 +1,37 @@
+{
+  "accept_commit": "32614d0686bc921dace7234f5e4b9909e6f63dc0",
+  "acceptance_history": [
+    {
+      "accept_commit": "32614d0686bc921dace7234f5e4b9909e6f63dc0",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-10T19:34:11.370573+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "2761372c06a8d06b31f0c17a4010a417834ac5af"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-10T19:34:11.370573+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "2761372c06a8d06b31f0c17a4010a417834ac5af",
+  "baseline_merge_commit": "db79b0eb13499374d40c710294e7453e382b9df2",
+  "contracts": "none",
+  "contracts_rationale": "Internal refactor: routes existing non-charter callers onto the resolve_pack_chain() authority and widens an architectural gate. No new or changed external/API interfaces.",
+  "created_at": "2026-10-10T18:25:06.563767+00:00",
+  "flattened": true,
+  "friendly_name": "Tree-wide org-pack chain authority",
+  "merged_at": "2026-10-10T19:36:03.673017+00:00",
+  "merged_commit": "85a8e1bb8adc6ced93292ae9fda46dd452bdecb5",
+  "mid8": "01M4KGZG",
+  "mission_id": "01M4KGZGCQCDV2KH7VCSFC1RJF",
+  "mission_number": 227,
+  "mission_slug": "org-pack-chain-tree-wide-authority-01M4KGZG",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Follow-up to #6006, which established resolve_pack_chain() as the single ordered org-pack-chain authority and migrated the charter surfaces onto it behind a path-scoped empty-allowlist gate. This mission completes that unification across the ~12 remaining non-charter callers, widens the FR-006 census tree-wide with the allowlist kept empty, and completes #4984 fail-closed behaviour on the governed non-charter decision surfaces.",
+  "purpose_tldr": "Route every remaining org-pack chain-deriving caller through the single resolve_pack_chain() authority and widen the empty-allowlist gate tree-wide.",
+  "slug": "org-pack-chain-tree-wide-authority-01M4KGZG",
+  "status_phase": "1",
+  "target_branch": "feat/org-pack-chain-tree-wide-authority",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-10T18:44:57.672532+00:00"
+}

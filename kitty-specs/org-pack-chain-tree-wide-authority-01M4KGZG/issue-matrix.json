@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#4984": {
+      "evidence_ref": "WP03 approved: decision surfaces fail-closed on unfetched org pack (commit ef7f1568c1)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#6006": {
+      "evidence_ref": "Parent/context: the org-pack chain authority (resolve_pack_chain) landed in #6006; this follow-up mission builds on it and does not close it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6012": {
+      "evidence_ref": "Mission complete: WP01-WP05 approved; all non-charter callers on resolve_pack_chain, census widened tree-wide",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "fixed",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

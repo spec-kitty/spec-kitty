@@ -1,0 +1,13 @@
+{
+  "wp_id": "WP01",
+  "captured_at": "2026-10-10T18:48:17Z",
+  "base_branch": "feat/org-pack-chain-tree-wide-authority",
+  "base_commit": "50feaa1f323da97024ba2dc6c48df0bf92a43246",
+  "test_runner": "custom",
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml"
+}

@@ -1,0 +1,69 @@
+{
+  "mission_slug": "org-pack-chain-tree-wide-authority-01M4KGZG",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01/WP02/WP04 approved: all non-charter callers on resolve_pack_chain; WP05 tree-wide census green proves no direct primitive calls remain",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T19:33:36.152562+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01-WP04 approved: posture preserved (strict=False lenient, quiet passthrough for hot paths); WP03 strict=True on decision surfaces",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T19:33:39.190875+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved: _SCOPE_DIRS=src/ tree-wide, census 17 passed, 1320 files scanned",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T19:33:42.730384+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved: offering exclusion is a scan rule, _ALLOWED=frozenset() empty, test_allowlist_is_empty green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T19:33:45.687370+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: 3 decision surfaces fail closed on unfetched pack, red-first regressions green (commit ef7f1568c1)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T19:33:48.766933+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01/WP02/WP04 approved: strict=False byte-identical to resolve_existing_org_roots; existing module suites green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-10T19:33:52.272570+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
