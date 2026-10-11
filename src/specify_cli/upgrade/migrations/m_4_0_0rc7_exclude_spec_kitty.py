@@ -20,7 +20,9 @@ from pathlib import Path
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
-from specify_cli.core.git_ops import exclude_from_git_index, is_git_repo
+from specify_cli.core.git_ops import exclude_from_git_index, git_exclude_file, is_git_repo
+
+_ENTRY = ".spec-kitty/"
 
 
 @MigrationRegistry.register
@@ -39,30 +41,33 @@ class ExcludeSpecKittyMigration(BaseMigration):
     target_version = "4.0.0rc7"
 
     def detect(self, project_path: Path) -> bool:
-        """Check if .spec-kitty/ exclusion is needed."""
-        if not is_git_repo(project_path):
+        """Check if .spec-kitty/ exclusion is needed (exact-line match; comments do not count)."""
+        exclude_file = self._exclude_file(project_path)
+        if exclude_file is None:
             return False
-
-        exclude_file = project_path / ".git" / "info" / "exclude"
-        if not exclude_file.exists():
-            return False
-
         try:
-            content = exclude_file.read_text()
-            return ".spec-kitty/" not in content
+            lines = {line.strip() for line in exclude_file.read_text(encoding="utf-8").splitlines()}
         except OSError:
             return False
+        return _ENTRY not in lines
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Check if migration can be applied."""
         if not is_git_repo(project_path):
             return False, "Not a git repository"
 
-        exclude_file = project_path / ".git" / "info" / "exclude"
-        if not exclude_file.exists():
+        if self._exclude_file(project_path) is None:
             return False, ".git/info/exclude file not found"
 
         return True, ""
+
+    @staticmethod
+    def _exclude_file(project_path: Path) -> Path | None:
+        """The existing common-dir ``info/exclude`` (shared by linked worktrees), else ``None``."""
+        if not is_git_repo(project_path):
+            return None
+        exclude_file = git_exclude_file(project_path)
+        return exclude_file if exclude_file is not None and exclude_file.exists() else None
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Add .spec-kitty/ to .git/info/exclude."""
@@ -88,12 +93,8 @@ class ExcludeSpecKittyMigration(BaseMigration):
                 warnings=warnings,
             )
 
-        try:
-            exclude_from_git_index(project_path, [".spec-kitty/"])
-            changes.append("Added .spec-kitty/ to .git/info/exclude")
-        except Exception as exc:
-            # Non-critical error - continue silently
-            warnings.append(f"Could not update .git/info/exclude: {exc}")
+        exclude_from_git_index(project_path, [_ENTRY])
+        changes.append("Added .spec-kitty/ to .git/info/exclude")
 
         return MigrationResult(
             success=True,

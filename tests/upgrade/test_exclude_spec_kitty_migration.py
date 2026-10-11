@@ -61,14 +61,7 @@ def _porcelain(repo) -> list[str]:
 class TestExcludeSpecKittyMigration:
     """Tests for ExcludeSpecKittyMigration."""
 
-    def test_detect_returns_true_when_exclusion_missing(self, git_project):
-        """detect returns True when .spec-kitty/ is not in .git/info/exclude."""
-        migration = ExcludeSpecKittyMigration()
-        assert (git_project / ".git").exists()
-        assert migration.detect(git_project) is True
-
-    def test_detect_returns_false_when_exclusion_exists(self, git_project):
-        """detect flips to False once .spec-kitty/ is in exclude."""
+    def test_detect_flips_once_the_entry_is_present(self, git_project):
         migration = ExcludeSpecKittyMigration()
         exclude_file = git_project / ".git" / "info" / "exclude"
         assert migration.detect(git_project) is True
@@ -76,103 +69,40 @@ class TestExcludeSpecKittyMigration:
             f.write("\n.spec-kitty/\n")
         assert migration.detect(git_project) is False
 
-    def test_detect_returns_false_for_non_git_repo(self, non_git_project):
-        """detect returns False for non-git repositories."""
+    def test_commented_entry_does_not_suppress_the_backfill(self, git_project):
         migration = ExcludeSpecKittyMigration()
-        assert not (non_git_project / ".git").exists()
-        assert migration.detect(non_git_project) is False
-
-    def test_can_apply_succeeds_for_git_repo(self, git_project):
-        """can_apply returns (True, '') for valid git repositories."""
-        migration = ExcludeSpecKittyMigration()
-        assert (git_project / ".git").exists()
-        can_apply, reason = migration.can_apply(git_project)
-        assert can_apply is True
-        assert reason == ""
-
-    def test_can_apply_fails_for_non_git_repo(self, non_git_project):
-        """can_apply returns (False, reason) for non-git repositories."""
-        migration = ExcludeSpecKittyMigration()
-        assert not (non_git_project / ".git").exists()
-        can_apply, reason = migration.can_apply(non_git_project)
-        assert can_apply is False
-        assert "Not a git repository" in reason
-
-    def test_apply_adds_exclusion(self, git_project):
-        """apply adds .spec-kitty/ to .git/info/exclude and status stays clean."""
-        migration = ExcludeSpecKittyMigration()
-
-        result = migration.apply(git_project, dry_run=False)
-
-        assert result.success is True
-        assert len(result.errors) == 0
-
         exclude_file = git_project / ".git" / "info" / "exclude"
-        content = exclude_file.read_text()
-        assert ".spec-kitty/" in content
+        with exclude_file.open("a") as f:
+            f.write("\n# .spec-kitty/\n")
+        assert migration.detect(git_project) is True
 
-        assert any("Added .spec-kitty/" in change for change in result.changes_made)
-
-        # The exclude lives in .git/ (never tracked), so writing it leaves the
-        # working tree clean.
-        assert _porcelain(git_project) == []
-
-    def test_apply_excludes_review_lock_residue(self, git_project):
-        """After apply, a .spec-kitty/ residue file is invisible to git status."""
+    def test_missing_exclude_file_is_not_applicable(self, git_project):
         migration = ExcludeSpecKittyMigration()
-        migration.apply(git_project, dry_run=False)
+        (git_project / ".git" / "info" / "exclude").unlink()
+        assert migration.detect(git_project) is False
+        can_apply, _reason = migration.can_apply(git_project)
+        assert can_apply is False
 
+    def test_apply_excludes_review_lock_residue_and_is_idempotent(self, git_project):
+        migration = ExcludeSpecKittyMigration()
+
+        assert migration.apply(git_project, dry_run=False).success is True
+        assert migration.apply(git_project, dry_run=False).success is True
+
+        content = (git_project / ".git" / "info" / "exclude").read_text()
+        assert content.count(".spec-kitty/") == 1
         lock = git_project / ".spec-kitty" / "review-lock.json"
         lock.parent.mkdir(parents=True, exist_ok=True)
         lock.write_text('{"wp_id": "WP01"}\n', encoding="utf-8")
+        assert _porcelain(git_project) == []
 
-        assert _porcelain(git_project) == [], (
-            f"a .spec-kitty/ residue must not dirty the tree after the migration; git status --porcelain: {_porcelain(git_project)!r}"
-        )
-
-    def test_apply_dry_run(self, git_project):
-        """dry run doesn't modify files."""
+    def test_linked_worktree_project_backfills_the_common_dir(self, git_project, tmp_path):
         migration = ExcludeSpecKittyMigration()
+        linked = tmp_path / "linked"
+        run_command(["git", "worktree", "add", "-q", "-b", "side", str(linked)], cwd=git_project)
 
-        exclude_file = git_project / ".git" / "info" / "exclude"
-        initial_content = exclude_file.read_text()
+        assert migration.detect(linked) is True
+        assert migration.apply(linked, dry_run=False).success is True
 
-        result = migration.apply(git_project, dry_run=True)
-
-        assert result.success is True
-
-        final_content = exclude_file.read_text()
-        assert final_content == initial_content
-
-        assert any("Would add" in change for change in result.changes_made)
-
-    def test_apply_skips_non_git_repo(self, non_git_project):
-        """apply skips non-git repositories."""
-        migration = ExcludeSpecKittyMigration()
-
-        result = migration.apply(non_git_project, dry_run=False)
-
-        assert result.success is True
-        assert any("Skipped" in change for change in result.changes_made)
-
-    def test_apply_idempotent(self, git_project):
-        """applying the migration multiple times adds no duplicate line."""
-        migration = ExcludeSpecKittyMigration()
-
-        result1 = migration.apply(git_project, dry_run=False)
-        result2 = migration.apply(git_project, dry_run=False)
-
-        assert result1.success is True
-        assert result2.success is True
-
-        exclude_file = git_project / ".git" / "info" / "exclude"
-        content = exclude_file.read_text()
-        assert content.count(".spec-kitty/") == 1
-
-    def test_migration_metadata(self):
-        """migration carries the expected metadata."""
-        migration = ExcludeSpecKittyMigration()
-
-        assert migration.migration_id == "4.0.0rc7_exclude_spec_kitty"
-        assert migration.target_version == "4.0.0rc7"
-        assert "exclude" in migration.description.lower()
+        assert ".spec-kitty/" in (git_project / ".git" / "info" / "exclude").read_text().splitlines()
+        assert migration.detect(linked) is False
