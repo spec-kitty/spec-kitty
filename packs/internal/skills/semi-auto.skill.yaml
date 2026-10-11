@@ -1,0 +1,25 @@
+schema_version: "1.0"
+id: semi-auto
+title: Run a semi-auto governed delivery
+description: "Use to take a tracker issue or a coherent issue-set through a governed delivery run that works autonomously but pauses to escalate the operator's decisions. Runs BOTH ways — in this session (local) or handed to a fresh cloud runner (cloud) — from one set of standing orders covering orientation, code grounding first, Mission-vs-Ops, the pause-and-escalate contract, brownfield discipline, and the canonical closeout to a draft PR the operator merges."
+triggers: ["semi-auto", "semi-auto dispatch", "run this semi-automatically", "deliver these issues semi-auto", "hand this to a cloud runner", "dispatch semi-auto"]
+form: prompt
+body_path: semi-auto.skill.md
+parameters:
+  - name: issues
+    required: true
+    description: One or more issue numbers, or a coherent issue-set, on spec-kitty/spec-kitty
+  - name: mode
+    required: false
+    description: "`local` (run the whole delivery in this session) or `cloud` (dispatch it to a fresh cloud runner). Default: if this session can create cloud sessions and the operator did not say, ask; otherwise run local"
+  - name: guidance
+    required: false
+    description: Scope limits, sequencing or specific concerns; recorded in the Mission spec (local) or the dispatch prompt (cloud)
+  - name: closeout
+    required: false
+    description: "Closeout profile. Default: the canonical closeout (draft PR targeting main, green, flipped to ready-for-review with a handover comment, operator merges) unless the operator names a lighter one"
+invocation:
+  user_invocable: true
+  side_effects: [git-push, gh-write, remote-session-create]
+version: 1.0.0
+maintainers: ["@spec-kitty/core"]

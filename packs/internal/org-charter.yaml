@@ -9,6 +9,7 @@ required_procedures:
   - executive-debrief-generation
   - test-suite-quality-assessment
   - cloud-session-dispatch
+  - semi-auto-delivery
 required_directives:
   - NO_FULL_HEAVY_SUITES_IN_MISSION
 required_glossary_packs:
@@ -23,3 +24,4 @@ required_skills:
   - issue-triage
   - mission-from-issue
   - report-debrief
+  - semi-auto

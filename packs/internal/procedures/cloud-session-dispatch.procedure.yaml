@@ -79,7 +79,13 @@ steps:
       ledger that references those files, and how to keep each one green
       honestly; the current test seams and what they cost; interactions with
       open P0s and sibling runs; and 90-day churn.
-      (2) The bound doctrine and the explicit non-goals.
+      (2) The bound doctrine and the explicit non-goals. Bind the runner's
+      semi-auto standing orders by reference — tell the runner to load
+      `spec-kitty charter context --include procedure:semi-auto-delivery` and
+      follow it (orientation, grounding-first, Mission-vs-Ops, the
+      pause-and-escalate escalation classes, brownfield discipline, the test
+      policy, the rebase cadence and the canonical closeout) — rather than
+      re-typing those standing orders into the prompt.
       (3) Numbered slices that can each be reviewed on their own, mapped to
       issues, with done-when criteria.
       (4) Testing per CLAUDE.md policy and NO_FULL_HEAVY_SUITES_IN_MISSION, with

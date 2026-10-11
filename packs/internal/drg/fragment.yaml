@@ -160,6 +160,14 @@ nodes:
     kind: procedures
     title: "Cloud Session Dispatch (hand tracker issues to an autonomous cloud runner)"
     body_path: procedures/cloud-session-dispatch.procedure.yaml
+  # Semi-auto delivery: the runner-side standing orders (orientation, grounding,
+  # Mission-vs-Ops, the pause-and-escalate contract, brownfield discipline,
+  # closeout) that a dispatch brief or a local invocation would otherwise
+  # hand-type every time. The substance behind the dual-mode kitty-semi-auto skill.
+  - id: semi-auto-delivery
+    kind: procedures
+    title: "Semi-Auto Delivery (governed autonomous run with pause-and-escalate)"
+    body_path: procedures/semi-auto-delivery.procedure.yaml
   # Backlog-triage pass and issue-to-Mission delivery: batch procedures that sit
   # behind the issue-triage and mission-from-issue pack skills.
   - id: issue-triage-pass
@@ -188,6 +196,14 @@ nodes:
     kind: skills
     title: "Write an executive debrief"
     body_path: skills/report-debrief.skill.yaml
+  # Dual-mode pack skill: runs the semi-auto delivery locally in the invoking
+  # session or dispatches it to a cloud runner. Thin entry point over the
+  # semi-auto-delivery standing orders (both modes) and cloud-session-dispatch
+  # (cloud mode).
+  - id: semi-auto
+    kind: skills
+    title: "Run a semi-auto governed delivery (local or cloud dispatch)"
+    body_path: skills/semi-auto.skill.yaml
 edges:
   # Reference-not-duplicate: the landing runbook refines built-in Charter Pack doctrine that
   # already ships publicly, rather than re-authoring it. Targets are
@@ -351,6 +367,42 @@ edges:
     relation: suggests
   - source: cloud-session-dispatch
     target: "procedure:test-suite-quality-assessment"
+    relation: suggests
+  # Cloud dispatch binds the runner-side semi-auto standing orders by reference
+  # rather than re-typing them into every prompt.
+  - source: cloud-session-dispatch
+    target: "procedure:semi-auto-delivery"
+    relation: suggests
+  # Semi-auto delivery binds the bounded-test and operator-signal contracts it
+  # enforces, and suggests the closeout, red-first and review doctrine its steps name.
+  - source: semi-auto-delivery
+    target: "directive:NO_FULL_HEAVY_SUITES_IN_MISSION"
+    relation: requires
+  - source: semi-auto-delivery
+    target: "directive:OPERATOR_SIGNAL_CONTRACT"
+    relation: requires
+  - source: semi-auto-delivery
+    target: "procedure:mission-wrap-up-sequence"
+    relation: suggests
+  - source: semi-auto-delivery
+    target: "procedure:test-first-bug-fixing"
+    relation: suggests
+  - source: semi-auto-delivery
+    target: "procedure:adversarial-squad-deployment"
+    relation: suggests
+  - source: semi-auto-delivery
+    target: "tactic:clean-linear-commit-history"
+    relation: suggests
+  # Dual-mode pack skill: requires the standing-orders procedure (both modes) and
+  # the dispatch procedure (cloud mode); suggests the Mission closeout sequence.
+  - source: "skill:semi-auto"
+    target: "procedure:semi-auto-delivery"
+    relation: requires
+  - source: "skill:semi-auto"
+    target: "procedure:cloud-session-dispatch"
+    relation: requires
+  - source: "skill:semi-auto"
+    target: "procedure:mission-wrap-up-sequence"
     relation: suggests
   # Triage pass: binds the label scheme and the backlog workflow rather than
   # restating them.

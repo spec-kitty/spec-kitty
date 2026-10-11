@@ -32,6 +32,7 @@ packs/internal/
 │   ├── issue-triage.skill.yaml                      # kitty-issue-triage: thin entry point to issue-triage-pass
 │   ├── mission-from-issue.skill.yaml                # kitty-mission-from-issue: thin entry point to issue-to-mission-delivery
 │   ├── report-debrief.skill.yaml                    # kitty-report-debrief: thin entry point to executive-debrief-generation
+│   ├── semi-auto.skill.yaml                         # kitty-semi-auto: dual-mode (local|cloud) entry point to semi-auto-delivery
 │   └── *.skill.md                                   # their prompt bodies (goal, inputs, ordered pointers, stop conditions)
 ├── glossary_packs/
 │   └── spk-internal.glossary-pack.yaml              # spk-internal-glossary — maintainer/engineering glossary
@@ -44,6 +45,7 @@ packs/internal/
 │   ├── test-suite-quality-assessment.procedure.yaml # static triage, domain review squads, shrink-only follow-through
 │   ├── executive-debrief-generation.procedure.yaml  # collect, synthesize, render and hand over a debrief (behind kitty-report-debrief)
 │   ├── cloud-session-dispatch.procedure.yaml        # hand tracker issues to an autonomous cloud runner (behind spk-dispatch-cloud)
+│   ├── semi-auto-delivery.procedure.yaml            # runner-side semi-auto standing orders: pause-and-escalate (behind kitty-semi-auto)
 │   ├── spec-kitty-arch-gate-adjudication.procedure.yaml  # refines built-in post-merge-arch-gate-adjudication
 │   └── spec-kitty-red-main-policy.procedure.yaml    # refines built-in red-main-release-discipline
 ├── styleguides/
@@ -96,16 +98,36 @@ asset, and it `suggests` the built-in test doctrine it applies
 `development-assist-test-cleanup`, `adversarial-squad-deployment`). Kick off a
 run with `make test-quality-scan`.
 
+The `semi-auto-delivery` procedure holds the runner-side **semi-auto standing
+orders** — the pattern a dispatch brief or a local invocation used to hand-type
+every time: orientation gate, research-and-grounding run before any spec,
+Mission-vs-Ops by blast radius, the pause-and-escalate contract (the agent runs
+autonomously but surfaces the operator's decisions — regression-vs-stale-test
+verdicts, shared-seam / public-contract / architectural-boundary changes,
+test-expectation edits, scope widening, charter Decision Moments, contract
+versioning), brownfield discipline, the bounded test policy, the rebase cadence,
+and the canonical closeout to a draft PR the operator merges. It is mode-agnostic:
+the conduct is the same whether run locally or in a cloud session. It `requires`
+`NO_FULL_HEAVY_SUITES_IN_MISSION` and `OPERATOR_SIGNAL_CONTRACT` (the bounded-test
+and deciding-path-also-signals contracts it enforces) and `suggests`
+`mission-wrap-up-sequence`, `test-first-bug-fixing`, `adversarial-squad-deployment`
+and `clean-linear-commit-history`. The dual-mode `semi-auto` skill is its thin
+entry point: `local` runs the delivery in the invoking session, `cloud` dispatches
+it through `cloud-session-dispatch` to a fresh runner. The dispatch procedure's
+prompt-authoring step now tells the dispatcher to **bind** these standing orders
+into the runner's prompt by reference (`--include procedure:semi-auto-delivery`),
+so a prompt points the runner at them rather than re-typing the full pattern.
+
 ## Pack skills
 
-The four skills in `skills/` are the team-shared maintainer commands. Each is a thin
+The five skills in `skills/` are the team-shared maintainer commands. Each is a thin
 entry point: it states the goal, the order of the steps and the stop conditions, and
 leaves the rules to the procedure it requires. A `requires` edge in
 `drg/fragment.yaml` points it at the procedure that holds the rules, and the rendered
 `SKILL.md` tells the agent to load that procedure with
 `spec-kitty charter context --include <urn>`. The namespace is `kitty`, so they
-render as `kitty-land-pr`, `kitty-issue-triage`, `kitty-mission-from-issue` and
-`kitty-report-debrief`, and `required_skills` puts all four in force for every project that registers this pack.
+render as `kitty-land-pr`, `kitty-issue-triage`, `kitty-mission-from-issue`,
+`kitty-report-debrief` and `kitty-semi-auto`, and `required_skills` puts all five in force for every project that registers this pack.
 The `SKILL.md` files are not on disk until `spec-kitty upgrade` projects them into each
 configured tool's project skill root. Two known defects affect that today:
 
