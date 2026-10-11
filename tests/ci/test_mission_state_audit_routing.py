@@ -19,6 +19,8 @@ from __future__ import annotations
 import ast
 import json
 import shlex
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -115,6 +117,48 @@ def test_the_audit_job_runs_the_witness_audit_and_gate() -> None:
     fail_on = witness[witness.index("--fail-on") + 1]
     assert command[command.index("--fail-on") + 1] == fail_on, "the job gates on what the upgrade witness gates on"
     assert "--mission" not in command, "the audit covers every Mission, not one"
+
+
+@pytest.mark.skipif(shutil.which("bash") is None or shutil.which("jq") is None, reason="needs bash and jq")
+def test_a_failing_audit_still_prints_the_failing_missions(tmp_path: Path) -> None:
+    """The step runs under ``bash -e``; a non-zero audit must not end it before the report is printed (#6058)."""
+    (step,) = [step for step in _jobs()[JOB]["steps"] if "mission-state" in str(step.get("run", ""))]
+    report = {
+        "repo_summary": {"missions_with_errors": 1},
+        "missions": [
+            {
+                "mission_slug": "076-init-command-overhaul",
+                "has_errors": True,
+                "has_teamspace_blockers": True,
+                "findings": [
+                    {
+                        "code": "SNAPSHOT_DRIFT",
+                        "severity": "error",
+                        "artifact_path": "status.json",
+                        "detail": "reducer output does not match persisted status.json",
+                    }
+                ],
+            }
+        ],
+    }
+    stub_dir = tmp_path / "bin"
+    stub_dir.mkdir()
+    stub = stub_dir / "uv"
+    stub.write_text(f"#!/usr/bin/env bash\ncat <<'JSON'\n{json.dumps(report)}\nJSON\nexit 1\n", encoding="utf-8")
+    stub.chmod(0o755)
+
+    result = subprocess.run(
+        ["bash", "-e", "-c", step["run"]],
+        env={"PATH": f"{stub_dir}:/usr/bin:/bin", "RUNNER_TEMP": str(tmp_path)},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 1
+    assert "found Missions with errors or TeamSpace blockers" in result.stdout
+    assert "076-init-command-overhaul" in result.stdout
+    assert "SNAPSHOT_DRIFT" in result.stdout
 
 
 def test_scrub_documentation_copy_equals_the_router_group() -> None:

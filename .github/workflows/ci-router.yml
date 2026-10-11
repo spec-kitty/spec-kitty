@@ -1087,8 +1087,10 @@ jobs:
         run: |
           set -uo pipefail
           report="$RUNNER_TEMP/mission-state-audit.json"
-          uv run --frozen --no-sync spec-kitty doctor mission-state --audit --fail-on teamspace-blocker --json > "$report"
-          status=$?
+          # The step shell is `bash -e`: capture a non-zero exit instead of letting it end the step
+          # before the report and the failing Missions below are printed (#6058).
+          status=0
+          uv run --frozen --no-sync spec-kitty doctor mission-state --audit --fail-on teamspace-blocker --json > "$report" || status=$?
           if ! jq -e . "$report" >/dev/null 2>&1; then
             echo "::error::doctor mission-state --audit produced no JSON report (exit $status)."
             cat "$report"
