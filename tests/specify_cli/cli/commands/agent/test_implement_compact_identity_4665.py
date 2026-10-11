@@ -325,3 +325,30 @@ class TestActorIdentityMatrixLive:
         wp_state = snapshot.work_packages["WP01"]
         assert _actor_key(wp_state["actor"]) == "codex"
         assert _actor_key(wp_state["agent"]) == "codex"
+
+
+# ---------------------------------------------------------------------------
+# #6062 — a claim never runs the baseline suite (it moved to the for_review edge).
+# ---------------------------------------------------------------------------
+
+
+class TestClaimDoesNotCaptureBaseline:
+    def test_implement_claim_runs_no_baseline_capture(self, workflow_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The REAL ``agent action implement`` returns without capturing a baseline.
+
+        Capturing at claim time ran the project's suite synchronously and hung
+        the claim (#6062). The seam is the lowest public capture entry point so
+        any route that reintroduces the capture is caught.
+        """
+        captured: list[dict[str, object]] = []
+        monkeypatch.setattr("specify_cli.review.baseline.capture_baseline", lambda **kwargs: captured.append(kwargs))
+        feature_dir, _wp_path = _seed_mission(workflow_repo)
+
+        result = CliRunner().invoke(
+            workflow.app,
+            ["implement", "WP01", "--mission", _MISSION_SLUG, "--agent", _FULL_IDENTITY],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        assert captured == [], "a claim must not run baseline capture (#6062)"
+        assert not list(feature_dir.glob("tasks/*/baseline-tests.json"))
