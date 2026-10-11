@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-11T06:27:50.941949+00:00",
+  "flattened": false,
+  "friendly_name": "Rename FEATURE_CONTEXT_UNRESOLVED host error code to Mission vocabulary",
+  "mid8": "01M4MTAV",
+  "mission_id": "01M4MTAV83N7H1XXR0Z1B5WRTD",
+  "mission_number": null,
+  "mission_slug": "mission-context-unresolved-code-rename-01M4MTAV",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Rename FEATURE_CONTEXT_UNRESOLVED host error code to Mission vocabulary on tech-debt/5976-mission-context-unresolved so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Rename the host wire error code FEATURE_CONTEXT_UNRESOLVED to MISSION_CONTEXT_UNRESOLVED without changing the public orchestrator-api MISSION_NOT_FOUND normalization (#5976).",
+  "slug": "mission-context-unresolved-code-rename-01M4MTAV",
+  "target_branch": "tech-debt/5976-mission-context-unresolved",
+  "topology": "single_branch"
+}
