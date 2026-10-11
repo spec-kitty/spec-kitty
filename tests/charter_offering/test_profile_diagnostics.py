@@ -87,10 +87,10 @@ class TestSkippedDiagnostics:
         repo = AgentProfileRepository(built_in_dir=built_in, project_dir=None, drg=_empty_drg())
 
         skipped = repo.skipped_profiles()
-        assert {(s.layer, s.path) for s in skipped} == {("builtin", str(bad))}
+        assert {(s.layer, s.path) for s in skipped} == {("built-in", str(bad))}
         record = skipped[0]
         assert isinstance(record, SkippedProfile)
-        assert record.layer == "builtin"
+        assert record.layer == "built-in"
         assert record.path == str(bad)
         assert record.error_summary  # non-empty
         # path/profile_id/error_summary all populated (profile_id may be None here)
@@ -126,7 +126,7 @@ class TestSkippedDiagnostics:
 
         ids = [p.profile_id for p in repo.list_all()]
         assert ids == ["good"]
-        assert {s.layer for s in repo.skipped_profiles()} == {"builtin"}
+        assert {s.layer for s in repo.skipped_profiles()} == {"built-in"}
 
 
 # ── NFR-002: determinism ─────────────────────────────────────────────────────
@@ -163,7 +163,7 @@ class TestDeterminism:
 
         layers = [s.layer for s in repo.skipped_profiles()]
         # builtin record must precede project record regardless of path.
-        assert layers == ["builtin", "project"]
+        assert layers == ["built-in", "project"]
 
 
 # ── NFR-005: zero diagnostics for built-ins ──────────────────────────────────

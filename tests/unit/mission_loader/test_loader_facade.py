@@ -254,4 +254,4 @@ def test_builtin_software_dev_not_rejected(
     report = validate_custom_mission("software-dev", ctx)
     assert report.ok, f"expected ok=True, errors={report.errors}"
     assert report.discovered is not None
-    assert report.discovered.precedence_tier == "builtin"
+    assert report.discovered.precedence_tier == "built-in"

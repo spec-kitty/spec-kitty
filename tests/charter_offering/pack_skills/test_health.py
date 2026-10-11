@@ -47,7 +47,7 @@ def test_model_health_flags() -> None:
 
 
 def test_report_folds_skill_health_into_aggregate() -> None:
-    pack = PackHealth(pack_id="builtin", layer="builtin", discovered_count=1, valid_count=1)
+    pack = PackHealth(pack_id="built-in", layer="built-in", discovered_count=1, valid_count=1)
     assert CharterPackHealthReport(packs=[pack]).healthy is True
     bad = PackSkillHealth(skill_count=0, invalid_skills=[SkippedPackSkill("org", "x", "y")])
     report = CharterPackHealthReport(packs=[pack], skills=bad)

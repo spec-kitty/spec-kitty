@@ -41,7 +41,7 @@ runner = CliRunner()
 
 def test_pack_health_healthy_when_all_valid() -> None:
     pack = PackHealth(
-        pack_id="builtin", layer="builtin", discovered_count=3, valid_count=3
+        pack_id="built-in", layer="built-in", discovered_count=3, valid_count=3
     )
     assert pack.healthy is True
 
@@ -103,7 +103,7 @@ def test_pack_health_to_dict_emits_stable_invalid_profile_fields() -> None:
 
 
 def test_report_healthy_only_when_every_pack_healthy() -> None:
-    healthy = PackHealth("builtin", "builtin", 2, 2)
+    healthy = PackHealth("built-in", "built-in", 2, 2)
     degraded = PackHealth(
         "org",
         "org",
@@ -137,13 +137,13 @@ def test_build_pack_health_groups_by_layer() -> None:
         SkippedProfile("project", "/p/proj/empty.yaml", None, "empty file"),
     ]
     packs = build_pack_health_by_layer(
-        provenance_by_layer={"builtin": 5, "org": 2},
+        provenance_by_layer={"built-in": 5, "org": 2},
         skipped_profiles=skipped,
     )
     by_layer = {p.layer: p for p in packs}
     # builtin: 5 valid, 0 invalid → healthy
-    assert by_layer["builtin"].discovered_count == 5
-    assert by_layer["builtin"].healthy is True
+    assert by_layer["built-in"].discovered_count == 5
+    assert by_layer["built-in"].healthy is True
     # org: 2 valid + 1 invalid = 3 discovered → degraded
     assert by_layer["org"].discovered_count == 3
     assert by_layer["org"].valid_count == 2
@@ -152,15 +152,15 @@ def test_build_pack_health_groups_by_layer() -> None:
     assert by_layer["project"].discovered_count == 1
     assert by_layer["project"].healthy is False
     # Layer ordering is builtin, org, project.
-    assert [p.layer for p in packs] == ["builtin", "org", "project"]
+    assert [p.layer for p in packs] == ["built-in", "org", "project"]
 
 
 def test_build_pack_health_omits_empty_layers() -> None:
     packs = build_pack_health_by_layer(
-        provenance_by_layer={"builtin": 4},
+        provenance_by_layer={"built-in": 4},
         skipped_profiles=[],
     )
-    assert [p.layer for p in packs] == ["builtin"]
+    assert [p.layer for p in packs] == ["built-in"]
 
 
 # ---------------------------------------------------------------------------
@@ -586,7 +586,7 @@ def test_report_unhealthy_when_org_drg_has_errors() -> None:
     Even with all packs individually healthy, an org-DRG error must not be a
     blind spot (kills the ``all(...)``-only health computation).
     """
-    healthy_pack = PackHealth("builtin", "builtin", 2, 2)
+    healthy_pack = PackHealth("built-in", "built-in", 2, 2)
     report = CharterPackHealthReport(
         packs=[healthy_pack],
         org_drg={"configured_packs": [], "collision_warnings": [], "errors": ["boom"]},

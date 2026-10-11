@@ -281,7 +281,7 @@ class TestIncludeAllHatch:
                 return None
 
             def get_provenance(self, _id: str) -> str:
-                return "builtin"
+                return "built-in"
 
         inline = frozenset({"tactic:S"})  # deliberately treat S as *not* inline by default
         progressive = pd.collect_typed_artifacts(

@@ -48,6 +48,7 @@ class TestPackDescriptorModel:
             pack_version="1.0.0",
             parent_pack=parent_id,
             name="my-pack",
+            pack_level="built-in",
         )
 
         assert descriptor.pack_id == pack_id
@@ -56,13 +57,14 @@ class TestPackDescriptorModel:
         assert descriptor.name == "my-pack"
 
     def test_pack_descriptor_minimal(self) -> None:
-        """Create a PackDescriptor with required fields only."""
+        """Create a PackDescriptor with required fields only (built-in needs a version)."""
         pack_id = str(ULID())
 
         descriptor = PackDescriptor(
             pack_id=pack_id,
             pack_version="1.0.0",
             name="minimal-pack",
+            pack_level="built-in",
         )
 
         assert descriptor.pack_id == pack_id
@@ -76,6 +78,7 @@ class TestPackDescriptorModel:
             pack_id=str(ULID()),
             pack_version="1.0.0",
             name="immutable-pack",
+            pack_level="built-in",
         )
 
         with pytest.raises(ValidationError, match="frozen"):
@@ -87,14 +90,16 @@ class TestPackDescriptorModel:
             PackDescriptor(  # type: ignore[call-arg]
                 pack_version="1.0.0",
                 name="no-id-pack",
+                pack_level="built-in",
             )
 
-    def test_pack_descriptor_pack_version_required(self) -> None:
-        """pack_version is a required field."""
+    def test_pack_descriptor_pack_version_required_for_built_in(self) -> None:
+        """pack_version is required when pack_level is built-in (conditional, FR-005)."""
         with pytest.raises(ValidationError, match="pack_version"):
             PackDescriptor(  # type: ignore[call-arg]
                 pack_id=str(ULID()),
                 name="no-version-pack",
+                pack_level="built-in",
             )
 
     def test_pack_descriptor_name_required(self) -> None:
@@ -103,6 +108,7 @@ class TestPackDescriptorModel:
             PackDescriptor(  # type: ignore[call-arg]
                 pack_id=str(ULID()),
                 pack_version="1.0.0",
+                pack_level="built-in",
             )
 
     def test_pack_descriptor_extra_fields_rejected(self) -> None:
@@ -112,6 +118,7 @@ class TestPackDescriptorModel:
                 pack_id=str(ULID()),
                 pack_version="1.0.0",
                 name="no-extras",
+                pack_level="built-in",
                 extra_field="not allowed",
             )
 

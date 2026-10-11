@@ -105,7 +105,7 @@ class TestProceduresTypedArray:
         for entry in procedures:
             assert isinstance(entry, dict)
             assert isinstance(entry.get("id"), str) and entry["id"]
-            assert entry.get("source") in {"builtin", "org", "project"}
+            assert entry.get("source") in {"built-in", "org", "project"}
             assert entry.keys() >= _DECORATION_KEYS, f"procedure entry missing decoration: {sorted(entry.keys())}"
             assert isinstance(entry["references"], list)
             assert entry["delivery"] in {"inline", "link"}

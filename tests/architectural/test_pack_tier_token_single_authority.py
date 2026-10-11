@@ -1,4 +1,4 @@
-"""Single-authority gate for the Charter Pack tier token (#5825 / #5961).
+"""Single-authority gate for the Charter Pack tier token (#5825 / #5961 / #6048).
 
 Why this gate exists
 --------------------
@@ -22,24 +22,25 @@ The canonical token set is read from the authority itself
 (``frozenset(kernel.pack_tiers.PACK_TIERS)``), never hand-copied here -- the gate
 cannot drift from the thing it protects.
 
-Scope -- the canonical ``"built-in"`` spelling only (NFR-003)
-------------------------------------------------------------
-The gate recognises a tier-token display only in the canonical **hyphenated**
-spelling the authority enforces (``"built-in"``). The parallel no-hyphen
-``"builtin"`` provenance/layer/rank vocabulary -- ``base.BaseArtifactRepository``'s
-provenance value, ``agent_profiles``/``pack_skills`` rank maps and ``Tier``
-alias, and the ``_charter_pack_health`` layer-order tuple -- is a
-persisted-and-compared value frozen by NFR-003 (serialized into the charter
-context JSON, compared in-memory by many out-of-scope consumers, pinned by that
-spelling across the test suite). Those displays use ``"builtin"``, so they are
-NOT tier-token restatements of this authority and are deliberately out of scope
-(see :func:`test_gate_leaves_the_frozen_builtin_provenance_vocabulary_alone`).
-The gate does not police them; folding that vocabulary onto the authority is a
-separate, NFR-003-gated mission.
+Scope -- one unified ``"built-in"`` spelling (#6048, FR-019)
+-----------------------------------------------------------
+There is now a single spelling. The former no-hyphen ``"builtin"`` artifact
+provenance/layer/rank vocabulary -- ``base.BaseArtifactRepository``'s provenance
+value, the ``agent_profiles``/``pack_skills`` rank maps and ``Tier`` alias, and
+the ``_charter_pack_health`` layer-order tuple -- was folded onto this authority
+and now uses the canonical hyphenated ``"built-in"`` token, deriving from
+:data:`~kernel.pack_tiers.PACK_TIERS` / :data:`~kernel.pack_tiers.PackTier` /
+:data:`~kernel.pack_tiers.BUILT_IN` like every other tier-token display. So the
+gate polices that vocabulary too: a hand-authored ``"built-in"`` provenance
+restatement (a tuple, set, dict or ``Literal`` covering the full tier tuple) is
+now a violation, exactly like a tier-token mirror -- there is no longer a frozen
+no-hyphen carve-out. The NFR-003 carve-out that previously exempted the
+no-hyphen vocabulary is retired.
 
 Per the ratchet policy (Stijn, 2026-09-30) this gate closes with an **empty
 allowlist**: every canonical tier-token mirror was migrated in the WP04 mission
-rather than grandfathered. A new entry here is a regression, not a fix.
+rather than grandfathered, and the #6048 provenance fold added no new entry. A
+new entry here is a regression, not a fix.
 """
 
 from __future__ import annotations
@@ -254,15 +255,17 @@ def test_gate_leaves_legitimate_constructs_alone() -> None:
     assert _scan_source("X = tuple(PACK_TIERS)\n") == []
 
 
-def test_gate_leaves_the_frozen_builtin_provenance_vocabulary_alone() -> None:
-    """NFR-003: the no-hyphen ``"builtin"`` provenance vocabulary is out of scope.
+def test_gate_catches_a_planted_provenance_restatement() -> None:
+    """#6048 (FR-019): the provenance fold retired the no-hyphen carve-out.
 
-    ``base``/``agent_profiles``/``pack_skills`` emit and compare a persisted
-    ``"builtin"`` provenance/layer value frozen by NFR-003. Displays in that
-    spelling are a different vocabulary -- not tier-token restatements of this
-    authority -- so the gate must leave them alone, by construction.
+    The artifact provenance/layer vocabulary now uses the canonical
+    ``"built-in"`` spelling and derives from the authority. A hand-authored
+    provenance restatement in that spelling -- a rank map, a layer-order tuple,
+    the ``Tier`` alias, or a source set -- is therefore a full tier-token
+    restatement and must be flagged, exactly like a tier-token mirror. The
+    legacy no-hyphen ``"builtin"`` displays are no longer special.
     """
-    assert _scan_source('X = ("builtin", "org", "project")\n') == []
-    assert _scan_source('X = {"builtin": 0, "org": 1, "project": 2}\n') == []
-    assert _scan_source('Tier = Literal["builtin", "org", "project"]\n') == []
-    assert _scan_source('X = {"builtin", "org", "project"}\n') == []
+    assert _scan_source('X = ("built-in", "org", "project")\n')
+    assert _scan_source('X = {"built-in": 0, "org": 1, "project": 2}\n')
+    assert _scan_source('Tier = Literal["built-in", "org", "project"]\n')
+    assert _scan_source('X = {"built-in", "org", "project"}\n')

@@ -79,7 +79,7 @@ def test_directives_source_is_distinct_from_per_entry_source(tmp_path: Path, mon
     assert isinstance(entries, list)
     # Per-entry ``source`` is artifact-origin, a different vocabulary.
     per_entry_sources = {entry.get("source") for entry in entries}
-    assert per_entry_sources <= {"project", "builtin", "org"}
+    assert per_entry_sources <= {"project", "built-in", "org"}
     assert "catalog_fallback+project_local" not in per_entry_sources
 
 

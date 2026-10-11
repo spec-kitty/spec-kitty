@@ -219,7 +219,7 @@ class TestProjectOverrideRidesTheOverlay:
         profile = repo.get("software-dev")
         assert profile is not None
         assert profile.template_set == "software-dev-default"
-        assert repo.get_provenance("software-dev") == "builtin"
+        assert repo.get_provenance("software-dev") == "built-in"
 
 
 class TestOrgLayerPrecedence:
@@ -335,5 +335,5 @@ class TestOverrideRidesResolverEndToEnd:
         bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
 
         assert bundle.mission_type == "software-dev"
-        assert bundle.provenance == "builtin"
+        assert bundle.provenance == "built-in"
         assert "software-dev-default" in bundle.governance_text

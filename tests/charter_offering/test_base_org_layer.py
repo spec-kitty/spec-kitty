@@ -1,7 +1,7 @@
 """Unit tests for BaseArtifactRepository three-layer loading (T010).
 
 Tests verify:
-- shipped-only loads with provenance 'builtin'
+- shipped-only loads with provenance 'built-in'
 - org layer overrides shipped with provenance 'org'
 - org layer adds new artifact with provenance 'org'
 - project layer overrides org with provenance 'project'
@@ -61,7 +61,7 @@ def _directive_data(
 
 
 class TestShippedOnlyProvenance:
-    """Shipped-only repository: all artifacts tagged 'builtin'."""
+    """Shipped-only repository: all artifacts tagged 'built-in'."""
 
     def test_shipped_only_provenance(self, tmp_path: Path) -> None:
         shipped = tmp_path / "built-in"
@@ -70,7 +70,7 @@ class TestShippedOnlyProvenance:
         repo = DirectiveRepository(built_in_dir=shipped)
 
         assert repo.get("DIRECTIVE_001") is not None
-        assert repo.get_provenance("DIRECTIVE_001") == "builtin"
+        assert repo.get_provenance("DIRECTIVE_001") == "built-in"
 
     def test_get_provenance_unknown_id_returns_none(self, tmp_path: Path) -> None:
         shipped = tmp_path / "built-in"
@@ -141,7 +141,7 @@ class TestOrgAddsNewArtifact:
         repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[org])
 
         assert repo.get("DIRECTIVE_001") is not None
-        assert repo.get_provenance("DIRECTIVE_001") == "builtin"
+        assert repo.get_provenance("DIRECTIVE_001") == "built-in"
 
         assert repo.get("DIRECTIVE_002") is not None
         assert repo.get_provenance("DIRECTIVE_002") == "org"
@@ -208,7 +208,7 @@ class TestProjectOverridesShippedNoOrg:
         repo = DirectiveRepository(built_in_dir=shipped, project_dir=project)
 
         assert repo.get_provenance("DIRECTIVE_001") == "project"
-        assert repo.get_provenance("DIRECTIVE_002") == "builtin"
+        assert repo.get_provenance("DIRECTIVE_002") == "built-in"
 
 
 class TestBadOrgFileSkipped:
@@ -228,7 +228,7 @@ class TestBadOrgFileSkipped:
 
         # Shipped item intact
         assert repo.get("DIRECTIVE_001") is not None
-        assert repo.get_provenance("DIRECTIVE_001") == "builtin"
+        assert repo.get_provenance("DIRECTIVE_001") == "built-in"
 
         # Valid org item loaded
         assert repo.get("DIRECTIVE_002") is not None
@@ -336,7 +336,7 @@ class TestProjectNewArtifactProvenance:
         repo = DirectiveRepository(built_in_dir=shipped, project_dir=project)
 
         assert repo.get("DIRECTIVE_001") is not None
-        assert repo.get_provenance("DIRECTIVE_001") == "builtin"
+        assert repo.get_provenance("DIRECTIVE_001") == "built-in"
 
         assert repo.get("DIRECTIVE_002") is not None
         assert repo.get_provenance("DIRECTIVE_002") == "project"
@@ -352,7 +352,7 @@ class TestProjectNewArtifactProvenance:
 
         repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[org], project_dir=project)
 
-        assert repo.get_provenance("DIRECTIVE_001") == "builtin"
+        assert repo.get_provenance("DIRECTIVE_001") == "built-in"
         assert repo.get_provenance("DIRECTIVE_002") == "org"
         assert repo.get_provenance("DIRECTIVE_003") == "project"
 
@@ -388,7 +388,7 @@ class TestOrgDirNotExists:
         repo = DirectiveRepository(built_in_dir=shipped, org_dirs=[nonexistent_org])
 
         assert repo.get("DIRECTIVE_001") is not None
-        assert repo.get_provenance("DIRECTIVE_001") == "builtin"
+        assert repo.get_provenance("DIRECTIVE_001") == "built-in"
 
 
 class TestArtifactLayerCollisionWarning:
@@ -420,7 +420,7 @@ class TestArtifactLayerCollisionWarning:
         assert len(collision_msgs) == 1, collision_msgs
         msg = collision_msgs[0]
         assert "org" in msg
-        assert "builtin" in msg
+        assert "built-in" in msg
         assert "shadowed" in msg
         # title was replaced; other fields inherited
         assert "field" in msg
@@ -456,7 +456,7 @@ class TestArtifactLayerCollisionWarning:
         messages = [str(w.message) for w in record]
         # We expect both org-over-shipped and project-over-org collisions surfaced.
         assert any("project" in m and "org" in m for m in messages)
-        assert any("org" in m and "builtin" in m for m in messages)
+        assert any("org" in m and "built-in" in m for m in messages)
 
     def test_project_shadows_builtin_when_no_org(self, tmp_path: Path) -> None:
         from charter.offering.base import ArtifactLayerCollisionWarning
@@ -479,7 +479,7 @@ class TestArtifactLayerCollisionWarning:
             DirectiveRepository(built_in_dir=shipped, project_dir=project)
 
         messages = [str(w.message) for w in record]
-        assert any("project" in m and "builtin" in m for m in messages)
+        assert any("project" in m and "built-in" in m for m in messages)
 
     def test_no_warning_when_no_collision(self, tmp_path: Path) -> None:
         from charter.offering.base import ArtifactLayerCollisionWarning
@@ -611,7 +611,7 @@ class TestMergeAndInsertOverlayItemDirect:
         )
 
         assert "my-tactic" in repo._scope_filtered_ids
-        assert repo.get_provenance("my-tactic") == "builtin"
+        assert repo.get_provenance("my-tactic") == "built-in"
 
     def test_insert_overlay_item_scope_filtered_excludes_new_item(
         self, tmp_path: Path

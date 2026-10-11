@@ -74,11 +74,16 @@ def test_loader_rejects_the_field_with_code_file_field_and_replacement(tmp_path:
 
 
 def test_loader_reads_a_descriptor_without_the_field(tmp_path: Path) -> None:
+    # Behaviour legitimately changed (pack-level-declared-in-pack-yaml): the
+    # model now requires ``pack_level``. During the FR-007 deprecation window a
+    # field-less *file* still loads when the position-aware caller supplies the
+    # configured tier (``inferred_level``); the model field stays strictly
+    # required for a direct ``PackDescriptor(...)`` construction (WP01's pin).
     path = _pack(tmp_path / "p", CLEAN) / "pack.yaml"
 
-    descriptor = load_pack_descriptor(path)
+    descriptor = load_pack_descriptor(path, inferred_level="org")
 
-    assert descriptor == PackDescriptor(pack_id="01ARWG13C000000000000000FG", pack_version="1.0.0", name="acme")
+    assert descriptor == PackDescriptor(pack_id="01ARWG13C000000000000000FG", pack_version="1.0.0", name="acme", pack_level="org")
     assert not hasattr(descriptor, FIELD)
 
 
@@ -91,8 +96,10 @@ def test_an_unrelated_unknown_field_keeps_pydantics_generic_error(tmp_path: Path
     """Positive control: the retired-field check is specific to the table's fields."""
     path = _pack(tmp_path / "p", f"{CLEAN}colour: blue\n") / "pack.yaml"
 
+    # Supply the window position so ``pack_level`` is satisfied and the SOLE
+    # remaining schema fault is the unknown ``colour`` field (the control's point).
     with pytest.raises(ValidationError) as caught:
-        load_pack_descriptor(path)
+        load_pack_descriptor(path, inferred_level="org")
 
     assert not isinstance(caught.value, RetiredPackFieldError)
     assert caught.value.errors()[0]["type"] == "extra_forbidden"
@@ -148,8 +155,13 @@ def test_validator_reports_the_retired_field(tmp_path: Path) -> None:
 
 
 def test_validator_accepts_a_clean_descriptor(tmp_path: Path) -> None:
+    # CLEAN omits the now-required ``pack_level``. During the window that is a
+    # PACK_LEVEL_MISSING *advisory*, never an error, so the pack still validates
+    # (no pack error) — the window tolerance of pack-level-declared-in-pack-yaml.
     pack_dir = _pack(tmp_path / "p", CLEAN)
     assert _descriptor_errors(pack_dir) == []
+    result = validate_pack(pack_dir, check_drg_root=False)
+    assert [issue.category for issue in result.advisories if issue.artifact_type == "pack"] == ["PACK_LEVEL_MISSING"]
 
 
 def test_validator_skips_a_pack_without_a_descriptor(tmp_path: Path) -> None:

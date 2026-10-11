@@ -133,7 +133,7 @@ class TestMalformedProfileIsObservable:
         # Assert: the malformed file is recorded, not silently dropped, and
         # the loader still surfaces the valid sibling.
         assert len(skipped) == 1
-        assert skipped[0].layer == "builtin"
+        assert skipped[0].layer == "built-in"
         assert skipped[0].error_summary
         assert [p.profile_id for p in loaded] == ["good"]
 
@@ -158,10 +158,10 @@ class TestMalformedProfileIsObservable:
         from specify_cli.cli.commands._charter_pack_health import build_pack_health_by_layer
 
         packs = build_pack_health_by_layer(
-            provenance_by_layer={"builtin": len(repo.list_all())},
+            provenance_by_layer={"built-in": len(repo.list_all())},
             skipped_profiles=skipped,
         )
 
         # Assert
-        builtin_pack = next(pack for pack in packs if pack.layer == "builtin")
+        builtin_pack = next(pack for pack in packs if pack.layer == "built-in")
         assert builtin_pack.healthy is False, "a pack with an invalid profile must never be reported healthy, even though the one valid profile loaded correctly"

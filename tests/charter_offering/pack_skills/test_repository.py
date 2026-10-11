@@ -41,7 +41,7 @@ def test_loads_three_tiers_with_provenance_and_body(skill_dirs: dict[str, Path])
 
     assert warned == []
     assert [item.id for item in repo.list_all()] == ["core-skill", "land-pr", "ship"]
-    assert repo.provenance_of("core-skill") == "builtin"
+    assert repo.provenance_of("core-skill") == "built-in"
     assert repo.provenance_of("land-pr") == "org"
     assert repo.provenance_of("ship") == "project"
     assert repo.body_text("land-pr") == "landing body\n"

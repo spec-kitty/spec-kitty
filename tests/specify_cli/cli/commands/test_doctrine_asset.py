@@ -68,7 +68,7 @@ def test_asset_path_json_carries_id_path_and_tier() -> None:
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
     assert payload["id"] == _SHIPPED_ASSET_ID
-    assert payload["tier"] == "builtin"
+    assert payload["tier"] == "built-in"
     assert payload["path"].endswith("docs_structural_lint.py")
 
 
@@ -120,7 +120,7 @@ def test_asset_list_includes_shipped_asset_and_tier() -> None:
     )
     assert result.exit_code == 0, result.output
     assert _SHIPPED_ASSET_ID in result.output
-    assert "builtin" in result.output
+    assert "built-in" in result.output
 
 
 def test_asset_list_json_is_a_record_list() -> None:
@@ -134,7 +134,7 @@ def test_asset_list_json_is_a_record_list() -> None:
     payload = json.loads(result.stdout)
     assert isinstance(payload, list)
     shipped = next(row for row in payload if row["id"] == _SHIPPED_ASSET_ID)
-    assert shipped["tier"] == "builtin"
+    assert shipped["tier"] == "built-in"
     assert shipped["path"].endswith("docs_structural_lint.py")
 
 

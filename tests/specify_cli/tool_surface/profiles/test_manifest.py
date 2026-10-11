@@ -24,7 +24,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def _entry(slug: str, file_hash: str | None = "deadbeef") -> NativeAgentProfile:
     return NativeAgentProfile(
         profile_urn=f"agent_profile:{slug}",
-        source_layer="builtin",
+        source_layer="built-in",
         tool_key="claude",
         output_path=Path(f"/project/.claude/agents/{slug}.md"),
         format="claude-agent",
@@ -41,7 +41,7 @@ def _provenance_entry(
 ) -> NativeAgentProfile:
     return NativeAgentProfile(
         profile_urn=f"agent_profile:{slug}",
-        source_layer="builtin",
+        source_layer="built-in",
         tool_key="claude",
         output_path=Path(f"/project/.claude/agents/{slug}.md"),
         format="claude-agent",
@@ -141,7 +141,7 @@ def _write_legacy_six_field_manifest(tmp_path: Path) -> Path:
         "entries": [
             {
                 "profile_urn": "agent_profile:legacy-larry",
-                "source_layer": "builtin",
+                "source_layer": "built-in",
                 "tool_key": "claude",
                 "output_path": "/project/.claude/agents/legacy-larry.md",
                 "format": "claude-agent",
@@ -219,7 +219,7 @@ def test_in_tree_output_path_serializes_relative(tmp_path: Path) -> None:
     manifest.record(
         NativeAgentProfile(
             profile_urn="agent_profile:architect-alphonso",
-            source_layer="builtin",
+            source_layer="built-in",
             tool_key="claude",
             output_path=output_path,
             format="claude-agent",
@@ -257,7 +257,7 @@ def test_legacy_absolute_manifest_under_different_project_root_still_resolves(
         "entries": [
             {
                 "profile_urn": "agent_profile:legacy-larry",
-                "source_layer": "builtin",
+                "source_layer": "built-in",
                 "tool_key": "claude",
                 "output_path": str(real_target),
                 "format": "claude-agent",
@@ -287,7 +287,7 @@ def test_get_hash_finds_entry_by_absolute_path_after_relative_roundtrip(
     manifest.record(
         NativeAgentProfile(
             profile_urn="agent_profile:planner-priti",
-            source_layer="builtin",
+            source_layer="built-in",
             tool_key="claude",
             output_path=output_path,
             format="claude-agent",
@@ -317,7 +317,7 @@ def test_out_of_tree_output_path_serializes_absolute_and_roundtrips(
     manifest.record(
         NativeAgentProfile(
             profile_urn="agent_profile:out-of-tree-otto",
-            source_layer="builtin",
+            source_layer="built-in",
             tool_key="claude",
             output_path=output_path,
             format="claude-agent",

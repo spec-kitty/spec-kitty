@@ -255,7 +255,7 @@ class TestDiagnosticControls:
         service = build_active_charter_service(tmp_path)
         _ = service.agent_profiles
         canonical = service.agent_profile_repository.skipped_profiles()
-        assert {item.layer for item in canonical} == {"builtin", "org", "project"}
+        assert {item.layer for item in canonical} == {"built-in", "org", "project"}
         expected = tuple(sorted((item for item in canonical if item.layer == "org"), key=lambda item: item.path))
         assert len(expected) == 2
         assert all(item.profile_id is None and item.error_summary for item in expected)

@@ -169,7 +169,7 @@ class TestSelectionBlockSeam:
     def test_collect_org_source_map_flags_org_provenance(self) -> None:
         class _Repo:
             def get_provenance(self, artifact_id: str) -> str:
-                return "org" if artifact_id == "org-one" else "builtin"
+                return "org" if artifact_id == "org-one" else "built-in"
 
         result = selection_block._collect_org_source_map(
             _Repo(), ["org-one", "builtin-one"]

@@ -51,7 +51,7 @@ def test_loads_shipped_builtin_asset_from_package_data() -> None:
     """The one shipped asset is discovered from package data, builtin-tagged."""
     repo = AssetRepository()
     assert repo.get(_SHIPPED_ASSET_ID) is not None
-    assert repo.get_provenance(_SHIPPED_ASSET_ID) == "builtin"
+    assert repo.get_provenance(_SHIPPED_ASSET_ID) == "built-in"
 
 
 def test_source_path_tracks_the_declaring_manifest(tmp_path: Path) -> None:

@@ -59,12 +59,15 @@ _OWNED_SOURCE_MODULES = (
 
 _AUTHORED_FILENAMES = frozenset({"pack.yaml", "pack.md"})
 
-# The exact PackDescriptor field set (data-model.md) -- authored pack.yaml
-# must carry exactly these keys, no more (a generated-manifest field like
-# ``constituents``/``schema_version``/``manifest_hash`` leaking in would be a
-# split-boundary violation) and no fewer.
+# The exact PackDescriptor field set the built-in pack authors (data-model.md
+# + FR-018) -- authored pack.yaml must carry exactly these keys, no more (a
+# generated-manifest field like ``constituents``/``schema_version``/
+# ``manifest_hash`` leaking in would be a split-boundary violation) and no
+# fewer. ``pack_level`` is required of every pack (FR-011); the built-in pack
+# stays otherwise minimal -- it does NOT author the optional ``requires_core``/
+# pointer fields, which have no bearing on its sharded convention.
 _PACK_DESCRIPTOR_FIELDS = frozenset(
-    {"pack_id", "pack_version", "parent_pack", "name"}
+    {"pack_id", "pack_version", "parent_pack", "name", "pack_level"}
 )
 
 

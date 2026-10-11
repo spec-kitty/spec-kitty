@@ -191,7 +191,7 @@ class TestAgentProfileCollisionWarning:
         msgs = [str(w.message) for w in record]
         pedro_msgs = [m for m in msgs if "python-pedro" in m]
         assert pedro_msgs, msgs
-        assert any("project" in m and "builtin" in m for m in pedro_msgs)
+        assert any("project" in m and "built-in" in m for m in pedro_msgs)
         assert any("agent_profile" in m for m in pedro_msgs)
 
     def test_no_warning_for_distinct_project_profile(
@@ -970,7 +970,7 @@ class TestAgentProfileRepositoryLoader:
         repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
         assert repo.get("good") is not None
         assert repo.get("bad") is None
-        assert any(s.layer == "builtin" for s in repo.skipped_profiles())
+        assert any(s.layer == "built-in" for s in repo.skipped_profiles())
 
     def test_skip_recorded_once_per_invalid_shipped_file(self, tmp_path: Path):
         """A single invalid built-in file produces exactly one skip record on load."""
@@ -978,7 +978,7 @@ class TestAgentProfileRepositoryLoader:
         shipped.mkdir()
         (shipped / "bad.agent.yaml").write_text("invalid: yaml: {")
         repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
-        builtin_skips = [s for s in repo.skipped_profiles() if s.layer == "builtin"]
+        builtin_skips = [s for s in repo.skipped_profiles() if s.layer == "built-in"]
         assert {s.path for s in builtin_skips} == {str(shipped / "bad.agent.yaml")}
 
     def test_invalid_project_yaml_is_recorded(
@@ -1399,7 +1399,7 @@ class TestParseProfileFromFileDirect:
         valid_file.write_text(minimal_profile_yaml, encoding="utf-8")
 
         result = repo._parse_profile_from_file(
-            YAML(typ="safe"), valid_file, layer="builtin", built_in_profiles={}
+            YAML(typ="safe"), valid_file, layer="built-in", built_in_profiles={}
         )
 
         assert result is not None

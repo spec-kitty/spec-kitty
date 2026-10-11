@@ -131,7 +131,7 @@ class TestGlossaryPackHealthModel:
 
     def test_report_nests_glossary_pack_health_and_folds_into_healthy(self) -> None:
         agent_pack = PackHealth(
-            pack_id="builtin", layer="builtin", discovered_count=1, valid_count=1
+            pack_id="built-in", layer="built-in", discovered_count=1, valid_count=1
         )
 
         healthy_report = CharterPackHealthReport(
@@ -169,7 +169,7 @@ class TestGlossaryPackHealthModel:
         report = CharterPackHealthReport(
             packs=[
                 PackHealth(
-                    pack_id="builtin", layer="builtin", discovered_count=1, valid_count=1
+                    pack_id="built-in", layer="built-in", discovered_count=1, valid_count=1
                 )
             ]
         )

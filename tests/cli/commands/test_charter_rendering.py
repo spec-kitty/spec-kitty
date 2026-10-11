@@ -324,8 +324,8 @@ def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> Non
         # requested on this invocation.
         assert include_all is False
         return {
-            "directives": [{"id": "DIRECTIVE_001", "source": "builtin"}],
-            "all_directives": [{"id": "DIRECTIVE_001", "source": "builtin"}],
+            "directives": [{"id": "DIRECTIVE_001", "source": "built-in"}],
+            "all_directives": [{"id": "DIRECTIVE_001", "source": "built-in"}],
             "tactics": [],
             "styleguides": [],
             "toolguides": [],
@@ -359,7 +359,7 @@ def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> Non
     assert result.exit_code == 0
     payload = json.loads(result.output)
     assert payload["mode"] == "bootstrap"
-    assert payload["directives"] == [{"id": "DIRECTIVE_001", "source": "builtin"}]
+    assert payload["directives"] == [{"id": "DIRECTIVE_001", "source": "built-in"}]
     assert payload["governance_references"] == [
         {
             "path": "docs/missing-governance.md",

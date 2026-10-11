@@ -132,10 +132,10 @@ def test_wrapper_skill_keeps_its_builtin_target_unresolved() -> None:
 
 
 def test_builtin_skill_renders_under_its_bare_id_without_a_namespace() -> None:
-    source = FakeSource().add(_skill("spk-demo"), "builtin")
+    source = FakeSource().add(_skill("spk-demo"), "built-in")
     (prepared,) = _prepare(source, ["spk-demo"], org=None, project=None)
     assert prepared.rendered_name == "spk-demo"
-    assert prepared.tier == "builtin"
+    assert prepared.tier == "built-in"
 
 
 def test_project_skill_uses_the_project_namespace() -> None:

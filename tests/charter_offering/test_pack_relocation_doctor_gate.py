@@ -100,7 +100,7 @@ def test_doctor_charter_packs_reports_full_health(bare_project_root: Path) -> No
     assert profile_health["healthy"] is True
 
     builtin_pack = next(
-        p for p in profile_health["packs"] if p["layer"] == "builtin"
+        p for p in profile_health["packs"] if p["layer"] == "built-in"
     )
     # 25/25 profiles valid, skipped/invalid profiles empty.
     assert builtin_pack["discovered_count"] == EXPECTED_PROFILE_COUNT

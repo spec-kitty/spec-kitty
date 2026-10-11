@@ -81,7 +81,7 @@ def _resolved_mission_type(
         mission_type=mission_type,
         governance_text="",
         action_sequence=[],
-        provenance="builtin",
+        provenance="built-in",
         _template_set_thunk=lambda: mapping,
     )
 
@@ -238,7 +238,7 @@ class TestConfiguredTemplateResolution:
             mission_type="documentation",
             governance_text="",
             action_sequence=[],
-            provenance="builtin",
+            provenance="built-in",
             _template_set_thunk=lambda: template_set,
         )
 

@@ -367,7 +367,21 @@ categories:
       and by the WP06 reconciliation test suite (tests/consolidation/test_reconciliation.py), not yet
       imported from a second src/ module. External consumers land with the Epic #5001 follow-ups.'
     requires_issue: false
+  category_c_wp_in_flight_vendoring_3504:
+    rationale: 'C. #6046 vendoring prerequisites, library-first for #3504. ``clean_tree_digest``
+      (pack_clean_digest) and ``check_requires_core`` (core_compat) are the public tooling the
+      open-packs vendor/drift pipeline (#3504) will call; spec FR-014/FR-015 provision them "do not
+      change core''s own behaviour", so they have no in-core src/ caller yet and are exercised by their
+      unit suites (tests/charter_offering/test_pack_clean_digest.py, test_requires_core_check.py).
+      Drains when #3504 wires them. Follow-up: #3504.'
+    requires_issue: false
 entries:
+- module: charter.offering.packs.pack_clean_digest
+  name: clean_tree_digest
+  category: category_c_wp_in_flight_vendoring_3504
+- module: charter.offering.packs.core_compat
+  name: check_requires_core
+  category: category_c_wp_in_flight_vendoring_3504
 - module: charter.activation._catalog_miss
   name: CharterCatalogMissError
   category: category_a_slice_f_deferred

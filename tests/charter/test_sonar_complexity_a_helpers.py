@@ -247,7 +247,7 @@ class TestOrgLayerHelpers:
                 return [_StubArtifact("DIRECTIVE_001"), _StubArtifact("DIRECTIVE_002")]
 
         org_repo = _StubListingRepo(
-            {"DIRECTIVE_001": "org", "DIRECTIVE_002": "builtin"}
+            {"DIRECTIVE_001": "org", "DIRECTIVE_002": "built-in"}
         )
         built_in_repo = _StubBuiltinRepo({"DIRECTIVE_001", "DIRECTIVE_002"})
 

@@ -144,7 +144,7 @@ def test_collect_layer_collisions_reports_glossary_pack_shadowing(tmp_path: Path
     assert glossary_hits, f"expected a glossary_pack collision, got {collisions!r}"
     hit = glossary_hits[0]
     assert hit["higher_layer"] == "org"
-    assert hit["lower_layer"] == "builtin"
+    assert hit["lower_layer"] == "built-in"
     assert "glossary" in str(hit["kind"]).lower()
 
 
@@ -219,7 +219,7 @@ def test_doctor_charter_packs_json_emits_collisions_array(tmp_path: Path) -> Non
     # Schema sanity: each entry carries the expected fields.
     match = next(c for c in payload["collisions"] if c["item_id"] == built_in_id)
     assert match["higher_layer"] == "org"
-    assert match["lower_layer"] == "builtin"
+    assert match["lower_layer"] == "built-in"
     assert match["kind"] == "directive"
     assert isinstance(match["replaced"], int)
     assert isinstance(match["inherited"], int)

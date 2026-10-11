@@ -54,14 +54,14 @@ def test_reserved_prefix_refused_through_namespace(tmp_path: Path) -> None:
 
 def test_builtin_tier_is_exempt_from_reserved_prefix(tmp_path: Path) -> None:
     skill, path = _load(prompt_skill("spk-land"), tmp_path)
-    validate_pack_skill(skill, path, tier="builtin")
-    validate_pack_skill(skill, path, tier="builtin", namespace="spk")
+    validate_pack_skill(skill, path, tier="built-in")
+    validate_pack_skill(skill, path, tier="built-in", namespace="spk")
 
 
 def test_builtin_tier_is_exempt_from_scripts_and_frontmatter(tmp_path: Path) -> None:
     skill, path = _load(prompt_skill(), tmp_path, body="---\nallowed-tools: Bash\n---\nbody\n")
     (tmp_path / "scripts").mkdir()
-    validate_pack_skill(skill, path, tier="builtin")
+    validate_pack_skill(skill, path, tier="built-in")
 
 
 @pytest.mark.parametrize("relative", ["scripts", "land-pr/scripts"])
@@ -86,7 +86,7 @@ def test_harmless_frontmatter_is_allowed(tmp_path: Path) -> None:
 
 def test_missing_body_refused_for_every_tier(tmp_path: Path) -> None:
     skill, path = _load(prompt_skill(), tmp_path, body=None)
-    tiers: tuple[Tier, ...] = ("builtin", "org")
+    tiers: tuple[Tier, ...] = ("built-in", "org")
     for tier in tiers:
         with pytest.raises(PackSkillViolation, match="not found"):
             validate_pack_skill(skill, path, tier=tier)

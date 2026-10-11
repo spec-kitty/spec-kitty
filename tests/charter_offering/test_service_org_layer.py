@@ -180,7 +180,7 @@ class TestOrgRootMissingOnDisk:
         service = CharterOfferingService(org_roots=[tmp_path / "nonexistent"])
 
         assert service.directives.get("DIRECTIVE_001") is not None
-        assert service.directives.get_provenance("DIRECTIVE_001") == "builtin"
+        assert service.directives.get_provenance("DIRECTIVE_001") == "built-in"
 
 
 class TestOrgRootArtifactsResolved:
@@ -394,7 +394,7 @@ class TestMultiplePackPrecedence:
         assert ids == {"DIRECTIVE_001", "DIRECTIVE_SEC", "DIRECTIVE_COMP"}
         assert service.directives.get_provenance("DIRECTIVE_SEC") == "org"
         assert service.directives.get_provenance("DIRECTIVE_COMP") == "org"
-        assert service.directives.get_provenance("DIRECTIVE_001") == "builtin"
+        assert service.directives.get_provenance("DIRECTIVE_001") == "built-in"
 
     def test_three_pack_chain_last_wins(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

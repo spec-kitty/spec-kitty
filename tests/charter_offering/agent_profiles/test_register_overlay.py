@@ -39,7 +39,7 @@ def _make_profile(profile_id: str, *, name: str) -> AgentProfile:
 def test_org_overlay_replaces_builtin() -> None:
     """An org overlay of a built-in id wins (org outranks builtin)."""
     repo = AgentProfileRepository()
-    assert repo.get_provenance("python-pedro") == "builtin"
+    assert repo.get_provenance("python-pedro") == "built-in"
 
     org = _make_profile("python-pedro", name="Org Pedro")
     src = Path("/org/python-pedro.agent.yaml")

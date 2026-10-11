@@ -831,7 +831,7 @@ class TestBuildContextV2:
             patch("charter.activation.context._build_offering_service", side_effect=RuntimeError("no service")),
         ):
             assert _project_directive_entries(tmp_path) == [
-                {"id": "DIRECTIVE_001", "source": "builtin"}
+                {"id": "DIRECTIVE_001", "source": "built-in"}
             ]
 
         directive = SimpleNamespace(id="DIR-LOCAL", title="Local", description="")
@@ -853,7 +853,7 @@ class TestBuildContextV2:
                 title="Catalog directive",
                 intent="Catalog intent",
             ),
-            get_provenance=lambda _artifact_id: "builtin",
+            get_provenance=lambda _artifact_id: "built-in",
         )
         with (
             patch(
@@ -872,7 +872,7 @@ class TestBuildContextV2:
             assert _project_directive_entries(tmp_path) == [
                 {
                     "id": "DIRECTIVE_002",
-                    "source": "builtin",
+                    "source": "built-in",
                     "title": "Catalog directive",
                     "summary": "Catalog intent",
                 }

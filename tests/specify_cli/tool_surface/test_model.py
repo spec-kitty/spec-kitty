@@ -68,11 +68,11 @@ def test_surface_plan_accepts_empty_instances() -> None:
 def test_native_agent_profile_fields() -> None:
     profile = NativeAgentProfile(
         profile_urn="agent_profile:architect-alphonso",
-        source_layer="builtin",
+        source_layer="built-in",
         tool_key="claude",
         output_path=Path(".claude/agents/architect-alphonso.md"),
         format="markdown",
         file_hash=None,
     )
-    assert profile.source_layer == "builtin"
+    assert profile.source_layer == "built-in"
     assert profile.tool_key == "claude"

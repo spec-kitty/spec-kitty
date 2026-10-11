@@ -892,7 +892,7 @@ class TestOrgTierGovernanceProfileThreading:
 
         # BEFORE: no org pack configured at all — shipped baseline only.
         before = resolve_mission_type_context(tmp_path, mission_type="software-dev")
-        assert before.provenance == "builtin"
+        assert before.provenance == "built-in"
         assert "software-dev-default" in before.governance_text
         assert _ORG_OVERRIDE_TEMPLATE_SET not in before.governance_text
 

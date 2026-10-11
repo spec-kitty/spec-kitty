@@ -117,7 +117,7 @@ class TestExcludedCallersByteUnchanged:
         manifest.record(
             NativeAgentProfile(
                 profile_urn="agent_profile:example",
-                source_layer="builtin",
+                source_layer="built-in",
                 tool_key="claude",
                 output_path=output_path,
                 format="markdown",

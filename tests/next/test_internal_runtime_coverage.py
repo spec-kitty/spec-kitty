@@ -650,7 +650,7 @@ def test_build_tiers_inserts_org_tier_after_project_legacy_before_user_global(
         "org",
         "user_global",
         "project_config",
-        "builtin",
+        "built-in",
     ]
     org_tier = next(t for t in tiers if t[0] == "org")
     assert org_tier[2] == [org_root]
@@ -663,7 +663,7 @@ def test_build_tiers_org_tier_present_even_without_project_dir(tmp_path: Path) -
     tier itself is harmless there since org_roots is empty by construction)."""
     ctx = DiscoveryContext(user_home=tmp_path / "home")
     names = [t[0] for t in discovery_mod._build_tiers(ctx)]
-    assert names == ["explicit", "env", "org", "user_global", "builtin"]
+    assert names == ["explicit", "env", "org", "user_global", "built-in"]
 
 
 def test_discover_missions_with_warnings_selects_org_tier_mission(tmp_path: Path) -> None:

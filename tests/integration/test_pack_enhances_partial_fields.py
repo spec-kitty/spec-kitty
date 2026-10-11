@@ -212,4 +212,4 @@ class TestPartialOverrideThroughRepositoryLoader:
         assert tuple(merged.failure_modes) == _BUILT_IN_FAILURE_MODES
         assert tuple(merged.applies_to_languages) == _BUILT_IN_LANGUAGES
 
-        assert repo.get_provenance(_BUILT_IN_TACTIC_ID) == "builtin"
+        assert repo.get_provenance(_BUILT_IN_TACTIC_ID) == "built-in"

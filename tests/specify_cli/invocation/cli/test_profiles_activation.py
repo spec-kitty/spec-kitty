@@ -285,7 +285,7 @@ class TestShowRenderAndGate:
             "warnings",
         ):
             assert key in payload
-        assert payload["source_layer"] == "builtin"
+        assert payload["source_layer"] == "built-in"
         assert payload["warnings"] == []
 
     def test_show_json_is_sorted_key(self, tmp_path: Path) -> None:

@@ -44,7 +44,7 @@ def test_project_claude_returns_builtin_profiles() -> None:
     sample = projected[0]
     assert sample.tool_key == "claude"
     assert sample.format == "claude-agent"
-    assert sample.source_layer == "builtin"
+    assert sample.source_layer == "built-in"
     assert sample.file_hash is None  # computed only after write
 
 
@@ -72,7 +72,7 @@ def test_project_excludes_sentinel_profiles() -> None:
 def test_project_source_layer_filter() -> None:
     projector = ProfileProjector(_builtin_repo())
     builtin_only = projector.project(
-        "claude", Path("/project"), source_layers=["builtin"]
+        "claude", Path("/project"), source_layers=["built-in"]
     )
     org_only = projector.project(
         "claude", Path("/project"), source_layers=["org"]

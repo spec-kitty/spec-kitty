@@ -806,7 +806,7 @@ class TestOrgProvenance:
         sg = _DummyStyleguide(title="Built-in", principles=["BI"])
         repo = _StubRepo(
             items={"builtin-sg": sg},
-            provenance={"builtin-sg": "builtin"},
+            provenance={"builtin-sg": "built-in"},
         )
         org_map = _collect_org_source_map(repo, ["builtin-sg"])
         assert org_map == {}

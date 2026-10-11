@@ -32,7 +32,7 @@ class _Repo:
 def _pack() -> GlossaryPack:
     return GlossaryPack(
         id="spec-kitty-core",
-        provenance="builtin",
+        provenance="built-in",
         description="Core Spec Kitty terminology.",
         terms=[
             GlossaryTerm(

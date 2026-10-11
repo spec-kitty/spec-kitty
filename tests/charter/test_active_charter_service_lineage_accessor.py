@@ -97,7 +97,7 @@ class TestGetProvenanceIsReadOnlyOnRawRepository:
         inner = CharterOfferingService()
         wrapped = ActiveCharterService(inner, pack_context=None)
 
-        assert wrapped.agent_profile_repository.get_provenance(profile_id) == "builtin"
+        assert wrapped.agent_profile_repository.get_provenance(profile_id) == "built-in"
 
     def test_returns_none_for_an_unknown_profile(self) -> None:
         inner = CharterOfferingService()
