@@ -1,0 +1,158 @@
+{
+  "event_count": 28,
+  "last_event_id": "01M4P3SHSEK93WH6XEE0WMRS84",
+  "materialized_at": "2026-10-11T18:32:23.086683+00:00",
+  "mission_number": "228",
+  "mission_slug": "govern-user-content-safety-01M4NWGM",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P3S5ME62P792VXKR1070FB",
+      "last_transition_at": "2026-10-11T18:32:10.638538+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Three red-first repros landed (c8b5cbc); all red for the issue reason, verified on observable git state.",
+        "3 reds verified for the right reason on real git state: #5964 team skill untracked+staged-D by indiscriminate backfill, #5434 .spec-kitty/ shows in status --porcelain, #4796 target+push advance before dirty-worktree refusal (invariant assert passes, timing asserts red). Falsifiable (real consolidate_mission, no _execute_lane_merge mock); no suppressions/skips/xfail; ruff+format clean; mypy clean on authored files; only the 3 owned files changed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261011",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 24636,
+      "shell_pid_created_at": "1791739028.03",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      },
+      "tracker_refs": [
+        "5964",
+        "5434",
+        "4796"
+      ]
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P3S9YSMQQKVKTKYPSTPV7H",
+      "last_transition_at": "2026-10-11T18:32:15.065649+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Fix d13a5089; pre-review gate skipped (make test-fast times out on this runner — CI-env artifact; regression covered by the 711-passed targeted run, independent review, and CI). #5964 repro green; #5443 re-pinned 7 passed.",
+        "Ownership scoping reuses canonical authority (C-001): delegates to command_installer._is_canonical_rel_path/CANONICAL_COMMANDS + reads both skills manifests via manifest_store.load & load_skills_manifest; team content stays tracked; is_self_bookkeeping_churn untouched. Fail-closed verified (contextlib.suppress(ManifestError), load_manifest->None on corrupt => no owned paths => preserve). T006 is a consistent second gate (same predicate + same manifest helper). #5443 re-pin SOUND: spec-kitty.plan is a genuine PROMPT_BACKED canonical command (legit untrack) and the m_3_2_0rc35_kittify_profile_handoff migration rewrites only implement/review SKILL.md contents, not plan, so #5443's bytes-unchanged assertions hold. Suites GREEN: 21 passed (repro 2, ownership unit 8, gitignore-backfill 4, #5443 7). ruff check + format clean (migration fully format-clean); mypy --strict: 2 errors both pre-existing baseline artifacts confirmed reproducing on base. Scope: migration+autocommit+new unit (owned) + #5443 test (adjudicated blast-radius)."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261011",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28975,
+      "shell_pid_created_at": "1791742621.46",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      },
+      "tracker_refs": [
+        "5964"
+      ]
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P3SDV5Z7K54DKZDM08S47P",
+      "last_transition_at": "2026-10-11T18:32:19.045608+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Fix 44dd7b9: common-dir .spec-kitty exclude at allocator + m_4_0_0rc7 migration + dead-writer removal; #5434 repro green (28 passed), dead-symbol gate 37 passed.",
+        "Independent review PASS. Allocator: exclude_from_git_index(repo_root,['.spec-kitty/']) reused at code-lane choke point before both _validate_worktree_clean calls (common-dir exclude). Migration m_4_0_0rc7: target_version rc7 CORRECT (pkg 4.0.0rc7; get_applicable from_v<target<=to_v excludes an rc8 migration at shipping rc7; rc7 slots after rc6); modeled 1:1 on m_0_13_1. Dead writer _ensure_spec_kitty_exclude + call sites removed, no stale refs, wrong-location test deleted. Re-ran: repro+allocator+migration+worktree=50 passed; dead-symbol gate 37 passed; ruff clean; mypy only 2 pre-existing artifacts, no new."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261011",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 18227,
+      "shell_pid_created_at": "1791742059.63",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      },
+      "tracker_refs": [
+        "5434"
+      ]
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude-reviewer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P3SHSEK93WH6XEE0WMRS84",
+      "last_transition_at": "2026-10-11T18:32:23.086683+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Fix e2edf61: pre-mutation preflight hoisted; #4796 repro green (4 timing pins), orchestrator_api dir 56 passed.",
+        "APPROVE #4796. Crux verified: _apply_lane_merge_cleanup (consolidation.py:390) only removes LANE worktrees + deletes lane/mission branches; grep confirms NO CoordinationWorkspace.teardown anywhere on this path, so teardown_coordination=False correctly skips leg 3 with no data-loss risk. remove_worktree=retention.remove_worktree matches cleanup's own 'if retention.remove_worktree' gate; preflight leg 2 uses same treat_untracked_as_dirty=True and same worktree path (_created_lane_worktree->predict_lane_worktree->worktree_path). Placement is after retention resolution, before first consolidate_lane_into_mission/integrate/mark-done/push (all preceding calls are read-only). Reuses canonical _pre_mutation_safety_preflight (C-001). Repro test_dirty_lane_worktree_refuses_before_target_advance GREEN: all 4 pins (MERGE_UNSAFE_WORKTREE_DIRTY refusal, target unchanged, no done-stamp, no push) + dirty file preserved. No-regression set + control (coord & lanes) = 7 passed. ruff check/format clean. mypy --strict: 2 errors (713/834 typer.Option) are pre-existing on base (681/802), diff purely additive 32/0, zero new errors, no suppressions. Envelope unchanged (PREFLIGHT_FAILED via DestructiveOpRefused catch). Anti-pattern checklist all PASS/N-A."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261011",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3842,
+      "shell_pid_created_at": "1791741656.38",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done"
+      },
+      "tracker_refs": [
+        "4796"
+      ]
+    }
+  }
+}

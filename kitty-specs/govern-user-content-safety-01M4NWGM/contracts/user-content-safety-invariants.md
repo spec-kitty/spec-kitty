@@ -1,0 +1,15 @@
+# Behavioral contracts: Governed ops never destroy or mis-report user content
+
+Mission `govern-user-content-safety-01M4NWGM`. These are the behavioral guarantees the three fixes establish; each is pinned by a red-first acceptance test (WP01) that turns green with its fix.
+
+## C1 — Upgrade untrack is scoped to spec-kitty-projected skills (#5964, FR-001/FR-002)
+
+`spec-kitty upgrade`'s `agents_skills_gitignore_backfill` migration untracks a path under `.agents/skills/` **only if it is spec-kitty-projected** — i.e. it matches the canonical command-skill pattern (`.agents/skills/spec-kitty.<command>/…`, decided by the single authority `skills/command_installer._is_canonical_rel_path` / `CANONICAL_COMMANDS`) **or** is recorded as an `installed_path` in `.kittify/skills-manifest.json` or `.kittify/command-skills-manifest.json`. Ownership resolution is **fail-closed toward preservation**: a corrupt or absent manifest contributes no owned paths, so a would-be-owned path stays tracked. A team's own committed `.agents/skills/**` content (owned by neither manifest, not a `spec-kitty.*` path) is **never** untracked and **never** appears in the upgrade commit's deletions. The `.kittify/skills-manifest.json` file untrack itself is retained. The destructive-op residue predicate `coordination.coherence.is_self_bookkeeping_churn` is **not** consulted for this decision (it feeds consolidate/accept guards; widening it would re-create the data-loss in those paths).
+
+## C2 — Lane-worktree `.spec-kitty/` exclude reaches the common dir (#5434, FR-003/FR-004/FR-005)
+
+Lane worktree allocation writes the `.spec-kitty/` pattern to the **common-dir** `info/exclude` (via `core/git_ops.exclude_from_git_index`, at the single code-lane choke point before any `_validate_worktree_clean`), which is the only `info/exclude` git honours for a linked worktree. A leftover `.spec-kitty/review-lock.json` therefore never appears in `git status --porcelain`, so worktree reuse and crash-recovery no longer refuse with `DirtyWorktreeError`. A migration (`m_4_0_0rc7_exclude_spec_kitty`, targeting the shipping version so it actually fires) backfills the common-dir exclude for existing projects. The dead per-worktree writer (which targeted the git-ignored `.git/worktrees/<name>/info/exclude`) is removed.
+
+## C3 — Orchestrator-api merge refuses unsafe worktrees before mutating (#4796, FR-006/FR-007)
+
+`orchestrator_api/consolidation.py::_execute_lane_merge` runs the shared pre-mutation safety preflight (`consolidation/entry_preflight._pre_mutation_safety_preflight`) **before** the first lane consolidation / target integration / done-stamp / push, gated on the same resolved `remove_worktree` the cleanup uses (`teardown_coordination=False`, because this path never tears down the coordination triple). A dirty lane worktree is refused with the **unchanged** `PREFLIGHT_FAILED` envelope (`MERGE_UNSAFE_WORKTREE_DIRTY`) — now truthfully, with the target ref unchanged, no WP done-stamp, and no push (NFR-001/NFR-002 upheld at parity with the CLI path). A clean worktree merges exactly as before.

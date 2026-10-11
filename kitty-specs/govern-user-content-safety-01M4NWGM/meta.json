@@ -1,0 +1,36 @@
+{
+  "accept_commit": "43e839af08acc248677e9aec0fe243608c0413a6",
+  "acceptance_history": [
+    {
+      "accept_commit": "43e839af08acc248677e9aec0fe243608c0413a6",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-11T18:28:39.954509+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "1777dd0b2c937b1db6cc59b8c3c34ac1e7023d12"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-11T18:28:39.954509+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "1777dd0b2c937b1db6cc59b8c3c34ac1e7023d12",
+  "baseline_merge_commit": "803ef4d6007ff1f0e2de543a35fbc5d9966c7e5d",
+  "created_at": "2026-10-11T16:25:13.005216+00:00",
+  "flattened": false,
+  "friendly_name": "Governed ops never destroy or mis-report user content",
+  "merged_at": "2026-10-11T18:32:08.906251+00:00",
+  "merged_commit": "b0b6d54920311d9075602256649b915e42a65c53",
+  "mid8": "01M4NWGM",
+  "mission_id": "01M4NWGMHC6NM5BJ6RWTENGKPZ",
+  "mission_number": 228,
+  "mission_slug": "govern-user-content-safety-01M4NWGM",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This mission advances Governed ops never destroy or mis-report user content on fix/5964-5434-4796-govern-user-content so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Stop package-owned operations from deleting team .agents/skills on upgrade, tripping DirtyWorktreeError on leftover review-locks, and falsely reporting completed orchestrator-api merges as PREFLIGHT_FAILED.",
+  "slug": "govern-user-content-safety-01M4NWGM",
+  "status_phase": "1",
+  "target_branch": "fix/5964-5434-4796-govern-user-content",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-11T16:41:02.040159+00:00"
+}

@@ -1,0 +1,79 @@
+{
+  "mission_slug": "govern-user-content-safety-01M4NWGM",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "d86471d #5964: tests/upgrade/test_agents_skills_team_content_survives_5964.py GREEN + ownership unit 8 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T18:26:48.659977+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "d13a5089 #5964: team skill absent from upgrade-commit deletions; test_upgrade_carries_migration_untracks_5443.py 7 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T18:26:55.946418+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "44dd7b9 #5434: tests/lanes/test_lane_worktree_spec_kitty_residue_5434.py GREEN (reuse+recovery, clean porcelain)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T18:27:02.446313+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "44dd7b9 #5434: tests/upgrade/test_exclude_spec_kitty_migration.py 11 passed (common-dir exclude, idempotent)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T18:27:08.802917+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "44dd7b9 #5434: dead _ensure_spec_kitty_exclude removed; test_no_dead_symbols.py 37 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T18:27:21.381964+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "e2edf61 #4796: tests/orchestrator_api/test_consolidate_mission_premutation_timing.py GREEN (4 timing pins)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T18:27:36.397184+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "e2edf61 #4796: refusal still PREFLIGHT_FAILED, now pre-mutation; orchestrator_api dir 56 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T18:27:44.000630+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
