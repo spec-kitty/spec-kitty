@@ -10,7 +10,5 @@ pack_id: 01ARWG13C000000000000000FG
 pack_version: 1.0.0
 parent_pack: null
 name: built-in
-# Declared Charter Pack tier (kernel.pack_tiers authority). The built-in
-# pack stays minimal: it authors no optional requires_core/pointer fields -- it
-# uses the sharded *.graph.yaml convention, not a single active-charter/DRG path.
+# Declared Charter Pack tier (kernel.pack_tiers authority).
 pack_level: built-in

@@ -136,3 +136,17 @@ Rejected:
   `kernel.pack_tiers` authority (the `PackTier` Literal), not a second enum.
 * In open-packs, the built-in pack moves to `packs/built-in/` with `pack_level: built-in`, and
   `validate-packs.sh` registers only `pack_level: org` packs.
+
+## Amendment 2026-10-11
+
+Decision 3 says loading refuses a level mismatch "where it was configured". That is
+enforced at load time **only for org packs** (`load_org_pack` reads `pack.yaml` through
+`load_pack_descriptor` and refuses a declared level other than `org`, and refuses an
+unreadable or schema-invalid `pack.yaml`). For the built-in and project positions nothing refuses at load. The mismatch check
+lives in the validator (`validate_pack(..., expected_level=...)` and
+`check_pack_level`), which a position-aware caller must opt into; at the time of this
+amendment no production caller (including `charter pack validate` and
+`spec-kitty doctor charter-packs`) passes `expected_level`, so on a bare path the
+mismatch check is skipped fail-closed and only `PACK_LEVEL_MISSING` and the schema
+checks run. This amendment records where the check runs today; it adds no load-time
+enforcement. Wiring a position into those callers is follow-up work.

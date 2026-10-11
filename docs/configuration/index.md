@@ -5,6 +5,7 @@ doc_status: active
 updated: '2026-06-27'
 related:
 - docs/configuration/linting-cutoff-policy.md
+- docs/configuration/pack-yaml.md
 - docs/configuration/yaml-libraries.md
 - docs/guides/index.md
 - docs/index.md
@@ -21,6 +22,7 @@ tuning notes live under [`../plans/`](../plans/index.md).
 
 - [YAML library choice: ruamel.yaml vs PyYAML](yaml-libraries.md) — toolchain decision and rationale.
 - [Linting cutoff policy](linting-cutoff-policy.md) — commitlint / markdownlint informational-mode policy and cutoff date.
+- [`pack.yaml` reference](pack-yaml.md) — Charter Pack descriptor fields, `pack_level` and `requires_core`.
 
 ## See also
 

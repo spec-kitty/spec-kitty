@@ -3670,6 +3670,7 @@ pages:
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "amendment-2026-10-11", text: "Amendment 2026-10-11", level: 2}
   - path: "docs/adr/4.x/2026-10-11-3-acceptance-testing-and-bdd-support.md"
     title: "ADR: acceptance testing and BDD support with Gherkin scenarios and a black-box Cucumber-JVM runner"
     divio_type: "none"
@@ -10180,6 +10181,14 @@ pages:
     - {slug: "updating-the-cutoff-date", text: "Updating the Cutoff Date", level: 2}
     - {slug: "rationale", text: "Rationale", level: 2}
     - {slug: "best-practices", text: "Best Practices", level: 2}
+  - path: "docs/configuration/pack-yaml.md"
+    title: "pack.yaml reference"
+    divio_type: "none"
+    abstract: "Field reference for a Charter Pack pack.yaml descriptor: identity, lineage, the declared pack_level, requires_core and layout pointers, plus regenerate-graph --pack-root."
+    anchors:
+    - {slug: "fields", text: "Fields", level: 2}
+    - {slug: "pack-level", text: "`pack_level`", level: 2}
+    - {slug: "regenerating-a-built-in-pack-s-graph", text: "Regenerating a built-in pack's graph", level: 2}
   - path: "docs/configuration/yaml-libraries.md"
     title: "YAML library choice: ruamel.yaml vs PyYAML"
     divio_type: "none"
