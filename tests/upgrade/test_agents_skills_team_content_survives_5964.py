@@ -28,7 +28,9 @@ import pytest
 
 from kernel.clock import now_utc_iso
 from specify_cli.skills import manifest_store
+from specify_cli.skills.manifest import ManagedFileEntry, ManagedSkillManifest, save_manifest
 from specify_cli.skills.manifest_store import ManifestEntry, SkillsManifest
+from specify_cli.skills.ownership import is_projected_skills_path, manifest_owned_skills_paths
 from specify_cli.upgrade.autocommit import (
     capture_upgrade_baseline,
     commit_touched_checkout,
@@ -177,3 +179,67 @@ def test_team_skill_is_not_in_the_upgrade_commit_deletions(tmp_path: Path) -> No
     assert _TEAM not in head_deletions, f"the upgrade commit must NOT delete the user-authored team skill (#5964); commit deletions: {sorted(head_deletions)}"
     # Its bytes also remain on disk (the migration only ever does ``git rm --cached``).
     assert (root / _TEAM).read_text(encoding="utf-8") == _TEAM_BYTES
+
+
+_PACK = ".agents/skills/acme-house-style/SKILL.md"
+
+
+@pytest.mark.parametrize(
+    ("path", "owned", "projected"),
+    [
+        pytest.param(_PROJECTED, set(), True, id="canonical-command-skill-by-pattern"),
+        pytest.param(".agents/skills/spec-kitty.notacommand/SKILL.md", set(), False, id="unknown-spec-kitty-name"),
+        pytest.param(_TEAM, set(), False, id="team-skill"),
+        pytest.param(_PACK, {_PACK}, True, id="manifest-owned-pack-skill"),
+        pytest.param(".agents/skills/spec-kitty.implement/sub/file.md", set(), False, id="nested-under-canonical-dir"),
+        pytest.param(".agents\\skills\\spec-kitty.implement\\SKILL.md", set(), False, id="windows-backslash-path-fails-closed"),
+    ],
+)
+def test_projected_skills_path_selection(path: str, owned: set[str], projected: bool) -> None:
+    assert is_projected_skills_path(path, owned) is projected
+
+
+def test_both_manifests_contribute_owned_paths(tmp_path: Path) -> None:
+    manifest_store.save(
+        tmp_path,
+        SkillsManifest(
+            entries=[
+                ManifestEntry(
+                    path=_PROJECTED,
+                    content_hash="0" * 64,
+                    agents=("codex",),
+                    installed_at=now_utc_iso(),
+                    spec_kitty_version="3.2.5",
+                )
+            ]
+        ),
+    )
+    save_manifest(
+        ManagedSkillManifest(
+            entries=[
+                ManagedFileEntry(
+                    skill_name="acme-house-style",
+                    source_file="SKILL.md",
+                    installed_path=_PACK,
+                    installation_class="shared-root-capable",
+                    agent_key="codex",
+                    content_hash="sha256:" + "0" * 64,
+                    installed_at=now_utc_iso(),
+                    origin="pack",
+                )
+            ]
+        ),
+        tmp_path,
+    )
+
+    assert manifest_owned_skills_paths(tmp_path) == {_PROJECTED, _PACK}
+
+
+def test_corrupt_command_skills_manifest_is_fail_closed_toward_preservation(tmp_path: Path) -> None:
+    (tmp_path / ".kittify").mkdir()
+    (tmp_path / ".kittify" / "command-skills-manifest.json").write_text("{ not json", encoding="utf-8")
+
+    owned = manifest_owned_skills_paths(tmp_path)
+
+    assert owned == set()
+    assert is_projected_skills_path(_TEAM, owned) is False
