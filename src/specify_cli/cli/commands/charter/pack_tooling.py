@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from specify_cli.cli.console import console
@@ -63,6 +64,28 @@ def _built_in_pack_root() -> Path:
     return root
 
 
+def _require_built_in_level(pack_root: Path) -> None:
+    """Refuse (exit 1) unless *pack_root* carries a ``pack.yaml`` declaring ``pack_level: built-in``.
+
+    The generators are built-in-shaped (sharded ``*.graph.yaml`` fragments plus
+    the built-in manifest); pointed at a project or org pack they would
+    overwrite its ``graph.yaml`` or write a wrong manifest.
+    """
+    from charter.offering.packs.pack_descriptor import load_pack_descriptor
+    from kernel.pack_tiers import BUILT_IN
+    from ruamel.yaml.error import YAMLError
+
+    descriptor_path = pack_root / "pack.yaml"
+    try:
+        level = load_pack_descriptor(descriptor_path).pack_level
+    except (ValueError, OSError, YAMLError) as exc:  # ValidationError and retired-field errors are ValueErrors
+        console.print(f"[red]--pack-root {pack_root} needs a valid pack.yaml declaring pack_level: {BUILT_IN}:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    if level != BUILT_IN:
+        console.print(f"[red]--pack-root only supports built-in-level packs;[/red] {descriptor_path} declares pack_level: {level}")
+        raise typer.Exit(1)
+
+
 def regenerate_graph(
     check: bool = typer.Option(
         False,
@@ -74,17 +97,20 @@ def regenerate_graph(
             "fresh."
         ),
     ),
-    pack_root: Path | None = typer.Option(
-        None,
-        "--pack-root",
-        help=(
-            "Regenerate the DRG fragments and pack manifest for the pack at this "
-            "root instead of the shipped built-in pack (e.g. a vendored or "
-            "out-of-core pack). Applies to both the write path and --check. "
-            "Defaults to the built-in pack root, leaving the no-flag behaviour "
-            "byte-identical."
+    pack_root: Annotated[
+        Path | None,
+        typer.Option(
+            "--pack-root",
+            help=(
+                "Regenerate the DRG fragments and pack manifest for the BUILT-IN-level "
+                "pack at this root instead of the shipped built-in pack (e.g. a vendored "
+                "copy). The root must carry a pack.yaml declaring pack_level: built-in; "
+                "org and project packs are refused. Applies to both the write path and "
+                "--check. Defaults to the built-in pack root, leaving the no-flag "
+                "behaviour byte-identical."
+            ),
         ),
-    ),
+    ] = None,
     json_output: bool = typer.Option(
         False,
         "--json",
@@ -120,11 +146,12 @@ def regenerate_graph(
 
     # FR-013: default (no --pack-root) resolves to the built-in root, keeping the
     # no-flag behaviour byte-identical; an explicit root targets a vendored /
-    # out-of-core pack for both the write path and --check. The ``isinstance``
-    # test (rather than ``is not None``) also covers a direct in-process call
-    # that omits the option, where the typer ``OptionInfo`` default leaks through
-    # instead of ``None``.
-    resolved_root = pack_root if isinstance(pack_root, Path) else _built_in_pack_root()
+    # out-of-core built-in-level pack for both the write path and --check.
+    if pack_root is None:
+        resolved_root = _built_in_pack_root()
+    else:
+        _require_built_in_level(pack_root)
+        resolved_root = pack_root
 
     if check:
         import tempfile

@@ -48,6 +48,24 @@ def test_pack_root_check_reports_freshness_for_the_given_root(tmp_path: Path) ->
     assert drifted.value.exit_code == 1
 
 
+@pytest.mark.parametrize("pack_yaml", [None, "pack_id: 01ARWG13C000000000000000FG\nname: p\npack_level: project\n"], ids=["no-pack-yaml", "project-level"])
+def test_pack_root_refuses_a_pack_that_is_not_built_in_level(tmp_path: Path, pack_yaml: str | None) -> None:
+    copy = _copy_built_in(tmp_path / "vendored")
+    if pack_yaml is None:
+        (copy / "pack.yaml").unlink()
+    else:
+        (copy / "pack.yaml").write_text(pack_yaml, encoding="utf-8")
+    graph_before = {p.name: p.read_bytes() for p in copy.glob("*.graph.yaml")}
+
+    for check in (False, True):
+        with pytest.raises(typer.Exit) as exc:
+            regenerate_graph(check=check, pack_root=copy, json_output=False)
+        assert exc.value.exit_code == 1
+    # Nothing was generated or overwritten.
+    assert {p.name: p.read_bytes() for p in copy.glob("*.graph.yaml")} == graph_before
+    assert not (copy / "graph.yaml").exists()
+
+
 def test_default_no_flag_is_byte_unchanged() -> None:
     root = _built_in_pack_root()
     before = {p.name: p.read_bytes() for p in sorted(root.glob("*.graph.yaml"))}
