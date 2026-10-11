@@ -1775,9 +1775,14 @@ def test_every_embedded_address_run_is_stripped_from_the_start_on(value: str, st
 
 def test_a_value_with_many_marks_and_long_scheme_runs_is_scanned_in_linear_time(env: Env) -> None:
     for value in ("a" * BIG + "://", ("a" * 5 + "://") * (BIG // 8), "1" * BIG + "://x", ("x://" + "b" * 3 + " ") * (BIG // 8)):
-        started = time.perf_counter()
-        ops.embedded_runs_stripped(value, 0)
-        assert time.perf_counter() - started <= REDACTION_BOUND
+        # Best of REPEATS, like the other timing proofs here: scheduler noise only ever adds
+        # time, whereas a quadratic scan of BIG characters costs seconds on every repeat.
+        durations: list[float] = []
+        for _ in range(REPEATS):
+            started = time.perf_counter()
+            ops.embedded_runs_stripped(value, 0)
+            durations.append(time.perf_counter() - started)
+        assert min(durations) <= REDACTION_BOUND
 
 
 def test_a_url_that_the_parser_refuses_is_not_a_url() -> None:
