@@ -3646,6 +3646,15 @@ pages:
     - {slug: "option-b-layer-onto-the-partition-chosen", text: "Option B — layer onto the partition (chosen)", level: 3}
     - {slug: "option-c-incompatible-name-reason-x", text: "Option C — incompatible; name reason X", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-10-11-1-archive-freeze-verifies-reducer-outcome-not-byte-identity.md"
+    title: "ADR: the archive-freeze gate verifies reducer OUTCOME reproduction, not byte-identity"
+    divio_type: "none"
+    abstract: "Archived status.json is a frozen derived snapshot; a correct reducer improvement may re-assign a WP terminal-transition id without it counting as archive drift."
+    anchors:
+    - {slug: "context", text: "Context", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"

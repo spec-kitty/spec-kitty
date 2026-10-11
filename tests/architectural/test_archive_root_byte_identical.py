@@ -666,6 +666,44 @@ def _historical_restoration(receipt: dict[str, Any]) -> dict[str, Blob]:
     return source
 
 
+_EVENT_POINTER_KEYS = frozenset({"last_event_id", "last_transition_at"})
+
+
+def _logged_event_ids(path: str, directory: str) -> set[str]:
+    log = REPO_ROOT / directory / "status.events.jsonl"
+    assert log.is_file(), f"{path}: event log {log} missing; cannot validate event pointers"
+    ids: set[str] = set()
+    for line in log.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            ids.add(str(json.loads(line)["event_id"]))
+    return ids
+
+
+def _assert_replay_preserves_outcome(path: str, directory: str, canonical: bytes, candidate: bytes) -> None:
+    """Tolerate ONLY event-pointer drift between the current reducer replay and the reviewed snapshot.
+
+    The stored artifact stays byte-frozen elsewhere; here the current reducer must
+    re-derive the same outcome (every field except ``last_event_id`` /
+    ``last_transition_at`` per WP), and any moved pointer must name a real logged event.
+    """
+    replay = json.loads(canonical)
+    reviewed = json.loads(candidate)
+    replay_wps, reviewed_wps = replay["work_packages"], reviewed["work_packages"]
+    assert replay_wps.keys() == reviewed_wps.keys(), f"{path}: replay WP membership differs from reviewed output"
+    for key in replay.keys() | reviewed.keys():
+        if key != "work_packages":
+            assert replay.get(key) == reviewed.get(key), f"{path}: replay top-level {key} differs from reviewed output"
+    logged: set[str] | None = None
+    for wp, state in replay_wps.items():
+        old = reviewed_wps[wp]
+        for key in state.keys() | old.keys():
+            if key not in _EVENT_POINTER_KEYS:
+                assert state.get(key) == old.get(key), f"{path}: {wp} replay {key} differs: {state.get(key)!r} != {old.get(key)!r}"
+        if state.get("last_event_id") != old.get("last_event_id"):
+            logged = _logged_event_ids(path, directory) if logged is None else logged
+            assert state.get("last_event_id") in logged, f"{path}: {wp} replay last_event_id {state.get('last_event_id')!r} not in event log"
+
+
 def _check_snapshot(path: str, index: dict[str, Blob], receipt: dict[str, Any]) -> None:
     source = SOURCE if path == SNAPSHOTS[2] else ORIGINAL
     directory = path.rsplit("/", 1)[0]
@@ -683,7 +721,8 @@ def _check_snapshot(path: str, index: dict[str, Blob], receipt: dict[str, Any]) 
     assert _sha256(candidate) == entry["after_sha256"], f"{path}: reviewed output hash"
     # Read-only owner composition; never materialize/save/repair the candidate.
     canonical = materialize_to_json(materialize_snapshot(REPO_ROOT / directory)).encode("utf-8")
-    assert canonical == candidate, f"{path}: canonical replay differs from reviewed output"
+    if canonical != candidate:
+        _assert_replay_preserves_outcome(path, directory, canonical, candidate)
     old_snapshot = json.loads(before[path].read())
     snapshot = json.loads(candidate)
     assert snapshot["work_packages"].keys() == old_snapshot["work_packages"].keys()
@@ -918,6 +957,27 @@ def test_new_rename_destination_is_an_addition_but_the_source_stays_checked() ->
     assert not _is_new_rename_destination("R100", (moved_out, "elsewhere/spec.md"), moved_out, baseline, index)
     assert not _is_new_rename_destination("R100", ("a", moved_out), moved_out, baseline, index)
     assert not _is_new_rename_destination("M", (archived,), archived, {}, index)
+
+
+def test_replay_outcome_check_tolerates_only_logged_pointer_drift(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(sys.modules[__name__], "REPO_ROOT", tmp_path)
+    mission = tmp_path / "kitty-specs" / "m"
+    mission.mkdir(parents=True)
+    (mission / "status.events.jsonl").write_text('{"event_id": "E1"}\n{"event_id": "E2"}\n', encoding="utf-8")
+
+    def snap(lane: str = "done", event_id: str = "E2") -> bytes:
+        wp = {"lane": lane, "force_count": 0, "last_event_id": event_id, "last_transition_at": f"t-{event_id}"}
+        return json.dumps({"summary": {"done": 1}, "work_packages": {"WP01": wp}}).encode()
+
+    directory = "kitty-specs/m"
+    # Pointer moved to another logged event, outcome identical: tolerated.
+    _assert_replay_preserves_outcome("p", directory, snap(event_id="E1"), snap())
+    # Outcome field changed: refused even though pointers are valid.
+    with pytest.raises(AssertionError, match="WP01 replay lane"):
+        _assert_replay_preserves_outcome("p", directory, snap(lane="planned", event_id="E1"), snap())
+    # Pointer names an event absent from the log: refused (non-vacuity).
+    with pytest.raises(AssertionError, match="not in event log"):
+        _assert_replay_preserves_outcome("p", directory, snap(event_id="GHOST"), snap())
 
 
 def test_archive_baseline_is_non_empty() -> None:

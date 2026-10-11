@@ -409,7 +409,32 @@ def recover(repo: Path) -> None:
     from specify_cli.status.reducer import materialize
 
     for snapshot in gate.SNAPSHOTS:
-        materialize(repo / snapshot.rsplit("/", 1)[0])
+        directory = snapshot.rsplit("/", 1)[0]
+        # A genuine recovery re-runs the canonical reducer over the restored
+        # event log; it never hand-forges the derived snapshot.
+        materialize(repo / directory)
+        regenerated = (repo / snapshot).read_bytes()
+        # The archived status.json is a FROZEN DERIVED artifact: its committed
+        # bytes are pinned to the reviewed RECOVERED blob. A later, correct
+        # reducer improvement (spec-kitty-events 10.4.2 drops a causally-stale
+        # duplicate terminal re-emit for reject-cyclic) may re-point a WP's
+        # terminal transition without changing any outcome, so the regenerated
+        # bytes can legitimately differ from the frozen blob. Mirror the
+        # archive-freeze gate: verify the current reducer still reproduces the
+        # reviewed OUTCOME (tolerating only last_event_id / last_transition_at
+        # per WP, and requiring any moved pointer to name a real logged event),
+        # then restore the frozen artifact so recovery lands exactly the
+        # reviewed bytes the byte-pin protects. See ADR
+        # docs/adr/4.x/2026-10-11-1-archive-freeze-verifies-reducer-outcome-not-byte-identity.md.
+        frozen = git(REPO_ROOT, "show", f"{gate.RECOVERED}:{snapshot}")
+        if regenerated != frozen:
+            original_root = gate.REPO_ROOT
+            gate.REPO_ROOT = repo
+            try:
+                gate._assert_replay_preserves_outcome(snapshot, directory, regenerated, frozen)
+            finally:
+                gate.REPO_ROOT = original_root
+            (repo / snapshot).write_bytes(frozen)
     for name in (gate.RECEIPT, gate.SPINE, gate.NEW_BUNDLE + "/README.md"):
         expected = git(REPO_ROOT, "show", f"{gate.RECOVERED}:{name}")
         target = repo / name
@@ -578,8 +603,15 @@ def test_current_canonical_computation_is_still_required(
     recovery_repo: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(gate, "materialize_to_json", lambda _: "{}\n")
-    with pytest.raises(AssertionError, match="canonical replay differs"):
+    # The archive-freeze gate no longer byte-compares the canonical replay to
+    # the frozen snapshot; it checks that the current reducer reproduces the
+    # reviewed OUTCOME (ADR 2026-10-11-1). The canonical computation is still
+    # REQUIRED and consumed: stub the reducer to emit a structurally valid but
+    # outcome-divergent snapshot (an empty work-package set) and the gate must
+    # still reject it. A reducer whose output silently diverged from the
+    # reviewed outcome cannot pass vacuously.
+    monkeypatch.setattr(gate, "materialize_to_json", lambda _: '{"work_packages": {}}\n')
+    with pytest.raises(AssertionError, match="replay WP membership differs"):
         run_gate(recovery_repo, monkeypatch)
 
 
