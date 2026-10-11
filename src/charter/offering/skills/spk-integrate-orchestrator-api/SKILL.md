@@ -14,6 +14,7 @@ Spec Kitty through orchestrator-api.
 2. Use documented API contracts rather than scraping local artifacts.
 3. Preserve state-machine invariants: no implicit success, no skipped gates.
 4. Route mission advancement through runtime decisions.
+5. A `PREFLIGHT_FAILED` without a `teardown_error_code` is raised before any lane/target mutation; a refusal leaves refs untouched.
 
 ## Legacy Alias
 

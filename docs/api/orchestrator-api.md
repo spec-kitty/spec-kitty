@@ -1018,7 +1018,7 @@ status events or lane commits go unseen: a rejection pushed to origin can then l
 A `consolidate-mission` failure keeps the `PREFLIGHT_FAILED` envelope code and
 puts the message in `data.errors`. When the landing succeeded and only the
 cleanup after it refused, `data` also carries `teardown_error_code`, a stable
-code to key on instead of the prose.
+code to key on instead of the prose. A `PREFLIGHT_FAILED` without a `teardown_error_code` is raised before any lane/target mutation; a refusal leaves refs untouched.
 
 | `data.teardown_error_code` | Meaning | What to do |
 |---|---|---|
