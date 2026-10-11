@@ -59,6 +59,29 @@ def _write_template(missions_root: Path, mission: str, name: str, body: str) -> 
     (tpl_dir / name).write_text(body, encoding="utf-8")
 
 
+def _register_org_pack(repo_root: Path, org_pack: Path, *, name: str = "acme") -> None:
+    """Register *org_pack* as an org Charter Pack in ``<repo>/.kittify/config.yaml``.
+
+    Since #6006 the single org authority is ``resolve_pack_chain(repo_root)``,
+    which reads the declared org packs from this config block — the org tier is
+    no longer taken from a caller-injected ``layer_roots["org"]``.
+    """
+    kittify = repo_root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    (kittify / "config.yaml").write_text(
+        textwrap.dedent(
+            f"""\
+            charter_packs:
+              org:
+                packs:
+                  - name: {name}
+                    local_path: {org_pack}
+            """
+        ),
+        encoding="utf-8",
+    )
+
+
 def _invoke(project_root: Path, *args: str) -> object:
     return runner.invoke(
         charter_app,
@@ -260,6 +283,11 @@ class TestTemplateTierRootsOrgBranch:
     branch (NFR-006 -- this surface has no diff-coverage numeric CI backstop,
     so this is the actual regression guard per the repo's Sonar new-code
     coverage expectation).
+
+    Since #6006 ("one org-pack chain authority") the org tier is sourced from
+    ``resolve_pack_chain(repo_root)`` -- the config-declared org packs -- not
+    from a caller-injected ``layer_roots["org"]``. These tests drive the org
+    branch through that config authority, matching what the function reads.
     """
 
     def test_org_branch_reports_org_tier_at_flat_path(self, tmp_path: Path) -> None:
@@ -269,8 +297,9 @@ class TestTemplateTierRootsOrgBranch:
         )
         repo_root = tmp_path / "repo"
         repo_root.mkdir()
+        _register_org_pack(repo_root, org_root)
 
-        tier_roots = _template_tier_roots(repo_root, {"org": org_root})
+        tier_roots = _template_tier_roots(repo_root, {})
 
         org_roots = [tr for tr in tier_roots if tr.tier is ResolutionTier.ORG]
         assert [tr.missions_root for tr in org_roots] == [org_root / "missions"], tier_roots
@@ -291,7 +320,8 @@ class TestTemplateTierRootsOrgBranch:
         org_root.mkdir()
         repo_root = tmp_path / "repo"
         repo_root.mkdir()
+        _register_org_pack(repo_root, org_root)
 
-        tier_roots = _template_tier_roots(repo_root, {"org": org_root})
+        tier_roots = _template_tier_roots(repo_root, {})
 
         assert all(tr.tier is not ResolutionTier.ORG for tr in tier_roots)
