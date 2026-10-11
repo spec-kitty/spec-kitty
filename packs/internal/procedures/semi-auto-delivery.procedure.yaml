@@ -117,7 +117,8 @@ steps:
 
   - title: Rebase on the fixed cadence
     description: >
-      For a Mission, rebase onto the current origin/main after spec, after plan and
+      For a Mission, rebase onto the canonical remote's main (the remote pointing at
+      spec-kitty/spec-kitty, not necessarily origin) after spec, after plan and
       after tasks (before implement). For an Op, which has no spec/plan/tasks
       boundaries, rebase before the first commit and before each push. In both
       shapes, after that, rebase only on a staleness notice from CI or the operator —
@@ -127,7 +128,7 @@ steps:
 
   - title: Closeout the canonical way
     description: >
-      Clean the branch and rebase onto current origin/main. A Mission then closes
+      Clean the branch and rebase onto the canonical remote's current main. A Mission then closes
       through the mission-wrap-up-sequence (accept, issue verdicts, aggregate
       review, consolidate, compact, rebase); an Op closes lighter — no mission
       wrap-up, straight to the pre-PR path. In both shapes: update docs/changelog,
@@ -137,8 +138,8 @@ steps:
       section). Open the PR as a DRAFT targeting main using the repository template —
       the five-section body contract (Issue with `closes #<n>`, Change, Tests run
       with a Self-review block, Blast radius with Discovery + Files, Deferred),
-      validated with the internal `validate-pr-body.py` asset. Watch CI to green,
-      then flip the PR to ready-for-review with a reviewer handover comment stating
+      validated with the internal `validate-pr-body.py` asset. Watch CI until it is
+      green, or every remaining red is classified as not this PR's, then flip the PR to ready-for-review with a reviewer handover comment stating
       what was added, the escalation decisions surfaced, and the test/gate evidence.
       The operator merges: never push main, never self-merge or arm auto-merge. The
       operator's commit attribution trailer rides every commit, and no AI model

@@ -14,7 +14,7 @@ Follow the `semi-auto-delivery` procedure end to end:
 4. Work autonomously, but STOP and surface the decision to the operator on the escalation classes: a regression-vs-stale-test verdict; a shared-seam, public-contract or architectural-boundary change; a test-expectation edit; scope widening; a charter Decision Moment; contract versioning. A path that decides also signals — never resolve one silently.
 5. Brownfield discipline — smallest viable diff, locality of change, single canonical source, red-first, and never skip/disable/xfail/quarantine a test or retry-to-green.
 6. Test policy — `make test-fast` plus the test files of every module the diff touches and the owning subsystem's own test directory, plus the specific architectural gate files a cross-cutting change implicates (named individually); never a heavy-suite sweep or `make test-full` (CI owns those at the draft PR); `make format-check`; zero ruff and mypy. Record commands and counts in "Tests run".
-7. Rebase cadence — onto `origin/main` after spec, plan and tasks (before implement), then only on a staleness notice. Never push `main`.
+7. Rebase cadence — onto the canonical remote's `main` after spec, plan and tasks (before implement), then only on a staleness notice. Never push `main`.
 8. Closeout — clean branch, rebase, update `docs/changelog`, pre-PR review squad, fold the findings, open a DRAFT PR targeting `main` with the five-section body contract (validate with `validate-pr-body.py`), watch CI to green, then flip to ready-for-review with a reviewer handover comment. The operator merges.
 
 ## Local mode
