@@ -292,6 +292,48 @@ def test_discard_scratch_tree_keeps_a_directory_whose_git_dir_cannot_be_read(tmp
     assert (broken / "work.txt").read_text(encoding="utf-8") == "nothing proves this disposable\n"
 
 
+def test_discard_scratch_tree_keeps_a_directory_whose_git_file_is_empty(tmp_path: Path) -> None:
+    # An unparseable .git file (empty -> no first line) is NOT a provably dead
+    # link, so the guard's refusal stands and the tree is kept (fail-closed).
+    owned = tmp_path / "runtime"
+    scratch = owned / "workspace"
+    scratch.mkdir(parents=True)
+    (scratch / ".git").write_text("", encoding="utf-8")
+    (scratch / "work.txt").write_text("only copy\n", encoding="utf-8")
+
+    assert _discard_scratch_tree(scratch, tool_root=owned, reason="test") is False
+
+    assert (scratch / "work.txt").read_text(encoding="utf-8") == "only copy\n"
+
+
+def test_discard_scratch_tree_keeps_a_directory_whose_git_file_is_not_a_gitlink(tmp_path: Path) -> None:
+    # A .git file that does not start with "gitdir:" is not a worktree link we
+    # can prove dead, so the tree is kept.
+    owned = tmp_path / "runtime"
+    scratch = owned / "workspace"
+    scratch.mkdir(parents=True)
+    (scratch / ".git").write_text("not a gitlink at all\n", encoding="utf-8")
+    (scratch / "work.txt").write_text("only copy\n", encoding="utf-8")
+
+    assert _discard_scratch_tree(scratch, tool_root=owned, reason="test") is False
+
+    assert (scratch / "work.txt").read_text(encoding="utf-8") == "only copy\n"
+
+
+def test_discard_scratch_tree_drops_a_relative_dangling_gitlink(tmp_path: Path) -> None:
+    # A relative gitdir: target is resolved against the .git file's parent; when
+    # it does not exist the link provably dangles and the scratch tree is cleaned.
+    owned = tmp_path / "runtime"
+    scratch = owned / "workspace"
+    scratch.mkdir(parents=True)
+    (scratch / ".git").write_text("gitdir: ../gone/.git/worktrees/workspace\n", encoding="utf-8")
+    (scratch / "left.txt").write_text("left over\n", encoding="utf-8")
+
+    assert _discard_scratch_tree(scratch, tool_root=owned, reason="test") is True
+
+    assert not scratch.exists()
+
+
 def test_cleanup_merge_workspace_removes_the_worktree_and_keeps_the_state_file(tmp_path: Path) -> None:
     repo = _init(tmp_path / "repo")
     workspace = create_merge_workspace("m1", "main", repo)
