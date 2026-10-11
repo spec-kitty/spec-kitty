@@ -476,13 +476,13 @@ planning, you **must** conduct or verify a structured discovery interview.
 
 - If the user provides no initial description (empty command), stay in **Interactive Interview Mode**: keep probing with one question at a time.
 
-- **Conversational cadence**: After each user reply, decide if you have ENOUGH context for this feature's complexity level. For trivial features, 1-2 questions is sufficient. Only continue asking if truly necessary for the scope.
+- **Conversational cadence**: After each user reply, decide if you have ENOUGH context for this mission's complexity level. For trivial features, 1-2 questions is sufficient. Only continue asking if truly necessary for the scope.
 
-Discovery requirements (scale to feature complexity):
+Discovery requirements (scale to complexity):
 
-1. Maintain a **Discovery Questions** table internally covering questions appropriate to the feature's complexity (1-2 for trivial, up to 5+ for complex). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
+1. Maintain a **Discovery Questions** table internally covering questions appropriate to the mission's complexity (1-2 for trivial, up to 5+ for complex). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
 2. For trivial features, reasonable defaults are acceptable. Only probe if truly ambiguous.
-3. When you have sufficient context for the feature's scope, paraphrase into an **Intent Summary** and confirm. For trivial features, this can be very brief. For non-trivial features, include the primary actor, trigger/success outcome, key constraint, and any explicit assumptions or deferred decisions.
+3. When you have sufficient context for the mission's scope, paraphrase into an **Intent Summary** and confirm. For trivial features, this can be very brief. For non-trivial features, include the primary actor, trigger/success outcome, key constraint, and any explicit assumptions or deferred decisions.
 4. Before leaving the interview loop, do a short playback of the primary scenario, the main exception or edge case, and any rule that must always hold.
 5. If user explicitly asks to skip questions or says "just testing", acknowledge and proceed with minimal discovery.
 
@@ -830,13 +830,13 @@ When creating this spec from a user prompt:
 1. **Make informed guesses**: Use context, industry standards, and common patterns to fill gaps
 2. **Document assumptions**: Record reasonable defaults in the Assumptions section
 3. **Limit clarifications**: Maximum 3 [NEEDS CLARIFICATION] markers - use only for critical decisions that:
-   - Significantly impact feature scope or user experience
+   - Significantly impact mission scope or user experience
    - Have multiple reasonable interpretations with different implications
    - Lack any reasonable default
 4. **Prioritize clarifications**: scope > security/privacy > user experience > technical details
 5. **Think like a tester**: Every vague requirement should fail the "testable and unambiguous" checklist item
 6. **Common areas needing clarification** (only if no reasonable default exists):
-   - Feature scope and boundaries (include/exclude specific use cases)
+   - Scope and boundaries (include/exclude specific use cases)
    - User types and permissions (if multiple conflicting interpretations possible)
    - Security/compliance requirements (when legally/financially significant)
 
