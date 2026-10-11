@@ -1374,7 +1374,7 @@ def _baseline_artifact_needs_commit(repo_root: Path, artifact: Path) -> bool:
         return True
 
 
-def implement_capture_baseline(
+def capture_and_commit_baseline(
     *,
     workspace_path: Path,
     target_branch: str,
@@ -1383,9 +1383,27 @@ def implement_capture_baseline(
     feature_dir: Path,
     wp_slug: str,
     main_repo_root: Path,
+    quiet: bool = False,
 ) -> None:
-    """Capture (one-time, cached) baseline test results before the agent
-    starts coding, and best-effort commit the baseline artifact."""
+    """Capture (one-time, cached) baseline test results and best-effort commit
+    the baseline artifact.
+
+    #6062: this no longer runs on the ``agent action implement`` claim path —
+    a claim must return promptly after materializing the lane worktree and
+    moving the WP to ``doing``, never running the project's test suite
+    synchronously. It is now invoked lazily (capture-if-missing) on the
+    ``in_progress -> for_review`` edge, where the gate consumes the baseline
+    and where blocking on a suite run is acceptable
+    (``tasks_move_task_gates._mt_capture_baseline_if_missing``). The baseline
+    is still captured on the base branch, so the ``for_review`` regression gate
+    still diffs head against a base-branch baseline — now captured as of the
+    ``for_review`` move rather than the claim.
+
+    ``quiet`` (#6062) suppresses the human-readable baseline notices. The
+    for_review caller passes ``quiet=st.json_output`` so a ``--json`` move-task
+    envelope is never corrupted by a console line (the move-task path emits
+    console only when ``not json_output``); the interactive implement/review
+    surfaces keep the default ``False`` and still see the notices."""
     from specify_cli.core.commit_guard import GuardCapability
 
     w = _wf()
@@ -1415,9 +1433,9 @@ def implement_capture_baseline(
         )
         # Rich markup only renders through the CLI console seam; the builtin
         # print emitted the tags literally (#4163).
-        if baseline is not None and baseline.failed > 0:
+        if not quiet and baseline is not None and baseline.failed > 0:
             console.print(f"[dim]Baseline: {baseline.failed} pre-existing test failure(s) captured[/dim]")
-        elif baseline is not None and baseline.failed == -1:
+        elif not quiet and baseline is not None and baseline.failed == -1:
             console.print("[yellow]Warning: baseline test capture failed — no baseline context available[/yellow]")
 
         # Commit the baseline artifact whenever capture actually wrote one
@@ -1474,10 +1492,11 @@ def implement_capture_baseline(
                 # The refusal text is arbitrary (git output such as
                 # ``! [rejected] main -> main``): escape it so Rich neither
                 # swallows bracketed words nor raises MarkupError on it.
-                console.print(
-                    f"[yellow]Warning: baseline artifact was not committed "
-                    f"({escape(str(bl_commit_exc))}); a later move to for_review may block on it.[/yellow]"
-                )
+                if not quiet:
+                    console.print(
+                        f"[yellow]Warning: baseline artifact was not committed "
+                        f"({escape(str(bl_commit_exc))}); a later move to for_review may block on it.[/yellow]"
+                    )
     except Exception as bl_err:
         logger.warning("Baseline capture error: %s", bl_err)
 
@@ -2062,7 +2081,7 @@ def _review_baseline_context_lines(*, main_repo_root: Path, mission_slug: str, w
     lines: list[str] = []
     w = _wf()
     # IC-04/T017: baseline-test READ, kept DISTINCT from the write in
-    # implement_capture_baseline (campsite note #5 — they diverge
+    # capture_and_commit_baseline (campsite note #5 — they diverge
     # intentionally, never dedupe into one shared call/variable).
     # WORK_PACKAGE_TASK (tasks/<wp_slug>/) is a PRIMARY-partition kind —
     # routed via the kind-aware seam instead of the kind-blind coord husk

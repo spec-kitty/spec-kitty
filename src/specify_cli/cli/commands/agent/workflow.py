@@ -1758,16 +1758,13 @@ def implement(
         # Detect mission type and get deliverables_path for research missions.
         mission_type, deliverables_path = _executor.implement_resolve_mission_type(repo_root, mission_slug)
 
-        # Capture baseline test results (one-time, cached) before the agent starts coding
-        _executor.implement_capture_baseline(
-            workspace_path=workspace_path,
-            target_branch=target_branch,
-            normalized_wp_id=normalized_wp_id,
-            mission_slug=mission_slug,
-            feature_dir=feature_dir,
-            wp_slug=wp_slug,
-            main_repo_root=main_repo_root,
-        )
+        # #6062: baseline capture is NOT run here. A claim must return promptly
+        # after materializing the lane worktree and moving the WP to ``doing``;
+        # running the project's test suite synchronously on the claim path is
+        # what wedged ``agent action implement`` (and made it hold a lock scoped
+        # to the ``for_review`` transition). The baseline is now captured lazily,
+        # capture-if-missing, on the ``in_progress -> for_review`` edge where the
+        # gate consumes it (``tasks_move_task_gates._mt_capture_baseline_if_missing``).
 
         prompt_lines = _executor.build_implement_prompt_lines(
             normalized_wp_id=normalized_wp_id,

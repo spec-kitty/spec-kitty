@@ -117,7 +117,7 @@ def _capabilities_at_call_sites(path: Path, callee: str) -> list[GuardCapability
     [
         # (b) legacy workflow commit. coord-authority-trio-degod-01KX7094 WP02
         # (T009) relocated the sibling baseline-artifact commit call site into
-        # ``workflow_executor.implement_capture_baseline`` -- see the adjacent
+        # ``workflow_executor.capture_and_commit_baseline`` -- see the adjacent
         # ``workflow_executor.py`` parametrize entry below for its capability
         # parity (moved call site, same STANDARD assertion, unchanged).
         ("cli/commands/agent/workflow.py", "safe_commit"),

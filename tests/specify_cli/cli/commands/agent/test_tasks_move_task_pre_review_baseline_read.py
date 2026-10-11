@@ -2,7 +2,7 @@
 reads ``baseline-tests.json`` from the PRIMARY partition, not the coord husk.
 
 ``baseline-tests.json`` (``tasks/<wp_slug>/``) is a WORK_PACKAGE_TASK-kind,
-PRIMARY-partition artifact authored by ``implement_capture_baseline``. Under
+PRIMARY-partition artifact authored by ``capture_and_commit_baseline``. Under
 coord topology ``_MoveTaskState.feature_dir`` is the KIND-BLIND coord leg —
 where the PRIMARY-authored baseline does NOT exist. Reading the baseline off
 ``st.feature_dir`` therefore returns ``None`` and silently drops

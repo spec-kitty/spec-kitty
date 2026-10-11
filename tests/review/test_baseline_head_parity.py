@@ -12,7 +12,7 @@ never false-mismatches and never false-``NEW_FAILURES``. Two combinations:
 
 Plus (issue #3611) a diverging-roots case: capture-time resolves
 ``ScopeSource`` selection against the planning root (``main_repo_root``,
-mirroring ``implement_capture_baseline``'s
+mirroring ``capture_and_commit_baseline``'s
 ``resolve_scope_source(main_repo_root)``), while the head-side gate
 resolves selection through ``_mt_resolve_transition_gate_inputs`` /
 ``_TransitionGateInputs.scope_source_root`` -- which must ALSO be
@@ -203,7 +203,7 @@ def test_scope_source_resolves_from_planning_root_not_lane_worktree(
     A lane worktree is branched off ``main`` BEFORE ``review.test_command``
     is committed, so the worktree's own checked-out ``.kittify/config.yaml``
     never gains the key. Capture-time (mirroring
-    ``implement_capture_baseline``) resolves ``resolve_scope_source`` against
+    ``capture_and_commit_baseline``) resolves ``resolve_scope_source`` against
     ``main_repo_root`` and gets ``DeclaredCommandScopeSource``. The head gate
     must resolve the SAME source -- via
     ``_mt_resolve_transition_gate_inputs``'s ``scope_source_root`` field,

@@ -1,4 +1,4 @@
-"""``implement_capture_baseline`` renders its notices through the CLI console (#4163).
+"""``capture_and_commit_baseline`` renders its notices through the CLI console (#4163).
 
 The baseline notices were written with the builtin ``print``, so the Rich
 markup (``[dim]…[/dim]``, ``[yellow]…[/yellow]``) reached the terminal
@@ -43,7 +43,7 @@ def test_baseline_notice_is_rendered_not_echoed_as_markup(
     monkeypatch.setattr("specify_cli.review.baseline.capture_baseline", lambda **kwargs: _baseline(failed))
     monkeypatch.setattr("specify_cli.review.scope_source.resolve_scope_source", lambda root: None)
 
-    workflow_executor.implement_capture_baseline(
+    workflow_executor.capture_and_commit_baseline(
         workspace_path=tmp_path,
         target_branch="main",
         normalized_wp_id="WP01",
@@ -76,7 +76,7 @@ def test_commit_refusal_reason_is_shown_verbatim_not_parsed_as_markup(tmp_path: 
 
     monkeypatch.setattr("specify_cli.cli.commands.agent.workflow.safe_commit", _refuse)
 
-    workflow_executor.implement_capture_baseline(
+    workflow_executor.capture_and_commit_baseline(
         workspace_path=tmp_path,
         target_branch="main",
         normalized_wp_id="WP01",

@@ -36,6 +36,7 @@ this module, so a re-exported copy would go stale; read and patch it on
 
 from __future__ import annotations
 
+import logging
 import warnings
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -107,6 +108,8 @@ from specify_cli.task_utils import (
 # WP01 signature change. (The sibling census-derived composition helper,
 # ``_mt_pre_review_gate_verdict``, was dead code with no production call site
 # — retired by mission scopesource-gate-followup-01KY6S9P WP04, FR-002.)
+
+logger = logging.getLogger(__name__)
 
 _PRE_REVIEW_CONFIG_KEY_BLOCK = "fail_on_pre_review_regression"
 _PRE_REVIEW_CONFIG_KEY_TEST_COMMAND = "pre_review_test_command"
@@ -599,7 +602,7 @@ class _TransitionGateInputs:
     subprocess actually RUNS (the worktree, when one exists — the run must
     execute against the code under review); ``scope_source_root`` is where
     ``ScopeSource`` SELECTION happens. Flagless calls keep ``st.main_repo_root``
-    — the SAME root ``implement_capture_baseline`` uses — while explicit owned
+    — the SAME root ``capture_and_commit_baseline`` uses — while explicit owned
     calls use the selected owned checkout where their planning inputs live.
     Resolving selection from ``gate_repo_root`` (the worktree) instead let a
     lane worktree whose checked-out ``.kittify/config.yaml`` lacks
@@ -700,33 +703,103 @@ def _mt_resolve_active_gate_bindings(st: _MoveTaskState) -> GateBindingResolutio
     return resolve_gate_bindings_for_transition(operation_root, mission, edge_key)
 
 
-def _mt_resolve_gate_baseline(st: _MoveTaskState) -> BaselineTestResult | None:
-    """Load the WP's captured baseline (``None`` when never captured).
+def _mt_baseline_artifact_location(st: _MoveTaskState) -> tuple[Path, str]:
+    """Resolve ``(baseline_dir, wp_slug)`` for the WP's baseline artifact.
 
-    Shared by the doctrine-bound handler context and the FR-004 override tier so
-    both diff against the SAME baseline artifact.
+    The SINGLE authority both the gate's LOAD side
+    (:func:`_mt_resolve_gate_baseline`) and the #6062 capture-if-missing WRITE
+    side (:func:`_mt_capture_baseline_if_missing`) resolve through, so the two
+    can never drift onto different artifact paths.
+
+    C-008 (coord-commit-integrity-01KY5JS8): baseline-tests.json is a
+    WORK_PACKAGE_TASK-kind (PRIMARY-partition) artifact. Under coord topology
+    ``st.feature_dir`` is the kind-blind coord husk where the PRIMARY-authored
+    baseline does NOT exist — resolving it there silently loses
+    pre-existing-failure suppression. Route through the SAME kind-aware seam the
+    review gate uses (workflow.py ``_resolve_workflow_read_dir(kind=
+    WORK_PACKAGE_TASK)``), not the husk. The owned checkout keeps its own
+    ``st.feature_dir``.
     """
     if st.owned is not None:
         assert st.wp is not None
-        wp_slug = st.wp.path.stem
-        baseline_read_dir = st.feature_dir
-        return BaselineTestResult.load(baseline_read_dir / "tasks" / wp_slug / "baseline-tests.json")
+        return st.feature_dir, st.wp.path.stem
     wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
-    # C-008 (coord-commit-integrity-01KY5JS8): baseline-tests.json is a
-    # WORK_PACKAGE_TASK-kind (PRIMARY-partition) artifact authored by
-    # implement_capture_baseline. Under coord topology ``st.feature_dir`` is the
-    # kind-blind coord husk where the PRIMARY-authored baseline does NOT exist —
-    # reading it there silently loses pre-existing-failure suppression. Route the
-    # READ through the SAME kind-aware seam the review gate uses (workflow.py
-    # ``_resolve_workflow_read_dir(kind=WORK_PACKAGE_TASK)``), not the husk.
     from specify_cli.cli.commands.agent.workflow import _resolve_workflow_read_dir
 
-    baseline_read_dir = _resolve_workflow_read_dir(
+    baseline_dir = _resolve_workflow_read_dir(
         repo_root=st.main_repo_root,
         mission_slug=st.mission_slug,
         kind=MissionArtifactKind.WORK_PACKAGE_TASK,
     )
+    return baseline_dir, wp_slug
+
+
+def _mt_resolve_gate_baseline(st: _MoveTaskState) -> BaselineTestResult | None:
+    """Load the WP's captured baseline (``None`` when never captured).
+
+    Shared by the doctrine-bound handler context and the FR-004 override tier so
+    both diff against the SAME baseline artifact. The artifact path is resolved
+    by the single :func:`_mt_baseline_artifact_location` authority.
+    """
+    baseline_read_dir, wp_slug = _mt_baseline_artifact_location(st)
     return BaselineTestResult.load(baseline_read_dir / "tasks" / wp_slug / "baseline-tests.json")
+
+
+def _mt_capture_baseline_if_missing(st: _MoveTaskState) -> None:
+    """#6062: lazily capture-and-commit the WP's baseline on the
+    ``in_progress -> for_review`` edge when it was not captured yet.
+
+    Baseline capture moved OFF the ``agent action implement`` claim path (a
+    claim must return promptly, never run the project's suite synchronously or
+    touch the ``for_review`` gate lock) to here — the point where the
+    pre-review gate consumes the baseline and where blocking on a suite run is
+    acceptable. Because the claim path no longer captures, the artifact is
+    ABSENT on the first ``for_review`` of a WP, so the configured suite runs
+    synchronously here then (the deliberate placement of the blocking cost);
+    the capture is a no-op on re-entry (a rework → ``for_review`` cycle finds
+    the committed artifact), when ``review.test_command`` is unconfigured
+    (``capture_and_commit_baseline`` then captures nothing), or if an
+    implement-time capture is ever reintroduced. Runs AFTER the
+    skip-escape-hatch check in :func:`_mt_run_transition_gates`, so a skipped
+    gate also skips capture.
+
+    Fail-open (FR-013, mirroring :func:`_mt_fail_open_gate`): the whole
+    resolve+capture body is wrapped so a fault — an ambiguous ``_resolve_wp_slug``,
+    a malformed ``meta.json`` in the placement seam, a capture error — NEVER
+    refuses the ``for_review`` move. It degrades to no baseline, and the gate's
+    own LOAD side then yields ``UNVERIFIED_BASELINE`` (a warn), exactly as a
+    never-captured baseline already did and exactly as the identical LOAD-side
+    resolution (``_mt_resolve_gate_baseline``, inside
+    :func:`_mt_resolve_transition_gate_verdicts`'s three-catch) degrades the
+    same fault. ``KeyboardInterrupt`` is deliberately NOT caught (a Ctrl-C
+    still aborts).
+    """
+    if st.old_lane != Lane.IN_PROGRESS or st.target_lane != Lane.FOR_REVIEW:
+        return
+    try:
+        baseline_dir, wp_slug = _mt_baseline_artifact_location(st)
+        if (baseline_dir / "tasks" / wp_slug / "baseline-tests.json").exists():
+            return
+        from specify_cli.cli.commands.agent.workflow_executor import capture_and_commit_baseline
+
+        capture_and_commit_baseline(
+            workspace_path=st.main_repo_root,
+            target_branch=st.review_base_ref or st.target_branch,
+            normalized_wp_id=st.task_id,
+            mission_slug=st.mission_slug,
+            feature_dir=baseline_dir,
+            wp_slug=wp_slug,
+            main_repo_root=st.main_repo_root,
+            # #6062: never let a baseline notice corrupt a --json move-task envelope;
+            # the move-task path emits console only when not json_output.
+            quiet=st.json_output,
+        )
+    except Exception as exc:  # noqa: BLE001 — #6062 fail-open: a capture-prep fault must never refuse the for_review move (same contract as the LOAD-side three-catch)
+        logger.warning(
+            "Lazy baseline capture skipped for %s (%s); the pre-review gate will degrade to an unverified baseline.",
+            st.task_id,
+            exc,
+        )
 
 
 def _mt_build_transition_gate_context(
@@ -1102,6 +1175,12 @@ def _mt_run_transition_gates(st: _MoveTaskState) -> None:
     if skip_reason is not None:
         _mt_emit_skipped_gate(st, _tasks, skip_reason)
         return
+
+    # #6062: lazily capture the baseline here (capture-if-missing) now that the
+    # claim path no longer does — BEFORE the gate below loads it. Idempotent and
+    # best-effort; a no-op when already captured or when the gate will be
+    # skipped (handled above).
+    _mt_capture_baseline_if_missing(st)
 
     assert st.wp is not None
     inputs, dirty_before, verdicts = _mt_resolve_transition_gate_verdicts(st, _tasks)
