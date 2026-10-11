@@ -1,0 +1,133 @@
+{
+  "event_count": 49,
+  "last_event_id": "01M4P2N6M8YWA3253YHKQ3DJ9Y",
+  "materialized_at": "2026-10-11T18:12:32.008078+00:00",
+  "mission_number": "",
+  "mission_slug": "pack-level-declared-in-pack-yaml-01M4NVEN",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P2MWXHTQNZSVGT42HEX6QK",
+      "last_transition_at": "2026-10-11T18:12:22.065712+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261011",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2721869,
+      "shell_pid_created_at": "1791736941.0"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P2N1S0965GQ4MCA8XSHB6W",
+      "last_transition_at": "2026-10-11T18:12:27.040554+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261011",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2824828,
+      "shell_pid_created_at": "1791739058.33"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P2N3CPDGMM6G2YGRYTV07N",
+      "last_transition_at": "2026-10-11T18:12:28.694951+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261011",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2824828,
+      "shell_pid_created_at": "1791739058.33"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P2N4ZPYKZEGAC4KX4NG93X",
+      "last_transition_at": "2026-10-11T18:12:30.326417+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261011",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2824828,
+      "shell_pid_created_at": "1791739058.33"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P2N6M8YWA3253YHKQ3DJ9Y",
+      "last_transition_at": "2026-10-11T18:12:32.008078+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261011",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2824828,
+      "shell_pid_created_at": "1791739058.33"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P2MYHVYSEHWE3NS1K1QE0K",
+      "last_transition_at": "2026-10-11T18:12:23.739640+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261011",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2647,
+      "shell_pid_created_at": "1791380668.9"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P2N04H7HS9FMD78QVRVFJA",
+      "last_transition_at": "2026-10-11T18:12:25.361076+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP07:20261011",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2647,
+      "shell_pid_created_at": "1791380668.9"
+    }
+  }
+}

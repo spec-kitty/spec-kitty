@@ -1,0 +1,13 @@
+{
+  "wp_id": "WP05",
+  "captured_at": "2026-10-11T17:31:13Z",
+  "base_branch": "issue-6048-pack-level-pack-yaml",
+  "base_commit": "7c83af5bf29e8155dab8b925d9fe3d9d9cab5122",
+  "test_runner": "custom",
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml"
+}

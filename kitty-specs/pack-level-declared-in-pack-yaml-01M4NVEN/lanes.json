@@ -1,0 +1,203 @@
+{
+  "version": 1,
+  "mission_slug": "pack-level-declared-in-pack-yaml-01M4NVEN",
+  "mission_id": "01M4NVENMVG52P0GR69CB7HV3R",
+  "mission_branch": "kitty/mission-pack-level-declared-in-pack-yaml-01M4NVEN",
+  "target_branch": "issue-6048-pack-level-pack-yaml",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/offering/packs/pack_descriptor.py",
+        "tests/architectural/test_pack_level_single_authority.py",
+        "tests/charter_offering/test_pack_descriptor_level.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        ".kittify/agent_profiles_manifest.json",
+        "src/charter/activation/context_json.py",
+        "src/charter/activation/mission_type_profiles.py",
+        "src/charter/activation/progressive_disclosure.py",
+        "src/charter/activation/skill_preparation.py",
+        "src/charter/offering/agent_profiles/repository.py",
+        "src/charter/offering/assets/repository.py",
+        "src/charter/offering/base.py",
+        "src/charter/offering/pack_skills/repository.py",
+        "src/charter/offering/pack_skills/validation.py",
+        "src/kernel/pack_tiers.py",
+        "src/runtime/next/_internal_runtime/discovery.py",
+        "src/specify_cli/cli/commands/_charter_pack_collect.py",
+        "src/specify_cli/cli/commands/_charter_pack_health.py",
+        "src/specify_cli/cli/commands/profiles_cmd.py",
+        "src/specify_cli/invocation/registry.py",
+        "src/specify_cli/mission_loader/validator.py",
+        "src/specify_cli/tool_surface/profiles/projection.py",
+        "tests/architectural/test_pack_tier_token_single_authority.py",
+        "tests/charter/context_renderers/test_include_selector_widening.py",
+        "tests/charter/test_active_charter_service_lineage_accessor.py",
+        "tests/charter/test_context.py",
+        "tests/charter/test_context_selection_render.py",
+        "tests/charter/test_mission_type_profile_override.py",
+        "tests/charter/test_mission_type_profiles.py",
+        "tests/charter/test_portable_provenance.py",
+        "tests/charter/test_skill_preparation.py",
+        "tests/charter_offering/agent_profiles/test_drupal_dries_profile.py",
+        "tests/charter_offering/agent_profiles/test_register_overlay.py",
+        "tests/charter_offering/assets/test_repository.py",
+        "tests/charter_offering/drg/test_override_policy_predicates.py",
+        "tests/charter_offering/pack_skills/test_repository.py",
+        "tests/charter_offering/test_base_org_layer.py",
+        "tests/charter_offering/test_pack_relocation_doctor_gate.py",
+        "tests/charter_offering/test_profile_diagnostics.py",
+        "tests/charter_offering/test_profile_repository.py",
+        "tests/charter_offering/test_service_org_layer.py",
+        "tests/cli/commands/test_charter_rendering.py",
+        "tests/integration/test_pack_enhances_partial_fields.py",
+        "tests/runtime/test_resolver_unit.py",
+        "tests/specify_cli/cli/commands/test_doctor_charter_packs_collisions.py",
+        "tests/specify_cli/cli/commands/test_doctrine_asset.py",
+        "tests/specify_cli/invocation/cli/test_profiles_activation.py",
+        "tests/specify_cli/test_doctor_charter_packs_health.py",
+        "tests/specify_cli/tool_surface/profiles/test_manifest.py",
+        "tests/specify_cli/tool_surface/profiles/test_projection.py",
+        "tests/specify_cli/tool_surface/test_model.py",
+        "tests/specify_cli/tool_surface/test_projection_collision_precedence.py",
+        "tests/specify_cli/upgrade/migrations/test_heal_provenance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "docs/adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md",
+        "docs/adr/4.x/index.md",
+        "docs/context/charter.md",
+        "docs/context/governance.md",
+        "docs/development/docs-retrieval-index.yaml",
+        "docs/development/page-inventory.yaml",
+        "src/charter/README.md",
+        "src/charter/diagrams/pack-descriptor-example.puml",
+        "src/charter/diagrams/pack-descriptor-example.svg",
+        "src/charter/diagrams/pack-descriptor-model.puml",
+        "src/charter/diagrams/pack-descriptor-model.svg"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/offering/drg/org_pack_config.py",
+        "src/charter/offering/drg/org_pack_loader.py",
+        "src/charter/offering/packs/pack_layout.py",
+        "src/charter/offering/packs/pack_validator.py",
+        "tests/charter_offering/test_org_pack_level_read.py",
+        "tests/charter_offering/test_pack_layout.py",
+        "tests/charter_offering/test_pack_level_load_refusals.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/upgrade/migrations/m_4_0_0rc8_pack_level_backfill.py",
+        "tests/upgrade/test_pack_level_backfill.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "packs/built-in/pack-manifest.yaml",
+        "packs/built-in/pack.yaml",
+        "packs/internal/pack.yaml",
+        "tests/architectural/test_pack_manifest_no_author_edit.py",
+        "tests/charter_offering/test_internal_pack_identity.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/offering/packs/core_compat.py",
+        "src/charter/offering/packs/pack_clean_digest.py",
+        "src/specify_cli/cli/commands/charter/pack_tooling.py",
+        "tests/charter_offering/test_pack_clean_digest.py",
+        "tests/charter_offering/test_requires_core_check.py",
+        "tests/specify_cli/cli/commands/charter/test_regenerate_graph_pack_root.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-10-11T16:38:31.447375+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "0cde3489ac52c272cbf3db152dc7cc5f2a088007"
+}

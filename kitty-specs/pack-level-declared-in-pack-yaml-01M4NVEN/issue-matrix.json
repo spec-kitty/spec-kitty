@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#3504": {
+      "evidence_ref": "parent vendoring epic; out of scope (C-007); prerequisites delivered via #6046",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5961": {
+      "evidence_ref": "tier-token half landed previously as kernel.pack_tiers (#5825/#5961 CLOSED); reused as single authority",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#5992": {
+      "evidence_ref": "3-tier provenance builtin->built-in unified on kernel.pack_tiers (WP06)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP06"
+    },
+    "#6046": {
+      "evidence_ref": "regenerate-graph --pack-root, requires_core checker, clean-tree digest (WP05)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP05"
+    },
+    "#6048": {
+      "evidence_ref": "pack_level delivered (WP01/WP02/WP04)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#6049": {
+      "evidence_ref": "ADR 2026-10-11-2 source PR (docs-only), folded into this PR",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP07"
+    }
+  },
+  "schema_version": 1
+}

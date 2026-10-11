@@ -1,0 +1,21 @@
+{
+  "baseline_merge_commit": "42b9d7ecd0b9ad40096cefbb165c4c261bfa121d",
+  "created_at": "2026-10-11T16:06:38.084692+00:00",
+  "flattened": true,
+  "friendly_name": "Charter Pack level declared in pack.yaml",
+  "merged_at": "2026-10-11T18:12:44.652575+00:00",
+  "merged_commit": "7c351fe5a6ef6f4a21f7f553bf7bdf6246d8d7de",
+  "mid8": "01M4NVEN",
+  "mission_id": "01M4NVENMVG52P0GR69CB7HV3R",
+  "mission_number": 228,
+  "mission_slug": "pack-level-declared-in-pack-yaml-01M4NVEN",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Charter Packs (built-in, org, project) are recognised today only by where they are wired in and which files they happen to contain, so a mis-placed pack is discovered through a downstream failure rather than refused by name. This mission makes every pack declare its level and layout in pack.yaml, unifies the pack-tier/provenance vocabulary under one owner, and adds the core tooling needed to vendor the built-in pack from the open-packs repository.",
+  "purpose_tldr": "Every Charter Pack declares its level in pack.yaml, and core gains the tooling to vendor the built-in pack from open-packs.",
+  "slug": "pack-level-declared-in-pack-yaml-01M4NVEN",
+  "status_phase": "1",
+  "target_branch": "issue-6048-pack-level-pack-yaml",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-11T16:42:25.319137+00:00"
+}
