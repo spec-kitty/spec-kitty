@@ -68,6 +68,13 @@ def resolve_pack_layout(pack_root: Path, descriptor: PackDescriptor) -> tuple[Pa
       the pack root as the sharded ``*.graph.yaml`` directory (built-in), or
       ``graph.yaml`` (project).
 
+    The convention is selected from ``descriptor.pack_level`` as given; this
+    seam does not check it against the position the pack was configured at. A
+    caller that knows the position (``validate_pack``) passes a descriptor whose
+    level is that position, so the configured position — not an unchecked
+    declaration — governs layout; the disagreement itself is reported by
+    ``PACK_LEVEL_MISMATCH``.
+
     Raises:
         PackLayoutError: a pointer is absolute or escapes *pack_root*.
     """

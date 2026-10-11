@@ -465,7 +465,7 @@ def validate_pack(
     # FR-009: resolve the pack's layout (active-charter + DRG source) through
     # the ONE seam. For a pointer-less / descriptor-less pack the seam returns
     # the kernel convention, so every lookup below is byte-identical to before.
-    active_charter_path, drg_fragment_path = _resolve_layout(pack_dir)
+    active_charter_path, drg_fragment_path = _resolve_layout(pack_dir, expected_level)
 
     registry = artifact_schema_registry()
 
@@ -705,12 +705,12 @@ _PACK_DESCRIPTOR_ARTIFACT_TYPE = "pack"
 #: release anchor is hardcoded anywhere else.
 _PACK_LEVEL_MISSING_IS_ERROR = False
 
-#: The tier a field-less ``pack.yaml`` is loaded under when no configured
-#: position is known (a bare-path ``validate``). It only lets the strict model
-#: construct so the rest of descriptor validation can run; with no position the
-#: mismatch check is skipped anyway (fail-closed, never a silent wrong-level
-#: pass), so the value never produces a verdict.
-_WINDOW_DEFAULT_LEVEL: PackTier = ORG
+#: A placeholder tier used ONLY by the descriptor schema leg for a field-less
+#: ``pack.yaml`` on a bare path (no configured position). It lets the strict
+#: model construct so the remaining schema checks can run; it never selects a
+#: layout and never produces a verdict (the mismatch check is skipped without a
+#: position, and ``org`` needs no ``pack_version``).
+_SCHEMA_PROBE_LEVEL: PackTier = ORG
 
 
 def _descriptor_issue(path: Path, message: str, category: str, artifact_id: str | None = None, *, severity: str = "error") -> ValidationIssue:
@@ -790,7 +790,7 @@ def _validate_pack_descriptor(pack_dir: Path, expected_level: PackTier | None = 
     inferred = expected_level
     if _pack_level_absent(path):
         issues.append(_pack_level_missing_issue(path))
-        inferred = expected_level or _WINDOW_DEFAULT_LEVEL
+        inferred = expected_level or _SCHEMA_PROBE_LEVEL
     try:
         descriptor = load_pack_descriptor(path, inferred_level=inferred)
     except RetiredPackFieldError as exc:
@@ -805,24 +805,29 @@ def _validate_pack_descriptor(pack_dir: Path, expected_level: PackTier | None = 
     return issues
 
 
-def _resolve_layout(pack_dir: Path) -> tuple[Path | None, Path]:
+def _resolve_layout(pack_dir: Path, expected_level: PackTier | None = None) -> tuple[Path | None, Path]:
     """Resolve ``(active_charter_path, drg_fragment_path)`` through the FR-009 seam.
 
-    Loads the descriptor tolerantly (window default level, so a field-less
-    ``pack.yaml`` still resolves) and delegates to :func:`resolve_pack_layout`.
-    Falls back to the kernel convention when the pack has no descriptor, the
-    descriptor is unloadable, or a pointer escapes (the escape is reported
-    through the descriptor leg). The DRG fragment-file consumers want a *file*:
-    the built-in sharded-root sentinel (the seam returning the pack root itself)
-    falls back to the ``drg/fragment.yaml`` convention so built-in validation is
-    byte-identical.
+    Layout follows the configured position: when *expected_level* is known it
+    governs the per-level convention (a level the descriptor declares otherwise
+    is reported by the ``PACK_LEVEL_MISMATCH`` check, never trusted for layout).
+    With no position (a bare path) the descriptor's own declared level is used;
+    a ``pack.yaml`` that declares none gives no level to lay out by, so the
+    layout branch is skipped. Falls back to the kernel convention when the pack
+    has no descriptor, the descriptor is unloadable, or a pointer escapes (the
+    escape is reported through the descriptor leg). The DRG fragment-file
+    consumers want a *file*: the built-in sharded-root sentinel (the seam
+    returning the pack root itself) falls back to the ``drg/fragment.yaml``
+    convention so built-in validation is byte-identical.
     """
     convention = (pack_org_charter(pack_dir), pack_drg_fragment(pack_dir))
     path = pack_dir / _PACK_DESCRIPTOR_FILENAME
     if not path.is_file():
         return convention
     try:
-        descriptor = load_pack_descriptor(path, inferred_level=_WINDOW_DEFAULT_LEVEL)
+        descriptor = load_pack_descriptor(path, inferred_level=expected_level)
+        if expected_level is not None:
+            descriptor = descriptor.model_copy(update={"pack_level": expected_level})
         active_charter_path, drg_path = resolve_pack_layout(pack_dir, descriptor)
     except (ValidationError, RetiredPackFieldError, YAMLError, OSError, PackLayoutError):
         return convention
