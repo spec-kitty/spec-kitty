@@ -163,9 +163,23 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
         return True
     if mission_state_audit.search(normalized):
         return True
+    if _derived_view_mission_dir(normalized) is not None:
+        return True
     if is_dossier_snapshot(normalized):
         return True
     return bool(kitty_ops_op_record.search(normalized))
+
+
+def _derived_view_mission_dir(path: str | Path) -> str | None:
+    """The Mission directory of a ``.kittify/derived/<mission>/<view>`` status view, else ``None``.
+
+    The status views (``status/views.py``) are regenerated from the event log, so
+    their churn is spec-kitty's own bookkeeping. Depth-exact like the ``meta.json``
+    leg: a file directly under ``.kittify/derived/`` or nested deeper is not a view.
+    The pattern is function-local for the same R-014 reason as the owner's literals.
+    """
+    match = re.search(r"(?:^|/)\.kittify/derived/([^/]+)/[^/]+$", to_posix(path).rstrip("/"))
+    return match.group(1) if match else None
 
 
 def kind_across_mission_dir_names(
@@ -511,41 +525,23 @@ def _checkout_role_for(repo_root: Path, worktree: Path) -> CheckoutRole:
     return CheckoutRole.COORDINATION
 
 
-#: Where the status views regenerated from the event log live (``status/views.py``).
-_DERIVED_VIEWS_PARTS = (".kittify", "derived")
-
-
-def _mission_dir_under(path: str, prefix: tuple[str, ...]) -> str | None:
-    """The Mission directory name of ``path`` under ``prefix`` (``kitty-specs`` or ``.kittify/derived``), else ``None``."""
-    parts = PurePosixPath(to_posix(path)).parts
-    width = len(prefix)
-    for start in range(len(parts) - width):
-        if parts[start : start + width] == prefix and len(parts) - (start + width) >= 2:
-            return parts[start + width]
-    return None
-
-
-def _own_names(context: ResidueContext) -> frozenset[str] | set[str]:
-    return context.mission_dir_names or {context.mission_slug}
-
-
 def _is_other_mission_path(path: str, context: ResidueContext) -> bool:
-    """True when ``path`` lies under ``kitty-specs/<name>/`` or ``.kittify/derived/<name>/`` for another Mission.
+    """True when ``path`` belongs to another Mission: under ``kitty-specs/<name>/``, or one of its derived status views.
 
     A structural look at the Mission directory segment only: which files of
     that directory count as residue stays with the kind authority.
     """
-    for prefix in ((KITTY_SPECS_DIR,), _DERIVED_VIEWS_PARTS):
-        name = _mission_dir_under(path, prefix)
-        if name is not None and name not in _own_names(context):
-            return True
-    return False
-
-
-def _is_own_derived_view(path: str, context: ResidueContext) -> bool:
-    """True for this Mission's ``.kittify/derived/<name>/`` status views, which are regenerated from the event log."""
-    name = _mission_dir_under(path, _DERIVED_VIEWS_PARTS)
-    return name is not None and name in _own_names(context)
+    own = context.mission_dir_names or {context.mission_slug}
+    derived = _derived_view_mission_dir(path)
+    if derived is not None:
+        return derived not in own
+    parts = PurePosixPath(to_posix(path)).parts
+    if KITTY_SPECS_DIR not in parts:
+        return False
+    after = parts[parts.index(KITTY_SPECS_DIR) + 1 :]
+    if len(after) < 2:
+        return False
+    return after[0] not in own
 
 
 def _is_disposable_residue(path: str | Path, context: ResidueContext) -> bool:
@@ -553,8 +549,8 @@ def _is_disposable_residue(path: str | Path, context: ResidueContext) -> bool:
 
     1. A tool-owned checkout: everything is disposable.
     2. Another Mission's artifact: never (#5966).
-    3. spec-kitty's own bookkeeping (:func:`is_self_bookkeeping_churn`) and this Mission's
-       ``.kittify/derived/`` status views, regenerated from the event log: disposable.
+    3. spec-kitty's own bookkeeping (:func:`is_self_bookkeeping_churn`, which includes this
+       Mission's ``.kittify/derived/`` status views): disposable.
     4. In a coordination worktree, anything else is the only copy (#5965), except this
        Mission's own regenerated status state (:func:`is_status_state_path`).
     5. Elsewhere, coordination-partition residue under the Mission's STORED topology
@@ -567,7 +563,7 @@ def _is_disposable_residue(path: str | Path, context: ResidueContext) -> bool:
         return True
     if _is_other_mission_path(str(path), context):
         return False
-    if is_self_bookkeeping_churn(path) or _is_own_derived_view(str(path), context):
+    if is_self_bookkeeping_churn(path):
         return True
     if context.role is CheckoutRole.COORDINATION:
         # Only this Mission's regenerated status state (log + snapshot) is residue here; every other
