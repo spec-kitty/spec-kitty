@@ -133,6 +133,7 @@ def test_refresh_primary_checkout_removes_sparse_rename_source(tmp_path: Path) -
     _git(repo, "commit", "-m", "rename script")
     _git(repo, "switch", "main")
 
+    lag_base = _git(repo, "rev-parse", "main").stdout.strip()
     new_tree = _git(repo, "rev-parse", "kitty/mission-rename^{tree}").stdout.strip()
     new_commit = _git(repo, "commit-tree", new_tree, "-p", "main", "-m", "squash").stdout.strip()
     _git(repo, "update-ref", "refs/heads/main", new_commit)
@@ -146,7 +147,7 @@ def test_refresh_primary_checkout_removes_sparse_rename_source(tmp_path: Path) -
     assert checkout_only.returncode == 0
     assert "A  scripts/google/authorize-calendar.py" in _git(repo, "status", "--porcelain").stdout
 
-    _refresh_primary_checkout_after_merge(repo)
+    _refresh_primary_checkout_after_merge(repo, lag_base_sha=lag_base)
 
     assert _git(repo, "status", "--porcelain").stdout == ""
     assert not old_path.exists()

@@ -825,9 +825,13 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(fresh
 _EXPECTED_CASCADE_TOTALS: dict[str, int] = {
     "documentation": 131,
     "research": 120,
-    "software-dev": 165,
-    "plan": 139,
+    "software-dev": 166,
+    "plan": 144,
 }
+#: #6017 (97e42f00b2) wired the orphaned DIRECTIVE_035 and DIRECTIVE_039 into
+#: the doctrine graph, an intended doctrine-growth move: ``software-dev`` 165 ->
+#: 166 and ``plan`` 139 -> 144. The charter shard is path-gated, so the
+#: ratchet was only exercised again by #6020.
 #: Cascade totals after the single-owner doctrine change, measured with
 #: ``cascade_activation_targets`` on the regenerated graph (the arrows start
 #: from the totals before that change, after #5258 below, which moved only

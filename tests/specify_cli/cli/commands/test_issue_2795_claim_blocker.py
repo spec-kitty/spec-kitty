@@ -37,7 +37,7 @@ lifecycle-gate-execution-context-01KY72GQ WP13 (IC-07c) / FR-012 superseded
 that narrower invariant for callers that inject the canonical churn owner: every
 production ``advance_branch_ref`` caller (``merge/ordering.py``,
 ``lanes/merge.py``, ``coordination/commit_router.py``) now passes
-``is_residue=is_toolchain_generated_churn``, which classifies ANY ``meta.json``
+``context=residue_when(is_toolchain_generated_churn)``, which classifies ANY ``meta.json``
 change (not just a vcs-lock-only one) as spec-kitty's own bookkeeping churn —
 closing the #2795 cross-gate disagreement
 (``tests/architectural/test_cross_gate_churn_agreement.py``, C7) where
@@ -59,6 +59,7 @@ from mission_runtime import MissionArtifactKind, placement_seam
 from kernel.meta_decode import MetaDecodeError, decode_meta
 from kernel.vcs_lock import is_vcs_lock_only_change
 
+from tests.residue_predicate import residue_when
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import (
     RefAdvanceDirtyWorktreeError,
@@ -183,7 +184,7 @@ def test_vcs_lock_only_meta_change_does_not_block_consolidation(tmp_path: Path) 
         repo_root,
         MISSION_BRANCH,
         new_sha,
-        is_residue=is_toolchain_generated_churn,
+        context=residue_when(is_toolchain_generated_churn),
     )
 
     advanced = subprocess.run(
@@ -250,7 +251,7 @@ def test_genuine_meta_edit_no_longer_blocks_when_residue_routed(tmp_path: Path) 
         repo_root,
         MISSION_BRANCH,
         new_sha,
-        is_residue=is_toolchain_generated_churn,
+        context=residue_when(is_toolchain_generated_churn),
     )
 
     advanced = subprocess.run(

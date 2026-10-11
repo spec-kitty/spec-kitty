@@ -26,7 +26,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.merge_conclusion import MergeConclusionRefused, conclude_in_progress_op, mint_fresh_worktree, run_committing_op
 from specify_cli.git.ref_advance import advance_branch_ref
 from specify_cli.lanes._git import branch_exists as _shared_branch_exists
@@ -37,6 +36,8 @@ from specify_cli.lanes.stale_check import StaleCheckResult, check_lane_staleness
 from specify_cli.consolidation._constants import TARGET_BRANCH_CONTENT_CONFLICT
 from specify_cli.consolidation.config import MergeStrategy
 from specify_cli.consolidation.drivers import META_DRIVER_TWO_WAY_ENV
+from specify_cli.consolidation.git_probes import mission_residue_context
+from specify_cli.consolidation.workspace import abort_scratch_merge, remove_scratch_worktree
 from specify_cli.state.contract import is_target_owned_path
 
 
@@ -232,7 +233,7 @@ def _try_auto_rebase_if_stale(
         return stale
     from specify_cli.lanes.auto_rebase import attempt_auto_rebase
 
-    report = attempt_auto_rebase(lane, branch, mission_branch, repo_root, worktree_path)
+    report = attempt_auto_rebase(lane, branch, mission_branch, repo_root, worktree_path, mission_slug=mission_slug)
     if report.succeeded:
         return check_lane_staleness(lane, branch, mission_branch, repo_root)
     return stale
@@ -320,7 +321,7 @@ def consolidate_lane_into_mission(
         )
 
     try:
-        _merge_branch_into(repo_root, branch, mission_branch)
+        _merge_branch_into(repo_root, branch, mission_branch, mission_slug=mission_slug)
     except RuntimeError as e:
         return LaneConsolidationResult(
             success=False,
@@ -404,6 +405,7 @@ def integrate_mission_into_target(
             # mission→target only: no usable ancestry after a reopen, so the meta.json
             # driver keeps its two-way rule (#5460). Lane→mission stays base-aware.
             meta_two_way=True,
+            mission_slug=mission_slug,
         )
     except _SquashMergeConflict as exc:
         # #4892: a genuine target-content conflict. Surface the paths as
@@ -1098,7 +1100,7 @@ def _complete_merge_after_target_owned_resolution(worktree: Path, env: dict[str,
 def _conclude_ok(worktree: Path, env: dict[str, str]) -> bool:
     """Conclude the in-progress merge through the owner; ``False`` leaves it in progress for the caller's abort."""
     try:
-        return conclude_in_progress_op(worktree, env=env).returncode == 0
+        return bool(conclude_in_progress_op(worktree, env=env).returncode == 0)
     except MergeConclusionRefused:
         return False
 
@@ -1266,14 +1268,8 @@ def preview_mission_target_integration(
     env = _make_merge_env()
     with ExitStack() as stack:
         stack.enter_context(_ephemeral_merge_driver_activation(repo_root, restore_config=True))
-        stack.callback(
-            lambda: subprocess.run(
-                ["git", "worktree", "remove", str(tmp_path), "--force"],
-                cwd=str(repo_root),
-                capture_output=True,
-                env=env,
-            )
-        )
+        # The preview worktree is this function's own scratch checkout (tool-owned, #5965).
+        stack.callback(remove_scratch_worktree, tmp_path, env=env)
         created = subprocess.run(
             ["git", "worktree", "add", "--detach", str(tmp_path), target_branch],
             cwd=str(repo_root),
@@ -1305,6 +1301,7 @@ def _merge_branch_into(
     allow_noop_squash: bool = False,
     raise_on_unexpected_noop: bool = False,
     meta_two_way: bool = False,
+    mission_slug: str | None = None,
 ) -> bool:
     """Merge source_branch into target_branch using a temporary worktree.
 
@@ -1326,10 +1323,15 @@ def _merge_branch_into(
     stale original fork point (#5460). The REBASE strategy replays each commit on its real
     parent, so its driver runs stay base-aware.
 
+    ``mission_slug`` names the Mission whose regenerable residue the ref advance may discard
+    when it resyncs a checked-out worktree (#5965 / #5966). Without it, or when the Mission's
+    stored topology is unreadable, nothing is treated as residue (the strictest answer).
+
     Raises RuntimeError on merge failure (including conflicts).
     """
     import tempfile
 
+    residue_context = mission_residue_context(repo_root, mission_slug)
     tmp_dir = tempfile.mkdtemp(prefix="kitty-merge-")
     tmp_path = Path(tmp_dir)
 
@@ -1343,14 +1345,8 @@ def _merge_branch_into(
     # a later ``auto_rebase`` (#2709/#2711 — see _ephemeral_merge_driver_activation).
     with ExitStack() as _stack:
         _stack.enter_context(_ephemeral_merge_driver_activation(repo_root))
-        _stack.callback(
-            lambda: subprocess.run(
-                ["git", "worktree", "remove", str(tmp_path), "--force"],
-                cwd=str(repo_root),
-                capture_output=True,
-                env=_env,
-            )
-        )
+        # The merge worktree is this function's own scratch checkout (tool-owned, #5965).
+        _stack.callback(remove_scratch_worktree, tmp_path, env=_env)
 
         # Create detached worktree at target branch tip.
         result = subprocess.run(
@@ -1384,12 +1380,7 @@ def _merge_branch_into(
                 # real cleanup is the ExitStack force-removing this scratch
                 # worktree on the way out. Kept as a belt-and-braces reset of any
                 # partially-staged index before the raise propagates.
-                subprocess.run(
-                    ["git", "merge", "--abort"],
-                    cwd=str(tmp_path),
-                    capture_output=True,
-                    env=_env,
-                )
+                abort_scratch_merge(tmp_path, env=_env)
                 raise
             # Squash merges do not record ancestry. On retry after a previous
             # successful squash, Git reports a clean index and a plain commit
@@ -1477,7 +1468,7 @@ def _merge_branch_into(
                 target_branch,
                 rebased_sha,
                 env=_env,
-                is_residue=is_toolchain_generated_churn,
+                context=residue_context,
             )
             return True  # early return — ref already updated
         else:
@@ -1503,12 +1494,7 @@ def _merge_branch_into(
             # the receiving side (stage 2) and the merge completes; anything else
             # aborts and raises exactly as before.
             if result.returncode != 0 and not _complete_merge_after_target_owned_resolution(tmp_path, _env):
-                subprocess.run(
-                    ["git", "merge", "--abort"],
-                    cwd=str(tmp_path),
-                    capture_output=True,
-                    env=_env,
-                )
+                abort_scratch_merge(tmp_path, env=_env)
                 raise RuntimeError(f"Merge of {source_branch} into {target_branch} failed: {result.stderr.strip() or result.stdout.strip()}")
             post_merge_head = subprocess.run(
                 ["git", "rev-parse", "HEAD"],
@@ -1562,6 +1548,6 @@ def _merge_branch_into(
             target_branch,
             merge_commit,
             env=_env,
-            is_residue=is_toolchain_generated_churn,
+            context=residue_context,
         )
         return True

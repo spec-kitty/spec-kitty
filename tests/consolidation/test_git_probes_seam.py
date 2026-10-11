@@ -143,7 +143,7 @@ def test_paths_have_status_changes_detects_dirty_and_clean(tmp_path: Path) -> No
 def test_refresh_primary_checkout_warns_on_reset_failure() -> None:
     printed: list[str] = []
     with (
-        patch.object(git_probes, "run_command", return_value=(1, "", "reset boom")),
+        patch.object(git_probes, "guarded_reset_hard", side_effect=RuntimeError("reset boom")),
         patch("specify_cli.consolidation.git_probes.console.print", side_effect=lambda m: printed.append(m)),
     ):
         git_probes._refresh_primary_checkout_after_merge(Path("/r"))
@@ -157,10 +157,14 @@ def test_refresh_primary_checkout_reset_then_refresh() -> None:
         calls.append(cmd)
         return (0, "", "")
 
-    with patch.object(git_probes, "run_command", side_effect=_fake):
+    with (
+        patch.object(git_probes, "run_command", side_effect=_fake),
+        patch.object(git_probes, "guarded_reset_hard") as mock_reset,
+    ):
         git_probes._refresh_primary_checkout_after_merge(Path("/r"))
-    assert calls[0][:3] == ["git", "reset", "--hard"]
-    assert calls[1][:2] == ["git", "update-index"]
+    mock_reset.assert_called_once()
+    assert mock_reset.call_args.args == (Path("/r"), "HEAD")
+    assert calls[0][:2] == ["git", "update-index"]
 
 
 # --- subprocess-backed probes (real git on a tmp repo) ----------------------

@@ -1,0 +1,372 @@
+schema_version: 1
+mission_id: 01M4KBPS5YJZESN67MC26CBDQR
+mission_slug: destructive-residue-context-01M4KBPS
+mission_number: 226
+friendly_name: Destructive ops never delete the only copy
+mission_type: software-dev
+target_branch: fix/5965-5966-destructive-residue-context
+created_at: '2026-10-10T20:21:34.909157+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-10T20:21:34.909157+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-007
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-008
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-009
+  category: implementation
+  summary: WP09 completed without rejection cycles
+  evidence_refs:
+  - e-014
+- id: h-010
+  category: tooling
+  summary: 'Tracer: D4 path taken.'
+  evidence_refs:
+  - e-016
+  details: "- **D4 path taken.** No new resume code. A refused teardown leaves the PASS anchor equal to the live target tip
+    and the coordination branch present (derivable; no `teardown_refused` state field). `--resume` re-captures `run.coord_checkpoint`
+    live, so the teardown gate already expects the operator's new tip: the brownfield \"re-anchor `expected_coord_sha`\" defect
+    did NOT reproduce (commit inside the Mission dir, resume, files land on the target, teardown completes: green without
+    a fix). The one real gap was the other half of D4: late projection carries only Mission-dir paths, so a late coordination
+    commit outside it would die with the branch. `phase_teardown._unlanded_paths_outside_mission_dir` now refuses it (`CoordinationTeardownError`,
+    exit 1) by comparing the blob on the coordination tip with the target's (lane code the run itself merged is identical
+    on both and passes)."
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md records 5 finding(s)
+  evidence_refs:
+  - e-015
+  details: The analysis-report.md artifact for this mission records 5 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-012
+  category: tooling
+  summary: 'Tracer: Abort leg.'
+  evidence_refs:
+  - e-016
+  details: '- **Abort leg.** `_teardown_coordination_for_abort` now runs BEFORE the consolidation record is cleared, so a
+    refusal keeps the record and re-running `--abort` finishes once the files are saved; the exception takes a `follow_up_command`
+    so the remedy names `--abort`, not `--resume`.'
+- id: n-005
+  category: tooling
+  summary: 'Tracer: Classifier surprise.'
+  evidence_refs:
+  - e-016
+  details: "- **Classifier surprise.** `meta.json` and other non-kind files are not recognised by `kind_for_mission_file`,
+    so \"another Mission's path\" cannot be derived from the kind authority; `_is_other_mission_path` looks only at the `kitty-specs/<name>/`
+    segment (names from `mission_dir_aliases`, so the composed `<slug>-<mid8>` directory counts as own). `status.json`/`status.events.jsonl`
+    are coord residue, not self-bookkeeping: disposable in the repository root/lane/mission checkout under COORD or LANES_WITH_COORD,
+    NOT under LANES/SINGLE_BRANCH, and never in a COORDINATION checkout. Only `meta.json` is self-bookkeeping everywhere (own
+    Mission)."
+- id: n-017
+  category: tooling
+  summary: 'Tracer: Coordinator-requested edit:'
+  evidence_refs:
+  - e-016
+  details: "- **Coordinator-requested edit:** `is_disposable_residue` rule 4 keeps this Mission's own status state (`is_status_state_path`)
+    disposable in the COORDINATION role (NFR-001 control)."
+- id: n-023
+  category: tooling
+  summary: 'Tracer: Cross-WP finding.'
+  evidence_refs:
+  - e-016
+  details: "- **Cross-WP finding.** `is_disposable_residue` rule 4 (coordination checkout: only self-bookkeeping is disposable)
+    is stricter than research D2, which lists only review cycle / traces / matrices / decisions as never-disposable there.
+    With the lane-to-mission ref advance now carrying a Mission context, a coordination worktree whose only dirt is `status.events.jsonl`
+    / `status.json` is refused, and `tests/consolidation/test_coord_teardown_only_copy_5965.py::test_5965_control_...` goes
+    red. Making status-state paths disposable in a coordination checkout (keeping the coordination-partition kinds undisposable)
+    turns it green; tried locally, not committed (coherence.py is WP02's)."
+- id: n-013
+  category: tooling
+  summary: 'Tracer: Entry preflight deliberately judges the coordination worktree as a MISSION checkout'
+  evidence_refs:
+  - e-016
+  details: "- **Entry preflight deliberately judges the coordination worktree as a MISSION checkout**, not COORDINATION: it
+    must keep answering \"would the dirt trip the run's own ref advances\", otherwise the refusal moves before the landing
+    and every Mission with uncommitted traces stops at preflight. The teardown guard (after the verified landing) is the authority
+    over the only-copy question (operator decision A)."
+- id: n-004
+  category: tooling
+  summary: 'Tracer: Exactly-one-of.'
+  evidence_refs:
+  - e-016
+  details: '- **Exactly-one-of.** Both given is a `TypeError` everywhere. Neither is a `TypeError` in `assert_worktree_clean`/`guarded_worktree_remove`
+    (was required), but in the three `ref_advance` functions it stays the legacy "no exemption" (strictest) because many existing
+    callers pass neither; WP08 can tighten it when `is_residue` is removed.'
+- id: n-011
+  category: tooling
+  summary: 'Tracer: Exit code 76'
+  evidence_refs:
+  - e-016
+  details: '- **Exit code 76** (`COORD_TEARDOWN_KEPT_ONLY_COPY_EXIT_CODE`), unused elsewhere; 75 stays `COORD_MOVED_AFTER_LANDING`.
+    The exception lives in `coordination/teardown.py` (lower layer, importable by the seam) and is a plain `RuntimeError`,
+    not a `CoordinationTeardownError` subclass (that class is in `consolidation.run_state`; coordination must not import it).
+    `consolidate.py` has an explicit handler next to the `CoordinationTeardownError` one. The constants are not added to `_constants.__all__`
+    (its set is pinned).'
+- id: n-018
+  category: tooling
+  summary: 'Tracer: For WP08:'
+  evidence_refs:
+  - e-016
+  details: "- **For WP08:** `tests/architectural/test_destructive_op_routing.py` allowlist row for `coordination/workspace.py::_remove_worktree_registration`
+    is stale (shrink-only warning): the function now calls `guarded_worktree_prune`.\n## WP04 design notes (python-pedro,
+    2026-10-10)"
+- id: n-009
+  category: tooling
+  summary: 'Tracer: Gate.'
+  evidence_refs:
+  - e-016
+  details: "- **Gate.** `test_destructive_op_routing` flagged the guard's own new `reset --hard`/`merge --abort` argv literals;
+    two allowlist entries (guard-internal, same style as `_remove_worktree_force`) were added there. WP08 owns the gate's
+    widening and should absorb or restructure these. `branch -D`/`worktree prune` are not in the gate's needles yet."
+- id: n-021
+  category: tooling
+  summary: 'Tracer: Lag context.'
+  evidence_refs:
+  - e-016
+  details: "- **Lag context.** `reset --hard HEAD` on a checkout that lags its own HEAD sees the lag as dirty (staged deletions
+    of HEAD's files), so a bare Mission `ResidueContext` would refuse every legitimate recovery. `git_probes.LagResidueContext`
+    makes a path disposable when HEAD changed it since the checkout last matched `base_sha` and neither worktree nor index
+    differs from `base_sha` there (the operator did not touch it); an optional inner Mission context adds regenerable residue.
+    Used by the resume recovery (anchor = the persisted pre-mutation tip, the pure-lag proof stays in front) and by `_refresh_primary_checkout_after_merge`
+    (`lag_base_sha=state.pre_mutation_target_sha`, `mission_slug`). A refusal there warns and skips the refresh, like the
+    off-target branch does: the landing is settled, the lag is resolvable."
+- id: n-016
+  category: tooling
+  summary: 'Tracer: Lane branch deletes'
+  evidence_refs:
+  - e-016
+  details: '- **Lane branch deletes** (`phase_teardown`, orchestrator-api) go through `guarded_branch_delete`. The phase_teardown
+    path passes the lane tip snapshotted before the run (`pre_mutation_refs`) as the creation base, so a squash-landed lane
+    (unreachable from any ref) is still deleted while a commit made after the snapshot keeps the branch (warning, never a
+    failed consolidation). A kept branch keeps its recorded lane tip. orchestrator-api has no snapshot: `creation_base=None`,
+    so only reachable lanes are deleted.'
+- id: n-002
+  category: tooling
+  summary: 'Tracer: Layering.'
+  evidence_refs:
+  - e-016
+  details: '- **Layering.** `git/ref_advance.py` must import zero `specify_cli` modules (test_layer_rules), so it cannot name
+    `ResidueContext`. It defines a structural `ResidueClassifier` Protocol (`is_disposable(path)`, `for_checkout(repo_root,
+    worktree)`) plus `resolve_residue_predicate` and `format_entry_lines`; `coherence.ResidueContext` satisfies it. The guard
+    imports only `ref_advance` and never the classifier.'
+- id: n-015
+  category: tooling
+  summary: 'Tracer: Missing `meta.json`.'
+  evidence_refs:
+  - e-016
+  details: '- **Missing `meta.json`.** `coherence.residue_context_or_strictest` returns `NothingIsResidue` (strictest) instead
+    of failing; a corrupt `meta.json` still propagates. Used by teardown, lane leg, orchestrator-api and the preflight.'
+- id: n-024
+  category: tooling
+  summary: 'Tracer: Python 3.12 hazard (WP02 file).'
+  evidence_refs:
+  - e-016
+  details: '- **Python 3.12 hazard (WP02 file).** `git/destructive_guard.py::_rmtree_writable` calls itself on `sys.version_info
+    >= (3, 12)` instead of `shutil.rmtree(path, onexc=...)`: infinite recursion on 3.12+, hidden on this 3.11 venv. `guarded_tree_delete`
+    is reachable from `discard_scratch_tree`.'
+- id: n-006
+  category: tooling
+  summary: 'Tracer: ResidueContext shape.'
+  evidence_refs:
+  - e-016
+  details: '- **ResidueContext shape.** Added `mission_dir_names: frozenset[str]` (default empty = just the slug) and gave
+    `mission_slug`/`topology` defaults only so `ResidueContext(role=TOOL_OWNED)` is constructible; `__post_init__` rejects
+    the missing values for every other role.'
+- id: n-003
+  category: tooling
+  summary: 'Tracer: Role resolver.'
+  evidence_refs:
+  - e-016
+  details: '- **Role resolver.** `coherence.checkout_role_for(repo_root, worktree)` uses the git worktree registry (`classify_worktree_topology`,
+    C-SEAM-1): repo root -> REPOSITORY_ROOT, registered `-coord` -> COORDINATION, other registered -> LANE (a Mission worktree
+    is indistinguishable from a lane and shares its rules). Unregistered, outside the root, or an unreadable registry -> COORDINATION,
+    the strictest role. `ResidueContext.for_checkout` re-targets the role so `advance_branch_ref`/`restore_branch_ref`/`resync_checkouts_to_tip`
+    judge EACH checked-out worktree by its own role; a caller-supplied role is only used for single-checkout guard calls.'
+- id: n-014
+  category: tooling
+  summary: 'Tracer: Rollback.'
+  evidence_refs:
+  - e-016
+  details: "- **Rollback.** `rollback._RunResidue` wraps the run's `ResidueContext` and additionally treats THIS Mission's
+    status log/snapshot as disposable under every topology (the rollback undoes the run's own bookkeeping; WP01's #5966 control
+    requires it for a LANES Mission). Another Mission's files and all other coordination kinds still refuse. Unreadable `meta.json`
+    -> no context -> strictest (no exemption)."
+- id: n-019
+  category: tooling
+  summary: 'Tracer: Scratch = TOOL_OWNED, justified per site.'
+  evidence_refs:
+  - e-016
+  details: '- **Scratch = TOOL_OWNED, justified per site.** Every scratch checkout is created by the same function that removes
+    it, under `.kittify/runtime/merge/<id>/workspace` (`create_merge_workspace`, removed by `cleanup_merge_workspace`) or
+    a `tempfile` root (`bake._compute_next_mission_number_or_none`, `bake._write_mission_number_to_branch`, `lanes.consolidation.preview_mission_target_integration`,
+    `lanes.consolidation._merge_branch_into`, `review.baseline._baseline_worktree`). One helper in `consolidation/workspace.py`
+    (`remove_scratch_worktree`, `abort_scratch_merge`, `discard_scratch_tree`) holds the tool-owned context so the five sites
+    do not each build one. The `merge --abort` calls in `_merge_branch_into` act on that same scratch worktree, so they are
+    tool-owned too.'
+- id: n-022
+  category: tooling
+  summary: 'Tracer: Signature plumbing.'
+  evidence_refs:
+  - e-016
+  details: '- **Signature plumbing.** `_refresh_primary_checkout_after_merge`, `_merge_branch_into` and `attempt_auto_rebase`
+    gained keyword-only `mission_slug` (and `lag_base_sha`) because none could name a Mission. A missing slug or unreadable
+    topology yields the strictest context (nothing disposable), never a destructive default. `phase_bookkeeping.py`, `lanes/lifecycle_sync.py`
+    pass the values (one-line edits outside the owned list).'
+- id: n-020
+  category: tooling
+  summary: 'Tracer: `discard_scratch_tree`.'
+  evidence_refs:
+  - e-016
+  details: '- **`discard_scratch_tree`.** `remove_tool_owned_tree` refuses any directory holding a `.git` entry, and a stale
+    merge workspace is exactly that. A checkout goes through `guarded_tree_delete` (tool-owned); a dangling gitlink (registration
+    gone) is a plain tree once the dead link is dropped; a `.git` directory the guard cannot read is kept.'
+- id: n-007
+  category: tooling
+  summary: 'Tracer: `guarded_branch_delete`.'
+  evidence_refs:
+  - e-016
+  details: '- **`guarded_branch_delete`.** `git rev-list ... --not --exclude=... --branches` does NOT exclude the branch (git
+    2.43), so unique commits are computed from `for-each-ref` minus the branch itself, fed to `rev-list --stdin` as `^sha`
+    lines.'
+- id: n-008
+  category: tooling
+  summary: 'Tracer: `guarded_merge_abort`.'
+  evidence_refs:
+  - e-016
+  details: '- **`guarded_merge_abort`.** A conflicted merge makes every merged path dirty, so paths in `diff --name-only <merge-base>
+    MERGE_HEAD` are exempt; any other tracked edit refuses. Untracked files survive `merge --abort` and are not counted.'
+- id: n-010
+  category: tooling
+  summary: 'Tracer: mypy.'
+  evidence_refs:
+  - e-016
+  details: "- **mypy.** `coherence.py` reports one `no-any-return` at `_coord_branch_matches`-style code (`normalize_ref(...)
+    == ...`) that is present on the base commit too; not introduced here.\n\n## WP03 design notes (python-pedro, 2026-10-10)"
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/tasks/WP01-red-first-reproductions.md
+- id: e-006
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/tasks/WP02-disposability-and-guard-api.md
+- id: e-007
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/tasks/WP03-consolidate-abort-teardown-wiring.md
+- id: e-008
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/tasks/WP04-route-consolidation-family-sites.md
+- id: e-009
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/tasks/WP05-route-lanes-and-creation-sites.md
+- id: e-010
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/tasks/WP06-route-tool-owned-trees-runtime-charter.md
+- id: e-011
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/tasks/WP07-route-tool-owned-trees-migrations-init.md
+- id: e-012
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/tasks/WP08-widen-and-drain-routing-gate.md
+- id: e-013
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/tasks/WP09-route-mission-type-vcs-husk-pack-sites.md
+- id: e-014
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/status.events.jsonl
+- id: e-015
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/analysis-report.md
+- id: e-016
+  kind: file
+  path: kitty-specs/destructive-residue-context-01M4KBPS/traces/design-trace.md
+generator_version: '1.0'
+provenance_history: []

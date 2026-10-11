@@ -231,6 +231,9 @@ from specify_cli.core.mission_creation_rollback import (
     _remove_orphan_mission_scaffolds as _remove_orphan_mission_scaffolds,
     _CoordCreateRollbackContext as _CoordCreateRollbackContext,
     CreateRollbackJournal as CreateRollbackJournal,
+    _CREATE_OWNED as _CREATE_OWNED,
+    _base_covering_own_seed as _base_covering_own_seed,
+    _delete_created_branch as _delete_created_branch,
     _rollback_coordination_surface as _rollback_coordination_surface,
     _restore_git_state_after_failed_create as _restore_git_state_after_failed_create,
 )

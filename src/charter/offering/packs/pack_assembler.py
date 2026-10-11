@@ -49,6 +49,7 @@ from charter.offering.drg.override_policy import (
 )
 
 from kernel.charter_pack_paths import pack_org_charter
+from kernel.tree_removal import remove_tool_owned_tree
 
 from .pack_manifest import write_pack_manifest
 from .pack_validator import OrgCharterCheck, validate_pack
@@ -414,7 +415,7 @@ def assemble_pack(
                 )
                 _maybe_write_conflicts(conflicts_out, result)
                 return result
-            shutil.rmtree(output_dir)
+            remove_tool_owned_tree(output_dir, tool_root=output_dir, reason="forced overwrite of a recognised pack output dir")
             output_dir.mkdir(parents=True)
     else:
         output_dir.mkdir(parents=True)
@@ -440,7 +441,7 @@ def assemble_pack(
     validation = validate_pack(output_dir, check_drg_root=False, org_charter_check=org_charter_check)
     if not validation.ok:
         # Roll back partial output.
-        shutil.rmtree(output_dir, ignore_errors=True)
+        remove_tool_owned_tree(output_dir, tool_root=output_dir, reason="rollback of partial pack assembly output", best_effort=True)
         result = AssemblyResult(
             ok=False,
             artifacts_written=0,

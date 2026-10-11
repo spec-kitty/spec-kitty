@@ -32,6 +32,12 @@ def _state(baked: bool = False) -> ConsolidationState:
     return s
 
 
+@pytest.fixture(autouse=True)
+def _no_scratch_worktree_removal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests fake every ``subprocess.run``; the guarded scratch removal has its own tests (WP04)."""
+    monkeypatch.setattr(bake, "remove_scratch_worktree", lambda worktree, **kwargs: True)
+
+
 def test_lazy_imports_stay_lazy() -> None:
     """C-007/INV-7: heavy / cycle-prone deps are imported inside functions, not at module top."""
     import ast

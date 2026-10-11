@@ -48,6 +48,7 @@ from kernel.git import GitCommandError, commit_paths
 
 from mission_runtime import MissionTopology
 
+from specify_cli.git.destructive_guard import FORCE_RECREATE_INTENT, guarded_branch_delete
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes._git import ref_exists as _ref_resolves
 from specify_cli.lanes.branch_naming import coord_branch_name as _seam_coord_branch_name
@@ -451,15 +452,16 @@ def _create_branch(repo_root: Path, branch: str, parent: str) -> None:
 
 
 def _delete_branch(repo_root: Path, branch: str) -> None:
-    """Delete a local branch (force). Used by the --force-recreate path only."""
-    result = subprocess.run(
-        ["git", "-C", str(repo_root), "branch", "-D", branch],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"Failed to delete coordination branch '{branch}': {result.stderr.strip() or result.stdout.strip()}")
+    """Delete a local branch (force). Used by the --force-recreate path only.
+
+    The operator asked for the branch to be discarded, so this is the one caller
+    of ``guarded_branch_delete`` that names ``operator_intent`` (the routing gate
+    pins that); any other deletion refuses over commits that exist nowhere else.
+    """
+    try:
+        guarded_branch_delete(repo_root, branch, creation_base=None, operator_intent=FORCE_RECREATE_INTENT)
+    except RuntimeError as exc:
+        raise RuntimeError(f"Failed to delete coordination branch '{branch}': {exc}") from exc
 
 
 def _teardown_coordination_worktree_if_present(repo_root: Path, mission_slug: str, mission_id: str) -> None:

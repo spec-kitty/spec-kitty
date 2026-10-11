@@ -17,11 +17,12 @@ consistency story via ``fetch`` + ``reset --hard``.
 from __future__ import annotations
 
 import hmac
-import shutil
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
 from uuid import uuid4
+
+from kernel.tree_removal import remove_tool_owned_tree
 
 import yaml
 
@@ -111,7 +112,7 @@ def write_snapshot(
     try:
         result = source.fetch(tmp_dir)
     except Exception as exc:  # pragma: no cover - defensive
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        _discard(tmp_dir, local_path)
         return FetchResult(
             ok=False,
             artifacts_written=0,
@@ -120,11 +121,11 @@ def write_snapshot(
         )
 
     if not result.ok:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        _discard(tmp_dir, local_path)
         return result
 
     if result.unchanged:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        _discard(tmp_dir, local_path)
         return _finish_unchanged_snapshot(
             local_path,
             result,
@@ -134,7 +135,7 @@ def write_snapshot(
     try:
         validate_root = _resolve_snapshot_validate_root(tmp_dir, subdir)
     except ValueError as exc:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        _discard(tmp_dir, local_path)
         return FetchResult(
             ok=False,
             artifacts_written=result.artifacts_written,
@@ -144,7 +145,7 @@ def write_snapshot(
         )
 
     if not _has_recognised_artifacts(validate_root):
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        _discard(tmp_dir, local_path)
         location = f" at subdir {subdir!r}" if subdir else " at the snapshot root"
         return FetchResult(
             ok=False,
@@ -166,7 +167,7 @@ def write_snapshot(
             source_type=resolved_type,
         )
     except OSError as exc:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        _discard(tmp_dir, local_path)
         return FetchResult(
             ok=False,
             artifacts_written=result.artifacts_written,
@@ -187,7 +188,7 @@ def write_snapshot(
         tmp_dir.replace(local_path)
         promoted = True
     except OSError as exc:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
+        _discard(tmp_dir, local_path)
         errors = [f"Failed to replace snapshot: {exc}"]
         if old_dir is not None and old_dir.exists() and not local_path.exists():
             try:
@@ -203,8 +204,17 @@ def write_snapshot(
         )
     finally:
         if promoted and old_dir is not None and old_dir.exists():
-            shutil.rmtree(old_dir, ignore_errors=True)
+            _discard(old_dir, local_path)
     return result
+
+
+def _discard(path: Path, local_path: Path) -> None:
+    """Best-effort removal of a staging (``.tmp-*``) or moved-aside (``.old-*``) snapshot dir.
+
+    Both are created beside ``local_path`` by :func:`write_snapshot`, so
+    ``local_path.parent`` is the root this module owns (#5965 / #5966).
+    """
+    remove_tool_owned_tree(path, tool_root=local_path.parent, reason="charter pack snapshot staging", best_effort=True)
 
 
 def _with_stored_etag(

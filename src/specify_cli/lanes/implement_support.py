@@ -657,7 +657,7 @@ def reenter_lane_self_heal(
     # the SECOND call site D5 centralizes detection through (the allocator's
     # reuse/crash-recovery/fresh-path calls are the other three).
     target_tip = capture_branch_tip(main_repo_root, manifest.target_branch)
-    _merge_recorded_planning_commit(main_repo_root, workspace_path, lane.lane_id, manifest.planning_commit_sha, target_tip)
+    _merge_recorded_planning_commit(main_repo_root, workspace_path, lane.lane_id, manifest.planning_commit_sha, target_tip, mission_slug=mission_slug)
     _merge_dependency_lane_tips(main_repo_root, workspace_path, mission_slug, lane, manifest)
     if branch is not None:
         # #5115/WP07 (FR-018): a CODE lane self-heal re-entry (never the

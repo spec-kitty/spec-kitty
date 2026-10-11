@@ -23,7 +23,14 @@ import pytest
 
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineFailure, _capture_baseline_via_scope_source, capture_baseline
+from specify_cli.review import baseline as baseline_module
 from specify_cli.review.scope_source import RawRunResult
+
+
+@pytest.fixture(autouse=True)
+def _no_scratch_worktree_removal(monkeypatch: pytest.MonkeyPatch) -> None:
+    """These tests fake every ``subprocess.run``; the guarded scratch removal has its own tests (WP04)."""
+    monkeypatch.setattr(baseline_module, "remove_scratch_worktree", lambda worktree, **kwargs: True)
 
 pytestmark = pytest.mark.git_repo
 

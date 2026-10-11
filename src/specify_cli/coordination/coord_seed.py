@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, NoReturn
 
 from kernel.git import GitCommandError, status_entries, tree_paths
+from kernel.tree_removal import remove_tool_owned_tree
 
 from mission_runtime import (
     ActionContextError,
@@ -477,13 +478,12 @@ def _cleanup_stale_seed_temp_dirs(request: _SeedRequest) -> None:
     stale_prefix = f"{request.mission_dir_name}.seed-"
     for candidate in temp_root.iterdir():
         if candidate.is_dir() and candidate.name.startswith(stale_prefix):
-            _remove_tree(candidate)
+            _remove_tree(candidate, tool_root=temp_root)
 
 
-def _remove_tree(path: Path) -> None:
-    import shutil
-
-    shutil.rmtree(path, ignore_errors=True)
+def _remove_tree(path: Path, *, tool_root: Path) -> None:
+    """Best-effort removal of a seed scratch tree; ``tool_root`` is the scratch root the seed created."""
+    remove_tool_owned_tree(path, tool_root=tool_root, reason="coordination seed scratch directory", best_effort=True)
 
 
 def _write_merge_via_temp_rename(request: _SeedRequest, merge: _MergeResult) -> Path:
@@ -505,7 +505,7 @@ def _write_merge_via_temp_rename(request: _SeedRequest, merge: _MergeResult) -> 
         # caller re-probes once to tell a genuine failure apart from a
         # same-lock-window race (impossible for cooperating lock holders,
         # but cheap to make the state machine honest either way).
-        _remove_tree(temp_dir)
+        _remove_tree(temp_dir, tool_root=temp_root)
         raise
     return final_dir
 

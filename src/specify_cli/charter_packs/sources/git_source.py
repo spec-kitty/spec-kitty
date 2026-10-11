@@ -25,8 +25,8 @@ CI can pass a short-lived token without modifying ``~/.gitconfig``.
 from __future__ import annotations
 
 import os
+import logging
 import re
-import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,9 +35,34 @@ from uuid import uuid4
 
 from kernel.git.remote import CLONE_TIMEOUT, FETCH_TIMEOUT, clone_repository, fetch_tags
 from kernel.git.runner import GitCommandError
+from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
+from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
 from specify_cli.git import ref_advance
+from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_reset_hard, guarded_tree_delete
 
 from .protocol import FetchResult
+
+
+_LOG = logging.getLogger(__name__)
+
+_TOOL_OWNED = ResidueContext(role=CheckoutRole.TOOL_OWNED)
+
+
+def _discard_tool_owned_tree(path: Path) -> None:
+    """Best-effort removal of a temp or superseded pack clone this module created.
+
+    A clone holds a ``.git`` entry, which ``remove_tool_owned_tree`` refuses by
+    design, so a git checkout goes through ``guarded_tree_delete`` as a
+    ``TOOL_OWNED`` context. Failure leaves the tree in place: a stray
+    ``.tmp-<uuid>`` / ``.old-*`` sibling is harmless, a wrong delete is not.
+    """
+    try:
+        if (path / ".git").exists():
+            guarded_tree_delete(path, context=_TOOL_OWNED)
+        else:
+            remove_tool_owned_tree(path, tool_root=path.parent, reason="pack clone scratch tree", best_effort=True)
+    except (OSError, RuntimeError, DestructiveOpRefused, ToolOwnedPathUnproven):
+        _LOG.debug("could not discard pack scratch tree %s", path, exc_info=True)
 
 
 @dataclass
@@ -90,13 +115,13 @@ class GitSource:
         clone_error = self._clone(effective_url, tmp_dir)
         if clone_error is not None:
             # Remove ONLY the temp — target_dir is left exactly as found (#4960).
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+            _discard_tool_owned_tree(tmp_dir)
             return _error_result(clone_error)
 
         if self.ref:
             checkout_proc = self._run_git(["git", "-C", str(tmp_dir), "checkout", self.ref])
             if checkout_proc.returncode != 0:
-                shutil.rmtree(tmp_dir, ignore_errors=True)
+                _discard_tool_owned_tree(tmp_dir)
                 return _error_result(_redact_git_tokens(checkout_proc.stderr.strip()) or "git checkout failed")
 
         promote_error = self._promote(tmp_dir, target_dir)
@@ -131,7 +156,7 @@ class GitSource:
             tmp_dir.replace(target_dir)
             promoted = True
         except OSError as exc:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
+            _discard_tool_owned_tree(tmp_dir)
             message = f"Failed to install cloned pack at {target_dir}: {exc}"
             if old_dir is not None and old_dir.exists() and not target_dir.exists():
                 try:
@@ -141,7 +166,7 @@ class GitSource:
             return message
         finally:
             if promoted and old_dir is not None and old_dir.exists():
-                shutil.rmtree(old_dir, ignore_errors=True)
+                _discard_tool_owned_tree(old_dir)
         return None
 
     def _update(self, target_dir: Path) -> FetchResult:
@@ -162,9 +187,12 @@ class GitSource:
                 f"is preserved in place (no reset performed) — resolve or relocate it, then re-fetch."
             )
 
-        reset_proc = self._run_git(["git", "-C", str(target_dir), "reset", "--hard", reset_target])
-        if reset_proc.returncode != 0:
-            return _error_result(_redact_git_tokens(reset_proc.stderr.strip()) or "git reset failed")
+        # The pack cache checkout is tool-owned (the refusal above already kept any
+        # hand-authored content), so the guard classifies every path as disposable.
+        try:
+            guarded_reset_hard(target_dir, reset_target, context=_TOOL_OWNED)
+        except (DestructiveOpRefused, RuntimeError) as exc:
+            return _error_result(_redact_git_tokens(str(exc)) or "git reset failed")
 
         return self._success_result(target_dir)
 

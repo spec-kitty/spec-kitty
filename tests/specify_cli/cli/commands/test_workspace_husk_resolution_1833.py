@@ -63,7 +63,7 @@ def husk_repo(tmp_path: Path) -> tuple[Path, Path]:
     """Git repo with a mission and a planted husk lane directory.
 
     Returns (repo_root, husk_path). The husk is ``.worktrees/<slug>-lane-a/``
-    containing a stray file but no ``.git`` entry.
+    with no ``.git`` entry.
     """
     repo = tmp_path / "test-repo"
     repo.mkdir()
@@ -88,8 +88,9 @@ def husk_repo(tmp_path: Path) -> tuple[Path, Path]:
     _git(repo, "commit", "-m", "Initial commit")
 
     husk = lane_worktree_path(repo, MISSION_SLUG)
+    # An empty leftover directory: a husk holding no file is removable, one holding
+    # work is preserved by the destructive guard (#5965; see test_guarded_site_routing_misc).
     husk.mkdir(parents=True)
-    (husk / "stray.txt").write_text("left behind by a failed worktree add\n")
     return repo, husk
 
 
@@ -493,7 +494,6 @@ class TestDoctorHuskCheck:
         assert "git worktree list --porcelain failed" in result.stdout
         assert "Workspace husks were not modified" in result.stdout
         assert husk.exists()
-        assert (husk / "stray.txt").exists()
 
     def test_fix_rechecks_git_entry_before_removal(
         self, husk_repo: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
@@ -509,15 +509,15 @@ class TestDoctorHuskCheck:
             (husk / ".git").write_text("gitdir: ../now-valid\n")
             return report
 
-        def fail_if_removed(path: Path) -> None:
-            raise AssertionError(f"rmtree must not run after .git appeared: {path}")
+        def fail_if_removed(path: Path, **_kwargs: Any) -> None:
+            raise AssertionError(f"removal must not run after .git appeared: {path}")
 
         monkeypatch.setattr(
             doctor_husks,
             "scan_workspace_husks",
             scan_then_git_entry_appears,
         )
-        monkeypatch.setattr(doctor_husks.shutil, "rmtree", fail_if_removed)
+        monkeypatch.setattr(doctor_husks, "guarded_tree_delete", fail_if_removed)
 
         report, fix_result = doctor_husks.fix_workspace_husks(repo)
 

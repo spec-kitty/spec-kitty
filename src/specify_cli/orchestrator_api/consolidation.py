@@ -7,6 +7,7 @@ app by ``commands.py``.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from pathlib import Path
 from dataclasses import dataclass
@@ -43,6 +44,9 @@ from ._common import (
     _fail,
     _planning_read_dir,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -394,11 +398,8 @@ def _apply_lane_merge_cleanup(
     """Worktree removal + lane/mission branch deletion, gated on the RESOLVED
     retention decision (#3131 T010) — extracted from ``_execute_lane_merge``
     to stay under the complexity ceiling; not a passthrough (see there)."""
-    import functools
-
-    from specify_cli.coordination.coherence import is_toolchain_generated_churn
-    from specify_cli.core.git_ops import run_command
-    from specify_cli.git.destructive_guard import guarded_worktree_remove
+    from specify_cli.coordination.coherence import CheckoutRole, residue_context_or_strictest
+    from specify_cli.git.destructive_guard import guarded_branch_delete, guarded_worktree_remove
     from specify_cli.lanes.branch_naming import code_lane_branch_name, worktree_path
     from specify_cli.lanes.compute import is_planning_lane
 
@@ -424,10 +425,7 @@ def _apply_lane_merge_cleanup(
                 guarded_worktree_remove(
                     wt_path,
                     retain=False,
-                    is_residue=functools.partial(
-                        is_toolchain_generated_churn,
-                        mission_slug=mission_slug,
-                    ),
+                    context=residue_context_or_strictest(main_repo_root, mission_slug, CheckoutRole.LANE),
                 )
 
     # LANE branches stay keyed to the plain resolved ``delete_branch`` (no
@@ -436,16 +434,12 @@ def _apply_lane_merge_cleanup(
         for lane in lanes_manifest.lanes:
             if is_planning_lane(lane):
                 continue
-            run_command(
-                [
-                    "git",
-                    "branch",
-                    "-D",
-                    code_lane_branch_name(mission_slug, lane.lane_id),
-                ],
-                cwd=main_repo_root,
-                check_return=False,
-            )
+            lane_branch = code_lane_branch_name(mission_slug, lane.lane_id)
+            try:
+                # The path never snapshots lane tips, so only a commit another ref reaches may go (FR-009).
+                guarded_branch_delete(main_repo_root, lane_branch, creation_base=None)
+            except (DestructiveOpRefused, RuntimeError):  # kept: best-effort cleanup never fails a landed consolidation
+                logger.warning("Lane branch %s was kept: it holds commits no other ref reaches, or git refused the delete", lane_branch)
 
     # MISSION/coordination branch: the DELETION GATE is topology-aware (#3131
     # T008/T010 — see ``_resolve_lane_merge_retention``), so a retaining coord

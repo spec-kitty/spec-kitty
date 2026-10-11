@@ -22,6 +22,7 @@ from kernel.git import GitCommandError, status_entries
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
 from specify_cli.core.utils import safe_is_dir
+from specify_cli.git.destructive_guard import DestructiveOpRefused, RemoveOutcome, guarded_branch_delete, guarded_worktree_remove
 from specify_cli.git.remote_probes import RemoteLookup, remote_branch_lookup
 from specify_cli.mission_metadata import load_meta, recorded_mid8
 from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
@@ -684,8 +685,33 @@ def _discard_mission(
     """Discard a mission's branches/worktrees; return the minted mission branch, if any.
 
     The returned branch (protected single_branch only) lets the caller verify it is
-    gone even though the mission's own files left the checkout with it.
+    gone even though the mission's own files left the checkout with it. A worktree
+    or branch holding the only copy of work is kept and the discard stops with exit 1
+    (#5965): the destructive guard refuses before it deletes.
     """
+    try:
+        return _discard_mission_steps(
+            repo_root=repo_root,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            mid8_value=mid8_value,
+            meta_path=meta_path,
+            force=force,
+        )
+    except DestructiveOpRefused as refusal:
+        console.print(f"[red]Error:[/red] cannot discard {mission_slug}: {refusal}")
+        raise typer.Exit(1) from refusal
+
+
+def _discard_mission_steps(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    mid8_value: str,
+    meta_path: Path,
+    force: bool,
+) -> str | None:
     _require_mission_on_checkout(repo_root, mission_slug, meta_path)
     _confirm_discard(mission_slug, force=force)
     lanes_manifest = _load_lanes_manifest_for_discard(feature_dir, mission_slug)
@@ -773,7 +799,7 @@ def _discard_minted_single_branch(repo_root: Path, mission_slug: str, minted: st
     if lanes_manifest is not None:
         _remove_lane_worktrees(repo_root, mission_slug, lanes_manifest)
         _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
-    if _force_delete_branch_if_exists(repo_root, minted):
+    if _force_delete_branch_if_exists(repo_root, minted, creation_base=_existing_ref(repo_root, target)):
         console.print(f"  Deleted mission branch {minted}")
 
 
@@ -1055,7 +1081,8 @@ def _confirm_discard(mission_slug: str, *, force: bool) -> None:
     confirm = typer.confirm(
         f"Discard mission {mission_slug}? This deletes the coordination "
         f"branch, every lane branch, and all worktrees. Unmerged work "
-        f"on those branches WILL BE LOST.",
+        f"on those branches WILL BE LOST, and so will the coordination history "
+        f"kept there (review cycles, traces, issue matrix) unless it is already on the primary branch.",
         default=False,
     )
     if not confirm:
@@ -1093,15 +1120,18 @@ def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: An
     from specify_cli.lanes.branch_naming import code_lane_branch_name
     from specify_cli.lanes.compute import is_planning_lane
 
+    lane_base = _existing_ref(repo_root, lanes_manifest.mission_branch) or _existing_ref(repo_root, lanes_manifest.target_branch)
     deleted_lanes = 0
     for lane in lanes_manifest.lanes:
         if is_planning_lane(lane):
             continue
         branch_name = code_lane_branch_name(mission_slug, lane.lane_id)
-        deleted_lanes += _force_delete_branch_if_exists(repo_root, branch_name)
+        deleted_lanes += _force_delete_branch_if_exists(repo_root, branch_name, creation_base=lane_base)
 
     deletable = _deletable_mission_branch(lanes_manifest)
-    deleted_mission = deletable is not None and _force_delete_branch_if_exists(repo_root, deletable)
+    deleted_mission = deletable is not None and _force_delete_branch_if_exists(
+        repo_root, deletable, creation_base=_bookkeeping_branch_base(repo_root, deletable, lanes_manifest.target_branch)
+    )
     # Report only what was actually removed: a single_branch mission has no lane
     # branch and (unprotected) no mission branch of its own to delete.
     deleted = [f"{deleted_lanes} lane branch(es)"] if deleted_lanes else []
@@ -1115,7 +1145,10 @@ def _delete_legacy_coordination_branch(repo_root: Path, meta_path: Path) -> None
     meta = load_meta(meta_path.parent, allow_missing=True, on_malformed="none")
     coord_branch = meta.get("coordination_branch") if isinstance(meta, dict) else None
     if coord_branch:
-        _force_delete_branch_if_exists(repo_root, str(coord_branch))
+        target = meta.get("target_branch") if isinstance(meta, dict) else None
+        _force_delete_branch_if_exists(
+            repo_root, str(coord_branch), creation_base=_bookkeeping_branch_base(repo_root, str(coord_branch), str(target) if target else None)
+        )
         console.print(f"  Deleted coordination branch {coord_branch}")
 
 
@@ -1170,27 +1203,71 @@ def _teardown_coordination_worktree(
         console.print(f"[green]✓[/green] Coordination worktree torn down for {coord_mission_dir_name(mission_slug, mid8=mid8_value)}")
 
 
-def _force_delete_branch_if_exists(repo_root: Path, branch_name: str) -> bool:
-    """Delete a branch with ``git branch -D`` if it exists; ``True`` only when it was removed."""
+def _existing_ref(repo_root: Path, branch_name: str | None) -> str | None:
+    """``branch_name`` when it resolves to a local branch, else ``None`` (no creation base to subtract)."""
+    if not branch_name:
+        return None
     import subprocess as _subprocess
 
-    rev_parse = _subprocess.run(
-        ["git", "rev-parse", "--verify", f"refs/heads/{branch_name}"],
+    probe = _subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch_name}"],
         cwd=repo_root,
         capture_output=True,
         text=True,
         check=False,
     )
-    if rev_parse.returncode != 0:
+    return branch_name if probe.returncode == 0 else None
+
+
+def _bookkeeping_branch_base(repo_root: Path, branch_name: str, target: str | None) -> str | None:
+    """The creation base for a Mission's coordination/mission branch at discard.
+
+    A coordination branch carries only the lifecycle surfaces (status log, snapshot,
+    decisions, matrices, traces), and ``--discard`` abandons the Mission after the
+    operator confirmed it. When every commit beyond ``target`` touches only such
+    coordination-kind files (a deletion loses nothing: the content stays on ``target``),
+    the branch holds no other work, so its own tip is the base and the guard lets it go. A commit touching anything else (code, planning
+    files) leaves ``target`` as the base and the guard refuses.
+    """
+    import subprocess as _subprocess
+
+    from specify_cli.coordination.coherence import is_coordination_kind_file
+
+    base = _existing_ref(repo_root, target)
+    if base is None or _existing_ref(repo_root, branch_name) is None:
+        return base
+    from kernel.git import GitCommandError, changed_paths
+
+    try:
+        changed = changed_paths(repo_root, f"{base}...refs/heads/{branch_name}", diff_filter="d")
+    except GitCommandError:
+        return base
+    tip = _subprocess.run(["git", "rev-parse", f"refs/heads/{branch_name}"], cwd=repo_root, capture_output=True, text=True, check=False)
+    if tip.returncode != 0:
+        return base
+    paths = [path.as_posix() for path in changed]
+    # ``kitty-specs/<mission dir>/<relpath>``: classify the part below the Mission directory.
+    if all(path.startswith(f"{KITTY_SPECS_DIR}/") and is_coordination_kind_file("/".join(path.split("/")[2:])) for path in paths):
+        return tip.stdout.strip()
+    return base
+
+
+def _force_delete_branch_if_exists(repo_root: Path, branch_name: str, *, creation_base: str | None = None) -> bool:
+    """Delete a branch through the destructive guard; ``True`` only when it was removed.
+
+    The guard refuses (``DestructiveOpRefused``, ``BRANCH_HAS_UNIQUE_COMMITS``) while the
+    branch holds commits beyond ``creation_base`` that no other ref reaches (#5965, FR-009).
+    A missing branch is ``False``; a failed ``git branch -D`` is ``False`` as before.
+    """
+    if branch_name.startswith("-") or _existing_ref(repo_root, branch_name) is None:
+        # A leading dash is never a valid branch name; refusing it here keeps an
+        # internally-derived value from ever being parsed as a ``git branch`` option (S6350).
         return False
-    deleted = _subprocess.run(
-        ["git", "branch", "-D", "--", branch_name],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return deleted.returncode == 0
+    try:
+        guarded_branch_delete(repo_root, branch_name, creation_base=creation_base)
+    except RuntimeError:
+        return False
+    return True
 
 
 def _expected_lane_worktree_dir_names(mission_slug: str, lanes_manifest: Any) -> set[str]:
@@ -1219,24 +1296,23 @@ def _remove_lane_worktrees(
     The coordination worktree is handled separately by
     :func:`_teardown_coordination_worktree`.
     """
-    import subprocess as _subprocess
+    from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
 
     worktrees_root = repo_root / ".worktrees"
     if not safe_is_dir(worktrees_root):
         return
 
+    context = ResidueContext.for_mission(repo_root, mission_slug, CheckoutRole.LANE)
     removed = 0
     for name in sorted(_expected_lane_worktree_dir_names(mission_slug, lanes_manifest)):
         entry = worktrees_root / name
         if not safe_is_dir(entry):
             continue
-        _subprocess.run(
-            ["git", "-C", str(repo_root), "worktree", "remove", str(entry), "--force"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        removed += 1
+        try:
+            result = guarded_worktree_remove(entry, retain=False, context=context)
+        except RuntimeError:
+            continue  # not a registered worktree / git refused: nothing the guard can prove, nothing removed
+        removed += result.outcome is RemoveOutcome.REMOVED
     if removed:
         console.print(f"  Removed {removed} lane worktree(s)")
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 from kernel.clock import now_utc_compact_stamp
+from kernel.tree_removal import remove_tool_owned_tree
 from rich.console import Console
 
 console = Console()
@@ -186,13 +187,16 @@ def copy_package_tree(resource: Traversable, dest: Path, *, preserve_existing: b
     pre-existing operator tree is archived before the refresh rather than
     rmtree'd. The default ``False`` (replace-in-place) is for genuinely
     regenerable destinations only, and for this function's own nested
-    recursion into child subdirectories.
+    recursion into child subdirectories. ``preserve_existing=False`` is for
+    trees the tool itself created: ``dest`` is passed as its own ``tool_root``,
+    so ownership proof reduces to ``remove_tool_owned_tree``'s ``.git`` check and
+    nothing else shows the existing content is disposable.
     """
     if dest.exists():
         if preserve_existing:
             back_up_operator_subtrees(dest.parent, [dest.name])
         else:
-            shutil.rmtree(dest)
+            remove_tool_owned_tree(dest, tool_root=dest, reason="regenerable packaged-asset destination")
     dest.mkdir(parents=True, exist_ok=True)
     for child in resource.iterdir():
         target = dest / child.name

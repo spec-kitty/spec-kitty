@@ -10,7 +10,6 @@ module owns, goes through a lazy in-function
 from __future__ import annotations
 
 import contextlib
-import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,14 +24,19 @@ from specify_cli.core.mission_creation_decisions import (
     orphan_scaffold_candidates,
     plan_orphan_scaffold_removal,
 )
-from kernel.git import GitCommandError, tracked_paths
+from kernel.git import GitCommandError, changed_paths, tracked_paths
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.mission_creation_errors import ProtectedMintRefusedError
+from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
+from specify_cli.git.destructive_guard import guarded_branch_delete, guarded_tree_delete, guarded_worktree_prune
 from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 from specify_cli.lanes.branch_naming import (
     strip_numeric_prefix,
 )
 
+
+#: Everything inside a tree that THIS create wrote (nothing pre-existed) is disposable.
+_CREATE_OWNED = ResidueContext(role=CheckoutRole.TOOL_OWNED)
 
 # WP12 (FR-011 / #3339): coordination branches are the only branch refs a
 # mission-create mints, and their names are all ``kitty/mission-<slug>-<mid8>``.
@@ -159,8 +163,12 @@ def _remove_orphan_mission_scaffolds(planned: tuple[Path, ...]) -> None:
     Deletion is best-effort and must never mask the original failure.
     """
     for candidate in planned:
-        with contextlib.suppress(OSError):
-            shutil.rmtree(candidate)
+        # ``candidate`` did not exist before this create and is not indexed
+        # (``plan_orphan_scaffold_removal``), so every byte in it was written by
+        # this create: tool-owned. The guard still refuses a path that is not
+        # inside a git checkout.
+        with contextlib.suppress(Exception):
+            guarded_tree_delete(candidate, context=_CREATE_OWNED)
 
 
 @dataclass(frozen=True, slots=True)
@@ -189,6 +197,11 @@ class _CoordCreateRollbackContext:
     #: silently reused (idempotent re-run); rollback must CAS-reset it to
     #: ``pre_seed_coord_tip`` instead of deleting another create's branch.
     coordination_branch_created: bool
+    #: The tip of a branch THIS create minted, read right after it was cut and
+    #: before any seed commit: the creation base the destructive guard needs to
+    #: tell "no commits of its own" from "work that exists nowhere else" (FR-009).
+    #: ``None`` when the branch was reused or its tip could not be read.
+    creation_base: str | None = None
     #: The branch's tip immediately after ``ensure_coordination_branch``
     #: returned, before this create's own seed/creation-events commit could
     #: move it. ``None`` when the branch did not exist yet (always true when
@@ -214,6 +227,41 @@ class CreateRollbackJournal:
             self.coord = ctx
 
 
+def _base_covering_own_seed(repo_root: Path, branch: str, creation_base: str | None, mission_dir_name: str | None) -> str | None:
+    """The creation base advanced over this create's OWN seed commits.
+
+    Rollback runs only inside the create that minted ``branch``, and the commits
+    that create adds (the coordination seed, the creation events) touch nothing
+    but the Mission's own ``kitty-specs/<name>/`` directory. When every change
+    between ``creation_base`` and the branch tip is inside that directory the
+    tip is returned, so the guard sees no foreign commit; any change elsewhere
+    leaves ``creation_base`` and the guard refuses (FR-009).
+    """
+    if creation_base is None or mission_dir_name is None:
+        return creation_base
+    tip = _rev_parse_or_none(repo_root, branch)
+    if tip is None:
+        return creation_base
+    try:
+        changed = changed_paths(repo_root, creation_base, tip)
+    except GitCommandError:
+        return creation_base
+    own_prefix = f"{KITTY_SPECS_DIR}/{mission_dir_name}/"
+    paths = [path.as_posix() for path in changed]
+    return tip if all(path.startswith(own_prefix) for path in paths) else creation_base
+
+
+def _delete_created_branch(repo_root: Path, branch: str, creation_base: str | None) -> None:
+    """Best-effort ``branch -D`` of a branch this create minted, refused while it holds commits that exist nowhere else.
+
+    A branch with no commit beyond ``creation_base`` is deleted as before. One
+    that gained commits (FR-009), or whose deletion git refuses, is left in
+    place: rollback never raises and never discards work it cannot account for.
+    """
+    with contextlib.suppress(Exception):
+        guarded_branch_delete(repo_root, branch, creation_base=creation_base)
+
+
 def _rollback_coordination_surface(ctx: _CoordCreateRollbackContext) -> None:
     """Best-effort: undo the coordination worktree/branch a failed create produced (T032/US1.5).
 
@@ -236,18 +284,24 @@ def _rollback_coordination_surface(ctx: _CoordCreateRollbackContext) -> None:
     repo_root = ctx.repo_root
     coord_mission_dir = coord_feature_dir(repo_root, ctx.mission_slug_formatted, ctx.mid8)
     if coord_mission_dir.exists():
-        with contextlib.suppress(OSError):
-            shutil.rmtree(coord_mission_dir)
+        # Guarded (#5965). A branch THIS create minted has a coordination
+        # worktree no one else could have written to, so its Mission dir is
+        # tool-owned. A reused branch's worktree may hold earlier work: judged
+        # as a coordination worktree, where only spec-kitty's own bookkeeping
+        # is disposable; on refusal the dir stays and teardown refuses too.
+        with contextlib.suppress(Exception):
+            guarded_tree_delete(
+                coord_mission_dir,
+                context=_CREATE_OWNED
+                if ctx.coordination_branch_created
+                else ResidueContext.for_mission(repo_root, ctx.mission_slug_formatted, CheckoutRole.COORDINATION),
+            )
     with contextlib.suppress(Exception):
         # The single shared teardown seam; a half-created mission has no retrospective to persist,
         # and the surface being discarded is this create's own, so the ledger guard is skipped.
         teardown_coordination_topology(repo_root, ctx.mission_slug_formatted, ctx.mid8, persist=False, check_ledger=False)
-    subprocess.run(
-        ["git", "-C", str(repo_root), "worktree", "prune"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    with contextlib.suppress(Exception):
+        guarded_worktree_prune(repo_root)
     current_tip = None
     if coord_rollback_needs_current_tip(created=ctx.coordination_branch_created, pre_seed_tip=ctx.pre_seed_coord_tip):
         current_tip = _rev_parse_or_none(repo_root, ctx.coordination_branch)
@@ -258,12 +312,8 @@ def _rollback_coordination_surface(ctx: _CoordCreateRollbackContext) -> None:
     )
     match action:
         case Delete():
-            subprocess.run(
-                ["git", "-C", str(repo_root), "branch", "-D", ctx.coordination_branch],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            base = _base_covering_own_seed(repo_root, ctx.coordination_branch, ctx.creation_base, ctx.mission_slug_formatted)
+            _delete_created_branch(repo_root, ctx.coordination_branch, base)
         case CasReset(expected=expected, to=to):
             # A pre-existing coordination branch this create reused is CAS-reset
             # to its own pre-create tip, never deleted (it may belong to another
@@ -347,10 +397,6 @@ def _restore_git_state_after_failed_create(
         _rollback_coordination_surface(coord_rollback)
     # 2. Delete only the coordination branches that appeared during this create.
     orphaned = _list_coordination_branches(repo_root) - pre_existing_coordination_branches
+    known_base = {coord_rollback.coordination_branch: coord_rollback.creation_base} if coord_rollback is not None else {}
     for branch in sorted(orphaned):
-        subprocess.run(
-            ["git", "-C", str(repo_root), "branch", "-D", branch],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        _delete_created_branch(repo_root, branch, known_base.get(branch))

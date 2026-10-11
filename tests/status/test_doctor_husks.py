@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -104,6 +105,7 @@ def test_fix_removes_only_unregistered_husks_and_rechecks_git_entry(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     worktrees = _worktrees(tmp_path)
     removable = worktrees / "removable"
     registered = worktrees / "registered"
@@ -133,6 +135,7 @@ def test_fix_removes_only_unregistered_husks_and_rechecks_git_entry(
         "removed": [".worktrees/removable"],
         "skipped_registered": [".worktrees/registered"],
         "skipped_appeared_valid": [".worktrees/appeared-valid"],
+        "skipped_unsafe": [],
     }
     assert not removable.exists()
     assert registered.exists()

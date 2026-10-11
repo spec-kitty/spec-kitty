@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
+from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -66,11 +66,11 @@ class WorktreeCommandsDedupMigration(BaseMigration):
                             changes.append(f"Would remove .claude/commands/ from worktree {worktree.name}")
                         else:
                             try:
-                                shutil.rmtree(wt_commands)
+                                remove_tool_owned_tree(wt_commands, tool_root=wt_commands, reason="worktree .claude/commands dedup")
                                 changes.append(
                                     f"Removed .claude/commands/ from worktree {worktree.name} (inherits from main repo)"
                                 )
-                            except OSError as e:
+                            except (OSError, ToolOwnedPathUnproven) as e:
                                 errors.append(f"Failed to remove .claude/commands/ from {worktree.name}: {e}")
 
         success = len(errors) == 0

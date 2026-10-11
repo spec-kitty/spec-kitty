@@ -31,6 +31,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from kernel.clock import now_utc_iso
+from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
 from specify_cli.core.atomic import atomic_write
 from specify_cli.migration.schema_version import CURRENT_SCHEMA_VERSION
 
@@ -86,8 +87,8 @@ def _create_backup(repo_root: Path) -> Path | None:
     # Remove stale backup if present
     if backup_dir.exists():
         try:
-            shutil.rmtree(backup_dir)
-        except OSError as exc:
+            remove_tool_owned_tree(backup_dir, tool_root=backup_dir, reason="stale migration backup")
+        except (OSError, ToolOwnedPathUnproven) as exc:
             logger.warning("Could not remove stale backup: %s", exc)
 
     try:
@@ -125,10 +126,12 @@ def _restore_siblings(repo_root: Path, backup_dir: Path) -> bool:
         kitty_specs = repo_root / "kitty-specs"
         try:
             if kitty_specs.is_dir():
-                shutil.rmtree(kitty_specs)
+                # Proof of ownership: kitty-specs/ is replaced by the snapshot taken at the start of this very
+                # run (kitty_specs_backup.is_dir() above); a failed copy keeps the backup (ok=False).
+                remove_tool_owned_tree(kitty_specs, tool_root=kitty_specs, reason="rollback restore of kitty-specs from this run's backup")
             shutil.copytree(kitty_specs_backup, kitty_specs)
             logger.info("Restored kitty-specs/ from backup")
-        except OSError as exc:
+        except (OSError, ToolOwnedPathUnproven) as exc:
             logger.warning("Could not restore kitty-specs/ during rollback: %s", exc)
             ok = False
 
@@ -167,10 +170,10 @@ def _restore_backup(repo_root: Path, backup_dir: Path) -> bool:
             continue
         try:
             if item.is_dir():
-                shutil.rmtree(item)
+                remove_tool_owned_tree(item, tool_root=item, reason="rollback restore of .kittify from this run's backup")
             else:
                 item.unlink()
-        except OSError as exc:
+        except (OSError, ToolOwnedPathUnproven) as exc:
             logger.warning("Could not remove %s during rollback: %s", item, exc)
             ok = False
 
@@ -198,9 +201,9 @@ def _cleanup_backup(repo_root: Path) -> bool:
     backup_dir = repo_root / ".kittify" / _BACKUP_DIR_NAME
     if backup_dir.exists():
         try:
-            shutil.rmtree(backup_dir)
+            remove_tool_owned_tree(backup_dir, tool_root=backup_dir, reason="migration backup cleanup")
             logger.debug("Backup directory removed")
-        except OSError as exc:
+        except (OSError, ToolOwnedPathUnproven) as exc:
             logger.warning("Could not remove backup dir: %s", exc)
             return False
     return True

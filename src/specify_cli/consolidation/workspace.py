@@ -9,10 +9,18 @@ from __future__ import annotations
 
 import logging
 import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+from kernel.tree_removal import remove_tool_owned_tree
+from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
+from specify_cli.git.destructive_guard import (
+    DestructiveOpRefused,
+    guarded_merge_abort,
+    guarded_tree_delete,
+    guarded_worktree_remove,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +44,13 @@ __all__ = [
     "get_merge_workspace_path",
     "get_merge_runtime_dir",
     "_worktree_removal_delay",
+    "abort_scratch_merge",
+    "remove_scratch_worktree",
 ]
+
+# A checkout this tool creates under ``.kittify/runtime`` or a temp root and removes again
+# itself holds nothing a user wrote, so every path in it is disposable (#5965 / #5966).
+_TOOL_OWNED = ResidueContext(role=CheckoutRole.TOOL_OWNED)
 
 
 def get_merge_runtime_dir(mission_id: str, repo_root: Path) -> Path:
@@ -52,6 +66,83 @@ def post_fix_marker_path(mission_id: str, repo_root: Path) -> Path:
 def get_merge_workspace_path(mission_id: str, repo_root: Path) -> Path:
     """Return the path for the merge worktree workspace."""
     return get_merge_runtime_dir(mission_id, repo_root) / "workspace"
+
+
+def remove_scratch_worktree(worktree: Path, *, env: dict[str, str] | None = None) -> bool:
+    """Best-effort removal of a scratch worktree the calling function created itself.
+
+    The one route for the detached merge / baseline / numbering scratch worktrees: it
+    goes through :func:`guarded_worktree_remove` with a tool-owned context, so a removal
+    that cannot be proven safe, or that git refuses, leaves the directory in place
+    instead of raising out of a ``finally`` block. Returns whether it was removed.
+    """
+    try:
+        guarded_worktree_remove(worktree, retain=False, context=_TOOL_OWNED, env=env)
+    except (DestructiveOpRefused, RuntimeError, OSError) as exc:
+        logger.debug("Scratch worktree %s was not removed: %s", worktree, exc)
+        return False
+    return True
+
+
+def abort_scratch_merge(worktree: Path, *, env: dict[str, str] | None = None) -> bool:
+    """Best-effort ``git merge --abort`` in a scratch worktree the calling function created itself.
+
+    Nothing in a tool-owned scratch checkout is an only copy, so the guard's context is the
+    tool-owned one. Returns whether a merge was aborted; ``False`` (logged) when none was in
+    progress, which is the expected answer after a ``--squash`` (it leaves no ``MERGE_HEAD``).
+    """
+    try:
+        guarded_merge_abort(worktree, context=_TOOL_OWNED, env=env)
+    except (DestructiveOpRefused, RuntimeError, OSError) as exc:
+        logger.debug("No merge was aborted in scratch worktree %s: %s", worktree, exc)
+        return False
+    return True
+
+
+def _gitlink_dangles(git_entry: Path) -> bool:
+    """Whether ``git_entry`` is a ``.git`` file whose ``gitdir:`` target no longer exists.
+
+    Only a provably dead link qualifies. A link to a live (registered) git dir, an
+    unparseable file, or a ``.git`` directory is not dangling: the guard's refusal stands.
+    """
+    if not git_entry.is_file():
+        return False
+    try:
+        first_line = git_entry.read_text(encoding="utf-8").splitlines()[0]
+    except (OSError, UnicodeDecodeError, IndexError):
+        return False
+    prefix = "gitdir:"
+    if not first_line.startswith(prefix):
+        return False
+    target = Path(first_line[len(prefix) :].strip())
+    if not target.is_absolute():
+        target = git_entry.parent / target
+    return not target.exists()
+
+
+def _discard_scratch_tree(path: Path, *, tool_root: Path, reason: str) -> bool:
+    """Delete a scratch directory under ``tool_root`` that this tool created; best effort.
+
+    A plain directory goes through :func:`remove_tool_owned_tree`. A directory that is
+    (or was) a git checkout goes through :func:`guarded_tree_delete` with a tool-owned
+    context; one whose ``.git`` link provably dangles (its ``gitdir:`` target is gone) is not
+    a checkout any more, so the dead link is dropped and the rest is deleted as a plain tree. A link to a live
+    git dir is never dropped on a refusal: the tree is kept.
+    """
+    git_entry = path / ".git"
+    try:
+        if git_entry.exists() or git_entry.is_symlink():
+            try:
+                guarded_tree_delete(path, context=_TOOL_OWNED)
+                return True
+            except DestructiveOpRefused:
+                if not _gitlink_dangles(git_entry):
+                    raise
+                git_entry.unlink()
+        return remove_tool_owned_tree(path, tool_root=tool_root, reason=reason, best_effort=True)
+    except (DestructiveOpRefused, RuntimeError, OSError, ValueError) as exc:
+        logger.debug("Scratch tree %s was not removed (%s): %s", path, reason, exc)
+        return False
 
 
 def create_merge_workspace(mission_id: str, target_branch: str, repo_root: Path) -> Path:
@@ -76,7 +167,11 @@ def create_merge_workspace(mission_id: str, target_branch: str, repo_root: Path)
         if get_merge_workspace(mission_id, repo_root) is not None:
             return workspace_path
         # Invalid state: remove and recreate
-        shutil.rmtree(workspace_path, ignore_errors=True)
+        _discard_scratch_tree(
+            workspace_path,
+            tool_root=get_merge_runtime_dir(mission_id, repo_root),
+            reason="stale merge workspace",
+        )
 
     # Use --detach so the worktree isn't bound to the branch name.
     # This allows adding a worktree for a branch that is currently checked out
@@ -124,12 +219,7 @@ def cleanup_merge_workspace(mission_id: str, repo_root: Path) -> None:
             check=False,
         )
         if result.returncode != 0:
-            subprocess.run(
-                ["git", "worktree", "remove", "--force", str(workspace_path)],
-                cwd=str(repo_root),
-                capture_output=True,
-                check=False,
-            )
+            remove_scratch_worktree(workspace_path)
     elif logger.isEnabledFor(logging.DEBUG):
         logger.debug("Workspace %s does not exist, skipping worktree removal", workspace_path)
 
@@ -139,7 +229,7 @@ def cleanup_merge_workspace(mission_id: str, repo_root: Path) -> None:
             if child.name in _PRESERVED_FILES:
                 continue
             if child.is_dir():
-                shutil.rmtree(child, ignore_errors=True)
+                _discard_scratch_tree(child, tool_root=runtime_dir, reason="merge runtime artifact")
             else:
                 child.unlink(missing_ok=True)
 

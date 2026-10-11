@@ -323,6 +323,13 @@ def test_expected_lane_worktree_dir_names_are_exact() -> None:
     assert _expected_lane_worktree_dir_names("alpha", manifest) == {"alpha-lane-a"}
 
 
+def _write_mission_meta(repo: Path, slug: str) -> None:
+    """The lane-worktree removal reads the Mission's stored topology (destructive-guard context)."""
+    mission_dir = repo / "kitty-specs" / slug
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    (mission_dir / "meta.json").write_text(json.dumps({"mission_slug": slug, "topology": "lanes"}), encoding="utf-8")
+
+
 def test_remove_lane_worktrees_does_not_delete_sibling_mission(tmp_path: Path) -> None:
     """Data-loss guard (#2120 follow-up): discarding mission `alpha` removes only
     its OWN lane worktree, never sibling `alpha-beta`'s worktree (whose dir name
@@ -331,6 +338,7 @@ def test_remove_lane_worktrees_does_not_delete_sibling_mission(tmp_path: Path) -
     from specify_cli.cli.commands.mission_type import _remove_lane_worktrees
 
     repo = _init_repo(tmp_path)
+    _write_mission_meta(repo, "alpha")
     _git(repo, "worktree", "add", "--detach", str(repo / ".worktrees" / "alpha-lane-a"))
     sibling_wt = repo / ".worktrees" / "alpha-beta-lane-a"
     _git(repo, "worktree", "add", "--detach", str(sibling_wt))
@@ -360,6 +368,7 @@ def test_remove_lane_worktrees_unstattable_entry_is_not_silently_skipped(
     from specify_cli.cli.commands.mission_type import _remove_lane_worktrees
 
     repo = _init_repo(tmp_path)
+    _write_mission_meta(repo, "alpha")
     vault = tmp_path / "vault"
     (vault / "m-target").mkdir(parents=True)
     worktrees_root = repo / ".worktrees"

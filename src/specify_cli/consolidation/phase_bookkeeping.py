@@ -254,7 +254,12 @@ def _phase_capture_and_baseline(run: _MergeRunState) -> None:
     # WP03/T011 (#4752): pass the target branch so the refresh's own
     # defense-in-depth guard can refuse a ``reset --hard`` against an
     # off-target checkout even if the earlier preflight were ever bypassed.
-    _refresh_primary_checkout_after_merge(run.main_repo, run.lanes_manifest.target_branch)
+    _refresh_primary_checkout_after_merge(
+        run.main_repo,
+        run.lanes_manifest.target_branch,
+        mission_slug=run.mission_slug,
+        lag_base_sha=run.state.pre_mutation_target_sha,
+    )
 
     assert run.canonical_events_path is not None
     assert run.canonical_status_path is not None
@@ -593,8 +598,8 @@ def _phase_porcelain_invariant(run: _MergeRunState) -> None:
     def _is_coord_residue(path_part: str) -> bool:
         # FR-012: consult the single canonical toolchain-churn classifier so this
         # gate agrees with every other gate on what is spec-kitty-generated churn.
-        is_residue: bool = is_toolchain_generated_churn(path_part, mission_slug=run.mission_slug)
-        return is_residue
+        churn: bool = is_toolchain_generated_churn(path_part, mission_slug=run.mission_slug)
+        return churn
 
     offending_entries, _skipped_untracked = _classify_porcelain_lines(
         _out_status,

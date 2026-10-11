@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import re
-import shutil
+import logging
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
+
+from kernel.tree_removal import ToolOwnedPathUnproven, remove_tool_owned_tree
 
 from typing import Literal, Protocol
 
@@ -242,14 +244,14 @@ def _resolve_git(
         source = factory(url=url, ref=ref, inject_token=False)
         result = source.fetch(target)
     except OSError as exc:
-        shutil.rmtree(target, ignore_errors=True)
+        discard_temp_source(target)
         return None, ResolveError(
             rule_id=RULE_TEMPLATE_GIT_FETCH,
             message=f"TEMPLATE git resolve failed ({RULE_TEMPLATE_GIT_FETCH}): {exc.strerror or 'Git execution failed'}",
         )
     if not result.ok:
         detail = "; ".join(result.errors) if result.errors else "git fetch failed"
-        shutil.rmtree(target, ignore_errors=True)
+        discard_temp_source(target)
         return None, ResolveError(
             rule_id=RULE_TEMPLATE_GIT_FETCH,
             message=f"TEMPLATE git resolve failed ({RULE_TEMPLATE_GIT_FETCH}): {detail}",
@@ -258,3 +260,38 @@ def _resolve_git(
         ResolvedTemplateSource(kind=KIND_GIT, root=target, ref=ref, cleanup=True),
         None,
     )
+
+
+_LOG = logging.getLogger(__name__)
+
+
+class _CleanClone:
+    """Disposability for a fresh temp clone: nothing local counts as regenerable."""
+
+    def is_disposable(self, path: str) -> bool:  # noqa: ARG002 - ResidueClassifier protocol signature; the answer is path-independent
+        return False
+
+    def for_checkout(self, repo_root: Path, worktree: Path) -> _CleanClone:  # noqa: ARG002 - ResidueClassifier protocol signature; one role only
+        return self
+
+
+def discard_temp_source(root: Path) -> None:
+    """Best-effort removal of a temp template source this module created (``mkdtemp``).
+
+    A git source is a fresh clone, so ``root`` holds a ``.git`` entry and the
+    tool-owned helper refuses it by design; that one case goes through
+    ``guarded_tree_delete``, which keeps it only when it holds local changes.
+    """
+    try:
+        remove_tool_owned_tree(root, tool_root=root, reason="template render temp source", best_effort=True)
+    except ToolOwnedPathUnproven:
+        _discard_clone(root)
+
+
+def _discard_clone(root: Path) -> None:
+    from specify_cli.git.destructive_guard import DestructiveOpRefused, guarded_tree_delete
+
+    try:
+        guarded_tree_delete(root, context=_CleanClone())
+    except (DestructiveOpRefused, OSError):
+        _LOG.debug("kept temp template clone %s", root, exc_info=True)

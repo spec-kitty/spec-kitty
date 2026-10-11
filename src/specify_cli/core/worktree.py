@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Any
 
 from kernel.paths import is_windows
+from kernel.tree_removal import remove_tool_owned_tree
 
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
 from .git_preflight import GitPreflightError
@@ -555,8 +556,10 @@ spec-kitty agent tasks move-task WP01 --to doing
         # Remove existing symlink first (can't use rmtree on symlinks)
         worktree_memory.unlink()
     elif worktree_memory.exists() and worktree_memory.is_dir():
-        # Remove existing directory (from git worktree add)
-        shutil.rmtree(worktree_memory)
+        # Remove existing directory (from git worktree add). It is the shared
+        # team-memory store's checkout/copy, regenerated just below, and lies
+        # inside ``.kittify/`` of the worktree being set up.
+        remove_tool_owned_tree(worktree_memory, tool_root=worktree_kittify, reason="worktree .kittify/memory copy")
 
     if use_copy:
         # Copy memory directory

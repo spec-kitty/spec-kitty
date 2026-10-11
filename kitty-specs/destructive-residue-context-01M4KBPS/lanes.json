@@ -1,0 +1,261 @@
+{
+  "version": 1,
+  "mission_slug": "destructive-residue-context-01M4KBPS",
+  "mission_id": "01M4KBPS5YJZESN67MC26CBDQR",
+  "mission_branch": "kitty/mission-destructive-residue-context-01M4KBPS",
+  "target_branch": "fix/5965-5966-destructive-residue-context",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/consolidation/test_abort_resync_other_mission_5966.py",
+        "tests/consolidation/test_coord_teardown_only_copy_5965.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/kernel/tree_removal.py",
+        "src/specify_cli/coordination/coherence.py",
+        "src/specify_cli/git/destructive_guard.py",
+        "src/specify_cli/git/ref_advance.py",
+        "tests/coordination/test_disposable_residue.py",
+        "tests/git/test_ref_advance_resync_to_tip.py",
+        "tests/kernel/test_tree_removal.py",
+        "tests/specify_cli/git/test_destructive_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/_constants.py",
+        "src/specify_cli/consolidation/entry_preflight.py",
+        "src/specify_cli/consolidation/executor.py",
+        "src/specify_cli/consolidation/phase_teardown.py",
+        "src/specify_cli/consolidation/rollback.py",
+        "src/specify_cli/consolidation/run_state.py",
+        "src/specify_cli/consolidation/state.py",
+        "src/specify_cli/coordination/teardown.py",
+        "src/specify_cli/coordination/workspace.py",
+        "src/specify_cli/orchestrator_api/consolidation.py",
+        "tests/consolidation/test_teardown_refusal_resume.py",
+        "tests/coordination/test_coord_teardown_guard.py",
+        "tests/integration/test_mission_close.py",
+        "tests/specify_cli/coordination/test_teardown_single_seam_routing.py",
+        "tests/specify_cli/coordination/test_workspace.py",
+        "tests/specify_cli/coordination/test_workspace_mid8_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/consolidation/git_probes.py",
+        "src/specify_cli/consolidation/mission_number/bake.py",
+        "src/specify_cli/consolidation/resume_recovery.py",
+        "src/specify_cli/consolidation/workspace.py",
+        "src/specify_cli/lanes/auto_rebase.py",
+        "src/specify_cli/lanes/consolidation.py",
+        "src/specify_cli/review/baseline.py",
+        "tests/consolidation/test_guarded_consolidation_sites.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_create.py",
+        "src/specify_cli/core/mission_creation_rollback.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "src/specify_cli/missions/_create.py",
+        "tests/specify_cli/git/test_guarded_site_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/charter/offering/packs/pack_assembler.py",
+        "src/runtime/next/runtime_bridge_io.py",
+        "src/runtime/next/runtime_bridge_query.py",
+        "src/specify_cli/charter_packs/snapshot.py",
+        "src/specify_cli/charter_packs/template_render/pipeline.py",
+        "src/specify_cli/charter_packs/template_render/resolve.py",
+        "src/specify_cli/skills/catalog.py",
+        "src/specify_cli/template/asset_generator.py",
+        "src/specify_cli/template/manager.py",
+        "tests/specify_cli/test_tool_owned_tree_callers.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/core/utils.py",
+        "src/specify_cli/migration/runner.py",
+        "src/specify_cli/runtime/merge.py",
+        "src/specify_cli/upgrade/migrations/m_0_6_5_commands_rename.py",
+        "src/specify_cli/upgrade/migrations/m_0_7_2_worktree_commands_dedup.py",
+        "src/specify_cli/upgrade/migrations/m_0_9_0_frontmatter_only_lanes.py",
+        "src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py",
+        "src/specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py",
+        "tests/upgrade/test_migration_tree_removal_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/specify_cli/charter_packs/sources/git_source.py",
+        "src/specify_cli/cli/commands/mission_type.py",
+        "src/specify_cli/coordination/coord_seed.py",
+        "src/specify_cli/core/vcs/git.py",
+        "src/specify_cli/core/worktree.py",
+        "src/specify_cli/status/doctor_husks.py",
+        "tests/specify_cli/git/test_guarded_site_routing_misc.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "tests/architectural/_destructive_op_census.py",
+        "tests/architectural/test_destructive_op_routing.py",
+        "tests/consolidation/test_abort_keeps_other_mission_edits.py",
+        "tests/consolidation/test_checkout_role_recovery.py",
+        "tests/consolidation/test_teardown_keeps_only_copy.py",
+        "tests/context/test_is_mission_dir.py",
+        "tests/coordination/test_coherence_integrity.py",
+        "tests/coordination/test_materialize_coord_surface.py",
+        "tests/git/test_ref_advance_git_paths.py",
+        "tests/git/test_restore_branch_ref_resync.py",
+        "tests/mission_runtime/test_decision_ledger_reader_flips.py",
+        "tests/orchestrator_api/test_mission_branch_delete_cas.py",
+        "tests/specify_cli/cli/commands/test_issue_2795_claim_blocker.py",
+        "tests/specify_cli/cli/commands/test_merge_coord_worktree_resync_1826.py",
+        "tests/specify_cli/cli/commands/test_merge_residue_gate_single_authority_wp13.py",
+        "tests/specify_cli/retrospective/test_tracer_writer_coord_e2e.py",
+        "tests/specify_cli/test_no_manual_ffmerge.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g",
+        "lane-i"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-10-10T17:35:51.507867+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "bd7975311ac1dd282af23fd749fbcdd23bea9d62"
+}

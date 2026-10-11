@@ -10,8 +10,7 @@ Moved from ``consolidation/executor.py`` by epic #2026 with no logic change.
 
 from __future__ import annotations
 
-from collections.abc import Callable
-import functools
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -23,7 +22,10 @@ if TYPE_CHECKING:
 
 from specify_cli.cli.console import console
 from specify_cli.coordination.coherence import (
-    is_toolchain_generated_churn,
+    CheckoutRole,
+    NothingIsResidue,
+    ResidueContext,
+    residue_context_or_strictest,
 )
 from specify_cli.coordination.commit_router import CoordWorktreeResolutionError
 from specify_cli.coordination.coord_seed import CoordSeedForkRefused
@@ -44,7 +46,7 @@ from specify_cli.git.destructive_guard import (
     assert_checkout_on_target,
     assert_worktree_clean,
 )
-from specify_cli.git.ref_advance import worktrees_with_branch_checked_out
+from specify_cli.git.ref_advance import ResidueClassifier, worktrees_with_branch_checked_out
 from specify_cli.consolidation._constants import COORD_SEED_COMMIT_REFUSED_SUFFIX, COORDINATION_WORKTREE_BRANCH_MISMATCH_SUFFIX
 from specify_cli.consolidation.git_probes import (
     _has_branch_ref,
@@ -71,7 +73,6 @@ from mission_runtime import (
 )
 from specify_cli.consolidation.run_state import (
     _created_lane_worktree,
-    _stored_topology_for,
 )
 
 
@@ -160,26 +161,23 @@ def _pre_mutation_safety_preflight(
     here propagates to the caller, which aborts the merge fail-closed before
     the lock is acquired and before any mutation.
     """
-    # WP10 integration (C-3 / #4978): thread the STORED topology so the pre-mutation
-    # dirty gate never resets a coord-partition-KIND artifact as residue on a
-    # LANES / SINGLE_BRANCH mission.
-    is_residue = functools.partial(
-        is_toolchain_generated_churn,
-        mission_slug=mission_slug,
-        topology=_stored_topology_for(primary_meta_dir),
-    )
+    # #5965 / #5966: the guard decides disposability from the checkout ROLE, the Mission's slug and
+    # its STORED topology (so a coord-partition-KIND artifact on a LANES / SINGLE_BRANCH Mission is
+    # never residue, and another Mission's files never are either). Each checkout below is judged by
+    # its own role, resolved from the git worktree registry.
+    base_context = residue_context_or_strictest(main_repo, primary_meta_dir.name, CheckoutRole.REPOSITORY_ROOT)
 
     from specify_cli.lanes.single_branch_landing import expected_consolidate_checkout
 
     assert_checkout_on_target(main_repo, expected_consolidate_checkout(main_repo, lanes_manifest, target_branch))
     assert_worktree_clean(
         main_repo,
-        is_residue=is_residue,
+        context=base_context,
         error_code=MERGE_UNSAFE_PRIMARY_DIRTY,
     )
 
     if resume_state is not None:
-        _assert_mission_checkouts_clean(main_repo, lanes_manifest, resume_state, is_residue=is_residue)
+        _assert_mission_checkouts_clean(main_repo, lanes_manifest, resume_state, context=base_context)
 
     if not remove_worktree:
         return
@@ -195,7 +193,7 @@ def _pre_mutation_safety_preflight(
             # does — the obstruction-only default is correct for a
             # ``reset --hard`` (``advance_branch_ref``), not a
             # ``git worktree remove --force``.
-            assert_worktree_clean(wt_path, is_residue=is_residue, treat_untracked_as_dirty=True)
+            assert_worktree_clean(wt_path, context=base_context.for_checkout(main_repo, wt_path), treat_untracked_as_dirty=True)
 
     if not teardown_coordination:
         return
@@ -208,7 +206,16 @@ def _pre_mutation_safety_preflight(
 
     coord_worktree = _resolve_coord_worktree_for_preflight(main_repo, mission_slug, primary_meta_dir)
     if coord_worktree is not None and coord_worktree.exists():
-        assert_worktree_clean(coord_worktree, is_residue=is_residue, treat_untracked_as_dirty=True)
+        # Judged as a MISSION checkout on purpose (not COORDINATION): this leg only asks whether the dirt would trip
+        # the run's own ref advances, which is the question it always answered. Whether the coordination worktree
+        # holds the ONLY copy of operator files is decided where it is destroyed -- the teardown guard, after the
+        # landing was verified, judges it COORDINATION and keeps the whole triple (#5965, operator decision A).
+        assert_worktree_clean(coord_worktree, context=_as_mission_checkout(base_context), treat_untracked_as_dirty=True)
+
+
+def _as_mission_checkout(context: ResidueContext | NothingIsResidue) -> ResidueContext | NothingIsResidue:
+    """The same Mission judged as a MISSION checkout (a strictest classifier has no role to change)."""
+    return replace(context, role=CheckoutRole.MISSION) if isinstance(context, ResidueContext) else context
 
 
 def _assert_mission_checkouts_clean(
@@ -216,7 +223,7 @@ def _assert_mission_checkouts_clean(
     lanes_manifest: LanesManifest,
     state: ConsolidationState,
     *,
-    is_residue: Callable[[str], bool],
+    context: ResidueClassifier | None = None,
 ) -> None:
     """Resume leg of :func:`_pre_mutation_safety_preflight`: no worktree on the mission branch blocks the resume (#5613).
 
@@ -249,7 +256,10 @@ def _assert_mission_checkouts_clean(
         if checkout.resolve() == root:
             continue
         try:
-            assert_worktree_clean(checkout, is_residue=is_residue)
+            assert_worktree_clean(
+                checkout,
+                context=context.for_checkout(main_repo, checkout) if context is not None else NothingIsResidue(),
+            )
         except DestructiveOpRefused:
             lags = not anchors or any(has_unrefreshed_head_advance(checkout, base_sha=sha) for sha in anchors)
             if lags or _lane_remains_to_merge(main_repo, lanes_manifest, state):

@@ -242,18 +242,14 @@ def test_recover_false_and_prints_error_when_reset_fails(tmp_path: Path) -> None
             return_value=pf.ResumeDirtyRemedy(kind=ResumeRemedyKind.BEHIND_OWN_HEAD, remediation=["reset"]),
         ),
         patch.object(pf, "is_pure_behind_head_lag", return_value=True),
-        patch_executor_family("run_command", return_value=(1, "", "fatal: something")) as mock_run_command,
+        patch.object(resume_recovery, "guarded_reset_hard", side_effect=RuntimeError("fatal: something")) as mock_reset,
         patch_executor_family("console") as mock_console,
     ):
         result = resume_recovery._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
 
     assert result is False
-    mock_run_command.assert_called_once_with(
-        ["git", "reset", "--hard", "HEAD"],
-        capture=True,
-        check_return=False,
-        cwd=tmp_path,
-    )
+    mock_reset.assert_called_once()
+    assert mock_reset.call_args.args == (tmp_path, "HEAD")
     assert any("Error" in call.args[0] for call in mock_console.print.call_args_list)
 
 
@@ -269,12 +265,13 @@ def test_recover_true_on_success(tmp_path: Path) -> None:
             return_value=pf.ResumeDirtyRemedy(kind=ResumeRemedyKind.BEHIND_OWN_HEAD, remediation=["reset"]),
         ),
         patch.object(pf, "is_pure_behind_head_lag", return_value=True),
-        patch_executor_family("run_command", return_value=(0, "", "")),
+        patch.object(resume_recovery, "guarded_reset_hard") as mock_reset,
         patch_executor_family("console") as mock_console,
     ):
         result = resume_recovery._recover_behind_head_primary_on_resume(exc, tmp_path, "01ID", mission_branch="kitty/mission-m")
 
     assert result is True
+    mock_reset.assert_called_once()
     assert any("Recovered a behind-own-HEAD primary" in call.args[0] for call in mock_console.print.call_args_list)
 
 

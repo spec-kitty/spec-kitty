@@ -19,12 +19,12 @@ from pathlib import Path
 from rich.markup import escape
 
 from specify_cli.cli.console import console
-from specify_cli.coordination.coherence import (
-    is_toolchain_generated_churn,
-)
+from specify_cli.coordination.coherence import CheckoutRole, residue_context_or_strictest
 from specify_cli.core.git_ops import run_command
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError
 from kernel.git import GitCommandError
+from kernel.git import changed_paths as git_changed_paths
 from specify_cli.git.bookkeeping_commit import (
     commit_merge_bookkeeping,
 )
@@ -35,6 +35,8 @@ from specify_cli.git.ref_advance import (
     delete_branch_ref,
 )
 from specify_cli.git.destructive_guard import (
+    DestructiveOpRefused,
+    guarded_branch_delete,
     guarded_worktree_remove,
 )
 from specify_cli.consolidation.git_probes import _paths_have_status_changes
@@ -66,7 +68,6 @@ from specify_cli.consolidation.run_state import (
     CoordinationTeardownError,
     _MergeRunState,
     _is_coord_topology_mission,
-    _stored_topology_for,
 )
 
 
@@ -331,6 +332,25 @@ def _commit_projection_and_carry(run: _MergeRunState, paths: list[Path], message
     _carry_pass_anchor_over_own_commit(run, landed.sha)
 
 
+def _unlanded_paths_outside_mission_dir(run: _MergeRunState, base: str, coord_ref: str) -> list[str]:
+    """Paths a coordination commit in ``base..coord_ref`` changed OUTSIDE the Mission directory whose content is not on the target (#5965, D4).
+
+    The late projection carries only ``kitty-specs/<slug>/`` paths, so such a commit would be destroyed
+    with the coordination branch. A path whose blob on ``coord_ref`` equals the target's is already
+    landed (the lane code the run itself merged into the coordination branch) and is not reported.
+    """
+    target = run.lanes_manifest.target_branch
+    own_prefixes = tuple(f"{KITTY_SPECS_DIR}/{name}/" for name in {run.mission_slug, run.target_feature_dir.name})
+    unlanded: list[str] = []
+    for changed in git_changed_paths(run.main_repo, base, coord_ref, renames=True):
+        path = str(changed)
+        if path.startswith(own_prefixes):
+            continue
+        if _resolve_ref_sha(run.main_repo, f"{coord_ref}:{path}") != _resolve_ref_sha(run.main_repo, f"{target}:{path}"):
+            unlanded.append(path)
+    return sorted(set(unlanded))
+
+
 def _land_late_coordination_commits(run: _MergeRunState) -> None:
     """Project coordination commits that landed after the teardown gate onto the target (#5570).
 
@@ -362,6 +382,15 @@ def _land_late_coordination_commits(run: _MergeRunState) -> None:
     try:
         if not _post_checkpoint_commit_shas(run.main_repo, base, checkpoint.ref):
             return
+        stranded = _unlanded_paths_outside_mission_dir(run, base, checkpoint.ref)
+        if stranded:
+            raise CoordinationTeardownError(
+                f"a commit on coordination branch {branch!r} changes files outside kitty-specs/{run.target_feature_dir.name}/ "
+                f"that the target {target!r} does not have, and only Mission-directory files are landed during teardown: "
+                f"{', '.join(stranded[:20])}{f' (and {len(stranded) - 20} more)' if len(stranded) > 20 else ''}. "
+                f"Branch {branch!r} was NOT deleted. Move those files into the Mission directory, or land them on {target!r} yourself, "
+                "then run `spec-kitty consolidate --resume` again."
+            )
         events_path, status_path = _project_status_bookkeeping_to_target(
             main_repo=run.main_repo,
             mission_slug=run.mission_slug,
@@ -647,21 +676,17 @@ def _remove_lane_worktrees(run: _MergeRunState) -> None:
 
     lanes_manifest = run.lanes_manifest
     delay = _worktree_removal_delay()
-    # WP10 integration (C-3 / #4978): thread the STORED topology so the
-    # coord-residue leg is topology-aware — a coord-partition-KIND artifact
-    # on a LANES / SINGLE_BRANCH mission is real work, never reset as residue.
-    is_residue = functools.partial(
-        is_toolchain_generated_churn,
-        mission_slug=run.mission_slug,
-        topology=_stored_topology_for(run.target_feature_dir),
-    )
+    # #5965 / #5966: the guard decides disposability from the checkout ROLE and the Mission's
+    # STORED topology, so a lane worktree holding uncommitted rework refuses before the
+    # coordination teardown ever runs.
+    context = residue_context_or_strictest(run.main_repo, run.target_feature_dir.name, CheckoutRole.LANE)
     for idx, lane in enumerate(worktree_lanes(lanes_manifest)):
         # lane-branch-naming-authority-01M3EVC4 WP02 (T035): the CREATED
         # worktree (never keyed by ``run.baseline_mission_id``), so a
         # divergent-identity mission's worktree is never orphaned.
         wt_path = _created_lane_worktree(run.main_repo, lanes_manifest.mission_slug, lane.lane_id)
         if wt_path.exists():
-            guarded_worktree_remove(wt_path, retain=False, is_residue=is_residue)
+            guarded_worktree_remove(wt_path, retain=False, context=context)
             console.print(f"  Removed worktree: {wt_path.name}")
             if delay > 0 and idx < len(worktree_lanes(lanes_manifest)) - 1:
                 time.sleep(delay)
@@ -683,6 +708,26 @@ def _remove_lane_worktrees(run: _MergeRunState) -> None:
     for lane in worktree_lanes(lanes_manifest):
         workspace_name = _created_lane_worktree(run.main_repo, lanes_manifest.mission_slug, lane.lane_id).name
         delete_context(run.main_repo, workspace_name)
+
+
+def _delete_lane_branch_guarded(run: _MergeRunState, branch_name: str) -> bool:
+    """Delete one landed lane branch through the guard (FR-009); ``False`` (branch kept) when it refuses.
+
+    The creation base is the lane tip snapshotted before this run mutated anything: the
+    reconciliation gate verified the landing against exactly that content, so commits up to it
+    are absorbed (a squash leaves them unreachable from any ref) and only a commit made AFTER
+    the snapshot is unique work. A refusal keeps the branch with a warning and never fails the
+    landed consolidation.
+    """
+    try:
+        guarded_branch_delete(run.main_repo, branch_name, creation_base=run.state.pre_mutation_refs.get(branch_name))
+    except DestructiveOpRefused as refusal:
+        console.print(f"  [yellow]Kept lane branch {escape(branch_name)}:[/yellow] {escape(refusal.remediation)}")
+        return False
+    except RuntimeError as exc:  # git refused the delete (e.g. still checked out): the old best-effort contract
+        logger.debug("Lane branch %s was not deleted: %s", branch_name, exc)
+        return False
+    return True
 
 
 def _delete_lane_branches(run: _MergeRunState) -> None:
@@ -712,19 +757,19 @@ def _delete_lane_branches(run: _MergeRunState) -> None:
             check_return=False,
             cwd=run.main_repo,
         )
+        kept = False
         if ret == 0:
-            run_command(
-                ["git", "branch", "-D", branch_name],
-                cwd=run.main_repo,
-                check_return=False,
-            )
-            deleted += 1
+            if _delete_lane_branch_guarded(run, branch_name):
+                deleted += 1
+            else:
+                kept = True
         else:
             logger.debug("Branch %s does not exist, skipping deletion", branch_name)
         # #5115/WP07 (sibling-owned, one line): the lane-tip ref outlives the
         # branch it was keyed on -- clear it here too, or a future recut of
-        # the SAME branch name would inherit a stale tip.
-        clear_tip(run.main_repo, branch_name)
+        # the SAME branch name would inherit a stale tip. A KEPT branch keeps its tip record.
+        if not kept:
+            clear_tip(run.main_repo, branch_name)
     if deleted:
         console.print(f"  Cleaned up {deleted} lane branch(es)")
 
