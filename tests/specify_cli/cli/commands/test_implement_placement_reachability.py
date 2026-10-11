@@ -355,6 +355,9 @@ DIRTY_SPEC = " M kitty-specs/<slug>/spec.md"
 LEGACY_WARNING_MARKER = "?? .kittify/legacy-warning-shown-<mission_id>"
 COORD_SUCCESS = "Planning artifacts committed to coordination branch kitty/mission-<slug>"
 COORD_DELETED = f"Coordination branch '{COORD}' for mission '<slug>' is declared in meta.json but deleted from git."
+COORD_WORKTREE_MISMATCH = (
+    f"Coordination worktree at <repo>/.worktrees/<slug>-coord is on 'refs/heads/{COORD}', expected '{COORD}-ghost'. Manual intervention required."
+)
 PLACEMENT_REFUSAL = "Cannot resolve the canonical write placement for this mission's WP status claim commit"
 
 
@@ -529,12 +532,28 @@ def test_broken_lanes_json_refuses_before_any_planning_commit(build: Callable[[s
 
 
 # ---------------------------------------------------------------------------
-# Row 4: a declared coordination branch that was never created
+# Row 4: a declared coordination branch inconsistent with its materialized worktree
 # ---------------------------------------------------------------------------
 
 
-def test_never_created_coordination_branch_is_refused_at_the_commit(build: Callable[[str], Built]) -> None:
-    """The context resolves; the PRIMARY group commits, the COORD group is refused at its missing ref."""
+def test_declared_coordination_branch_inconsistent_with_worktree_is_refused_at_validate(
+    build: Callable[[str], Built],
+) -> None:
+    """A materialized coord worktree on a branch meta no longer names is refused BEFORE any commit.
+
+    The coord-state probe (``_read_path_resolver._coord_state_for`` ->
+    ``require_coord_worktree_branch``) is a deliberate fail-closed guard: a real,
+    materialized coordination worktree must still be on its declared ref. Pointing
+    ``meta.coordination_branch`` at a ``-ghost`` branch while the worktree stays on
+    the real ``kitty/mission-<slug>`` is exactly that inconsistency, so the probe
+    raises ``COORDINATION_WORKTREE_BRANCH_MISMATCH`` at the "Validate planning
+    state" step and nothing is committed.
+
+    (Earlier this row expected PRIMARY to commit and the COORD group to be refused
+    at a missing ref with ``DESTINATION_REF_NOT_FOUND``. That outcome is no longer
+    reachable for a coord mission: the probe classifies every "coord branch not
+    properly created" state before the planning commit can target a missing ref.)
+    """
     built = build("coord")
     built.set_meta(coordination_branch=f"kitty/mission-{built.slug}-ghost")
     make_dirty(built)
@@ -544,12 +563,9 @@ def test_never_created_coordination_branch_is_refused_at_the_commit(build: Calla
     assert_outcome(
         outcome,
         exit_code=1,
-        commits=(commit("topic", SPEC),),
-        status=(UNTRACKED_TRACES,),
-        present=(
-            "Bookkeeping refused: DESTINATION_REF_NOT_FOUND: Refusing to record 'planning artifacts for <slug>': "
-            "destination_ref 'kitty/mission-<slug>-ghost' does not exist",
-        ),
+        commits=(),
+        status=(DIRTY_SPEC, UNTRACKED_TRACES),
+        present=(COORD_WORKTREE_MISMATCH,),
     )
 
 
