@@ -695,7 +695,7 @@ def _partition_event_stream_from_text(feature_dir: Path, content: str) -> EventS
             if kind == ANNOTATION_KIND:
                 try:
                     annotations.append(InnerStateChanged.from_dict(obj))
-                except (KeyError, ValueError, TypeError) as exc:
+                except (KeyError, ValueError, TypeError, AttributeError) as exc:
                     raise StoreError(f"Invalid event structure on line {line_number}: {exc}") from exc
                 continue
             # An unknown kind is never silently skipped — fail loud.

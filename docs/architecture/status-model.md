@@ -2,7 +2,7 @@
 title: 'Status Model: Operator Documentation'
 description: 'Operator reference for the Spec Kitty status model: the append-only event-log lane state machine, the canonical --mission selector, and mission_id ULID identity.'
 doc_status: active
-updated: '2026-10-09'
+updated: '2026-10-11'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -191,10 +191,22 @@ spec-kitty agent status doctor --mission 034-feature-name
 
 | Check | Severity | Description |
 |-------|----------|-------------|
+| Event-log read failure | Error | Corrupt or unreadable `status.events.jsonl`, regardless of snapshot presence |
 | Stale claims | Warning | WPs in `claimed` for >7 days or `in_progress` for >14 days |
 | Orphan workspaces | Warning | Worktrees existing for features where all WPs are terminal (done/canceled) |
 | Materialization drift | Warning | `status.json` does not match reducer output |
 | Derived-view drift | Error | Materialized snapshot differs from canonical event log |
+
+Doctor validates the canonical log before using `status.json`. An unreadable log
+produces `event_log_error` with the resolved path and actual reason; malformed
+records include their physical 1-based line, while whole-file access or decoding
+failures have no invented record line. Text and `--json` output exit 1; JSON
+reports `healthy: false`. Doctor leaves both files and missing-file states
+unchanged. Preserve the log and snapshot as evidence, restore trusted history or
+correct file access, then rerun doctor. Do not delete history or use backfill or
+materialization as a substitute for restoring readable authority. Until then,
+all log-dependent checks are skipped, including reviewer self-approval; independent
+issue-matrix, sparse-checkout and duplicate-frontmatter checks still run.
 
 ### `spec-kitty agent status migrate`
 

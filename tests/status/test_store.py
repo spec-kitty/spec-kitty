@@ -770,7 +770,7 @@ class TestMalformedAnnotationHandling:
     def test_malformed_annotation_raises_line_bearing_store_error(
         self, tmp_path: Path, delta: object, reason: str, preceding_rows: bool,
     ) -> None:
-        prefix = json.dumps(_make_event().to_dict()) + "\n\n \n" if preceding_rows else ""
+        prefix = json.dumps(_make_event(event_id="01ARZ3NDEKTSV4RRFFQ69G5FAV").to_dict()) + "\n\n \n" if preceding_rows else ""
         log = tmp_path / EVENTS_FILENAME
         original = (prefix + json.dumps(self._annotation(delta)) + "\n").encode()
         log.write_bytes(original)

@@ -94,7 +94,12 @@ def damaged_log(
         if case == "directory":
             log.unlink()
             log.mkdir()
-            reason, line = "Is a directory", None
+            # Windows may report PermissionError for a directory; use the real
+            # filesystem reason rather than pinning a POSIX-only error string.
+            with pytest.raises(OSError, match=re.escape(str(log))) as exc_info:
+                log.read_text(encoding="utf-8")
+            reason = str(exc_info.value)
+            line = None
         elif case == "permission":
             original_read = Path.read_text
 
@@ -257,4 +262,57 @@ def test_readable_history_keeps_real_drift_and_wp_reconciliation(mission_dir: Pa
     membership = result.findings_by_category(Category.WP_FILE_DRIFT)
     assert [(f.wp_id, f.severity) for f in membership] == [("WP01", Severity.ERROR), ("WP02", Severity.ERROR)]
     assert not any(f.category == "event_log_error" for f in result.findings)
+    assert _evidence(mission_dir) == before
+
+
+@pytest.mark.parametrize("state", ["claimed", "done", "empty"])
+def test_unreadable_log_suppresses_real_snapshot_dependent_findings(tmp_path: Path, state: str) -> None:
+    mission = tmp_path / "kitty-specs" / SLUG
+    (mission / "tasks").mkdir(parents=True)
+    (mission / "tasks" / "WP01-work.md").write_text("---\nwork_package_id: WP01\n---\n", encoding="utf-8")
+    (tmp_path / ".worktrees" / f"{SLUG}-lane-a").mkdir(parents=True)
+    wps = (
+        {}
+        if state == "empty"
+        else {
+            "WP01": {"lane": state, "agent": "", "last_transition_at": "2020-01-01T00:00:00Z"},
+        }
+    )
+    (mission / SNAPSHOT_FILENAME).write_text(json.dumps({"work_packages": wps}), encoding="utf-8")
+    (mission / EVENTS_FILENAME).write_bytes(b"{not json\n")
+    before = _evidence(mission)
+
+    broken = run_doctor(mission, SLUG, tmp_path)
+
+    assert len(broken.findings) == 1
+    _assert_diagnostic(broken.findings[0], mission, "Invalid JSON", 1)
+    assert _evidence(mission) == before
+    # The same snapshot must expose legitimate findings once authority is restored.
+    (mission / EVENTS_FILENAME).write_bytes(_valid_history())
+    repaired_before = _evidence(mission)
+    repaired = run_doctor(mission, SLUG, tmp_path)
+    expected = {
+        "claimed": {Category.STALE_CLAIM, Category.BLANKED_RUNTIME_SLOT, Category.MATERIALIZATION_DRIFT},
+        "done": {Category.ORPHAN_WORKSPACE, Category.MATERIALIZATION_DRIFT},
+        "empty": {Category.UNINITIALIZED_STATUS, Category.MATERIALIZATION_DRIFT},
+    }
+    assert {f.category for f in repaired.findings} == expected[state]
+    assert _evidence(mission) == repaired_before
+
+
+def test_unexpected_programming_error_is_not_reported_as_log_corruption(
+    mission_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original_read = Path.read_text
+
+    def scoped_read(path: Path, *args: Any, **kwargs: Any) -> str:
+        if path == mission_dir / EVENTS_FILENAME:
+            raise RuntimeError("unexpected reader defect")
+        return original_read(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", scoped_read)
+    before = _evidence(mission_dir)
+    with pytest.raises(RuntimeError, match="^unexpected reader defect$"):
+        run_doctor(mission_dir, SLUG, mission_dir.parents[1])
     assert _evidence(mission_dir) == before

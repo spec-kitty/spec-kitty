@@ -21,9 +21,9 @@ from kernel.clock import now_utc, parse_iso
 from specify_cli.lanes.branch_naming import lane_id_for_worktree_dir
 from specify_cli.status_lanes import TERMINAL_LANES
 from specify_cli.frontmatter import FrontmatterError
-from .models import Lane, WPInnerStateDelta
+from .models import Lane, StatusEvent, WPInnerStateDelta
 from .reducer import SNAPSHOT_FILENAME, reduce
-from .store import StoreError, read_events
+from .store import EVENTS_FILENAME, StoreError, read_events
 from .wp_metadata import read_authored_wp_frontmatter, wp_task_files
 
 logger = logging.getLogger(__name__)
@@ -52,6 +52,7 @@ class Category(StrEnum):
     DUPLICATE_FRONTMATTER_KEY = "duplicate_frontmatter_key"
     BLANKED_RUNTIME_SLOT = "blanked_runtime_slot"
     WP_FILE_DRIFT = "wp_file_drift"
+    EVENT_LOG_ERROR = "event_log_error"
 
 
 @dataclass
@@ -90,9 +91,9 @@ class DoctorResult:
 
 def _load_or_reduce_snapshot(
     feature_dir: Path,
-    _mission_slug: str,
+    events: list[StatusEvent],
 ) -> dict[str, Any] | None:
-    """Load snapshot from status.json or reduce from events.
+    """Load snapshot from status.json or reduce from already validated events.
 
     Returns the snapshot as a dict (work_packages keyed by WP ID),
     or None if neither source is available.
@@ -106,15 +107,10 @@ def _load_or_reduce_snapshot(
         except (json.JSONDecodeError, OSError):
             logger.debug("Could not read status.json, trying event log")
 
-    # Try reducing from event log
-    try:
-        events = read_events(feature_dir)
-        if events:
-            snapshot = reduce(events)
-            snapshot_dict: dict[str, Any] = snapshot.to_dict()
-            return snapshot_dict
-    except Exception:
-        logger.debug("Could not reduce from event log", exc_info=True)
+    if events:
+        snapshot = reduce(events)
+        snapshot_dict: dict[str, Any] = snapshot.to_dict()
+        return snapshot_dict
 
     return None
 
@@ -746,8 +742,9 @@ def run_doctor(
 ) -> DoctorResult:
     """Run all health checks for a feature.
 
-    This is the main entry point. It loads the snapshot (from status.json
-    or by reducing the event log), then runs all checks.
+    Validate the canonical event log before loading the derived snapshot.
+    Expected log read failures become ERROR findings; only independent checks
+    run when history is unreadable. This function never repairs stored evidence.
 
     Args:
         feature_dir: Path to the feature's kitty-specs directory.
@@ -767,30 +764,41 @@ def run_doctor(
 
     result = DoctorResult(mission_slug=mission_slug)
 
-    # Load snapshot (from status.json or reduce from events)
-    snapshot = _load_or_reduce_snapshot(feature_dir, mission_slug)
-
-    # #1589: a mission with WP files but no canonical status must not read as
-    # healthy. Checked before the snapshot-gated checks so it fires when the
-    # snapshot is empty/absent.
-    result.findings.extend(check_uninitialized_status(feature_dir, snapshot))
-
-    if snapshot:
-        result.findings.extend(
-            check_stale_claims(
-                feature_dir,
-                snapshot,
-                claimed_threshold_days=stale_claimed_days,
-                in_progress_threshold_days=stale_in_progress_days,
+    # A snapshot cannot establish authority's readability (#5924). None means
+    # read failure, not empty history: skip every log-dependent check in that case.
+    events: list[StatusEvent] | None
+    try:
+        events = read_events(feature_dir)
+    except (StoreError, OSError, UnicodeError) as exc:
+        events = None
+        result.findings.append(
+            Finding(
+                severity=Severity.ERROR,
+                category=Category.EVENT_LOG_ERROR,
+                wp_id=None,
+                message=f"Cannot read canonical status event log {(feature_dir / EVENTS_FILENAME).resolve()}: {exc}",
+                recommended_action=("Preserve the log and snapshot as evidence. Restore trusted status history or correct file access, then rerun status doctor."),
             )
         )
-        result.findings.extend(check_orphan_workspaces(repo_root, mission_slug, snapshot))
-        result.findings.extend(check_drift(feature_dir))
-        # FR-014 (#2960): a blanked runtime slot on an active WP is corrupt
-        # canonical state — must not read as Healthy.
-        result.findings.extend(check_blanked_runtime_slots(snapshot))
-
-    result.findings.extend(check_reviewer_self_approval(feature_dir))
+    else:
+        snapshot = _load_or_reduce_snapshot(feature_dir, events)
+        # #1589: genuinely missing/empty status still needs initialization advice.
+        result.findings.extend(check_uninitialized_status(feature_dir, snapshot))
+        if snapshot:
+            result.findings.extend(
+                check_stale_claims(
+                    feature_dir,
+                    snapshot,
+                    claimed_threshold_days=stale_claimed_days,
+                    in_progress_threshold_days=stale_in_progress_days,
+                )
+            )
+            result.findings.extend(check_orphan_workspaces(repo_root, mission_slug, snapshot))
+            result.findings.extend(check_drift(feature_dir))
+            # FR-014 (#2960): blanked attribution on active WPs is corrupt state.
+            result.findings.extend(check_blanked_runtime_slots(snapshot))
+        # This check also reads status.events.jsonl, so it cannot run on failure.
+        result.findings.extend(check_reviewer_self_approval(feature_dir))
     # coord-commit-integrity SURFACE A #1c (superseded IC-01b/IC-shared, WP02):
     # route the issue-matrix read through the shared two-partition split
     # helper (:func:`~mission_runtime.issue_matrix_partition.
@@ -812,11 +820,6 @@ def run_doctor(
 
     # Compare with the event log itself: status.json is a derived view and may
     # be stale, so its WP set cannot establish canonical membership.
-    try:
-        events = read_events(feature_dir)
-    except (StoreError, OSError):
-        logger.debug("Could not reconcile WP files against the event log", exc_info=True)
-        events = []
     if events:
         event_wps = reduce(events).work_packages
         terminal = frozenset(wp_id for wp_id, state in event_wps.items() if state.get("lane") in TERMINAL_LANES)
