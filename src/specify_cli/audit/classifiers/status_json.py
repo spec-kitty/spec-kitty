@@ -124,7 +124,8 @@ def classify_status_json(
                     detail=(
                         "reducer output differs from persisted status.json only "
                         "in per-work-package provenance fields (actor, "
-                        "last_event_id, last_transition_at); a reducer-version "
+                        "last_event_id, last_transition_at) or runtime-claim "
+                        "slots (agent, shell_pid, shell_pid_created_at); a reducer-version "
                         "change re-attributed provenance without altering "
                         "lane/outcome state, so this drift is not an actionable "
                         "TeamSpace-readiness problem — an active mission's "
@@ -161,13 +162,28 @@ def classify_status_json(
     return findings
 
 
-_PROVENANCE_ONLY_WP_FIELDS = frozenset({"actor", "last_event_id", "last_transition_at"})
+_PROVENANCE_ONLY_WP_FIELDS = frozenset(
+    {
+        "actor",
+        "last_event_id",
+        "last_transition_at",
+        # Runtime-claim slots: spec-kitty-events 10.4.2 stopped projecting a
+        # finished claim's agent/shell onto the snapshot (#6058). Archived
+        # snapshots written by an earlier reducer still carry them, and the
+        # archive gate freezes those bytes (ADR 2026-10-11-1), so a difference
+        # here alone is a reducer generation, not an outcome change.
+        "agent",
+        "shell_pid",
+        "shell_pid_created_at",
+    }
+)
 
 
 def _is_provenance_only_drift(computed_json: str, persisted_json: str) -> bool:
     """Return True iff ``computed_json`` and ``persisted_json`` (both already
     normalised, deterministic JSON strings) differ *only* in the per-work-package
-    provenance fields ``actor``, ``last_event_id``, and ``last_transition_at`` --
+    provenance fields ``actor``, ``last_event_id`` and ``last_transition_at``, or
+    the runtime-claim slots ``agent``, ``shell_pid`` and ``shell_pid_created_at`` --
     the shape a reducer-version change produces when it re-attributes WHO/WHEN a
     transition happened without altering WHAT happened (lane, counts, summary,
     or any other field).

@@ -709,8 +709,28 @@ def test_status_json_active_mission_drift_stays_hard_blocker(
     assert "SNAPSHOT_DRIFT_TERMINAL" not in _codes(findings)
 
 
+@pytest.mark.parametrize(
+    "stale_fields",
+    [
+        pytest.param(
+            {
+                "actor": "migration:verdict_provenance_backfill",
+                "last_event_id": "01KQHRB8GCFJAX7HM4ZY52AQGZ",
+                "last_transition_at": "2026-05-01T12:05:00+00:00",
+            },
+            id="provenance",
+        ),
+        # #6058: a snapshot written before spec-kitty-events 10.4.2 still
+        # carries the finished claim's runtime slots.
+        pytest.param(
+            {"agent": "codex:gpt-4o:reviewer:reviewer", "shell_pid": 13447, "shell_pid_created_at": 1712555649.6},
+            id="runtime-slots",
+        ),
+    ],
+)
 def test_status_json_provenance_only_drift_is_tolerated_warning(
     tmp_path: Path,
+    stale_fields: dict[str, object],
 ) -> None:
     """A reducer-version change that only re-attributes a work package's
     ``actor``/``last_event_id``/``last_transition_at`` -- not its lane or any
@@ -740,9 +760,7 @@ def test_status_json_provenance_only_drift_is_tolerated_warning(
 
     status_path = tmp_path / "status.json"
     persisted = json.loads(status_path.read_text(encoding="utf-8"))
-    persisted["work_packages"]["WP01"]["actor"] = "migration:verdict_provenance_backfill"
-    persisted["work_packages"]["WP01"]["last_event_id"] = "01KQHRB8GCFJAX7HM4ZY52AQGZ"
-    persisted["work_packages"]["WP01"]["last_transition_at"] = "2026-05-01T12:05:00+00:00"
+    persisted["work_packages"]["WP01"].update(stale_fields)
     status_path.write_text(json.dumps(persisted, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
     findings = classify_status_json(tmp_path)
