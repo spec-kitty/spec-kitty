@@ -718,13 +718,29 @@ def _run_raw_command(
     monotonic: Callable[[], float],
     wait: _ProcessWait,
     elapsed_observer: _ElapsedObserver | None = None,
+    serialize: bool = True,
 ) -> tuple[HeadRunState, RawRunResult | None, str | None]:
     """Run ``command`` under the SAME process-lifecycle machinery
-    :func:`run_scoped_tests_at_head` uses (launch/observe/lock/reap), but
+    :func:`run_scoped_tests_at_head` uses (launch/observe/reap), but
     without baking in a pytest/JUnit-specific command shape — the
     injected-``ScopeSource`` counterpart (T011/FR-010). Returns the run
     state, an unparsed :class:`RawRunResult` (``None`` on a non-completion),
     and an error string (``None`` on success).
+
+    ``serialize`` (#6062) selects whether the launch is wrapped in
+    :func:`_scoped_run_lock` — the machine-wide ``pre-review-gate-run.lock``
+    that serializes concurrent ``for_review`` head runs (#2493). The
+    ``for_review`` head path (:func:`_evaluate_via_scope_source`) keeps the
+    default ``True`` so its #2493 serialization is unchanged. Implement-time /
+    for_review-time BASELINE capture (``baseline._run_command_for_baseline``)
+    passes ``False``: a baseline run is NOT a pre-review gate head run, it
+    already executes in its own isolated detached base-branch worktree, and
+    taking that gate lock made a *claim* (``agent action implement``)
+    acquire/await a lock scoped to the ``move-task --to for_review``
+    transition — the #6062 hang (and a cross-lane block of a concurrent
+    for_review gate). Baseline capture still reuses this function for its
+    group-safe launch/reap machinery (the #3612 ``sh -c`` orphan fix); only
+    the gate-lock coupling is dropped.
 
     A ``--junitxml=<relative path>`` embedded in a ``DeclaredCommandScopeSource``
     -resolved command resolves against the subprocess's ``cwd`` (``repo_root``,
@@ -738,8 +754,9 @@ def _run_raw_command(
     catch.
     """
     env = _gate_run_env()
+    lock_cm: contextlib.AbstractContextManager[object] = _scoped_run_lock() if serialize else contextlib.nullcontext()
     try:
-        with _scoped_run_lock():
+        with lock_cm:
             process = _launch_scoped_process(list(command), repo_root=repo_root, env=env)
             state, stdout, stderr = _observe_process(
                 process,

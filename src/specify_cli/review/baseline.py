@@ -523,6 +523,13 @@ def _run_command_for_baseline(command: list[str], *, cwd: Path) -> RawRunResult:
     if junit_path is not None and not junit_path.is_absolute():
         junit_path = cwd / junit_path
 
+    # #6062: serialize=False -- baseline capture must NOT acquire the
+    # machine-wide pre-review-gate-run.lock. That lock serializes concurrent
+    # for_review gate HEAD runs (#2493), not baseline capture, which already
+    # runs in its own isolated detached base-branch worktree. Taking it made a
+    # claim / baseline step acquire a lock scoped to the for_review transition
+    # (the #6062 hang + cross-lane for_review-gate block). The group-safe
+    # launch/reap the #3612 orphan fix needs is unchanged.
     state, raw, error = _run_raw_command(
         command,
         repo_root=cwd,
@@ -530,6 +537,7 @@ def _run_command_for_baseline(command: list[str], *, cwd: Path) -> RawRunResult:
         progress_callback=None,
         monotonic=time.monotonic,
         wait=_default_process_wait,
+        serialize=False,
     )
     if state is HeadRunState.TIMED_OUT:
         return RawRunResult(
