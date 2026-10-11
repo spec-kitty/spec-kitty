@@ -676,8 +676,7 @@ def _warn_on_materialization_drift(feature_dir: Path, mission_slug: str) -> None
     a refusal needs a dedicated status-fidelity adjudication pass across those
     callers first (see the PR notes).
     """
-    from specify_cli.status.reducer import SNAPSHOT_FILENAME
-    from specify_cli.status.validate import validate_materialization_drift
+    from specify_cli.status import SNAPSHOT_FILENAME, validate_materialization_drift
 
     if not (feature_dir / SNAPSHOT_FILENAME).exists():
         return  # no committed snapshot to drift — #5863 is a PRESENT, drifted status.json
