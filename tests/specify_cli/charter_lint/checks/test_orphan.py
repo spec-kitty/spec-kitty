@@ -171,6 +171,21 @@ class TestOrphanCheckerBuiltInGraphExactSet:
     """
 
     def test_orphaned_directive_findings_exact_set(self):
+        """The shipped built-in DRG now has NO orphaned directives.
+
+        #6017 (``97e42f00b2``) wired the last two — ``DIRECTIVE_035`` (via
+        ``occurrence-classification-workflow``'s ``suggests`` edge) and
+        ``DIRECTIVE_039`` (via ``deep-module-design``'s ``requires`` edge) —
+        into the doctrine graph, an intended and accepted move (the cascade
+        ratchet and changelog landed alongside it). Every built-in directive
+        is now referenced, so the orphaned-directive set is empty.
+
+        FR-008/NFR-003 still forbids a *vacuous* 0 (a deleted directive rule
+        would also yield 0). The exact ``== set()`` here no longer carries that
+        guarantee on its own, so the anti-vacuity half moved to the positive
+        control below (and to
+        ``TestOrphanCheckerManufacturedDecay.test_orphaned_directive_detected``).
+        """
         from charter.offering.drg.loader import load_built_in_graph
 
         drg = load_built_in_graph()
@@ -180,7 +195,33 @@ class TestOrphanCheckerBuiltInGraphExactSet:
             f.id.removeprefix("directive:") for f in findings if f.type == "orphaned_directive"
         }
 
-        assert orphaned_directive_ids == {"DIRECTIVE_035", "DIRECTIVE_039"}
+        assert orphaned_directive_ids == set()
+
+    def test_directive_orphan_rule_is_live_against_built_in_directives(self):
+        """FR-008 anti-vacuity positive control for the (now-empty) exact set.
+
+        Because the built-in orphaned-directive set is empty, ``== set()`` above
+        can no longer tell "every directive is wired" apart from "the directive
+        orphan rule was accidentally deleted" — the exact failure mode FR-008
+        rules out. This proves the rule is still live against the *real*
+        built-in directive population: stripping every edge makes the checker
+        flag all of those directives, so an empty result above can only mean the
+        directives are referenced, never that the rule stopped firing.
+        """
+        from charter.offering.drg.loader import load_built_in_graph
+
+        drg = load_built_in_graph()
+        directive_nodes = [
+            node
+            for node in drg.nodes
+            if getattr(getattr(node, "kind", None), "value", str(getattr(node, "kind", ""))) == "directive"
+        ]
+        assert directive_nodes, "the built-in graph must contain directive nodes"
+
+        edgeless = _make_drg(nodes=directive_nodes, edges=[])
+        flagged = {f.id for f in OrphanChecker().run(edgeless) if f.type == "orphaned_directive"}
+
+        assert flagged == {node.urn for node in directive_nodes}
 
     def test_no_orphaned_adr_findings_in_built_in_graph(self):
         """The retired ``adr`` rule must never surface a finding (#2737)."""
