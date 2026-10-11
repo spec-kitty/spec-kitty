@@ -65,3 +65,5 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-07 | [a work package leaves review or approval only through a verdict or a noted force](2026-10-07-3-review-lane-exit-requires-verdict-or-forced-note.md) |
 | 2026-10-08 | [advancing a mission run is serialised by a per-run-dir lock and a caller-step compare-and-swap](2026-10-08-1-serialise-run-dir-advance.md) |
 | 2026-10-10 | [a scoped workspace handle layers onto the coordination/primary partition (it does not replace it)](2026-10-10-1-scoped-shadow-workspace-write-boundary-layers-onto-the-partition.md) |
+| 2026-10-11 | [the archive-freeze gate verifies reducer OUTCOME reproduction, not byte-identity](2026-10-11-1-archive-freeze-verifies-reducer-outcome-not-byte-identity.md) |
+| 2026-10-11 | [a Charter Pack declares its level in pack.yaml](2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md) |

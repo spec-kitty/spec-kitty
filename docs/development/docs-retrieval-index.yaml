@@ -3655,6 +3655,17 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
+  - path: "docs/adr/4.x/2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md"
+    title: "ADR: a Charter Pack declares its level in pack.yaml"
+    divio_type: "none"
+    abstract: "Every Charter Pack declares its level (built-in, org or project) in pack.yaml; loading refuses a pack whose declared level disagrees with where it is configured."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
