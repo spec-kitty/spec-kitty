@@ -5,10 +5,10 @@
     {
       "package": "spec-kitty-events",
       "source_repo": "spec-kitty/spec-kitty-events",
-      "cli_range": ">=10.4.0,<11",
-      "locked_version": "10.4.0",
-      "contract_surface": "volatile mission/WP families + zeitgeist attrs codecs; status-diary reducer with causal (from-lane-continuity) rejection precedence (10.4.0, #4990); typed WorkObservation contract (10.1.0)",
-      "resolution_note": "The CLI consumes the public PyPI release train with a bounded range; 10.4.0 is the release-authority lock target (post-launch adoption off the 9.1.6 launch train to consume the reducer-precedence fix, spec-kitty-events#69)."
+      "cli_range": ">=10.4.2,<11",
+      "locked_version": "10.4.2",
+      "contract_surface": "volatile mission/WP families + zeitgeist attrs codecs; status-diary reducer with causal (from-lane-continuity) rejection precedence, generalized to every current setter (10.4.1, #5967; built on 10.4.0, #4990) and exempting a migration/backfill reconstruction-seed current setter so it cannot bury a WP's real recorded lifecycle (10.4.2, spec-kitty-events#78); typed WorkObservation contract (10.1.0)",
+      "resolution_note": "The CLI consumes the public PyPI release train with a bounded range; 10.4.2 is the release-authority lock target. 10.4.1 generalized from-lane continuity to every setter (closing the cancel/rework split-brain the 10.4.0 rollback-setter-only form missed) but over-rejected migrated missions: a genesis-time migration:backfill reconstruction seed became the current setter and dropped the WP's real lifecycle. 10.4.2 (spec-kitty-events#78) exempts a reconstruction-seed current setter so the real lifecycle wins, with the #5967 cancel/rework fix and the rollback/force exemptions unchanged (spec-kitty-events#77/#78 / spec-kitty#5967)."
     },
     {
       "package": "spec-kitty-tracker",
