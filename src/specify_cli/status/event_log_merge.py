@@ -6,9 +6,41 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .models import Lane, NON_DISPLAY_LANES
+
 
 class EventLogMergeError(Exception):
     """Raised when an event-log merge cannot be completed safely."""
+
+
+# The linear lifecycle lanes in forward order (``planned``..``done``), used to
+# tell a backward (rejection/revert) move from forward progress. ``blocked`` and
+# ``canceled`` are non-linear and carry no forward rank; the two non-display
+# sentinels (``genesis``/``uninitialized``) never appear on a transition edge.
+_NON_LINEAR_LANES: frozenset[Lane] = NON_DISPLAY_LANES | {Lane.BLOCKED, Lane.CANCELED}
+_FORWARD_RANK: dict[str, int] = {
+    lane.value: rank
+    for rank, lane in enumerate(lane for lane in Lane if lane not in _NON_LINEAR_LANES)
+}
+
+
+def _is_decision_destination(from_lane: str, to_lane: str) -> bool:
+    """Whether a departure encodes a human stop/undo a silent LWW fold must not bury.
+
+    True for a cancellation (``to_lane == 'canceled'``) or a backward move in the
+    linear lifecycle (a rejection/revert, e.g. ``in_review -> planned``). A purely
+    forward fork (e.g. ``planned -> in_progress`` against ``planned ->
+    for_review``) carries no such decision: the union keeps both event rows and
+    the reducer picks one, the clean-merge behaviour #5759 relies on. A move whose
+    endpoint is non-linear (``blocked``) is not itself a reject/revert.
+    """
+    if to_lane == Lane.CANCELED.value:
+        return True
+    src = _FORWARD_RANK.get(from_lane)
+    dst = _FORWARD_RANK.get(to_lane)
+    if src is None or dst is None:
+        return False
+    return dst < src
 
 
 def read_event_log_text(text: str, *, source: str = "<memory>") -> list[dict[str, Any]]:
@@ -63,12 +95,17 @@ def detect_concurrent_fork(
     work at exit 0.
 
     A fork is reported only when BOTH sides carry a non-base ("extra")
-    transition departing the same ``from_lane`` and the union of their
-    ``to_lane``s has more than one value. A one-sided extension, the same
-    decision on both sides, and concurrent work on DIFFERENT work packages are
-    not forks and still merge cleanly. Reported, not resolved: the caller fails
-    the merge so git leaves a conflict for a human (the safe pre-#5759
-    behaviour). Returns ``None`` when there is no concurrent fork.
+    transition departing the same ``from_lane`` to more than one distinct
+    ``to_lane`` AND at least one of those destinations is a *decision* a silent
+    fold must not bury -- a cancellation or a backward (rejection/revert) move
+    (see ``_is_decision_destination``). A purely forward fork (both sides
+    advancing the same WP to different downstream lanes, e.g. ``planned ->
+    in_progress`` against ``planned -> for_review``) is NOT reported: the union
+    keeps both rows and the reducer picks one, the clean-merge guarantee #5759
+    relies on. A one-sided extension, the same decision on both sides, and
+    concurrent work on DIFFERENT work packages are likewise not forks. Reported,
+    not resolved: the caller fails the merge so git leaves a conflict for a human
+    (the safe pre-#5759 behaviour). Returns ``None`` when there is no such fork.
     """
     base_ids = {event.get("event_id") for event in base_events}
 
@@ -90,7 +127,9 @@ def detect_concurrent_fork(
     for wp_id in sorted(ours.keys() & theirs.keys()):
         for from_lane in sorted(ours[wp_id].keys() & theirs[wp_id].keys()):
             destinations = ours[wp_id][from_lane] | theirs[wp_id][from_lane]
-            if len(destinations) > 1:
+            if len(destinations) > 1 and any(
+                _is_decision_destination(from_lane, destination) for destination in destinations
+            ):
                 return (
                     f"work package {wp_id}: concurrent transitions from "
                     f"'{from_lane}' to {sorted(destinations)} were made in two "

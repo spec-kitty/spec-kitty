@@ -112,6 +112,18 @@ def test_detect_fork_ignores_concurrent_work_on_different_wps() -> None:
     assert detect_concurrent_fork(_BASE_WP02, ours, theirs) is None
 
 
+def test_detect_fork_ignores_a_purely_forward_fork() -> None:
+    """Two clones advancing one WP to different FORWARD lanes carry no stop/undo
+    decision, so the union still merges cleanly (the #5759 clean-merge guarantee
+    the ``test_clone_init_installs_merge_drivers`` pull arm depends on). The
+    detector flags a fork only when a cancel or a backward reject/revert is one of
+    the concurrent destinations."""
+    base = [_ev(0, "WP03", "genesis", "planned")]
+    ours = base + [_ev(1, "WP03", "planned", "in_progress")]
+    theirs = base + [_ev(2, "WP03", "planned", "for_review")]
+    assert detect_concurrent_fork(base, ours, theirs) is None
+
+
 # --------------------------------------------------------------------------- #
 # the git merge driver entrypoint
 # --------------------------------------------------------------------------- #
