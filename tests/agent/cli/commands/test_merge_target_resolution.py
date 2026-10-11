@@ -15,25 +15,7 @@ from tests.lane_test_utils import write_single_lane_manifest
 
 import pytest
 
-# spec-kitty#6036: these command-level tests share ``_patch_merge_environment``,
-# which monkeypatches ``run_command`` on eight consolidation importer modules. Under
-# certain CI ``module-tests (agent shard N/3)`` compositions,
-# ``monkeypatch.setattr("…consolidation.resume_recovery.run_command", …)`` raises
-# ``AttributeError: module … has no attribute 'run_command'`` even though
-# ``resume_recovery`` imports it unconditionally at module top — a cross-test
-# isolation leak, not a product bug. The file passes deterministically in isolation
-# (8/8) and under full-module parallel locally; it fails on a different shard each CI
-# run. Quarantined (Tier-3 environmental flake) so it cannot block unrelated PRs; this
-# is debt tracked in #6036 and the marker is removed on the root-cause fix. See
-# docs/development/testing/testing-flakiness.md.
-_SHARD_ISOLATION_QUARANTINE = pytest.mark.quarantine(
-    reason="spec-kitty#6036: CI-shard test-isolation flake — monkeypatch.setattr of"
-    " specify_cli.consolidation.resume_recovery.run_command raises AttributeError under"
-    " some agent-shard compositions; passes in isolation and full-module parallel. Debt;"
-    " remove on root-cause fix."
-)
-
-pytestmark = [pytest.mark.unit, pytest.mark.fast, _SHARD_ISOLATION_QUARANTINE]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 runner = CliRunner()
 
@@ -118,13 +100,20 @@ def _patch_merge_environment(
     # ``merge.resolve`` and the lane executor from every split executor
     # module that calls it (#2026). Patch all
     # the surfaces this flow traverses so the fake git stays in effect.
+    #
+    # Each module binds ``run_command`` locally via ``from ...git_ops import
+    # run_command``, so it must be patched per importer (patching the single
+    # ``git_ops`` attribute would not reach these local bindings), and ONLY on
+    # modules that still import it — ``monkeypatch.setattr`` defaults to
+    # ``raising=True``. ``resume_recovery`` stopped importing ``run_command`` in
+    # f43599bf (#5965/#5966, routed through the destructive guard); it is kept
+    # out of this list deliberately (#6036).
     for _target in (
         "specify_cli.consolidation.run_state.run_command",
         "specify_cli.consolidation.phase_claim.run_command",
         "specify_cli.consolidation.phase_advance.run_command",
         "specify_cli.consolidation.phase_teardown.run_command",
         "specify_cli.consolidation.phase_finalize.run_command",
-        "specify_cli.consolidation.resume_recovery.run_command",
         "specify_cli.consolidation.preflight.run_command",
         "specify_cli.consolidation.resolve.run_command",
     ):
