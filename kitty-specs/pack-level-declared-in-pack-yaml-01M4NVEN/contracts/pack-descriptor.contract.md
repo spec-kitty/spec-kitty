@@ -5,6 +5,7 @@ This mission has no network API. Its contracts are the `pack.yaml` schema, the C
 ## `pack.yaml` schema (v2 — this mission)
 
 ```yaml
+# round-trip: skip: field-shape sketch with placeholder values, not an instance that validates against PackDescriptor
 pack_id: <ULID 26 chars>            # required, immutable
 pack_version: <semver>              # required iff pack_level == built-in; optional otherwise
 parent_pack: <handle> | null        # optional
