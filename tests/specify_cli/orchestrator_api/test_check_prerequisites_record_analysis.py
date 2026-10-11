@@ -358,13 +358,13 @@ def test_check_prerequisites_missing_mission_fails_closed(tmp_path: Path) -> Non
 def test_check_prerequisites_translates_forbidden_code_in_nested_payload_too(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """PR-TESTS-002 (severity 4, R3-confirmed LIVE defect, not merely
     untested): ``_classify_check_prerequisites_error`` translates the
-    delegate's forbidden ``error_code: "FEATURE_CONTEXT_UNRESOLVED"`` to the
+    delegate's forbidden ``error_code: "MISSION_CONTEXT_UNRESOLVED"`` to the
     canonical ``MISSION_NOT_FOUND`` at the envelope's TOP level -- but the
     raw delegate payload it also returns (spread verbatim into ``data``)
     still carried the SAME forbidden string, untranslated, under its own
     nested ``error_code`` key. Gets past the mission-existence gate (a real
     mission dir must exist), then makes the delegate itself raise with a
-    real production-shaped ``FEATURE_CONTEXT_UNRESOLVED`` payload (mirroring
+    real production-shaped ``MISSION_CONTEXT_UNRESOLVED`` payload (mirroring
     ``mission_check_prerequisites._build_setup_plan_detection_error``'s own
     shape) -- proving the translation now covers the WHOLE payload, not
     just the field this function happens to return first.
@@ -374,17 +374,17 @@ def test_check_prerequisites_translates_forbidden_code_in_nested_payload_too(tmp
 
     import specify_cli.cli.commands.agent.mission_check_prerequisites as host_module
 
-    def _raises_feature_context_unresolved(*, feature: str | None, json_output: bool, include_tasks: bool = False) -> None:
+    def _raises_mission_context_unresolved(*, feature: str | None, json_output: bool, include_tasks: bool = False) -> None:
         payload = {
-            "error_code": "FEATURE_CONTEXT_UNRESOLVED",
+            "error_code": "MISSION_CONTEXT_UNRESOLVED",
             "mission_flag": feature,
-            "error": "simulated feature-context resolution failure",
+            "error": "simulated mission-context resolution failure",
             "remediation": "Re-run with --mission <slug>",
         }
         print(json.dumps(payload))
         raise typer.Exit(1)
 
-    monkeypatch.setattr(host_module, "check_prerequisites", _raises_feature_context_unresolved)
+    monkeypatch.setattr(host_module, "check_prerequisites", _raises_mission_context_unresolved)
 
     result = _run(repo, ["check-prerequisites", "--mission", mission_slug])
     envelope = _envelope(result)
@@ -397,7 +397,7 @@ def test_check_prerequisites_translates_forbidden_code_in_nested_payload_too(tmp
     # -- the forbidden string must not survive anywhere, at any nesting
     # depth, so the next leak through a DIFFERENT nested field is caught too.
     serialized = json.dumps(envelope)
-    assert "FEATURE_CONTEXT_UNRESOLVED" not in serialized, serialized
+    assert "MISSION_CONTEXT_UNRESOLVED" not in serialized, serialized
 
 
 def test_sanitize_forbidden_error_code_scrubs_dict_keys_and_substrings() -> None:
@@ -413,7 +413,7 @@ def test_sanitize_forbidden_error_code_scrubs_dict_keys_and_substrings() -> None
     """
     from specify_cli.orchestrator_api.design_phase import _sanitize_forbidden_error_code
 
-    forbidden = "FEATURE_CONTEXT_UNRESOLVED"
+    forbidden = "MISSION_CONTEXT_UNRESOLVED"
     replacement = "MISSION_NOT_FOUND"
 
     # Shape 1: the forbidden token as a dict KEY (the old sanitizer only

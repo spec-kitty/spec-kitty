@@ -420,7 +420,7 @@ def test_issue4_owned_checkout_flag_without_mission_gives_handle_required_refusa
     assert result.exit_code != 0, result.output
     payload = _payload(result)
     assert payload.get("ok") is False, payload
-    assert payload["error"]["code"] == "FEATURE_CONTEXT_UNRESOLVED", payload
+    assert payload["error"]["code"] == "MISSION_CONTEXT_UNRESOLVED", payload
     assert "requires an explicit --mission" in payload["error"]["message"], payload
     assert other_slug not in result.output, result.output
 

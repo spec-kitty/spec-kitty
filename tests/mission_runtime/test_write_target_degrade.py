@@ -167,7 +167,7 @@ class TestFailClosedPreservesCause:
         takes its OWN first branch (``isinstance(resolution_exc,
         ActionContextError)``) rather than the ``StatusReadPathNotFound`` arm
         exercised above. That branch must preserve the caught error's own
-        ``.code`` (not the generic ``FEATURE_CONTEXT_UNRESOLVED`` fallback)
+        ``.code`` (not the generic ``MISSION_CONTEXT_UNRESOLVED`` fallback)
         and chain it as ``__cause__`` -- the same discipline the
         ``StatusReadPathNotFound`` arm already gets, just for the sibling
         exception type.
@@ -205,12 +205,12 @@ class TestFailClosedPreservesCause:
 
         raised = exc_info.value
         # The caught error's own code survives -- NOT the generic
-        # FEATURE_CONTEXT_UNRESOLVED fallback (that fallback is reserved for
+        # MISSION_CONTEXT_UNRESOLVED fallback (that fallback is reserved for
         # the "nothing was ever caught" branch, exercised by
         # ``test_bookkeeping_raises_when_branch_none_and_mission_missing``
         # below, which never reaches ``resolve_placement_only`` at all).
         assert raised.code == "AMBIGUOUS_MISSION_HANDLE"
-        assert raised.code != "FEATURE_CONTEXT_UNRESOLVED"
+        assert raised.code != "MISSION_CONTEXT_UNRESOLVED"
         # The chain is preserved -- not a fresh, cause-less exception.
         assert raised.__cause__ is concrete_exc
         assert isinstance(raised.__cause__, ActionContextError)

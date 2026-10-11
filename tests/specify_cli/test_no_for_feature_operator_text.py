@@ -29,9 +29,10 @@ allowlist of offending strings:
 2. hosted-only modules — files matching ``tracker/saas_*`` (C-007: the hosted
    Team Kitty strings stay out of scope).
 
-The machine-contract error CODE ``FEATURE_CONTEXT_UNRESOLVED`` is deliberately
-NOT in scope (it is a stable contract token, not operator prose) and is filed
-as a follow-up.
+The machine-contract error CODE ``MISSION_CONTEXT_UNRESOLVED`` (renamed to Mission
+vocabulary in #5976) is NOT in this scanner's scope: it is a stable contract token,
+not operator prose, and this scanner only matches the ``"for feature"`` / leading
+``"Feature:"`` / ``"feature branch"`` prose shapes, never the code token.
 """
 
 from __future__ import annotations

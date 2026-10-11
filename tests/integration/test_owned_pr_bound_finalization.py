@@ -98,7 +98,7 @@ def test_invalid_owned_claim_refuses_before_writes(pr_bound_checkouts, monkeypat
     code = json.loads(result.output)["error_code"]
     if not explicit and bad_claim in {"wrong_branch", "detached"}:
         # Flagless adoption declines an invalid checkout; primary has no mission.
-        assert code == "FEATURE_CONTEXT_UNRESOLVED"
+        assert code == "MISSION_CONTEXT_UNRESOLVED"
     else:
         assert code == "OWNED_BRANCH_REFUSED"
     assert tuple(snapshot(root) for root in (primary, owned, sibling)) == before

@@ -67,7 +67,7 @@ def _find_feature_directory(
     so a ``--mission <mid8>`` handle resolves to the same directory as the full
     slug (F-001/F-003/F-004). There is **no silent fallback** to a
     wrong-but-plausible primary-checkout path: an unresolvable handle raises a
-    structured :class:`ActionContextError` (``FEATURE_CONTEXT_UNRESOLVED``) and
+    structured :class:`ActionContextError` (``MISSION_CONTEXT_UNRESOLVED``) and
     an ambiguous handle raises ``MISSION_AMBIGUOUS_SELECTOR`` (C-CTX-4 / C-009).
 
     Args:
@@ -90,7 +90,7 @@ def _find_feature_directory(
 
     raw_handle = explicit_mission.strip() if explicit_mission else None
     if not raw_handle:
-        raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "--mission <slug> is required")
+        raise ActionContextError("MISSION_CONTEXT_UNRESOLVED", "--mission <slug> is required")
     # WP02/FR-002: the single guarded read-side seam (IC-01) collapses the former
     # raw-join → load_meta → resolve_mid8 bootstrap. It performs the primary-meta
     # probe, the sanctioned mid8 cascade, the fail-closed coord gate, and the
@@ -106,7 +106,7 @@ def _find_feature_directory(
         raise ActionContextError(exc.error_code, str(exc)) from exc
     except StatusReadPathNotFound as exc:
         raise ActionContextError(
-            "FEATURE_CONTEXT_UNRESOLVED",
+            "MISSION_CONTEXT_UNRESOLVED",
             f"Mission not found for handle {raw_handle!r}; checked the coordination worktree and the primary checkout. {exc}",
         ) from exc
     return feature_dir
@@ -253,7 +253,7 @@ def resolve_context(
         # adoption. ``owned`` is threaded down instead of ever falling back to
         # a bare Path. A refusal here is always a registered
         # owned-checkout code (a claim primitive, an ``OWNED_*`` code,
-        # ``WORKTREE_REGISTRY_UNAVAILABLE``, ``FEATURE_CONTEXT_UNRESOLVED`` or
+        # ``WORKTREE_REGISTRY_UNAVAILABLE``, ``MISSION_CONTEXT_UNRESOLVED`` or
         # ``MISSION_CONTEXT_CONFLICT``), so it is the one call site routed
         # through the registry-validating :func:`emit_owned_refusal`.
         try:

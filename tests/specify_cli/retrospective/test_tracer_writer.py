@@ -196,7 +196,7 @@ class TestLedgerM16ReadCallSite:
             seam_ctor.return_value = MagicMock(
                 read_dir=MagicMock(
                     side_effect=ActionContextError(
-                        "FEATURE_CONTEXT_UNRESOLVED", "mission does not resolve"
+                        "MISSION_CONTEXT_UNRESOLVED", "mission does not resolve"
                     )
                 )
             )

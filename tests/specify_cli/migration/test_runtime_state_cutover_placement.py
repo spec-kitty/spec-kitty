@@ -339,7 +339,7 @@ def test_resolve_primary_home_or_degrade_absorbs_action_context_error(
 
     def _raise_action_context_error(*_args: object, **_kwargs: object) -> object:
         raise mission_runtime.ActionContextError(
-            "FEATURE_CONTEXT_UNRESOLVED", "synthetic unresolvable action context"
+            "MISSION_CONTEXT_UNRESOLVED", "synthetic unresolvable action context"
         )
 
     monkeypatch.setattr(mission_runtime, "resolve_artifact_surface", _raise_action_context_error)
@@ -359,7 +359,7 @@ def test_flip_phase_degrades_on_action_context_error_and_still_flips(
 
     def _raise_action_context_error(*_args: object, **_kwargs: object) -> object:
         raise mission_runtime.ActionContextError(
-            "FEATURE_CONTEXT_UNRESOLVED", "synthetic unresolvable action context"
+            "MISSION_CONTEXT_UNRESOLVED", "synthetic unresolvable action context"
         )
 
     monkeypatch.setattr(mission_runtime, "resolve_artifact_surface", _raise_action_context_error)

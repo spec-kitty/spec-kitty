@@ -185,14 +185,14 @@ def test_command_feature_detection_error_json(
     monkeypatch.setattr(seam, "get_main_repo_root", lambda _r: tmp_path)
 
     def _raise(*_a: object, **_k: object) -> Path:
-        raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "no mission")
+        raise ActionContextError("MISSION_CONTEXT_UNRESOLVED", "no mission")
 
     monkeypatch.setattr(seam, "_find_feature_directory", _raise)
     result = _RUNNER.invoke(
         mission_app, ["record-analysis", "--json", "--mission", "nope"], catch_exceptions=False
     )
     assert result.exit_code == 1
-    assert "FEATURE_CONTEXT_UNRESOLVED" in result.stdout
+    assert "MISSION_CONTEXT_UNRESOLVED" in result.stdout
 
 
 def test_command_empty_body_json(

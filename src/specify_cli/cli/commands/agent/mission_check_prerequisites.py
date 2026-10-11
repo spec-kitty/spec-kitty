@@ -488,7 +488,7 @@ def _emit_check_prerequisites_detection_error(
         repo_root,
         str(detection_error),
         feature,
-        error_code="FEATURE_CONTEXT_UNRESOLVED",
+        error_code="MISSION_CONTEXT_UNRESOLVED",
         command_name="check-prerequisites",
         command_args=command_args,
     )

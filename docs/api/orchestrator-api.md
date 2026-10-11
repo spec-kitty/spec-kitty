@@ -461,7 +461,7 @@ Response `data`: the host CLI's own `validate_feature_structure` shape, with
 `mission_slug` filled in (the raw shape does not already carry it).
 
 Error codes: `MISSION_NOT_FOUND` (also returned — translated — when the
-delegate call reports its own `FEATURE_CONTEXT_UNRESOLVED`, which never
+delegate call reports its own `MISSION_CONTEXT_UNRESOLVED`, which never
 crosses this surface verbatim per the Terminology Canon),
 `CHECK_PREREQUISITES_FAILED` (fallback; any other typed upstream
 `error_code` is passed through verbatim).

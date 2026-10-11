@@ -550,7 +550,7 @@ def test_resolve_mission_aware_target_consolidated_absent_still_refuses(tmp_path
     "raised",
     [
         pytest.param(
-            _mission_runtime.ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "no meta"),
+            _mission_runtime.ActionContextError("MISSION_CONTEXT_UNRESOLVED", "no meta"),
             id="benign-action-context-error",
         ),
         pytest.param(FileNotFoundError("meta.json missing"), id="file-not-found"),

@@ -59,7 +59,7 @@ from typer.testing import CliRunner
 from mission_runtime import OwnedRefusalCode
 from specify_cli.cli.commands.agent.context import app as context_app
 from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
-from specify_cli.core.owned_mission import FEATURE_CONTEXT_UNRESOLVED, MISSION_CONTEXT_CONFLICT
+from specify_cli.core.owned_mission import MISSION_CONTEXT_UNRESOLVED, MISSION_CONTEXT_CONFLICT
 from tests.integration.conftest import OwnedCheckouts
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -70,7 +70,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 # (review cycle 1 finding 6).
 _REGISTERED_ERROR_CODES: frozenset[str] = frozenset({member.value for member in OwnedRefusalCode}) | {
     WorktreeRegistryUnavailable.error_code,
-    FEATURE_CONTEXT_UNRESOLVED,
+    MISSION_CONTEXT_UNRESOLVED,
     MISSION_CONTEXT_CONFLICT,
     # Non-owned-registry codes this command can also raise (control rows only);
     # no canonical named constant exists for these pre-existing generic codes.

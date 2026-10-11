@@ -231,7 +231,7 @@ def test_owned_move_task_completes_with_sync_active(finalized_checkouts, monkeyp
     [
         ("nested", "OWNERSHIP_NESTED"),
         ("foreign", "OWNERSHIP_FOREIGN"),
-        ("missing_mission", "FEATURE_CONTEXT_UNRESOLVED"),
+        ("missing_mission", "MISSION_CONTEXT_UNRESOLVED"),
         ("protected", "OWNED_BRANCH_REFUSED"),
         ("wrong_branch", "OWNED_BRANCH_REFUSED"),
         ("staged", "OWNED_INDEX_REFUSED"),

@@ -74,7 +74,7 @@ class TestZeroWriteRefusal:
             seam_ctor.return_value = MagicMock(
                 write_target=MagicMock(
                     side_effect=ActionContextError(
-                        "FEATURE_CONTEXT_UNRESOLVED", "mission slug does not resolve"
+                        "MISSION_CONTEXT_UNRESOLVED", "mission slug does not resolve"
                     )
                 )
             )

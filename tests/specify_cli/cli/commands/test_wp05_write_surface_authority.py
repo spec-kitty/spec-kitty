@@ -355,7 +355,7 @@ class TestSafeCommitTwoResponsibilities:
         spec.write_text("# Spec\n", encoding="utf-8")
 
         def _raise(_root: Path, _slug: str, *, kind: object) -> object:
-            raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "no such mission")
+            raise ActionContextError("MISSION_CONTEXT_UNRESOLVED", "no such mission")
 
         monkeypatch.setattr("mission_runtime.resolve_placement_only", _raise)
         monkeypatch.setattr(mod, "get_current_branch", lambda _root: "fallback-head")

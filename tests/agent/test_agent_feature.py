@@ -1026,7 +1026,7 @@ class TestCheckPrerequisitesCommand:
 
         assert result.exit_code == 1
         payload = json.loads(result.stdout.strip().split("\n")[0])
-        assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+        assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
         assert payload["available_missions"] == ["001-alpha", "002-beta"]
         assert "check-prerequisites --mission" in payload["example_command"]
         assert payload["remediation"] == "Re-run with --mission <slug>"
@@ -1065,7 +1065,7 @@ class TestCheckPrerequisitesCommand:
         lines = [line for line in result.stdout.splitlines() if line.strip()]
         assert len(lines) == 1
         payload = json.loads(lines[0])
-        assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+        assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
 
 
 class TestGitPreflightEnforcement:
@@ -1209,7 +1209,7 @@ class TestFinalizeTasksCommand:
 
         assert result.exit_code == 1
         payload = json.loads(result.stdout.strip().split("\n")[0])
-        assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+        assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
         assert payload["available_missions"] == ["001-alpha", "002-beta"]
         assert "finalize-tasks --mission" in payload["example_command"]
         assert payload["remediation"] == "Re-run with --mission <slug>"
@@ -1671,7 +1671,7 @@ class TestFindFeatureDirectory:
 
         with pytest.raises(ActionContextError) as excinfo:
             _find_feature_directory(tmp_path, tmp_path, explicit_feature=None)
-        assert excinfo.value.code == "FEATURE_CONTEXT_UNRESOLVED"
+        assert excinfo.value.code == "MISSION_CONTEXT_UNRESOLVED"
 
     def test_raises_error_when_feature_dir_not_found(self, tmp_path: Path):
         """WP06 / C-CTX-4: an unresolvable handle raises a structured
@@ -1684,7 +1684,7 @@ class TestFindFeatureDirectory:
 
         with pytest.raises(ActionContextError) as excinfo:
             _find_feature_directory(tmp_path, tmp_path, explicit_feature="001-nonexistent")
-        assert excinfo.value.code == "FEATURE_CONTEXT_UNRESOLVED"
+        assert excinfo.value.code == "MISSION_CONTEXT_UNRESOLVED"
 
     def test_raises_error_when_no_explicit_slug_with_multiple_features(self, tmp_path: Path):
         """WP06 / C-CTX-4: a missing handle raises a structured ActionContextError
@@ -1699,7 +1699,7 @@ class TestFindFeatureDirectory:
 
         with pytest.raises(ActionContextError) as excinfo:
             _find_feature_directory(tmp_path, tmp_path, explicit_feature=None)
-        assert excinfo.value.code == "FEATURE_CONTEXT_UNRESOLVED"
+        assert excinfo.value.code == "MISSION_CONTEXT_UNRESOLVED"
 
     def test_finds_correct_feature_among_multiple(self, tmp_path: Path):
         """Should return the exact matching directory when explicit slug is given."""

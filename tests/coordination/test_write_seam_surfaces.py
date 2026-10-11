@@ -111,7 +111,7 @@ def test_zero_write_refusal_carries_no_surfaces(tmp_path: Path) -> None:
             side_effect=AssertionError("commit_for_mission must not be called on refusal"),
         ),
     ):
-        seam_ctor.return_value = MagicMock(write_target=MagicMock(side_effect=ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "mission slug does not resolve")))
+        seam_ctor.return_value = MagicMock(write_target=MagicMock(side_effect=ActionContextError("MISSION_CONTEXT_UNRESOLVED", "mission slug does not resolve")))
 
         result = write_artifact(
             repo_root=tmp_path,

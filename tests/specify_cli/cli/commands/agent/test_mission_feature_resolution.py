@@ -225,23 +225,23 @@ def test_safe_load_meta_returns_none_for_unknown_mission(repo: Path) -> None:
 
 
 def test_find_feature_directory_requires_handle(repo: Path) -> None:
-    """No handle → structured FEATURE_CONTEXT_UNRESOLVED error."""
+    """No handle → structured MISSION_CONTEXT_UNRESOLVED error."""
     with pytest.raises(ActionContextError) as excinfo:
         seam._find_feature_directory(repo, repo, explicit_feature=None)
-    assert excinfo.value.code == "FEATURE_CONTEXT_UNRESOLVED"
+    assert excinfo.value.code == "MISSION_CONTEXT_UNRESOLVED"
 
 
 def test_find_feature_directory_blank_handle_rejected(repo: Path) -> None:
     with pytest.raises(ActionContextError) as excinfo:
         seam._find_feature_directory(repo, repo, explicit_feature="   ")
-    assert excinfo.value.code == "FEATURE_CONTEXT_UNRESOLVED"
+    assert excinfo.value.code == "MISSION_CONTEXT_UNRESOLVED"
 
 
 def test_find_feature_directory_not_found_is_structured(repo: Path) -> None:
     """An unresolvable handle raises a structured (not bare) error."""
     with pytest.raises(ActionContextError) as excinfo:
         seam._find_feature_directory(repo, repo, explicit_feature="999-nope")
-    assert excinfo.value.code == "FEATURE_CONTEXT_UNRESOLVED"
+    assert excinfo.value.code == "MISSION_CONTEXT_UNRESOLVED"
 
 
 def test_find_feature_directory_ambiguous_propagates_error_code(

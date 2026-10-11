@@ -134,7 +134,7 @@ def test_wp_board_action_declines_when_mission_context_is_unresolvable(monkeypat
     class _UnresolvableSeam:
         def read_dir(self, kind: object) -> Path:
             probes.append(str(kind))
-            raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "no such mission")
+            raise ActionContextError("MISSION_CONTEXT_UNRESOLVED", "no such mission")
 
     monkeypatch.setattr("mission_runtime.placement_seam", lambda *args, **kwargs: _UnresolvableSeam())
 

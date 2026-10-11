@@ -218,15 +218,15 @@ def _registered_owned_error_codes() -> frozenset[str]:
     follow-up 2): ``WorktreeRegistryUnavailable.error_code``
     (``_require_not_mission_worktree``'s fail-closed registry-read refusal on
     the explicit ``--owned-checkout`` path), and the two pre-existing wire
-    codes ``specify_cli.core.owned_mission.FEATURE_CONTEXT_UNRESOLVED`` /
+    codes ``specify_cli.core.owned_mission.MISSION_CONTEXT_UNRESOLVED`` /
     ``MISSION_CONTEXT_CONFLICT`` that ``resolve_owned_or_adopt`` can propagate.
     """
-    from specify_cli.core.owned_mission import FEATURE_CONTEXT_UNRESOLVED, MISSION_CONTEXT_CONFLICT
+    from specify_cli.core.owned_mission import MISSION_CONTEXT_UNRESOLVED, MISSION_CONTEXT_CONFLICT
     from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
 
     return frozenset({member.value for member in OwnedRefusalCode}) | {
         WorktreeRegistryUnavailable.error_code,
-        FEATURE_CONTEXT_UNRESOLVED,
+        MISSION_CONTEXT_UNRESOLVED,
         MISSION_CONTEXT_CONFLICT,
     }
 

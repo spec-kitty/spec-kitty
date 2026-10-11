@@ -760,7 +760,7 @@ def _unreadable_meta() -> BaseException:
 def _unresolvable_context() -> BaseException:
     from mission_runtime import ActionContextError
 
-    return ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "cannot resolve mission 'm'")
+    return ActionContextError("MISSION_CONTEXT_UNRESOLVED", "cannot resolve mission 'm'")
 
 
 @pytest.mark.parametrize("make_error", [_unreadable_meta, _unresolvable_context], ids=["corrupt-meta", "unresolved-context"])

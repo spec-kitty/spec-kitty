@@ -105,5 +105,5 @@ def test_open_decision_wrong_owned_refuses_before_writes(owned_checkouts, claim)
     # The real owned refusal code is preserved (verbatim when contract-registered,
     # else in data.unregistered_error_code via the allow-list-guarded fallback).
     blob = json.dumps(env)
-    assert "OWNED_" in blob or "FEATURE_CONTEXT_UNRESOLVED" in blob or "MISSION_NOT_FOUND" in blob
+    assert "OWNED_" in blob or "MISSION_CONTEXT_UNRESOLVED" in blob or "MISSION_NOT_FOUND" in blob
     assert not (c.mission_dir / "decisions").exists()

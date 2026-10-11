@@ -162,7 +162,7 @@ def _fail_from_owned_error(cmd: str, exc: ActionContextError) -> NoReturn:
     #5874: mirrors :func:`_fail_from_decision_error`. A contract-registered
     code (e.g. ``MISSION_NOT_FOUND``) passes through verbatim; an owned
     refusal code not yet in ``upstream_contract.json``'s orchestrator_api
-    ``allowed_error_codes`` (``OWNED_*``, ``FEATURE_CONTEXT_UNRESOLVED``,
+    ``allowed_error_codes`` (``OWNED_*``, ``MISSION_CONTEXT_UNRESOLVED``,
     ``MISSION_CONTEXT_CONFLICT``, ``OWNERSHIP_*``) degrades to the registered
     fallback with the real code preserved as diagnostic ``data`` -- never
     leaked verbatim onto the public ``error_code`` field, never silently

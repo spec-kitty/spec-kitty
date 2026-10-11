@@ -1817,7 +1817,7 @@ class TestQueryCurrentStateTypedErrorPassthrough:
         from runtime.next.runtime_bridge import MissionNotFoundError, query_current_state
 
         def _raise_unresolved(*_a: object, **_k: object) -> None:
-            raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "no mission directory at all")
+            raise ActionContextError("MISSION_CONTEXT_UNRESOLVED", "no mission directory at all")
 
         monkeypatch.setattr(mission_runtime, "mission_context_for", _raise_unresolved)
 

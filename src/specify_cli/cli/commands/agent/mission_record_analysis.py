@@ -373,7 +373,7 @@ def _record_analysis_feature_dir(
             repo_root,
             str(detection_error),
             feature,
-            error_code="FEATURE_CONTEXT_UNRESOLVED",
+            error_code="MISSION_CONTEXT_UNRESOLVED",
             command_name="record-analysis",
             command_args=["--json"] if json_output else [],
         )

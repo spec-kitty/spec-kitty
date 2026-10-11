@@ -404,7 +404,7 @@ def tasks(
 # ── Command 13: check-prerequisites ─────────────────────────────────────────
 
 
-_FEATURE_CONTEXT_UNRESOLVED = "FEATURE_CONTEXT_UNRESOLVED"
+_MISSION_CONTEXT_UNRESOLVED = "MISSION_CONTEXT_UNRESOLVED"
 
 
 def _sanitize_forbidden_error_code(value: Any, forbidden: str, replacement: str) -> Any:
@@ -417,7 +417,7 @@ def _sanitize_forbidden_error_code(value: Any, forbidden: str, replacement: str)
     ``error_code`` correctly, but the raw delegate ``payload`` it also
     returns (spread verbatim into the envelope's ``data``) still carries its
     OWN ``error_code`` key with the untranslated forbidden value -- a leak
-    of the terminology-canon-forbidden string one level down, in the SAME
+    of the host-internal code one level down, in the SAME
     response whose top-level ``error_code`` claims to have translated it.
     Sanitizing recursively (not just the payload's top-level ``error_code``
     key) closes the leak at whatever nesting level it appears, matching the
@@ -450,28 +450,34 @@ def _classify_check_prerequisites_error(payload: dict[str, Any] | None, raw_outp
     """Classify a failed ``check-prerequisites`` delegate call.
 
     The host CLI's own detection-failure payload carries
-    ``error_code: "FEATURE_CONTEXT_UNRESOLVED"`` (``mission_check_prerequisites.py``)
-    -- a feature-named code that must NEVER cross onto the orchestrator-api
-    surface verbatim (Terminology Canon; ``upstream_contract.json``'s
-    ``forbidden_error_codes`` bans the sibling ``FEATURE_NOT_FOUND``/
-    ``FEATURE_NOT_READY`` for the identical reason). This is the ONE place
-    that code is translated to this file's canonical ``MISSION_NOT_FOUND`` --
-    every other typed ``error_code`` the delegate carries is trusted verbatim,
-    mirroring ``_classify_delegate_error``. The translation is applied to the
-    WHOLE returned payload (``_sanitize_forbidden_error_code``), not just the
-    top-level ``error_code`` this function returns as its first tuple
-    element -- the untranslated payload's own nested ``error_code`` key was
-    leaking the forbidden string into ``data.error_code`` (PR-TESTS-002).
+    ``error_code: "MISSION_CONTEXT_UNRESOLVED"`` (``mission_check_prerequisites.py``)
+    -- a host-internal code that must NEVER cross onto the orchestrator-api
+    surface verbatim: the public surface canonicalises every "no such mission"
+    condition to its own ``MISSION_NOT_FOUND`` (the same reason
+    ``upstream_contract.json``'s ``forbidden_error_codes`` bans the host's
+    ``FEATURE_NOT_FOUND``/``FEATURE_NOT_READY`` from the surface). This is the
+    ONE place that host code is translated to this file's canonical
+    ``MISSION_NOT_FOUND`` -- every other typed ``error_code`` the delegate
+    carries is trusted verbatim, mirroring ``_classify_delegate_error``. The
+    translation is applied to the WHOLE returned payload
+    (``_sanitize_forbidden_error_code``), not just the top-level ``error_code``
+    this function returns as its first tuple element -- the untranslated
+    payload's own nested ``error_code`` key was leaking the host code into
+    ``data.error_code`` (PR-TESTS-002).
+
+    Renaming the host code to ``MISSION_CONTEXT_UNRESOLVED`` (#5976) did not
+    change this public surface: the host-emitted token changed, the public
+    ``MISSION_NOT_FOUND`` it normalises to did not.
     """
     if payload is None:
         message = raw_output.strip() or "check-prerequisites failed"
         return "CHECK_PREREQUISITES_FAILED", message, {"raw_output": raw_output}
     message = str(payload.get("error") or payload.get("message") or "check-prerequisites failed")
     error_code = payload.get("error_code")
-    if error_code == _FEATURE_CONTEXT_UNRESOLVED:
+    if error_code == _MISSION_CONTEXT_UNRESOLVED:
         sanitized = cast(
             "dict[str, Any]",
-            _sanitize_forbidden_error_code(payload, _FEATURE_CONTEXT_UNRESOLVED, "MISSION_NOT_FOUND"),
+            _sanitize_forbidden_error_code(payload, _MISSION_CONTEXT_UNRESOLVED, "MISSION_NOT_FOUND"),
         )
         return "MISSION_NOT_FOUND", message, sanitized
     if error_code:

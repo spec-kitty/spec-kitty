@@ -545,6 +545,6 @@ def test_finalize_tasks_reads_primary_on_materialized_empty_coord(
     # The read-path fail-closed must NOT surface (it pre-empted the primary read
     # on HEAD). Any other downstream outcome is acceptable for this guard.
     assert captured.get("error_code") not in {
-        "FEATURE_CONTEXT_UNRESOLVED",
+        "MISSION_CONTEXT_UNRESOLVED",
         "STATUS_READ_PATH_NOT_FOUND",
     }, captured

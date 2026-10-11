@@ -62,7 +62,7 @@ from mission_runtime import ActionContextError, OwnedRefusalCode
 from tests._owned_fixtures import mint_test_fact
 from specify_cli.coordination.surface_resolver import WorktreeRegistryUnavailable
 from specify_cli.core.owned_mission import (
-    FEATURE_CONTEXT_UNRESOLVED,
+    MISSION_CONTEXT_UNRESOLVED,
     LIFECYCLE_OWNED_TOPOLOGIES,
     MISSION_CONTEXT_CONFLICT,
 )
@@ -530,7 +530,7 @@ class TestEmitOwnedRefusal:
             OwnedRefusalCode.OWNED_OPTION_UNSUPPORTED,
             OwnedRefusalCode.OWNED_INPUT_INVALID,
             WorktreeRegistryUnavailable.error_code,
-            FEATURE_CONTEXT_UNRESOLVED,
+            MISSION_CONTEXT_UNRESOLVED,
             MISSION_CONTEXT_CONFLICT,
         ],
     )

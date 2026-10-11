@@ -213,7 +213,7 @@ def test_placement_seam_refuses_mismatched_slug(tmp_path: Path) -> None:
     fact = resolve_owned_mission(r, p, _SLUG)
     with pytest.raises(ActionContextError) as excinfo:
         placement_seam(r, "some-other-mission-slug", owned=fact)
-    assert excinfo.value.code == "FEATURE_CONTEXT_UNRESOLVED"
+    assert excinfo.value.code == "MISSION_CONTEXT_UNRESOLVED"
 
 
 # ===========================================================================

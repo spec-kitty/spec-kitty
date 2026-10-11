@@ -52,7 +52,7 @@ from specify_cli.mission import get_mission_type
 # FR-001 / C-IC02: the typed read-path codes whose fidelity MUST be preserved
 # across the next-family catch-sites. These are *read-path topology* failures
 # (the mission exists but its status read surface is broken / ambiguous), as
-# opposed to a genuinely-missing mission (``FEATURE_CONTEXT_UNRESOLVED`` and the
+# opposed to a genuinely-missing mission (``MISSION_CONTEXT_UNRESOLVED`` and the
 # like), which legitimately stays ``MISSION_NOT_FOUND``. Collapsing a code in
 # this set into ``MISSION_NOT_FOUND`` mis-routes the operator (the disease #15).
 _READ_PATH_ERROR_CODES: frozenset[str] = frozenset(
@@ -468,7 +468,7 @@ def _query_resolve_mission_context(
         # layer surfaces ``exc.code`` + checked paths from the typed error.
         if _is_read_path_error(exc):
             raise
-        # A genuinely-missing mission (e.g. FEATURE_CONTEXT_UNRESOLVED — no mission
+        # A genuinely-missing mission (e.g. MISSION_CONTEXT_UNRESOLVED — no mission
         # directory at all) is legitimately MISSION_NOT_FOUND (FR-004 / WP03).
         raise MissionNotFoundError(mission_slug) from exc
 

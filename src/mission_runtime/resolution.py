@@ -147,7 +147,7 @@ class ActionContextError(RuntimeError):
 # resolve at ALL four sites in this module (``_resolve_mission_slug``,
 # ``mission_context_for``, ``resolve_placement_only``) restated the literal
 # string. Hoisted to one module constant.
-_FEATURE_CONTEXT_UNRESOLVED_CODE = "FEATURE_CONTEXT_UNRESOLVED"
+_MISSION_CONTEXT_UNRESOLVED_CODE = "MISSION_CONTEXT_UNRESOLVED"
 
 
 def _refuse_owned_handle_mismatch(handle: str, owned: OwnedCheckout) -> None:
@@ -160,7 +160,7 @@ def _refuse_owned_handle_mismatch(handle: str, owned: OwnedCheckout) -> None:
     """
     if not handle_names_mission(handle, owned.mission_slug):
         raise ActionContextError(
-            _FEATURE_CONTEXT_UNRESOLVED_CODE,
+            _MISSION_CONTEXT_UNRESOLVED_CODE,
             f"owned fact is for mission {owned.mission_slug!r} but was called with handle {handle!r}; refusing to guess which one is correct.",
         )
 
@@ -565,7 +565,7 @@ def _resolve_mission_slug(
     try:
         slug = require_explicit_feature(feature, command_hint="--mission <slug>")
     except ValueError as exc:
-        raise ActionContextError(_FEATURE_CONTEXT_UNRESOLVED_CODE, str(exc)) from exc
+        raise ActionContextError(_MISSION_CONTEXT_UNRESOLVED_CODE, str(exc)) from exc
 
     if owned is not None:
         # owned-checkout-lifecycle-authority WP04 (review cycle 1, F1): the
@@ -612,7 +612,7 @@ def _resolve_mission_slug(
         raise ActionContextError(exc.error_code, str(exc)) from exc
     if not feature_dir.exists():
         raise ActionContextError(
-            _FEATURE_CONTEXT_UNRESOLVED_CODE,
+            _MISSION_CONTEXT_UNRESOLVED_CODE,
             f"Mission directory not found: {feature_dir}. Check that '{slug}' is the correct mission slug.",
         )
     # Parse, don't re-derive: the resolved directory's name IS the canonical
@@ -1404,7 +1404,7 @@ def mission_context_for(
 
     if not mission_handle or not mission_handle.strip():
         raise ActionContextError(
-            _FEATURE_CONTEXT_UNRESOLVED_CODE,
+            _MISSION_CONTEXT_UNRESOLVED_CODE,
             "mission_context_for requires an explicit mission handle.",
         )
     if owned is not None:
@@ -1955,7 +1955,7 @@ def resolve_placement_only(
 
     if not mission_slug or not mission_slug.strip():
         raise ActionContextError(
-            _FEATURE_CONTEXT_UNRESOLVED_CODE,
+            _MISSION_CONTEXT_UNRESOLVED_CODE,
             "resolve_placement_only requires an explicit mission_slug.",
         )
 

@@ -81,7 +81,7 @@ def test_wrong_owned_checkout_refuses_before_writes(owned_checkouts, claim):
         result = runner.invoke(agent_app, ["decision", "open", *open_args("refuse"), "--mission", c.mission_slug, "--owned-checkout", str(getattr(c, claim))])
     assert result.exit_code != 0
     payload = json.loads(result.output.strip().splitlines()[-1])
-    assert payload["code"].startswith("OWNED_") or payload["code"] == "FEATURE_CONTEXT_UNRESOLVED"
+    assert payload["code"].startswith("OWNED_") or payload["code"] == "MISSION_CONTEXT_UNRESOLVED"
     assert not (c.mission_dir / "decisions").exists()
 
 

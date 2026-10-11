@@ -1,0 +1,38 @@
+# Occurrence map for #5976 — rename the host wire error code
+# FEATURE_CONTEXT_UNRESOLVED -> MISSION_CONTEXT_UNRESOLVED (DIRECTIVE_035).
+#
+# Operator-delegated triage ruling (#5976, 2026-10-10): rename the HOST domain
+# code; PRESERVE the public orchestrator-api MISSION_NOT_FOUND normalization and
+# its contract/tests; do not let the new host token leak publicly; record host
+# error-code compatibility/release notes; do not rewrite immutable historical
+# ADRs. MISSION_NOT_FOUND is a DIFFERENT string and is never the target below,
+# so it is untouched by this rename.
+
+target:
+  term: FEATURE_CONTEXT_UNRESOLVED
+  replacement: MISSION_CONTEXT_UNRESOLVED
+  operation: rename
+
+categories:
+  code_symbols:         { action: rename }                 # _FEATURE_CONTEXT_UNRESOLVED_CODE / _FEATURE_CONTEXT_UNRESOLVED / FEATURE_CONTEXT_UNRESOLVED constants + the string value they hold
+  import_paths:         { action: rename }                 # imports of the renamed constants (write_target_degrade <- resolution; _owned_checkout <- owned_mission)
+  filesystem_paths:     { action: do_not_change }          # no filesystem path contains the term; the module mission_feature_resolution.py is NOT renamed (out of scope)
+  serialized_keys:      { action: rename }                 # host --json `error_code` wire VALUE renames; the public orchestrator-api value MISSION_NOT_FOUND is a different string and is preserved
+  cli_commands:         { action: do_not_change }          # not a subcommand/flag name
+  user_facing_strings:  { action: rename }                 # live docs that NAME the host code (orchestrator-api.md, the shipped orchestrator-api skill contract ref); the operator chose to rename the user-visible host token
+  tests_fixtures:       { action: rename }                 # ~29 test files assert the code string (incl. the contract-preservation test, whose host-code INPUT flips while its MISSION_NOT_FOUND output stays)
+  logs_telemetry:       { action: do_not_change }          # no metric/telemetry label depends on the token
+
+exceptions:
+  - path: "docs/adr/**"
+    action: do_not_change
+    reason: "Immutable historical ADRs — the operator ruling forbids rewriting them."
+  - path: "docs/archive/**"
+    action: do_not_change
+    reason: "Archived snapshots are immutable."
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: "Historical mission artifacts (specs, tasks, status logs, reviews) are immutable snapshots; and this mission's own spec/occurrence_map legitimately NAME the old token as the rename target."
+  - path: "docs/changelog/CHANGELOG.md"
+    action: do_not_change
+    reason: "The existing FEATURE_CONTEXT_UNRESOLVED mention is a released historical entry (preserved verbatim). A new [Unreleased] entry is ADDED that names both the old and new codes for provenance (host error-code compatibility note)."

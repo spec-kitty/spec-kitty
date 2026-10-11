@@ -41,11 +41,11 @@ if TYPE_CHECKING:
 # Exported (WP08 review follow-up 2) so ``_owned_checkout.emit_owned_refusal``
 # validates against these same module constants instead of repeating either
 # string as a fresh literal.
-FEATURE_CONTEXT_UNRESOLVED: Final = "FEATURE_CONTEXT_UNRESOLVED"  # pre-existing wire code; not part of OwnedRefusalCode
+MISSION_CONTEXT_UNRESOLVED: Final = "MISSION_CONTEXT_UNRESOLVED"  # pre-existing wire code; not part of OwnedRefusalCode
 MISSION_CONTEXT_CONFLICT: Final = "MISSION_CONTEXT_CONFLICT"  # pre-existing wire code; not part of OwnedRefusalCode
 # Private aliases so every existing in-module reference below stays a simple
 # rename to the now-public constants above, not a second definition.
-_FEATURE_CONTEXT_UNRESOLVED = FEATURE_CONTEXT_UNRESOLVED
+_MISSION_CONTEXT_UNRESOLVED = MISSION_CONTEXT_UNRESOLVED
 _MISSION_CONTEXT_CONFLICT = MISSION_CONTEXT_CONFLICT
 
 # owned-checkout-lifecycle-authority WP02 (FR-023, research R-02): the two
@@ -317,11 +317,11 @@ def _resolve_owned_directory(root: Path, handle: str | None) -> tuple[ResolvedMi
     )
 
     if not handle or not handle.strip():
-        raise ActionContextError(_FEATURE_CONTEXT_UNRESOLVED, "--owned-checkout requires an explicit --mission.")
+        raise ActionContextError(_MISSION_CONTEXT_UNRESOLVED, "--owned-checkout requires an explicit --mission.")
     try:
         mission = resolve_mission(handle, root)
     except (MissionNotFoundError, AmbiguousHandleError) as exc:
-        raise ActionContextError(_FEATURE_CONTEXT_UNRESOLVED, str(exc)) from exc
+        raise ActionContextError(_MISSION_CONTEXT_UNRESOLVED, str(exc)) from exc
     directory = mission.feature_dir.resolve()
     try:
         ensure_within_directory(directory, root / "kitty-specs")

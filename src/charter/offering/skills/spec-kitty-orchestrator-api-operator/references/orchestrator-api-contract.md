@@ -565,7 +565,7 @@ No `--policy` is required: the command mutates nothing.
 
 | Code | Cause |
 |------|-------|
-| `MISSION_NOT_FOUND` | Translated from the host CLI's own `FEATURE_CONTEXT_UNRESOLVED` (Terminology Canon guard — that feature-named code never crosses onto this surface verbatim) |
+| `MISSION_NOT_FOUND` | Translated from the host CLI's own `MISSION_CONTEXT_UNRESOLVED` (Terminology Canon guard — that feature-named code never crosses onto this surface verbatim) |
 | `CHECK_PREREQUISITES_FAILED` | Fallback code when the delegate call failed without a more specific typed `error_code` of its own (which, when present, is passed through verbatim) |
 
 ---

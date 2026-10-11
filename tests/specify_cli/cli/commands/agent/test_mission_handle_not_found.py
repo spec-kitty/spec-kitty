@@ -85,12 +85,12 @@ def test_explicit_unmatched_handle_check_prerequisites_error_code(repo: Path) ->
         repo,
         _NOT_FOUND_ERROR,
         "zznope",
-        error_code="FEATURE_CONTEXT_UNRESOLVED",
+        error_code="MISSION_CONTEXT_UNRESOLVED",
         command_name="check-prerequisites",
     )
 
     assert payload["error"] == "Mission not found: zznope"
-    assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+    assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
 
 
 def test_no_handle_multi_mission_preserves_disambiguate(repo: Path) -> None:
@@ -137,7 +137,7 @@ def test_setup_plan_explicit_unmatched_handle_json(mock_find: Mock, mock_locate:
     """setup-plan --mission zznope -> canonical not-found JSON, not disambiguate."""
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     mock_locate.return_value = repo
-    mock_find.side_effect = ActionContextError("FEATURE_CONTEXT_UNRESOLVED", _NOT_FOUND_ERROR)
+    mock_find.side_effect = ActionContextError("MISSION_CONTEXT_UNRESOLVED", _NOT_FOUND_ERROR)
 
     result = runner.invoke(app, ["setup-plan", "--mission", "zznope", "--json"])
 
@@ -154,7 +154,7 @@ def test_setup_plan_explicit_unmatched_handle_human(mock_find: Mock, mock_locate
     """setup-plan human output surfaces the canonical not-found message."""
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     mock_locate.return_value = repo
-    mock_find.side_effect = ActionContextError("FEATURE_CONTEXT_UNRESOLVED", _NOT_FOUND_ERROR)
+    mock_find.side_effect = ActionContextError("MISSION_CONTEXT_UNRESOLVED", _NOT_FOUND_ERROR)
 
     result = runner.invoke(app, ["setup-plan", "--mission", "zznope"])
 
@@ -178,14 +178,14 @@ def test_check_prerequisites_explicit_unmatched_handle_json(
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
     mock_locate.return_value = repo
     mock_anchor.return_value = None
-    mock_find.side_effect = ActionContextError("FEATURE_CONTEXT_UNRESOLVED", _NOT_FOUND_ERROR)
+    mock_find.side_effect = ActionContextError("MISSION_CONTEXT_UNRESOLVED", _NOT_FOUND_ERROR)
 
     result = runner.invoke(app, ["check-prerequisites", "--mission", "zznope", "--json"])
 
     assert result.exit_code == 1
     payload = json.loads(result.stdout.strip().split("\n")[0])
     assert payload["error"] == "Mission not found: zznope"
-    assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+    assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
     for fragment in _DISAMBIGUATE_FRAGMENTS:
         assert fragment not in result.stdout
 

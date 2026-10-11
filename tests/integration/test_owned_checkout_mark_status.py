@@ -139,7 +139,7 @@ def test_flagless_mark_status_preserves_primary_lookup(
     [
         ("nested", "OWNERSHIP_NESTED"),
         ("foreign", "OWNERSHIP_FOREIGN"),
-        ("missing_mission", "FEATURE_CONTEXT_UNRESOLVED"),
+        ("missing_mission", "MISSION_CONTEXT_UNRESOLVED"),
         ("protected", "OWNED_BRANCH_REFUSED"),
         ("wrong_branch", "OWNED_BRANCH_REFUSED"),
         ("staged", "OWNED_INDEX_REFUSED"),

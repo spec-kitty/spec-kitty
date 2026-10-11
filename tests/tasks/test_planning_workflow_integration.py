@@ -446,7 +446,7 @@ def test_check_prerequisites_ambiguous_context_returns_candidates(
 
     assert result.returncode != 0, "Ambiguous mission context should fail without --mission"
     payload = json.loads(result.stdout.strip().split("\n")[0])
-    assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+    assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
     assert len(payload["available_missions"]) >= 2
     assert "--mission" in payload["example_command"]
 
@@ -468,6 +468,6 @@ def test_finalize_tasks_ambiguous_context_returns_candidates(
 
     assert result.returncode != 0, "Ambiguous mission context should fail without --mission"
     payload = json.loads(result.stdout.strip().split("\n")[0])
-    assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+    assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
     assert len(payload["available_missions"]) >= 2
     assert "finalize-tasks --mission" in payload["example_command"]

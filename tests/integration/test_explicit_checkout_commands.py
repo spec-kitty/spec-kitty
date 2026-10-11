@@ -152,7 +152,7 @@ def test_no_opt_in_keeps_primary_resolution(checkouts, monkeypatch):
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(primary))
     result = invoke("check-prerequisites", owned, opt_in=False)
     assert result.exit_code == 1
-    assert "FEATURE_CONTEXT_UNRESOLVED" in result.output
+    assert "MISSION_CONTEXT_UNRESOLVED" in result.output
 
 
 def test_flagless_check_prerequisites_from_inside_owned_checkout_adopts(checkouts, claim_counter):
@@ -707,7 +707,7 @@ def test_accept_missing_owned_mission_does_not_fall_back(checkouts):
     before = snapshot(primary), snapshot(owned), snapshot(sibling)
     result = invoke("accept", owned)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.stdout)["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
+    assert json.loads(result.stdout)["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
     assert (snapshot(primary), snapshot(owned), snapshot(sibling)) == before
 
 

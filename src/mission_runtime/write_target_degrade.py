@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING
 from mission_runtime.artifacts import MissionArtifactKind
 from mission_runtime.context import CommitTarget
 from mission_runtime.resolution import (
-    _FEATURE_CONTEXT_UNRESOLVED_CODE,
+    _MISSION_CONTEXT_UNRESOLVED_CODE,
     ActionContextError,
     resolve_placement_only,
 )
@@ -325,7 +325,7 @@ def _fail_closed_error(
         # survives instead of being collapsed into the generic unresolved code.
         return ActionContextError(resolution_exc.error_code, str(resolution_exc))
     return ActionContextError(
-        _FEATURE_CONTEXT_UNRESOLVED_CODE,
+        _MISSION_CONTEXT_UNRESOLVED_CODE,
         f"resolve_write_target_or_degrade: mission {mission_slug!r} requires "
         "a degrade-path ref because it could not be resolved via the "
         "placement port and no degrade_ref was supplied (fail-closed).",

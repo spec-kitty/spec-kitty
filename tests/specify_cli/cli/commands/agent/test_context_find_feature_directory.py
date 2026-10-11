@@ -112,7 +112,7 @@ def test_unresolvable_handle_raises_structured_error(tmp_path: Path) -> None:
     (tmp_path / "kitty-specs").mkdir()
     with pytest.raises(ActionContextError) as excinfo:
         _find_feature_directory(tmp_path, tmp_path, explicit_mission="nope")
-    assert excinfo.value.code == "FEATURE_CONTEXT_UNRESOLVED"
+    assert excinfo.value.code == "MISSION_CONTEXT_UNRESOLVED"
 
 
 def test_ambiguous_handle_raises_structured_error(tmp_path: Path) -> None:
@@ -128,4 +128,4 @@ def test_missing_handle_raises_structured_error(tmp_path: Path) -> None:
     """No handle → structured error (not a ValueError leaking to the operator)."""
     with pytest.raises(ActionContextError) as excinfo:
         _find_feature_directory(tmp_path, tmp_path)
-    assert excinfo.value.code == "FEATURE_CONTEXT_UNRESOLVED"
+    assert excinfo.value.code == "MISSION_CONTEXT_UNRESOLVED"

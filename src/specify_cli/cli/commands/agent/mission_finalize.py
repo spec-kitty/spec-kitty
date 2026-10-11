@@ -567,7 +567,7 @@ def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: 
             repo_root,
             str(ambiguous or detection_error),
             feature,
-            error_code=(ambiguous.code if ambiguous is not None else "FEATURE_CONTEXT_UNRESOLVED"),
+            error_code=(ambiguous.code if ambiguous is not None else "MISSION_CONTEXT_UNRESOLVED"),
             command_name="finalize-tasks",
             command_args=["--json"] if json_output else [],
         )
