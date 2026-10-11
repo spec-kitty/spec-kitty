@@ -67,3 +67,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-10 | [a scoped workspace handle layers onto the coordination/primary partition (it does not replace it)](2026-10-10-1-scoped-shadow-workspace-write-boundary-layers-onto-the-partition.md) |
 | 2026-10-11 | [the archive-freeze gate verifies reducer OUTCOME reproduction, not byte-identity](2026-10-11-1-archive-freeze-verifies-reducer-outcome-not-byte-identity.md) |
 | 2026-10-11 | [a Charter Pack declares its level in pack.yaml](2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md) |
+| 2026-10-11 | [acceptance testing and BDD support: Gherkin scenarios, a per-PR tag check and a black-box Cucumber-JVM nightly](2026-10-11-3-acceptance-testing-and-bdd-support.md) |
