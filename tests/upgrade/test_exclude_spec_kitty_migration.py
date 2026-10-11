@@ -106,3 +106,15 @@ class TestExcludeSpecKittyMigration:
 
         assert ".spec-kitty/" in (git_project / ".git" / "info" / "exclude").read_text().splitlines()
         assert migration.detect(linked) is False
+
+    def test_dry_run_writes_nothing(self, git_project):
+        exclude = git_project / ".git" / "info" / "exclude"
+        before = exclude.read_text()
+        assert ExcludeSpecKittyMigration().apply(git_project, dry_run=True).success is True
+        assert exclude.read_text() == before
+
+    def test_non_git_project_is_skipped(self, non_git_project):
+        migration = ExcludeSpecKittyMigration()
+        assert migration.detect(non_git_project) is False
+        assert migration.can_apply(non_git_project)[0] is False
+        assert migration.apply(non_git_project, dry_run=False).success is True

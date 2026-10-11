@@ -243,3 +243,8 @@ def test_corrupt_command_skills_manifest_is_fail_closed_toward_preservation(tmp_
 
     assert owned == set()
     assert is_projected_skills_path(_TEAM, owned) is False
+
+
+def test_absent_manifests_yield_no_owned_paths(tmp_path: Path) -> None:
+    """A project with no skills manifests owns nothing, and reading it never raises."""
+    assert manifest_owned_skills_paths(tmp_path) == set()
