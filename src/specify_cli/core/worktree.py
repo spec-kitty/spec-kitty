@@ -35,80 +35,6 @@ from specify_cli.status import WPMetadata
 logger = logging.getLogger(__name__)
 
 
-def _ensure_spec_kitty_exclude(worktree_path: Path) -> None:
-    """Ensure ``.spec-kitty/`` is listed in the worktree's ``info/exclude`` file.
-
-    FR-016 (legacy-sparse-and-review-lock-hardening, WP07): the per-worktree
-    exclude file at ``<git-common-dir>/worktrees/<name>/info/exclude`` is a
-    belt-and-braces defense against spec-kitty's own runtime-state directory
-    showing up as untracked content in the worktree's ``git status`` output.
-    Even when the higher-level deny-list filter regresses, the exclude file
-    keeps git itself from surfacing ``.spec-kitty/`` as drift.
-
-    This is a no-op when:
-        * ``worktree_path`` is not a git repo (``git rev-parse --git-dir``
-          fails);
-        * the ``.spec-kitty/`` entry is already present (idempotent; the
-          helper never duplicates lines on re-invocation).
-
-    Detection / write failures are swallowed — this is an advisory writer,
-    not a preflight, and must never break worktree creation.
-    """
-    try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--git-dir"],
-            cwd=str(worktree_path),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-            timeout=10,
-        )
-    except (OSError, subprocess.SubprocessError):
-        logger.debug(
-            "Could not resolve git-dir for %s; skipping spec-kitty exclude setup",
-            worktree_path,
-        )
-        return
-    if result.returncode != 0:
-        logger.debug(
-            "git rev-parse --git-dir failed for %s (rc=%s); skipping spec-kitty exclude setup",
-            worktree_path,
-            result.returncode,
-        )
-        return
-    git_dir_raw = result.stdout.strip()
-    if not git_dir_raw:
-        return
-    git_dir = Path(git_dir_raw)
-    if not git_dir.is_absolute():
-        git_dir = (worktree_path / git_dir).resolve()
-    info_dir = git_dir / "info"
-    try:
-        info_dir.mkdir(parents=True, exist_ok=True)
-    except OSError:
-        return
-    exclude_path = info_dir / "exclude"
-
-    existing_lines: list[str] = []
-    if exclude_path.exists():
-        try:
-            existing_lines = exclude_path.read_text(encoding="utf-8").splitlines()
-        except OSError:
-            return
-
-    if any(line.strip() == ".spec-kitty/" for line in existing_lines):
-        return
-
-    existing_lines.append(".spec-kitty/")
-    try:
-        exclude_path.write_text("\n".join(existing_lines) + "\n", encoding="utf-8")
-    except OSError:
-        # If we can't write, just skip - not critical (FR-016 is belt-and-braces).
-        return
-
-
 def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
     """Add patterns to worktree's .git/info/exclude to prevent committing.
 
@@ -235,10 +161,6 @@ def create_wp_workspace(
 
     if not result.success:
         raise RuntimeError(f"Failed to create workspace: {result.error}")
-
-    # FR-016 (WP07): write ``.spec-kitty/`` to the per-worktree exclude file so
-    # git never surfaces spec-kitty's own runtime-state directory as drift.
-    _ensure_spec_kitty_exclude(workspace_path)
 
     return workspace_path
 
@@ -414,11 +336,6 @@ def create_feature_worktree(
         raise FileExistsError(f"Worktree path already exists: {worktree_path}")
 
     _create_workspace_with_fallback(repo_root, worktree_path, branch_name)
-
-    # FR-016 (WP07): write ``.spec-kitty/`` to the per-worktree exclude file so
-    # git never surfaces spec-kitty's own runtime-state directory as drift in
-    # the lane worktree. Invoked once, immediately after the worktree exists.
-    _ensure_spec_kitty_exclude(worktree_path)
 
     # Create feature directory structure (FR-002 / C-PLACEMENT)
     feature_dir = _compose_worktree_feature_dir(worktree_path, branch_name)

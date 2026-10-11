@@ -461,7 +461,6 @@ class TestWorktreePreflightTypedException:
         with (
             patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs),
             patch("specify_cli.core.worktree.subprocess.run") as mock_run,
-            patch("specify_cli.core.worktree._ensure_spec_kitty_exclude"),
             patch("specify_cli.core.worktree.setup_feature_directory"),
             patch("warnings.warn"),
         ):

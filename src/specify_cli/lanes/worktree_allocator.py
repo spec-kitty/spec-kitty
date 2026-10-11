@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Literal
 
 from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
+from specify_cli.core.git_ops import exclude_from_git_index
 from specify_cli.coordination.coherence import CheckoutRole, ResidueContext
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.core.vcs.git import capture_branch_tip
@@ -1085,6 +1086,21 @@ def allocate_lane_worktree(
     from specify_cli.policy.lane_tip_recorder import install_lane_tip_recorder
 
     install_lane_tip_recorder(repo_root)
+
+    # #5434: write ``.spec-kitty/`` to the COMMON-dir ``.git/info/exclude`` so
+    # spec-kitty's own runtime-state residue (e.g. a leftover
+    # ``.spec-kitty/review-lock.json`` dropped by ``spec-kitty review``) never
+    # surfaces as untracked drift in a lane worktree's ``git status`` and trips
+    # ``_validate_worktree_clean``'s ``DirtyWorktreeError`` on the REUSE /
+    # CRASH_RECOVERY routes below. ``repo_root`` is the MAIN repository (its
+    # ``.git`` is a directory), which is the only exclude git honours for every
+    # linked worktree: git ignores a worktree's own per-worktree ``info/exclude``.
+    # ``exclude_from_git_index`` writes to ``<repo_root>/.git/info/exclude`` and
+    # no-ops when that file is absent (as it would be in a linked worktree, whose
+    # ``.git`` is a file, not a directory) -- so running it here, at the single
+    # code-lane choke point before both ``_validate_worktree_clean`` calls, is
+    # safe and idempotent.
+    exclude_from_git_index(repo_root, [".spec-kitty/"])
 
     if worktree_path.exists():
         # FL1 (D3): an existing lane worktree cannot be re-parented onto a
