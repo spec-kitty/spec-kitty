@@ -1,5 +1,9 @@
 """Single-authority gate for the Charter Pack tier token (#5825 / #5961 / #6048).
 
+Guards: the generic, VALUE-driven scan (any full tier-set restatement anywhere under
+``src/``). Its identifier-scoped sibling ``test_pack_level_single_authority.py``
+guards only the ``pack_level`` field surface; the two do not overlap.
+
 Why this gate exists
 --------------------
 The Charter Pack tier token (``built-in`` / ``org`` / ``project``) has exactly
