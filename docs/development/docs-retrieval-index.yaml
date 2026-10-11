@@ -2908,6 +2908,10 @@ pages:
     divio_type: "none"
     abstract: "Inverts built-in doctrine ownership: content is authored in spec-kitty-open-packs, and CI re-vendors it into the core wheel at release so consumers see no change."
     anchors:
+    - {slug: "amendment-2026-10-11-pre-spec-grounding-for-3504", text: "Amendment (2026-10-11 — pre-spec grounding for #3504)", level: 2}
+    - {slug: "why-it-was-needed", text: "Why it was needed", level: 3}
+    - {slug: "amended-decisions", text: "Amended decisions", level: 3}
+    - {slug: "sequence", text: "Sequence", level: 3}
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
     - {slug: "considered-options", text: "Considered Options", level: 2}

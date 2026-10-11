@@ -24,6 +24,64 @@ related:
 
 ---
 
+## Amendment (2026-10-11 — pre-spec grounding for #3504)
+
+**This amendment refines Option B. It does not replace it.** The decision text below is
+unchanged history. Where the two disagree, this amendment binds.
+
+### Why it was needed
+
+The pre-spec research squad for [#3504](https://github.com/spec-kitty/spec-kitty/issues/3504)
+found that the original text left the deciding questions open and had gone stale:
+
+* As of 2026-10-11, `spec-kitty-open-packs` holds **no** built-in content and has **no**
+  tags. There is nothing to pin. Moving the content is a prerequisite, tracked in
+  [open-packs#31](https://github.com/spec-kitty/spec-kitty-open-packs/issues/31).
+* Option C cites `src/doctrine/hatch_build.py` and the nested-doctrine-wheel groundwork.
+  Both were deleted when doctrine was absorbed into `src/charter/offering/`
+  (mission `charter-code-topology-01M152G1`). Option C now needs a fresh wheel design (#3101).
+* The release builds with `python -m build`, not a bare `hatch build`. "Before `hatch build`"
+  below means "before the distribution build", in `release.yml` and the manual pre-tag
+  build in `RELEASE_CHECKLIST.md` alike.
+
+### Amended decisions
+
+1. **The vendored tree stays committed.** `packs/built-in/` remains tracked in core, but it
+   is read-only there: it changes only through a pin bump, and a CI drift gate fails any PR
+   whose tree does not match the pin. Materializing it at build time is rejected because it
+   would make every checkout, worktree, lane worktree and CI shard fetch before any test ran,
+   would break offline development, and would leave the nightly gate (which checks the exact
+   release SHA) testing a tree the release never ships. The "local materialize path" in
+   Consequences is therefore optional tooling, not a requirement.
+2. **Pin format.** A committed lockfile records the open-packs repository URL, a **commit
+   SHA** (a tag is metadata, never the pin) and a tree digest computed with the existing
+   `charter.offering.packs` hashing (`snapshot_sha256` and the manifest hash). It is
+   verified on every PR and again at release, never at consumer runtime: the wheel is
+   immutable, and `pack-manifest.yaml` already carries a `content_hash` for every file.
+   A plain SHA-256 pin is enough to start. #2539, #2543, #2467 and #2471 strengthen it
+   later and do not block it.
+3. **One producer for the manifest.** Open-packs generates `pack-manifest.yaml` with the
+   core validator at the core version it declares. Core verifies it and never regenerates
+   vendored content.
+4. **Compatibility is declared.** Mission-step prompts name CLI commands and flags, and
+   step contracts bind to runtime action indices, so the content cannot be versioned
+   independently of core. The authored `pack.yaml` gains a core-compatibility range
+   (`requires_core`), checked at vendor time. A change that touches a CLI command or a
+   contract lands as a pair: the open-packs PR first, then a core PR that bumps the pin.
+5. **Scope of the inversion.** Only the consumer `built-in` tier moves. `packs/internal/`
+   (ADR `2026-08-16-3`) stays authored in core. Pack skills (ADR `2026-09-27-1`) that ship
+   in `packs/built-in/` move with the rest of its content.
+6. **The authoring flip is a separate, later step.** Until it is ruled on by the operator,
+   contributors keep editing `packs/built-in/` in core, as CLAUDE.md says. Moving authorship
+   to open-packs, and with it CLAUDE.md, the charter and the template-source guidance, is
+   its own slice after the pin and drift gate are live.
+
+### Sequence
+
+open-packs#31 (seed the content, map the layout, first tag, `requires_core`) → amend core
+(this ADR) → #3504 (lockfile, `spec-kitty charter pack vendor`, drift gate, release
+re-verification) → the authoring flip → Option C (#3022), unchanged as the north star.
+
 ## Context and Problem Statement
 
 Built-in doctrine content today is authored **inside** the core repository at
