@@ -3178,16 +3178,10 @@ def _collect_authored(
             continue
         base, branch = sb_window if sb_window and is_planning_lane(lane) else (coord_base_ref, _lane_branch_for(lanes_manifest, lane.lane_id))
         first_parent = _lane_first_parent_spine(repo_root, base, branch)
-        authored = [sha for sha in first_parent if sha not in canceled_lane_commits]
-        for sha in authored:
-            shas.add(sha)
-            pid = patch_id_of(repo_root, sha)
-            if pid:
-                patch_ids.add(pid)
-        lane_blobs, lane_deletions = _final_authored_walk(repo_root, authored)
-        blobs |= lane_blobs
-        deletions |= lane_deletions
-        _record_lane_path_contribution(path_contributions, lane, lane_blobs, authored)
+        full_authored = [sha for sha in first_parent if sha not in canceled_lane_commits]
+        full_blobs, full_deletions = _final_authored_walk(repo_root, full_authored)
+        # Presence (#5788/#5571): measured from the FULL ``coord_base_ref..lane``
+        # spine, unchanged — approved content must be PRESENT on the target.
         if not is_planning_lane(lane):
             lane_contents.append(
                 _presence_lane_content(
@@ -3195,11 +3189,39 @@ def _collect_authored(
                     lanes_manifest,
                     lane,
                     work_packages,
-                    _LaneWalk(base, branch, first_parent, lane_blobs, lane_deletions),
+                    _LaneWalk(base, branch, first_parent, full_blobs, full_deletions),
                     presence,
                     canceled_lane_commits,
                 )
             )
+        # Authorship (#5968): the squash blob-attribution axis attributes a
+        # target blob to the claim when it is some approved lane's authored
+        # content. Bound each lane's authorship to its OWN creation base
+        # (``first_governed_open_stamp``, carried on ``presence.lane_bases``):
+        # a commit a dependent lane fast-forwarded in before its own work began
+        # is the dependency's authorship, never this lane's. Measuring from the
+        # lane's own base rather than the dependency's current tip catches a
+        # dependency REWRITTEN (reset/amend) and re-approved after the fork — the
+        # stale inherited copy is no longer reachable from the re-approved
+        # dependency, but it IS reached by this lane's own base, so it is
+        # dropped here and the rejected content becomes unattributable. Shrinking
+        # the authorship is the fail-closed direction (never attributes more).
+        authored = full_authored
+        lane_blobs, lane_deletions = full_blobs, full_deletions
+        lane_own_base = presence.lane_bases.get(lane.lane_id) if (presence is not None and not is_planning_lane(lane)) else None
+        if lane_own_base is not None:
+            own = lane_own_commits(repo_root, base, full_authored, [lane_own_base])
+            if len(own) != len(full_authored):
+                authored = [sha for sha in full_authored if sha in own]
+                lane_blobs, lane_deletions = _final_authored_walk(repo_root, authored)
+        for sha in authored:
+            shas.add(sha)
+            pid = patch_id_of(repo_root, sha)
+            if pid:
+                patch_ids.add(pid)
+        blobs |= lane_blobs
+        deletions |= lane_deletions
+        _record_lane_path_contribution(path_contributions, lane, lane_blobs, authored)
     multi_lane_paths = {path: (contributions[0], contributions[1]) for path, contributions in path_contributions.items() if len(contributions) == 2}
     return _AuthoredClaim(frozenset(shas), frozenset(patch_ids), frozenset(blobs), frozenset(deletions), multi_lane_paths, _order_lane_content(lane_contents))
 
