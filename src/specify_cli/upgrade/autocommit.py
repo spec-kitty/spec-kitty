@@ -44,13 +44,7 @@ from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed, safe_commit
 from kernel.paths import to_posix
-from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill import (
-    is_projected_skills_path,
-    manifest_owned_skills_paths,
-)
-
-#: Shared ``.agents/skills/`` projection root (see the 3.2.5 gitignore backfill).
-_SKILLS_ROOT_PREFIX = ".agents/skills/"
+from specify_cli.skills.ownership import SKILLS_ROOT_PREFIX, is_projected_skills_path, manifest_owned_skills_paths
 
 UPGRADE_COMMIT_SKIP_WARNING = "Could not auto-commit upgrade changes; please review and commit manually."
 
@@ -488,9 +482,11 @@ def migration_index_untracks(checkout: Path, baseline_paths: set[str] | None) ->
     # deletion into the upgrade commit, even if some path reached the index some
     # other way. The migration that owns the untrack is already scoped, but the
     # commit builder refuses team-owned content as a second, independent gate.
+    # The manifest paths are project-relative while ``path`` is checkout-relative, so a
+    # project in a subdirectory of the checkout never matches and fails closed (preserves).
     manifest_owned = manifest_owned_skills_paths(checkout)
     return [
-        Path(path) for path in candidates if path in ignored_now and (not path.startswith(_SKILLS_ROOT_PREFIX) or is_projected_skills_path(path, manifest_owned))
+        Path(path) for path in candidates if path in ignored_now and (not path.startswith(SKILLS_ROOT_PREFIX) or is_projected_skills_path(path, manifest_owned))
     ]
 
 

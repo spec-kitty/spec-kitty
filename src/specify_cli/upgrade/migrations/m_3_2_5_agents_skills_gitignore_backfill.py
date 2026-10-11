@@ -22,53 +22,18 @@ contract changes.
 
 from __future__ import annotations
 
-import contextlib
 import subprocess
 from pathlib import Path
 
 from kernel.git import GitCommandError, run_git, tracked_paths
 from specify_cli.gitignore_manager import GitignoreManager, read_ignore_file_text
-from specify_cli.skills import manifest_store
-from specify_cli.skills.command_installer import _is_canonical_rel_path
-from specify_cli.skills.manifest import load_manifest as load_skills_manifest
-from specify_cli.skills.manifest_errors import ManifestError
+from specify_cli.skills.ownership import SKILLS_ROOT_PREFIX, is_projected_skills_path, manifest_owned_skills_paths
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 _SKILLS_ROOT_ENTRY = ".agents/skills/"
 _MANIFEST_ENTRY = ".kittify/skills-manifest.json"
-
-
-def manifest_owned_skills_paths(project_path: Path) -> set[str]:
-    """Project-relative POSIX paths either skills manifest records as spec-kitty-installed.
-
-    Reads the two installer manifests that are the standing ownership authority
-    (C-001): ``.kittify/command-skills-manifest.json`` (``manifest_store``) and
-    ``.kittify/skills-manifest.json`` (``skills.manifest``). An unreadable or
-    absent manifest contributes nothing, so a path it would otherwise claim
-    stays tracked -- fail-closed toward preserving user content (#5964).
-    """
-    owned: set[str] = set()
-    with contextlib.suppress(ManifestError):
-        owned.update(entry.path for entry in manifest_store.load(project_path).entries)
-    skills_manifest = load_skills_manifest(project_path)
-    if skills_manifest is not None:
-        owned.update(entry.installed_path for entry in skills_manifest.entries)
-    return owned
-
-
-def is_projected_skills_path(rel_posix: str, manifest_owned: set[str]) -> bool:
-    """Whether a ``.agents/skills/`` path is spec-kitty-projected (safe to untrack).
-
-    A path under the shared ``.agents/skills/`` root is spec-kitty's to untrack
-    only when it is projected: either the stable canonical command-skill pattern
-    ``.agents/skills/spec-kitty.<command>/SKILL.md`` (delegated to the single
-    authority ``command_installer._is_canonical_rel_path`` / ``CANONICAL_COMMANDS``),
-    or a path a skills manifest records as installed. Everything else is a team's
-    own committed skill sharing the prefix, and must stay tracked (#5964).
-    """
-    return _is_canonical_rel_path(rel_posix) or rel_posix in manifest_owned
 
 # Equivalent hand-added forms that already ignore the same paths — treat any
 # of them as present so the backfill stays idempotent and never appends a
@@ -140,7 +105,7 @@ def _untrack_tracked_paths(project_path: Path, entries: list[str]) -> list[str]:
         untrack_from_root = [
             root_rel
             for root_rel in tracked_from_root
-            if not _project_rel(root_rel).startswith(_SKILLS_ROOT_ENTRY)
+            if not _project_rel(root_rel).startswith(SKILLS_ROOT_PREFIX)
             or is_projected_skills_path(_project_rel(root_rel), manifest_owned)
         ]
         if not untrack_from_root:

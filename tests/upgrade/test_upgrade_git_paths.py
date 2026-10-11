@@ -13,6 +13,7 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
+from specify_cli.skills.manifest import ManagedFileEntry, ManagedSkillManifest, save_manifest
 from specify_cli.migration.mission_state import MissionStateRepairError, _assert_git_safe
 from specify_cli.upgrade import autocommit
 from specify_cli.upgrade.migrations.m_3_2_0rc35_sync_state_gitignore import _is_tracked
@@ -120,8 +121,25 @@ def test_rc35_is_tracked_with_spaced_and_non_ascii_path(tmp_path: Path) -> None:
 def test_agents_skills_backfill_untracks_quoted_tracked_paths(tmp_path: Path) -> None:
     repo = _init(tmp_path / "repo")
     _write(repo, ".agents/skills/café skill/SKILL.md")
-    _write(repo, ".kittify/skills-manifest.json", "{}\n")
     _write(repo, "src/keep.py")
+    # The quoted path is spec-kitty-projected (the skills manifest records it), so it is untracked (#5964).
+    save_manifest(
+        ManagedSkillManifest(
+            entries=[
+                ManagedFileEntry(
+                    skill_name="cafe-skill",
+                    source_file="SKILL.md",
+                    installed_path=".agents/skills/café skill/SKILL.md",
+                    installation_class="shared-root-capable",
+                    agent_key="codex",
+                    content_hash="sha256:" + "0" * 64,
+                    installed_at="2026-01-01T00:00:00+00:00",
+                    origin="pack",
+                )
+            ]
+        ),
+        repo,
+    )
     _commit(repo)
 
     untracked = _untrack_tracked_paths(repo, [".agents/skills/", ".kittify/skills-manifest.json"])
@@ -134,15 +152,15 @@ def test_agents_skills_backfill_untracks_quoted_tracked_paths(tmp_path: Path) ->
 def test_agents_skills_backfill_untracks_when_project_is_a_repo_subdirectory(tmp_path: Path) -> None:
     repo = _init(tmp_path / "repo")
     project = repo / "proj"
-    _write(repo, "proj/.agents/skills/s/SKILL.md")
+    _write(repo, "proj/.agents/skills/spec-kitty.implement/SKILL.md")
     _write(repo, "proj/src/keep.py")
     _commit(repo)
 
     untracked = _untrack_tracked_paths(project, [".agents/skills/"])
 
-    assert untracked == [".agents/skills/s/SKILL.md"]
+    assert untracked == [".agents/skills/spec-kitty.implement/SKILL.md"]
     assert _git(repo, "ls-files").split() == ["proj/src/keep.py"]
-    assert (project / ".agents/skills/s/SKILL.md").exists()
+    assert (project / ".agents/skills/spec-kitty.implement/SKILL.md").exists()
 
 
 def test_agents_skills_backfill_with_nothing_to_untrack_touches_nothing(tmp_path: Path) -> None:

@@ -266,10 +266,11 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # @MigrationRegistry.register; never statically imported by runtime code.
         # Same sibling shape as the m_3_2_3/m_3_2_4 backfills above.
         "specify_cli.upgrade.migrations.m_3_2_4_runtime_dirs_gitignore_backfill",
-        # NOTE: m_3_2_5_agents_skills_gitignore_backfill is intentionally NOT
-        # allowlisted (#5964): its ownership helpers now have a real src/ caller
-        # (upgrade/autocommit.py imports is_projected_skills_path /
-        # manifest_owned_skills_paths), so it is no longer an orphan.
+        # 3.2.5 .agents/skills/ + skills-manifest gitignore backfill migration
+        # (#2412): auto-discovered via pkgutil.iter_modules +
+        # @MigrationRegistry.register; never statically imported by runtime
+        # code. Same sibling shape as the two backfills above.
+        "specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill",
         # 3.2.6rc3 .worktrees/ gitignore backfill migration (#3689):
         # auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register;
         # never statically imported by runtime code. Same sibling shape as the

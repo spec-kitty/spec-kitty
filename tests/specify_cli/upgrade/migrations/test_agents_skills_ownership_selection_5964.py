@@ -24,10 +24,7 @@ from specify_cli.skills.manifest import (
     save_manifest,
 )
 from specify_cli.skills.manifest_store import ManifestEntry, SkillsManifest
-from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill import (
-    is_projected_skills_path,
-    manifest_owned_skills_paths,
-)
+from specify_cli.skills.ownership import is_projected_skills_path, manifest_owned_skills_paths
 
 pytestmark = [pytest.mark.unit, pytest.mark.regression]
 

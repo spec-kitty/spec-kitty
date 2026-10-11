@@ -369,7 +369,7 @@ def _command_from_rel_path(rel_path: str) -> str | None:
     return rel_path[len(prefix) : -len(suffix)]
 
 
-def _is_canonical_rel_path(rel_path: str) -> bool:
+def is_canonical_rel_path(rel_path: str) -> bool:
     command = _command_from_rel_path(rel_path)
     return command in CANONICAL_COMMANDS
 
@@ -940,7 +940,7 @@ def prepare_commands(
                 raise InstallerError("shared_content_conflict", command=command)
             batch.install_command(command, variants[0], adopt_only=adopt_only)
         for entry in batch.original_entries:
-            if remove_agents or (prune and not _is_canonical_rel_path(entry.path)):
+            if remove_agents or (prune and not is_canonical_rel_path(entry.path)):
                 selected = set(remove_agents or agents or entry.agents)
                 if selected.intersection(entry.agents):
                     batch.remove_entry(entry, tuple(a for a in entry.agents if a not in selected))
@@ -1181,7 +1181,7 @@ def verify(repo_root: Path) -> VerifyReport:
         except InstallerError:
             report.unsafe.append(entry.path)
             continue
-        if not _is_canonical_rel_path(entry.path):
+        if not is_canonical_rel_path(entry.path):
             report.stale.append(entry.path)
         if not abs_path.exists():
             report.gaps.append(entry.path)
