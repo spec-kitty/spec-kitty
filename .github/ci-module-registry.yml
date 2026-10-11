@@ -695,7 +695,6 @@ out_of_matrix_test_dirs:
     (ci-coverage-honesty-01M3CZVN WP03 T011).
   dirs:
   - tests/integration
-  - tests/integration/core
   - tests/integration/git
   - tests/integration/migration
   - tests/integration/retrospective
