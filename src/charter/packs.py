@@ -35,6 +35,7 @@ from charter.offering.packs.pack_assembler import (
     pack_document_dict,
     render_assembly_result,
 )
+from charter.offering.packs.pack_descriptor import load_pack_descriptor
 from charter.offering.packs.pack_manifest import (
     RECOGNISED_ARTIFACT_DIRS,
     count_snapshot_artifacts,
@@ -86,6 +87,7 @@ __all__ = [
     "discover_presets",
     "generate_builtin_manifest",
     "list_offering_packs",
+    "load_pack_descriptor",
     "load_preset",
     "load_preset_file",
     "pack_document_dict",

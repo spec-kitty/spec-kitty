@@ -267,6 +267,7 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("list_offering_packs", "charter.offering.packs.presets"),
         ("load_preset", "charter.offering.packs.presets"),
         ("load_preset_file", "charter.offering.packs.presets"),
+        ("load_pack_descriptor", "charter.offering.packs.pack_descriptor"),
         ("preset_activation_keys", "charter.offering.packs.presets"),
         ("render_example_preset", "charter.offering.packs.presets"),
         ("write_example_preset", "charter.offering.packs.presets"),

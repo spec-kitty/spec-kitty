@@ -71,7 +71,7 @@ def _require_built_in_level(pack_root: Path) -> None:
     the built-in manifest); pointed at a project or org pack they would
     overwrite its ``graph.yaml`` or write a wrong manifest.
     """
-    from charter.offering.packs.pack_descriptor import load_pack_descriptor
+    from charter.packs import load_pack_descriptor
     from kernel.pack_tiers import BUILT_IN
     from ruamel.yaml.error import YAMLError
 
