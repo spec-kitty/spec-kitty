@@ -56,10 +56,14 @@ def _layout_files(pack_root: Path, level: PackTier) -> list[Path]:
     ``org-charter.yaml`` + ``drg/fragment.yaml``; project → ``graph.yaml``.
     """
     if level == BUILT_IN:
-        return sorted(pack_root.glob(_BUILT_IN_GRAPH_GLOB))
-    if level == ORG:
-        return [pack_root / ORG_CHARTER_FILENAME, pack_root / DRG_FRAGMENT]
-    return [pack_root / PROJECT_GRAPH_FILENAME]
+        candidates = sorted(pack_root.glob(_BUILT_IN_GRAPH_GLOB))
+    elif level == ORG:
+        candidates = [pack_root / ORG_CHARTER_FILENAME, pack_root / DRG_FRAGMENT]
+    else:
+        candidates = [pack_root / PROJECT_GRAPH_FILENAME]
+    # Same rule as the artifact walk: a symlinked layout file must not pull
+    # content from outside the pack into the digest.
+    return [path for path in candidates if not path.is_symlink() and path.is_file()]
 
 
 def _recognised_dir_names(kinds: Iterable[ArtifactKind] | None) -> set[str]:
@@ -97,28 +101,27 @@ def _artifact_dir_files(dir_path: Path) -> list[Path]:
     return collected
 
 
-def clean_tree_digest(pack_root: Path, *, kinds: Iterable[ArtifactKind] | None = None) -> str:
+def clean_tree_digest(pack_root: Path, *, level: PackTier, kinds: Iterable[ArtifactKind] | None = None) -> str:
     """Return a reproducible SHA-256 over *pack_root*'s declared file set.
 
-    The declared set is ``pack.yaml`` + the level's layout files + the recognised
-    artifact directories (optionally restricted to *kinds*). The level is read
-    from the pack's own ``pack.yaml`` descriptor. Content is LF-normalized before
-    hashing, so the digest is stable across export / worktree / installed copy and
-    across platform line endings.
+    The declared set is ``pack.yaml`` + the *level*'s layout files + the
+    recognised artifact directories (optionally restricted to *kinds*). *level*
+    is the tier the pack is configured at: it selects the layout and is the
+    inferred level for a legacy ``pack.yaml`` that still omits ``pack_level``
+    (deprecation window), so such a pack digests rather than raising. Content is
+    LF-normalized before hashing, so the digest is stable across export /
+    worktree / installed copy and across platform line endings.
+
+    Raises:
+        FileNotFoundError: *pack_root* has no ``pack.yaml``.
+        pydantic.ValidationError: ``pack.yaml`` is schema-invalid.
     """
     pack_root = Path(pack_root)
-    descriptor = load_pack_descriptor(pack_root / PACK_DESCRIPTOR_FILENAME)
-    level: PackTier = descriptor.pack_level
-
-    files: set[Path] = set()
-
     descriptor_path = pack_root / PACK_DESCRIPTOR_FILENAME
-    if descriptor_path.is_file():
-        files.add(descriptor_path)
+    load_pack_descriptor(descriptor_path, inferred_level=level)
 
-    for layout in _layout_files(pack_root, level):
-        if layout.is_file():
-            files.add(layout)
+    files: set[Path] = {descriptor_path}
+    files.update(_layout_files(pack_root, level))
 
     for name in _recognised_dir_names(kinds):
         dir_path = pack_root / name

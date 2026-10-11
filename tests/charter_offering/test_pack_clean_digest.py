@@ -17,6 +17,7 @@ from pathlib import Path
 
 from charter.offering.packs.pack_clean_digest import clean_tree_digest
 from charter.offering.packs.pack_manifest import snapshot_sha256
+from kernel.pack_tiers import BUILT_IN, ORG, PROJECT
 
 _PACK_ID = "01ARWG13C000000000000000FG"
 
@@ -80,13 +81,13 @@ def test_built_in_digest_matches_git_archive_export(tmp_path: Path) -> None:
     _write(work / "assets" / "__pycache__" / "junk.cpython-312.pyc", "noise")
     _write(work / "directives" / "__pycache__" / "y.pyc", "noise")
 
-    assert clean_tree_digest(work) == clean_tree_digest(export)
+    assert clean_tree_digest(work, level=BUILT_IN) == clean_tree_digest(export, level=BUILT_IN)
 
 
 def test_digest_is_deterministic_across_two_calls(tmp_path: Path) -> None:
     root = tmp_path / "pack"
     _built_in_pack(root)
-    assert clean_tree_digest(root) == clean_tree_digest(root)
+    assert clean_tree_digest(root, level=BUILT_IN) == clean_tree_digest(root, level=BUILT_IN)
 
 
 # --- Level-aware coverage: org + project, not just built-in ------------------
@@ -95,31 +96,52 @@ def test_digest_is_deterministic_across_two_calls(tmp_path: Path) -> None:
 def test_org_pack_layout_files_are_covered(tmp_path: Path) -> None:
     root = tmp_path / "org"
     _org_pack(root)
-    before = clean_tree_digest(root)
+    before = clean_tree_digest(root, level=ORG)
     assert len(before) == 64
 
     # __pycache__ noise is excluded by construction.
     _write(root / "directives" / "__pycache__" / "z.pyc", "noise")
-    assert clean_tree_digest(root) == before
+    assert clean_tree_digest(root, level=ORG) == before
 
     # The org charter is part of the declared file set.
     _write(root / "org-charter.yaml", "required_directives: [DIRECTIVE_001]\n")
-    assert clean_tree_digest(root) != before
+    assert clean_tree_digest(root, level=ORG) != before
 
     # So is the org DRG fragment.
-    after_charter = clean_tree_digest(root)
+    after_charter = clean_tree_digest(root, level=ORG)
     _write(root / "drg" / "fragment.yaml", "schema_version: '1.0'\nnodes: [{urn: 'x'}]\n")
-    assert clean_tree_digest(root) != after_charter
+    assert clean_tree_digest(root, level=ORG) != after_charter
 
 
 def test_project_pack_graph_is_covered(tmp_path: Path) -> None:
     root = tmp_path / "project"
     _project_pack(root)
-    before = clean_tree_digest(root)
+    before = clean_tree_digest(root, level=PROJECT)
     assert len(before) == 64
 
     _write(root / "graph.yaml", "schema_version: '1.0'\nnodes: [{urn: 'y'}]\n")
-    assert clean_tree_digest(root) != before
+    assert clean_tree_digest(root, level=PROJECT) != before
+
+
+def test_legacy_pack_without_pack_level_digests_under_configured_level(tmp_path: Path) -> None:
+    # Deprecation window: a legacy pack.yaml omits pack_level; the configured
+    # tier is the inferred level, so the digest is computed, not raised.
+    root = tmp_path / "legacy"
+    _org_pack(root)
+    _write(root / "pack.yaml", f"pack_id: {_PACK_ID}\nname: org-sample\n")
+    assert len(clean_tree_digest(root, level=ORG)) == 64
+
+
+def test_symlinked_layout_file_does_not_pull_outside_content(tmp_path: Path) -> None:
+    root = tmp_path / "org"
+    _org_pack(root)
+    outside = tmp_path / "outside.yaml"
+    _write(outside, "required_directives: [LEAK]\n")
+    (root / "org-charter.yaml").unlink()
+    (root / "org-charter.yaml").symlink_to(outside)
+    before = clean_tree_digest(root, level=ORG)
+    _write(outside, "required_directives: [LEAK, MORE]\n")
+    assert clean_tree_digest(root, level=ORG) == before
 
 
 # --- NFR-004: snapshot_sha256 is byte-unchanged ------------------------------
