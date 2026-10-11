@@ -1,15 +1,15 @@
 ---
 title: 'ADR: acceptance testing and BDD support with Gherkin scenarios and a black-box Cucumber-JVM runner'
 description: 'Promise-tagged Gherkin scenarios live in tests/scenarios, a per-PR Python check guards their tags, and a nightly Cucumber-JVM job drives the built CLI as a black box.'
-status: Proposed
+status: Accepted
 date: '2026-10-11'
 ---
 
-**Status:** Proposed
+**Status:** Accepted
 
 **Date:** 2026-10-11
 
-**Deciders:** Stijn Dejongh (owner). Product, QA and the repo chief to accept.
+**Deciders:** Stijn Dejongh (owner), accepted 2026-10-11.
 
 **Technical Story:** the QA promise train (spec-kitty-planning `qa-promise-train/`). Its QA half is spec-kitty-qa ADR-0001 (QA owns the acceptance nightly and the Allure report, amended 2026-10-11) and ADR-0002 (a promise index joins the promise pages to core's scenarios). This ADR is the core half.
 
