@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#5924": {
+      "evidence_ref": "Owner Ivan-Melck; assignment verified and mission claim comment posted by operator agent; approved start, PR only, no merge.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "in-mission",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

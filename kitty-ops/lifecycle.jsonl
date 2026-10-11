@@ -82,3 +82,12 @@
 {"agent": "codex", "at": "2026-09-24T06:11:07.092358+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M38YDXPADJA9431Z5A3KMBCV", "phase": "started", "reason": null, "wp_id": "WP01"}
 {"agent": "codex", "at": "2026-09-24T06:57:03.779543+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M38YDXPADJA9431Z5A3KMBCV", "phase": "completed", "reason": null, "wp_id": "WP01"}
 {"agent": "codex", "at": "2026-09-24T06:57:12.775233+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M38YDXPADJA9431Z5A3KMBCV", "phase": "started", "reason": null, "wp_id": "WP01"}
+{"agent": "pi", "at": "2026-10-11T14:17:59.343270+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M4NN6K3M7NAZRY8XQXZ030M2", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-11T14:20:45.761446+00:00", "canonical_action_id": "discovery::research", "mission_id": "01M4NN6K3M7NAZRY8XQXZ030M2", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-11T14:20:54.899388+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M4NN6K3M7NAZRY8XQXZ030M2", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-11T14:23:12.584258+00:00", "canonical_action_id": "specify::specify", "mission_id": "01M4NN6K3M7NAZRY8XQXZ030M2", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-11T14:27:28.957417+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M4NN6K3M7NAZRY8XQXZ030M2", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-11T14:33:06.994829+00:00", "canonical_action_id": "tasks::tasks", "mission_id": "01M4NN6K3M7NAZRY8XQXZ030M2", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-11T14:33:28.366699+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M4NN6K3M7NAZRY8XQXZ030M2", "phase": "started", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-11T14:39:09.812748+00:00", "canonical_action_id": "analyze::analyze", "mission_id": "01M4NN6K3M7NAZRY8XQXZ030M2", "phase": "completed", "reason": null, "wp_id": null}
+{"agent": "pi", "at": "2026-10-11T14:39:19.764888+00:00", "canonical_action_id": "implement::implement", "mission_id": "01M4NN6K3M7NAZRY8XQXZ030M2", "phase": "started", "reason": null, "wp_id": "WP01"}

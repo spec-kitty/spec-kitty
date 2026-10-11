@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "status-doctor-corrupt-log-01M4NN6K",
+  "mission_id": "01M4NN6K3M7NAZRY8XQXZ030M2",
+  "mission_branch": "issue-5924-status-doctor-corrupt-log",
+  "target_branch": "issue-5924-status-doctor-corrupt-log",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/status/doctor.py",
+        "src/specify_cli/status/store.py",
+        "tests/status/test_doctor.py",
+        "tests/status/test_doctor_log_errors.py",
+        "tests/status/test_store.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-11T14:32:52.405463+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "3b66ac18ec9a56566fc40753a8cb99519396f0ed"
+}

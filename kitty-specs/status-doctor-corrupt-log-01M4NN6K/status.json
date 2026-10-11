@@ -1,0 +1,41 @@
+{
+  "event_count": 3,
+  "last_event_id": "01M4NPGE449D4A9YT3V6ADHXM9",
+  "materialized_at": "2026-10-11T14:40:12.861905+00:00",
+  "mission_number": "",
+  "mission_slug": "status-doctor-corrupt-log-01M4NN6K",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "pi",
+      "agent": "pi:sonnet:implementer-ivan:implementer",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "pi:sonnet:implementer-ivan:implementer",
+      "lane": "in_progress",
+      "last_event_id": "01M4NPGE449D4A9YT3V6ADHXM9",
+      "last_transition_at": "2026-10-11T14:40:12.861905+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "role": "implementer",
+      "shell_pid": 45275,
+      "shell_pid_created_at": "1791729606.74",
+      "tracker_refs": [
+        "#5924"
+      ]
+    }
+  }
+}
