@@ -525,8 +525,25 @@ def _resolve_in_branch_status_events_path(
 
 
 def _parse_target_lanes_by_wp(events_text: str) -> dict[str, str]:
-    """Reduce a target-branch event log to the latest ``to_lane`` per WP."""
-    lanes_by_wp: dict[str, str] = {}
+    """Reduce a target-branch event log to the latest ``to_lane`` per WP.
+
+    Events are ordered by ``(at, event_id)`` ascending before the last-wins
+    fold, matching the canonical status reducer's diary ordering
+    (``spec_kitty_events.diary`` sorts on the same key, as do the
+    ``status.reducer`` projections) rather than physical line order. A migrated
+    or completed mission's target log can carry a newer terminal ``done`` event
+    PHYSICALLY BEFORE an older-timestamp ``migration:backfill_runtime_state``
+    seed; folding in line order would let the stale seed win and spuriously fail
+    the post-merge ``done`` check on a WP that IS done (#5354). Sorting by ``at``
+    keeps each WP at the lane ``status materialize`` reports for the same log.
+
+    Malformed/blank lines and non-object JSON are skipped. A missing (or
+    non-string) ``at``/``event_id`` sorts as the empty string — i.e. earliest —
+    so an undated line can never spuriously override a real, timestamped
+    transition, and ``sorted`` being stable preserves physical order among
+    equal keys (an undated well-ordered log is unaffected).
+    """
+    parsed: list[tuple[str, str, str, str]] = []
     for line in events_text.splitlines():
         if not line.strip():
             continue
@@ -534,10 +551,26 @@ def _parse_target_lanes_by_wp(events_text: str) -> dict[str, str]:
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if not isinstance(event, dict):
+            continue
         wp_id = event.get("wp_id")
         to_lane = event.get("to_lane")
-        if isinstance(wp_id, str) and isinstance(to_lane, str):
-            lanes_by_wp[wp_id] = to_lane
+        if not (isinstance(wp_id, str) and isinstance(to_lane, str)):
+            continue
+        at = event.get("at")
+        event_id = event.get("event_id")
+        parsed.append(
+            (
+                at if isinstance(at, str) else "",
+                event_id if isinstance(event_id, str) else "",
+                wp_id,
+                to_lane,
+            )
+        )
+
+    lanes_by_wp: dict[str, str] = {}
+    for _at, _event_id, wp_id, to_lane in sorted(parsed, key=lambda item: (item[0], item[1])):
+        lanes_by_wp[wp_id] = to_lane
     return lanes_by_wp
 
 

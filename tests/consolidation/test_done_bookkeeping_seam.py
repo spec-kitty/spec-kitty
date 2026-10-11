@@ -103,6 +103,44 @@ def test_parse_target_lanes_by_wp_keeps_latest() -> None:
     assert result == {"WP01": "done", "WP02": "claimed"}
 
 
+def test_parse_target_lanes_by_wp_orders_by_at_not_physical_line_order() -> None:
+    """#5354: a terminal ``done`` wins over a later-written older-``at`` seed.
+
+    A migrated/completed mission's target ``status.events.jsonl`` can carry a
+    newer terminal ``done`` event PHYSICALLY BEFORE an older-timestamp migration
+    backfill seed. The canonical reducer orders by ``(at, event_id)`` and keeps
+    the WP at ``done``; the parse helper must agree so the post-merge check does
+    not spuriously fail a WP that IS done. The last-written line (``claimed``,
+    older ``at``) must NOT win.
+    """
+    import json
+
+    text = "\n".join(
+        [
+            json.dumps(
+                {
+                    "wp_id": "WP01",
+                    "to_lane": "done",
+                    "at": "2026-09-29T04:02:00+00:00",
+                    "event_id": "01HZZZ_DONE",
+                    "actor": "merge",
+                }
+            ),
+            json.dumps(
+                {
+                    "wp_id": "WP01",
+                    "to_lane": "claimed",
+                    "at": "2026-09-24T02:47:00+00:00",
+                    "event_id": "01HAAA_SEED",
+                    "actor": "migration:backfill_runtime_state",
+                }
+            ),
+        ]
+    )
+    result = db._parse_target_lanes_by_wp(text)
+    assert result == {"WP01": "done"}
+
+
 # --- _assert_merged_wps_done_on_target (split) ------------------------------
 
 
