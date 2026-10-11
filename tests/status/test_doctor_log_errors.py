@@ -316,32 +316,33 @@ def _add_independent_findings(mission: Path, monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr("specify_cli.git.sparse_checkout.scan_repo", lambda _root: active_report)
 
 
+def _install_late_read_failure(mission_dir: Path, monkeypatch: pytest.MonkeyPatch, which: str, error: Exception) -> int:
+    """Fail a specific later text-open, not any unrelated path or binary read."""
+    original_open = Path.open
+    has_snapshot = (mission_dir / SNAPSHOT_FILENAME).exists()
+    # With a snapshot drift replays through both typed and raw store readers.
+    fail_at = 4 if which == "review-read" and has_snapshot else 2
+    reads = 0
+
+    def scoped_open(path: Path, mode: str = "r", *args: Any, **kwargs: Any) -> IO[Any]:
+        nonlocal reads
+        if path == mission_dir / EVENTS_FILENAME and mode == "r":
+            reads += 1
+            if reads == fail_at:
+                raise error
+        return original_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "open", scoped_open)
+    return fail_at
+
+
 @pytest.fixture(params=["next-read", "review-read"])
 def late_read_failure(
     mission_dir: Path,
     request: pytest.FixtureRequest,
     monkeypatch: pytest.MonkeyPatch,
 ) -> Callable[[Exception], int]:
-    """Fail a specific later text-open, not any unrelated path or binary read."""
-    original_open = Path.open
-    has_snapshot = (mission_dir / SNAPSHOT_FILENAME).exists()
-    # With a snapshot drift replays through both typed and raw store readers.
-    fail_at = 4 if request.param == "review-read" and has_snapshot else 2
-    reads = 0
-
-    def install(error: Exception) -> int:
-        def scoped_open(path: Path, mode: str = "r", *args: Any, **kwargs: Any) -> IO[Any]:
-            nonlocal reads
-            if path == mission_dir / EVENTS_FILENAME and mode == "r":
-                reads += 1
-                if reads == fail_at:
-                    raise error
-            return original_open(path, mode, *args, **kwargs)
-
-        monkeypatch.setattr(Path, "open", scoped_open)
-        return fail_at
-
-    return install
+    return lambda error: _install_late_read_failure(mission_dir, monkeypatch, request.param, error)
 
 
 def _late_read_error(kind: str, mission: Path) -> Exception:
@@ -430,13 +431,36 @@ def test_cli_reports_late_read_failure_without_partial_advice(
     assert _evidence(mission_dir) == before
 
 
-def test_late_unexpected_programming_error_is_not_reported_as_log_corruption(
+@pytest.mark.parametrize("source", ["log-early", "log-late", "non-log-oserror"])
+def test_unexpected_errors_are_not_reported_as_log_corruption(
     mission_dir: Path,
-    late_read_failure: Callable[[Exception], int],
+    monkeypatch: pytest.MonkeyPatch,
+    source: str,
 ) -> None:
+    """Only failures reading the event log become event_log_error."""
+    if source == "log-early":
+        original_read = Path.read_text
+
+        def scoped_read(path: Path, *args: Any, **kwargs: Any) -> str:
+            if path == mission_dir / EVENTS_FILENAME:
+                raise RuntimeError("unexpected defect")
+            return original_read(path, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "read_text", scoped_read)
+        error: Exception = RuntimeError("unexpected defect")
+    elif source == "log-late":
+        _install_late_read_failure(mission_dir, monkeypatch, "review-read", RuntimeError("unexpected defect"))
+        error = RuntimeError("unexpected defect")
+    else:
+        # An OSError from a worktree scan is not log corruption (as before #5924).
+        error = PermissionError(13, "worktree scan denied")
+
+        def denied(*_args: Any, **_kwargs: Any) -> list[Finding]:
+            raise error
+
+        monkeypatch.setattr("specify_cli.status.doctor.check_orphan_workspaces", denied)
     before = _evidence(mission_dir)
-    late_read_failure(RuntimeError("unexpected later reader defect"))
-    with pytest.raises(RuntimeError, match="^unexpected later reader defect$"):
+    with pytest.raises(type(error), match="unexpected defect|worktree scan denied"):
         run_doctor(mission_dir, SLUG, mission_dir.parents[1])
     assert _evidence(mission_dir) == before
 
@@ -467,22 +491,4 @@ def test_reviewer_self_approval_returns_after_authority_is_restored(mission_dir:
 
     log.write_bytes(valid)
     assert run_doctor(mission_dir, SLUG, mission_dir.parents[1]).findings == readable.findings
-    assert _evidence(mission_dir) == before
-
-
-def test_unexpected_programming_error_is_not_reported_as_log_corruption(
-    mission_dir: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    original_read = Path.read_text
-
-    def scoped_read(path: Path, *args: Any, **kwargs: Any) -> str:
-        if path == mission_dir / EVENTS_FILENAME:
-            raise RuntimeError("unexpected reader defect")
-        return original_read(path, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "read_text", scoped_read)
-    before = _evidence(mission_dir)
-    with pytest.raises(RuntimeError, match="^unexpected reader defect$"):
-        run_doctor(mission_dir, SLUG, mission_dir.parents[1])
     assert _evidence(mission_dir) == before

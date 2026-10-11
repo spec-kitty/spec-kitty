@@ -10,10 +10,11 @@ from __future__ import annotations
 import json
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from pydantic import ValidationError
 
@@ -730,6 +731,29 @@ def check_sparse_checkout(repo_root: Path) -> list[Finding]:
     return findings
 
 
+_T = TypeVar("_T")
+
+
+class _EventLogUnreadable(Exception):
+    """The canonical event log could not be read; carries the original error."""
+
+    def __init__(self, cause: StoreError | OSError | UnicodeError) -> None:
+        super().__init__(str(cause))
+        self.cause = cause
+
+
+def _guard_log_read(read: Callable[[], _T]) -> _T:
+    """Run an event-log read, tagging only its expected failures.
+
+    Errors raised by anything else (worktree scans, WP files) are not log
+    corruption and must propagate untouched.
+    """
+    try:
+        return read()
+    except (StoreError, OSError, UnicodeError) as exc:
+        raise _EventLogUnreadable(exc) from exc
+
+
 def _collect_log_dependent_findings(
     feature_dir: Path,
     mission_slug: str,
@@ -743,7 +767,7 @@ def _collect_log_dependent_findings(
     Membership findings are returned separately to preserve their original
     position after the independent checks in the public result.
     """
-    events = read_events(feature_dir)
+    events = _guard_log_read(lambda: read_events(feature_dir))
     snapshot = _load_or_reduce_snapshot(feature_dir, events)
     findings = check_uninitialized_status(feature_dir, snapshot)
     if snapshot:
@@ -756,9 +780,10 @@ def _collect_log_dependent_findings(
             )
         )
         findings.extend(check_orphan_workspaces(repo_root, mission_slug, snapshot))
-        findings.extend(check_drift(feature_dir))
+        # Drift replays the event log, so its read failures are log failures.
+        findings.extend(_guard_log_read(lambda: check_drift(feature_dir)))
         findings.extend(check_blanked_runtime_slots(snapshot))
-    findings.extend(check_reviewer_self_approval(feature_dir))
+    findings.extend(_guard_log_read(lambda: check_reviewer_self_approval(feature_dir)))
 
     membership: list[Finding] = []
     if events:
@@ -811,13 +836,13 @@ def run_doctor(
             stale_claimed_days=stale_claimed_days,
             stale_in_progress_days=stale_in_progress_days,
         )
-    except (StoreError, OSError, UnicodeError) as exc:
+    except _EventLogUnreadable as exc:
         result.findings.append(
             Finding(
                 severity=Severity.ERROR,
                 category=Category.EVENT_LOG_ERROR,
                 wp_id=None,
-                message=f"Cannot read canonical status event log {(feature_dir / EVENTS_FILENAME).resolve()}: {exc}",
+                message=f"Cannot read canonical status event log {(feature_dir / EVENTS_FILENAME).resolve()}: {exc.cause}",
                 recommended_action=("Preserve the log and snapshot as evidence. Restore trusted status history or correct file access, then rerun status doctor."),
             )
         )
