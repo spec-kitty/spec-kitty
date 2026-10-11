@@ -438,7 +438,10 @@ def _build_durability_signal(
         artifact_path=review_cycle.artifact_path,
         cycle_number=review_cycle.artifact.cycle_number,
         review_cycle=review_cycle,
-        adopted=review_cycle.adopted,
+        # Defensive default: a real CreatedRejectedReviewCycle always carries
+        # ``adopted`` (#5969); a minimal test stand-in may not. Absent → not
+        # adopted, i.e. the pre-#5969 revert behavior (the safe direction).
+        adopted=getattr(review_cycle, "adopted", False),
     )
 
 

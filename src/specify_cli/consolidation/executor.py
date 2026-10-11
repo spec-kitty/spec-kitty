@@ -661,13 +661,21 @@ def _refuse_on_materialization_drift(feature_dir: Path, mission_slug: str) -> No
     events without re-materializing) means the board a reviewer/operator read
     does not reflect the recorded history. Refuse before any branch moves and
     name the fix (``spec-kitty agent status materialize``) rather than landing
-    on a dishonest snapshot. A missing/fresh snapshot is not drift
-    (``validate_materialization_drift`` returns no findings), so this never
-    refuses a Mission that simply has not materialized yet.
+    on a dishonest snapshot.
+
+    Scoped to the #5863 scenario: a snapshot that is PRESENT and whose CONTENT
+    diverges from the reduced log. A snapshot that is simply absent (not yet
+    materialized — the common state for a Mission that writes its status lazily)
+    is not drift and must not be refused: ``validate_materialization_drift``
+    reports that as a file-existence finding, not a ``Materialization drift:``
+    content finding, so the gate keys on the content findings alone.
     """
+    from specify_cli.status.reducer import SNAPSHOT_FILENAME
     from specify_cli.status.validate import validate_materialization_drift
 
-    findings = validate_materialization_drift(feature_dir)
+    if not (feature_dir / SNAPSHOT_FILENAME).exists():
+        return  # no committed snapshot to drift — #5863 is a PRESENT, drifted status.json
+    findings = [f for f in validate_materialization_drift(feature_dir) if f.startswith("Materialization drift:")]
     if not findings:
         return
     console.print(
