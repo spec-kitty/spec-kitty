@@ -31,13 +31,14 @@ whole registration mechanism; there is no hand-maintained migration list.
 
 from __future__ import annotations
 
-import os
+import io
 from pathlib import Path
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 from ulid import ULID
 
+from kernel.atomic import atomic_write
 from kernel.charter_pack_paths import (
     PROJECT_PACK_DIRNAME,
     project_pack_root,
@@ -55,18 +56,13 @@ _PACK_LEVEL_KEY = "pack_level"
 
 
 def _write_atomically(descriptor: Path, data: object, yaml: YAML) -> None:
-    """Dump *data* to *descriptor* via a same-directory temp file and ``os.replace``.
+    """Dump *data* to *descriptor* through the kernel atomic-write helper.
 
     A crash mid-write can never leave a truncated ``pack.yaml`` behind.
     """
-    tmp = descriptor.with_name(f".{descriptor.name}.tmp")
-    try:
-        with tmp.open("w", encoding="utf-8") as handle:
-            yaml.dump(data, handle)
-        os.replace(tmp, descriptor)
-    except BaseException:
-        tmp.unlink(missing_ok=True)
-        raise
+    buffer = io.StringIO()
+    yaml.dump(data, buffer)
+    atomic_write(descriptor, buffer.getvalue())
 
 
 def _discover_project_pack_roots(repo_root: Path) -> list[Path]:
