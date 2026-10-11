@@ -59,6 +59,29 @@ def test_baseline_notice_is_rendered_not_echoed_as_markup(
     assert "[yellow]" not in out
 
 
+def test_quiet_failed_capture_is_logged_not_silent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """quiet=True (the --json move-task path) keeps stdout clean but still warns in the log."""
+    monkeypatch.setattr("specify_cli.review.baseline.capture_baseline", lambda **kwargs: _baseline(-1))
+    monkeypatch.setattr("specify_cli.review.scope_source.resolve_scope_source", lambda root: None)
+
+    with caplog.at_level("WARNING"):
+        workflow_executor.capture_and_commit_baseline(
+            workspace_path=tmp_path,
+            target_branch="main",
+            normalized_wp_id="WP01",
+            mission_slug="m-01ABCDEF",
+            feature_dir=tmp_path / "kitty-specs" / "m-01ABCDEF",
+            wp_slug="WP01-thing",
+            main_repo_root=tmp_path,
+            quiet=True,
+        )
+
+    assert capsys.readouterr().out == ""
+    assert "Baseline test capture failed for WP01" in caplog.text
+
+
 def test_commit_refusal_reason_is_shown_verbatim_not_parsed_as_markup(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """The artifact-not-committed warning carries arbitrary git text; it must be escaped."""
     feature_dir = tmp_path / "kitty-specs" / "m-01ABCDEF"

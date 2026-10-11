@@ -32,6 +32,10 @@ _WP_SLUG = "WP01-defer-baseline"
 _MISSION = "defer-baseline-capture"
 
 
+def _location(primary_dir: Path) -> tuple[Path, str, Path]:
+    return primary_dir, _WP_SLUG, primary_dir / "tasks" / _WP_SLUG / "baseline-tests.json"
+
+
 def _make_state(*, old_lane: Lane, target_lane: Lane, feature_dir: Path) -> _MoveTaskState:
     st = _MoveTaskState(
         task_id="WP01",
@@ -86,7 +90,7 @@ def test_captures_on_for_review_edge_when_absent(tmp_path: Path, monkeypatch: py
     monkeypatch.setattr(
         tasks_move_task_gates,
         "_mt_baseline_artifact_location",
-        lambda _st: (primary_dir, _WP_SLUG, primary_dir / "tasks" / _WP_SLUG / "baseline-tests.json"),
+        lambda _st: _location(primary_dir),
     )
     st = _make_state(old_lane=Lane.IN_PROGRESS, target_lane=Lane.FOR_REVIEW, feature_dir=primary_dir)
 
@@ -107,7 +111,7 @@ def test_noop_when_baseline_already_present(tmp_path: Path, monkeypatch: pytest.
     monkeypatch.setattr(
         tasks_move_task_gates,
         "_mt_baseline_artifact_location",
-        lambda _st: (primary_dir, _WP_SLUG, primary_dir / "tasks" / _WP_SLUG / "baseline-tests.json"),
+        lambda _st: _location(primary_dir),
     )
     st = _make_state(old_lane=Lane.IN_PROGRESS, target_lane=Lane.FOR_REVIEW, feature_dir=primary_dir)
 
@@ -123,7 +127,7 @@ def test_noop_off_the_for_review_edge(tmp_path: Path, monkeypatch: pytest.Monkey
     monkeypatch.setattr(
         tasks_move_task_gates,
         "_mt_baseline_artifact_location",
-        lambda _st: (primary_dir, _WP_SLUG, primary_dir / "tasks" / _WP_SLUG / "baseline-tests.json"),
+        lambda _st: _location(primary_dir),
     )
     st = _make_state(old_lane=Lane.PLANNED, target_lane=Lane.CLAIMED, feature_dir=primary_dir)
 
@@ -155,9 +159,7 @@ def _git(repo: Path, *args: str) -> str:
     return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
 
 
-def test_captures_at_the_lane_fork_point_not_the_advanced_base_tip(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capture_spy: list[dict[str, object]]
-) -> None:
+def test_captures_at_the_lane_fork_point_not_the_advanced_base_tip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capture_spy: list[dict[str, object]]) -> None:
     """#6062 review fold: the baseline must describe the base the lane FORKED from.
 
     On a busy Mission the base branch keeps moving between the claim and the
@@ -184,7 +186,7 @@ def test_captures_at_the_lane_fork_point_not_the_advanced_base_tip(
 
     primary_dir = repo / "kitty-specs" / _MISSION
     primary_dir.mkdir(parents=True)
-    monkeypatch.setattr(tasks_move_task_gates, "_mt_baseline_artifact_location", lambda _st: (primary_dir, _WP_SLUG, primary_dir / "tasks" / _WP_SLUG / "baseline-tests.json"))
+    monkeypatch.setattr(tasks_move_task_gates, "_mt_baseline_artifact_location", lambda _st: _location(primary_dir))
     monkeypatch.setattr(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", lambda _st: lane)
     st = _make_state(old_lane=Lane.IN_PROGRESS, target_lane=Lane.FOR_REVIEW, feature_dir=primary_dir)
     st.main_repo_root = repo

@@ -761,6 +761,7 @@ def _mt_baseline_capture_ref(st: _MoveTaskState, base_ref: str) -> str:
     merge-base cannot be resolved this falls back to ``base_ref`` (the base tip)
     and logs a warning.
     """
+    fork_point: str | None
     try:
         worktree = _mt_resolve_pre_review_workspace(st)
         fork_point = git_merge_base(worktree, "HEAD", base_ref) if worktree is not None else None
@@ -774,7 +775,7 @@ def _mt_baseline_capture_ref(st: _MoveTaskState, base_ref: str) -> str:
             base_ref,
         )
         return base_ref
-    return fork_point
+    return str(fork_point)
 
 
 def _mt_capture_baseline_if_missing(st: _MoveTaskState) -> None:

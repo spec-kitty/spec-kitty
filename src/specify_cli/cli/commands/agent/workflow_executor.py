@@ -1402,8 +1402,14 @@ def capture_and_commit_baseline(
     ``quiet`` (#6062) suppresses the human-readable baseline notices. The
     for_review caller passes ``quiet=st.json_output`` so a ``--json`` move-task
     envelope is never corrupted by a console line (the move-task path emits
-    console only when ``not json_output``); the interactive implement/review
-    surfaces keep the default ``False`` and still see the notices."""
+    console only when ``not json_output``). Interactive callers (none today)
+    keep the default ``False``. A quiet ``failed == -1`` capture is still
+    logged as a warning, never silent.
+
+    ``workspace_path`` is used ONLY to locate the repository root (walking up to
+    the nearest ``.git``) from which the detached base-branch worktree is
+    created; the suite never runs in it. The for_review caller passes
+    ``st.main_repo_root``."""
     from specify_cli.core.commit_guard import GuardCapability
 
     w = _wf()
@@ -1415,7 +1421,7 @@ def capture_and_commit_baseline(
         from specify_cli.review.scope_source import resolve_scope_source
 
         # T015 (mission scopesource-gate-followup-01KY6S9P, FR-011/FR-014):
-        # inject the shared factory so implement-time capture activates
+        # inject the shared factory so baseline capture activates
         # ``_capture_baseline_via_scope_source`` -- the SAME
         # test_command()/parse_results() authority the pre-review head run
         # uses. The factory resolves only ``DeclaredCommandScopeSource`` after
@@ -1437,6 +1443,8 @@ def capture_and_commit_baseline(
             console.print(f"[dim]Baseline: {baseline.failed} pre-existing test failure(s) captured[/dim]")
         elif not quiet and baseline is not None and baseline.failed == -1:
             console.print("[yellow]Warning: baseline test capture failed — no baseline context available[/yellow]")
+        if quiet and baseline is not None and baseline.failed == -1:
+            logger.warning("Baseline test capture failed for %s — no baseline context available.", normalized_wp_id)
 
         # Commit the baseline artifact whenever capture actually wrote one
         # (any non-sentinel result, clean OR dirty) — NOT only when
@@ -1449,7 +1457,7 @@ def capture_and_commit_baseline(
         # ``for_review`` uncommitted-owned-file guard from blocking on an
         # otherwise-orphaned WP-owned artifact. The prior ``failed > 0`` gate
         # left every clean baseline uncommitted, which regressed
-        # ``test_issue_2684`` once implement-time capture began emitting one.
+        # ``test_issue_2684`` once baseline capture began emitting one.
         # (The ``failed == -1`` sentinel is never persisted, so it never
         # reaches this commit.)
         baseline_artifact = feature_dir / "tasks" / wp_slug / "baseline-tests.json"
