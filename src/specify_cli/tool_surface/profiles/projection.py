@@ -17,6 +17,8 @@ from __future__ import annotations
 from pathlib import Path
 from dataclasses import dataclass, replace
 
+from kernel.pack_tiers import BUILT_IN
+
 from charter.activation.active_charter_service_builder import _build_active_charter_service
 from charter.profiles import AgentProfile, AgentProfileRepository, SkippedProfile
 from charter.provenance import to_portable_source_path
@@ -38,8 +40,9 @@ from ..operations import FileState
 from .manifest import PROJECTION_VERSION, hash_file as hash_source_file
 from .renderers import ProfileRenderer, get_renderer, native_name_violation
 
-# Provenance layers exposed by ``AgentProfileRepository.get_provenance``.
-LAYER_BUILTIN = "builtin"
+# Provenance layers exposed by ``AgentProfileRepository.get_provenance``. The
+# built-in token derives from the single kernel authority (#6048).
+LAYER_BUILTIN = BUILT_IN
 LAYER_ORG = "org"
 LAYER_PROJECT = "project"
 
@@ -222,7 +225,7 @@ class ProfileProjector:
     ) -> list[NativeAgentProfile]:
         """Project available profiles into native format for ``tool_key``.
 
-        ``source_layers`` filters by provenance (``builtin``/``org``/
+        ``source_layers`` filters by provenance (``built-in``/``org``/
         ``project``); ``None`` projects every layer. Sentinel profiles (workflow
         routing signals, not agent identities) are never projected. Returns an
         empty list for tools without a native named-agent primitive.

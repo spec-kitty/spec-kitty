@@ -1,4 +1,4 @@
-"""Single authority for the Charter Pack tier token (#5825 / #5961).
+"""Single authority for the Charter Pack tier token (#5825 / #5961 / #6048).
 
 The tier token historically carried two spellings: ``"built-in"`` (the
 tier-token sense -- also the on-disk ``packs/built-in/`` directory name) and
@@ -10,14 +10,22 @@ re-exported / consumed downward by ``charter`` and ``specify_cli``:
 
     kernel  <-  charter  <-  specify_cli
 
-Scope note (NFR-003). This unifies the **tier token** only. The separate,
-no-hyphen ``"builtin"`` *provenance/layer* value emitted by
-``charter.offering.base.BaseArtifactRepository`` (and the agent-profile /
-pack-skill repositories) is a persisted-and-compared value: it is serialized
-into the charter context JSON and compared in-memory by many consumers, pinned
-by that spelling across the test suite. It is deliberately NOT folded onto this
-authority here -- respelling it would change a persisted/compared value, which
-NFR-003 forbids.
+Unified provenance spelling (#6048, FR-019). The artifact *provenance/layer*
+value emitted by ``charter.offering.base.BaseArtifactRepository`` (and the
+agent-profile / pack-skill repositories) is now the **same** canonical
+``"built-in"`` spelling this module owns -- the former no-hyphen ``"builtin"``
+spelling was folded onto this authority. Every provenance/layer display
+(``_LAYER_RANK``, ``_TIER_RANK``, the ``_charter_pack_health`` layer-order
+tuple, the dispatch routing frozenset, the pack-skill ``Tier`` alias) now
+*derives* from :data:`PACK_TIERS` / :data:`PackTier` / :data:`BUILT_IN` rather
+than restating a hand-authored token, so the single-authority gate
+(``tests/architectural/test_pack_tier_token_single_authority.py``) keeps an
+empty allowlist and catches any hand-authored restatement in either spelling.
+The fold changes the serialized provenance spelling; it is a non-migrated
+value -- the one persisted carrier
+(``.kittify/agent_profiles_manifest.json`` ``source_layer``) is validated as a
+non-empty string and regenerated each projection, so it self-heals with no
+consumer data migration (NFR-001).
 
 Layer rule: ``kernel`` imports nothing upward (no ``charter``, ``glossary``,
 ``runtime`` or ``specify_cli``), so every layer can use this module. It imports
@@ -49,9 +57,10 @@ PROJECT: Final = "project"
 
 #: The Charter Pack tiers in precedence order (built-in < org < project). The
 #: tuple INDEX is the precedence rank, so this is the single ordering authority
-#: -- no separate rank map is declared (a ``"built-in"``-keyed rank dict would
-#: have no live consumer, since the live rank maps are frozen on the ``"builtin"``
-#: provenance spelling per NFR-003).
+#: -- no separate rank map is declared here. The live provenance rank maps
+#: (``agent_profiles``/``pack_skills`` ``_LAYER_RANK``/``_TIER_RANK``) now
+#: derive their ranks from this tuple's index (#6048), so there is one ordering
+#: authority for both the tier token and the artifact provenance layer.
 PACK_TIERS: Final[tuple[str, str, str]] = (BUILT_IN, ORG, PROJECT)
 
 #: The tier-token type alias. A ``Literal`` cannot consume a runtime tuple, so

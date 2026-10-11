@@ -490,7 +490,7 @@ def build_charter_context_json(
     * ``action`` / ``mode`` — same surface as :class:`CharterContextResult`.
     * ``directives`` / ``tactics`` / ``styleguides`` / ``toolguides`` —
       action-scoped typed artifact arrays, each entry carrying a ``"source"``
-      provenance field (``"builtin"`` | ``"org"`` | ``"project"``).
+      provenance field (``"built-in"`` | ``"org"`` | ``"project"``).
     * ``all_directives`` — every directive ID exposed by the project
       governance resolver, including directives extracted from the
       project-local charter even when the action-scoped ``directives`` array

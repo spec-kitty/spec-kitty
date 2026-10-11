@@ -28,6 +28,8 @@ from typing import Any
 import yaml
 from pydantic import ValidationError as PydanticValidationError
 
+from kernel.pack_tiers import BUILT_IN
+
 from specify_cli.mission_loader.errors import (
     LoaderError,
     LoaderErrorCode,
@@ -116,7 +118,7 @@ def validate_custom_mission(
         )
 
     # Step 2: reserved-key check.
-    if selected.precedence_tier != "builtin" and is_reserved_key(mission_key):
+    if selected.precedence_tier != BUILT_IN and is_reserved_key(mission_key):
         return ValidationReport(
             discovered=selected,
             errors=[

@@ -27,6 +27,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from kernel.content_digest import sha256_digest
+from kernel.pack_tiers import BUILT_IN
 from charter.drg import DRGGraph, Relation
 from charter.offering.pack_skills.models import (
     BUILTIN_TARGET_PREFIX,
@@ -160,8 +161,8 @@ def _prepare_one(
 
 
 def _tier(provenance: str | None, skill_id: str) -> Tier:
-    if provenance == "builtin":
-        return "builtin"
+    if provenance == BUILT_IN:
+        return BUILT_IN
     if provenance == "org":
         return "org"
     if provenance == "project":
@@ -171,7 +172,7 @@ def _tier(provenance: str | None, skill_id: str) -> Tier:
 
 def _name_for(skill_id: str, tier: Tier, org_namespace: str | None, project_namespace: str | None) -> str:
     """Rendered name: bare id for built-in, ``<namespace>-<id>`` otherwise."""
-    if tier == "builtin":
+    if tier == BUILT_IN:
         return skill_id
     namespace = org_namespace if tier == "org" else project_namespace
     if not namespace:

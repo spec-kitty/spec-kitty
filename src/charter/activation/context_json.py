@@ -31,6 +31,8 @@ if TYPE_CHECKING:
 
 from ruamel.yaml.error import YAMLError
 
+from kernel.pack_tiers import BUILT_IN
+
 from charter.activation import progressive_disclosure as _pd
 from charter.bundle import CHARTER_MD, CHARTER_YAML
 from charter.activation.context_state import KITTIFY_DIRNAME
@@ -136,7 +138,7 @@ def _load_project_directives_with_source(
     ``directives_source`` is ``GovernanceResolution.metadata["directives_source"]``
     (e.g. ``"catalog_fallback+project_local"``) — the branch that resolved the
     directive set. It is distinct from the per-entry ``source`` each directive
-    entry carries (``"project"``/``"builtin"``/``"org"`` artifact origin); the
+    entry carries (``"project"``/``"built-in"``/``"org"`` artifact origin); the
     two answer different questions. Returns ``None`` for the source on any
     resolver failure — provenance-unavailable is itself an operator signal, and
     the broad-except degrade sites stay out of scope here (C-002).
@@ -219,7 +221,7 @@ def _assemble_directive_entries(
             entries.append(_local_directive_entry(directive_id, local))
             continue
         if service is None:
-            entries.append({"id": directive_id, "source": "builtin"})
+            entries.append({"id": directive_id, "source": BUILT_IN})
             continue
         entries.extend(_pd.collect_typed_artifacts(service.directives, [directive_id], kind="directive"))
     return entries

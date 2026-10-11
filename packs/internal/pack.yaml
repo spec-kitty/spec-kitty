@@ -1,0 +1,17 @@
+# Authored pack descriptor for the Spec Kitty internal (org-tier) Charter Pack
+# (FR-012, ADR 2026-08-16-3). This pack is the in-house / maintainer org pack:
+# it is loaded via .kittify/config.yaml -> charter_packs.org.packs and is NEVER
+# shipped in the wheel/sdist (C-004, tests/cross_cutting/packaging/test_packaging_safety.py).
+#
+# Unlike the built-in pack, the internal pack is UNSHARDED: it carries a single
+# drg/fragment.yaml and an org-charter.yaml active charter -- so it declares the
+# active-charter and DRG pointers explicitly here. It has NO pack-manifest.yaml.
+#
+# pack_id is a stable, minted ULID -- pinned once, immutable
+# (tests/charter_offering/test_internal_pack_identity.py guards against drift).
+pack_id: 01M4P01D5TWB5FKZGNNQG3943R
+parent_pack: null
+name: spec-kitty-internal
+pack_level: org
+active_charter: org-charter.yaml
+pack_drg: drg/fragment.yaml

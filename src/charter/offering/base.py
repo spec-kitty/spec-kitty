@@ -38,6 +38,8 @@ from pydantic import BaseModel, ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from kernel.pack_tiers import BUILT_IN
+
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.discovery_recursion import overlay_scan_is_recursive
 from charter.offering.shared.scoping import applies_to_languages_match, normalize_languages
@@ -395,8 +397,8 @@ class BaseArtifactRepository(ABC, Generic[T]):
         yaml_parser = YAML(typ="safe")
         built_in = self._load_built_in_items(yaml_parser)
         self._items = built_in.copy()
-        # Tag all built-in items as 'builtin'
-        self._provenance = dict.fromkeys(self._items, "builtin")
+        # Tag all built-in items with the canonical built-in provenance token.
+        self._provenance = dict.fromkeys(self._items, BUILT_IN)
         # Org layer overrides built-in
         self._apply_overlay_layer(
             self._org_dirs, "org", yaml_parser=yaml_parser, built_in=built_in
@@ -433,7 +435,7 @@ class BaseArtifactRepository(ABC, Generic[T]):
     def get_provenance(self, item_id: str) -> str | None:
         """Return the source layer for the given artifact ID.
 
-        Returns one of ``"builtin"``, ``"org"``, or ``"project"``, or
+        Returns one of ``"built-in"``, ``"org"``, or ``"project"``, or
         ``None`` if the artifact is not loaded.
         """
         return self._provenance.get(item_id)

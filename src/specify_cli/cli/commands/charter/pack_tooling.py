@@ -74,6 +74,17 @@ def regenerate_graph(
             "fresh."
         ),
     ),
+    pack_root: Path | None = typer.Option(
+        None,
+        "--pack-root",
+        help=(
+            "Regenerate the DRG fragments and pack manifest for the pack at this "
+            "root instead of the shipped built-in pack (e.g. a vendored or "
+            "out-of-core pack). Applies to both the write path and --check. "
+            "Defaults to the built-in pack root, leaving the no-flag behaviour "
+            "byte-identical."
+        ),
+    ),
     json_output: bool = typer.Option(
         False,
         "--json",
@@ -107,7 +118,13 @@ def regenerate_graph(
     from charter.drg import DRGValidationError
     from charter.packs import builtin_manifest_is_fresh, generate_builtin_manifest
 
-    pack_root = _built_in_pack_root()
+    # FR-013: default (no --pack-root) resolves to the built-in root, keeping the
+    # no-flag behaviour byte-identical; an explicit root targets a vendored /
+    # out-of-core pack for both the write path and --check. The ``isinstance``
+    # test (rather than ``is not None``) also covers a direct in-process call
+    # that omits the option, where the typer ``OptionInfo`` default leaks through
+    # instead of ``None``.
+    resolved_root = pack_root if isinstance(pack_root, Path) else _built_in_pack_root()
 
     if check:
         import tempfile
@@ -115,31 +132,31 @@ def regenerate_graph(
         with tempfile.TemporaryDirectory() as tmp:
             generated_dir = Path(tmp)
             try:
-                write_reference_graph_with_overlay(pack_root, generated_dir / "graph.yaml")
+                write_reference_graph_with_overlay(resolved_root, generated_dir / "graph.yaml")
             except DRGValidationError as exc:
                 _emit_regen_result(
                     status="invalid",
-                    path=pack_root,
+                    path=resolved_root,
                     json_output=json_output,
                     detail="; ".join(exc.errors),
                 )
                 raise typer.Exit(1) from exc
             # Freshness covers BOTH the DRG fragments and the generated
             # pack-manifest.yaml — either drifting registers as stale.
-            fresh = _read_graph_source(generated_dir) == _read_graph_source(pack_root) and builtin_manifest_is_fresh(pack_root)
+            fresh = _read_graph_source(generated_dir) == _read_graph_source(resolved_root) and builtin_manifest_is_fresh(resolved_root)
         _emit_regen_result(
             status="fresh" if fresh else "stale",
-            path=pack_root,
+            path=resolved_root,
             json_output=json_output,
         )
         raise typer.Exit(0 if fresh else 1)
 
     try:
-        write_reference_graph_with_overlay(pack_root, pack_root / "graph.yaml")
+        write_reference_graph_with_overlay(resolved_root, resolved_root / "graph.yaml")
     except DRGValidationError as exc:
         _emit_regen_result(
             status="invalid",
-            path=pack_root,
+            path=resolved_root,
             json_output=json_output,
             detail="; ".join(exc.errors),
         )
@@ -147,9 +164,9 @@ def regenerate_graph(
 
     # Regenerate the built-in pack manifest in the same deterministic pass so
     # the shipped DRG fragments and the constituent inventory never drift apart.
-    generate_builtin_manifest(pack_root)
+    generate_builtin_manifest(resolved_root)
 
-    _emit_regen_result(status="written", path=pack_root, json_output=json_output)
+    _emit_regen_result(status="written", path=resolved_root, json_output=json_output)
     raise typer.Exit(0)
 
 

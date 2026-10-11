@@ -32,6 +32,7 @@ gate lives at
 
 from __future__ import annotations
 
+import warnings
 from collections.abc import Mapping
 from copy import deepcopy
 from pathlib import Path
@@ -43,6 +44,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from charter.offering.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
 from charter.offering.drg.models import NodeKind, Relation
 from kernel.charter_pack_paths import pack_drg_fragment
+from kernel.pack_tiers import ORG
 
 __all__ = [
     "AUGMENTATION_ELIGIBLE_KINDS",
@@ -509,6 +511,60 @@ def _read_fragment_yaml(pack_name: str, fragment_yaml: Path) -> Any:
         ) from exc
 
 
+#: The authored descriptor file read by the org load path for its level check.
+_PACK_DESCRIPTOR_FILENAME = "pack.yaml"
+
+
+def _check_org_pack_level(pack_root: Path) -> None:
+    """Read ``pack.yaml`` and run the FR-006/FR-007 level checks for the org position.
+
+    Bounded, cross-layer-free: reads the raw ``pack_level`` value rather than
+    importing the descriptor model (which would couple this ``drg`` loader to
+    the ``packs`` schema). A declared level other than ``org`` is a
+    ``PACK_LEVEL_MISMATCH`` refusal (:class:`OrgPackSchemaError`, attributed to
+    ``pack.yaml``); an absent level — whether the ``pack.yaml`` omits
+    ``pack_level`` or there is no ``pack.yaml`` at all — is a
+    ``PACK_LEVEL_MISSING`` warning during the deprecation window (the load
+    proceeds). An unreadable ``pack.yaml`` is unchanged — the pack validator
+    owns descriptor parse faults.
+    """
+    pack_yaml = pack_root / _PACK_DESCRIPTOR_FILENAME
+    if not pack_yaml.is_file():
+        from charter.offering.packs.pack_descriptor import (  # noqa: PLC0415 — lazy: single authority for the code strings, kept off this cold loader's import surface
+            PACK_LEVEL_MISSING,
+        )
+
+        warnings.warn(
+            f"{PACK_LEVEL_MISSING}: {pack_root} (org pack) has no '{_PACK_DESCRIPTOR_FILENAME}'; "
+            f"add one declaring 'pack_level: {ORG}' (required once the deprecation window closes)",
+            stacklevel=2,
+        )
+        return
+    try:
+        raw = yaml.safe_load(pack_yaml.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError):
+        return
+    if not isinstance(raw, dict):
+        return
+    from charter.offering.packs.pack_descriptor import (  # noqa: PLC0415 — lazy: single authority for the code strings, kept off this cold loader's import surface
+        PACK_LEVEL_MISMATCH,
+        PACK_LEVEL_MISSING,
+    )
+
+    level = raw.get("pack_level")
+    if level is None:
+        warnings.warn(
+            f"{PACK_LEVEL_MISSING}: {pack_yaml} has no 'pack_level'; add 'pack_level: {ORG}' (required once the deprecation window closes)",
+            stacklevel=2,
+        )
+        return
+    if level != ORG:
+        raise OrgPackSchemaError(
+            f"{PACK_LEVEL_MISMATCH}: {pack_yaml} declares pack_level {level!r} but it is configured as a {ORG!r} org pack",
+            source_file=pack_yaml,
+        )
+
+
 def load_org_pack(
     pack_name: str,
     pack_root: Path,
@@ -559,6 +615,8 @@ def load_org_pack(
     """
     if not pack_root.is_dir():
         raise OrgPackMissingError(pack_name, pack_root)
+
+    _check_org_pack_level(pack_root)
 
     fragment_yaml = pack_drg_fragment(pack_root)
     if not fragment_yaml.exists():

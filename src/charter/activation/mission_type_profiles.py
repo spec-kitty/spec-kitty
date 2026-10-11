@@ -60,6 +60,8 @@ from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from kernel.pack_tiers import BUILT_IN
+
 from charter.activation.action_grain import aggregate_action_grain
 from charter.activation.activations import ActivationEntry
 from charter.bundle import CHARTER_YAML
@@ -354,7 +356,7 @@ class ResolvedGovernance:
     selected_toolguides: list[str] = field(default_factory=list)
     selected_procedures: list[str] = field(default_factory=list)
     selected_agent_profiles: list[str] = field(default_factory=list)
-    provenance: str = "builtin"
+    provenance: str = BUILT_IN
 
     @classmethod
     def from_grains(
@@ -362,7 +364,7 @@ class ResolvedGovernance:
         *,
         type_grain: Mapping[str, list[str]],
         action_grain: Mapping[str, list[str]],
-        provenance: str = "builtin",
+        provenance: str = BUILT_IN,
     ) -> ResolvedGovernance:
         """Union ``type_grain`` ∪ ``action_grain`` into ordered selections.
 
@@ -726,7 +728,7 @@ def _neutral_context() -> ResolvedMissionType:
         mission_type=None,
         governance_text="",
         action_sequence=[],
-        provenance="builtin",
+        provenance=BUILT_IN,
         # Typeless bundle: all four lazy slots stay at their neutral defaults
         # (``governance`` -> ``None``, ``expected_artifacts`` -> ``None``,
         # ``step_contracts`` -> ``[]``, ``template_set`` -> ``None``).

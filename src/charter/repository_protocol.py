@@ -42,5 +42,5 @@ class ArtifactRepository(Protocol[T]):
         ...
 
     def get_provenance(self, artifact_id: str) -> str | None:  # pragma: no cover -- Protocol stub, never executed
-        """Return the source layer (``"builtin"``/``"org"``/``"project"``) for *artifact_id*, or ``None``."""
+        """Return the source layer (``"built-in"``/``"org"``/``"project"``) for *artifact_id*, or ``None``."""
         ...

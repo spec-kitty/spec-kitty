@@ -12,6 +12,8 @@ from pathlib import Path
 import yaml
 from pydantic import BaseModel, ConfigDict, Field
 
+from kernel.pack_tiers import BUILT_IN
+
 from runtime.next._internal_runtime.schema import (
     DiscoveredMission,
     MissionPackManifest,
@@ -239,7 +241,7 @@ def _build_tiers(context: DiscoveryContext) -> list[tuple[str, str, list[Path]]]
             )
         )
 
-    tiers.append(("builtin", "builtin_roots", context.builtin_roots))
+    tiers.append((BUILT_IN, "builtin_roots", context.builtin_roots))
     return tiers
 
 

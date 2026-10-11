@@ -26,6 +26,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from kernel.pack_tiers import BUILT_IN
+
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.assets.models import AssetManifest
 from charter.offering.pack_paths import built_in_dir
@@ -162,7 +164,7 @@ class AssetRepository(BaseArtifactRepository[AssetManifest]):
         anchor at the overlay ``assets/`` directory that supplied the id.
         """
         provenance = self.get_provenance(asset_id)
-        if provenance == "builtin":
+        if provenance == BUILT_IN:
             return self._built_in_dir.parent
         if provenance == "project" and self._project_dir is not None:
             return self._project_dir

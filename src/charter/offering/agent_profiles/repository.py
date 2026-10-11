@@ -19,6 +19,8 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from kernel.pack_tiers import BUILT_IN, PACK_TIERS
+
 from charter.offering.discovery_recursion import overlay_scan_is_recursive
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.loader import DRGLoadError, load_built_in_graph
@@ -39,8 +41,9 @@ _AGENT_PROFILE_GLOB = "*.agent.yaml"
 
 #: Layer ordinals used to sort skipped-profile diagnostics deterministically
 #: (NFR-002). Built-in records come first, then org, then project; within a
-#: layer records are ordered by path.
-_LAYER_RANK: dict[str, int] = {"builtin": 0, "org": 1, "project": 2}
+#: layer records are ordered by path. Derived from the single kernel authority
+#: (#6048) so the provenance layer order cannot drift from the tier tuple.
+_LAYER_RANK: dict[str, int] = {tier: rank for rank, tier in enumerate(PACK_TIERS)}
 
 
 _URN_SEP = ":"
@@ -360,7 +363,7 @@ class AgentProfileRepository:
         built_in_profiles = self._load_layer(
             yaml,
             directory=self._built_in_dir,
-            layer="builtin",
+            layer=BUILT_IN,
             built_in_profiles={},
             recursive=True,
         )
@@ -462,7 +465,7 @@ class AgentProfileRepository:
         ``self._source_paths`` writes and ``loaded`` bookkeeping.
         """
         try:
-            data = parse_shipped_yaml(yaml_file, yaml.load, variant="safe") if layer == "builtin" else yaml.load(yaml_file)
+            data = parse_shipped_yaml(yaml_file, yaml.load, variant="safe") if layer == BUILT_IN else yaml.load(yaml_file)
         except (YAMLError, OSError) as exc:
             self._record_skip(
                 layer=layer,
@@ -523,7 +526,7 @@ class AgentProfileRepository:
             return None
 
         try:
-            if layer != "builtin" and profile_id in built_in_profiles:
+            if layer != BUILT_IN and profile_id in built_in_profiles:
                 profile = self._merge_profiles(built_in_profiles[profile_id], data)
             else:
                 profile = AgentProfile.model_validate(data)
@@ -551,7 +554,7 @@ class AgentProfileRepository:
             self._scope_filtered_ids.add(profile_id)
             return None
 
-        if layer != "builtin":
+        if layer != BUILT_IN:
             self._record_profile_collision_if_present(
                 profile_id=profile.profile_id,
                 higher_layer=layer,
@@ -630,7 +633,7 @@ class AgentProfileRepository:
     def get_provenance(self, profile_id: str) -> str | None:
         """Return the source layer for the given profile ID.
 
-        Returns one of ``"builtin"``, ``"org"``, or ``"project"``, or
+        Returns one of ``"built-in"``, ``"org"``, or ``"project"``, or
         ``None`` if the profile is not loaded.
         """
         return self._provenance.get(profile_id)
@@ -1047,7 +1050,7 @@ class AgentProfileRepository:
                     # Record rather than silently swallow the failed revert so the
                     # skipped built-in remains observable (FR-005/006/007).
                     self._record_skip(
-                        layer="builtin",
+                        layer=BUILT_IN,
                         path=built_in_yaml,
                         profile_id=profile_id,
                         error_summary=f"Failed to revert to built-in during delete(): {exc}",

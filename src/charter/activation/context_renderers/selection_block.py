@@ -396,7 +396,7 @@ def _collect_org_source_map(
     can call :func:`_provenance_suffix` without a repository walk
     (R-3 mitigation: ``Provenance source map computed N times per build``).
 
-    The repository tracks provenance as one of ``"builtin"`` / ``"org"`` /
+    The repository tracks provenance as one of ``"built-in"`` / ``"org"`` /
     ``"project"`` (see :meth:`charter.offering.base.BaseArtifactRepository.get_provenance`);
     today there is no per-pack attribution at the repository layer.  When
     that lands, the value here will gain pack-name semantics — for now

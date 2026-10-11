@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from kernel.pack_tiers import BUILT_IN
+
 from charter.activation.active_charter_service_builder import build_active_charter_service
 from charter.profiles import AgentProfile, AgentProfileRepository
 
@@ -13,8 +15,9 @@ from specify_cli.invocation.errors import ProfileNotFoundError
 if TYPE_CHECKING:
     from charter.activation.resolver import ActiveCharterService
 
-# Provenance layers exposed by ``AgentProfileRepository.get_provenance``.
-_LAYER_BUILTIN = "builtin"
+# Provenance layers exposed by ``AgentProfileRepository.get_provenance``. The
+# built-in token derives from the single kernel authority (#6048).
+_LAYER_BUILTIN = BUILT_IN
 _LAYER_ORG = "org"
 _LAYER_PROJECT = "project"
 

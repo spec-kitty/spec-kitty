@@ -21,12 +21,18 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
+from kernel.pack_tiers import BUILT_IN, PACK_TIERS
+
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.models import Relation
 
 if TYPE_CHECKING:
     from charter.repository_protocol import ArtifactRepository
     from charter.offering.drg.models import DRGEdge, DRGGraph
+
+#: Valid artifact provenance sources, derived from the single kernel authority
+#: (#6048) so the serialized ``source`` field cannot drift from the tier tuple.
+_VALID_SOURCES: frozenset[str] = frozenset(PACK_TIERS)
 
 #: The stated default rendered for an *uncovered* ``suggests`` edge — one of the
 #: 118 (of 337) that carry no authored ``when`` (ADR 2026-07-28-1). A link with
@@ -222,7 +228,7 @@ def artifact_to_dict(artifact: object, source: str) -> dict[str, object]:
     summary = getattr(artifact, "intent", None) or getattr(artifact, "purpose", None)
     out: dict[str, object] = {
         "id": item_id if isinstance(item_id, str) else "",
-        "source": source if source in {"builtin", "org", "project"} else "builtin",
+        "source": source if source in _VALID_SOURCES else BUILT_IN,
     }
     if isinstance(title, str) and title:
         out["title"] = title
@@ -287,9 +293,9 @@ def collect_typed_artifacts(
     for artifact_id in artifact_ids:
         try:
             artifact = repository.get(artifact_id)
-            source = repository.get_provenance(artifact_id) or "builtin"
+            source = repository.get_provenance(artifact_id) or BUILT_IN
         except (AttributeError, KeyError):
-            artifact, source = None, "builtin"
+            artifact, source = None, BUILT_IN
         entry: dict[str, object] = {"id": artifact_id, "source": source} if artifact is None else artifact_to_dict(artifact, source)
         _decorate_entry(
             entry,

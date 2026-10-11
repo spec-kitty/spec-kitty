@@ -9,14 +9,19 @@ into skipped-file diagnostics.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Final, Literal
+from typing import Any, Final
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from kernel.pack_tiers import BUILT_IN, PackTier
+
 from charter.offering.pack_skills.models import PackSkill, SkillInvocation, SkillParameter
 
-Tier = Literal["builtin", "org", "project"]
+#: The pack-skill tier type. Aliased to the single kernel authority (#6048) so
+#: the tier vocabulary is the canonical ``"built-in"``/``"org"``/``"project"``
+#: spelling and never a hand-authored restatement.
+Tier = PackTier
 
 #: Name prefixes reserved for built-in skills (ADR "Namespaces and trust").
 RESERVED_PREFIXES: Final[tuple[str, ...]] = ("spk-", "spec-kitty-", "spec-kitty.")
@@ -54,7 +59,7 @@ def validate_pack_skill(
     # body itself; the base skill's own file is validated when it loads.
     needs_body = skill.form == "prompt" and not skill.enhances
     body_text = _read_body(skill, skill_file) if needs_body else None
-    if tier == "builtin":
+    if tier == BUILT_IN:
         return
     _check_reserved_prefix(skill, namespace)
     _check_no_scripts_dir(skill, skill_file)

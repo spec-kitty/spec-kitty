@@ -98,8 +98,15 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 from charter.offering.artifact_kinds import ArtifactKind
-from charter.offering.packs.pack_descriptor import load_pack_descriptor
+from charter.offering.packs.pack_descriptor import (
+    PACK_LEVEL_MISMATCH,
+    PACK_LEVEL_MISSING,
+    PackDescriptor,
+    load_pack_descriptor,
+)
+from charter.offering.packs.pack_layout import PackLayoutError, resolve_pack_layout
 from charter.offering.packs.retired_fields import RETIRED_PACK_FIELD, RetiredPackFieldError
+from kernel.pack_tiers import ORG, PackTier
 from charter.offering.drg.merge import EndpointResolutionError, org_local_endpoint_map, resolve_edge_endpoint
 from charter.offering.drg.validator import EndpointEdge, EndpointGraph, dangling_endpoints
 from charter.offering.drg.override_policy import (
@@ -409,11 +416,21 @@ def validate_pack(
     *,
     check_drg_root: bool = True,
     org_charter_check: OrgCharterCheck | None = None,
+    expected_level: PackTier | None = None,
 ) -> ValidationResult:
     """Validate a charter pack directory.
 
     Returns a :class:`ValidationResult` with ``ok=False`` if any error was
     found.  Advisories do not affect ``ok``.
+
+    ``expected_level`` (FR-006/FR-008, default ``None``): the *configured
+    position* this pack was loaded from — ``built-in`` for the built-in root,
+    ``org`` for each ``charter_packs.org.packs[]`` entry, ``project`` for the
+    project pack. A position-aware caller passes it so a declared ``pack_level``
+    that disagrees is refused (``PACK_LEVEL_MISMATCH``). On a bare path (the
+    default ``None``) the mismatch check is skipped fail-closed — never a silent
+    wrong-level pass — while ``PACK_LEVEL_MISSING`` and the schema checks still
+    run.
 
     ``check_drg_root`` (FR-004, default ``True``): when ``True``, also runs
     :func:`_check_drg_root_graph_missing` — a pack whose DRG content lives
@@ -444,6 +461,11 @@ def validate_pack(
             )
         )
         return ValidationResult(ok=False, errors=errors, advisories=advisories)
+
+    # FR-009: resolve the pack's layout (active-charter + DRG source) through
+    # the ONE seam. For a pointer-less / descriptor-less pack the seam returns
+    # the kernel convention, so every lookup below is byte-identical to before.
+    active_charter_path, drg_fragment_path = _resolve_layout(pack_dir)
 
     registry = artifact_schema_registry()
 
@@ -490,7 +512,7 @@ def validate_pack(
             errors.append(_builtin_unavailable_issue(drg_dir, exc))
         else:
             authored_errors, authored_advisories = _validate_authored_endpoints(
-                pack_drg_fragment(pack_dir),
+                drg_fragment_path,
                 org_fragment,
                 trusted_artifact_urns,
                 endpoint_catalog,
@@ -560,15 +582,19 @@ def validate_pack(
         errors.extend(sanction_errors)
         advisories.extend(sanction_advisories)
 
-    # The authored pack.yaml descriptor (a retired field is RETIRED_PACK_FIELD, #3732).
-    errors.extend(_validate_pack_descriptor(pack_dir))
+    # The authored pack.yaml descriptor (a retired field is RETIRED_PACK_FIELD,
+    # #3732; a wrong/absent pack_level is PACK_LEVEL_MISMATCH/MISSING, FR-006/007).
+    # A PACK_LEVEL_MISSING warning is an advisory during the window, so route by
+    # severity rather than treating every descriptor finding as an error.
+    for issue in _validate_pack_descriptor(pack_dir, expected_level=expected_level):
+        (errors if issue.severity == "error" else advisories).append(issue)
 
     # FR-019: activation presets under presets/ (format, id resolution, kind gate).
     errors.extend(_validate_presets(pack_dir, org_fragment))
 
     # T044: the optional org-charter.yaml leg runs through the caller's hook;
     # without one, an org-charter.yaml is an explicit error, never skipped.
-    advisories_or_errors = _check_org_charter(pack_dir, pack_artifact_ids_per_type.get("directives", set()), org_charter_check)
+    advisories_or_errors = _check_org_charter(active_charter_path, pack_artifact_ids_per_type.get("directives", set()), org_charter_check)
     for issue in advisories_or_errors:
         if issue.severity == "error":
             errors.append(issue)
@@ -673,10 +699,23 @@ def _validate_presets(pack_dir: Path, fragment: OrgDRGFragment | None) -> list[V
 _PACK_DESCRIPTOR_FILENAME = "pack.yaml"
 _PACK_DESCRIPTOR_ARTIFACT_TYPE = "pack"
 
+#: The single deprecation switch (FR-007, C-006). While ``False`` a ``pack.yaml``
+#: that omits ``pack_level`` is a WARNING; flip it to ``True`` to make the gap a
+#: hard refusal when the window closes. Both paths stay testable — no invented
+#: release anchor is hardcoded anywhere else.
+_PACK_LEVEL_MISSING_IS_ERROR = False
 
-def _descriptor_issue(path: Path, message: str, category: str, artifact_id: str | None = None) -> ValidationIssue:
+#: The tier a field-less ``pack.yaml`` is loaded under when no configured
+#: position is known (a bare-path ``validate``). It only lets the strict model
+#: construct so the rest of descriptor validation can run; with no position the
+#: mismatch check is skipped anyway (fail-closed, never a silent wrong-level
+#: pass), so the value never produces a verdict.
+_WINDOW_DEFAULT_LEVEL: PackTier = ORG
+
+
+def _descriptor_issue(path: Path, message: str, category: str, artifact_id: str | None = None, *, severity: str = "error") -> ValidationIssue:
     return ValidationIssue(
-        severity="error",
+        severity=severity,
         artifact_type=_PACK_DESCRIPTOR_ARTIFACT_TYPE,
         artifact_id=artifact_id,
         file=str(path),
@@ -685,27 +724,110 @@ def _descriptor_issue(path: Path, message: str, category: str, artifact_id: str 
     )
 
 
-def _validate_pack_descriptor(pack_dir: Path) -> list[ValidationIssue]:
+def check_pack_level(descriptor: PackDescriptor, expected_level: PackTier | None, *, file: Path) -> ValidationIssue | None:
+    """Pure ``PACK_LEVEL_MISMATCH`` predicate (FR-006).
+
+    Returns an error issue when the descriptor's declared ``pack_level``
+    disagrees with the *configured position* (*expected_level*), naming the
+    file, the declared level and the configured level. Returns ``None`` when the
+    levels agree **or** when *expected_level* is ``None`` — a bare path with no
+    position context: the mismatch is not computable, so it is skipped
+    (fail-closed; the caller never reads this as "the level is fine").
+    """
+    if expected_level is None or descriptor.pack_level == expected_level:
+        return None
+    return _descriptor_issue(
+        file,
+        f"{PACK_LEVEL_MISMATCH}: {_PACK_DESCRIPTOR_FILENAME} declares pack_level {descriptor.pack_level!r} but it is configured as a {expected_level!r} pack",
+        PACK_LEVEL_MISMATCH,
+    )
+
+
+def _pack_level_absent(path: Path) -> bool:
+    """Return ``True`` when *path* parses as a mapping that omits ``pack_level``.
+
+    A read/parse fault returns ``False``: that is a ``parse_error``, surfaced by
+    the descriptor load below, not a missing-field warning.
+    """
+    try:
+        raw = YAML(typ="safe").load(path.read_text(encoding="utf-8"))
+    except (YAMLError, OSError):
+        return False
+    return isinstance(raw, dict) and "pack_level" not in raw
+
+
+def _pack_level_missing_issue(path: Path) -> ValidationIssue:
+    """A ``PACK_LEVEL_MISSING`` finding: advisory now, error behind the switch."""
+    return _descriptor_issue(
+        path,
+        f"{PACK_LEVEL_MISSING}: {_PACK_DESCRIPTOR_FILENAME} has no 'pack_level'; "
+        "add 'pack_level: built-in|org|project' (required once the deprecation window closes)",
+        PACK_LEVEL_MISSING,
+        severity="error" if _PACK_LEVEL_MISSING_IS_ERROR else "advisory",
+    )
+
+
+def _validate_pack_descriptor(pack_dir: Path, expected_level: PackTier | None = None) -> list[ValidationIssue]:
     """Validate the pack's authored ``pack.yaml``, when it has one.
 
-    A retired field is one ``RETIRED_PACK_FIELD`` error naming the file, the
-    field and its replacement (the message of
-    :class:`~charter.offering.packs.retired_fields.RetiredPackFieldError`); any
-    other schema failure is ``schema_invalid`` and an unparseable or unreadable
-    file is ``parse_error``.
+    Branches diagnostics on the DECLARED ``pack_level`` and the configured
+    position (*expected_level*, FR-006/FR-008):
+
+    * a retired field is one ``RETIRED_PACK_FIELD`` error;
+    * an absent ``pack_level`` is ``PACK_LEVEL_MISSING`` (WARN during the
+      window, error behind :data:`_PACK_LEVEL_MISSING_IS_ERROR`) and loading
+      still proceeds (window tolerance, FR-007);
+    * a declared level that disagrees with *expected_level* is
+      ``PACK_LEVEL_MISMATCH``; on a bare path (no position) the mismatch check
+      is skipped fail-closed;
+    * any other schema failure is ``schema_invalid`` and an unparseable or
+      unreadable file is ``parse_error``.
     """
     path = pack_dir / _PACK_DESCRIPTOR_FILENAME
     if not path.is_file():
         return []
+    issues: list[ValidationIssue] = []
+    inferred = expected_level
+    if _pack_level_absent(path):
+        issues.append(_pack_level_missing_issue(path))
+        inferred = expected_level or _WINDOW_DEFAULT_LEVEL
     try:
-        load_pack_descriptor(path)
+        descriptor = load_pack_descriptor(path, inferred_level=inferred)
     except RetiredPackFieldError as exc:
         return [_descriptor_issue(path, f"{RETIRED_PACK_FIELD}: {exc}", RETIRED_PACK_FIELD, artifact_id=exc.field)]
     except ValidationError as exc:
         return [_descriptor_issue(path, f"{_PACK_DESCRIPTOR_FILENAME} schema validation failed: {exc.errors()[0].get('msg', exc)}", "schema_invalid")]
     except (YAMLError, OSError) as exc:
         return [_descriptor_issue(path, f"unreadable {_PACK_DESCRIPTOR_FILENAME}: {exc}", "parse_error")]
-    return []
+    mismatch = check_pack_level(descriptor, expected_level, file=path)
+    if mismatch is not None:
+        issues.append(mismatch)
+    return issues
+
+
+def _resolve_layout(pack_dir: Path) -> tuple[Path | None, Path]:
+    """Resolve ``(active_charter_path, drg_fragment_path)`` through the FR-009 seam.
+
+    Loads the descriptor tolerantly (window default level, so a field-less
+    ``pack.yaml`` still resolves) and delegates to :func:`resolve_pack_layout`.
+    Falls back to the kernel convention when the pack has no descriptor, the
+    descriptor is unloadable, or a pointer escapes (the escape is reported
+    through the descriptor leg). The DRG fragment-file consumers want a *file*:
+    the built-in sharded-root sentinel (the seam returning the pack root itself)
+    falls back to the ``drg/fragment.yaml`` convention so built-in validation is
+    byte-identical.
+    """
+    convention = (pack_org_charter(pack_dir), pack_drg_fragment(pack_dir))
+    path = pack_dir / _PACK_DESCRIPTOR_FILENAME
+    if not path.is_file():
+        return convention
+    try:
+        descriptor = load_pack_descriptor(path, inferred_level=_WINDOW_DEFAULT_LEVEL)
+        active_charter_path, drg_path = resolve_pack_layout(pack_dir, descriptor)
+    except (ValidationError, RetiredPackFieldError, YAMLError, OSError, PackLayoutError):
+        return convention
+    drg_fragment_path = drg_path if drg_path != pack_dir else pack_drg_fragment(pack_dir)
+    return active_charter_path, drg_fragment_path
 
 
 # ---------------------------------------------------------------------------
@@ -1948,13 +2070,18 @@ ORG_CHARTER_UNCHECKED_CATEGORY = "org_charter_unchecked"
 
 
 def _check_org_charter(
-    pack_dir: Path,
+    charter_path: Path | None,
     pack_directive_ids: AbstractSet[str],
     org_charter_check: OrgCharterCheck | None,
 ) -> list[ValidationIssue]:
-    """Run the org-charter leg, or record that it could not run."""
-    charter_path = pack_org_charter(pack_dir)
-    if not charter_path.exists():
+    """Run the org-charter leg, or record that it could not run.
+
+    *charter_path* is the active-charter path resolved by the FR-009 layout
+    seam (``None`` for a level whose convention ships no active charter, e.g.
+    built-in / project). ``None`` or an absent file means there is no charter to
+    validate.
+    """
+    if charter_path is None or not charter_path.exists():
         return []
     if org_charter_check is None:
         return [

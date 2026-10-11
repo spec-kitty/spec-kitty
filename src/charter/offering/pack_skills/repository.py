@@ -21,6 +21,8 @@ from pathlib import Path
 from pydantic import ValidationError
 from pydantic_core import InitErrorDetails
 
+from kernel.pack_tiers import BUILT_IN, PACK_TIERS
+
 from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.base import BaseArtifactRepository
 from charter.offering.pack_paths import built_in_dir
@@ -32,7 +34,9 @@ from charter.offering.pack_skills.validation import (
     validate_pack_skill,
 )
 
-_TIER_RANK: dict[str, int] = {"builtin": 0, "org": 1, "project": 2}
+#: Tier ordinals derived from the single kernel authority (#6048) so the
+#: pack-skill tier rank cannot drift from the canonical tier tuple.
+_TIER_RANK: dict[str, int] = {tier: rank for rank, tier in enumerate(PACK_TIERS)}
 
 
 class PackSkillConflictError(RuntimeError):
@@ -83,7 +87,7 @@ class PackSkillRepository(BaseArtifactRepository[PackSkill]):
 
     def _tier_of(self, yaml_file: Path) -> Tier:
         if yaml_file.is_relative_to(self._built_in_dir):
-            return "builtin"
+            return BUILT_IN
         if self._project_dir is not None and yaml_file.is_relative_to(self._project_dir):
             return "project"
         return "org"
@@ -139,7 +143,7 @@ class PackSkillRepository(BaseArtifactRepository[PackSkill]):
         if augmenter.enhances:
             resolved = apply_enhancement(base, augmenter)
         else:
-            if base_layer == "builtin":
+            if base_layer == BUILT_IN:
                 raise PackSkillViolation(
                     f"skill {augmenter.id!r}: overriding built-in skill {target_id!r} requires the replaceable-builtins allowlist, which skills do not support yet"
                 )

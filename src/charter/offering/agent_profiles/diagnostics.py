@@ -23,7 +23,7 @@ class SkippedProfile:
     """A single agent-profile file that was skipped during repository load.
 
     Attributes:
-        layer: The Charter Pack layer the file belongs to — one of ``"builtin"``,
+        layer: The Charter Pack layer the file belongs to — one of ``"built-in"``,
             ``"org"``, or ``"project"``.
         path: Absolute or repository-relative path of the skipped file, as a
             string (stable across processes for deterministic comparison).

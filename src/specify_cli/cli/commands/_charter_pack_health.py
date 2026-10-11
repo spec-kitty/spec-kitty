@@ -26,6 +26,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from kernel.pack_tiers import PACK_TIERS
+
 from charter.profiles import SkippedProfile
 
 __all__ = [
@@ -38,8 +40,10 @@ __all__ = [
     "SkippedPackSkill",
 ]
 
-#: Operator-facing reading order for doctrine layers.
-_LAYER_ORDER: tuple[str, ...] = ("builtin", "org", "project")
+#: Operator-facing reading order for doctrine layers. Derived from the single
+#: kernel authority (#6048): the tier tuple is already in precedence order
+#: (built-in < org < project), which is also the operator reading order.
+_LAYER_ORDER: tuple[str, ...] = tuple(PACK_TIERS)
 
 
 def _skipped_to_dict(skipped: SkippedProfile) -> dict[str, object]:
@@ -63,7 +67,7 @@ class PackHealth:
     Attributes:
         pack_id: Stable identifier for the surface (the layer name, since
             agent-profile health is attributed per layer, not per org pack).
-        layer: One of ``"builtin"``, ``"org"``, ``"project"``.
+        layer: One of ``"built-in"``, ``"org"``, ``"project"``.
         discovered_count: Profile files discovered for this layer
             (valid + invalid).
         valid_count: Profile files that loaded successfully for this layer.

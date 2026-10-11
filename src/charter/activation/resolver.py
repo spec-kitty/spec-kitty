@@ -370,7 +370,7 @@ class ActiveCharterService:
           applies on every read, including reads that follow a mutation.
           Mutation capability and activation filtering are orthogonal.
         * ``get_provenance()`` is a read-only lookup on the raw repository;
-          it answers "which layer supplied this artifact" (``"builtin"`` /
+          it answers "which layer supplied this artifact" (``"built-in"`` /
           ``"org"`` / ``"project"``), a question the activation filter does
           not answer and is not gated by it.
         * ``resolve_profile()``'s ``specializes_from`` lineage traversal

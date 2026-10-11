@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 from charter.bundle import CHARTER_YAML
 from charter.drg import LAYERED_REPOSITORY_KIND_PLURALS
 from kernel.charter_pack_paths import PROJECT_PACK_ROOT_POSIX, pack_org_charter, project_pack_root
+from kernel.pack_tiers import BUILT_IN
 from ._profile_health_render import _SELECTION_KIND_PLURALS
 
 logger = logging.getLogger(__name__)
@@ -1037,8 +1038,8 @@ def _resolve_artifact_source(
             provenance = repo.get_provenance(item_id)
         except (AttributeError, KeyError):
             provenance = None
-        if provenance == "builtin":
-            return "built-in"
+        if provenance == BUILT_IN:
+            return BUILT_IN
         if provenance == "project":
             return "project"
         if provenance == "org":
