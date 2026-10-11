@@ -3196,19 +3196,29 @@ def _collect_authored(
             )
         # Authorship (#5968): the squash blob-attribution axis attributes a
         # target blob to the claim when it is some approved lane's authored
-        # content. Bound each lane's authorship to its OWN creation base
+        # content. A DEPENDENT lane fast-forwards its dependency's commits onto
+        # its own first-parent spine at implement time; when the dependency is
+        # REWRITTEN (reset/amend) and re-approved after the fork, that stale
+        # inherited copy is no longer reachable from the re-approved dependency
+        # but still rides the dependent lane's spine, so the default squash
+        # lands it and the axis would attribute it to the dependent lane. Bound
+        # such a lane's authorship to its OWN creation base
         # (``first_governed_open_stamp``, carried on ``presence.lane_bases``):
-        # a commit a dependent lane fast-forwarded in before its own work began
-        # is the dependency's authorship, never this lane's. Measuring from the
-        # lane's own base rather than the dependency's current tip catches a
-        # dependency REWRITTEN (reset/amend) and re-approved after the fork — the
-        # stale inherited copy is no longer reachable from the re-approved
-        # dependency, but it IS reached by this lane's own base, so it is
-        # dropped here and the rejected content becomes unattributable. Shrinking
-        # the authorship is the fail-closed direction (never attributes more).
+        # everything that base reaches predates the lane's own work and is the
+        # dependency's authorship, never this lane's. Measuring from the lane's
+        # own base rather than the dependency's current tip is what catches the
+        # rewrite. Shrinking the authorship is the fail-closed direction (never
+        # attributes more).
+        #
+        # Only lanes that DECLARE a dependency are bounded: an independent
+        # lane's first-parent spine is entirely its own authorship, with nothing
+        # inherited to exclude, so bounding it could only wrongly drop its own
+        # content (e.g. when its first-claim stamp was recorded at a later tip
+        # rather than the creation base). Gating on ``depends_on_lanes`` keeps
+        # the fix to the exact shape it closes.
         authored = full_authored
         lane_blobs, lane_deletions = full_blobs, full_deletions
-        lane_own_base = presence.lane_bases.get(lane.lane_id) if (presence is not None and not is_planning_lane(lane)) else None
+        lane_own_base = presence.lane_bases.get(lane.lane_id) if (presence is not None and not is_planning_lane(lane) and lane.depends_on_lanes) else None
         if lane_own_base is not None:
             own = lane_own_commits(repo_root, base, full_authored, [lane_own_base])
             if len(own) != len(full_authored):
