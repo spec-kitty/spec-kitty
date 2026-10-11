@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from specify_cli.status_lanes import CANONICAL_LANES
+
 from .models import Lane, NON_DISPLAY_LANES
 
 
@@ -17,10 +19,18 @@ class EventLogMergeError(Exception):
 # tell a backward (rejection/revert) move from forward progress. ``blocked`` and
 # ``canceled`` are non-linear and carry no forward rank; the two non-display
 # sentinels (``genesis``/``uninitialized``) never appear on a transition edge.
+#
+# The forward order is sourced from ``CANONICAL_LANES`` (the declared ordered
+# lane authority in ``status_lanes``), NOT from the ``Lane`` enum's member
+# declaration order. Keying the rank off enum order would make a silent,
+# load-bearing assumption: an enum reorder would misclassify a backward move as
+# forward, ``_is_decision_destination`` would return False, and the #5967 fork
+# this detector exists to catch would be silently merged (exit 0) again.
 _NON_LINEAR_LANES: frozenset[Lane] = NON_DISPLAY_LANES | {Lane.BLOCKED, Lane.CANCELED}
+_NON_LINEAR_LANE_VALUES: frozenset[str] = frozenset(lane.value for lane in _NON_LINEAR_LANES)
 _FORWARD_RANK: dict[str, int] = {
-    lane.value: rank
-    for rank, lane in enumerate(lane for lane in Lane if lane not in _NON_LINEAR_LANES)
+    lane: rank
+    for rank, lane in enumerate(lane for lane in CANONICAL_LANES if lane not in _NON_LINEAR_LANE_VALUES)
 }
 
 
@@ -106,6 +116,16 @@ def detect_concurrent_fork(
     concurrent work on DIFFERENT work packages are likewise not forks. Reported,
     not resolved: the caller fails the merge so git leaves a conflict for a human
     (the safe pre-#5759 behaviour). Returns ``None`` when there is no such fork.
+
+    Backstop, retire-able: this git-merge-driver conflict is defense-in-depth
+    at a different layer from the causal root fix in the status-diary reducer
+    (``spec_kitty_events.diary`` from-lane continuity, spec-kitty#5967 /
+    spec-kitty-events#77+#78, adopted at the ``>=10.4.2`` floor via spec-kitty
+    PR #6039). The reducer orders a merged fork correctly at READ time; this
+    detector conflicts the dangerous fold at ``git pull`` time before any read.
+    Both are intentionally kept. When the events floor is confidently past the
+    reducer fix for all supported clones, this backstop may be retired; tracked
+    with the #5967 lineage.
     """
     base_ids = {event.get("event_id") for event in base_events}
 

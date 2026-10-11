@@ -124,6 +124,22 @@ def test_detect_fork_ignores_a_purely_forward_fork() -> None:
     assert detect_concurrent_fork(base, ours, theirs) is None
 
 
+def test_forward_rank_is_sourced_from_canonical_lanes_not_enum_order() -> None:
+    """Single-authority guard: the forward-progress rank the decision-destination
+    classifier keys off MUST be the declared lane order (``CANONICAL_LANES``), not
+    the ``Lane`` enum's member declaration order. If this ever reverts to enum
+    order (or ``CANONICAL_LANES`` is reordered off the lifecycle), a backward
+    reject/revert could be misclassified as forward and the #5967 fork silently
+    merged at exit 0 — the exact regression this detector exists to prevent."""
+    from specify_cli.status.event_log_merge import _FORWARD_RANK
+    from specify_cli.status_lanes import CANONICAL_LANES
+
+    expected = [lane for lane in CANONICAL_LANES if lane not in {"blocked", "canceled"}]
+    assert list(_FORWARD_RANK) == expected
+    # the semantic the detector relies on: a rejection is backward, progress is forward
+    assert _FORWARD_RANK["planned"] < _FORWARD_RANK["in_review"] < _FORWARD_RANK["done"]
+
+
 # --------------------------------------------------------------------------- #
 # the git merge driver entrypoint
 # --------------------------------------------------------------------------- #
