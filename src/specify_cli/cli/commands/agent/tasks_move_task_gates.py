@@ -62,7 +62,7 @@ from specify_cli.coordination.atomic_write import (
     subprocess_created_paths,
 )
 from specify_cli.core.env import pre_review_gate_skip_reason
-from specify_cli.core.vcs.git import merge_base_changed_files
+from specify_cli.core.vcs.git import git_merge_base, merge_base_changed_files
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineTestResult
 from specify_cli.review.gate_bindings import (
@@ -510,8 +510,8 @@ def _mt_pre_review_gate_metadata(
 #: rather than folded into the routine dim advisory line below.
 _PRE_REVIEW_BLOCK_UNENFORCEABLE_HINT = (
     "block requested via review.fail_on_pre_review_regression but COULD NOT be enforced — "
-    "no verified new-failure verdict exists to block on. A baseline must be captured at "
-    "implement time (configure review.test_command in .kittify/config.yaml) before this "
+    "no verified new-failure verdict exists to block on. A baseline must be captured "
+    "(on the first for_review move; configure review.test_command in .kittify/config.yaml) before this "
     "block can ever take effect."
 )
 
@@ -703,8 +703,13 @@ def _mt_resolve_active_gate_bindings(st: _MoveTaskState) -> GateBindingResolutio
     return resolve_gate_bindings_for_transition(operation_root, mission, edge_key)
 
 
-def _mt_baseline_artifact_location(st: _MoveTaskState) -> tuple[Path, str]:
-    """Resolve ``(baseline_dir, wp_slug)`` for the WP's baseline artifact.
+def _baseline_artifact_path(baseline_dir: Path, wp_slug: str) -> Path:
+    """The ONE place the ``tasks/<wp>/baseline-tests.json`` join lives."""
+    return baseline_dir / "tasks" / wp_slug / "baseline-tests.json"
+
+
+def _mt_baseline_artifact_location(st: _MoveTaskState) -> tuple[Path, str, Path]:
+    """Resolve ``(baseline_dir, wp_slug, artifact_path)`` for the WP's baseline artifact.
 
     The SINGLE authority both the gate's LOAD side
     (:func:`_mt_resolve_gate_baseline`) and the #6062 capture-if-missing WRITE
@@ -722,7 +727,7 @@ def _mt_baseline_artifact_location(st: _MoveTaskState) -> tuple[Path, str]:
     """
     if st.owned is not None:
         assert st.wp is not None
-        return st.feature_dir, st.wp.path.stem
+        return st.feature_dir, st.wp.path.stem, _baseline_artifact_path(st.feature_dir, st.wp.path.stem)
     wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
     from specify_cli.cli.commands.agent.workflow import _resolve_workflow_read_dir
 
@@ -731,7 +736,7 @@ def _mt_baseline_artifact_location(st: _MoveTaskState) -> tuple[Path, str]:
         mission_slug=st.mission_slug,
         kind=MissionArtifactKind.WORK_PACKAGE_TASK,
     )
-    return baseline_dir, wp_slug
+    return baseline_dir, wp_slug, _baseline_artifact_path(baseline_dir, wp_slug)
 
 
 def _mt_resolve_gate_baseline(st: _MoveTaskState) -> BaselineTestResult | None:
@@ -741,8 +746,35 @@ def _mt_resolve_gate_baseline(st: _MoveTaskState) -> BaselineTestResult | None:
     both diff against the SAME baseline artifact. The artifact path is resolved
     by the single :func:`_mt_baseline_artifact_location` authority.
     """
-    baseline_read_dir, wp_slug = _mt_baseline_artifact_location(st)
-    return BaselineTestResult.load(baseline_read_dir / "tasks" / wp_slug / "baseline-tests.json")
+    _baseline_dir, _wp_slug, artifact_path = _mt_baseline_artifact_location(st)
+    return BaselineTestResult.load(artifact_path)
+
+
+def _mt_baseline_capture_ref(st: _MoveTaskState, base_ref: str) -> str:
+    """Return the ref the baseline is captured at: the lane/base merge-base.
+
+    On a busy Mission the base branch advances between the claim and the
+    ``for_review`` move. Capturing at the base TIP would suppress a sibling WP's
+    merged failure as "pre-existing" (fail-open) and report a since-fixed base
+    failure as a new regression. The fork point is the code the lane actually
+    started from. Local refs only (no fetch). When the lane workspace or the
+    merge-base cannot be resolved this falls back to ``base_ref`` (the base tip)
+    and logs a warning.
+    """
+    try:
+        worktree = _mt_resolve_pre_review_workspace(st)
+        fork_point = git_merge_base(worktree, "HEAD", base_ref) if worktree is not None else None
+    except Exception as exc:  # noqa: BLE001 — fail-open: merge-base trouble degrades to the base tip, never refuses the move
+        logger.warning("Baseline fork-point lookup failed for %s (%s)", st.task_id, exc)
+        fork_point = None
+    if fork_point is None:
+        logger.warning(
+            "Could not resolve the merge-base of %s's lane with %s; capturing the baseline at the base branch tip.",
+            st.task_id,
+            base_ref,
+        )
+        return base_ref
+    return fork_point
 
 
 def _mt_capture_baseline_if_missing(st: _MoveTaskState) -> None:
@@ -750,41 +782,43 @@ def _mt_capture_baseline_if_missing(st: _MoveTaskState) -> None:
     ``in_progress -> for_review`` edge when it was not captured yet.
 
     Baseline capture moved OFF the ``agent action implement`` claim path (a
-    claim must return promptly, never run the project's suite synchronously or
-    touch the ``for_review`` gate lock) to here — the point where the
-    pre-review gate consumes the baseline and where blocking on a suite run is
-    acceptable. Because the claim path no longer captures, the artifact is
-    ABSENT on the first ``for_review`` of a WP, so the configured suite runs
-    synchronously here then (the deliberate placement of the blocking cost);
-    the capture is a no-op on re-entry (a rework → ``for_review`` cycle finds
-    the committed artifact), when ``review.test_command`` is unconfigured
-    (``capture_and_commit_baseline`` then captures nothing), or if an
-    implement-time capture is ever reintroduced. Runs AFTER the
+    claim must return promptly and never run the project's suite) to here — the
+    point where the pre-review gate consumes the baseline. Because the claim no
+    longer captures, the artifact is ABSENT on the first ``for_review`` of a WP,
+    so the configured suite runs synchronously here then; the step is a no-op on
+    re-entry (a rework → ``for_review`` cycle finds the committed artifact) and
+    when ``review.test_command`` is unconfigured. It runs AFTER the
     skip-escape-hatch check in :func:`_mt_run_transition_gates`, so a skipped
     gate also skips capture.
 
-    Fail-open (FR-013, mirroring :func:`_mt_fail_open_gate`): the whole
-    resolve+capture body is wrapped so a fault — an ambiguous ``_resolve_wp_slug``,
-    a malformed ``meta.json`` in the placement seam, a capture error — NEVER
-    refuses the ``for_review`` move. It degrades to no baseline, and the gate's
-    own LOAD side then yields ``UNVERIFIED_BASELINE`` (a warn), exactly as a
-    never-captured baseline already did and exactly as the identical LOAD-side
-    resolution (``_mt_resolve_gate_baseline``, inside
-    :func:`_mt_resolve_transition_gate_verdicts`'s three-catch) degrades the
-    same fault. ``KeyboardInterrupt`` is deliberately NOT caught (a Ctrl-C
-    still aborts).
+    The baseline is captured at the lane's merge-base with its base branch
+    (:func:`_mt_baseline_capture_ref`), not the base's current tip; the SHA it
+    was taken at is the artifact's ``base_commit``.
+
+    Serialization: the capture is LOCK-FREE (``_run_raw_command(serialize=False)``
+    in an isolated detached worktree), so concurrent captures from different
+    lanes do not queue on ``pre-review-gate-run.lock``. What stays serialized is
+    the ``for_review`` HEAD run that follows in the gate (#2493): it still takes
+    that machine-wide lock, so a ``for_review`` move can wait on another lane's
+    head run, but never because of a baseline capture.
+
+    Fail-open (FR-013, mirroring :func:`_mt_fail_open_gate`): a fault — an
+    ambiguous ``_resolve_wp_slug``, a malformed ``meta.json`` in the placement
+    seam, a capture error — NEVER refuses the ``for_review`` move. It degrades to
+    no baseline, and the gate's own LOAD side then yields ``UNVERIFIED_BASELINE``
+    (a warn). ``KeyboardInterrupt`` is deliberately NOT caught.
     """
     if st.old_lane != Lane.IN_PROGRESS or st.target_lane != Lane.FOR_REVIEW:
         return
     try:
-        baseline_dir, wp_slug = _mt_baseline_artifact_location(st)
-        if (baseline_dir / "tasks" / wp_slug / "baseline-tests.json").exists():
+        baseline_dir, wp_slug, artifact_path = _mt_baseline_artifact_location(st)
+        if artifact_path.exists():
             return
         from specify_cli.cli.commands.agent.workflow_executor import capture_and_commit_baseline
 
         capture_and_commit_baseline(
             workspace_path=st.main_repo_root,
-            target_branch=st.review_base_ref or st.target_branch,
+            target_branch=_mt_baseline_capture_ref(st, st.review_base_ref or st.target_branch),
             normalized_wp_id=st.task_id,
             mission_slug=st.mission_slug,
             feature_dir=baseline_dir,

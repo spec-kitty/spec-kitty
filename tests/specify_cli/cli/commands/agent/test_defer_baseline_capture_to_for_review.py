@@ -16,6 +16,7 @@ These tests pin the new helper's three behaviours:
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -85,7 +86,7 @@ def test_captures_on_for_review_edge_when_absent(tmp_path: Path, monkeypatch: py
     monkeypatch.setattr(
         tasks_move_task_gates,
         "_mt_baseline_artifact_location",
-        lambda _st: (primary_dir, _WP_SLUG),
+        lambda _st: (primary_dir, _WP_SLUG, primary_dir / "tasks" / _WP_SLUG / "baseline-tests.json"),
     )
     st = _make_state(old_lane=Lane.IN_PROGRESS, target_lane=Lane.FOR_REVIEW, feature_dir=primary_dir)
 
@@ -106,7 +107,7 @@ def test_noop_when_baseline_already_present(tmp_path: Path, monkeypatch: pytest.
     monkeypatch.setattr(
         tasks_move_task_gates,
         "_mt_baseline_artifact_location",
-        lambda _st: (primary_dir, _WP_SLUG),
+        lambda _st: (primary_dir, _WP_SLUG, primary_dir / "tasks" / _WP_SLUG / "baseline-tests.json"),
     )
     st = _make_state(old_lane=Lane.IN_PROGRESS, target_lane=Lane.FOR_REVIEW, feature_dir=primary_dir)
 
@@ -122,7 +123,7 @@ def test_noop_off_the_for_review_edge(tmp_path: Path, monkeypatch: pytest.Monkey
     monkeypatch.setattr(
         tasks_move_task_gates,
         "_mt_baseline_artifact_location",
-        lambda _st: (primary_dir, _WP_SLUG),
+        lambda _st: (primary_dir, _WP_SLUG, primary_dir / "tasks" / _WP_SLUG / "baseline-tests.json"),
     )
     st = _make_state(old_lane=Lane.PLANNED, target_lane=Lane.CLAIMED, feature_dir=primary_dir)
 
@@ -136,7 +137,7 @@ def test_capture_is_fail_open_when_resolution_raises(tmp_path: Path, monkeypatch
     malformed meta.json in the placement seam) must NEVER refuse the for_review
     move — it degrades to no baseline, matching the LOAD-side three-catch."""
 
-    def _boom(_st: object) -> tuple[Path, str]:
+    def _boom(_st: object) -> tuple[Path, str, Path]:
         raise RuntimeError("ambiguous wp slug")
 
     monkeypatch.setattr(tasks_move_task_gates, "_mt_baseline_artifact_location", _boom)
@@ -148,3 +149,50 @@ def test_capture_is_fail_open_when_resolution_raises(tmp_path: Path, monkeypatch
     tasks_move_task_gates._mt_capture_baseline_if_missing(st)
 
     assert capture_spy == [], "a resolution fault must skip capture, not attempt it"
+
+
+def _git(repo: Path, *args: str) -> str:
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def test_captures_at_the_lane_fork_point_not_the_advanced_base_tip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capture_spy: list[dict[str, object]]
+) -> None:
+    """#6062 review fold: the baseline must describe the base the lane FORKED from.
+
+    On a busy Mission the base branch keeps moving between the claim and the
+    ``for_review`` move. Capturing at the base tip would suppress a sibling WP's
+    merged failure as "pre-existing" and report a since-fixed base failure as a
+    regression. The capture ref must be the lane/base merge-base.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "t")
+    (repo / "README.md").write_text("fork point\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "fork point")
+    fork_sha = _git(repo, "rev-parse", "HEAD")
+    lane = tmp_path / "lane"
+    _git(repo, "worktree", "add", "-q", "-b", "lane", str(lane))
+    # The base advances AFTER the fork with a new failing test.
+    (repo / "test_sibling_regression.py").write_text("def test_x():\n    assert False\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "sibling WP lands a failing test")
+    assert _git(repo, "rev-parse", "main") != fork_sha
+
+    primary_dir = repo / "kitty-specs" / _MISSION
+    primary_dir.mkdir(parents=True)
+    monkeypatch.setattr(tasks_move_task_gates, "_mt_baseline_artifact_location", lambda _st: (primary_dir, _WP_SLUG, primary_dir / "tasks" / _WP_SLUG / "baseline-tests.json"))
+    monkeypatch.setattr(tasks_move_task_gates, "_mt_resolve_pre_review_workspace", lambda _st: lane)
+    st = _make_state(old_lane=Lane.IN_PROGRESS, target_lane=Lane.FOR_REVIEW, feature_dir=primary_dir)
+    st.main_repo_root = repo
+
+    tasks_move_task_gates._mt_capture_baseline_if_missing(st)
+
+    assert len(capture_spy) == 1
+    captured_ref = str(capture_spy[0]["target_branch"])
+    assert _git(repo, "rev-parse", f"{captured_ref}^{{commit}}") == fork_sha
+    shown = subprocess.run(["git", "cat-file", "-e", f"{captured_ref}:test_sibling_regression.py"], cwd=repo, check=False)
+    assert shown.returncode != 0, "the baseline ref must not contain tests that landed on the base after the fork"
