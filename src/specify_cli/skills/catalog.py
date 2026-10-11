@@ -36,7 +36,7 @@ from charter.activation.skill_preparation import (
     pack_skills_matter,
     prepare_project_skill_activations,
 )
-from charter.drg import resolve_existing_org_roots
+from charter.activation.layer_roots import resolve_pack_chain
 from kernel.charter_pack_paths import project_pack_root
 from kernel.tree_removal import remove_tool_owned_tree
 from specify_cli.core.atomic import atomic_write
@@ -151,7 +151,7 @@ def _project_may_have_pack_skills(project_root: Path, *, installed_pack_skills: 
     return (
         pack_skills_matter(project_root, installed_pack_skills=installed_pack_skills)
         or (project_pack_root(project_root) / _PROJECT_SKILLS_DIRNAME).is_dir()
-        or bool(resolve_existing_org_roots(project_root))
+        or bool(resolve_pack_chain(project_root, strict=False))
     )
 
 

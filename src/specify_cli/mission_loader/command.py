@@ -215,24 +215,23 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     Also mirrors the runtime bridge's ``org_roots`` population (FR-008,
     DEC-006 site 3 -- the third, independently-duplicated production
     wiring site that backs ``mission run <key>``): sourced via the lazy
-    ``charter.drg.resolve_org_roots`` facade, no ``try/except`` around the
+    ``charter.activation.layer_roots.resolve_pack_chain`` chain authority
+    (``strict=False``), no ``try/except`` around the
     call (``OrgPackSubdirEscapeError``/``OrgPackEnvVarUnsetError`` must
-    propagate, DEC-005/NFR-001). ``resolve_org_roots`` returns ``[]`` when
+    propagate, DEC-005/NFR-001). ``resolve_pack_chain`` returns ``[]`` when
     no org packs are configured, so this is a no-op for the common case
-    (NFR-005/SC-007). ``quiet=True``: this helper backs a resolution hot
-    path (``mission run <key>``) that may run many times per invocation --
-    an unparseable config.yaml with no readable org intent must not spam a
-    UserWarning per call (see load_pack_registry's docstring). A genuinely
-    declared-but-broken org pack still raises a loud UserWarning regardless.
+    (NFR-005/SC-007). ``strict=False``: this helper backs a lenient
+    resolution hot path (``mission run <key>``); a declared pack whose root
+    is absent on disk is dropped, not raised (#6012).
     """
     package_missions = resolve_builtin_missions_root()
 
-    from charter.drg import resolve_org_roots  # lazy, mirrors the resolve_org_dirs pattern below
+    from charter.activation.layer_roots import resolve_pack_chain  # lazy, mirrors the resolve_org_dirs pattern below
 
     return DiscoveryContext(
         project_dir=repo_root,
         builtin_roots=[package_missions],
-        org_roots=list(resolve_org_roots(repo_root, quiet=True)),
+        org_roots=list(resolve_pack_chain(repo_root, strict=False, quiet=True)),
     )
 
 

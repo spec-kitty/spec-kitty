@@ -61,10 +61,11 @@ def _existing_org_roots(repo_root: Path) -> list[Path]:
     takes the no-org-packs fast path. Mirrors
     :func:`charter.activation.context._existing_org_roots`.
     """
-    from charter.drg import resolve_org_roots
+    from charter.activation.layer_roots import resolve_pack_chain
 
     try:
-        return [root for root in resolve_org_roots(repo_root) if root.exists()]
+        roots: list[Path] = resolve_pack_chain(repo_root, strict=False)
+        return roots
     except Exception:  # noqa: BLE001 — org-root discovery stays best-effort
         return []
 

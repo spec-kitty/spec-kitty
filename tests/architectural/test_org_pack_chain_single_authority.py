@@ -23,10 +23,15 @@ loop that also collects ``pack.name``) or an unfiltered enumeration (the missing
 diagnostic) legitimately reads the pack registry, because the Path-only authority cannot
 provide names or unfiltered paths. That is a rule-semantics boundary, not an allowlist entry.
 
-**Scope** (research.md Decision 5): ``src/charter/activation/**`` and
-``src/specify_cli/cli/commands/charter/**``. The ``charter.offering`` tier is
-not censused: it cannot import the activation authority, so its chain
-authority is its own primitives (``org_pack_config``).
+**Scope** (research.md Decision 5): the whole ``src/`` tree. The one exclusion is a
+SCAN-EXCLUSION rule, not an allowlist entry: files under ``src/charter/offering/**``
+are not censused, because that tier defines and cross-calls the forbidden primitives
+(``org_pack_config``) and cannot import the activation authority above it.
+
+The two name-paired tree-wide readers (``_enumerate_org_pack_paths[_strict]`` and
+``pack_context._read_org_packs``) are non-violations under the existing Rule-1/Rule-2
+semantics: they read ``load_pack_registry()`` and return name-paired tuples / capture
+``pack.name``, which the roots-only authority cannot provide.
 
 **Call-based only**: importing or re-exporting a primitive, or naming it in a
 docstring, is not a violation.
@@ -51,10 +56,7 @@ import pytest
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_SCOPE_DIRS: tuple[Path, ...] = (
-    _REPO_ROOT / "src" / "charter" / "activation",
-    _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "charter",
-)
+_SCOPE_DIRS: tuple[Path, ...] = (_REPO_ROOT / "src",)
 _OWNER = _REPO_ROOT / "src" / "charter" / "activation" / "layer_roots.py"
 
 # NFR-002: the allowlist is literally empty; the test below asserts it stays so.
@@ -70,8 +72,8 @@ _PRIMITIVES: frozenset[str] = frozenset(
 )
 _COLLECTOR_METHODS: frozenset[str] = frozenset({"append", "add", "extend"})
 
-# 133 modules in scope at the integrated lane; leave headroom.
-_SCANNED_FILE_FLOOR = 100
+# ~1320 modules in scope tree-wide (owner and offering tier excluded); leave headroom.
+_SCANNED_FILE_FLOOR = 1200
 
 _FIX_HINT = "Call charter.activation.layer_roots.resolve_pack_chain(repo_root, strict=...) instead of assembling org roots by hand"
 
@@ -83,8 +85,17 @@ class Hit:
     kind: str
 
 
+_OFFERING_PARTS: tuple[str, str] = ("charter", "offering")
+
+
+def _in_offering_tier(path: Path) -> bool:
+    """SCAN-EXCLUSION: ``src/charter/offering/**`` defines the primitives and cannot import the authority."""
+    parts = path.resolve().relative_to(_REPO_ROOT).parts
+    return any(parts[i : i + 2] == _OFFERING_PARTS for i in range(len(parts) - 1))
+
+
 def _scope_files() -> list[Path]:
-    return sorted(p for d in _SCOPE_DIRS for p in d.rglob("*.py"))
+    return sorted(p for d in _SCOPE_DIRS for p in d.rglob("*.py") if not _in_offering_tier(p))
 
 
 def _called_name(call: ast.Call) -> str | None:
@@ -156,6 +167,8 @@ def census(files: list[Path], *, skip_owner: bool = True) -> list[Hit]:
     hits: list[Hit] = []
     for path in files:
         if skip_owner and path.resolve() == _OWNER:
+            continue
+        if _in_offering_tier(path):
             continue
         hits.extend(_scan_source(path.read_text(encoding="utf-8"), path.resolve().relative_to(_REPO_ROOT).as_posix()))
     return hits

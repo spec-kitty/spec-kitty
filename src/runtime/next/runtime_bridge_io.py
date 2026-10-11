@@ -441,28 +441,25 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
 
     Populates ``org_roots`` (FR-008, DEC-006 site 1 -- the construction site
     that feeds Walk A for both ``spec-kitty next`` and query-mode runs) via
-    the lazy ``charter.drg.resolve_org_roots`` facade, mirroring the five
-    existing ``specify_cli/**`` call sites and WP03's identical pattern in
-    the template resolvers (DEC-004: never a direct ``doctrine.*`` import
+    the lazy ``charter.activation.layer_roots.resolve_pack_chain`` chain
+    authority (``strict=False``), mirroring WP03's identical pattern in the
+    template resolvers (DEC-004: never a direct ``doctrine.*`` import
     from ``src/runtime/next/**``). No ``try/except`` wraps the call --
     ``OrgPackSubdirEscapeError``/``OrgPackEnvVarUnsetError`` are deliberately
     raised and must propagate (DEC-005, NFR-001). With no org packs
-    configured, ``resolve_org_roots`` returns ``[]`` and this is a verified
-    no-op (NFR-005/SC-007). ``quiet=True``: this helper backs a resolution
-    hot path (``spec-kitty next``, query-mode) that may run many times per
-    invocation -- an unparseable config.yaml with no readable org intent
-    must not spam a UserWarning per call (see load_pack_registry's
-    docstring). A genuinely declared-but-broken org pack still raises a
-    loud UserWarning regardless.
+    configured, ``resolve_pack_chain`` returns ``[]`` and this is a verified
+    no-op (NFR-005/SC-007). ``strict=False``: this helper backs a lenient
+    resolution hot path (``spec-kitty next``, query-mode); a declared pack
+    whose root is absent on disk is dropped, not raised (#6012).
     """
     package_root = resolve_builtin_missions_root()
 
-    from charter.drg import resolve_org_roots  # noqa: PLC0415 — lazy, mirrors existing pattern
+    from charter.activation.layer_roots import resolve_pack_chain  # noqa: PLC0415 — lazy, mirrors existing pattern
 
     return DiscoveryContext(
         project_dir=repo_root,
         builtin_roots=[package_root],
-        org_roots=list(resolve_org_roots(repo_root, quiet=True)),
+        org_roots=list(resolve_pack_chain(repo_root, strict=False, quiet=True)),
     )
 
 
@@ -649,7 +646,7 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     # tiers below -- the same relative position Walk A's `_build_tiers`
     # gives the org tier. Reuses `context.org_roots`, already populated by
     # `_build_discovery_context` above, rather than calling
-    # `resolve_org_roots` a second time.
+    # `resolve_pack_chain` a second time.
     project_tiers: list[list[Path]] = [
         list(context.explicit_paths),
         _split_env_paths(env_value),
