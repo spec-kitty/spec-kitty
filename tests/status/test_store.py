@@ -743,3 +743,54 @@ def test_read_events_lenient_decodes_through_from_dict_fills_defaults_and_skips_
     assert events[0].actor == structured and events[0].execution_mode == "" and events[0].at == ""
     assert events[1].force is True and events[1].actor == "rev"
     assert read_events_lenient(tmp_path / "absent") == []
+
+
+class TestMalformedAnnotationHandling:
+    """The canonical decoder reports malformed annotation shapes, not AttributeError."""
+
+    @staticmethod
+    def _annotation(delta: object) -> dict[str, object]:
+        return {
+            "kind": "annotation",
+            "event_id": "01ARZ3NDEKTSV4RRFFQ69G5FAW",
+            "wp_id": "WP01",
+            "at": "2026-10-11T14:00:00Z",
+            "actor": "test-agent",
+            "delta": delta,
+        }
+
+    @pytest.mark.parametrize(
+        ("delta", "reason"),
+        [([], "'list' object has no attribute 'get'"),
+         ({"subtasks": []}, "'list' object has no attribute 'items'"),
+         ({"subtasks": "invalid"}, "'str' object has no attribute 'items'")],
+        ids=["delta-list", "subtasks-list", "subtasks-string"],
+    )
+    @pytest.mark.parametrize("preceding_rows", [False, True], ids=["first-row", "after-blanks"])
+    def test_malformed_annotation_raises_line_bearing_store_error(
+        self, tmp_path: Path, delta: object, reason: str, preceding_rows: bool,
+    ) -> None:
+        prefix = json.dumps(_make_event().to_dict()) + "\n\n \n" if preceding_rows else ""
+        log = tmp_path / EVENTS_FILENAME
+        original = (prefix + json.dumps(self._annotation(delta)) + "\n").encode()
+        log.write_bytes(original)
+
+        with pytest.raises(StoreError) as exc_info:
+            read_events(tmp_path)
+
+        line = 4 if preceding_rows else 1
+        assert str(exc_info.value) == f"Invalid event structure on line {line}: {reason}"
+        assert isinstance(exc_info.value.__cause__, AttributeError)
+        assert log.read_bytes() == original
+
+        # Repair only the malformed payload: the same envelope/ULID must be accepted.
+        from specify_cli.status.store import read_event_stream
+
+        valid_delta = {"agent": "new-agent", "subtasks": {"T001": "done", "T002": "planned"}}
+        log.write_text(prefix + json.dumps(self._annotation(valid_delta)) + "\n", encoding="utf-8")
+        stream = read_event_stream(tmp_path)
+        assert len(stream.transitions) == int(preceding_rows)
+        assert len(stream.annotations) == 1
+        assert stream.annotations[0].wp_id == "WP01"
+        assert stream.annotations[0].delta.agent == "new-agent"
+        assert stream.annotations[0].delta.subtasks == {"T001": "done", "T002": "planned"}
