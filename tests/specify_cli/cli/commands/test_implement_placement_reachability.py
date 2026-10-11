@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
@@ -44,6 +45,7 @@ from specify_cli.coordination.planning_commit import (
     resolve_claim_planning_placement,
 )
 from specify_cli.lanes.persistence import MissingLanesError
+from specify_cli.missions._read_path_resolver import CoordState, probe_coord_state
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -246,6 +248,19 @@ def delete_coordination_branch(built: Built) -> None:
     branch = built.coordination_branch
     remove_coord_worktrees(built)
     git(built.repo, "branch", "-D", branch)
+
+
+def empty_coord_worktrees(built: Built) -> None:
+    """Leave the coordination worktree root on disk but remove its materialized feature dir.
+
+    This is ``CoordState.EMPTY``: the coord worktree exists and is on its declared ref, but
+    ``kitty-specs/<slug>/`` was never materialized into it (distinct from ``UNMATERIALIZED``,
+    where the whole worktree root is absent).
+    """
+    worktrees = built.coord_worktrees()
+    assert worktrees, "a coord mission must have a coordination worktree to empty"
+    for worktree in worktrees:
+        shutil.rmtree(worktree / "kitty-specs" / built.slug)
 
 
 def project_status_and_mark_merged(built: Built) -> None:
@@ -632,6 +647,27 @@ def test_unmaterialized_coordination_worktree_is_refused_as_not_finalized(build:
     built = build("coord")
     remove_coord_worktrees(built)
     make_dirty(built)
+
+    outcome = run_implement(built)
+
+    assert_outcome(outcome, exit_code=1, commits=(), status=(DIRTY_SPEC, UNTRACKED_TRACES), present=(NOT_FINALIZED,))
+
+
+def test_empty_coordination_worktree_is_refused_as_not_finalized(build: Callable[[str], Built]) -> None:
+    """``CoordState.EMPTY``: the coord worktree root exists and is on its declared ref, but its
+    feature dir was never materialized. Distinct from ``UNMATERIALIZED`` (whole worktree absent,
+    above) and from the branch-mismatch guard (Row 4): the probe reaches ``EMPTY`` only after the
+    worktree passes the ref check, so this pins that a half-materialized coord worktree still fails
+    closed before any commit rather than being mistaken for a healthy, resolvable surface.
+    """
+    built = build("coord")
+    empty_coord_worktrees(built)
+    make_dirty(built)
+
+    # Pin that this setup really reaches EMPTY (not UNMATERIALIZED, whose row above shares the
+    # same outcome): the shared probe must classify the emptied worktree as EMPTY before the run.
+    meta = built.meta()
+    assert probe_coord_state(built.repo, built.slug, str(meta["mid8"]), coordination_branch=built.coordination_branch) is CoordState.EMPTY
 
     outcome = run_implement(built)
 
