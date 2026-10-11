@@ -213,7 +213,7 @@ Before asking **any** clarifying question during plan elaboration, you MUST:
 
 Before executing any scripts or generating artifacts you must interrogate the specification and stakeholders.
 
-- **Scope proportionality (CRITICAL)**: FIRST, assess the feature's complexity from the spec:
+- **Scope proportionality (CRITICAL)**: FIRST, assess the request's complexity from the spec:
   - **Trivial/Test Features** (hello world, simple static pages, basic demos): Ask 1-2 questions maximum about tech stack preference, then proceed with sensible defaults
   - **Simple Features** (small components, minor API additions): Ask 2-3 questions about tech choices and constraints
   - **Complex Features** (new subsystems, multi-component features): Ask 3-5 questions covering architecture, NFRs, integrations
@@ -236,14 +236,14 @@ Before executing any scripts or generating artifacts you must interrogate the sp
 
 - If the user has not provided plan context, keep interrogating with one question at a time.
 
-- **Conversational cadence**: After each reply, assess if you have SUFFICIENT context for this feature's scope. For trivial features, knowing the basic stack is enough. Only continue if critical unknowns remain.
+- **Conversational cadence**: After each reply, assess if you have SUFFICIENT context for this mission's scope. For trivial features, knowing the basic stack is enough. Only continue if critical unknowns remain.
 
 Planning requirements (scale to complexity):
 
-1. Maintain a **Planning Questions** table internally covering questions appropriate to the feature's complexity (1-2 for trivial, up to 5+ for platform-level). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
+1. Maintain a **Planning Questions** table internally covering questions appropriate to the mission's complexity (1-2 for trivial, up to 5+ for platform-level). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
 2. For trivial features, standard practices are acceptable (vanilla HTML, simple file structure, no build tools). Only probe if the user's request suggests otherwise.
 3. When you have sufficient context for the scope, summarize into an **Engineering Alignment** note and confirm. Include invariant, state-transition, or event assumptions when they materially affect the design.
-4. If user explicitly asks to skip questions or use defaults, acknowledge and proceed with best practices for that feature type.
+4. If user explicitly asks to skip questions or use defaults, acknowledge and proceed with best practices for that kind of work.
 
 ## Bulk-Edit Check (if applicable)
 
