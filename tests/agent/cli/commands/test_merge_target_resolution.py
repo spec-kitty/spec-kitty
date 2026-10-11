@@ -15,7 +15,25 @@ from tests.lane_test_utils import write_single_lane_manifest
 
 import pytest
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+# spec-kitty#6036: these command-level tests share ``_patch_merge_environment``,
+# which monkeypatches ``run_command`` on eight consolidation importer modules. Under
+# certain CI ``module-tests (agent shard N/3)`` compositions,
+# ``monkeypatch.setattr("…consolidation.resume_recovery.run_command", …)`` raises
+# ``AttributeError: module … has no attribute 'run_command'`` even though
+# ``resume_recovery`` imports it unconditionally at module top — a cross-test
+# isolation leak, not a product bug. The file passes deterministically in isolation
+# (8/8) and under full-module parallel locally; it fails on a different shard each CI
+# run. Quarantined (Tier-3 environmental flake) so it cannot block unrelated PRs; this
+# is debt tracked in #6036 and the marker is removed on the root-cause fix. See
+# docs/development/testing/testing-flakiness.md.
+_SHARD_ISOLATION_QUARANTINE = pytest.mark.quarantine(
+    reason="spec-kitty#6036: CI-shard test-isolation flake — monkeypatch.setattr of"
+    " specify_cli.consolidation.resume_recovery.run_command raises AttributeError under"
+    " some agent-shard compositions; passes in isolation and full-module parallel. Debt;"
+    " remove on root-cause fix."
+)
+
+pytestmark = [pytest.mark.unit, pytest.mark.fast, _SHARD_ISOLATION_QUARANTINE]
 
 runner = CliRunner()
 
