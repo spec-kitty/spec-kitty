@@ -184,9 +184,7 @@ def rewritten_dep(tmp_path: Path) -> tuple[Path, Path, LanesManifest, str, str]:
     _ev(events, "WP01", "approved", "planned", stamp=None, force=True)  # review rejection
     _approve_chain(events, "WP01", claim_stamp=base, approve_stamp=a_redo)  # re-approved at the rewritten tip
     _approve_chain(events, "WP02", claim_stamp=a1, approve_stamp=b_tip)
-    (feature_dir / "status.events.jsonl").write_text(
-        "".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8"
-    )
+    (feature_dir / "status.events.jsonl").write_text("".join(json.dumps(e, sort_keys=True) + "\n" for e in events), encoding="utf-8")
     return repo, feature_dir, manifest, base, "target-squash"
 
 
@@ -199,10 +197,7 @@ def test_rewritten_dependency_rejected_content_is_unattributable(
     assert _git(repo, "show", f"{target}:{_CORE}") == 'CORE = "BAD"'
 
     claim = build_approved_wp_set(repo, feature_dir, manifest, coord_base_ref=base, excluded_window_base=base)
-    assert claim.surface_resolved and claim.refusal is None, (
-        f"claim did not resolve cleanly (expected a clean approved claim, "
-        f"refusal={claim.refusal!r})"
-    )
+    assert claim.surface_resolved and claim.refusal is None, f"claim did not resolve cleanly (expected a clean approved claim, refusal={claim.refusal!r})"
     squash_claim = replace(claim, verify_reachability=False)
     result = MergeOutcomeVerifier(repo).verify(target, squash_claim)
 
@@ -213,6 +208,4 @@ def test_rewritten_dependency_rejected_content_is_unattributable(
     )
     assert result.divergence is not None
     unattributable_paths = {path for path, _blob in result.divergence.unattributable_blobs}
-    assert _CORE in unattributable_paths and _BAD in unattributable_paths, (
-        f"the rejected files were not flagged unattributable: {unattributable_paths!r}"
-    )
+    assert _CORE in unattributable_paths and _BAD in unattributable_paths, f"the rejected files were not flagged unattributable: {unattributable_paths!r}"

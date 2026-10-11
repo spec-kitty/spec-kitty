@@ -47,6 +47,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import typer
+from rich.markup import escape
 
 if TYPE_CHECKING:
     from specify_cli.lanes.models import LanesManifest
@@ -652,6 +653,36 @@ def _enforce_origin_gate(main_repo: Path, seam: PlacementSeam, origin_check: str
         console.print(warning, markup=False)
 
 
+def _refuse_on_materialization_drift(feature_dir: Path, mission_slug: str) -> None:
+    """Refuse to land a Mission whose status.json drifts from its event log (#5863).
+
+    The event log is the sole authority for WP lane state; a committed
+    ``status.json`` that no longer materializes from it (a writer appended
+    events without re-materializing) means the board a reviewer/operator read
+    does not reflect the recorded history. Refuse before any branch moves and
+    name the fix (``spec-kitty agent status materialize``) rather than landing
+    on a dishonest snapshot. A missing/fresh snapshot is not drift
+    (``validate_materialization_drift`` returns no findings), so this never
+    refuses a Mission that simply has not materialized yet.
+    """
+    from specify_cli.status.validate import validate_materialization_drift
+
+    findings = validate_materialization_drift(feature_dir)
+    if not findings:
+        return
+    console.print(
+        "[red]Refusing to consolidate: this Mission's status.json has drifted from its event log (the event log is the sole authority for lane state).[/red]"
+    )
+    for finding in findings:
+        console.print(f"  [yellow]•[/yellow] {escape(finding)}")
+    console.print(
+        f"Recovery: re-materialize the snapshot with [bold]spec-kitty agent status materialize "
+        f"--mission {escape(mission_slug)}[/bold], commit the refreshed status.json, then re-run "
+        "[bold]spec-kitty consolidate[/bold]."
+    )
+    raise typer.Exit(1)
+
+
 def _run_lane_based_consolidation(
     repo_root: Path,
     mission_slug: str,
@@ -722,6 +753,7 @@ def _run_lane_based_consolidation(
     if not origin_gated:
         _enforce_origin_gate(main_repo, seam, origin_check)
     feature_dir = _resolve_run_status_dir(seam)
+    _refuse_on_materialization_drift(feature_dir, mission_slug)
     # PRIMARY-partition reads (FR-002 #2185), routed per-leg DIRECTLY (NOT threaded
     # from the ``:887`` ``target_feature_dir`` anchor in the *locked* function): the
     # mission identity (PRIMARY_METADATA) and ``lanes.json`` (LANE_STATE) live ONLY

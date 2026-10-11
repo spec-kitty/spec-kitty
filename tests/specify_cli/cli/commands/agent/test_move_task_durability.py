@@ -2370,7 +2370,7 @@ def test_adopted_review_cycle_survives_transition_revert(tmp_path: Path) -> None
     the adopted artifact survives on disk AND at HEAD.
     """
     repo = tmp_path
-    feature_dir = _setup_fixture(repo)
+    _setup_fixture(repo)
     wp_dir = _wp_dir(repo)
     cycle1 = wp_dir / "review-cycle-1.md"
     relpath = f"kitty-specs/{_MISSION}/tasks/{_WP_ID}-test/review-cycle-1.md"
