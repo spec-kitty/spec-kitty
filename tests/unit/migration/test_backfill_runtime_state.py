@@ -33,10 +33,8 @@ from specify_cli.status.wp_view import reconstruct_wp_view
 from tests.unit.migration._backfill_fixture import (
     AT_ENCODINGS,
     CLAIMED_AT,
-    IN_PROGRESS_AT,
     build_mission,
     corrupt_seed_value,
-    encode_at,
 )
 
 pytestmark = [pytest.mark.fast]
@@ -256,9 +254,24 @@ def test_claim_slot_witness_allows_later_legitimate_writer(tmp_path: Path) -> No
     assert (feature_dir / "status.events.jsonl").read_bytes() == before
 
 
-def test_persisted_bad_claim_seed_repairs_lane_and_later_claim_slots(
+def test_persisted_bad_claim_seed_no_longer_buries_lane_or_claim_slots(
     tmp_path: Path,
 ) -> None:
+    """events#78: a persisted ``migration:backfill`` seed never buries a WP's
+    real recorded lifecycle.
+
+    A pre-fix run persisted a ``planned -> claimed`` migration seed colliding on
+    ``at`` with the WP's real ``claimed -> in_progress`` transition, while that
+    real transition carried the legitimate claim slots. Before spec-kitty-events
+    10.4.2 the stale seed won the fold (lane ``claimed``, stale claim slots) and
+    the backfill repaired it with an append-only compatibility row. Under 10.4.2
+    the reducer keeps the real recorded lifecycle authoritative, so the snapshot
+    already reflects the legitimate lane/claim slots *before* the backfill runs:
+    the reducer subsumes the former repair for this case and NO compatibility
+    repair is minted. The backfill still seeds the remaining missing runtime
+    slots and stays idempotent. (Contrast the birth-cutover mixed mission, where
+    a seed-owned slot with no legitimate writer still triggers a repair.)
+    """
     feature_dir = build_mission(tmp_path)
     events_path = feature_dir / "status.events.jsonl"
     rows = [
@@ -300,7 +313,13 @@ def test_persisted_bad_claim_seed_repairs_lane_and_later_claim_slots(
             )
         ],
     )
-    assert materialize_snapshot(feature_dir).work_packages["WP01"]["lane"] == "claimed"
+    # events#78: the migration seed does NOT win the fold — the real
+    # ``claimed -> in_progress`` transition and its claim slots stay
+    # authoritative before the backfill even runs.
+    before_backfill = materialize_snapshot(feature_dir).work_packages["WP01"]
+    assert before_backfill["lane"] == "in_progress"
+    assert before_backfill["shell_pid"] == 991
+    assert before_backfill["agent"] == "later-legitimate-agent"
 
     result = b.backfill_runtime_state(feature_dir)
 
@@ -311,15 +330,14 @@ def test_persisted_bad_claim_seed_repairs_lane_and_later_claim_slots(
     assert snapshot["shell_pid_created_at"] == "later-claim-time"
     assert snapshot["agent"] == "later-legitimate-agent"
     assert b.verify_backfill(feature_dir).ok
+    # The reducer already yields the real lifecycle, so the compatibility-repair
+    # path mints nothing for this case.
     repairs = [
         event
         for event in read_event_stream(feature_dir).annotations
         if event.actor == b.COMPATIBILITY_REPAIR_ACTOR
     ]
-    # Exactly one repair row may be minted: the compatibility repair is
-    # append-only and idempotent, so a second row would be a duplicate write.
-    assert len(repairs) == 1
-    assert repairs[0].delta.shell_pid == 991
+    assert repairs == []
     before = events_path.read_bytes()
 
     assert b.backfill_runtime_state(feature_dir).seeded_count == 0
@@ -1140,76 +1158,18 @@ def test_seed_floor_precedes_history_under_either_at_encoding(
     assert b.verify_backfill(feature_dir).ok
 
 
-@pytest.mark.parametrize("at_encoding", AT_ENCODINGS)
-def test_compatibility_repair_lands_after_history_under_either_at_encoding(
-    tmp_path: Path,
-    at_encoding: str,
-) -> None:
-    """T-P4: the append-only repair seam must survive a ``Z``-encoded corpus.
-
-    ``_compatibility_repair_at`` shifts the LATEST history stamp forward; on a
-    whole-second ``Z`` stamp the re-encoded result sorts *below* its own input,
-    so the fail-closed guard fires and the whole cutover aborts with
-    ``MigrationOrderingError``.
-    """
-    feature_dir = build_mission(tmp_path, at_encoding=at_encoding)
-    events_path = feature_dir / "status.events.jsonl"
-    rows = [
-        json.loads(line)
-        for line in events_path.read_text(encoding="utf-8").splitlines()
-    ]
-    rows[0]["policy_metadata"] = {
-        "shell_pid": 991,
-        "shell_pid_created_at": "later-claim-time",
-        "agent": "later-legitimate-agent",
-    }
-    events_path.write_text(
-        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
-        encoding="utf-8",
-    )
-    append_events_atomic_verified(
-        feature_dir,
-        [
-            StatusEvent(
-                event_id=b._seed_id(b._mission_id(feature_dir), "WP01", "claim"),
-                mission_slug=feature_dir.name,
-                mission_id=b._mission_id(feature_dir),
-                wp_id="WP01",
-                from_lane=Lane.PLANNED,
-                to_lane=Lane.CLAIMED,
-                at=encode_at(IN_PROGRESS_AT, at_encoding),
-                actor=b.BACKFILL_ACTOR,
-                force=False,
-                execution_mode="worktree",
-                policy_metadata={
-                    "shell_pid": 44821,
-                    "shell_pid_created_at": "1784458183.44",
-                    "agent": "claude:opus:pedro",
-                },
-            )
-        ],
-    )
-
-    assert b.backfill_runtime_state(feature_dir).seeded_count > 0
-
-    stream = read_event_stream(feature_dir)
-    repairs = [
-        event
-        for event in (*stream.transitions, *stream.annotations)
-        if event.actor == b.COMPATIBILITY_REPAIR_ACTOR
-    ]
-    assert repairs
-    pre_repair_keys = [
-        (event.at, event.event_id)
-        for event in (*stream.transitions, *stream.annotations)
-        if event.actor != b.COMPATIBILITY_REPAIR_ACTOR
-    ]
-    assert all(
-        (repair.at, repair.event_id) > key
-        for repair in repairs
-        for key in pre_repair_keys
-    )
-    assert b.verify_backfill(feature_dir).ok
+# RETIRED (spec-kitty-events 10.4.2 / events#78): the former
+# ``test_compatibility_repair_lands_after_history_under_either_at_encoding``
+# drove the repair seam with a persisted bad-claim seed that *buried* the real
+# lifecycle. Under 10.4.2 the reducer keeps the real recorded lifecycle
+# authoritative, so that scenario no longer mints any compatibility repair (see
+# ``test_persisted_bad_claim_seed_no_longer_buries_lane_or_claim_slots`` above).
+# The append-only repair seam's encoding robustness is still exercised, under
+# both ``at`` encodings, by ``test_shift_ordering_timestamp_*`` (the
+# ``_compatibility_repair_at`` helper) and by the end-to-end
+# ``test_issue_2985_birth_cutover_preserves_every_wp_lane_and_repairs_old_seed``
+# in ``tests/migration/test_birth_cutover.py``, whose seed-owned slot with no
+# legitimate writer still triggers a repair.
 
 
 # ---------------------------------------------------------------------------
