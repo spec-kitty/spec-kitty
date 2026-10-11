@@ -21,7 +21,7 @@
 
 ## Structure
 - Candidate production surface: `src/specify_cli/status/doctor.py`; tests `tests/status/test_doctor.py`, optional focused status test file.
-- Existing reader: `src/specify_cli/status/store.py`; touch only add AttributeError to existing annotation from_dict catch tuple for witnessed malformed delta/subtasks, preserving canonical physical-line StoreError; add tests/status/test_store.py regressions. Existing CLI renderer is an acceptance surface, not a planned production change.
+- Existing reader: `src/specify_cli/status/store.py`; touch only add AttributeError to existing annotation and transition decoder catch tuples for witnessed malformed delta/subtasks and identity shapes, preserving canonical physical-line StoreError; add tests/status/test_store.py regressions. Existing CLI renderer is an acceptance surface, not a planned production change.
 - One WP01; implementer owns product/tests, reviewer is independent, planner owns this reasoning and sequencing only. No external-package, reducer or decision-domain change.
 
 ## Operations
@@ -38,7 +38,7 @@
 
 ## Safeguards
 - Preserve every existing log/snapshot byte and missing-file state. No automatic writes, destructive cleanup or blind log deletion advice.
-- Path/reason always; physical 1-based record line only when truthful. No invented I/O line or doctor-local parser. Doctor catches exactly StoreError/OSError/UnicodeError, not broad Exception; store normalization is only the annotation-decoder tuple addition. Skip all log-dependent checks including reviewer-self-approval, retain independent issue-matrix/sparse/frontmatter checks after failure.
+- Path/reason always; physical 1-based record line only when truthful. No invented I/O line or doctor-local parser. Doctor catches exactly StoreError/OSError/UnicodeError, not broad Exception; store normalization is only the annotation/transition decoder tuple additions. Guard initial and later log-dependent reads; discard partial dependent advice after failure. Retain independent issue-matrix/sparse/frontmatter checks after failure.
 - Keep supported lifecycle/status/annotation acceptance and missing/empty/blank behavior, real drift and WP reconciliation.
 - No credentials in diagnostics; no full local architectural/e2e/performance/test-full sweep.
 - All writes on issue-5924-status-doctor-corrupt-log; unrelated kitty-ops/evidence stay out of commits; no main mutations.
@@ -47,3 +47,4 @@
 
 2026-10-11 — WP01 — Initially no store adjustment needed — parent verified canonical annotation-aware parser and physical-line diagnostics.
 - 2026-10-11 — WP01 — Approved minimal annotation error normalization — parent then witnessed delta=[] AttributeError; add AttributeError only to existing annotation decoder catch tuple with direct store/doctor regressions. Note overlap with PR #5953; no general parser/model refactor.
+- 2026-10-11 — WP01 review cycle 1 — Approved the same normalization at the existing transition decoder after a witnessed non-string identity crash. Guard late dependent rereads against the same expected failures, discard partial dependent advice, and add the readable ReviewerSelfApproval recovery control. No new domain or parser authority.

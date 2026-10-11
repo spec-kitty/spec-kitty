@@ -33,10 +33,10 @@ T006 Prepare independent-review handoff with red→green commits and full bounde
 
 ### Implementation Notes
 
-- Canonical store reader supplies physical row lines including blanks. Parent witnessed malformed annotation delta=[] escaping as AttributeError; approved store.py change adds AttributeError only to existing annotation decoder catch tuple, preserving line-bearing StoreError, with direct test_store.py and doctor delta/subtasks tests. Note PR #5953 overlap.
-- Read failure must not trigger log-dependent initialization/backfill/drift/membership suggestions. Also skip reviewer-self-approval because it reads the same log. Independent issue-matrix/sparse/frontmatter checks continue.
+- Canonical store reader supplies physical row lines including blanks. Witnessed malformed annotation delta/subtasks and transition Mission-identity shapes require AttributeError normalization only at the existing annotation and transition decoder catch tuples, preserving line-bearing StoreError. Direct store, doctor and CLI regressions cover both. Note PR #5953 overlap.
+- Initial or later read failure must not leave log-dependent initialization/backfill/drift/membership or reviewer-self-approval suggestions. Guard every dependent read with StoreError/OSError/UnicodeError and discard partial dependent findings on failure. Independent issue-matrix/sparse/frontmatter checks continue.
 - Use same-fixture repaired controls and separate snapshot-half proofs. Real files for parse/decode, deterministic filesystem boundary injection for I/O; do not mock away diagnosis.
-- Allowed production doctor.py plus approved annotation catch tuple in store.py; test_doctor.py and test_store.py plus optional test_doctor_log_errors.py. No decision doctor (see #5304 for context only), reducer, CLI adapter, schemas, dependencies or versions.
+- Allowed production doctor.py plus approved annotation/transition catch tuples in store.py; test_doctor.py and test_store.py plus optional test_doctor_log_errors.py. No decision doctor (see #5304 for context only), reducer, CLI adapter, schemas, dependencies or versions.
 - Failing-first commit precedes production fix. Transitional regression markers are not final acceptance; remove on fix and run ordinary targeted tests without opt-in.
 
 ### Parallel Opportunities

@@ -74,7 +74,7 @@ Do not edit status, lane or history by hand in this prompt.
 
 ## Review Feedback
 
-No review yet at planning. Actual feedback belongs to the status event log.
+Planning-time note: actual cycle feedback belongs to the status event log. Cycle 1's recorded feedback requires transition-identity normalization and late-read failure handling; consult the event-log review_ref before reimplementation.
 
 ## Objectives & Success Criteria
 
@@ -96,8 +96,11 @@ Parent verified canonical store.read_events delegates annotation-aware parser;
 JSON/non-object/schema/unknown-kind errors already retain physical row lines,
 including preceding blanks. Parent then witnessed malformed annotation delta=[]
 escaping as AttributeError, not StoreError. Approved store.py fold: add AttributeError
-only to existing exception tuple around InnerStateChanged.from_dict, preserving line;
-direct test_store.py and doctor malformed delta/subtasks regressions mandatory.
+only to existing exception tuples around annotation and transition decoding, preserving line;
+direct test_store.py and doctor malformed delta/subtasks and Mission-identity regressions mandatory.
+Cycle 1 also requires guards for expected failures from later dependent reads, discarding
+partial dependent findings while independent checks still run, plus a readable
+ReviewerSelfApproval corruption/restoration control.
 Note overlap with PR #5953; no broader reader/model refactor.
 No doctor-local parse loop, broad exception-to-empty fallback or new abstraction.
 Skip reviewer-self-approval on log failure too: it reads status.events.jsonl.
@@ -132,7 +135,7 @@ Use the returned workspace; planner has not called this command.
 - Preserve existing tests and source authority; identify any touched-area smell.
 - If no enabler is needed, record a concise no-enabler conclusion.
 - Any tidy step must be local, behavior-preserving, distinct and independently green.
-- Store scope is only approved annotation normalization; no CLI/reducer/unrelated edits.
+- Store scope is only approved annotation/transition normalization; no CLI/reducer/unrelated edits.
 - Parent baseline doctor.py tests: 55 passed.
 - Parent make test-fast: 2501 passed, 5 skipped, one stale retired dashboard pyc failure.
 - Environment report: https://github.com/spec-kitty/spec-kitty/issues/6050.
@@ -164,7 +167,8 @@ Use the returned workspace; planner has not called this command.
 - Preserve existing tests rather than replacing unique coverage with a smoke test.
 
 - Add direct canonical read_events failing tests for malformed annotation delta/subtasks,
-  plus doctor tests, before the approved store tuple addition.
+  plus doctor tests, before the approved store tuple additions. In cycle 1, commit
+  failing transition-identity and late-read regressions before remediation.
 
 **Files**: owned test files only at this stage.
 **Parallel?** No; production edits wait for RED commit.
@@ -183,8 +187,10 @@ Use the returned workspace; planner has not called this command.
 - On failure suppress log-dependent initialization/backfill/drift/membership advice.
 - Skip check_reviewer_self_approval along with every other log-dependent check.
 - Continue independent issue-matrix, sparse-checkout and frontmatter checks.
-- Add AttributeError only to the existing store annotation decoder catch tuple;
-  this converts witnessed malformed delta/subtasks into physical-line StoreError.
+- Add AttributeError only to the existing store annotation and transition decoder catch tuples;
+  this converts witnessed malformed delta/subtasks and identity shapes into physical-line StoreError.
+- Guard later dependent reads with StoreError/OSError/UnicodeError too; discard partial
+  dependent findings on failure while continuing independent checks.
 - Preserve successful path's accepted mixed-event reduction/check semantics.
 - Keep the local implementation readable, typed and ≤15 complexity per function.
 - Avoid repeated non-trivial diagnostic literals and inert exception handlers.
@@ -260,7 +266,7 @@ make format-check
 - Reviewer is a distinct profile/session, not implementer self-approval.
 - Provide five-class matrix, both snapshot halves and repaired positive controls.
 - Reviewer verifies expected exceptions only and canonical reader retained;
-  store diff only approved annotation decoder tuple addition with direct regressions.
+  store diff only approved annotation/transition decoder tuple additions with direct regressions.
 - Verify independent checks survive failures and no misleading dependent advice.
 - Verify exact bytes, physical location, CLI exit/output and normal drift/reconciliation.
 - Fold findings, rerun impacted targeted checks and return for review.

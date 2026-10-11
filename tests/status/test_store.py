@@ -794,3 +794,26 @@ class TestMalformedAnnotationHandling:
         assert stream.annotations[0].wp_id == "WP01"
         assert stream.annotations[0].delta.agent == "new-agent"
         assert stream.annotations[0].delta.subtasks == {"T001": "done", "T002": "planned"}
+
+
+@pytest.mark.parametrize("preceding_rows", [False, True], ids=["first-row", "after-blanks"])
+def test_transition_bad_identity_raises_line_bearing_store_error(tmp_path: Path, preceding_rows: bool) -> None:
+    """A valid transition envelope with only a malformed slug fails canonically."""
+    valid = _make_event(event_id="01ARZ3NDEKTSV4RRFFQ69G5FAV").to_dict()
+    valid.pop("mission_id", None)
+    malformed = {**valid, "mission_slug": 123}
+    prefix = json.dumps(valid) + "\n\n \n" if preceding_rows else ""
+    log = tmp_path / EVENTS_FILENAME
+    original = (prefix + json.dumps(malformed) + "\n").encode()
+    log.write_bytes(original)
+
+    with pytest.raises(StoreError) as exc_info:
+        read_events(tmp_path)
+
+    line = 4 if preceding_rows else 1
+    assert str(exc_info.value) == f"Invalid event structure on line {line}: 'int' object has no attribute 'strip'"
+    assert isinstance(exc_info.value.__cause__, AttributeError)
+    assert log.read_bytes() == original
+
+    log.write_text(prefix + json.dumps(valid) + "\n", encoding="utf-8")
+    assert len(read_events(tmp_path)) == 1 + int(preceding_rows)

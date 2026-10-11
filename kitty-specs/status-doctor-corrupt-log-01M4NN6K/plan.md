@@ -20,7 +20,7 @@ Engineering alignment is already confirmed by the supplied small-defect scenario
 **Project Type**: Single existing Python CLI repository
 **Performance Goals**: Preserve existing synchronous doctor behavior; no new scans, network access or benchmark effort for this bounded defect
 **Constraints**: ERROR not false healthy/crash; path/reason and physical 1-based record line when available; no fabricated I/O lines; new-code coverage ≥90%; no full heavy local suite
-**Scale/Scope**: One issue, one WP, doctor.py plus status tests; store.py only the approved annotation-decoder AttributeError tuple addition, with direct store regressions
+**Scale/Scope**: One issue, one WP, doctor.py plus status tests; store.py only the approved annotation/transition decoder AttributeError tuple additions, with direct store regressions
 
 ## Charter Check
 
@@ -28,7 +28,7 @@ Engineering alignment is already confirmed by the supplied small-defect scenario
 
 - Canonical authority: reuse store reader, no doctor-local parser. Source packs own templates when old global prompts drift.
 - ATDD first: acceptance tests committed RED before any production fix; transitional regression markers removed with fix.
-- Locality: candidate files doctor.py and test_doctor.py, optional focused status test; store.py and test_store.py only for witnessed annotation decoder normalization. Opening campsite check is a preceding distinct step or recorded no-enabler conclusion; no unrelated cleanup.
+- Locality: candidate files doctor.py and test_doctor.py, optional focused status test; store.py and test_store.py only for witnessed annotation/transition decoder normalization. Opening campsite check is a preceding distinct step or recorded no-enabler conclusion; no unrelated cleanup.
 - Evidence preservation: no repair writes or blind deletion guidance. Independent reviewer proves both snapshot halves and byte integrity.
 - Mission hygiene: three canonical-helper tracer seeds; issue-matrix.json #5924 in-mission, WP01, owner Ivan-Melck recorded in evidence_ref because canonical schema has no owner column. Assignment/claim verified by parent.
 - Git: current/base/mission target all issue-5924-status-doctor-corrupt-log, resolver match true, single_branch. PR to main only; NO merge/consolidate, local main changes or main push. Leave eventual approved/accepted mission pending PR integration.
@@ -58,7 +58,7 @@ kitty-specs/status-doctor-corrupt-log-01M4NN6K/
 
 ```text
 src/specify_cli/status/doctor.py        # candidate production change
-src/specify_cli/status/store.py         # narrow annotation-decoder AttributeError normalization
+src/specify_cli/status/store.py         # narrow annotation/transition decoder AttributeError normalization
 tests/status/test_store.py              # direct canonical reader regression
 src/specify_cli/cli/commands/agent/status.py  # existing CLI contract, no planned production edit
 tests/status/test_doctor.py             # existing doctor + CLI coverage
@@ -78,7 +78,7 @@ Alternatives rejected: snapshot-only diagnosis (masks authority failure); doctor
 - [contracts/status-doctor.md](contracts/status-doctor.md) specifies existing public command/finding envelope plus changed failure semantics, not a new API.
 - [quickstart.md](quickstart.md) gives safe temporary repro and targeted validation.
 - Candidate behavior boundary: validate canonical log readability independent of snapshot presence. Translate expected canonical parse/decode/read failures into a Finding and avoid dependent misleading checks; valid logs continue through existing checks. Precise local control-flow/category choices belong to implementer, bounded by spec.
-- Parent synthesis: strict canonical read occurs independently of snapshot before dependent checks. Translate exactly StoreError/OSError/UnicodeError into actionable findings, not broad Exception. Suppress ALL log-dependent checks, including initialization/backfill/drift/membership and check_reviewer_self_approval (it reads status.events.jsonl too), while continuing independent issue-matrix/sparse/frontmatter checks. Canonical parser supplies required record lines; approved store delta is only annotation decoder AttributeError normalization. No guessed line values for I/O/decode when unavailable.
+- Parent synthesis: strict canonical read occurs independently of snapshot before dependent checks. Translate exactly StoreError/OSError/UnicodeError into actionable findings, not broad Exception. Suppress ALL log-dependent checks, including initialization/backfill/drift/membership and check_reviewer_self_approval (it reads status.events.jsonl too), while continuing independent issue-matrix/sparse/frontmatter checks. Canonical parser supplies required record lines; approved store delta is only annotation/transition decoder AttributeError normalization. No guessed line values for I/O/decode when unavailable. Guard later log-dependent reads with the same expected exception types; discard partial dependent findings after failure and continue independent checks.
 - Red acceptance tests precede functional production edits. Use real malformed files for parsing/encoding; inject only filesystem boundary errors when permissions are nondeterministic. Never mock run_doctor/reduce into success.
 - Review verifies each independent snapshot path, safe recovery, CLI exit/output, bytes, repaired-history controls and existing drift/WP reconciliation.
 
@@ -110,8 +110,12 @@ Record exact commands/counts, changed-line coverage ≥90%, and strict type-chec
 | Valid mixed event family rejected | Lifecycle/status/annotation control via canonical builders/fixtures |
 | Corrupt history triggers backfill/materialize advice | Assert safe action and absence of misleading dependent findings |
 | I/O case falsely passes as privileged user | Filesystem-boundary injected OSError, no chmod-only test |
-| Scope drifts to sibling doctor/store overhaul | C-001/C-002 review; store diff only approved tuple addition, note PR #5953 overlap |
+| Scope drifts to sibling doctor/store overhaul | C-001/C-002 review; store diff only the two approved decoder tuple additions, note PR #5953 overlap |
 | Runtime prompt loss on timeout | Already traced: issued plan persisted; no success replay. Use canonical source prompt plus setup-plan for issued work |
+
+## Review Cycle 1 Amendment
+
+Independent correctness review witnessed an otherwise valid transition with mission_slug=123 escaping as AttributeError, plus expected late-read failures in drift and reviewer-self-approval. Fold both within existing FR-001/FR-003: add AttributeError to the existing transition decoder catch, guard all dependent rereads with StoreError/OSError/UnicodeError, discard partial dependent advice on failure, and preserve independent checks. Add RED-first direct/store/doctor/CLI and late-read tests. Fold the readable ReviewerSelfApproval corruption/restoration control. Earlier annotation-only statements in the research history describe the first implementation, not the amended current constraint.
 
 ## Complexity Tracking
 

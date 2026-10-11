@@ -1,7 +1,7 @@
 {
-  "event_count": 4,
-  "last_event_id": "01M4NR19ESEA4NR438Y2P421BN",
-  "materialized_at": "2026-10-11T15:06:53.785205+00:00",
+  "event_count": 8,
+  "last_event_id": "01M4NS3NV32WJF5WTF57ZDAAGN",
+  "materialized_at": "2026-10-11T15:25:40.509137+00:00",
   "mission_number": "",
   "mission_slug": "status-doctor-corrupt-log-01M4NN6K",
   "mission_type": "software-dev",
@@ -12,22 +12,22 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 0,
+    "for_review": 0,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
       "actor": "pi",
-      "agent": "pi",
+      "agent": null,
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 0,
-      "implementer_of_record": "pi:sonnet:implementer-ivan:implementer",
-      "lane": "for_review",
-      "last_event_id": "01M4NR19ESEA4NR438Y2P421BN",
-      "last_transition_at": "2026-10-11T15:06:53.785205+00:00",
+      "force_count": 1,
+      "implementer_of_record": "pi:implementer-ivan:implementer",
+      "lane": "in_progress",
+      "last_event_id": "01M4NS3NV32WJF5WTF57ZDAAGN",
+      "last_transition_at": "2026-10-11T15:25:40.509137+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "- 2026-10-11T14:47:53Z – pi – shell_pid=45275 – Recovery: prior Sonnet/OpenRouter session stopped on credits with unfinished uncommitted test drafts and no production edits. Continuing existing in_progress claim as profile implementer-ivan on pi openai-codex/gpt-6.1-sol (PI_MODEL/PI_PROVIDER), not reclaiming workflow. Inspecting bounded surfaces; no tidy-first enabler needed. Parent baseline and issue6050 environment classification retained.",
@@ -38,16 +38,23 @@
         "- 2026-10-11T15:11:19Z – pi – shell_pid=45275 – Final test portability self-review: directory log case now derives exact reason from the real filesystem OSError for the exact event path (Windows may use PermissionError rather than POSIX IsADirectoryError). No parser/doctor mocking; no production change. Targeted affected cases .venv/bin/python -m pytest tests/status/test_doctor_log_errors.py -k directory -q =>6 passed,60 deselected; focused ruff lint/format and strict mypy green. Canonical for_review unchanged; parent independent review remains pending."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "feedback_path": "/home/user/Documents/code/test/qa/source/kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks/WP01-status-doctor-log-errors/review-cycle-1.md",
+        "reference": "review-cycle://status-doctor-corrupt-log-01M4NN6K/WP01-status-doctor-log-errors/review-cycle-1.md",
+        "reviewer": "pi:reviewer-renata:reviewer",
+        "verdict": "changes_requested"
+      },
       "role": "implementer",
-      "shell_pid": 45275,
-      "shell_pid_created_at": "1791729606.74",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done",
-        "T005": "done",
-        "T006": "done"
+        "T001": "planned",
+        "T002": "planned",
+        "T003": "planned",
+        "T004": "planned",
+        "T005": "planned",
+        "T006": "planned"
       },
       "tracker_refs": [
         "#5924"

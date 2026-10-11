@@ -53,7 +53,8 @@ As an operator, I need safe recovery guidance and unchanged evidence, while keep
 - Decode failures may have no truthful line exposed by the reader; report a line only if accurately available.
 - Permission/read failures must be deterministic in tests under elevated privileges, not dependent on chmod behavior.
 - Log-derived checks, including reviewer self-approval reading the same history, cannot run on unreadable authority or turn it into empty-membership/backfill advice; independent checks still run.
-- An otherwise valid annotation envelope with malformed delta or subtasks must be diagnosed as corrupt history, not escape as a decoder AttributeError.
+- An otherwise valid annotation envelope with malformed delta/subtasks, or a transition with a non-string Mission identity, must be diagnosed as corrupt history, not escape as a decoder AttributeError.
+- A later canonical-log read can fail after an earlier successful read. Report the same safe ERROR, discard partial log-dependent advice, and still execute independent checks.
 - Existing warnings make a Mission not healthy under existing semantics; positive controls require an otherwise intact fixture.
 
 ## Requirements *(mandatory)*
@@ -82,7 +83,7 @@ As an operator, I need safe recovery guidance and unchanged evidence, while keep
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|--------|--------|
 | C-001 | Bounded status-doctor ownership | Address #5924 only. Decision doctor (see #5304), automatic repairs, general reducer changes and new shared cross-doctor abstractions are outside scope. | Scope | High | Open |
-| C-002 | Canonical authority | Retain existing store reader as event acceptance authority; no separate doctor parser. Only a minimal annotation-decoder AttributeError normalization into canonical line-bearing StoreError is approved; no model/parser refactor. | Technical | High | Open |
+| C-002 | Canonical authority | Retain existing store reader as event acceptance authority; no separate doctor parser. Only minimal AttributeError normalization at the existing annotation and transition decoder exception boundaries into canonical line-bearing StoreError is approved; no model/parser refactor. | Technical | High | Open |
 | C-003 | PR-only delivery | Work stays on the dedicated issue branch, one bounded WP; independent thorough review and a PR to main, never merge/consolidate or main push. | Workflow | High | Open |
 | C-004 | Failing-first contract | Commit a failing-first acceptance regression test before any production fix; transitional regression markers must be removed once fixed. | Quality | High | Open |
 

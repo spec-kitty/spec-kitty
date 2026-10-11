@@ -4,18 +4,18 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: status-doctor-corrupt-log-01M4NN6K
 mission_id: 01M4NN6K3M7NAZRY8XQXZ030M2
-generated_at: '2026-10-11T14:39:04.915612+00:00'
-analyzer_agent: pi:reviewer-renata:reviewer
+generated_at: '2026-10-11T15:25:32.076115+00:00'
+analyzer_agent: pi:orchestrator
 input_artifacts:
   spec.md:
     path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/spec.md
-    sha256: c7508b3a881fd9e0b6f62bcb04d2fca6b762377aff57b0ef98c2dec3051a4aa8
+    sha256: 2157a3250bf212b1202b4e6fb190658eb9155579c33f15cb7d28ca2b9617d043
   plan.md:
     path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/plan.md
-    sha256: 0a44e45c9d31f3bbc2bd9e6727ff12a0a7497650b5f7d68340e4fcc8bc9cd9b7
+    sha256: 7180452cabeb95e704caed079f6484553bf0dd8327d113ed27990a96c9ea118d
   tasks.md:
     path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks.md
-    sha256: 2fa642ec70ea303bac6fb02ebebbfa8684268e48241077bc66d41e5dc25e2f16
+    sha256: 517c47b079098951a277b567de6cd8324725db59ae6fc4cdc642bd44df46b0ee
   charter:
     path: .kittify/charter/charter.yaml
     sha256: 54d554ac100b0e76760ed99ae6c55757677a0de2402970ef0d39810011dc87f4
@@ -1572,10 +1572,10 @@ input_artifacts:
     sha256: 3ad940f8747f2e4bf6af319ae4ef12875960e409f8f27032d3cabaa6b6f14107
   material:kitty-specs/status-doctor-corrupt-log-01M4NN6K/plan.md:
     path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/plan.md
-    sha256: 0a44e45c9d31f3bbc2bd9e6727ff12a0a7497650b5f7d68340e4fcc8bc9cd9b7
+    sha256: 7180452cabeb95e704caed079f6484553bf0dd8327d113ed27990a96c9ea118d
   material:kitty-specs/status-doctor-corrupt-log-01M4NN6K/spec.md:
     path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/spec.md
-    sha256: c7508b3a881fd9e0b6f62bcb04d2fca6b762377aff57b0ef98c2dec3051a4aa8
+    sha256: 2157a3250bf212b1202b4e6fb190658eb9155579c33f15cb7d28ca2b9617d043
   material:kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks:
     path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks
     sha256: directory
@@ -1585,12 +1585,18 @@ input_artifacts:
   material:kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks/README.md:
     path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks/README.md
     sha256: daa759e07a0f69c95a5190580e0e5191a5864ef722e3e346b7b677cc5cb01afc
+  material:kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks/WP01-status-doctor-log-errors:
+    path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks/WP01-status-doctor-log-errors
+    sha256: directory
+  material:kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks/WP01-status-doctor-log-errors/review-cycle-1.md:
+    path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks/WP01-status-doctor-log-errors/review-cycle-1.md
+    sha256: fc82ec6c08bd1a35d4038aabafa1bf4b5cb4acb992a06d91e68a204e84b38f37
   material:kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks/WP01-status-doctor-log-errors.md:
     path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks/WP01-status-doctor-log-errors.md
-    sha256: d689bc74ade124ff85fbaee6d8bfee2643b3eb651875190460552171dee9c252
+    sha256: 1281eb26df2a46c8c814da06c782437120397af8634c21a47fa03067241330d7
   material:kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks.md:
     path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/tasks.md
-    sha256: 2fa642ec70ea303bac6fb02ebebbfa8684268e48241077bc66d41e5dc25e2f16
+    sha256: 517c47b079098951a277b567de6cd8324725db59ae6fc4cdc642bd44df46b0ee
   material:kitty-specs/status-doctor-corrupt-log-01M4NN6K/wps.yaml:
     path: kitty-specs/status-doctor-corrupt-log-01M4NN6K/wps.yaml
     sha256:
@@ -1828,86 +1834,31 @@ input_artifacts:
 verdict: ready
 issue_counts:
   medium: 0
-  low: 0
   high: 0
   critical: 0
+  low: 0
   info: 0
 findings: []
-report_transaction: a2dd58fc3abc4b7f94f946059edf1b0d
+report_transaction: 49aa50a589a94ceea424dd4583f0c606
 material_manifest_version: 1
 ---
 
 ## Specification Analysis Report
 
-Audience: software-engineer and automation-agent. Independent analyst: reviewer-renata (Reviewer Renata, resolved through the checkout CLI). Updated: 2026-10-11.
+Audience: software-engineer and automation-agent. Updated: 2026-10-11.
 
-Mission: `status-doctor-corrupt-log-01M4NN6K`; issue branch: `issue-5924-status-doctor-corrupt-log`; topology: `single_branch`.
+This is a refresh of the independently reviewed cycle-1 planning contract, not implementation approval. Reviewer Renata re-read the amended spec, plan, tasks and WP01 and found no planning blocker, with one MEDIUM summary-wording mismatch in tasks.md. The parent corrected that exact mismatch: tasks.md now names both existing decoder exception boundaries and initial/later-read failure guards, matching spec C-002, plan, REASONS and WP01. No product change or scope widening beyond the witnessed #5924 diagnostic gaps is authorized.
 
-**Verdict: ready for implementation planning gate; zero findings.** This is cross-artifact planning analysis, not implementation approval or a claim that the bug is fixed. No product edits, tests, planning remediation, next-step advancement, push, merge, or consolidation were performed.
+| Requirement | Tasks | Evidence expected |
+|---|---|---|
+| FR-001, FR-002 | T002, T003, T004, T006 | Both snapshot states, canonical physical lines, initial and later read failures, malformed identity/annotation records |
+| FR-003 | T002, T004, T006 | Real CLI text/JSON ERROR, healthy false, exit1, no traceback |
+| FR-004, FR-005 | T003, T004, T006 | Preserve bytes/absent files, safe recovery, discard partial dependent advice |
+| FR-006 | T003, T004, T005, T006 | Healthy mixed history, ReviewerSelfApproval restoration, independent checks and drift/membership controls |
+| NFR-001, NFR-002 | T002, T004, T006 | Full bounded negative matrix and zero mutation |
+| NFR-003 | T004, T005, T006 | Targeted tests, lint/type/format, changed-code coverage, no heavy full suite |
+| C-001, C-002 | T001, T003, T006 | Existing doctor/store ownership; only two decoder tuple normalizations; no new parser or reducer/decision changes |
+| C-003, C-004 | T002, T006 | RED-first history, distinct independent review, PR only, no merge/consolidation/main push |
+| SC-001–SC-004 | T002–T006 | Observable errors, correct diagnostics, safe evidence, preserved controls |
 
-| ID | Category | Severity | Location(s) | Summary | Recommendation |
-|----|----------|----------|-------------|---------|----------------|
-
-No actionable inconsistencies, duplications, ambiguities, underspecification, charter conflicts, or uncovered requirements were identified within the approved bounded scope.
-
-### Coverage Summary Table
-
-Requirement keys use the explicit stable IDs in spec.md. Every row is assigned to WP01; task IDs below identify substantive coverage rather than merely relying on its frontmatter mapping.
-
-| Requirement Key | Has Task? | Task IDs | Notes |
-|-----------------|-----------|----------|-------|
-| FR-001 | Yes | T002, T003, T004, T006 | Strict read before snapshot-dependent checks; ERROR/unhealthy for five failure classes in both snapshot states; expected exceptions only. |
-| FR-002 | Yes | T003, T004, T006 | Resolved path, actual reason, physical 1-based row after valid/blank rows; no invented whole-file I/O/decode line. |
-| FR-003 | Yes | T002, T004, T006 | Existing text/JSON CLI entry point; visible ERROR, exit 1, healthy false, no traceback. |
-| FR-004 | Yes | T003, T004, T006 | Preserve evidence, restore trusted history/correct access, rerun; no deletion, auto-repair, empty-history or materialize/backfill-only advice. |
-| FR-005 | Yes | T002, T003, T004, T006 | Exact log/snapshot bytes and absent-file state; no write helpers; repaired variants on same fixtures. |
-| FR-006 | Yes | T003, T004, T005, T006 | Mixed lifecycle/status/annotation and missing/empty/blank controls; real drift and WP mismatch controls; independent checks survive corrupt authority. |
-| NFR-001 | Yes | T002, T004, T006 | At least ten negative combinations: five classes times two snapshot states; both output modes; annotation delta/subtasks and unknown-kind regressions additionally specified. |
-| NFR-002 | Yes | T003, T004, T006 | Zero changed bytes or newly created missing log/snapshot files across acceptance cases. |
-| NFR-003 | Yes | T004, T005, T006 | Changed branches tested; at least 90% changed/new-code coverage; scoped lint/strict typing/format; changed tests and status fast tier, no full heavy suites. |
-| C-001 | Yes | T001, T003, T006 | Only the approved issue and owned doctor/store/test surfaces; no decision doctor, reducer, shared abstraction, dependency or version changes. |
-| C-002 | Yes | T002, T003, T004, T006 | Canonical reader retained; only AttributeError addition to the existing annotation decoder catch tuple; direct store and doctor regressions. |
-| C-003 | Yes | T006 | Dedicated issue branch and one WP; independent review then PR to main only; never merge/consolidate/main push; leave integration pending. |
-| C-004 | Yes | T002, T004, T006 | Actual RED evidence and separate acceptance-test commit before production fixes; transitional markers removed; final normal tests GREEN. |
-| SC-001 | Yes | T002, T003, T004, T006 | Complete five-class/two-snapshot failure matrix with actionable ERROR and no escape. |
-| SC-002 | Yes | T002, T004, T006 | Both CLI modes return failure and communicate it; JSON healthy false. |
-| SC-003 | Yes | T003, T004, T006 | Truthful path/reason/available physical record location, no fabricated I/O location. |
-| SC-004 | Yes | T004, T005, T006 | Byte/absence invariants and healthy/missing/empty/drift/reconciliation controls; repaired-history pairs defeat no-op passing. |
-
-### Cross-Artifact and Live-Source Checks
-
-- FULL `spec.md`, `plan.md`, `tasks.md`, and `tasks/WP01-status-doctor-log-errors.md` were read, along with the complete project charter and current authoritative source analyze procedure. The issued global analyze prompt was read but its obsolete no-persistence instruction was not used: `packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md` is the authoritative report-persistence procedure.
-- Canonical prerequisite check returned valid=true, no errors/warnings, all required planning files present. Branch resolver reported matching current/base/target issue branch. `meta.json` confirms `topology: single_branch` and `pr_bound: true`. Generic generated branching prose is not an instruction to merge: WP01:L110-115 explicitly binds this topology to the sequential write checkout, no lane/dependency merge, and never merge/consolidate or push main.
-- The planned root-cause boundary agrees with live code. `src/specify_cli/status/doctor.py:L91-119` has snapshot-first loading and swallowed fallback errors; `L771-793` gates drift on a snapshot and calls reviewer-self-approval; `L816-821` substitutes empty events after failed reconciliation reads. WP01 T003 requires strict canonical reading independently of snapshot and suppression of all dependent checks rather than exception-to-empty fallback.
-- Physical locations remain canonical: `src/specify_cli/status/store.py:L660-718` partitions the stream, enumerates physical rows before skipping blanks, and supplies line-bearing StoreError for JSON/object/schema/unknown-kind failures. `L748-769` reads UTF-8 and delegates to that parser. The plan does not fabricate decode/I/O record lines or introduce a doctor-local parser.
-- Annotation normalization is precise and justified by current code, not an invented new model contract. `store.py:L696-700` currently catches KeyError/ValueError/TypeError around `InnerStateChanged.from_dict`; `models.py:L706-710` accesses delta.get and subtasks.items, and `L786` delegates delta decoding. Non-mapping delta/subtasks therefore have an AttributeError path. WP01:L166-167, L186-187 and L204-205 require failing direct reader/doctor regressions and only the additional AttributeError catch at that same canonical line-bearing boundary. No model/parser refactor or general broad catch is authorized.
-- Independent checks already exist at `doctor.py:L802`, `L807`, `L811` (issue matrix, sparse checkout, duplicate frontmatter). WP01:L184-185 explicitly skips the log-reading reviewer-self-approval check after failure while continuing those independent checks; T004 adds combined corrupt-history/independent-finding controls.
-- Existing CLI behavior supports the proposed local fix without production adapter edits: `src/specify_cli/cli/commands/agent/status.py:L630-671` consumes run_doctor findings and emits healthy/findings JSON; `L713` returns exit 1 for unhealthy. Existing CliRunner doctor tests are present in `tests/status/test_doctor.py:L1103-1190`. T002/T004 require real diagnosis, not mocked run_doctor/reducer success.
-- `Makefile` confirms `make test-fast` is a marked fast-tier baseline over known subsystem directories plus a named retired-subsystems gate, not `test-full`; the full heavy targets are explicitly forbidden in WP01:L246. The plan additionally requires every changed test file and status fast tier, lint/strict typing/format including store/test_store when changed, and honest commands/counts. No test or quality-check command was executed by this analyst.
-- Scope and rationale agree with the Mission's REASONS canvas, observable contract, research amendment E6/D8 and issue matrix. Prior investigation/baseline claims are identified as parent evidence, not newly rerun or independently proven test outcomes. Existing reported baseline failure is not greenwashed.
-
-### Charter Alignment Issues
-
-None identified. Failing-first commitment is explicit at WP01:L148-167 and separate from production T003; T001 preserves distinct tidy-first/no-enabler discipline. One bounded WP preserves canonical authority and locality. T005 requires proportionate targeted validation and accurate failure reporting. T006 requires reviewer/implementer separation, complete independent review and PR-only delivery. The stricter operator prohibition on any merge/consolidation takes precedence over generic lifecycle suggestions; no main mutation is authorized.
-
-### Issue-Matrix Approval Heads-Up (Non-Gating)
-
-The addressed issue has an `in-mission` row assigned to WP01, with owner/claim context in evidence_ref. Context-only sibling citations and explicit PR references do not add work to this Mission. Final fixed verdict and acceptance evidence remain the parent's later responsibility, not analysis approval. This heads-up is informational and contributes no severity count.
-
-### Unmapped Tasks
-
-None. T001 is scoped baseline/campsite support for C-001/NFR-003 and charter discipline; T002-T005 implement and validate the observable contract; T006 covers C-003/C-004 and independent acceptance evidence.
-
-### Metrics
-
-- Functional requirements: 6.
-- Non-functional requirements: 3.
-- Total functional/non-functional requirements: 9; covered: 9/9 (100%).
-- Additional constraints: 4; success criteria: 4; total mapped identifiers: 17/17 (100%).
-- Work packages: 1; subtasks: 6; unmapped subtasks: 0.
-- Ambiguity count: 0; duplication count: 0; critical issues count: 0.
-- Severity tally: critical 0, high 0, medium 0, low 0, info 0.
-
-### Next Actions
-
-No planning remediation is recommended. The parent may separately dispatch implementation after consuming this persisted readiness report. Implementation must still supply actual RED-to-GREEN history, complete bounded verification and independent review before PR handoff. This analyst stops after report persistence; no runtime advancement, remediation, tests, publication, consolidation or merge is authorized.
+Coverage: 9/9 functional/nonfunctional requirements; 4/4 constraints; 4/4 success criteria. One WP, six subtasks; no unmapped task. Critical/high/medium/low findings: zero after summary correction. Charter and approved scope remain aligned. Prior implementation findings are explicit rework tasks, not hidden or claimed fixed. Next action: canonical WP01 reimplementation, then independent delta review and acceptance. No merge is authorized.
