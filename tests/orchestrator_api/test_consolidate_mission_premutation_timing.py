@@ -194,3 +194,55 @@ def test_dirty_lane_worktree_refuses_before_target_advance(
 
     # The operator's untracked file is never touched by the refusal.
     assert (wt_path / "scratch.txt").read_text(encoding="utf-8") == "implementer's in-progress notes\n"
+
+
+def test_planning_only_dirty_primary_refuses_before_any_mutation(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A planning-only mission is refused up front too: nothing moves, nothing is stamped done (#4796)."""
+    from specify_cli.lanes.branch_naming import PLANNING_LANE_ID
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+    (repo / "README.md").write_text("seed\n", encoding="utf-8")
+    feature_dir = repo / "kitty-specs" / _SLUG
+    _write_meta(feature_dir)
+    manifest = LanesManifest(
+        version=1,
+        mission_slug=_SLUG,
+        mission_id=None,
+        mission_branch="main",
+        target_branch="main",
+        lanes=[
+            ExecutionLane(
+                lane_id=PLANNING_LANE_ID,
+                wp_ids=("WP01",),
+                write_scope=("kitty-specs/",),
+                predicted_surfaces=("docs",),
+                depends_on_lanes=(),
+                parallel_group=0,
+            )
+        ],
+        computed_at=now_utc_iso(),
+        computed_from="test-fixture",
+    )
+    write_lanes_json(feature_dir, manifest)
+    _write_wp_file(feature_dir, "WP01")
+    _seed_wp_approved(feature_dir, _SLUG, "WP01")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "bootstrap planning-only mission")
+    target_sha = _git(repo, "rev-parse", "refs/heads/main")
+    (repo / "README.md").write_text("operator edit in progress\n", encoding="utf-8")
+
+    envelope = _run_consolidate_mission(repo, feature_dir, capsys)
+
+    assert envelope["success"] is False
+    assert envelope["error_code"] == "PREFLIGHT_FAILED"
+    assert _git(repo, "rev-parse", "refs/heads/main") == target_sha
+    assert _wp_lane(feature_dir, "WP01") != "done"
+    assert (repo / "README.md").read_text(encoding="utf-8") == "operator edit in progress\n"
