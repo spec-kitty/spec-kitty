@@ -16,8 +16,8 @@ Contract (``contracts/pack-descriptor.contract.md`` — Migration contract):
   hard-coded literal spelled here;
 * **never ``mkdir``** — a project with no ``charter-packs`` directory is a
   clean no-op (mirrors the ``get_agent_dirs``-style "respect deletions" rule);
-* **skip ``packs/built-in`` and ``packs/internal``** — those are the built-in
-  and org (internal) packs, never the project pack;
+* **project pack only** — the single flat pack at ``.kittify/charter-packs/``;
+  the built-in and org (internal) packs are never reached;
 * **never clobber an authored ``pack.yaml``** — ``pack_level`` is added only
   when absent, and a differing/authored ``pack_id`` is preserved verbatim;
 * **idempotent** — a re-run over an already-backfilled pack makes no change.
@@ -31,6 +31,7 @@ whole registration mechanism; there is no hand-maintained migration list.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from ruamel.yaml import YAML
@@ -52,24 +53,20 @@ _PACK_DESCRIPTOR_FILENAME = "pack.yaml"
 #: The descriptor key this migration owns.
 _PACK_LEVEL_KEY = "pack_level"
 
-#: Pack roots that are NEVER the project pack, even if a reader points at them:
-#: the built-in pack and the in-house org (internal) pack both live under
-#: ``packs/`` and carry their own descriptors through IC-05, not this migration.
-_SKIP_RELATIVE_ROOTS: frozenset[str] = frozenset(
-    {
-        "packs/built-in",
-        "packs/internal",
-    }
-)
 
+def _write_atomically(descriptor: Path, data: object, yaml: YAML) -> None:
+    """Dump *data* to *descriptor* via a same-directory temp file and ``os.replace``.
 
-def _is_skipped_root(pack_root: Path, repo_root: Path) -> bool:
-    """Whether *pack_root* is a built-in/internal pack that must not be backfilled."""
+    A crash mid-write can never leave a truncated ``pack.yaml`` behind.
+    """
+    tmp = descriptor.with_name(f".{descriptor.name}.tmp")
     try:
-        relative = pack_root.resolve().relative_to(repo_root.resolve()).as_posix()
-    except (ValueError, OSError):
-        return False
-    return relative in _SKIP_RELATIVE_ROOTS
+        with tmp.open("w", encoding="utf-8") as handle:
+            yaml.dump(data, handle)
+        os.replace(tmp, descriptor)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def _discover_project_pack_roots(repo_root: Path) -> list[Path]:
@@ -77,15 +74,10 @@ def _discover_project_pack_roots(repo_root: Path) -> list[Path]:
 
     The project layer is a single flat pack at ``.kittify/charter-packs/``
     (:func:`kernel.charter_pack_paths.project_pack_root`). A root is returned
-    only when it already exists on disk (never ``mkdir``) and is not a
-    built-in/internal pack.
+    only when it already exists on disk (never ``mkdir``).
     """
     root = project_pack_root(repo_root)
-    if not root.is_dir():
-        return []
-    if _is_skipped_root(root, repo_root):
-        return []
-    return [root]
+    return [root] if root.is_dir() else []
 
 
 def _needs_backfill(pack_root: Path) -> bool:
@@ -109,9 +101,7 @@ def _write_fresh_descriptor(pack_root: Path) -> str:
         "name": pack_root.parent.parent.name or PROJECT_PACK_DIRNAME,
         _PACK_LEVEL_KEY: PROJECT,
     }
-    yaml = YAML()
-    with descriptor.open("w", encoding="utf-8") as handle:
-        yaml.dump(payload, handle)
+    _write_atomically(descriptor, payload, YAML())
     return f"Wrote {descriptor} with {_PACK_LEVEL_KEY}: {PROJECT}"
 
 
@@ -125,8 +115,7 @@ def _add_pack_level(pack_root: Path) -> str:
     yaml = YAML()  # round-trip preserves authored content
     data = yaml.load(descriptor.read_text(encoding="utf-8"))
     data[_PACK_LEVEL_KEY] = PROJECT
-    with descriptor.open("w", encoding="utf-8") as handle:
-        yaml.dump(data, handle)
+    _write_atomically(descriptor, data, yaml)
     return f"Added {_PACK_LEVEL_KEY}: {PROJECT} to {descriptor}"
 
 
