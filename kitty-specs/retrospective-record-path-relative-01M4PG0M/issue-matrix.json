@@ -1,0 +1,29 @@
+{
+  "rows": {
+    "#5856": {
+      "evidence_ref": "context-only PR reference (the prior hand-scrub); this mission fixes the root cause under #5868, owes #5856 no work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5868": {
+      "evidence_ref": "commit 061be9eabc + 5f36dee351; test test_emit_captured_record_path_is_repository_relative",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

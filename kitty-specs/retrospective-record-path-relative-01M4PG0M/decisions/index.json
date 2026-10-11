@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-11T22:07:02.455979Z",
+      "decision_id": "01M4PG2K9Q660VYNYGSCZ3DDXM",
+      "final_answer": "forward-only: emit newly-written RetrospectiveCaptured events with a repository-relative record_path. No historical backfill. Rationale: issue #5868 asks only that the recorded path be repository-relative; the single existing leak was hand-scrubbed on #5856. A cross-repo backfill of already-committed append-only logs is a distinct, larger concern (append-only logs are immutable history) and is out of scope \u2014 notable as a possible follow-up only if a leak scan later finds more occurrences.",
+      "input_key": "backfill_historical_paths",
+      "mission_id": "01M4PG0MKXXGM2FMHR1KTY9PK5",
+      "mission_slug": "retrospective-record-path-relative-01M4PG0M",
+      "opened_by": "cli",
+      "options": [
+        "forward-only",
+        "forward-plus-backfill",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should the fix also backfill/migrate absolute record_path values already committed to existing status.events.jsonl logs, or only make newly-emitted events repository-relative?",
+      "rationale": null,
+      "resolved_at": "2026-10-11T22:07:04.382128Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.migration",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M4PG0MKXXGM2FMHR1KTY9PK5",
+  "version": 1
+}

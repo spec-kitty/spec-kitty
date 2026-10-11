@@ -1,0 +1,37 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M4PHH9PBPVFFHP4RT9QVHSZD",
+  "materialized_at": "2026-10-11T22:32:32.715240+00:00",
+  "mission_number": "",
+  "mission_slug": "retrospective-record-path-relative-01M4PG0M",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M4PHH9PBPVFFHP4RT9QVHSZD",
+      "last_transition_at": "2026-10-11T22:32:32.715240+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261011",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 3508047,
+      "shell_pid_created_at": "1791756867.1"
+    }
+  }
+}

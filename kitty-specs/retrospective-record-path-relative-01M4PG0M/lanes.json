@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "mission_slug": "retrospective-record-path-relative-01M4PG0M",
+  "mission_id": "01M4PG0MKXXGM2FMHR1KTY9PK5",
+  "mission_branch": "kitty/mission-retrospective-record-path-relative-01M4PG0M",
+  "target_branch": "fix/retrospective-record-path-relative",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/retrospective/lifecycle_events.py",
+        "tests/retrospective/test_events.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-11T22:12:51.908277+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "ffe1b90351bbefb8069e374f851337c0e5152c5c"
+}

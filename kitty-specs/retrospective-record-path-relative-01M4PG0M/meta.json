@@ -1,0 +1,23 @@
+{
+  "baseline_merge_commit": "9d8a0f1eb08f7629302d9730dbbd4ca7ef978389",
+  "contracts": "none",
+  "contracts_rationale": "Bug fix to a single existing event field (RetrospectiveCaptured.record_path); defines no new interfaces, endpoints, or payload shapes. The record_path field remains a string in the existing retrospective-events contract.",
+  "created_at": "2026-10-11T22:05:58.374310+00:00",
+  "flattened": true,
+  "friendly_name": "Repo-relative retrospective record_path",
+  "merged_at": "2026-10-11T22:32:44.483046+00:00",
+  "merged_commit": "f6d3c74ee2701512a91c7dee9df21ecaea7eb2a7",
+  "mid8": "01M4PG0M",
+  "mission_id": "01M4PG0MKXXGM2FMHR1KTY9PK5",
+  "mission_number": 228,
+  "mission_slug": "retrospective-record-path-relative-01M4PG0M",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "At consolidation the CLI writes a RetrospectiveCaptured event into the Mission's tracked status.events.jsonl. Today its record_path is the absolute path of retrospective.yaml on the operator's machine, which leaks a username into an authoritative tracked file (hand-scrubbed on #5856). This mission makes the recorded path repository-relative so the tracked log stays portable and leak-free.",
+  "purpose_tldr": "The retrospective status event should record a repository-relative path, not an absolute machine-local one.",
+  "slug": "retrospective-record-path-relative-01M4PG0M",
+  "status_phase": "1",
+  "target_branch": "fix/retrospective-record-path-relative",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-11T22:14:31.490233+00:00"
+}
