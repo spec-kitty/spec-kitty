@@ -1,19 +1,27 @@
 ---
 title: 'ADR: a mission status read API replaces the CLI-bundled dashboard (extract and replace)'
-description: 'Remove the bundled dashboard daemon; keep one read-only mission status API with an overview and a detail granularity that external UIs consume (#645).'
-status: Proposed
+description: 'Remove the bundled dashboard daemon; keep one read-only mission status API with an overview and a detail granularity that external UIs consume (#645). Accepted 2026-10-12 as the open-core producer surface, in-repo now and extracted when its contract freezes.'
+status: Accepted
 date: '2026-10-01'
+updated: '2026-10-12'
 ---
 
-**Status:** Proposed. D-1 and D-2 record a direction the operator stated on 2026-10-01 and
-are **Accepted**. D-8 was **amended and accepted** later on 2026-10-01: the operator moved
-deletion to the front (see D-8). D-3 to D-7 are architect amendments that wait for operator
-ratification.
+**Status:** Accepted (2026-10-12). D-1 and D-2 recorded a direction the operator stated on
+2026-10-01 and were **Accepted** then. D-8 was **amended and accepted** later on 2026-10-01:
+the operator moved deletion to the front (see D-8). D-3 to D-7 began as architect amendments
+awaiting ratification; the Amendment 2026-10-03 settled the Java-service shape of D-4/D-5/D-7,
+and the **Amendment 2026-10-12** below ratifies the whole record: it frames the read API as
+the Build Kitty / open-core **producer** surface, keeps it in-repo now and extracts it when
+its contract freezes, and keeps `contracts/mission-status/` and the conformance fixtures
+canonical beside the Python reducer. The record moves from Proposed to Accepted with that
+amendment.
 **Amendment 2026-10-03 (Accepted):** D-4 and D-7 are amended for the agreed Java service
 design. D-5 records that the CLI's own read verbs stay native Python behind one read seam
 for now. See "Amendment 2026-10-03" below.
+**Amendment 2026-10-12 (Accepted):** the read API is open-core (producer side), not a Team
+Kitty surface; in-repo now, extracted when frozen. See "Amendment 2026-10-12" below.
 
-**Date:** 2026-10-01 (amended 2026-10-03)
+**Date:** 2026-10-01 (amended 2026-10-03, 2026-10-12)
 
 **Deciders:** Stijn Dejongh (operator). Analysis by `architect-alphonso`.
 
@@ -283,6 +291,50 @@ module's encapsulation is now prerequisite work for the cut-over, tracked with t
 re-pointing (#5532). The JVM toolchain and the native release matrix are new CI cost,
 confined to the path-filtered workflow. Still open on #5528: the lifecycle-status
 vocabulary, the WP status chips, and the artifact reads (#5533).
+
+## Amendment 2026-10-12 (Accepted): open-core producer surface; in-repo now, extracted when frozen
+
+**Deciders:** Stijn Dejongh (operator), 2026-10-12. This amendment ratifies the record:
+with it the ADR moves from Proposed to **Accepted**.
+
+**Why.** The read API's place in the product needed naming. It is the stable entry point to
+the mission ledger and event data that the free CLI already exposes — the **producer** side
+of the open-core line (internally, "Build Kitty"). It is not a hosted Team Kitty surface, and
+it is not gated on hosted drain (D-6). Framing it as open-core producer settles two things
+that D-3..D-7 left to "modulith first, extractable later": *who owns it* (the open-core CLI,
+not the hosted product) and *where it may go* (its own open-core surface, never a Team Kitty
+repository).
+
+- **D-9 (Accepted): the Mission Status Read API is the open-core producer surface.** It
+  reads the committed ledger and events and returns the two D-2 granularities to any
+  consumer. Team Kitty — the "Multiplayer Mode" UI/multiplayer surfaces (mission-ui, the pack
+  composer) — is a **consumer** of this API across its contract
+  boundary, not part of it. The boundary is the contract, and the contract is public.
+- **D-10 (Accepted): in-repo now, extracted when frozen.** The Java service of the amended
+  D-4/D-7 (`services/mission-status-api/`, epic #5528; #5529 the overview resource, #957 the
+  detail resource, #5558 the contract) **starts in-repo as a modular component** — its own
+  build, path-filtered CI and release artifact, outside the Python wheel. It is **extracted
+  as needed, as an open-core surface** (its own repository or package), once its contract has
+  proven stable — **never into a Team Kitty / hosted repository**. The native Python adapter
+  (D-3/D-5) stays the CLI's offline read path until the amended-D-5 cut-over.
+- **D-11 (Accepted): the contract and fixtures stay canonical beside the Python reducer.**
+  `contracts/mission-status/` (the OpenAPI document, #5558) and the conformance fixtures
+  remain the canonical source of record **in this repository, beside the Python reducer they
+  conform the Java service against** (the amended-D-5 conformance gate). An extraction moves
+  the service build, not the contract's authority away from the reducer it is proven against.
+- **D-12 (Accepted): this surface is on the GA gate.** As the producer side of the open-core
+  line, the mission-status API backend is part of the 4.0.0 GA gate (with charter modular
+  extraction), alongside local integrity — see the
+  [4.0.0 milestone roadmap](../../plans/4-0-0-milestone-roadmap.md). This does not change any
+  code, reducer or gate; it records the direction and the ownership.
+
+**Consequences.** The read API has a settled identity: open-core producer, in-repo today,
+extractable as its own open-core surface when frozen, with the contract anchored to the
+Python reducer. Consumer-side UI/multiplayer work (Team Kitty / Multiplayer Mode) may build
+against the contract now (see [ADR 2026-10-06-1](2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md),
+Amendment 2026-10-12). Nothing hosted — zeitgeist auth, the hosted backend, the SaaS surface
+— is revived by this amendment. The produce/drain decoupling (D-6, roadmap next step) remains
+its own decision.
 
 ## Pros and Cons of the Options
 

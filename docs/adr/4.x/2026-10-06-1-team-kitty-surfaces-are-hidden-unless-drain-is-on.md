@@ -3,12 +3,17 @@ title: 'ADR: the Team Kitty surfaces are hidden unless hosted drain is on'
 description: 'Team Kitty is no longer supported: the spk-team-* skills are retired and its six CLI entries are hidden from listings unless the hosted drain posture is on.'
 status: Accepted
 date: '2026-10-06'
-updated: '2026-10-06'
+updated: '2026-10-12'
 ---
 
-**Status:** Accepted
+**Status:** Accepted. **Amended 2026-10-12** — the "do not build toward Team Kitty" rule is
+**scoped-lifted**: consumer-side UI/multiplayer built on the Mission Status Read API, and the
+event-dispatch / produce-drain adapter seam (`status/adapters.py`), are no longer blocked.
+Everything else hosted (zeitgeist auth, the hosted backend, the SaaS surface) stays frozen
+unless the operator asks. The original decision below (hidden hosted CLI surfaces, retired
+`spk-team-*` skills) is unchanged. See "Amendment 2026-10-12" at the end.
 
-**Date:** 2026-10-06
+**Date:** 2026-10-06 (amended 2026-10-12)
 
 **Deciders:** Stijn Dejongh (repository owner).
 
@@ -56,3 +61,37 @@ A user or an agent harness reading either surface was steered toward an offering
 - `docs/context/team-kitty.md` and the 4.0.0 declaration carry the support status.
 - Remediation messages on hosted-only paths still name `spec-kitty auth login`, which still runs by name. This is deliberate: a user who reaches a hosted path needs the real command. The sites are `_saas_error_hint` and the `tracker` authentication message (~759) in `src/specify_cli/cli/commands/tracker.py`, `_AUTH_LOGIN_REMEDIATION` in `src/specify_cli/readiness/render.py`, and the missing-auth remedy in `src/specify_cli/tracker/saas_readiness.py` (~85).
 - Reversible: removing a name from `_HOSTED_SURFACE_NAMES` and from the retired-skill set, and restoring the skill sources, brings a surface back.
+
+## Amendment 2026-10-12 (Accepted): Team Kitty is "Multiplayer Mode," the consumer side — the rule is scoped-lifted, not dropped
+
+**Deciders:** Stijn Dejongh (operator), 2026-10-12.
+
+**Why.** "Do not build toward Team Kitty" was a blanket freeze. The direction has since
+split Team Kitty into a **producer** and a **consumer** side. The producer side — the
+Mission Status Read API ([ADR 2026-10-01-2](2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
+Accepted) — is open-core and is being built now. Team Kitty is the **consumer** side, now
+framed as **"Multiplayer Mode":** the UI/multiplayer surfaces (mission-ui, the pack composer) that *consume* the open-core API across its contract boundary. Blocking
+all consumer work no longer matches the direction, so the freeze is scoped, not kept whole.
+
+**What changes.** The standing "do not build toward Team Kitty" rule (charter; `AGENTS.md`
+Team Kitty section) is **scoped-lifted**. It no longer blocks:
+
+1. **Consumer-side UI/multiplayer built on the Mission Status Read API.** A UI or multiplayer
+   surface that reads the open-core producer API across its public contract (never reaching
+   into CLI internals) is permitted work.
+2. **The event-dispatch / produce-drain adapter seam** (`src/specify_cli/status/adapters.py`).
+   The produce/drain decoupling (its own 4.x ADR, roadmap next step) and the adapter seam as a
+   publish/subscribe surface are permitted work. Producing an event never depends on whether a
+   drain is enabled.
+
+**What stays frozen.** Everything else hosted stays frozen unless the operator asks for it:
+zeitgeist auth, the hosted **backend**, and the hosted SaaS surface. The original decision in
+this ADR is **unchanged**: the six hosted CLI entries still register hidden unless drain is on,
+the `spk-team-*` skills stay retired, and nothing hosted ships configured. This amendment lifts
+a *build-toward* prohibition for two consumer/seam carve-outs; it does not turn any hosted
+runtime edge on, and it does not re-list the hidden CLI surfaces.
+
+**Consequences.** Consumer-side Multiplayer-Mode work and the adapter seam can proceed against
+the open-core contract. The hosted backend surfaces remain dormant and off by default. The
+charter and `AGENTS.md` Team Kitty sections are updated to this scoped producer-API-vs-
+consumer-UI model; on any conflict the charter wins.
