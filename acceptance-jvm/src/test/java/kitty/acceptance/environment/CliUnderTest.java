@@ -24,6 +24,7 @@ public final class CliUnderTest {
 
     private static final long PROVISION_TIMEOUT_MINUTES = 15;
     private static volatile CliUnderTest instance;
+    private static volatile RuntimeException provisioningFailure;
 
     private final Path entryPoint;
     private final Path binDir;
@@ -40,7 +41,17 @@ public final class CliUnderTest {
             synchronized (CliUnderTest.class) {
                 local = instance;
                 if (local == null) {
-                    local = provision();
+                    if (provisioningFailure != null) {
+                        // Fail fast: a broken build stays broken, so do not rebuild per scenario.
+                        throw new IllegalStateException("Provisioning already failed earlier in this run",
+                                provisioningFailure);
+                    }
+                    try {
+                        local = provision();
+                    } catch (RuntimeException e) {
+                        provisioningFailure = e;
+                        throw e;
+                    }
                     instance = local;
                 }
             }
