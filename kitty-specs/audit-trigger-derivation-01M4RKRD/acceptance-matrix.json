@@ -1,0 +1,59 @@
+{
+  "mission_slug": "audit-trigger-derivation-01M4RKRD",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_mission_state_audit_routing.py::test_every_executed_audit_module_matches_the_group derives the executed-module set in-process with a non-empty anchor positive control",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-12T18:57:33.511141+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_mission_state_audit_routing.py::test_every_executed_audit_module_matches_the_group; self-mutation RED witnessed both ways (dropped glob; planted out-of-glob module)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-12T18:57:38.263753+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "AUDIT_INPUT_PATHS removed; tests/ci/test_mission_state_audit_routing.py::test_non_derivable_trigger_inputs_match_the_group reads the explicit non-derivable list and the derived set",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-12T18:57:43.058234+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_mission_state_audit_routing.py::test_non_derivable_trigger_inputs_match_the_group + test_the_reducer_bump_commit_selects_the_audit_job (manifest/events-alignment)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-12T18:57:47.759035+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_mission_state_audit_routing.py::test_a_mission_diff_selects_the_audit_job + test_the_audit_modules_are_not_spelled_src stay green; no ci-router.yml change",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-12T18:57:52.551240+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

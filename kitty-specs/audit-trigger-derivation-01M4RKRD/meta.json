@@ -1,0 +1,35 @@
+{
+  "accept_commit": "292be64795c09f1468ccda6c6db3c34d1543d757",
+  "acceptance_history": [
+    {
+      "accept_commit": "292be64795c09f1468ccda6c6db3c34d1543d757",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-12T18:58:48.983322+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "92ab6b6510ff0c7174b61bc52e396b4290a6e0a5"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-12T18:58:48.983322+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "92ab6b6510ff0c7174b61bc52e396b4290a6e0a5",
+  "baseline_merge_commit": "69d51e6749a9562a1f82ea2c200f5e7fcdacdc44",
+  "created_at": "2026-10-12T17:49:52.028139+00:00",
+  "flattened": true,
+  "friendly_name": "Derive the mission-state audit's CI trigger list from what the audit executes",
+  "merged_at": "2026-10-12T19:07:45.378490+00:00",
+  "merged_commit": "6f2171a0923465fb22d5b2776d8e4c9e65adcfe6",
+  "mid8": "01M4RKRD",
+  "mission_id": "01M4RKRDC5ZBJM399WMDFC20K9",
+  "mission_number": 229,
+  "mission_slug": "audit-trigger-derivation-01M4RKRD",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The mission-state audit's CI trigger (ci-router.yml mission_state group) and a second copy in tests (AUDIT_INPUT_PATHS) are both hand-written from a one-time call trace, so they can drift from the modules the audit actually executes and from each other. When the audit executes a module outside the globs, a PR that changes the audit's verdict skips the audit (the #6058 incident), caught only by the nightly backstop after merge. This mission adds a non-vacuous test that derives the executed-module set from an in-process audit run and removes the hand copy.",
+  "purpose_tldr": "Replace the two hand-copied lists of the modules the mission-state audit touches with one derived, drift-proof check.",
+  "slug": "audit-trigger-derivation-01M4RKRD",
+  "status_phase": "1",
+  "target_branch": "issue-6090-audit-trigger-derivation",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-12T18:01:56.139626+00:00"
+}

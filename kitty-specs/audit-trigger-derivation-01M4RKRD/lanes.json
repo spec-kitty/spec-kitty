@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "audit-trigger-derivation-01M4RKRD",
+  "mission_id": "01M4RKRDC5ZBJM399WMDFC20K9",
+  "mission_branch": "kitty/mission-audit-trigger-derivation-01M4RKRD",
+  "target_branch": "issue-6090-audit-trigger-derivation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/ci/test_mission_state_audit_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-12T17:58:34.766111+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "267d9eba55bf08f8b00d916ec2f625c7e4de31ba"
+}

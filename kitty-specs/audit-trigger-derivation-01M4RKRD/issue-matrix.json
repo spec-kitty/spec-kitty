@@ -1,0 +1,41 @@
+{
+  "rows": {
+    "#6058": {
+      "evidence_ref": "Motivating incident, cited for context; corpus repair is separate work",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6087": {
+      "evidence_ref": "The landing this follows, cited for context; no work owed here",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6090": {
+      "evidence_ref": "Derived non-vacuity test + removed AUDIT_INPUT_PATHS hand copy in tests/ci/test_mission_state_audit_routing.py; self-mutation RED both ways",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

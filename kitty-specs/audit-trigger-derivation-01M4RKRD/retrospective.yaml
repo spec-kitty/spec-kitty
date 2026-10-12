@@ -1,0 +1,103 @@
+schema_version: 1
+mission_id: 01M4RKRDC5ZBJM399WMDFC20K9
+mission_slug: audit-trigger-derivation-01M4RKRD
+mission_number: 229
+friendly_name: Derive the mission-state audit's CI trigger list from what the audit executes
+mission_type: software-dev
+target_branch: issue-6090-audit-trigger-derivation
+created_at: '2026-10-12T19:07:55.993247+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-12T19:07:55.993247+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-006
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md present; findings not machine-readable
+  evidence_refs:
+  - e-007
+  details: An analysis-report.md artifact is present for this mission and its frontmatter carries a machine-readable
+    findings count, but no resolved verdict (the verdict key is absent or records the legacy 'unknown' marker), so the
+    count is not asserted; review it manually.
+gaps:
+- id: g-002
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+- id: g-001
+  category: doc
+  summary: research.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design
+    decisions.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/audit-trigger-derivation-01M4RKRD/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/audit-trigger-derivation-01M4RKRD/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/audit-trigger-derivation-01M4RKRD/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/audit-trigger-derivation-01M4RKRD/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/audit-trigger-derivation-01M4RKRD/tasks/WP01-derive-audit-trigger-list.md
+- id: e-006
+  kind: file
+  path: kitty-specs/audit-trigger-derivation-01M4RKRD/status.events.jsonl
+- id: e-007
+  kind: file
+  path: kitty-specs/audit-trigger-derivation-01M4RKRD/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
