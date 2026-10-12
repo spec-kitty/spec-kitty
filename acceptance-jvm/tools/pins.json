@@ -1,0 +1,13 @@
+{
+  "tools": [
+    {
+      "name": "gradle",
+      "kind": "archive",
+      "version": "8.14.5",
+      "url": "https://services.gradle.org/distributions/gradle-8.14.5-bin.zip",
+      "sha256": "6f74b601422d6d6fc4e1f9a1ab6522f642c2fdcbc15ae33ebd30ba3d7198e854",
+      "published": "2026-05-07",
+      "advisory_feed_checked": "GitHub security advisories of gradle/gradle (GHSA-mqwm-5m85-gmcv and GHSA-w78c-w6vf-rw82 are patched in 8.14.4 and later), checked 2026-10-02"
+    }
+  ]
+}

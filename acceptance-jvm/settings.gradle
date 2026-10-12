@@ -1,0 +1,16 @@
+// The acceptance-jvm build runs the CLI acceptance scenarios (Cucumber-JVM 7 on the
+// JUnit Platform, under a Java 25 toolchain). It reads the feature files from
+// ../tests/scenarios in place; the step definitions and driver port land in WP04 under
+// acceptance-jvm/src/**.
+//
+// Invoked with a pinned Gradle distribution; there is no committed wrapper jar (see
+// contracts/tools/install_tools.py and acceptance-jvm/tools/pins.json). CI installs the
+// sha256-checked Gradle zip and calls the installed `gradle` binary directly, never
+// ./gradlew.
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'acceptance-jvm'

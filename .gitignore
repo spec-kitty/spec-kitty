@@ -232,3 +232,6 @@ pytest-of-*/
 
 # Spec Kitty per-repo operator env file (local operator config)
 .kittify/.kitty.env
+
+# Allure results from the acceptance-jvm runner
+acceptance-jvm/allure-results/
