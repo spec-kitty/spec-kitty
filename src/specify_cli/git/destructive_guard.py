@@ -570,12 +570,32 @@ def guarded_branch_delete(
     return None
 
 
+def discarded_ref(repo_root: Path, branch: str, tip: str, *, env: dict[str, str] | None = None) -> str:
+    """The ref a discard of ``branch`` at ``tip`` keeps that tip under.
+
+    ``refs/spec-kitty/discarded/<branch>``, unless that ref already holds a
+    different earlier tip, which is never overwritten: then
+    ``refs/spec-kitty/discarded/<branch>@<short-sha>``. Idempotent once written.
+    """
+    ref = f"{DISCARDED_REF_PREFIX}{branch}"
+    existing = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], env=env)
+    return ref if existing.returncode != 0 or existing.stdout.strip() == tip else f"{ref}@{tip[:12]}"
+
+
+def _keep_discarded_tip(repo_root: Path, ref: str, tip: str, env: dict[str, str] | None) -> bool:
+    """Create ``ref`` at ``tip`` (never moving an existing ref); ``True`` when it holds ``tip`` afterwards."""
+    held = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"], env=env)
+    if held.returncode == 0 and held.stdout.strip() == tip:
+        return True
+    return ref_advance.write_bookkeeping_ref(repo_root, ref, tip, create_only=True)
+
+
 def _discard_branch_keeping_tip(repo_root: Path, branch: str, env: dict[str, str] | None) -> str | None:
     """Delete ``branch`` on an operator-explicit discard; keep its tip when it holds commits found nowhere else."""
     recorded: str | None = None
     if _unique_commits(repo_root, branch, [], env):
         tip = branch_tip(repo_root, branch, env=env)
-        if tip is None or not ref_advance.write_bookkeeping_ref(repo_root, f"{DISCARDED_REF_PREFIX}{branch}", tip):
+        if tip is None or not _keep_discarded_tip(repo_root, discarded_ref(repo_root, branch, tip, env=env), tip, env):
             raise DestructiveOpRefused(
                 error_code=DESTRUCTIVE_OP_ONLY_COPY,
                 current_branch=branch,

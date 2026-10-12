@@ -1028,19 +1028,22 @@ def _require_bookkeeping_ref(ref: str) -> None:
         )
 
 
-def write_bookkeeping_ref(repo_root: Path, ref: str, sha: str) -> bool:
+def write_bookkeeping_ref(repo_root: Path, ref: str, sha: str, *, create_only: bool = False) -> bool:
     """Point the bookkeeping ref *ref* at *sha*; return ``True`` on success.
 
     A plain (2-arg) ``git update-ref``: bookkeeping refs are single-writer
     records owned by their caller, which decides whether a failure matters
     (a best-effort recorder ignores ``False``; a mandatory one raises).
+    With ``create_only`` the write fails (``False``) rather than move a ref
+    that already exists, so a record of an earlier tip is never overwritten.
 
     Raises:
         BookkeepingRefError: *ref* is not under ``refs/spec-kitty/`` -- a
             branch or any other namespace must never be moved through here.
     """
     _require_bookkeeping_ref(ref)
-    return _run_git(repo_root, ["update-ref", ref, sha]).returncode == 0
+    args = ["update-ref", ref, sha, ""] if create_only else ["update-ref", ref, sha]
+    return _run_git(repo_root, args).returncode == 0
 
 
 def delete_bookkeeping_ref(repo_root: Path, ref: str) -> bool:

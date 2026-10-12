@@ -24,11 +24,11 @@ from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, loa
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.git.destructive_guard import (
     DISCARD_INTENT,
-    DISCARDED_REF_PREFIX,
     DestructiveOpRefused,
     RemoveOutcome,
     branch_only_commits,
     branch_tip,
+    discarded_ref,
     guarded_branch_delete,
     guarded_worktree_remove,
 )
@@ -1355,7 +1355,7 @@ def _discard_own_mission_branch(repo_root: Path, branch_name: str, *, creation_b
     except RuntimeError:
         return False
     if kept_tip is not None:
-        console.print(f"  Deleted {branch_name} (was {kept_tip[:12]}); restore with: git branch {branch_name} {DISCARDED_REF_PREFIX}{branch_name}")
+        console.print(f"  Deleted {branch_name} (was {kept_tip[:12]}); restore with: git branch {branch_name} {discarded_ref(repo_root, branch_name, kept_tip)}")
     return True
 
 
