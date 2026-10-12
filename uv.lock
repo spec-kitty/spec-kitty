@@ -2360,7 +2360,7 @@ requires-dist = [
     { name = "rich", specifier = ">=14.3.3" },
     { name = "ruamel-yaml", specifier = ">=0.18.0" },
     { name = "ruff", marker = "extra == 'lint'", specifier = ">=0.4.0" },
-    { name = "spec-kitty-events", specifier = ">=10.4.2,<11" },
+    { name = "spec-kitty-events", specifier = ">=10.4.4,<11" },
     { name = "spec-kitty-tracker", specifier = ">=0.5.2,<0.6" },
     { name = "toml", specifier = ">=0.10.2" },
     { name = "tomli-w", specifier = ">=1.0.0" },
@@ -2388,15 +2388,15 @@ dev = [
 
 [[package]]
 name = "spec-kitty-events"
-version = "10.4.2"
+version = "10.4.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-ulid" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/76/22/fe6fedcc6259ca5692d5c491deba7ea104a573daea7a1084d561c56e4112/spec_kitty_events-10.4.2.tar.gz", hash = "sha256:8d26cf5e0654732089cfdd1376f039a7ad83b31ed11baca1934ce27881c40130", size = 431829, upload-time = "2026-10-11T12:14:00.375Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/45/3c/a919a3add5b26d5772d50286c30957bdd6a928def55d9a2a4791289a6039/spec_kitty_events-10.4.4.tar.gz", hash = "sha256:3eaf946aef46e0c3fcfb2ea0eda9bfa3a1cea195bf3f65532c8780a4a9f7b7e1", size = 441553, upload-time = "2026-10-12T12:32:53.891Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/31/1f/65146ea4dcb7baa2d6c91083fbeee9886f9af3af58e2732406cae936f5fd/spec_kitty_events-10.4.2-py3-none-any.whl", hash = "sha256:234eca780ec70ab7a58f78243cadb81ace24b58946766231ab3ee75fcb1dbe32", size = 624910, upload-time = "2026-10-11T12:13:58.488Z" },
+    { url = "https://files.pythonhosted.org/packages/7d/69/0163ba6ee91fe7065b0924be33aeff39f269aecb64bb80b19ff883f32873/spec_kitty_events-10.4.4-py3-none-any.whl", hash = "sha256:60c6162004efc5615f386493b5a8f450ee14a59677b6e1f39db0702a8d089410", size = 629996, upload-time = "2026-10-12T12:32:51.885Z" },
 ]
 
 [[package]]
