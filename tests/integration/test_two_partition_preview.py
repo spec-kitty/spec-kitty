@@ -33,6 +33,7 @@ the identical verdict — is added on top of @rayjohnson's originals.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
     from specify_cli.post_merge.review_artifact_consistency import (
         RejectedReviewArtifactFinding,
     )
-    from specify_cli.status.models import ReviewResult
+    from specify_cli.status.models import Lane, ReviewResult
 
 # Re-export the fixtures so pytest discovers them in this module.
 __all__ = ["coord_topology_mission", "flat_topology_mission"]
@@ -98,6 +99,48 @@ def _seed_terminal_wp01(
             review_result=review_result,
         ),
     )
+
+
+def _append_lane_chain(
+    feature_dir: Path,
+    *,
+    mission_slug: str,
+    mission_id: str,
+    wp_id: str,
+    chain: tuple[tuple[Lane, Lane, str], ...],
+    review_result: ReviewResult | None,
+    reason: str,
+) -> None:
+    """Append one ``StatusEvent`` per ``(from_lane, to_lane, event_id)`` step.
+
+    ``at`` increases by one second per step from a fixed base, so the reducer's
+    ``(at, event_id)`` ordering follows the chain order. ``review_result`` rides
+    the LAST step only: the pure-event merge gate reads the verdict from the
+    terminal transition.
+    """
+    from specify_cli.status.models import StatusEvent
+    from specify_cli.status.store import append_event
+
+    base = datetime(2026, 6, 26, 1, 0, 0, tzinfo=UTC)
+    last_index = len(chain) - 1
+    for step, (from_lane, to_lane, event_id) in enumerate(chain):
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id=event_id,
+                mission_slug=mission_slug,
+                mission_id=mission_id,
+                wp_id=wp_id,
+                from_lane=from_lane,
+                to_lane=to_lane,
+                at=(base + timedelta(seconds=step)).isoformat(),
+                actor="reviewer-renata",
+                force=False,
+                execution_mode="worktree",
+                reason=reason,
+                review_result=review_result if step == last_index else None,
+            ),
+        )
 
 
 def _write_review_cycle(
@@ -441,8 +484,7 @@ def test_c001_merge_gate_agrees_with_real_writer_single_branch_two_separators(
         find_rejected_review_artifact_conflicts,
     )
     from specify_cli.review.cycle import create_rejected_review_cycle
-    from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from specify_cli.status.models import Lane
 
     ctx = flat_topology_mission
     (ctx.primary_feature_dir / "tasks" / "WP02_second_wp.md").write_text(
@@ -488,27 +530,15 @@ def test_c001_merge_gate_agrees_with_real_writer_single_branch_two_separators(
             reviewer_agent="reviewer-renata",
             verdict="rejected",
         )
-        last_index = len(chain) - 1
-        for step, (from_lane, to_lane, event_id) in enumerate(chain):
-            append_event(
-                ctx.primary_feature_dir,
-                StatusEvent(
-                    event_id=event_id,
-                    mission_slug=ctx.slug,
-                    mission_id=ctx.mission_id,
-                    wp_id=wp_id,
-                    from_lane=from_lane,
-                    to_lane=to_lane,
-                    at=f"2026-06-26T01:00:0{step}+00:00",
-                    actor="reviewer-renata",
-                    force=False,
-                    execution_mode="worktree",
-                    reason="approved for merge",
-                    # The pure-event merge gate reads the verdict from the
-                    # terminal transition only.
-                    review_result=created.review_result if step == last_index else None,
-                ),
-            )
+        _append_lane_chain(
+            ctx.primary_feature_dir,
+            mission_slug=ctx.slug,
+            mission_id=ctx.mission_id,
+            wp_id=wp_id,
+            chain=chain,
+            review_result=created.review_result,
+            reason="approved for merge",
+        )
 
     findings = find_rejected_review_artifact_conflicts(
         ctx.primary_feature_dir, ["WP01", "WP02"]
@@ -549,8 +579,7 @@ def test_c001_merge_gate_agrees_with_real_writer_under_coord_topology(
         find_rejected_review_artifact_conflicts,
     )
     from specify_cli.review.cycle import create_rejected_review_cycle
-    from specify_cli.status.models import Lane, StatusEvent
-    from specify_cli.status.store import append_event
+    from specify_cli.status.models import Lane
 
     ctx = coord_topology_mission
     ctx.status_events_path.write_text("", encoding="utf-8")
@@ -579,25 +608,15 @@ def test_c001_merge_gate_agrees_with_real_writer_under_coord_topology(
         (Lane.FOR_REVIEW, Lane.IN_REVIEW, "01KW2E7A0TERMC001CRDREV003"),
         (Lane.IN_REVIEW, Lane.APPROVED, "01KW2E7A0TERMC001CRDAPR004"),
     )
-    last_index = len(coord_chain) - 1
-    for step, (from_lane, to_lane, event_id) in enumerate(coord_chain):
-        append_event(
-            ctx.coord_feature_dir,
-            StatusEvent(
-                event_id=event_id,
-                mission_slug=ctx.slug,
-                mission_id=ctx.mission_id,
-                wp_id="WP01",
-                from_lane=from_lane,
-                to_lane=to_lane,
-                at=f"2026-06-26T01:00:0{step}+00:00",
-                actor="reviewer-renata",
-                force=False,
-                execution_mode="worktree",
-                reason="approved for merge",
-                review_result=created.review_result if step == last_index else None,
-            ),
-        )
+    _append_lane_chain(
+        ctx.coord_feature_dir,
+        mission_slug=ctx.slug,
+        mission_id=ctx.mission_id,
+        wp_id="WP01",
+        chain=coord_chain,
+        review_result=created.review_result,
+        reason="approved for merge",
+    )
 
     findings = find_rejected_review_artifact_conflicts(ctx.primary_feature_dir, ["WP01"])
 
