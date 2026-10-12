@@ -265,6 +265,19 @@ def _nightly_audit_job() -> dict[str, Any]:
     return dict(_nightly_jobs()[_nightly_audit_name()])
 
 
+def test_a_red_nightly_audit_escalates_to_a_deduped_p0_on_main() -> None:
+    job = _nightly_audit_job()
+    (step,) = [s for s in job["steps"] if str(s.get("name", "")).startswith(ESCALATION_STEP_PREFIX)]
+
+    assert "--suite-key mission-state-audit" in step["run"]
+    assert "nightly_escalation.py" in step["run"] and '--ref "$GITHUB_REF"' in step["run"]
+    assert step["if"] == "always() && github.ref == 'refs/heads/main'"
+    assert job["permissions"]["issues"] == "write"
+    # Fail-closed: only an explicit success outcome of the audit step closes the P0.
+    assert "AUDIT_OUTCOME:-failure" in step["run"] and "steps.audit.outcome" in step["env"]["AUDIT_OUTCOME"]
+    assert [s for s in job["steps"] if s.get("id") == "audit"], "the escalation reads the audit step's outcome"
+
+
 def test_the_nightly_run_audits_main() -> None:
     jobs = _nightly_jobs()
     name = _nightly_audit_name()
@@ -281,22 +294,32 @@ def test_the_nightly_run_audits_main() -> None:
     assert "github.repository == 'spec-kitty/spec-kitty'" in str(job["if"]), "the fork guard"
 
 
+ESCALATION_STEP_PREFIX = "Escalate mission-state audit red"
+
+
+def _shared_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """The audit steps both jobs run: everything except the nightly-only escalation step (matched by name)."""
+    return [s for s in steps if not str(s.get("name", "")).startswith(ESCALATION_STEP_PREFIX)]
+
+
 def _steps_match(router_steps: list[dict[str, Any]], nightly_steps: list[dict[str, Any]]) -> bool:
-    """The whole steps list (checkout, setup-uv, uv sync, audit, upload) must be equal: no justified difference exists."""
-    return router_steps == nightly_steps
+    """Every shared step (checkout, setup-uv, uv sync, audit, upload) must be equal; only the escalation differs."""
+    return _shared_steps(router_steps) == _shared_steps(nightly_steps)
 
 
 def test_the_nightly_audit_steps_are_the_router_steps() -> None:
-    """Parity: every step of the nightly job equals the router job's, so no pin or body can drift apart."""
+    """Parity: every audit step the nightly job shares with the router job is equal; the nightly-only escalation step is the sole extra."""
     router_steps = _jobs()[JOB]["steps"]
     nightly_steps = _nightly_audit_job()["steps"]
 
     assert _steps_match(router_steps, nightly_steps)
+    assert len(nightly_steps) == len(router_steps) + 1, "the escalation step is the only nightly-only step"
+    assert not [s for s in router_steps if str(s.get("name", "")).startswith(ESCALATION_STEP_PREFIX)]
     assert [s.get("run") for s in nightly_steps if str(s.get("run", "")).startswith("uv sync")] == ["uv sync --frozen"]
 
 
 def test_the_parity_check_is_not_vacuous() -> None:
-    """Mutating the nightly checkout pin (or any step) must break the parity."""
+    """Mutating the nightly checkout pin (or any shared step) must break the parity."""
     router_steps = _jobs()[JOB]["steps"]
     mutated = copy.deepcopy(_nightly_audit_job()["steps"])
     mutated[0]["uses"] = "actions/checkout@" + "0" * 40 + " # v5.0.0"

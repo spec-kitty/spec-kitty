@@ -1530,13 +1530,20 @@ jobs:
   # force run-all on push (test_changes_outputs_never_force_run_all_on_push), so a verdict-changing input
   # outside the group (a path list that drifted, a transitive dependency) would land unaudited. This job
   # audits main every night, unconditionally, with the SAME step body and upload as ci-router.yml's
-  # `mission-state-audit` job (parity pinned by tests/ci/test_mission_state_audit_routing.py). Read-only.
+  # `mission-state-audit` job (parity pinned by tests/ci/test_mission_state_audit_routing.py).
+  # A red audit blocks release (it fails nightly-summary) and, on main, the escalation step below
+  # opens or updates the deduped P0 issue (scripts/ci/nightly_escalation.py, suite key
+  # `mission-state-audit`) and closes it again on the next green run. Otherwise read-only.
   # ---------------------------------------------------------------------------
   mission-state-audit:
     if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: mission-state audit (nightly backstop, #6058)
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    # `issues: write` for the nightly red -> deduped-P0 escalation step below.
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
@@ -1547,6 +1554,7 @@ jobs:
       - name: Install the locked Python environment
         run: uv sync --frozen
       - name: Audit every Mission's state
+        id: audit
         run: |
           set -uo pipefail
           report="$RUNNER_TEMP/mission-state-audit.json"
@@ -1570,6 +1578,17 @@ jobs:
           path: ${{ runner.temp }}/mission-state-audit.json
           if-no-files-found: ignore
           retention-days: 14
+      # Mainline-only, fail-closed: only an explicit `success` outcome of the audit step closes the P0;
+      # a failed, cancelled or skipped audit (e.g. the environment sync failed) escalates.
+      - name: Escalate mission-state audit red -> deduped P0 (fail-closed)
+        if: always() && github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+        run: |
+          if [ "${AUDIT_OUTCOME:-failure}" = "success" ]; then conclusion=success; else conclusion=failure; fi
+          python3 scripts/ci/nightly_escalation.py --suite-key mission-state-audit --conclusion "$conclusion" --ref "$GITHUB_REF" --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
   # ---------------------------------------------------------------------------
   # nightly-summary: terminal `if: always()` aggregator so a scheduled/dispatch

@@ -1145,6 +1145,7 @@ jobs:
       - name: Install the locked Python environment
         run: uv sync --frozen
       - name: Audit every Mission's state
+        id: audit
         run: |
           set -uo pipefail
           report="$RUNNER_TEMP/mission-state-audit.json"
