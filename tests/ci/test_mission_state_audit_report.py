@@ -135,7 +135,7 @@ def test_render_of_a_clean_report_says_no_blockers() -> None:
     assert "passed" in summary
 
 
-def test_cells_escape_pipes_and_flatten_newlines_and_truncate_the_detail() -> None:
+def test_cells_escape_pipes_flatten_newlines_truncate_and_defuse_markup() -> None:
     long_detail = "a|b\nline2 " + "x" * 1000
     _, summary = render(_report({"m": [_finding(detail=long_detail)]}), 1)
 
@@ -144,12 +144,28 @@ def test_cells_escape_pipes_and_flatten_newlines_and_truncate_the_detail() -> No
     assert "\n" not in row
     assert "…" in row and len(row) < report_mod.DETAIL_LIMIT + 300
 
+    # Repo-controlled text: code-span cells (slug/code/artifact/remedy) must not hold backticks that end the
+    # span; the Markdown detail must not render links, images or HTML.
+    finding = _finding(code="C`ODE", detail="see [x](http://evil) and ![i](http://evil/p.png) <img src=x> a\\[b")
+    finding["artifact_path"] = "dir/`tick`.md"
+    _, summary = render(_report({"sl`ug": [finding]}), 1)
+
+    row = next(line for line in summary.splitlines() if line.startswith("| `sl"))
+    cells = re.split(r"(?<!\\)\|", row.strip().strip("|"))
+    for index in (0, 1, 2, 4):  # the code-span cells
+        assert cells[index].strip().startswith("`") and cells[index].strip().endswith("`")
+        assert "`" not in cells[index].strip()[1:-1], cells[index]
+    detail = cells[3]
+    assert not re.search(r"(?<!\\)\[", detail) and not re.search(r"(?<!\\)!", detail) and not re.search(r"(?<!\\)<", detail), detail
+    assert "\\[x\\]" in detail and "\\!\\[i\\]" in detail and "\\<img" in detail
+
 
 def test_annotations_escape_newlines_so_a_blocker_stays_one_line() -> None:
     log, _ = render(_report({"m": [_finding(detail="one\ntwo 100%")]}), 1)
 
     annotation = next(line for line in log.splitlines() if line.startswith("::error"))
     assert "one%0Atwo 100%25" in annotation
+    assert report_mod._annotation_escape("hint\n::set-env name=A::b") == "hint%0A::set-env name=A::b"
 
 
 def test_many_unrelated_drifts_get_the_reducer_hint() -> None:
@@ -159,6 +175,7 @@ def test_many_unrelated_drifts_get_the_reducer_hint() -> None:
     many_log, many_summary = render(many, 1)
     few_log, few_summary = render(few, 1)
 
+    assert any(line.startswith("::warning title=mission-state audit::") and "#6058" in line for line in many_log.splitlines())
     assert "#6058" in many_log and "#6058" in many_summary
     assert "#6058" not in few_log and "#6058" not in few_summary
 
@@ -277,6 +294,11 @@ def test_a_hostile_code_cannot_inject_a_workflow_command_through_the_counts_line
 
     assert not any(line.startswith("::set-env") for line in log.splitlines() + summary.splitlines())
     assert "X%0A::set-env name=A::b x1" in log
+
+    # ... and markdown link/image starters in a code cannot render in the summary's counts line.
+    _, linked = render(_report({"m": [_finding(code="[click](http://evil) ![i](http://evil/p.png)")]}), 1)
+    counts = next(line for line in linked.splitlines() if line.startswith("By code:"))
+    assert "\\[click\\]" in counts and "\\!\\[i\\]" in counts
 
 
 def test_main_returns_zero_on_pathologically_nested_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

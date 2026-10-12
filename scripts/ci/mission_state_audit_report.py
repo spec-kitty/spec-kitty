@@ -81,11 +81,24 @@ def _annotation_escape(text: str) -> str:
     return text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
 
 
-def _cell(text: object, limit: int | None = None) -> str:
-    """A markdown table cell: single line, ``|`` escaped, optionally truncated."""
+def _md_escape(text: str) -> str:
+    """Backslash-escape what would turn repo-controlled text into a link, image or HTML in the summary."""
+    escaped = text.replace("\\", "\\\\")
+    for char in "[]!<":
+        escaped = escaped.replace(char, "\\" + char)
+    return escaped
+
+
+def _cell(text: object, limit: int | None = None, *, markup: bool = False) -> str:
+    """A markdown table cell: single line, ``|`` escaped, optionally truncated.
+
+    ``markup=True`` is for cells rendered as Markdown (not inside a code span): link/image/HTML starters are
+    escaped. A cell destined for a code span instead has its backticks replaced, since a backtick would end the span.
+    """
     flat = " ".join(str(text if text is not None else "").split())
     if limit is not None and len(flat) > limit:
         flat = flat[: limit - 1] + "…"
+    flat = _md_escape(flat) if markup else flat.replace("`", "'")
     return flat.replace("|", "\\|")
 
 
@@ -101,7 +114,7 @@ def _table_row(slug: str, finding: Mapping[str, Any]) -> str:
         f"`{_cell(slug)}`",
         f"`{_cell(code)}`",
         f"`{_cell(finding.get('artifact_path'))}`",
-        _cell(finding.get("detail"), DETAIL_LIMIT),
+        _cell(finding.get("detail"), DETAIL_LIMIT, markup=True),
         f"`{_cell(_remedy(code, slug))}`",
     )
     return "| " + " | ".join(cells) + " |"
@@ -150,7 +163,7 @@ def _markdown(report: Mapping[str, Any], exit_code: int, blockers: Sequence[Bloc
     head = [f"{SUMMARY_HEADING}: {verdict} (exit {exit_code})", "", _summary_stats(report), ""]
     if not blockers:
         return "\n".join([*head, _no_blockers_text(report), ""])
-    head.append(_counts_line(blockers))
+    head.append(_md_escape(_counts_line(blockers)))
     hint = _drift_hint(blockers)
     if hint:
         head += ["", f"**{hint}**"]
@@ -168,7 +181,7 @@ def _log_text(report: Mapping[str, Any], blockers: Sequence[Blocker], exit_code:
     lines += [_log_line(slug, finding) for slug, finding in blockers]
     hint = _drift_hint(blockers)
     if hint:
-        lines.append(f"::warning title={ANNOTATION_TITLE}::{hint}")
+        lines.append(f"::warning title={ANNOTATION_TITLE}::{_annotation_escape(hint)}")
     lines.append(f"mission-state audit exit code: {exit_code}")
     return "\n".join(lines) + "\n"
 

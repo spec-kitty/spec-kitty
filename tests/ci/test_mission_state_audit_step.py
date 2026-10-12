@@ -179,12 +179,19 @@ def test_a_clean_audit_passes_and_says_so(tmp_path: Path) -> None:
 
 @needs_tools
 def test_no_json_and_a_failing_audit_reports_and_keeps_the_audit_status(tmp_path: Path) -> None:
-    proc, summary = _run_step(tmp_path, "Traceback: boom\n", audit_exit=2)
+    # A raw line starting with `::` (e.g. from a repo-controlled slug) must not be read as a workflow command,
+    # and the dump is size-capped.
+    hostile = "Traceback: boom\n::set-env name=PWNED::1\n::add-mask::x\n" + "pad\n" * 40000
+    proc, summary = _run_step(tmp_path, hostile, audit_exit=2)
 
     assert proc.returncode == 2
     assert "produced no JSON report (exit 2)" in proc.stdout
     assert "::error::" in proc.stdout
     assert "Traceback: boom" in proc.stdout
+    commands = [line for line in proc.stdout.splitlines() if line.startswith("::")]
+    assert len(commands) == 1 and commands[0].startswith("::error::"), commands
+    assert ": :set-env name=PWNED::1" in proc.stdout
+    assert len(proc.stdout) < 70000, "the raw dump is capped"
     assert "no JSON report" in _summary_text(summary)
 
 
