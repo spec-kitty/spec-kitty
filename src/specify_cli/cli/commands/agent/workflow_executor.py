@@ -2119,7 +2119,7 @@ def _review_baseline_context_lines(*, main_repo_root: Path, mission_slug: str, w
         elif rv_baseline is not None and rv_baseline.failed == -1:
             lines.append("─── BASELINE TEST CONTEXT " + "─" * 54)
             lines.append(
-                "**Warning**: Baseline test capture failed at implement time. "
+                "**Warning**: Baseline test capture failed. "
                 "Cannot distinguish pre-existing failures from regressions. "
                 "Exercise caution when attributing test failures to this WP."
             )

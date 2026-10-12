@@ -707,7 +707,7 @@ class TestReviewPromptIncludesBaselineSection:
 
         lines = []
         if loaded.failed == -1:
-            lines.append("**Warning**: Baseline test capture failed at implement time.")
+            lines.append("**Warning**: Baseline test capture failed.")
 
         rendered = "\n".join(lines)
         assert "Warning" in rendered

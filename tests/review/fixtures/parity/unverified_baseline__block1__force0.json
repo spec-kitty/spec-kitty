@@ -3,7 +3,7 @@
   "block_enabled": true,
   "expected": {
     "blocked": false,
-    "console": "[yellow]Pre-review regression gate:[/yellow] block requested via review.fail_on_pre_review_regression but COULD NOT be enforced \u2014 no verified new-failure verdict exists to block on. A baseline must be captured at implement time (configure review.test_command in .kittify/config.yaml) before this block can ever take effect. (outcome=unverified_baseline: baseline uncomputable \u2014 surfacing all current failures as unverified)",
+    "console": "[yellow]Pre-review regression gate:[/yellow] block requested via review.fail_on_pre_review_regression but COULD NOT be enforced \u2014 no verified new-failure verdict exists to block on. A baseline must be captured (on the first for_review move; configure review.test_command in .kittify/config.yaml) before this block can ever take effect. (outcome=unverified_baseline: baseline uncomputable \u2014 surfacing all current failures as unverified)",
     "exit_code": null,
     "force_bypassed": false,
     "metadata": {

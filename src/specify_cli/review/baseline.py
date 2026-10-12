@@ -1,13 +1,13 @@
 """Baseline test capture for Spec Kitty review loop stabilization.
 
-Captures baseline test results at implement time (before the agent starts
-coding) when the project explicitly configures a baseline-capable test
+Captures baseline test results on a work package's first ``for_review`` move,
+at the lane's fork point (ADR 2026-10-12-1), when the project explicitly configures a baseline-capable test
 command. Results are cached as a committed artifact (baseline-tests.json).
 At review time, the review prompt includes a "Baseline Context" section
 showing which failures are pre-existing vs. newly introduced.
 
 Design decisions:
-- Capture timing: implement time, not claim time.
+- Capture timing: the first for_review move, at the lane fork point; never on the claim.
 - Baseline capture is opt-in via ``review.test_command`` in ``.kittify/config.yaml``.
 - Supported output formats are parser-specific; JUnit XML is supported today.
 - Artifact format: structured JSON with test name, status, one-line error for failures only.
@@ -86,7 +86,7 @@ class BaselineFailure:
 
 @dataclass(frozen=True)
 class BaselineTestResult:
-    """Baseline test results captured at implement time."""
+    """Baseline test results captured on the first for_review move, at the lane fork point."""
 
     wp_id: str
     captured_at: str      # ISO 8601 UTC
@@ -305,7 +305,7 @@ def capture_baseline(
     test_command: str | None = None,
     scope_source: ScopeSource | None = None,
 ) -> BaselineTestResult | None:
-    """Capture baseline test results at implement time.
+    """Capture baseline test results for a work package on its base branch.
 
     Creates a temporary git worktree on the base branch, runs the test
     suite, parses JUnit XML output, and saves the result to
