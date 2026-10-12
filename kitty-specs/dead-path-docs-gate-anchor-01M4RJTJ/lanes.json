@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "mission_slug": "dead-path-docs-gate-anchor-01M4RJTJ",
+  "mission_id": "01M4RJTJW819ZPTS2V9X8Q3B00",
+  "mission_branch": "issue-6096-dead-path-gate-anchor",
+  "target_branch": "issue-6096-dead-path-gate-anchor",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/test_dead_builtin_doc_paths.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-12T17:40:46.146990+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "bc6366deeeccc6ec5725a2eb86f8d25d9e35bc04"
+}

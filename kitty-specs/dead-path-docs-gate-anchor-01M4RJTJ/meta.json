@@ -1,0 +1,36 @@
+{
+  "accept_commit": "c341afa72cb7aa01042f67e9c40808b201a55c93",
+  "acceptance_history": [
+    {
+      "accept_commit": "c341afa72cb7aa01042f67e9c40808b201a55c93",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-12T18:15:44.720500+00:00",
+      "accepted_by": "reviewer-rachel/claude",
+      "accepted_from_commit": "57b05f2447470b0ce37dfeaf3bdbcc12eac30cea"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-12T18:15:44.720500+00:00",
+  "accepted_by": "reviewer-rachel/claude",
+  "accepted_from_commit": "57b05f2447470b0ce37dfeaf3bdbcc12eac30cea",
+  "baseline_merge_commit": "34cc4cef14cd6c468f77f551f28b1c07faf6f819",
+  "created_at": "2026-10-12T17:33:34.584576+00:00",
+  "flattened": false,
+  "friendly_name": "Anchor Gate D's dead-path docs regex",
+  "merged_at": "2026-10-12T18:16:29.827990+00:00",
+  "merged_commit": "34cc4cef14cd6c468f77f551f28b1c07faf6f819",
+  "mid8": "01M4RJTJ",
+  "mission_id": "01M4RJTJW819ZPTS2V9X8Q3B00",
+  "mission_number": 229,
+  "mission_slug": "dead-path-docs-gate-anchor-01M4RJTJ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Gate D enforces that live docs name no retired top-level src/charter/offering/<kind>/built-in home. Its git grep regex has no left boundary, so a longer path whose tail is that shape is wrongly flagged. This mission tightens the left boundary only, with a red-first non-vacuity regression test, so the gate stays precise without loosening what it forbids.",
+  "purpose_tldr": "Stop the dead-path docs gate from flagging any nested .../src/ path as a top-level src/ reference (#6096).",
+  "slug": "dead-path-docs-gate-anchor-01M4RJTJ",
+  "status_phase": "1",
+  "target_branch": "issue-6096-dead-path-gate-anchor",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-12T17:42:52.409356+00:00"
+}

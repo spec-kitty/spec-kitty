@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#6096": {
+      "evidence_ref": "Left-boundary anchor (cfa57965) + red-first regression (80fa4fcb); revert proof RED; 38 gate tests + make test-fast 2585 pass.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

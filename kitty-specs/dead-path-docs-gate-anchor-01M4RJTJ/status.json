@@ -1,0 +1,51 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M4RN96Q3MW8ZGDJ8MAJM1X3K",
+  "materialized_at": "2026-10-12T18:16:30.691839+00:00",
+  "mission_number": "229",
+  "mission_slug": "dead-path-docs-gate-anchor-01M4RJTJ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M4RN96Q3MW8ZGDJ8MAJM1X3K",
+      "last_transition_at": "2026-10-12T18:16:30.691839+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Independent adversarial review (reviewer lens) passed: ship-worthy; one low finding folded (docstring scope note, eb97712b). Red-first non-vacuity proven; 38 gate tests + make test-fast green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261012",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 28882,
+      "shell_pid_created_at": "1791828808.12",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    }
+  }
+}
