@@ -17,6 +17,7 @@ FR-011.
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -59,19 +60,32 @@ _GUARD_DOC_EXCLUSIONS = (
 )
 
 
+def _grep_moved_builtin_doc_paths(cwd: Path, pathspecs: tuple[str, ...]) -> subprocess.CompletedProcess[str]:
+    """Run Gate D's ``git grep`` for a retired pre-move built-in path.
+
+    The live gate and its regression test share this one matcher so both
+    exercise the identical mechanism (``_MOVED_BUILTIN_DOC_RE`` fed to
+    ``git grep -nE``); the test differs only in ``cwd`` and ``pathspecs``.
+    Returns the ``CompletedProcess``; ``git grep`` exit status is 0 when
+    matches are found (dead refs present), 1 when clean, and anything else on a
+    grep error.
+    """
+    return subprocess.run(
+        ["git", "grep", "-nE", _MOVED_BUILTIN_DOC_RE, "--", *pathspecs],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
 def test_no_live_doc_names_a_pre_move_builtin_path() -> None:
     """FR-011 committed guard: the T024 live-reference sweep is observable, not
     eyeballed. ``git grep`` of live ``docs/`` (minus the snapshot/derived subtrees
     pinned above) for a retired ``src/charter/offering/`` built-in path must return zero;
     a hit means a live doc still sends a reader to a home that moved to
     ``packs/built-in/`` (see docs/migrations/relocate-builtin-doctrine-packs.md)."""
-    result = subprocess.run(
-        ["git", "grep", "-nE", _MOVED_BUILTIN_DOC_RE, "--", "docs", *_GUARD_DOC_EXCLUSIONS],
-        cwd=_REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = _grep_moved_builtin_doc_paths(_REPO_ROOT, ("docs", *_GUARD_DOC_EXCLUSIONS))
     if result.returncode not in (0, 1):
         pytest.skip(f"git grep unavailable ({result.returncode}): {result.stderr.strip()}")
     # git grep exit status: 0 == matches found (dead refs present); 1 == clean.
@@ -79,3 +93,65 @@ def test_no_live_doc_names_a_pre_move_builtin_path() -> None:
         "Live documentation still names a pre-move built-in path. Repoint each to "
         "packs/built-in/ (drop the inner `built-in` segment):\n" + result.stdout
     )
+
+
+def test_gate_d_rejects_a_nested_tail_but_still_catches_a_top_level_ref(tmp_path: Path) -> None:
+    """#6096 non-vacuity (both directions): the retired built-in path shape as the
+    TAIL of a longer path must not trip Gate D, while a genuine TOP-LEVEL reference
+    still must.
+
+    ``git grep -E`` has no look-behind, so the pre-fix ``_MOVED_BUILTIN_DOC_RE``
+    matched as an unanchored substring and flagged any ``…/src/charter/offering/<kind>/built-in``
+    (or ``…/*.graph.yaml``) tail as if it named the retired top-level home. The
+    left-boundary anchor admits a match only at start-of-line or after a non-path,
+    non-word character.
+
+    This exercises the real ``git grep`` + ``_MOVED_BUILTIN_DOC_RE`` against a
+    throwaway repo, so it is self-mutation-proven in both directions: removing the
+    anchor re-reds the "tail not flagged" assertions (the over-match returns), and
+    breaking the match re-reds the "genuine ref flagged" positive controls (the
+    gate stops catching the real dead ref). A gate-unmask cannot self-validate.
+    """
+    repo = tmp_path / "repo"
+    docs = repo / "docs"
+    docs.mkdir(parents=True)
+
+    # Genuine TOP-LEVEL references -- the gate must still catch these.
+    (docs / "genuine_builtin.md").write_text(
+        "See src/charter/offering/foo/built-in for the retired home.\n",
+        encoding="utf-8",
+    )
+    (docs / "genuine_graph.md").write_text(
+        "The fragment src/charter/offering/foo.graph.yaml moved to packs/built-in/.\n",
+        encoding="utf-8",
+    )
+
+    # TAILS of longer paths -- the #6096 over-match. The gate must NOT flag these.
+    (docs / "nested_pack_tail.md").write_text(
+        "Pack content lives at packs/internal/x/src/charter/offering/foo/built-in today.\n",
+        encoding="utf-8",
+    )
+    (docs / "absolute_path_tail.md").write_text(
+        "Absolute: /home/runner/work/spec-kitty/spec-kitty/src/charter/offering/foo/built-in\n",
+        encoding="utf-8",
+    )
+    (docs / "blob_url_tail.md").write_text(
+        "URL: https://github.com/spec-kitty/spec-kitty/blob/main/src/charter/offering/foo.graph.yaml\n",
+        encoding="utf-8",
+    )
+
+    subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+
+    result = _grep_moved_builtin_doc_paths(repo, ("docs",))
+    if result.returncode not in (0, 1):
+        pytest.skip(f"git grep unavailable ({result.returncode}): {result.stderr.strip()}")
+    flagged = {line.split(":", 1)[0] for line in result.stdout.splitlines() if line}
+
+    # Positive controls: genuine top-level references are still reported.
+    assert "docs/genuine_builtin.md" in flagged, result.stdout
+    assert "docs/genuine_graph.md" in flagged, result.stdout
+    # The #6096 fix: a retired shape that is only the tail of a longer path is not reported.
+    assert "docs/nested_pack_tail.md" not in flagged, result.stdout
+    assert "docs/absolute_path_tail.md" not in flagged, result.stdout
+    assert "docs/blob_url_tail.md" not in flagged, result.stdout
