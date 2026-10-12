@@ -63,3 +63,27 @@ test {
         systemProperty 'cucumber.filter.tags', tagFilter
     }
 }
+
+// Zero-scenario guard. Gradle 8.14 treats a test task that discovers no tests as a pass, so a
+// typo'd tag filter or a broken feature path would turn the gating nightly green while checking
+// nothing. Count the executed (non-skipped) tests of the root suite and fail the task when
+// none ran. Only the @wip run (a filter that selects @wip without negating it) may
+// legitimately find zero scenarios.
+test {
+    def ranTests = new java.util.concurrent.atomic.AtomicLong()
+    def filter = System.getProperty('cucumber.filter.tags') ?: ''
+    def mayBeEmpty = filter.contains('@wip') && !filter.contains('not @wip')
+
+    afterSuite { descriptor, result ->
+        if (descriptor.parent == null) {
+            // Cucumber reports scenarios excluded by the tag filter as skipped, so subtract them.
+            ranTests.set(result.testCount - result.skippedTestCount)
+        }
+    }
+    doLast {
+        if (!mayBeEmpty && ranTests.get() == 0) {
+            throw new GradleException("No acceptance scenario ran (cucumber.filter.tags='${filter}'). "
+                + 'A gating run that finds zero scenarios is a defect, not a pass.')
+        }
+    }
+}
