@@ -985,3 +985,19 @@ def test_discard_intent_keeps_the_tip_of_a_branch_with_commits_found_nowhere_els
         ["git", "for-each-ref", "--format=%(refname) %(objectname)", "refs/spec-kitty/"], cwd=str(root), capture_output=True, text=True, check=True
     )
     assert refs.stdout.split("\n")[:-1] == [f"refs/spec-kitty/discarded/lost {lost_tip}"]
+
+
+def test_discard_intent_refuses_and_keeps_the_branch_when_its_tip_cannot_be_recorded(tmp_path: Path) -> None:
+    """A ref already at ``discarded/x`` blocks ``discarded/x/y`` (file vs directory), so the only copy of ``x/y`` must survive."""
+    from specify_cli.git.destructive_guard import DISCARD_INTENT
+
+    root = _mission_repo(tmp_path)
+    _git(root, "update-ref", "refs/spec-kitty/discarded/x", "HEAD")
+    _branch_with_commit(root, "tmp")
+    _git(root, "branch", "-m", "tmp", "x/y")
+
+    with pytest.raises(DestructiveOpRefused) as info:
+        guarded_branch_delete(root, "x/y", creation_base=None, operator_intent=DISCARD_INTENT)
+
+    assert info.value.error_code == DESTRUCTIVE_OP_ONLY_COPY
+    assert _git(root, "for-each-ref", "refs/heads/x/y").stdout != ""
