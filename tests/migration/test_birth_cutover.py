@@ -708,7 +708,6 @@ def test_issue_2985_birth_cutover_preserves_every_wp_lane_and_repairs_old_seed(
 
     from specify_cli.migration.backfill_runtime_state import (
         BACKFILL_ACTOR,
-        COMPATIBILITY_REPAIR_ACTOR,
         _mission_id,
         _seed_id,
     )
@@ -728,10 +727,8 @@ def test_issue_2985_birth_cutover_preserves_every_wp_lane_and_repairs_old_seed(
     assert all((seed.at, seed.event_id) < history_key for seed in new_seed_rows for history_key in legitimate_keys[seed.wp_id])
     # Since spec-kitty-events 10.4.4 (#6058) the reducer itself folds the old
     # seed's claim slots where no real event wrote them, so the snapshot
-    # assertions above can hold without a compatibility repair. A repair, when
-    # the reducer still needs one, may only touch WP01 (the old seed).
-    repairs = [event for event in (*stream.transitions, *stream.annotations) if event.actor == COMPATIBILITY_REPAIR_ACTOR]
-    assert all(event.wp_id == "WP01" for event in repairs)
+    # assertions above hold with no compatibility repair minted at all (the
+    # #2985 repair machinery was removed as globally unreachable, #6095).
 
     events_after_first = (feature_dir / "status.events.jsonl").read_bytes()
     second = cutover_mission(feature_dir)

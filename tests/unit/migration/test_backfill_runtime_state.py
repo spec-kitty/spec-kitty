@@ -263,14 +263,11 @@ def test_persisted_bad_claim_seed_no_longer_buries_lane_or_claim_slots(
     A pre-fix run persisted a ``planned -> claimed`` migration seed colliding on
     ``at`` with the WP's real ``claimed -> in_progress`` transition, while that
     real transition carried the legitimate claim slots. Before spec-kitty-events
-    10.4.2 the stale seed won the fold (lane ``claimed``, stale claim slots) and
-    the backfill repaired it with an append-only compatibility row. Under 10.4.2
-    the reducer keeps the real recorded lifecycle authoritative, so the snapshot
-    already reflects the legitimate lane/claim slots *before* the backfill runs:
-    the reducer subsumes the former repair for this case and NO compatibility
-    repair is minted. The backfill still seeds the remaining missing runtime
-    slots and stays idempotent. (Contrast the birth-cutover mixed mission, where
-    a seed-owned slot with no legitimate writer still triggers a repair.)
+    10.4.2 the stale seed won the fold (lane ``claimed``, stale claim slots).
+    Under 10.4.2+ the reducer keeps the real recorded lifecycle authoritative, so
+    the snapshot already reflects the legitimate lane/claim slots *before* the
+    backfill runs. The backfill still seeds the remaining missing runtime slots
+    and stays idempotent.
     """
     feature_dir = build_mission(tmp_path)
     events_path = feature_dir / "status.events.jsonl"
@@ -330,14 +327,6 @@ def test_persisted_bad_claim_seed_no_longer_buries_lane_or_claim_slots(
     assert snapshot["shell_pid_created_at"] == "later-claim-time"
     assert snapshot["agent"] == "later-legitimate-agent"
     assert b.verify_backfill(feature_dir).ok
-    # The reducer already yields the real lifecycle, so the compatibility-repair
-    # path mints nothing for this case.
-    repairs = [
-        event
-        for event in read_event_stream(feature_dir).annotations
-        if event.actor == b.COMPATIBILITY_REPAIR_ACTOR
-    ]
-    assert repairs == []
     before = events_path.read_bytes()
 
     assert b.backfill_runtime_state(feature_dir).seeded_count == 0
@@ -1094,10 +1083,10 @@ def test_shift_ordering_timestamp_holds_its_lexical_postcondition(
 ) -> None:
     """The shifted stamp must compare correctly against its own input.
 
-    That is the whole point of the helper: ``_wp_history_floor`` and
-    ``_compatibility_repair_at`` both assert ``(shifted, "") < / > (at, id)``
-    against the reducer's raw string keys. A shift that re-encodes the
-    designator breaks the comparison without changing the instant.
+    That is the whole point of the helper: ``_wp_history_floor`` asserts
+    ``(shifted, "") < (at, id)`` against the reducer's raw string keys. A shift
+    that re-encodes the designator breaks the comparison without changing the
+    instant.
     """
     shifted = b._shift_ordering_timestamp(raw, wp_id="WP01", direction=direction)  # type: ignore[arg-type]
 
@@ -1158,18 +1147,17 @@ def test_seed_floor_precedes_history_under_either_at_encoding(
     assert b.verify_backfill(feature_dir).ok
 
 
-# RETIRED (spec-kitty-events 10.4.2 / events#78): the former
+# RETIRED: the former
 # ``test_compatibility_repair_lands_after_history_under_either_at_encoding``
-# drove the repair seam with a persisted bad-claim seed that *buried* the real
-# lifecycle. Under 10.4.2 the reducer keeps the real recorded lifecycle
-# authoritative, so that scenario no longer mints any compatibility repair (see
-# ``test_persisted_bad_claim_seed_no_longer_buries_lane_or_claim_slots`` above).
-# The append-only repair seam's encoding robustness is still exercised, under
-# both ``at`` encodings, by ``test_shift_ordering_timestamp_*`` (the
-# ``_compatibility_repair_at`` helper) and by the end-to-end
-# ``test_issue_2985_birth_cutover_preserves_every_wp_lane_and_repairs_old_seed``
-# in ``tests/migration/test_birth_cutover.py``, whose seed-owned slot with no
-# legitimate writer still triggers a repair.
+# drove the #2985 compatibility-repair seam with a persisted bad-claim seed that
+# *buried* the real lifecycle. That seam was retired in two steps:
+# spec-kitty-events 10.4.2 (events#78) made the reducer keep the real recorded
+# lifecycle authoritative, so no repair was minted for that scenario (see
+# ``test_persisted_bad_claim_seed_no_longer_buries_lane_or_claim_slots`` above),
+# and 10.4.4 (#6095) removed the now-globally-unreachable repair machinery
+# entirely. The ``_shift_ordering_timestamp`` encoding robustness the seam relied
+# on is still exercised under both ``at`` encodings by
+# ``test_shift_ordering_timestamp_*``.
 
 
 # ---------------------------------------------------------------------------
