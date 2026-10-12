@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "safe-commit-hook-staged-paths-01M4RKV7",
+  "mission_id": "01M4RKV7SYP1VPAVGWAJE2AQPC",
+  "mission_branch": "issue-5903-safe-commit-hook-staged-paths",
+  "target_branch": "issue-5903-safe-commit-hook-staged-paths",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "docs/contracts/upstream-3.0.0-shape.json",
+        "src/specify_cli/core/upstream_contract.json",
+        "src/specify_cli/git/commit_helpers.py",
+        "src/specify_cli/orchestrator_api/envelope.py",
+        "tests/specify_cli/git/test_commit_helpers.py",
+        "tests/specify_cli/orchestrator_api/test_contract_version.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-12T18:04:32.827361+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "4b75abd9891877394a66df08bb27d307befbcce5"
+}

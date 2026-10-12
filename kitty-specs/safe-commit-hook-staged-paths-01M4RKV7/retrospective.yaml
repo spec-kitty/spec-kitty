@@ -1,0 +1,216 @@
+schema_version: 1
+mission_id: 01M4RKV7SYP1VPAVGWAJE2AQPC
+mission_slug: safe-commit-hook-staged-paths-01M4RKV7
+mission_number: 229
+friendly_name: Guard safe_commit against hook-staged paths
+mission_type: software-dev
+target_branch: issue-5903-safe-commit-hook-staged-paths
+created_at: '2026-10-12T18:42:59.973698+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-12T18:42:59.973698+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-006
+- id: h-002
+  category: tooling
+  summary: 'Tracer: [2026-10-12][specify] Expected-parent route left untouched (C-002).'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-12][specify] Expected-parent route left untouched (C-002).** It rebuilds the tree from\n  requested
+    paths only; it is the negative control and the one route #5903 confirms is correct."
+not_helpful:
+- id: n-002
+  category: doc
+  summary: analysis-report.md records 2 finding(s)
+  evidence_refs:
+  - e-008
+  details: The analysis-report.md artifact for this mission records 2 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+- id: n-001
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-007
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: tooling
+  summary: 'Tracer: [2026-10-12][review] Independent adversarial review folded while draft.'
+  evidence_refs:
+  - e-009
+  details: "- **[2026-10-12][review] Independent adversarial review folded while draft.** One HIGH (Windows\n  path-separator)
+    folded inline; two LOW findings dispositioned (docstring precondition + accepted\n  note). Review was run by a separate
+    profile-loaded reviewer over the integrated diff, per the\n  charter's recommended pre-PR mechanism (reviewer ≠ implementer)."
+- id: n-010
+  category: tooling
+  summary: 'Tracer: [2026-10-12][review] POSIX-normalize both sides of the path comparison (adversarial fold).'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-12][review] POSIX-normalize both sides of the path comparison (adversarial fold).** The\n  pre-PR
+    adversarial squad found a Windows release-blocker: `git diff-tree` output is always\n  forward-slashed, but `str(Path)`
+    uses backslashes on Windows, so comparing the committed set\n  against `normalized_files` directly would false-positive
+    on every nested-path commit (even with no\n  hook) and mutate the index. Both sides now route through `kernel.paths.to_posix`
+    (the #2836\n  separator seam). Added a nested-path no-hook regression test so `ci-windows.yml` exercises it; the\n  single-component
+    fixtures could not. Documented the individual-files precondition (Finding 2,\n  latent). Finding 3 (re-sync drops a `git
+    add -p` partial stage of a swept path) matches existing\n  `_sync_real_index_after_commit` behaviour and is accepted."
+- id: n-004
+  category: tooling
+  summary: 'Tracer: [2026-10-12][specify] Caller survey → FR-006 is `[folded]`.'
+  evidence_refs:
+  - e-009
+  details: "- **[2026-10-12][specify] Caller survey → FR-006 is `[folded]`.** Every `safe_commit` caller keys\n  \"DID land\"\
+    \ on `isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None`, never on\n  `SafeCommitIndexResidue`
+    specifically, so the new subclass inherits correct handling with no\n  per-caller edit. Confirmed by reading all eight
+    call sites."
+- id: n-009
+  category: tooling
+  summary: 'Tracer: [2026-10-12][specify] Contract version bump to 1.15.0.'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-12][specify] Contract version bump to 1.15.0.** Consistent with the 1.13.0/1.14.0\n  precedent for
+    a new verb-reachable `SAFE_COMMIT_*` code; single canonical authority\n  (`upstream_contract.json`) + its JSON-equal docs
+    mirror + the envelope changelog, in one change."
+- id: n-008
+  category: tooling
+  summary: 'Tracer: [2026-10-12][specify] Index re-sync reuses the `git reset -q HEAD -- <paths>` pattern'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-12][specify] Index re-sync reuses the `git reset -q HEAD -- <paths>` pattern** from\n  `_sync_real_index_after_commit`,
+    applied to the extra paths, so the operator's real index no\n  longer stages a revert (`MM` cleared)."
+- id: n-006
+  category: tooling
+  summary: 'Tracer: [2026-10-12][specify] New error class mirrors `SafeCommitIndexResidue`.'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-12][specify] New error class mirrors `SafeCommitIndexResidue`.**\n  `SafeCommitUnrequestedPaths(SafeCommitRecoveryFailed)`
+    with its own `error_code`\n  (`SAFE_COMMIT_UNREQUESTED_PATHS`), carrying `commit_sha` + the extra paths. Rationale: the
+    issue\n  says the caller surfaces must report \"DID land\" the way `SAFE_COMMIT_INDEX_RESIDUE` already does;\n  `SAFE_COMMIT_INDEX_RESIDUE`
+    achieves that purely by being a `SafeCommitRecoveryFailed` subclass\n  with `commit_sha` set. Reusing that shape keeps
+    a single reporting pattern (no new caller logic)."
+- id: n-007
+  category: tooling
+  summary: 'Tracer: [2026-10-12][specify] One shared post-landing helper, two call sites.'
+  evidence_refs:
+  - e-010
+  details: "- **[2026-10-12][specify] One shared post-landing helper, two call sites.** The `--only` route has\n  no post-landing
+    check today; the FR-022 route syncs only `requested+deletions`. A single helper\n  `_assert_committed_paths_requested(...)`
+    (diff-tree vs requested set, re-sync extras, raise) is\n  called from both, satisfying \"one post-landing check ... covering
+    BOTH routes\".\n- **[2026-10-12][specify] Comparison basis = `git diff-tree --name-only -r <sha>` vs the requested\n \
+    \ set.** The requested set is `normalized_files` for `--only`, or `requested ∪ deletions` for\n  FR-022. A committed path
+    not in the requested set is \"extra\". A subset (partial no-op) is fine."
+- id: n-003
+  category: tooling
+  summary: 'Tracer: [2026-10-12][specify] Red-first repro built before any fix.'
+  evidence_refs:
+  - e-009
+  details: "- **[2026-10-12][specify] Red-first repro built before any fix.** Library-level harness exercises\n  all three
+    routes; the two affected routes are RED and the control GREEN on `origin/main`\n  (`8a911083`). Evidence captured in `research/defect-diagnosis-5903.md`."
+- id: n-012
+  category: tooling
+  summary: 'Tracer: [2026-10-12][specify] `gh api -f body@file` rejected.'
+  evidence_refs:
+  - e-011
+  details: "- **[2026-10-12][specify] `gh api -f body@file` rejected.** `-f` does not read a file;\n  `-F body=@<file>` does.
+    Workaround applied. Minor, documented."
+- id: n-011
+  category: tooling
+  summary: 'Tracer: [2026-10-12][specify] `gh issue view` / `gh api users/...` blocked.'
+  evidence_refs:
+  - e-011
+  details: "- **[2026-10-12][specify] `gh issue view` / `gh api users/...` blocked.** GitHub GraphQL and\n  non-repo-scoped
+    REST are refused in this session (`HTTP 403`, repo-scoped only). Workaround:\n  used `gh api repos/{owner}/{repo}/...`
+    for read, `POST .../assignees` and `.../comments` for the\n  claim. Candidate friction, documented; no code change."
+gaps:
+- id: g-002
+  category: doc
+  summary: data-model.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md declares domain entities but data-model.md is missing. A data model document clarifies domain entity
+    relationships.
+- id: g-001
+  category: doc
+  summary: research.md absent
+  evidence_refs:
+  - e-002
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design
+    decisions.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/safe-commit-hook-staged-paths-01M4RKV7/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/safe-commit-hook-staged-paths-01M4RKV7/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/safe-commit-hook-staged-paths-01M4RKV7/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/safe-commit-hook-staged-paths-01M4RKV7/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/safe-commit-hook-staged-paths-01M4RKV7/tasks/WP01-post-landing-requested-paths-guard.md
+- id: e-006
+  kind: file
+  path: kitty-specs/safe-commit-hook-staged-paths-01M4RKV7/status.events.jsonl
+- id: e-007
+  kind: event_range
+  path: kitty-specs/safe-commit-hook-staged-paths-01M4RKV7/status.events.jsonl
+  range: 01M4RPKR525MBGFGTJFMXNR2T4
+- id: e-008
+  kind: file
+  path: kitty-specs/safe-commit-hook-staged-paths-01M4RKV7/analysis-report.md
+- id: e-009
+  kind: file
+  path: kitty-specs/safe-commit-hook-staged-paths-01M4RKV7/traces/approach.md
+- id: e-010
+  kind: file
+  path: kitty-specs/safe-commit-hook-staged-paths-01M4RKV7/traces/design-decisions.md
+- id: e-011
+  kind: file
+  path: kitty-specs/safe-commit-hook-staged-paths-01M4RKV7/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []

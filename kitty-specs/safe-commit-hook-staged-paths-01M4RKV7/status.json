@@ -1,0 +1,55 @@
+{
+  "event_count": 7,
+  "last_event_id": "01M4RPSMVBT99YB32F92PC5BK2",
+  "materialized_at": "2026-10-12T18:42:58.027860+00:00",
+  "mission_number": "229",
+  "mission_slug": "safe-commit-hook-staged-paths-01M4RKV7",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "reviewer-rao",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "planner-priti",
+      "lane": "done",
+      "last_event_id": "01M4RPSMVBT99YB32F92PC5BK2",
+      "last_transition_at": "2026-10-12T18:42:58.027860+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Fix + contract + tests green; adversarial review folded (Windows path-separator)",
+        "Adversarial review folded (to_posix HIGH + nested-path guard); contract/mirror/version gates GREEN; make test-fast 2585 passed."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261012",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 25538,
+      "shell_pid_created_at": "1791830309.11",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
+    }
+  }
+}
