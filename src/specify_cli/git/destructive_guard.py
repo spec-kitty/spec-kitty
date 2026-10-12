@@ -65,6 +65,12 @@ accepted only for the operator-explicit discard of a Mission's *own* mission/coo
 branch; lane branches and every other caller keep the full guard (a routing gate pins
 the exact callers allowed to pass it)."""
 
+DISCARDED_REF_PREFIX = "refs/spec-kitty/discarded/"
+"""Namespace of the hidden, never-pushed refs that keep the tip of a branch deleted with :data:`DISCARD_INTENT`.
+
+Only ``refs/spec-kitty/lane-tip/`` and ``refs/spec-kitty/wp-base/`` are enumerated elsewhere, each by its own
+prefix, so this sibling namespace is invisible to them."""
+
 _RESUME_NOTE = "then resume the operation (e.g. `spec-kitty consolidate --resume`)"
 
 
@@ -515,7 +521,7 @@ def guarded_branch_delete(
     creation_base: str | None,
     operator_intent: str | None = None,
     env: dict[str, str] | None = None,
-) -> None:
+) -> str | None:
     """``git branch -D <branch>``, refused while the branch holds commits that exist nowhere else (FR-009).
 
     Deletion is allowed when the branch has no commit beyond ``creation_base``
@@ -528,14 +534,22 @@ def guarded_branch_delete(
     each a case where the operator asked for the branch to be discarded. Any
     other value is a :class:`ValueError`. A routing gate pins the exact callers
     allowed to pass either.
+
+    Under :data:`DISCARD_INTENT`, a branch holding commits that exist on no other
+    ref first has its tip recorded as ``refs/spec-kitty/discarded/<branch>`` (the
+    deletion is refused, nothing deleted, when that record cannot be written), and
+    that tip SHA is returned so the caller can tell the operator how to restore it.
+    Every other path returns ``None``.
     """
     if operator_intent not in (None, FORCE_RECREATE_INTENT, DISCARD_INTENT):
         raise ValueError(f"unknown operator_intent {operator_intent!r}; expected None, {FORCE_RECREATE_INTENT!r} or {DISCARD_INTENT!r}")
     if _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], env=env).returncode != 0:
-        return
+        return None
+    if operator_intent == DISCARD_INTENT:
+        return _discard_branch_keeping_tip(repo_root, branch, env)
     if operator_intent is not None:
         _git_ok(repo_root, ["branch", "-D", "--", branch], env)
-        return
+        return None
     unique = _unique_commits(repo_root, branch, [], env)
     if unique and creation_base is not None:
         unique = _unique_commits(repo_root, branch, [creation_base], env)
@@ -547,6 +561,23 @@ def guarded_branch_delete(
             remediation=f"Merge or keep branch {branch!r}; nothing was deleted.",
         )
     _git_ok(repo_root, ["branch", "-D", "--", branch], env)
+    return None
+
+
+def _discard_branch_keeping_tip(repo_root: Path, branch: str, env: dict[str, str] | None) -> str | None:
+    """Delete ``branch`` on an operator-explicit discard; keep its tip when it holds commits found nowhere else."""
+    recorded: str | None = None
+    if _unique_commits(repo_root, branch, [], env):
+        tip = branch_tip(repo_root, branch, env=env)
+        if tip is None or not ref_advance.write_bookkeeping_ref(repo_root, f"{DISCARDED_REF_PREFIX}{branch}", tip):
+            raise DestructiveOpRefused(
+                error_code=DESTRUCTIVE_OP_ONLY_COPY,
+                current_branch=branch,
+                remediation=f"Could not record the tip of {branch!r} under {DISCARDED_REF_PREFIX}; nothing was deleted.",
+            )
+        recorded = tip
+    _git_ok(repo_root, ["branch", "-D", "--", branch], env)
+    return recorded
 
 
 def _make_writable_and_retry(function: Callable[[str], object], name: str, _exc: object) -> None:

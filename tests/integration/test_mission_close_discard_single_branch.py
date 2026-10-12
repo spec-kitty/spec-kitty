@@ -44,6 +44,9 @@ def test_discard_from_mission_branch_switches_to_target_and_deletes_branch(tmp_p
     assert f"Branch {minted} (tip {old_tip[:12]}): {lost} commit(s) that exist on no other branch will be deleted" in result.output
     assert _git(repo, "branch", "--show-current") == "main"
     assert not _branch_exists(repo, minted)
+    # A way back: the old tip is kept under a hidden ref and the output says how to restore it.
+    assert _git(repo, "rev-parse", f"refs/spec-kitty/discarded/{minted}") == old_tip
+    assert f"Deleted {minted} (was {old_tip[:12]}); restore with: git branch {minted} refs/spec-kitty/discarded/{minted}" in result.output
     assert "Error" not in result.output
     assert "lane branch(es)" not in result.output, "nothing but the mission branch was deleted; do not claim lane branches"
     assert "Deleted mission/coordination branch" in result.output

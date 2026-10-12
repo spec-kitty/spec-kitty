@@ -24,6 +24,7 @@ from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, loa
 from specify_cli.core.utils import safe_is_dir
 from specify_cli.git.destructive_guard import (
     DISCARD_INTENT,
+    DISCARDED_REF_PREFIX,
     DestructiveOpRefused,
     RemoveOutcome,
     branch_only_commits,
@@ -1335,9 +1336,11 @@ def _force_delete_branch_if_exists(
         # internally-derived value from ever being parsed as a ``git branch`` option (S6350).
         return False
     try:
-        guarded_branch_delete(repo_root, branch_name, creation_base=creation_base, operator_intent=operator_intent)
+        kept_tip = guarded_branch_delete(repo_root, branch_name, creation_base=creation_base, operator_intent=operator_intent)
     except RuntimeError:
         return False
+    if kept_tip is not None:
+        console.print(f"  Deleted {branch_name} (was {kept_tip[:12]}); restore with: git branch {branch_name} {DISCARDED_REF_PREFIX}{branch_name}")
     return True
 
 

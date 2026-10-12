@@ -977,3 +977,23 @@ def test_branch_delete_with_discard_intent_skips_the_unique_commit_check(tmp_pat
     guarded_branch_delete(root, "discard-me", creation_base=None, operator_intent=DISCARD_INTENT)
 
     assert subprocess.run(["git", "for-each-ref", "refs/heads/discard-me"], cwd=str(root), capture_output=True, text=True, check=True).stdout == ""
+
+
+def test_discard_intent_keeps_the_tip_of_a_branch_with_commits_found_nowhere_else(tmp_path: Path) -> None:
+    """Only the discard records ``refs/spec-kitty/discarded/<branch>``; ``--force-recreate`` and a branch fully on another ref do not."""
+    from specify_cli.git.destructive_guard import DISCARD_INTENT, FORCE_RECREATE_INTENT
+
+    root = _mission_repo(tmp_path)
+    _branch_with_commit(root, "lost")
+    _branch_with_commit(root, "recreated")
+    subprocess.run(["git", "branch", "kept", "main"], cwd=str(root), check=True, capture_output=True)
+    lost_tip = subprocess.run(["git", "rev-parse", "lost"], cwd=str(root), capture_output=True, text=True, check=True).stdout.strip()
+
+    assert guarded_branch_delete(root, "lost", creation_base=None, operator_intent=DISCARD_INTENT) == lost_tip
+    assert guarded_branch_delete(root, "recreated", creation_base=None, operator_intent=FORCE_RECREATE_INTENT) is None
+    assert guarded_branch_delete(root, "kept", creation_base=None, operator_intent=DISCARD_INTENT) is None
+
+    refs = subprocess.run(
+        ["git", "for-each-ref", "--format=%(refname) %(objectname)", "refs/spec-kitty/"], cwd=str(root), capture_output=True, text=True, check=True
+    )
+    assert refs.stdout.split("\n")[:-1] == [f"refs/spec-kitty/discarded/lost {lost_tip}"]
