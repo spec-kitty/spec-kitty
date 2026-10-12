@@ -1,12 +1,11 @@
 package kitty.acceptance.environment;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 /**
@@ -115,26 +114,11 @@ public final class CliUnderTest {
     private static void execOrThrow(Path cwd, String... command) {
         ProcessBuilder builder = new ProcessBuilder(command);
         builder.directory(cwd.toFile());
-        builder.redirectErrorStream(true);
-        try {
-            Process process = builder.start();
-            // Drain before waitFor; redirectErrorStream merges to one modest-sized stream.
-            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            boolean finished = process.waitFor(PROVISION_TIMEOUT_MINUTES, TimeUnit.MINUTES);
-            if (!finished) {
-                process.descendants().forEach(ProcessHandle::destroyForcibly);
-                process.destroyForcibly();
-                throw new IllegalStateException("Provisioning command timed out: " + List.of(command));
-            }
-            if (process.exitValue() != 0) {
-                throw new IllegalStateException("Provisioning command failed (" + process.exitValue()
-                        + "): " + List.of(command) + System.lineSeparator() + output);
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException("Provisioning command could not start: " + List.of(command), e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted during provisioning: " + List.of(command), e);
+        ProcessRunner.Outcome outcome = ProcessRunner.run(builder,
+                Duration.ofMinutes(PROVISION_TIMEOUT_MINUTES), "Provisioning command " + List.of(command));
+        if (outcome.exitCode() != 0) {
+            throw new IllegalStateException("Provisioning command failed (" + outcome.exitCode()
+                    + "): " + List.of(command) + System.lineSeparator() + outcome.output());
         }
     }
 }

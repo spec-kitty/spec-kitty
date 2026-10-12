@@ -1,9 +1,6 @@
 package kitty.acceptance.driver;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -64,14 +61,23 @@ public final class CliProcessDriver implements SpecKittyDriver {
             StreamDrainer out = StreamDrainer.start(process.getInputStream(), "stdout");
             StreamDrainer err = StreamDrainer.start(process.getErrorStream(), "stderr");
 
+            long deadline = System.nanoTime() + timeout.toNanos();
             boolean finished = process.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS);
             if (!finished) {
-                killTree(process);
+                ProcessTree.kill(process);
                 throw new CliTimeoutException(command, timeout);
             }
             int exit = process.exitValue();
-            String stdout = normaliseLineEndings(out.await());
-            String stderr = normaliseLineEndings(err.await());
+            String stdout;
+            String stderr;
+            try {
+                // A grandchild that outlives the CLI can hold the pipes open; bound the wait too.
+                stdout = normaliseLineEndings(out.await(remaining(deadline)));
+                stderr = normaliseLineEndings(err.await(remaining(deadline)));
+            } catch (StreamDrainer.DrainTimeoutException e) {
+                ProcessTree.kill(process);
+                throw new CliTimeoutException(command, timeout);
+            }
             return CliResult.of(exit, stdout, stderr, realPath(cwd));
         } catch (IOException e) {
             throw new CliExecutionException("Failed to launch " + command, e);
@@ -80,14 +86,13 @@ public final class CliProcessDriver implements SpecKittyDriver {
             throw new CliExecutionException("Interrupted while running " + command, e);
         } finally {
             if (process != null && process.isAlive()) {
-                killTree(process);
+                ProcessTree.kill(process);
             }
         }
     }
 
-    private static void killTree(Process process) {
-        process.descendants().forEach(ProcessHandle::destroyForcibly);
-        process.toHandle().destroyForcibly();
+    private static Duration remaining(long deadlineNanos) {
+        return Duration.ofNanos(Math.max(0, deadlineNanos - System.nanoTime()));
     }
 
     private static Path realPath(Path path) {
@@ -106,39 +111,6 @@ public final class CliProcessDriver implements SpecKittyDriver {
     @FunctionalInterface
     public interface CommandResolver {
         String resolve(String token);
-    }
-
-    /** Reads one process stream to completion on its own daemon thread, avoiding pipe-buffer deadlock. */
-    private static final class StreamDrainer {
-
-        private final Thread thread;
-        private final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-        private volatile IOException failure;
-
-        private StreamDrainer(InputStream source, String name) {
-            this.thread = new Thread(() -> {
-                try (InputStream in = source) {
-                    in.transferTo(buffer);
-                } catch (IOException e) {
-                    failure = e;
-                }
-            }, "cli-" + name + "-drainer");
-            this.thread.setDaemon(true);
-        }
-
-        static StreamDrainer start(InputStream source, String name) {
-            StreamDrainer drainer = new StreamDrainer(source, name);
-            drainer.thread.start();
-            return drainer;
-        }
-
-        String await() throws InterruptedException {
-            thread.join();
-            if (failure != null) {
-                throw new CliExecutionException("Failed draining process stream", failure);
-            }
-            return buffer.toString(StandardCharsets.UTF_8);
-        }
     }
 
     /** Thrown when a CLI invocation exceeds its timeout. */

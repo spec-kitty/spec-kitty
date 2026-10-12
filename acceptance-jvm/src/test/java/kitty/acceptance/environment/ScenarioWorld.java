@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -18,7 +19,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 /**
@@ -34,6 +34,7 @@ import java.util.stream.Stream;
 public final class ScenarioWorld {
 
     private static final String UTF8_LOCALE = "C.UTF-8";
+    private static final Duration GIT_TIMEOUT = Duration.ofSeconds(60);
     private static final String GIT_NAME = "Acceptance Harness";
     private static final String GIT_EMAIL = "harness@example.invalid";
 
@@ -200,26 +201,12 @@ public final class ScenarioWorld {
         builder.directory(workDir.toFile());
         builder.environment().clear();
         builder.environment().putAll(environment);
-        builder.redirectErrorStream(true);
-        try {
-            Process process = builder.start();
-            String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            boolean finished = process.waitFor(60, TimeUnit.SECONDS);
-            if (!finished) {
-                process.descendants().forEach(ProcessHandle::destroyForcibly);
-                process.destroyForcibly();
-                throw new IllegalStateException("git " + List.of(args) + " timed out");
-            }
-            if (process.exitValue() != 0) {
-                throw new IllegalStateException("git " + List.of(args) + " failed:" + System.lineSeparator() + output);
-            }
-            return output;
-        } catch (IOException e) {
-            throw new UncheckedIOException("git " + List.of(args) + " could not start", e);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("Interrupted during git " + List.of(args), e);
+        ProcessRunner.Outcome outcome = ProcessRunner.run(builder, GIT_TIMEOUT, "git " + List.of(args));
+        if (outcome.exitCode() != 0) {
+            throw new IllegalStateException("git " + List.of(args) + " failed:"
+                    + System.lineSeparator() + outcome.output());
         }
+        return outcome.output();
     }
 
     // --- positive control + teardown ------------------------------------
