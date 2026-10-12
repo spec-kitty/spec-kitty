@@ -89,7 +89,6 @@ def status(  # noqa: C901
                 if sync_status["stored_hash"]:
                     console.print(f"Expected hash: {sync_status['stored_hash']}")
                 console.print(f"Current hash:  {sync_status['current_hash']}")
-                console.print("\n[dim]Run: spec-kitty charter sync[/dim]")
             else:
                 console.print("Status: [green]SYNCED[/green]")
                 if sync_status["last_sync"]:

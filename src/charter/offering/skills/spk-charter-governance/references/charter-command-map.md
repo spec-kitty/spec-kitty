@@ -137,47 +137,6 @@ spec-kitty charter context --action specify|plan|implement|review [--json]
 
 ---
 
-## sync
-
-Retained for canonical-root resolution and back-compat call sites (the
-bundle-migration upgrader, `charter context`). Performs no
-extraction any more — `governance`/`directives` are hand-authored sections
-directly inside `charter.yaml`, not derived from `charter.md`. Every
-invocation is a no-op.
-
-```bash
-spec-kitty charter sync [--force] [--json]
-```
-
-**Flags:**
-
-| Flag | Type | Default | Description |
-|------|------|---------|-------------|
-| `--force` | FLAG | off | Accepted for compatibility; has no effect |
-| `--json` | FLAG | off | Output JSON |
-
-**Output files:** none. `sync` writes nothing — `governance`/`directives` are
-hand-authored sections directly inside `charter.yaml`, read live by every
-consumer; there is nothing left to derive.
-
-**JSON output fields:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `result` | string | `"noop"` — the inert outcome (`"success"` only under a hypothetical future repair-mode `sync()`) |
-| `success` | bool | `true` for the inert no-op (`result.error is None`); `false` only when the call genuinely errored (#4679) |
-| `message` | string | Human-readable statement of the outcome — the no-op explanation, or `"Charter synced"` under a future repair mode (#4679) |
-| `stale_before` | bool | Legacy field, retained for shape stability |
-| `files_written` | list | Always `[]` |
-| `extraction_mode` | string | Legacy field, retained for shape stability |
-| `error` | string or null | Error message if the (now-inert) call still failed |
-
-**Regardless of `--force`:** every invocation is a no-op. There is no
-staleness detection to bypass any more — `charter.yaml` is read live, not
-derived from a hashed `charter.md` snapshot.
-
----
-
 ## status
 
 Display charter sync status.
@@ -226,8 +185,8 @@ spec-kitty charter generate --from-interview
 ```
 
 **After manual `charter.yaml` edits:** nothing required — the next
-`charter context` call reads the file live. `sync`/`status` remain available
-for legacy staleness reporting but do not gate correctness:
+`charter context` call reads the file live. `status` remains available
+for legacy staleness reporting but does not gate correctness:
 
 ```bash
 spec-kitty charter status --json

@@ -193,7 +193,7 @@ without side effects.
 
 1. Check current state: `uv run spec-kitty charter status`
 2. Lint for decay: `uv run spec-kitty charter lint`
-3. Re-sync if you have made manual edits to `charter.md`: `uv run spec-kitty charter sync`
+3. Regenerate the bundle if you have made manual edits: `uv run spec-kitty charter generate`
 4. Re-run synthesis: `uv run spec-kitty charter synthesize`
 5. Re-validate: `uv run spec-kitty charter bundle validate`
 6. Confirm: `uv run spec-kitty charter status`

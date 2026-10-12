@@ -15,8 +15,8 @@ description: >-
 
 # spk-charter-governance
 
-Use this skill for project governance, charter creation, charter sync, or
-charter context questions.
+Use this skill for project governance, charter creation, or charter context
+questions.
 
 `.kittify/charter/charter.yaml` is the runtime governance source for a
 project; `.kittify/charter/charter.md` is a human-readable companion the

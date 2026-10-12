@@ -314,9 +314,9 @@ writing prose you expect a parser to interpret.
 bundle's freshness signal — a SHA-256 over the file itself. There is no
 `charter.md`-hash staleness check any more: `metadata` intentionally carries
 no self-referential `charter_hash` field (a hash of `charter.yaml` cannot
-live *inside* `charter.yaml`). `charter sync` is retained only for
-canonical-root resolution and back-compat call sites — it performs no
-extraction and always reports `synced=False`.
+live *inside* `charter.yaml`). There is no separate sync step:
+`governance`/`directives` are hand-authored sections inside `charter.yaml`
+and read live, so nothing is extracted from `charter.md`.
 
 ### How Context Gets Injected Into Workflow Actions
 
@@ -648,14 +648,7 @@ Load context iteratively at the action boundary, not as part of charter setup.
 
 Edit `charter.yaml`'s `governance:` or `directives:` sections directly —
 there is no separate sync step. The next `charter context` call reads the
-file as-is.
-
-```bash
-spec-kitty charter sync --json   # retained for back-compat; always a no-op
-```
-
-`charter sync` no longer extracts anything from `charter.md`. It always
-reports `synced=False` / `files_written=[]`, regardless of `--force`.
+file as-is; nothing is extracted from `charter.md`.
 
 ---
 
@@ -836,9 +829,9 @@ Doctrine does NOT constrain when:
    `charter.md` is a curated companion only.
 3. **Skipping the interview** — produces generic defaults; the charter
    is most valuable with project-specific decisions.
-4. **Running `charter sync` expecting an effect** — it is retained for
-   back-compat call sites only and always no-ops. There is no required
-   post-edit step after changing `charter.yaml` by hand.
+4. **Expecting a post-edit sync step** — there is none. After editing
+   `charter.yaml` by hand the next `charter context` call reads it live;
+   nothing is extracted from `charter.md`.
 5. **Legacy path assumptions** — canonical path is
    `.kittify/charter/charter.yaml`, not `.kittify/memory/` and not a
    `governance.yaml`/`directives.yaml`/`references.yaml` triad.

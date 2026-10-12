@@ -471,11 +471,6 @@
      "hidden": false,
      "deprecated": false
     },
-    "sync": {
-     "help": "No-op kept for compatibility; there is nothing to sync.\n\nThe prose-to-YAML extraction this command used to perform is retired:\ngovernance and directives are hand-authored directly in charter.yaml.\nRunning it is harmless and changes nothing.",
-     "hidden": false,
-     "deprecated": false
-    },
     "status": {
      "help": "Display charter sync status plus synthesis/operator state.",
      "hidden": false,

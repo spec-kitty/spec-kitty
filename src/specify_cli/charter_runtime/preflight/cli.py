@@ -49,7 +49,7 @@ def charter_preflight(
         "--auto-refresh",
         help="When checks fail and the worktree has no uncommitted "
         "generated artifacts, run the safe refresh sequence "
-        "(charter sync -> synthesize -> bundle validate).",
+        "(charter generate / upgrade --yes -> synthesize -> bundle validate).",
     ),
     strict: bool = typer.Option(
         False,

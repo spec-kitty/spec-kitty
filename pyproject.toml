@@ -511,7 +511,6 @@ exclude = [
     "src/specify_cli/cli/commands/charter/list_cmd.py",
     "src/specify_cli/cli/commands/charter/mission_type.py",
     "src/specify_cli/cli/commands/charter/status.py",
-    "src/specify_cli/cli/commands/charter/sync.py",
     "src/specify_cli/cli/commands/charter_bundle.py",
     "src/specify_cli/cli/commands/config_cmd.py",
     "src/specify_cli/cli/commands/dispatch.py",

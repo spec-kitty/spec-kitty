@@ -1,16 +1,20 @@
 """References-parity boundary auto-refresh completion (#2777, FR-011, WP06).
 
 The boundary auto-refresh reconciler (``preflight.runner._attempt_auto_refresh``)
-runs ``spec-kitty charter sync`` -> ``spec-kitty charter synthesize`` ->
-``spec-kitty charter bundle validate``. None of those three steps recompiles
-the *compiled* references catalog embedded in ``.kittify/charter/charter.yaml``
-(``catalog.references`` -- the direct successor of the retired stand-alone
-``references.yaml`` file; see ``charter.activation.compiler._build_catalog_dict``'s
-docstring: "Mirrors the retired ``references.yaml`` body"). Only
-``spec-kitty charter generate`` recompiles that section, so a project whose
-``.kittify/config.yaml`` activation changed without an intervening
-``generate`` run cannot self-heal that drift through the boundary's existing
-three-step sequence.
+runs the freshness-derived ``charter_source`` remediation (``spec-kitty charter
+generate`` / ``spec-kitty upgrade --yes``, skipped when ``charter_source`` and
+``synced_bundle`` are already ``fresh``) -> ``spec-kitty charter synthesize`` ->
+``spec-kitty charter bundle validate``. In the references-parity cause this module
+guards, ``charter_source``/``synced_bundle`` are already fresh, so step one is
+skipped and only ``synthesize`` + ``bundle validate`` actually run -- and neither
+recompiles the *compiled* references catalog embedded in
+``.kittify/charter/charter.yaml`` (``catalog.references`` -- the direct successor of
+the retired stand-alone ``references.yaml`` file; see
+``charter.activation.compiler._build_catalog_dict``'s docstring: "Mirrors the retired
+``references.yaml`` body"). Only ``spec-kitty charter generate`` recompiles that
+section, so a project whose ``.kittify/config.yaml`` activation changed without an
+intervening ``generate`` run cannot self-heal that drift through the boundary's
+existing sequence.
 
 This module is WP04's ``refresh_references_if_needed`` extension point,
 implemented: :func:`refresh_references_if_needed` runs a *targeted*

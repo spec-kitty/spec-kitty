@@ -47,7 +47,7 @@ __all__ = [
 # Header comment for all emitted YAML files
 YAML_HEADER = (
     "# Auto-generated from charter.md — do not edit directly.\n"
-    "# Run 'spec-kitty charter sync' to regenerate.\n\n"
+    "# Run 'spec-kitty charter generate' to regenerate.\n\n"
 )
 
 

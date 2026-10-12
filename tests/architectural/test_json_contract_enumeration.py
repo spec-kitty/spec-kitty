@@ -190,7 +190,6 @@ PARSEABLE: dict[str, tuple[tuple[str, ...], int, str]] = {
     "charter pack validate": (("missing",), 1, "outside"),
     "charter resynthesize": ((), 1, "outside"),
     "charter status": ((), 1, "outside"),
-    "charter sync": ((), 1, "outside"),
     "charter synthesize": ((), 1, "outside"),
     "doctor bytecode": ((), 1, "corrupt-bytecode"),
     "doctor channel": ((), 0, "total"),

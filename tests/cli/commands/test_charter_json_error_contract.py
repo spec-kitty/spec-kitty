@@ -36,7 +36,6 @@ def _assert_json_error(output: str) -> dict[str, object]:
     [
         (["context", "--action", "specify", "--json"], 1),
         (["interview", "--defaults", "--profile", "minimal", "--json"], 1),
-        (["sync", "--json"], 1),
         (["resynthesize", "--list-topics", "--json"], 1),
         (["lint", "--json"], 1),
     ],
@@ -104,47 +103,6 @@ def test_resynthesize_json_keeps_evidence_warnings_inside_payload(tmp_path: Path
     payload = json.loads(result.output)
     assert payload["result"] == "success"
     assert payload["warnings"] == ["corpus unavailable"]
-
-
-def test_sync_json_error_result_is_parseable_and_nonzero(tmp_path: Path) -> None:
-    charter_dir = tmp_path / ".kittify" / "charter"
-    charter_dir.mkdir(parents=True)
-    (charter_dir / "charter.md").write_text("# Charter\n", encoding="utf-8")
-    sync_result = SimpleNamespace(
-        synced=False,
-        stale_before=False,
-        files_written=[],
-        extraction_mode="llm",
-        error="charter parse failed",
-    )
-
-    with (
-        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path),
-        patch("charter.activation.sync.sync", return_value=sync_result),
-    ):
-        result = runner.invoke(charter_app, ["sync", "--json"])
-
-    assert result.exit_code == 1, result.output
-    payload = _assert_json_error(result.output)
-    assert payload["error"] == "charter parse failed"
-
-
-def test_sync_json_filesystem_failure_does_not_log_to_stderr(tmp_path: Path) -> None:
-    charter_dir = tmp_path / ".kittify" / "charter"
-    # consolidate-charter-bundle (#2773) retired the compiled ``governance.yaml``
-    # scrape; ``charter sync`` no longer reads or writes it (governance/directives
-    # are hand-authored inside ``charter.yaml`` now). The file ``sync`` actually
-    # reads is ``charter.md`` — make THAT a directory so the read raises and the
-    # command must surface a parseable JSON error on stdout (not stderr).
-    (charter_dir / "charter.md").mkdir(parents=True)
-
-    with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path):
-        result = runner.invoke(charter_app, ["sync", "--json"])
-
-    assert result.exit_code == 1, result.output
-    payload = _assert_json_error(result.stdout)
-    assert "charter.md" in str(payload["error"])
-    assert result.stderr == ""
 
 
 def test_interview_json_keeps_org_prefill_messages_inside_payload(tmp_path: Path) -> None:

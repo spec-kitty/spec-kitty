@@ -34,7 +34,7 @@ def _pass_result() -> CharterPreflightResult:
     )
 
 
-def _fail_result(reason: str = "doctrine stale; run: spec-kitty charter sync") -> CharterPreflightResult:
+def _fail_result(reason: str = "doctrine stale; run: spec-kitty charter synthesize") -> CharterPreflightResult:
     return CharterPreflightResult(
         passed=False,
         checks=[],

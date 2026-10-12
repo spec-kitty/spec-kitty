@@ -674,10 +674,10 @@ The `--feature` → `--mission` rename has been a persistent source of regressio
 
 ## Charter Resolution Hints
 
-These declarations are read by `spec-kitty charter sync` (per FR-007 / FR-008 of mission
-`wp-prompt-governance-payload-01KRR8HS`). They drive the action-scoped governance
-resolver so that `spec-kitty charter context --action <name>` does not need to fall
-back to runtime defaults. Keep this block up to date as the project adopts new
+These declarations are read by the action-scoped governance resolver (surfaced via
+`spec-kitty charter context`, per FR-007 / FR-008 of mission
+`wp-prompt-governance-payload-01KRR8HS`) so that `spec-kitty charter context --action <name>`
+does not need to fall back to runtime defaults. Keep this block up to date as the project adopts new
 template sets, tools, or authority directories.
 
 ```yaml
@@ -685,7 +685,7 @@ template_set: software-dev-default
 available_tools: [git, spec-kitty, pytest, mypy, ruff]
 authority_paths:
   # Common Docs fold complete: legacy homes dropped, canonical new homes only
-  # (matches charter.yaml/governance.yaml; keeps `charter sync` idempotent).
+  # (matches charter.yaml/governance.yaml).
   - docs/context/             # canonical terminology (FR-009)
   - docs/adr/3.x/             # architectural decisions through the early 4.0.0 cycle
   - docs/adr/4.x/             # canonical architectural decisions (new ADRs land here)

@@ -54,7 +54,6 @@ from specify_cli.cli.commands.charter.generate import (  # noqa: F401
     generate,
 )
 from specify_cli.cli.commands.charter.context import context  # noqa: F401
-from specify_cli.cli.commands.charter.sync import sync  # noqa: F401
 from specify_cli.cli.commands.charter.status import status  # noqa: F401
 from specify_cli.cli.commands.charter.synthesize import charter_synthesize  # noqa: F401
 from specify_cli.cli.commands.charter.resynthesize import charter_resynthesize  # noqa: F401
@@ -162,7 +161,6 @@ __all__ = [
     "interview",
     "generate",
     "context",
-    "sync",
     "status",
     "charter_synthesize",
     "charter_resynthesize",

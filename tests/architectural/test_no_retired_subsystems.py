@@ -151,7 +151,6 @@ _RETIRED_CLI_PREFIXES = (
 )
 _REQUIRED_CLI_PATHS = {
     ("tracker", "sync", "publish"),
-    ("charter", "sync"),
     ("agent", "config", "sync"),
 }
 _DOCTOR_FAST_PATH_RE = re.compile(rf'\[\s*"doctor"\s*,\s*"{_RESTART_DAEMON}"\s*\]')

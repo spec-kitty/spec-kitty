@@ -412,7 +412,6 @@ _Charter management commands_
 │ generate           Generate charter bundle from interview answers + doctrine │
 │                    references.                                               │
 │ context            Render charter context for a specific workflow action.    │
-│ sync               No-op kept for compatibility; there is nothing to sync.   │
 │ status             Display charter sync status plus synthesis/operator       │
 │                    state.                                                    │
 │ synthesize         Validate and promote agent-generated project-local        │
@@ -1175,8 +1174,8 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │                           contracts/charter-preflight-json.md).              │
 │ --auto-refresh            When checks fail and the worktree has no           │
 │                           uncommitted generated artifacts, run the safe      │
-│                           refresh sequence (charter sync -> synthesize ->    │
-│                           bundle validate).                                  │
+│                           refresh sequence (charter generate / upgrade --yes │
+│                           -> synthesize -> bundle validate).                 │
 │ --strict                  Exit non-zero on any non-fresh state (default:     │
 │                           exit zero unless a hard error occurs).             │
 │ --help          -h        Show this message and exit.                        │
@@ -1242,24 +1241,6 @@ _Resolve shipped and overlay charter pack assets (no install — C-002)._
 │ --json                  Output JSON                                          │
 │ --provenance            Include per-artifact provenance details.             │
 │ --help        -h        Show this message and exit.                          │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty charter sync
-
-```
- Usage: spec-kitty charter sync [OPTIONS]
-
- No-op kept for compatibility; there is nothing to sync.
-
- The prose-to-YAML extraction this command used to perform is retired:
- governance and directives are hand-authored directly in charter.yaml.
- Running it is harmless and changes nothing.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --force  -f        Accepted for compatibility; has no effect                 │
-│ --json             Output JSON                                               │
-│ --help   -h        Show this message and exit.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

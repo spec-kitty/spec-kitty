@@ -58,7 +58,7 @@ pytestmark = pytest.mark.fast
 #: starts serializing here is an NFR-005 byte-stability regression.
 _DEFAULT_GOVERNANCE_YAML_GOLDEN = (
     "# Auto-generated from charter.md — do not edit directly.\n"
-    "# Run 'spec-kitty charter sync' to regenerate.\n"
+    "# Run 'spec-kitty charter generate' to regenerate.\n"
     "\n"
     "testing:\n"
     "  min_coverage: 0\n"

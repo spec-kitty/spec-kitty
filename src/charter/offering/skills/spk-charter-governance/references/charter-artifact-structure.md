@@ -197,7 +197,6 @@ hash is computed externally, over the whole file.
 |-------------|-------------|-----------------|
 | Editing `charter.yaml`'s `catalog`/`metadata` directly | Overwritten on next `generate` | Edit `governance`/`directives`/activation/`overrides` instead — those are preserved |
 | Expecting `charter.md` edits to change runtime policy | The runtime never parses `charter.md` | Edit `charter.yaml` for policy changes |
-| Running `charter sync` expecting a side effect | Retained for back-compat only; always a no-op | No post-edit step is required after hand-editing `charter.yaml` |
 | Deleting `charter.yaml` | Breaks the config `charter:` pointer resolution | Re-run `charter generate` to bootstrap a fresh file, or restore from git |
 | Skipping `charter synthesize` after adding `generated/*` artifacts | Runtime doctrine overlay never picks them up | Run `charter synthesize` to validate and promote |
 | Assuming `.kittify/memory/` is current | Legacy path; only used as compatibility fallback | Use `.kittify/charter/charter.yaml` for all new projects |

@@ -93,64 +93,6 @@ def test_interview_invalid_profile_exits_nonzero(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T023b — ``charter sync`` exits 0 when charter exists and is synced
-# ---------------------------------------------------------------------------
-
-
-def test_sync_exits_zero_when_charter_synced(tmp_path: Path) -> None:
-    """Arrange: project with charter.md; Act: sync; Assert: exit 0."""
-    project = _make_project(tmp_path)
-
-    fake_result = MagicMock()
-    fake_result.synced = True
-    fake_result.stale_before = True
-    fake_result.files_written = ["governance.yaml", "directives.yaml"]
-    fake_result.extraction_mode = "llm"
-    fake_result.error = None
-
-    with (
-        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.activation.sync.sync", return_value=fake_result),
-    ):
-        result = runner.invoke(app, ["sync"])
-
-    assert result.exit_code == 0, result.output
-    assert "synced" in result.output.lower() or "Charter" in result.output
-
-
-def test_sync_exits_nonzero_when_charter_missing(tmp_path: Path) -> None:
-    """Arrange: project without charter.md; Act: sync; Assert: exit != 0 with error."""
-    project = _make_project(tmp_path, with_charter=False)
-
-    with patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project):
-        result = runner.invoke(app, ["sync"])
-
-    assert result.exit_code != 0
-    assert "Error" in result.output or "not found" in result.output.lower()
-
-
-def test_sync_noop_when_already_synced(tmp_path: Path) -> None:
-    """Arrange: project with synced charter; Act: sync; Assert: exit 0, noop message."""
-    project = _make_project(tmp_path)
-
-    fake_result = MagicMock()
-    fake_result.synced = False
-    fake_result.stale_before = False
-    fake_result.files_written = []
-    fake_result.extraction_mode = "llm"
-    fake_result.error = None
-
-    with (
-        patch("specify_cli.cli.commands.charter.find_repo_root", return_value=project),
-        patch("charter.activation.sync.sync", return_value=fake_result),
-    ):
-        result = runner.invoke(app, ["sync"])
-
-    assert result.exit_code == 0, result.output
-    assert "No-op:" in result.output
-
-
-# ---------------------------------------------------------------------------
 # T023c — ``charter status`` exits 0 and includes "Charter" in output
 # ---------------------------------------------------------------------------
 

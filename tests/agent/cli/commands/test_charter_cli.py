@@ -7,7 +7,6 @@ import subprocess
 from unittest.mock import patch
 
 import pytest
-import typer
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import app
@@ -82,91 +81,6 @@ def _write_charter_yaml_bundle(charter_dir: Path) -> None:
     )
 
 
-def test_sync_command_success(mock_repo: Path) -> None:
-    """#3045: the assertion that used to live here --
-    ``"Charter already in sync" in result.stdout``, defended by this test's
-    prior docstring as the "current, intentional contract" -- was a STALE
-    PIN. Issue #3045 identifies it as the P0 escalator for the underlying
-    defect (``charter sync`` reports success unconditionally, even for a
-    charter that was never synced): a test asserting the misleading message
-    is *intended* means no gate could ever catch the regression. Per the
-    failing-test remediation framework a stale pin is deleted/rewritten, not
-    annotated -- removed here in the same commit that adds
-    ``test_sync_command_human_and_json_surfaces_do_not_contradict_3045``
-    below, which is the red-first replacement (see that test's docstring).
-    The two must not be re-separated later: this test defends only the
-    coverage that is still valid under EITHER sanctioned #3045 remedy
-    (repair or honest-reporter) -- it never re-materializes the retired
-    derived triad (``governance.yaml`` / ``directives.yaml`` /
-    ``metadata.yaml``, retired by IC-04 / #2773). No exit-code assertion is
-    kept either: ``mock_repo`` is exactly the "charter.md present,
-    charter.yaml absent, never synced" state the honest-reporter remedy is
-    expected to make exit non-zero for (per #3045's suggested shape) -- a
-    hard ``exit_code == 0`` pin here would forbid that remedy through a
-    second assertion in this file, recreating the same problem this
-    remediation exists to close."""
-    with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
-        mock_find_root.return_value = mock_repo
-
-        runner.invoke(app, ["sync"])
-
-        for retired_file in ("governance.yaml", "directives.yaml", "metadata.yaml"):
-            assert not (mock_repo / ".kittify" / "charter" / retired_file).exists()
-
-
-def test_sync_command_is_an_explicit_noop(mock_repo: Path) -> None:
-    """#4679: ``charter sync`` is a permanent no-op kept for compatibility, and
-    says so -- exit 0 with an explicit "No-op" line -- instead of the
-    failure-looking red "Charter was not synced" / exit 1 that #3045's
-    honest-reporter remedy rendered for the same inert outcome. Idempotent:
-    a second ``sync`` (and ``--force``, which does nothing) reads the same."""
-    with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
-        mock_find_root.return_value = mock_repo
-
-        for args in (["sync"], ["sync"], ["sync", "--force"]):
-            result = runner.invoke(app, args)
-            assert result.exit_code == 0, result.stdout
-            assert "No-op:" in result.stdout
-            assert "kept for compatibility" in result.stdout
-            assert "Nothing to do" in result.stdout
-            assert "was not synced" not in result.stdout
-
-
-def test_sync_command_json_output(mock_repo: Path) -> None:
-    """IC-04 (#2773): mirrors ``test_sync_command_success`` -- ``sync``'s
-    JSON payload reports the noop contract (``result: "noop"``, empty
-    ``files_written``) because extraction is retired; ``stale_before`` stays
-    ``True`` since ``metadata.yaml`` (the staleness marker ``sync()`` still
-    checks) never gets created. #4679: the inert outcome is success-shaped
-    (``success: True``) and carries an explicit ``message``, not the
-    failure-looking ``success: False`` it used to report."""
-    with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
-        mock_find_root.return_value = mock_repo
-
-        result = runner.invoke(app, ["sync", "--json"])
-
-        assert result.exit_code == 0
-        data = json.loads(result.stdout)
-        assert data["result"] == "noop"
-        assert data["success"] is True
-        assert "kept for compatibility" in data["message"]
-        assert data["stale_before"] is True
-        assert data["files_written"] == []
-
-
-def test_sync_command_missing_charter(tmp_path: Path) -> None:
-    repo_root = tmp_path / "no_charter"
-    repo_root.mkdir()
-
-    with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
-        mock_find_root.return_value = repo_root
-
-        result = runner.invoke(app, ["sync"])
-
-        assert result.exit_code == 1
-        assert "Charter not found" in result.stdout
-
-
 def test_status_command_synced(mock_repo: Path) -> None:
     """IC-04 (#2773): ``charter status`` reports ``SYNCED`` off the presence
     of the consolidated ``charter.yaml`` (not a ``metadata.yaml`` hash match
@@ -179,7 +93,6 @@ def test_status_command_synced(mock_repo: Path) -> None:
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = mock_repo
 
-        runner.invoke(app, ["sync"])
         result = runner.invoke(app, ["status"])
 
         assert result.exit_code == 0
@@ -198,7 +111,6 @@ def test_status_command_json_output(mock_repo: Path) -> None:
     with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
         mock_find_root.return_value = mock_repo
 
-        runner.invoke(app, ["sync"])
         result = runner.invoke(app, ["status", "--json"])
 
         assert result.exit_code == 0
@@ -517,113 +429,4 @@ def test_help_output() -> None:
     assert "interview" in result.stdout
     assert "generate" in result.stdout
     assert "context" in result.stdout
-    assert "sync" in result.stdout
     assert "status" in result.stdout
-
-
-def test_sync_command_human_and_json_surfaces_do_not_contradict_3045(tmp_path: Path) -> None:
-    """Regression guard for the fixed #3045 defect. ``@pytest.mark.regression``
-    removed (landing fold: make the marker mean exactly one thing) now that
-    this test passes as a permanent guard.
-
-    #3045: ``charter sync`` always reports success on the human surface,
-    even when the JSON surface (same repo state) reports
-    ``stale_before: true`` / ``success: false``.
-
-    ``_emit_sync_human_result``
-    (``src/specify_cli/cli/commands/charter/sync.py:36-49``) unconditionally
-    prints "Charter already in sync (use --force to re-extract)" whenever
-    ``result.error`` is falsy -- it never branches on ``stale_before`` or
-    ``synced``. ``_sync_json_payload``
-    (``src/specify_cli/cli/commands/charter/sync.py:23-33``) reports
-    ``success: False`` / ``stale_before: True`` for the exact same
-    ``SyncResult``. The two surfaces of the SAME command, over the SAME
-    result, contradict each other: one says "already in sync", the other
-    says "did not sync, was stale before this call".
-
-    The stale pin that used to defend the human-surface message as
-    intentional -- ``test_sync_command_success``'s
-    ``"Charter already in sync" in result.stdout`` assertion, previously
-    rationalized in its own docstring as the "current, intentional
-    contract" -- was REMOVED in this same commit (see that test's updated
-    docstring). This test is the red-first replacement, not an addition
-    alongside the old pin; the two must not be re-separated later.
-
-    Test design, addressing three problems in an earlier draft of this test:
-
-    1. **Single invocation, two rendered surfaces.** ``charter.activation.sync.sync()``
-       is called exactly ONCE to obtain one real ``SyncResult``; both
-       ``_sync_json_payload`` and ``_emit_sync_human_result`` render from
-       that SAME object. An earlier draft invoked the ``sync`` CLI command
-       twice against one shared ``mock_repo`` -- under a *repair*-mode fix,
-       the first (``--json``) invocation would actually repair the charter,
-       so the second (human) invocation would then correctly report
-       "already in sync", falsely reding a fix that fully resolves #3045.
-       Rendering both surfaces from one result sidesteps that ordering
-       hazard entirely.
-    2. **No exit-code pin.** Honest-reporter mode (the operator's stated
-       preference is "loud failures with clear instructions") is expected to
-       fail loudly -- non-zero exit -- when nothing was actually synced.
-       Repair mode may legitimately return ``synced=True`` (and thus exit 0)
-       because restoring the pre-#2773 ``sync()`` contract means a plain
-       (non-``--force``) call auto-extracts whenever the charter IS stale.
-       This test does not hardcode which remedy is chosen; see the
-       ``payload["success"]`` branch below.
-    3. **``stale_before`` is read off the payload, not hard-asserted
-       ``True``.** It is a permanent constant today only because the
-       staleness check targets the retired ``metadata.yaml`` (#3045 remedy
-       3) -- a corrected staleness check may compute it differently.
-
-    The substantive assertion is that the two surfaces AGREE on success vs.
-    failure over the same ``SyncResult``: the human surface exits 0 iff the
-    JSON surface reports ``success``. That is the remedy-agnostic form of the
-    #3045 invariant and stays live under either sanctioned remedy:
-    - #4679 no-op (shipped): both report inert success -- JSON ``success:
-      true``, human exits 0 with the ``No-op`` line.
-    - a hypothetical honest-failure / repair mode: both report the same
-      outcome -- JSON ``success: false`` with the human surface exiting
-      non-zero, or JSON ``success: true`` with the human surface exiting 0.
-
-    An earlier version of this body early-returned on ``payload["success"]``
-    and then asserted the human surface exited non-zero -- which encoded only
-    the honest-failure remedy. The #4679 redefinition of ``success`` to
-    ``result.error is None`` made that early-return fire for the no-op case,
-    turning the assertion into dead code for the exact scenario this guards.
-    Asserting agreement directly keeps it live.
-    """
-    charter_dir = tmp_path / ".kittify" / "charter"
-    charter_dir.mkdir(parents=True)
-    (charter_dir / "charter.md").write_text(SAMPLE_CHARTER, encoding="utf-8")
-
-    from specify_cli.cli.commands.charter._app import console as charter_console
-    from specify_cli.cli.commands.charter.sync import (
-        _emit_sync_human_result,
-        _sync_json_payload,
-    )
-    from charter.activation.sync import sync as sync_charter
-
-    result = sync_charter(charter_dir / "charter.md", charter_dir)
-    payload = _sync_json_payload(result)
-
-    human_exit_code: int | None = None
-    with charter_console.capture() as capture:
-        try:
-            _emit_sync_human_result(result)
-        except typer.Exit as exc:
-            human_exit_code = exc.exit_code
-    human_text = capture.get()
-
-    # The two surfaces must AGREE on success vs. failure: the human surface
-    # exits 0 iff the JSON surface reports success. This is the #3045
-    # invariant in remedy-agnostic form -- it holds for the #4679 no-op
-    # (both succeed) and for any future honest-failure/repair mode (both
-    # agree on the failure), and it never early-returns past the no-op
-    # scenario the way the pre-#4679 ``payload["success"]`` gate did.
-    human_succeeded = human_exit_code in (None, 0)
-    assert human_succeeded == payload["success"], (
-        "#3045: the human and JSON surfaces of `charter sync` disagree over "
-        "the same SyncResult -- one reports success while the other reports "
-        f"failure. human exit={human_exit_code!r} (succeeded={human_succeeded}), "
-        f"json success={payload['success']!r}, stale_before={payload['stale_before']!r}. "
-        f"human output: {human_text!r}, json payload: {payload!r}"
-    )
