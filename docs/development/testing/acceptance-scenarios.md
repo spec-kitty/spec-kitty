@@ -41,8 +41,8 @@ nightly red on every supported operating system.
 
 ## Step structure: Arrange, Assume, Act, Assert
 
-Each lifecycle group has its own step class in
-`acceptance-jvm/src/test/java/kitty/acceptance/steps/`. They share one
+Each lifecycle group has its own step class in the `kitty.acceptance.steps`
+package of the `acceptance-jvm` test sources. They share one
 `ScenarioContext` per scenario, injected by Cucumber's PicoContainer integration.
 
 | Group | Gherkin | Class | Does |
