@@ -189,28 +189,46 @@ def _drive_reject_then_approve(repo: Path, mission_slug: str, tmp_path: Path) ->
 
 
 def _append_status_event(feature_dir: Path, mission_slug: str, mission_id: str, *, event_id: str) -> None:
-    """Append a ``for_review -> approved`` transition event for WP01.
+    """Append a contiguous ``claimed -> in_progress -> for_review -> approved``
+    chain that brings WP01 to the ``approved`` lane.
 
-    ``reduce()`` replays events without validating transition legality (it is
-    a pure fold, not a state-machine gate), so a single terminal-lane event is
-    sufficient to bring the WP into the ``approved`` lane for this scan --
-    matching how ``tests/regression/test_2684_review_override_recognition.py``
-    seeds its own terminal-lane fixture.
+    The shared diary reducer enforces lane CONTIGUITY (tightened from
+    #4990/#5279): a transition event whose ``from_lane`` is not contiguous with
+    the WP's current reduced lane is DROPPED (the WP's first/only event still
+    bootstraps regardless of ``from_lane``). WP01 is already at ``claimed`` in
+    both the coord and flat fixtures (their seeded ``planned -> claimed``
+    event), so a lone terminal ``for_review -> approved`` jump is non-contiguous
+    and would be dropped, leaving the WP stuck at ``claimed``. A realistic
+    contiguous chain from the current ``claimed`` lane up to ``approved`` is
+    therefore required.
+
+    ``event_id`` names the final ``for_review -> approved`` event; the two
+    intermediate events derive distinct 26-char ULID-shaped ids from it so each
+    caller's chain stays unique (the per-mission prefix differs between the
+    coord and flat callers).
     """
-    event = StatusEvent(
-        event_id=event_id,
-        mission_slug=mission_slug,
-        mission_id=mission_id,
-        wp_id=_WP_ID,
-        from_lane=Lane.FOR_REVIEW,
-        to_lane=Lane.APPROVED,
-        at="2026-08-02T12:00:00+00:00",
-        actor="reviewer-renata",
-        force=False,
-        execution_mode="worktree",
-        reason="approved after reject->approve review cycle",
+    transitions = (
+        (Lane.CLAIMED, Lane.IN_PROGRESS, event_id[:-2] + "C2", "2026-08-02T12:00:00+00:00"),
+        (Lane.IN_PROGRESS, Lane.FOR_REVIEW, event_id[:-2] + "R3", "2026-08-02T12:00:01+00:00"),
+        (Lane.FOR_REVIEW, Lane.APPROVED, event_id, "2026-08-02T12:00:02+00:00"),
     )
-    append_event(feature_dir, event)
+    for from_lane, to_lane, eid, at in transitions:
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id=eid,
+                mission_slug=mission_slug,
+                mission_id=mission_id,
+                wp_id=_WP_ID,
+                from_lane=from_lane,
+                to_lane=to_lane,
+                at=at,
+                actor="reviewer-renata",
+                force=False,
+                execution_mode="worktree",
+                reason="approved after reject->approve review cycle",
+            ),
+        )
 
 
 # ---------------------------------------------------------------------------

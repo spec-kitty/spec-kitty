@@ -450,10 +450,32 @@ def test_c001_merge_gate_agrees_with_real_writer_single_branch_two_separators(
         encoding="utf-8",
     )
 
-    for wp_id, event_id in (
-        ("WP01", "01KW2E7B0TERMC00100001A"),
-        ("WP02", "01KW2E7B0TERMC00100001B"),
-    ):
+    # The shared diary reducer enforces lane CONTIGUITY (tightened from
+    # #4990/#5279): a ``from_lane`` that is not contiguous with the WP's current
+    # reduced lane is DROPPED (the WP's first event still bootstraps regardless).
+    # WP01 already carries the flat fixture's ``planned -> claimed`` seed (so it
+    # starts at ``claimed``), while WP02 was freshly added and has no prior
+    # event. A lone terminal ``for_review -> approved`` jump would be dropped for
+    # WP01, so each WP needs a contiguous chain up to ``approved``. The merge
+    # gate reads the verdict from the TERMINAL transition, so ``review_result``
+    # rides the final ``for_review -> approved`` event only.
+    wp_chains = {
+        # WP01 starts at ``claimed`` (the fixture's planned->claimed seed).
+        "WP01": (
+            (Lane.CLAIMED, Lane.IN_PROGRESS, "01KW2E7B0TERMC001WP01PROG1"),
+            (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01KW2E7B0TERMC001WP01REVW2"),
+            (Lane.FOR_REVIEW, Lane.APPROVED, "01KW2E7B0TERMC00100001A"),
+        ),
+        # WP02 was freshly added and has no prior event, so its chain starts at
+        # ``planned`` (the first event bootstraps it).
+        "WP02": (
+            (Lane.PLANNED, Lane.CLAIMED, "01KW2E7B0TERMC001WP02PLND0"),
+            (Lane.CLAIMED, Lane.IN_PROGRESS, "01KW2E7B0TERMC001WP02CLMD1"),
+            (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01KW2E7B0TERMC001WP02PROG2"),
+            (Lane.FOR_REVIEW, Lane.APPROVED, "01KW2E7B0TERMC00100001B"),
+        ),
+    }
+    for wp_id, chain in wp_chains.items():
         wp_slug = _resolve_wp_slug(ctx.repo, ctx.slug, wp_id)
         created = create_rejected_review_cycle(
             main_repo_root=ctx.repo,
@@ -464,23 +486,27 @@ def test_c001_merge_gate_agrees_with_real_writer_single_branch_two_separators(
             reviewer_agent="reviewer-renata",
             verdict="rejected",
         )
-        append_event(
-            ctx.primary_feature_dir,
-            StatusEvent(
-                event_id=event_id,
-                mission_slug=ctx.slug,
-                mission_id=ctx.mission_id,
-                wp_id=wp_id,
-                from_lane=Lane.FOR_REVIEW,
-                to_lane=Lane.APPROVED,
-                at="2026-06-26T01:00:00+00:00",
-                actor="reviewer-renata",
-                force=False,
-                execution_mode="worktree",
-                reason="approved for merge",
-                review_result=created.review_result,
-            ),
-        )
+        last_index = len(chain) - 1
+        for step, (from_lane, to_lane, event_id) in enumerate(chain):
+            append_event(
+                ctx.primary_feature_dir,
+                StatusEvent(
+                    event_id=event_id,
+                    mission_slug=ctx.slug,
+                    mission_id=ctx.mission_id,
+                    wp_id=wp_id,
+                    from_lane=from_lane,
+                    to_lane=to_lane,
+                    at=f"2026-06-26T01:00:0{step}+00:00",
+                    actor="reviewer-renata",
+                    force=False,
+                    execution_mode="worktree",
+                    reason="approved for merge",
+                    # The pure-event merge gate reads the verdict from the
+                    # terminal transition only.
+                    review_result=created.review_result if step == last_index else None,
+                ),
+            )
 
     findings = find_rejected_review_artifact_conflicts(
         ctx.primary_feature_dir, ["WP01", "WP02"]
@@ -536,23 +562,39 @@ def test_c001_merge_gate_agrees_with_real_writer_under_coord_topology(
         reviewer_agent="reviewer-renata",
         verdict="rejected",
     )
-    append_event(
-        ctx.coord_feature_dir,
-        StatusEvent(
-            event_id="01KW2E7A0TERMC0010000001",
-            mission_slug=ctx.slug,
-            mission_id=ctx.mission_id,
-            wp_id="WP01",
-            from_lane=Lane.FOR_REVIEW,
-            to_lane=Lane.APPROVED,
-            at="2026-06-26T01:00:00+00:00",
-            actor="reviewer-renata",
-            force=False,
-            execution_mode="worktree",
-            reason="approved for merge",
-            review_result=created.review_result,
-        ),
+    # The shared diary reducer enforces lane CONTIGUITY (tightened from
+    # #4990/#5279): a ``from_lane`` not contiguous with the WP's current reduced
+    # lane is DROPPED. After the ``status.events.jsonl`` clear above, the coord
+    # seed run by the real writer re-carries the coord husk's existing WP01
+    # transition, so WP01's current reduced lane is ``blocked`` -- a lone
+    # terminal ``for_review -> approved`` jump would be dropped and leave the WP
+    # stuck. Seed a contiguous chain from ``blocked`` up to ``approved`` on the
+    # coord-husk STATUS surface; the pure-event merge gate reads the verdict from
+    # the terminal transition, so ``review_result`` rides the final event only.
+    coord_chain = (
+        (Lane.BLOCKED, Lane.IN_PROGRESS, "01KW2E7A0TERMC001COORDPRG1"),
+        (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01KW2E7A0TERMC001COORDRVW2"),
+        (Lane.FOR_REVIEW, Lane.APPROVED, "01KW2E7A0TERMC0010000001"),
     )
+    last_index = len(coord_chain) - 1
+    for step, (from_lane, to_lane, event_id) in enumerate(coord_chain):
+        append_event(
+            ctx.coord_feature_dir,
+            StatusEvent(
+                event_id=event_id,
+                mission_slug=ctx.slug,
+                mission_id=ctx.mission_id,
+                wp_id="WP01",
+                from_lane=from_lane,
+                to_lane=to_lane,
+                at=f"2026-06-26T01:00:0{step}+00:00",
+                actor="reviewer-renata",
+                force=False,
+                execution_mode="worktree",
+                reason="approved for merge",
+                review_result=created.review_result if step == last_index else None,
+            ),
+        )
 
     findings = find_rejected_review_artifact_conflicts(ctx.primary_feature_dir, ["WP01"])
 
