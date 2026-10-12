@@ -69,3 +69,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-11 | [a Charter Pack declares its level in pack.yaml](2026-10-11-2-a-pack-declares-its-level-in-pack-yaml.md) |
 | 2026-10-11 | [acceptance testing and BDD support: Gherkin scenarios, a per-PR tag check and a black-box Cucumber-JVM nightly](2026-10-11-3-acceptance-testing-and-bdd-support.md) |
 | 2026-10-12 | [the test baseline is captured at for_review, at the lane fork point, not at the claim](2026-10-12-1-baseline-captured-at-for-review-not-claim.md) |
+| 2026-10-12 | [the charter becomes an external contract package in its own repository](2026-10-12-2-charter-extraction-to-its-own-repository.md) |

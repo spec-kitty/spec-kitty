@@ -76,7 +76,9 @@ below (which still holds where this one is silent); where the two differ, this o
    is now GA-gating. Grounded in #3101, ADR
    [2026-08-02-1](../adr/3.x/2026-08-02-1-charter-wheel-assessment.md) and ADR
    [2026-04-25-1](../adr/3.x/2026-04-25-1-shared-package-boundary.md). The repository
-   extraction itself rides with a dedicated epic/ADR (to be filed).
+   extraction itself is recorded in ADR
+   [2026-10-12-2](../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md); the
+   extraction mechanics ride with a dedicated epic (to be filed).
 4. **The mission-status read API is the open-core producer surface** (internally "Build
    Kitty"), not a Team Kitty surface. Its Java implementation (`services/mission-status-api/`,
    epic #5528) is to **start in-repo as a modular component** and be **extracted as needed as

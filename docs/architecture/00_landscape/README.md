@@ -173,7 +173,7 @@ built from the ledger, and a per-mission WP detail. The CLI-bundled implementati
 lives outside the CLI. A replacement UI, in its own repository, is an external
 consumer of that contract
 ([ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
-proposed).
+Accepted).
 
 ### Agent Tool Connectors
 

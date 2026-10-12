@@ -48,7 +48,7 @@
 > (DIRECTIVE_044 compliant). The interactive charter intake (2026-07-01) wired
 > `directive→artifact` `suggests` edges from DIRECTIVE_043/044/045 so **all 14
 > catfooding artifacts are directive-reachable and resolve in `references.yaml`**,
-> and states the eight standing orders as actionable policy in the section below
+> and states the nine standing orders as actionable policy in the section below
 > (superseding the earlier deferral-and-status framing).
 
 ## Purpose
@@ -372,8 +372,8 @@ GA-gating** (see Branch and Release Strategy). The enforced module chain
 shared-package-boundary gates will gain charter as an external contract package once the
 extraction lands. **This is a direction note only: it changes no gate and no layer rule in
 this mission.** Grounded in #3101, ADR `2026-08-02-1` (charter-wheel-assessment) and ADR
-`2026-04-25-1` (this boundary); the repository extraction rides with a dedicated epic/ADR
-(to be filed).
+`2026-04-25-1` (this boundary); the repository extraction is recorded in ADR
+`2026-10-12-2`; the extraction mechanics ride with a dedicated epic (to be filed).
 
 ### Internal Runtime Boundary
 

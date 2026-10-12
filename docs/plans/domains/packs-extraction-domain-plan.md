@@ -42,8 +42,9 @@ content across a package, wheel or repository boundary:
   `charter.offering.api` like `spec-kitty-events` / `spec-kitty-tracker` (#3101). **Direction
   update 2026-10-12: this is now GA-gating** — its precondition #645 (move the ~129
   `specify_cli → charter` imports onto the stable API) is a GA gate leg (see the
-  [4.0.0 roadmap](../4-0-0-milestone-roadmap.md)). The repository extraction itself rides with
-  a dedicated epic/ADR (to be filed).
+  [4.0.0 roadmap](../4-0-0-milestone-roadmap.md)). The repository extraction itself is recorded in ADR
+  [2026-10-12-2](../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md); the
+  extraction mechanics ride with a dedicated epic (to be filed).
 - **Content.** Doctrine content for **both** pack tiers is authored in `spec-kitty-open-packs`
   and vendored into the repository at release: `packs/built-in/` (#3504) and, as of the
   2026-10-12 direction update, `packs/internal/` as well — a **source-location move only**. A
@@ -99,7 +100,8 @@ must decide:
 - whether the new package starts version-locked to the CLI, as `spec-kitty-events` and
   `spec-kitty-tracker` did (ADR `2026-04-25-1`).
 
-The repository-extraction mechanics themselves ride with a dedicated epic/ADR (to be filed);
+The repository extraction is recorded in ADR
+[2026-10-12-2](../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md); its mechanics ride with a dedicated epic (to be filed);
 this plan owns the invariant and the precondition, not that epic.
 
 ### 3.2 Content provenance (#3504, then #3022)
@@ -158,7 +160,7 @@ eight sub-issues is done.
    provenance move (#3504/#3022) and verified distribution (#2539) remain post-4.0.0 direction,
    not GA dependencies. None of these issues is *on milestone 11* (local integrity); the GA gate
    now spans three legs (see the roadmap), and the charter-extraction leg is tracked on #645 and
-   a charter-repo-extraction epic/ADR (to be filed), not on milestone 11.
+   ADR `2026-10-12-2` plus a charter-repo-extraction epic (to be filed), not on milestone 11.
 
 ---
 

@@ -4,7 +4,6 @@ description: 'The charter becomes an external contract package in its own reposi
 status: Accepted
 date: '2026-10-12'
 updated: '2026-10-12'
-audience: docs/context/audience/internal/system-architect.md
 ---
 
 **Status:** Accepted (2026-10-12).

@@ -21,6 +21,8 @@ for now. See "Amendment 2026-10-03" below.
 **Amendment 2026-10-12 (Accepted):** the read API is open-core (producer side), not a Team
 Kitty surface; in-repo now, extracted when frozen. See "Amendment 2026-10-12" below.
 
+The inline '(Proposed)' labels on D-3..D-7 are historical; all are Accepted as of 2026-10-12.
+
 **Date:** 2026-10-01 (amended 2026-10-03, 2026-10-12)
 
 **Deciders:** Stijn Dejongh (operator). Analysis by `architect-alphonso`.

@@ -100,7 +100,9 @@ unchanged**; only the gating and the extraction target move.*
   that extraction safe; this addendum changes when it must land, not the invariant. The
   physical split (wheel/repository) is the sibling
   [Packs Extraction plan](packs-extraction-domain-plan.md)'s §3.1; the repository extraction
-  itself rides with a dedicated epic/ADR (to be filed). Grounded in #3101, ADR
+  itself is recorded in ADR
+  [2026-10-12-2](../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md); the
+  extraction mechanics ride with a dedicated epic (to be filed). Grounded in #3101, ADR
   [2026-08-02-1](../../adr/3.x/2026-08-02-1-charter-wheel-assessment.md), ADR
   [2026-04-25-1](../../adr/3.x/2026-04-25-1-shared-package-boundary.md).
 - **The API-as-consumer boundary is unchanged, and now named open-core.** §3.6 here owns the
