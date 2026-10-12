@@ -264,7 +264,7 @@ class TestUs3As5OwnedReviewBaseUnavailable:
 
         _assert_review_base_blocked(_owned_next(owned_checkouts, monkeypatch))
 
-    def test_no_claim_event_is_blocked(self, owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_claim_on_no_commit_is_blocked(self, owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
         # The claim event must stay a real planned->claimed TRANSITION in the log,
         # or the contiguity reducer orphans WP01's later events and it reduces to
         # `planned` (action=implement), never reaching the review-base block.
@@ -278,7 +278,7 @@ class TestUs3As5OwnedReviewBaseUnavailable:
         # same `no_commit` path the claim-commit unit suite exercises.
         _owned_review_ready(owned_checkouts, monkeypatch)
         events = owned_checkouts.mission_dir / _EVENTS
-        fresh_uncommitted_claim_id = "01NOCOMMITCLAIMZZZZZZZZZZ1"
+        fresh_uncommitted_claim_id = "01KW2E7B0NCMMTC1A1MZZZZZZ1"
         rewritten: list[str] = []
         for line in events.read_text(encoding="utf-8").splitlines():
             if not line.strip():
