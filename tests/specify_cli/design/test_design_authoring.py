@@ -462,3 +462,39 @@ def test_actor_budget_measures_utf8_bytes(mission: tuple[Path, str], glyphs: int
     if not accepted:
         assert outcome["error_code"] == "DESIGN_REQUEST_INVALID"
         assert not receipts.api_authoring_enabled(repo, slug)
+
+
+# #5879: guard_native_finalization — the marker-gated proof that native
+# `agent mission finalize-tasks` runs before finalizing an API-authored Mission.
+
+
+def test_guard_native_finalization_noop_without_marker(mission: tuple[Path, str]) -> None:
+    repo, slug = mission
+    # No API-authoring marker → the guard is a no-op (a non-API-authored Mission
+    # keeps byte-identical native finalize behavior).
+    assert not receipts.api_authoring_enabled(repo, slug)
+    assert validation.guard_native_finalization(repo, slug) is None
+
+
+def test_guard_native_finalization_skips_when_already_finalized(mission: tuple[Path, str]) -> None:
+    repo, slug = mission
+    with (
+        patch("specify_cli.design.receipts.api_authoring_enabled", return_value=True),
+        patch.object(validation, "tasks_are_finalized", return_value=True),
+        patch.object(validation, "validate_stage", side_effect=AssertionError("validate_stage must not run once finalized")) as validate,
+    ):
+        assert validation.guard_native_finalization(repo, slug) is None
+        validate.assert_not_called()
+
+
+def test_guard_native_finalization_refuses_stale_when_unfinalized(mission: tuple[Path, str]) -> None:
+    repo, slug = mission
+    with (
+        patch("specify_cli.design.receipts.api_authoring_enabled", return_value=True),
+        patch.object(validation, "tasks_are_finalized", return_value=False),
+        patch.object(validation, "validate_stage", side_effect=DesignError("DESIGN_PREREQUISITES_FAILED", "stale")) as validate,
+        pytest.raises(DesignError) as caught,
+    ):
+        validation.guard_native_finalization(repo, slug)
+    assert caught.value.code == "DESIGN_PREREQUISITES_FAILED"
+    validate.assert_called_once_with(repo, slug, "tasks")

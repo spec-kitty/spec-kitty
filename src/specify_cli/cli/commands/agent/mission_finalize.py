@@ -59,6 +59,8 @@ from typing import TYPE_CHECKING, Annotated, cast
 import typer
 
 from specify_cli.cli.console import console as console
+from specify_cli.design.errors import DesignError
+from specify_cli.design.validation import guard_native_finalization
 
 if TYPE_CHECKING:
     from specify_cli.lanes.frozen_membership import FrozenLaneMembership
@@ -1083,6 +1085,38 @@ def _run_finalize_ownership_gates(
     )
 
 
+def _enforce_api_authored_native_finalize(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    validate_only: bool,
+    refresh_planning_commit: bool,
+    json_output: bool,
+) -> None:
+    """Refuse native finalize of an API-authored Mission with stale content (#5879).
+
+    Delegates the marker-gated, read-only proof to
+    ``design.validation.guard_native_finalization`` and renders a typed refusal
+    (machine-readable ``error_code``, matching the orchestrator-api path) before
+    raising ``typer.Exit``. Skipped for ``--validate-only`` and the pin-only
+    ``--refresh-planning-commit`` path. Extracted from ``finalize_tasks`` to keep
+    that entrypoint within the complexity ceiling.
+    """
+    if validate_only or refresh_planning_commit:
+        return
+    try:
+        guard_native_finalization(repo_root, mission_slug)
+    except DesignError as de:
+        if json_output:
+            design_payload: dict[str, object] = {"result": "error", "error": de.message, "error_code": de.code}
+            if de.details:
+                design_payload["details"] = de.details
+            _emit_json(design_payload)
+        else:
+            console.print(f"[red]Error:[/red] {de.message} ({de.code})")
+        raise typer.Exit(1) from None
+
+
 def finalize_tasks(
     feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -1262,6 +1296,19 @@ def finalize_tasks(
         repo_root = ctx.repo_root
         mission_slug = ctx.mission_slug
         planning_dir = ctx.planning_dir
+
+        # #5879: an API-authored Mission must not be finalized natively with stale
+        # or unfinished planning content. Read-only; runs before any mutation
+        # (branch setup / writes below). The typed refusal raises ``typer.Exit``,
+        # which the ``except typer.Exit`` arm below re-raises as a no-op (nothing
+        # mutated yet).
+        _enforce_api_authored_native_finalize(
+            repo_root,
+            mission_slug,
+            validate_only=validate_only,
+            refresh_planning_commit=refresh_planning_commit,
+            json_output=json_output,
+        )
 
         branch_setup = _run_finalize_branch_setup(
             ctx,

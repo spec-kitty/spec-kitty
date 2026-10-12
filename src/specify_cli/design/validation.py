@@ -40,6 +40,37 @@ def require_unfinalized(repo_root: Path, mission_slug: str) -> None:
         raise DesignError("DESIGN_FINALIZED", "Finalized planning content requires the native reconciliation workflow")
 
 
+def guard_native_finalization(repo_root: Path, mission_slug: str) -> None:
+    """Refuse native ``finalize-tasks`` of an API-authored Mission with stale content (#5879).
+
+    The marker-gated tasks-stage proof (``validate_stage``) previously ran only on
+    the orchestrator-api ``tasks`` verb, so native ``spec-kitty agent …
+    finalize-tasks`` could finalize an API-authored Mission whose planning content
+    was stale, unfinished, or carried unresolved decisions. Running it here makes
+    the native finalize surface enforce the same refusal, and acquires the
+    cooperative ``authoring_lock`` across the proof — closing the
+    writer-takes-no-lock half of the ADR ``2026-10-07-2`` race.
+
+    Marker-gated and first-finalize-only: a non-API-authored Mission (no marker) is
+    untouched, and an already-finalized Mission is not re-validated — its content
+    was proved at first finalization and API authoring is frozen, so re-validating
+    would raise a false stale verdict once finalization rewrote the work-package
+    frontmatter. The check is read-only; it never writes or advances state.
+    """
+    from specify_cli.design.receipts import api_authoring_enabled, authoring_lock
+
+    if not api_authoring_enabled(repo_root, mission_slug):
+        return
+    status_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
+    with authoring_lock(repo_root, mission_slug):
+        try:
+            finalized = tasks_are_finalized(status_dir)
+        except StoreError as exc:
+            raise DesignError("DESIGN_STATUS_EVENT_LOG_UNREADABLE", "Canonical mission status cannot be trusted") from exc
+        if not finalized:
+            validate_stage(repo_root, mission_slug, "tasks")
+
+
 def _validate_manifest_graph(manifest: WpsManifest, mission_dir: Path) -> None:
     from specify_cli.design.authoring import manifest_prompt_name
 
