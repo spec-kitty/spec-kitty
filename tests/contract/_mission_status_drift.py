@@ -58,8 +58,7 @@ UNREADABLE = 500
 CAP = 1000
 ACTIVE_LANES = frozenset({"claimed", "in_progress", "for_review", "in_review", "approved"})
 COMPLETED_STATES = frozenset({"recently_completed", "archived"})
-# Provenance plus the runtime-claim slots spec-kitty-events 10.4.2 stopped projecting (#6058).
-PROVENANCE_FIELDS = frozenset({"actor", "last_event_id", "last_transition_at", "agent", "shell_pid", "shell_pid_created_at"})
+PROVENANCE_FIELDS = frozenset({"actor", "last_event_id", "last_transition_at"})
 WORK_PACKAGES = "work_packages"
 LANE = "lane"
 _ULID = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")

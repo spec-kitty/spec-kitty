@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 import json
 from pathlib import Path
+from typing import Any
 
 
 from specify_cli.audit.classifiers._details import format_exception_detail
@@ -709,28 +710,8 @@ def test_status_json_active_mission_drift_stays_hard_blocker(
     assert "SNAPSHOT_DRIFT_TERMINAL" not in _codes(findings)
 
 
-@pytest.mark.parametrize(
-    "stale_fields",
-    [
-        pytest.param(
-            {
-                "actor": "migration:verdict_provenance_backfill",
-                "last_event_id": "01KQHRB8GCFJAX7HM4ZY52AQGZ",
-                "last_transition_at": "2026-05-01T12:05:00+00:00",
-            },
-            id="provenance",
-        ),
-        # #6058: a snapshot written before spec-kitty-events 10.4.2 still
-        # carries the finished claim's runtime slots.
-        pytest.param(
-            {"agent": "codex:gpt-4o:reviewer:reviewer", "shell_pid": 13447, "shell_pid_created_at": 1712555649.6},
-            id="runtime-slots",
-        ),
-    ],
-)
 def test_status_json_provenance_only_drift_is_tolerated_warning(
     tmp_path: Path,
-    stale_fields: dict[str, object],
 ) -> None:
     """A reducer-version change that only re-attributes a work package's
     ``actor``/``last_event_id``/``last_transition_at`` -- not its lane or any
@@ -760,7 +741,9 @@ def test_status_json_provenance_only_drift_is_tolerated_warning(
 
     status_path = tmp_path / "status.json"
     persisted = json.loads(status_path.read_text(encoding="utf-8"))
-    persisted["work_packages"]["WP01"].update(stale_fields)
+    persisted["work_packages"]["WP01"]["actor"] = "migration:verdict_provenance_backfill"
+    persisted["work_packages"]["WP01"]["last_event_id"] = "01KQHRB8GCFJAX7HM4ZY52AQGZ"
+    persisted["work_packages"]["WP01"]["last_transition_at"] = "2026-05-01T12:05:00+00:00"
     status_path.write_text(json.dumps(persisted, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
     findings = classify_status_json(tmp_path)
@@ -770,6 +753,81 @@ def test_status_json_provenance_only_drift_is_tolerated_warning(
     assert provenance_drift[0].severity == Severity.WARNING
     assert is_teamspace_blocker(provenance_drift[0]) is False
     assert "SNAPSHOT_DRIFT" not in _codes(findings)
+    assert "SNAPSHOT_DRIFT_TERMINAL" not in _codes(findings)
+
+
+_RUNTIME_SLOT_DRIFT = {
+    "agent": {"agent": "codex:gpt-4o:reviewer:reviewer"},
+    "shell_pid": {"shell_pid": 13447},
+    "shell_pid_created_at": {"shell_pid_created_at": 1712555649.6},
+    "all-three-slots": {
+        "agent": "codex:gpt-4o:reviewer:reviewer",
+        "shell_pid": 13447,
+        "shell_pid_created_at": 1712555649.6,
+    },
+}
+
+
+def _materialized_active_mission(mission_dir: Path) -> dict[str, Any]:
+    """Write an active mission, materialize its snapshot, and return the persisted JSON."""
+    from specify_cli.status.reducer import materialize
+
+    _write_json(
+        mission_dir / "meta.json",
+        {
+            "mission_id": _VALID_ULID,
+            "mission_slug": "test-mission",
+            "mission_number": 1,
+            "mission_type": "software-dev",
+        },
+    )
+    _write_jsonl(
+        mission_dir / "status.events.jsonl",
+        [{**_MODERN_EVENT, "to_lane": "in_progress"}],
+    )
+    materialize(mission_dir)
+    persisted: dict[str, Any] = json.loads((mission_dir / "status.json").read_text(encoding="utf-8"))
+    return persisted
+
+
+def test_contract_oracle_provenance_fields_equal_the_classifier_set() -> None:
+    """The Mission Status contract oracle mirrors the classifier's provenance-only
+    field set; restoring a tolerance on one side only would let them disagree."""
+    from specify_cli.audit.classifiers.status_json import _PROVENANCE_ONLY_WP_FIELDS
+    from tests.contract._mission_status_drift import PROVENANCE_FIELDS
+
+    assert PROVENANCE_FIELDS == _PROVENANCE_ONLY_WP_FIELDS
+
+
+def test_status_json_unchanged_snapshot_is_clean(tmp_path: Path) -> None:
+    """Positive control for the runtime-slot tests below: a snapshot the
+    reducer reproduces byte for byte raises no drift finding of any kind."""
+    _materialized_active_mission(tmp_path)
+
+    findings = classify_status_json(tmp_path)
+
+    assert not [f for f in findings if f.code.startswith("SNAPSHOT_DRIFT")]
+
+
+@pytest.mark.parametrize("slot_edit", list(_RUNTIME_SLOT_DRIFT.values()), ids=list(_RUNTIME_SLOT_DRIFT))
+def test_status_json_runtime_claim_slot_drift_is_a_hard_blocker(tmp_path: Path, slot_edit: dict[str, object]) -> None:
+    """#6058 / FR-010: a difference confined to a work package's claim
+    attribution (``agent``, ``shell_pid``, ``shell_pid_created_at``) is NOT
+    provenance. spec-kitty-events 10.4.4 keeps a losing migration seed's
+    attribution, so a reducer that drops it again must show up as the hard
+    ``SNAPSHOT_DRIFT`` blocker instead of being tolerated.
+    """
+    persisted = _materialized_active_mission(tmp_path)
+    persisted["work_packages"]["WP01"].update(slot_edit)
+    (tmp_path / "status.json").write_text(json.dumps(persisted, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+
+    findings = classify_status_json(tmp_path)
+
+    drift = [f for f in findings if f.code == "SNAPSHOT_DRIFT"]
+    assert len(drift) == 1
+    assert drift[0].severity == Severity.ERROR
+    assert is_teamspace_blocker(drift[0]) is True
+    assert "SNAPSHOT_DRIFT_PROVENANCE" not in _codes(findings)
     assert "SNAPSHOT_DRIFT_TERMINAL" not in _codes(findings)
 
 
