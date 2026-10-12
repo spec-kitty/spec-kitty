@@ -28,7 +28,7 @@ the real current code.
 **Acceptance Scenarios**:
 
 1. **Given** the real current audit and `mission_state` globs, **When** the derived
-   test runs the audit in-process on its fixture and checks every executed `src/`
+   test drives the real `doctor mission-state --audit` command (through the typer app, argv read from the CI job) on its fixture and checks every executed `src/`
    module against the group, **Then** the test passes (every executed module is
    matched).
 2. **Given** a change that makes the audit execute a `src/` module no `mission_state`
@@ -79,7 +79,7 @@ of the executed-module list; the routing tests read a derived set and still pass
 
 | ID | Title | User Story | Priority | Status | Delivery | No-op passable? |
 |----|-------|------------|----------|--------|----------|-----------------|
-| FR-001 | Derive the executed-module set in-process | As a maintainer, I want the set of `src/` modules the audit executes derived from an in-process `run_audit` on a small fixture (not a hand list) so the check tracks reality. | High | Open | [build] | no — asserts the derived set is non-empty and includes known audit anchor modules (`audit/engine.py`, `status/reducer.py`) as a positive control |
+| FR-001 | Derive the executed-module set in-process | As a maintainer, I want the set of `src/` modules the audit executes derived from a run of the real `doctor mission-state --audit` command on a small fixture (not a hand list) so the check tracks reality. | High | Open | [build] | no — asserts the derived set is non-empty and includes known audit anchor modules (`audit/engine.py`, `status/reducer.py`) as a positive control |
 | FR-002 | Fail when an executed module is outside the globs | As a maintainer, I want the test to fail (naming the module) when the audit executes a `src/` module that no `mission_state` glob matches, checked via the canonical `gate_selection.load_router`/`select_gates`. | High | Open | [ratchet] | no — self-mutation-proven RED both by planting an out-of-glob executed module and by dropping a covering glob |
 | FR-003 | Remove the hand-copied mirror | As a maintainer, I want `AUDIT_INPUT_PATHS` removed and its consumers re-pointed onto the derived set, so there is one source of truth for the executed-module trigger inputs. | High | Open | [folded] | no — folds into FR-001's derived set; a positive control pins that the derived set still matches the group |
 | FR-004 | Keep manifest/workflow alignment without a module mirror | As a maintainer, I want the dependency-manifest, workflow, and renderer trigger inputs (not executed in-process) kept as a small explicit list so their routing + alignment assertions still hold. | Medium | Open | [ratchet] | no — paired with the real router: each listed input must still match the `mission_state` group and (for manifests) the events-alignment workflow |
@@ -104,7 +104,7 @@ of the executed-module list; the routing tests read a derived set and still pass
 ### Key Entities
 
 - **Executed-module set**: the `src/`-relative module paths whose functions run
-  during an in-process `run_audit` over the fixture (warm, function-call-scoped).
+  during a run of the real `doctor mission-state --audit` command over the fixture (warm, function-call-scoped; 37 modules at landing).
 - **`mission_state` group**: the router paths-filter group whose globs decide when
   the `mission-state-audit` job runs; the single routing authority is
   `scripts/ci/gate_selection.load_router`.

@@ -77,6 +77,12 @@ models, identity_audit, lane_reader, lifecycle_events}` + `migration/mission_sta
 `kernel/{meta_decode,guarded_read,git/{listing,paths,runner}}` +
 `charter/activation/mission_type_key`.
 
+> Landing correction: the shipped test drives the real `doctor mission-state --audit
+> --fail-on teamspace-blocker` command (typer app, argv read from the CI job), not
+> `run_audit` directly, and derives 37 modules (these 33 plus the command shell
+> `cli/commands/{doctor,_doctor_shared,_mission_state_doctor}.py`), so `doctor.py` and
+> `_doctor_shared.py` are no longer hand-listed.
+
 **Pivotal conclusion: the audit currently executes NO `src/` module outside the
 existing `mission_state` globs.** Therefore this mission does **not** need to edit
 `ci-router.yml` (no missing glob today); it only needs to ADD the derived test and
@@ -179,7 +185,7 @@ artifacts**. Two fixture pitfalls were found and eliminated:
 ## 8. Shape of the fix (feeds the spec)
 
 1. Add a non-vacuous test (in `tests/ci/test_mission_state_audit_routing.py`, the
-   conventional home) that drives the audit in-process on the small git fixture,
+   conventional home) that drives the real `doctor mission-state --audit` command on the small git fixture,
    warm-captures the executed `src/` modules, and asserts each is matched by the
    `mission_state` group via `select_gates`/`load_router`. **RED** when a module
    is executed outside the globs (self-mutation-proven both directions).
