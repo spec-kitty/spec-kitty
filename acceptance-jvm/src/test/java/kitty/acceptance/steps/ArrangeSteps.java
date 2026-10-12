@@ -57,6 +57,9 @@ public final class ArrangeSteps {
 
     private static void delete(Path path) {
         try {
+            // spec-kitty installs its managed skill files read-only. Windows refuses to
+            // delete a read-only file, so clear the flag first, as a user's rm -rf would.
+            path.toFile().setWritable(true);
             Files.deleteIfExists(path);
         } catch (IOException e) {
             throw new UncheckedIOException("Could not delete " + path, e);

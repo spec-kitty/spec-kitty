@@ -298,6 +298,8 @@ public final class ScenarioWorld {
 
     private static void deleteQuietly(Path path) {
         try {
+            // Managed skill files are read-only; Windows will not delete them otherwise.
+            path.toFile().setWritable(true);
             Files.deleteIfExists(path);
         } catch (IOException ignored) {
             // Best-effort teardown.
