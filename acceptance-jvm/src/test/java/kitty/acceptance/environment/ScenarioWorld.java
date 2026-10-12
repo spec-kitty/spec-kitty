@@ -259,7 +259,7 @@ public final class ScenarioWorld {
     }
 
     /**
-     * Existence, regular-file count and newest mtime of a tree, ignoring {@code *.lock} files; cheap
+     * Existence, regular-file count, newest mtime and total size of a tree, ignoring {@code *.lock} files; cheap
      * proof it was left alone.
      */
     private static String fingerprint(Path root) {
@@ -267,18 +267,19 @@ public final class ScenarioWorld {
             return "absent";
         }
         try (Stream<Path> tree = Files.walk(root)) {
-            long[] stats = {0, 0};
+            long[] stats = {0, 0, 0};
             tree.filter(Files::isRegularFile)
                     .filter(file -> !file.getFileName().toString().endsWith(".lock"))
                     .forEach(file -> {
                 stats[0]++;
                 try {
                     stats[1] = Math.max(stats[1], Files.getLastModifiedTime(file).toMillis());
+                    stats[2] += Files.size(file);
                 } catch (IOException ignored) {
                     // A file vanishing mid-walk is itself a change the count will show.
                 }
             });
-            return "files=" + stats[0] + ",newestMtime=" + stats[1];
+            return "files=" + stats[0] + ",newestMtime=" + stats[1] + ",bytes=" + stats[2];
         } catch (IOException e) {
             throw new UncheckedIOException("Could not fingerprint " + root, e);
         }

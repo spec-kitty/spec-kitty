@@ -72,7 +72,7 @@ test {
 test {
     def ranTests = new java.util.concurrent.atomic.AtomicLong()
     def filter = System.getProperty('cucumber.filter.tags') ?: ''
-    def mayBeEmpty = filter.contains('@wip') && !filter.contains('not @wip')
+    def mayBeEmpty = filter.trim() == '@wip'
 
     afterSuite { descriptor, result ->
         if (descriptor.parent == null) {
