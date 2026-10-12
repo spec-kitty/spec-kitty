@@ -79,9 +79,10 @@ below (which still holds where this one is silent); where the two differ, this o
    extraction itself rides with a dedicated epic/ADR (to be filed).
 4. **The mission-status read API is the open-core producer surface** (internally "Build
    Kitty"), not a Team Kitty surface. Its Java implementation (`services/mission-status-api/`,
-   epic #5528) starts **in-repo as a modular component** and is **extracted as needed as an
-   open-core surface** — never into a Team Kitty repository; `contracts/mission-status/` and
-   the conformance fixtures stay canonical beside the Python reducer
+   epic #5528) is to **start in-repo as a modular component** and be **extracted as needed as
+   an open-core surface** — never into a Team Kitty repository (direction; the service
+   directory does not exist yet). `contracts/mission-status/` and the conformance fixtures
+   already ship and stay canonical beside the Python reducer
    ([ADR 2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
    Accepted). Its backend is the GA-gating piece from rule 2.
 5. **Team Kitty = "Multiplayer Mode," the consumer side.** UI/multiplayer surfaces
@@ -223,7 +224,7 @@ Never design against or "re-enable" the old sync path; see
      │    #645 stable application API ──▶ ~129 specify_cli→charter imports move onto it
      │    ──▶ charter ships as its own external contract package, in its own repository
      └ MISSION-STATUS API BACKEND (open-core producer surface, "Build Kitty")
-          #5528 Mission Status Read API (contract 1.0/1.1 shipped; services/mission-status-api/ in-repo now)
+          #5528 Mission Status Read API (contract 1.0/1.1 shipped; services/mission-status-api/ to start in-repo — direction, dir not created yet)
           ──▶ #5532 readers re-point · #5533 routes rehome
                                                                      ──▶  4.0.0 GA
 
@@ -253,9 +254,11 @@ Never design against or "re-enable" the old sync path; see
    charter into its own externally-released repository — **GA-gating**. The mission-status API
    **backend** — the open-core producer surface
    ([ADR 2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
-   Accepted) — is also **GA-gating**: the bundled dashboard is already removed (#5530), the
-   contract shipped as versions 1.0 and 1.1, and `services/mission-status-api/` starts in-repo
-   now. What stays **off** the GA gate and continues on the 4.x line: produce/drain decoupling
+   Accepted) — is also **GA-gating**: the bundled dashboard is already removed (#5530) and the
+   contract shipped as versions 1.0 and 1.1 (`contracts/mission-status/`). The Java service
+   `services/mission-status-api/` is the ratified target — it is **slated to start in-repo** as
+   a modular component (direction; the directory does not exist yet). What stays **off** the GA
+   gate and continues on the 4.x line: produce/drain decoupling
    (the precondition for any external *consumer*), the consumer-side UI/multiplayer ("Multiplayer
    Mode"), the charter read/write service strangler
    ([ADR 2026-10-03-1](../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md),
@@ -318,7 +321,8 @@ attested. The rc6 upgrade notes must say so.
   **charter modular extraction** into its own externally-released repository; and the
   **mission-status API backend** — the open-core **producer** surface (ADR
   [2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
-  Accepted), epic **#5528**, `services/mission-status-api/` in-repo now, extracted when its
+  Accepted), epic **#5528**, `services/mission-status-api/` slated to start in-repo (direction;
+  the directory does not exist yet — `contracts/mission-status/` does), extracted when its
   contract freezes (never into a Team Kitty repo).
 - **Open (off-gate, 4.x line):** **#901** (governed front door, 4.x Work), #5532 and #5533
   (reader re-point / route rehome, CLI 4.x stable), and the consumer-side "Multiplayer Mode"
@@ -438,7 +442,8 @@ record false-positive rulings.
    [ADR 2026-09-30-1](../adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md), drain
    them rather than holding them in an allowlist. File the charter-repo-extraction epic/ADR.
 7. **Ratified 2026-10-12:** ADR 2026-10-01-2 is now **Accepted** (open-core producer surface;
-   in-repo now, extracted when frozen). ADR 2026-10-03-1 (charter read/write service strangler)
+   the service is to start in-repo and be extracted when frozen). ADR 2026-10-03-1 (charter
+   read/write service strangler)
    remains Proposed and off-gate.
 8. **Re-run this synthesis at each rc bump.** Read
    `gh api repos/spec-kitty/spec-kitty/milestones/11` and the milestone's open issues before

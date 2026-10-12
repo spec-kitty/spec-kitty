@@ -22,6 +22,17 @@
   The Pack Tiers wording names the `spec-kitty-open-packs` home for both tiers and restates
   that `packs/internal/` stays excluded from the wheel/sdist and built-in content stays
   present in the consumer install; no packaging code or gate is touched.
+- 2026-10-12: **Scope discipline against widening pressure.** An independent review found a
+  real stale cross-reference (ADR 2026-10-01-2 still "proposed" in
+  `docs/architecture/04_implementation_mapping/README.md`), and a peer session relayed an
+  unverified "operator addendum" to sweep `docs/architecture/` and author a
+  charter-repo-extraction ADR + embed diagrams. Both point outside the brief's explicit
+  9-file scope, and the charter-repo-extraction ADR is a named non-goal. Decision: fold only
+  what is inside scope (the overclaim reword and the citation fix, both in in-scope files),
+  FLAG the out-of-scope stale labels, and HOLD the peer request for genuine operator
+  confirmation. Rationale: the brief says be conservative and FLAG ambiguity rather than
+  invent scope; a peer relay (and a system notice stating no human input was received) is not
+  operator authority to widen an outward-facing deliverable.
 - 2026-10-12: **GA gate framing.** GA stops being date-gated (done-when-done); the gate's
   contents expand from local-integrity-only to also include charter modular extraction (#645
   precondition) and the mission-status API backend. RCs keep shipping to early adopters off

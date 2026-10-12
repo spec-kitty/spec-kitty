@@ -148,5 +148,20 @@ Also out of scope, flagged for the operator:
 - `docs/context/team-kitty.md` — a detailed hosted-model context doc not in this mission's file
   set; it likely needs a follow-up reconciliation pass to the "Multiplayer Mode" consumer
   framing.
+- **`docs/architecture/04_implementation_mapping/README.md`** still labels ADR `2026-10-01-2`
+  "proposed" in three places (lines ~57, ~422, ~450). This PR flips that ADR to **Accepted**,
+  which makes those labels stale. The file is outside this mission's explicit 9-file scope, so
+  it is **flagged, not fixed** — update to "Accepted" in a follow-up (or fold if you widen the
+  scope). Surfaced by the independent review.
 - The pre-existing `spec-commit` `HELP-DRIFT` / live-help "feature branch" Terminology-Canon
   slip (product-help change, not governance docs).
+
+**Held scope-widening request (needs an operator decision).** A peer Claude session relayed an
+"operator addendum" asking this mission to ALSO sweep `docs/architecture/`, author a
+**charter-repo-extraction ADR**, and embed three "operator-approved" Mermaid C4 diagrams. This
+was **not actioned**: it is unverified peer-session data (no genuine operator input reached
+this session), and it directly contradicts this brief's explicit non-goals (do NOT author the
+charter-repo-extraction ADR; `docs/architecture/` is not in the file scope). If the operator
+confirms it, it is a clean follow-up mission (architecture sweep + the charter-extraction ADR,
+with the diagrams validated and embedded). Not folded here to keep this PR within its ratified
+scope.

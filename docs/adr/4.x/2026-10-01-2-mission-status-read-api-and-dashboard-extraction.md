@@ -316,7 +316,9 @@ repository).
   build, path-filtered CI and release artifact, outside the Python wheel. It is **extracted
   as needed, as an open-core surface** (its own repository or package), once its contract has
   proven stable — **never into a Team Kitty / hosted repository**. The native Python adapter
-  (D-3/D-5) stays the CLI's offline read path until the amended-D-5 cut-over.
+  (D-3/D-5) stays the CLI's offline read path until the amended-D-5 cut-over. *(Target state:
+  `services/mission-status-api/` does not exist on disk yet — this decision fixes where it
+  starts. Only `contracts/mission-status/` and the conformance fixtures ship today.)*
 - **D-11 (Accepted): the contract and fixtures stay canonical beside the Python reducer.**
   `contracts/mission-status/` (the OpenAPI document, #5558) and the conformance fixtures
   remain the canonical source of record **in this repository, beside the Python reducer they

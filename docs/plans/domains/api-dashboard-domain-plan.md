@@ -152,10 +152,11 @@ Team Kitty surface. It has two granularities: an **overview** built from `meta.j
 event ledger, and a **detail** view with each WP's authored and resolved state and its
 assignment. It is read-only and independent of drain. The CLI's own read path is an in-process
 Python module in the `specify_cli` layer behind one read seam; the external form is a
-read-only Java service (`services/mission-status-api/`) that **starts in-repo as a modular
-component and is extracted as needed as an open-core surface — never into a Team Kitty repo**,
-with `contracts/mission-status/` and the conformance fixtures canonical beside the Python
-reducer (ADR Amendment 2026-10-12). **The backend is now GA-gating** (roadmap, Theme 3).
+read-only Java service (`services/mission-status-api/`) that is to **start in-repo as a modular
+component and be extracted as needed as an open-core surface — never into a Team Kitty repo**
+(direction/target state: the service directory does not exist yet; `contracts/mission-status/`
+and the conformance fixtures already ship and stay canonical beside the Python reducer, ADR
+Amendment 2026-10-12). **The backend is now GA-gating** (roadmap, Theme 3).
 
 **Open work.** Enumerate and version the mission-data contract (the #645 application-data
 facet — *distinct from* the #3179 doctrine-import facet §3.6 owns), then pin it with a
@@ -269,7 +270,7 @@ drift being killed — not a live UI label.*
 - [Status model architecture](../../architecture/status-model.md) — the
   `status.events.jsonl` event log and `reduce()` projection the mission-data API exposes.
 - [ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md) — the Mission Status Read API and the removal of the CLI-bundled dashboard
-  (**Accepted 2026-10-12**: the open-core producer surface; in-repo now, extracted when frozen).
+  (**Accepted 2026-10-12**: the open-core producer surface; the service is to start in-repo and be extracted when frozen).
 - [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) — the active cycle; Theme 3 makes
   the mission-status API backend GA-gating (2026-10-12 re-anchor).
 - [3.2.x milestone roadmap](../3-2-x-milestone-roadmap.md) — *superseded, prior cycle.*
