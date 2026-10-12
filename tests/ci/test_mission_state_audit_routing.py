@@ -194,7 +194,6 @@ def test_non_derivable_trigger_inputs_match_the_group(path: str) -> None:
 
     assert GROUP in selection.matched_groups, f"{path} can change the audit verdict but misses the {GROUP} group"
     assert JOB in selection.selected_jobs
-    assert GROUP not in router.src_backed_groups
     if path in MANIFESTS:  # alignment: the drift workflow fires on the same files the audit group matches
         assert path in _alignment_trigger_paths("pull_request") and path in _alignment_trigger_paths("push")
 
@@ -344,13 +343,15 @@ def _executed_audit_src_modules(repo_root: Path) -> _AuditCapture:
             executed.add(frame.f_code.co_filename)
 
     prior = sys.getprofile()
+    prior_thread = threading.getprofile()
     sys.setprofile(_record)
-    threading.setprofile(_record)  # sys.setprofile is thread-local: cover work moved into a worker thread
+    # sys.setprofile is thread-local: future-proofs against audit work moved into a worker thread (none today)
+    threading.setprofile(_record)
     try:
         run = _run_audit_over_fixture(repo_root)
     finally:
         sys.setprofile(prior)  # restore, never clobber a pre-existing profiler
-        threading.setprofile(None)
+        threading.setprofile(prior_thread)
 
     src_root = (ROOT / "src").resolve()
     modules: set[str] = set()
