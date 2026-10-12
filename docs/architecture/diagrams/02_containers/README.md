@@ -263,12 +263,12 @@ reducer. The **charter** is extracting into its own external contract package / 
 pack source home is `spec-kitty-open-packs`. **Team Kitty ("Multiplayer Mode")** consumes the
 API across its contract boundary and is a single opaque container here.
 
-*Target state, not shipped state:* `services/mission-status-api/` is empty today (only
+*Target state, not shipped state:* `services/mission-status-api/` does not exist yet (only
 `contracts/mission-status/` and the Python reducer ship); the diagram shows the ratified target.
 
 Alt-text: an open-core boundary containing the CLI, the event ledger, the Lamport reducer, the
-Mission-Status Read API (Java, in-repo, extractable later), the extracting charter and the pack
-source home; four extracted packages (events, tracker, open-packs, doc-kitty) as separate
+Mission-Status Read API (Java, planned, to start in-repo), the extracting charter and the
+vendored packs; four extracted packages (events, tracker, open-packs, doc-kitty) as separate
 units; and the API contract seam as the one boundary to the opaque Team Kitty consumer.
 
 ```mermaid
@@ -286,14 +286,15 @@ flowchart TB
       cli["<b>CLI</b> (Python)<br/>command surface + governance<br/><i>open-core · exists</i>"]
       ledger[("<b>Event ledger</b><br/>status.events.jsonl<br/>append-only · sole lane authority<br/><i>open-core · exists</i>")]
       reducer["<b>Lamport reducer</b><br/>status.reducer.materialize<br/>event → snapshot<br/><i>open-core · exists</i>"]
-      statusapi["<b>Mission-Status Read API</b><br/>Java service · services/mission-status-api/<br/>overview + mission detail<br/><i>open-core · exists (in-repo, extractable later)</i>"]
+      statusapi["<b>Mission-Status Read API</b><br/>Java service · services/mission-status-api/<br/>overview + mission detail<br/><i>open-core · planned · to start in-repo</i>"]
       charter["<b>Charter</b><br/>src/charter/offering/<br/>governance / doctrine / DRG<br/><i>open-core · extracting</i>"]
-      packsrc["<b>Packs source home</b><br/>packs/built-in + packs/internal<br/><i>open-core · exists</i>"]
+      packsrc["<b>Vendored packs</b><br/>packs/built-in + packs/internal<br/><i>open-core · exists (vendored from open-packs)</i>"]
     end
     events["spec-kitty-events<br/><i>pkg (wheel) · exists</i>"]
     tracker["spec-kitty-tracker<br/><i>pkg (wheel) · exists</i>"]
     openpacks["spec-kitty-open-packs<br/><i>published packs · exists</i>"]
     dockitty["doc-kitty<br/>docs-site toolkit<br/><i>pkg · exists</i>"]
+    apiRepoFuture["mission-status-api<br/>own open-core repo<br/><i>planned extraction</i>"]
     seam(["<b>Mission-Status API contract</b><br/>contracts/mission-status/openapi.yaml<br/>+ conformance fixtures<br/><i>producer → consumer boundary</i>"])
     teamkitty["<b>Team Kitty</b> consumer (opaque)<br/>mission-ui · pack composer<br/><i>consumer</i>"]
     cli -->|appends events| ledger
@@ -305,16 +306,18 @@ flowchart TB
     cli -->|resolves doctrine| packsrc
     events -->|consumed| cli
     tracker -->|consumed| cli
-    packsrc -->|published as| openpacks
+    openpacks -->|vendored at release| packsrc
     statusapi -->|conforms to| seam
-    statusapi -. extractable to own open-core repo .-> seam
+    statusapi -. extract to own open-core repo .-> apiRepoFuture
     seam -->|consumed across contract| teamkitty
     classDef coreProducer fill:#dceafd,stroke:#1168bd,color:#103a82,stroke-width:2px;
     classDef extracting fill:#fff4d6,stroke:#d9a400,color:#5a4600,stroke-width:2px,stroke-dasharray:5 3;
+    classDef planned fill:#eceff3,stroke:#8c9cab,color:#384b5f,stroke-width:1.5px,stroke-dasharray:3 3;
     classDef pkg fill:#e3f3e8,stroke:#2f8f52,color:#1d5a34,stroke-width:1.5px;
     classDef seam fill:#fde8c8,stroke:#d9731a,color:#6e3a05,stroke-width:2.5px;
     classDef consumer fill:#f7e6ee,stroke:#b5457f,color:#6e2650,stroke-width:1.5px;
-    class cli,ledger,reducer,statusapi,packsrc coreProducer;
+    class cli,ledger,reducer,packsrc coreProducer;
+    class statusapi,apiRepoFuture planned;
     class charter extracting;
     class events,tracker,openpacks,dockitty pkg;
     class seam seam;

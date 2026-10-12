@@ -109,7 +109,7 @@ here as a single opaque box, its internals not part of this repository's model. 
 on its way to becoming its own external contract package / repository (ADR
 [2026-10-12-2](../../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md)).
 
-*Target state, not shipped state:* `services/mission-status-api/` is empty today (only
+*Target state, not shipped state:* `services/mission-status-api/` does not exist yet (only
 `contracts/mission-status/` and the Python reducer ship); the diagram shows the ratified target.
 
 Alt-text: the open-core CLI at the centre; actors Maintainer/Operator, AI coding-agent
@@ -129,7 +129,7 @@ consumer box sits behind the seam.
 flowchart LR
     operator["Maintainer / Operator<br/>(decision + acceptance authority)"]
     harness["AI coding-agent harnesses<br/>Claude Code, Codex, Copilot, …<br/>(drive the CLI)"]
-    apiConsumer["External application /<br/>API consumer<br/>(reads mission status)"]
+    apiConsumer["External application /<br/>API consumer<br/>(reads mission status; planned)"]
     events["spec-kitty-events<br/><i>contract package (wheel) · exists</i>"]
     tracker["spec-kitty-tracker<br/><i>contract package (wheel) · exists</i>"]
     core["<b>Spec Kitty Core</b><br/>open-core CLI (Python)<br/>local-first state machine + governance<br/>owns event ledger + Lamport reducer<br/><i>open-core · producer · exists</i>"]
@@ -137,7 +137,7 @@ flowchart LR
     teamkitty["<b>Team Kitty</b> — consumer / 'Multiplayer Mode'<br/>mission-ui · pack composer<br/><i>opaque external · consumer</i>"]
     operator -->|runs commands, approves| core
     harness -->|invoke CLI, skills, Ops| core
-    apiConsumer -->|HTTP reads over the contract| seam
+    apiConsumer -.->|planned: HTTP reads over the contract| seam
     events -->|consumed import| core
     tracker -->|consumed import| core
     core -->|publishes| seam

@@ -224,7 +224,7 @@ Never design against or "re-enable" the old sync path; see
      │    #645 stable application API ──▶ ~129 specify_cli→charter imports move onto it
      │    ──▶ charter ships as its own external contract package, in its own repository
      └ MISSION-STATUS API BACKEND (open-core producer surface, "Build Kitty")
-          #5528 Mission Status Read API (contract 1.0/1.1 shipped; services/mission-status-api/ to start in-repo — direction, dir not created yet)
+          #5528 Mission Status Read API (contract `1.0.0-SNAPSHOT` in-repo, unreleased; services/mission-status-api/ to start in-repo — direction, dir not created yet)
           ──▶ #5532 readers re-point · #5533 routes rehome
                                                                      ──▶  4.0.0 GA
 
@@ -255,7 +255,7 @@ Never design against or "re-enable" the old sync path; see
    **backend** — the open-core producer surface
    ([ADR 2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
    Accepted) — is also **GA-gating**: the bundled dashboard is already removed (#5530) and the
-   contract shipped as versions 1.0 and 1.1 (`contracts/mission-status/`). The Java service
+   contract is in-repo as `1.0.0-SNAPSHOT`, unreleased (`contracts/mission-status/`). The Java service
    `services/mission-status-api/` is the ratified target — it is **slated to start in-repo** as
    a modular component (direction; the directory does not exist yet). What stays **off** the GA
    gate and continues on the 4.x line: produce/drain decoupling
@@ -327,15 +327,15 @@ attested. The rc6 upgrade notes must say so.
 - **Open (off-gate, 4.x line):** **#901** (governed front door, 4.x Work), #5532 and #5533
   (reader re-point / route rehome, CLI 4.x stable), and the consumer-side "Multiplayer Mode"
   UI/multiplayer that *consumes* the producer API.
-- **Done:** the bundled dashboard is removed (#5530); the Mission Status contract shipped as
-  versions 1.0 and 1.1, with lint, breaking-change checks and a test against every mission
+- **Done:** the bundled dashboard is removed (#5530); the Mission Status contract is in-repo as
+  `1.0.0-SNAPSHOT` (unreleased), with lint, breaking-change checks and a test against every mission
   in the repository; teams can share agent commands as pack skills
   ([ADR 2026-09-27-1](../adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md));
   org packs carry their own built-in override sanction
   ([ADR 2026-10-05-3](../adr/4.x/2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md)).
 - **On milestone 11:** #3732 and #4836 (the doctrine → charter vocabulary), #5538.
 
-**Progress:** the producer API has a shipped contract and an in-repo service build; its
+**Progress:** the producer API has a contract in-repo (unreleased) and a planned in-repo service build; its
 backend and the charter extraction are now gate items, and the governed front door and the
 consumer UI remain 4.x-line work.
 

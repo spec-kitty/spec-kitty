@@ -28,7 +28,7 @@ chain / shared-package-boundary gates.
 > **Target state, not shipped state.** This record fixes the *direction* the 2026-10-12
 > October direction update ratified. The repository does not contain a `charter`-repo split
 > today, and the diagram below shows the **ratified target topology** — for example
-> `services/mission-status-api/` is empty today (only `contracts/mission-status/` and the
+> `services/mission-status-api/` does not exist yet (only `contracts/mission-status/` and the
 > Python reducer ship). The extraction *mechanics* ride with a dedicated epic (to be filed);
 > this ADR records the decision and its boundary, and changes no gate, layer rule or
 > `pyproject.toml` package set.
@@ -124,8 +124,8 @@ repository**.
 
 ## Target topology
 
-The ratified producer/consumer topology (target state; `services/mission-status-api/` is empty
-today — the diagram shows where units are headed, not what is on disk now):
+The ratified producer/consumer topology (target state; `services/mission-status-api/` does not
+exist yet — the diagram shows where units are headed, not what is on disk now):
 
 Alt-text: Build Kitty and Brain Kitty open-core producer subgraphs versus an opaque Team Kitty
 consumer subgraph; units tagged exists / extracting / planned; dotted arrows for charter → its
@@ -145,7 +145,7 @@ flowchart LR
     subgraph Build["Build Kitty — open core (producer)"]
       direction TB
       cliRepo["<b>spec-kitty</b> (this repo)<br/>CLI + event ledger + Lamport reducer<br/><i>exists</i>"]
-      apiRepo["<b>mission-status-api</b><br/>Java service · services/mission-status-api/<br/><i>exists (in-repo) · extractable later</i>"]
+      apiRepo["<b>mission-status-api</b><br/>Java service · services/mission-status-api/<br/><i>planned · to start in-repo</i>"]
       apiRepoFuture["mission-status-api<br/>own open-core repo<br/><i>planned extraction</i>"]
     end
     subgraph Brain["Brain Kitty — open core (producer)"]
@@ -180,9 +180,9 @@ flowchart LR
     classDef pkg fill:#e3f3e8,stroke:#2f8f52,color:#1d5a34,stroke-width:1.5px;
     classDef seam fill:#fde8c8,stroke:#d9731a,color:#6e3a05,stroke-width:2.5px;
     classDef consumer fill:#f7e6ee,stroke:#b5457f,color:#6e2650,stroke-width:1.5px;
-    class cliRepo,apiRepo,openpacks coreProducer;
+    class cliRepo,openpacks coreProducer;
     class charterNow extracting;
-    class charterRepo,apiRepoFuture planned;
+    class charterRepo,apiRepo,apiRepoFuture planned;
     class events,tracker,dockitty pkg;
     class seam seam;
     class tkbox consumer;
