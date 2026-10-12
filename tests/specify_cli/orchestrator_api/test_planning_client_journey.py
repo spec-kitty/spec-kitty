@@ -13,12 +13,26 @@ import pytest
 from typer.testing import CliRunner
 from runtime.next.run_index import feature_runs_path
 
+from specify_cli import app as native_app
 from specify_cli.orchestrator_api.commands import app
 from specify_cli.orchestrator_api.envelope import CONTRACT_VERSION
 from tests._factories import provision_test_charter
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 runner = CliRunner()
+
+
+def _native_next(root: Path, mission: str, *extra: str) -> tuple[int, dict[str, Any]]:
+    """Drive the NATIVE ``spec-kitty next`` CLI (not the orchestrator-api verb).
+
+    Returns the exit code and the single-JSON decision/error payload the native
+    command emits on stdout under ``--json``.
+    """
+    args = ["next", "--mission", mission, "--json", *extra]
+    with contextlib.chdir(root):
+        result = runner.invoke(native_app, args, catch_exceptions=False)
+    payload = json.loads(result.stdout)
+    return result.exit_code, payload
 
 
 def _content_sha256(content: str) -> str:
@@ -301,6 +315,34 @@ def test_public_next_completes_real_design_actions(tmp_path: Path) -> None:
     )
     next_action = _advance(root, mission)
     assert next_action["action"] == "implement"
+
+
+@pytest.mark.regression
+def test_native_next_enforces_api_authored_stale_refusal(tmp_path: Path) -> None:
+    """#5879: native ``next --result success`` must refuse stale content for an
+    API-authored Mission, exactly as the orchestrator-api ``next`` verb already
+    does. RED on origin/main (the native path skipped ``validate_stage``), GREEN
+    once the marker-gated check moved into the shared ``next_cmd.next_step`` seam.
+    """
+    root = _project(tmp_path)
+    created = _call(root, "specify", "--mission", "native-stale", "--mission-type", "software-dev", "--topology", "single_branch", "--policy", POLICY)["data"]
+    mission = created["mission_slug"]
+    # Advance to the issued ``specify`` step via the API, WITHOUT submitting the
+    # specification — the same stale state the API path refuses at.
+    assert _advance(root, mission)["step_id"] == "discovery"
+    _interview(root, mission, "specify")
+    _submit(root, mission, "specify", "research", "# Research\n\nThe README client uses the canonical local API.\n", {})
+    assert _advance(root, mission)["step_id"] == "specify"
+    before = _runtime_bytes(root)
+    # Native completion of the stale ``specify`` stage must refuse (not advance).
+    exit_code, payload = _native_next(root, mission, "--agent", "planning-client", "--result", "success")
+    assert exit_code != 0, payload
+    assert payload.get("kind") == "error", payload
+    assert payload.get("reason") == "DESIGN_PREREQUISITES_FAILED", payload
+    # The refusal happens before any runtime mutation.
+    assert _runtime_bytes(root) == before
+    # And the mission is still at the issued ``specify`` step (native did not advance).
+    assert _call(root, "next", "--mission", mission)["data"]["step_id"] == "specify"
 
 
 def _configure_required_input(root: Path, step_id: str) -> None:

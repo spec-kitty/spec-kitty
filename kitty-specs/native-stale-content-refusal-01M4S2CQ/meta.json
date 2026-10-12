@@ -11,5 +11,7 @@
   "purpose_tldr": "Enforce the API-authored stale/unfinished-content refusal on native completion paths, not just orchestrator-api.",
   "slug": "native-stale-content-refusal-01M4S2CQ",
   "target_branch": "issue-5879-native-stale-content-refusal",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-12T22:13:54.654960+00:00"
 }
