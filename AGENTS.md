@@ -52,6 +52,8 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 
 **Before adding doctrine, ask: "does this govern consumers, or only how the core team works?"** In-house guidance placed in `built-in` gets force-shipped to everyone — a real defect. The wheel include is narrowed to `packs/built-in/` and guarded by `tests/cross_cutting/packaging/test_packaging_safety.py`. Internal-pack shape differs: a single `drg/fragment.yaml` (not sharded `*.graph.yaml`) + `org-charter.yaml`, loaded via `.kittify/config.yaml` → `charter_packs.org.packs`. Editing either pack trips the pack-manifest regen gate — run `spec-kitty charter pack regenerate-graph` after. See ADR `docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md` and `packs/internal/README.md`.
 
+**Source home (direction): `spec-kitty-open-packs`.** The *source* of **both** `packs/built-in/` and `packs/internal/` is moving to the `spec-kitty-open-packs` repository — authored there and vendored into this repository at release (pinned, checksummed ref; #3504, with the deferred runtime-fetch step #3022). **This is a source-location move only; it changes neither tier's packaging invariant.** `packs/internal/` stays excluded from the wheel/sdist — the `test_packaging_safety.py` guard above is unchanged — and built-in content stays present, byte-identical, in every consumer install. This is **not** a reversal of ADR `2026-08-16-3`; it extends the open-packs provenance already chosen for built-in content (ADR `2026-08-16-2`) to name internal's source home as well. Do **not** touch packaging code or gates for this.
+
 ---
 
 ## ⚠️ CRITICAL: Use Canonical Sources, Never Improvise
@@ -66,9 +68,19 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 
 ---
 
-## ⚠️ CRITICAL: Team Kitty is not actively supported — do not build toward it
+## ⚠️ CRITICAL: Team Kitty is "Multiplayer Mode" (consumer side) — build only on the open-core API
 
-**Team Kitty**, the hosted collaboration product, is no longer actively supported. Team Kitty / SaaS work was frozen on 2026-10-01 ([4.0.0 direction amendment](docs/changelog/4.0.0.md)), and nothing hosted gates a release. Do not propose or extend hosted features, and do not point users or agent harnesses to them, unless the operator explicitly asks for hosted work.
+**Team Kitty is re-framed as "Multiplayer Mode": the CONSUMER side of the open-core Mission Status Read API.** The direction splits the surface into a **producer** and a **consumer** side:
+
+- **Producer (open-core, being built now):** the Mission Status Read API — the stable entry point to ledger + event data that the free CLI exposes ([ADR `2026-10-01-2`](docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md), Accepted). Not a hosted surface. See the Shared Package Boundary / Modularity SSOT sections for the extraction direction.
+- **Consumer ("Multiplayer Mode"):** the UI/multiplayer surfaces — mission-ui, the pack composer — that *consume* the producer API across its public contract boundary, never reaching into CLI internals.
+
+**The old blanket "do not build toward Team Kitty" rule is scoped-lifted** ([ADR `2026-10-06-1`](docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md), Amendment 2026-10-12). It no longer blocks:
+
+1. **Consumer-side UI/multiplayer built on the Mission Status Read API** (across its public contract).
+2. **The event-dispatch / produce-drain adapter seam** (`src/specify_cli/status/adapters.py`) — the publish/subscribe surface the produce/drain decoupling builds on.
+
+**Everything else hosted stays frozen unless the operator explicitly asks:** zeitgeist auth, the hosted **backend**, and the hosted SaaS surface. Do not propose or extend those, and do not point users or agent harnesses at them. Nothing hosted ships configured, and nothing hosted gates a release.
 
 What still ships, and how it is fenced ([ADR `2026-10-06-1`](docs/adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)):
 
@@ -245,6 +257,8 @@ not any prose map:
   `tests/architectural/test_layer_rules.py` (pytestarch `LayerRule`s + the shrink-only
   `mission_runtime` and `runtime` outbound ledgers). The enforced chain is
   `kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`.
+
+**Direction (a 4.0.0 GA-gating precondition): `charter` becomes an external contract package.** The charter layer (`src/charter/offering/`, or all of `src/charter/`) is slated to be released as its own externally-versioned unit in its own repository and consumed only through its public surface (`charter.offering.api`), exactly as the CLI consumes `spec-kitty-events` / `spec-kitty-tracker`. When that lands, the enforced chain above and the shared-package-boundary gates (`test_pyproject_shape.py`, `test_shared_package_boundary.py`, `test_layer_rules.py`, the `clean-install-verification` job) will gain `charter` as an external contract package rather than an in-tree layer. The precondition is **#645** — moving the ~129 `specify_cli → charter` imports onto `charter.offering.api` — which is **now GA-gating**. **This is a direction note only: no gate, layer rule or `pyproject.toml` package set changes in this mission.** Grounded in #3101, ADR `2026-08-02-1`, ADR `2026-04-25-1`; the repository extraction rides with a dedicated epic/ADR (to be filed).
 
 Every other module map (this file, `docs/architecture/00_landscape`, `04_implementation_mapping`,
 the demoted `05_ownership_map.md`) is a **derived view**; on conflict the enforced pair wins. The
@@ -585,6 +599,7 @@ Full runbook: [docs/migrations/mission-id-canonical-identity.md](docs/migrations
 - **Runtime:** `src/runtime/next/_internal_runtime/` (canonical). The `src/specify_cli/next/` deprecation shim was **removed in commit `93dcbd75481c` (2026-07-03, "feat(unshim)!: delete 5 legacy shim namespaces …")**, two months before the convergence, and remains absent at 3.2.7rc1 — do not anchor new code there. `spec-kitty-runtime` PyPI package is retired.
 - **Events / Tracker:** Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies are removed. In the EXPERIMENTAL programme, these packages resolve from exact git-rev pins per [planning `PROGRAM.md` §2](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) and the [internal-distribution ADR](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/decisions/ADR-INTERNAL-PYTHON-PACKAGE-DISTRIBUTION-2026-08-27.md); PyPI ranges return with [#830 Phase 3](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty/issues/830).
 - **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/development/how-to/local-overrides.md](docs/development/how-to/local-overrides.md).
+- **Charter (direction; a 4.0.0 GA-gating precondition):** `charter` (`src/charter/offering/`, or all of `src/charter/`) is slated to join `spec-kitty-events` / `spec-kitty-tracker` as a third external contract package, released from its own repository and consumed through `charter.offering.api`. The precondition is **#645** — moving the ~129 `specify_cli → charter` imports onto that API — which is **now GA-gating**. The gates below will gain `charter` as an external contract package when the extraction lands. This is a direction note only; no gate changes in this mission. Grounded in #3101, ADR [`2026-08-02-1`](docs/adr/3.x/2026-08-02-1-charter-wheel-assessment.md); the repository extraction rides with a dedicated epic/ADR (to be filed).
 
 Enforced by `tests/architectural/test_shared_package_boundary.py`, `test_pyproject_shape.py`, and the `clean-install-verification` CI job.
 

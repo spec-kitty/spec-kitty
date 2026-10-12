@@ -2,6 +2,19 @@
 
 > Created: 2026-01-27
 > Version: 1.5.0
+> Updated: 2026-10-12 — 4.x October direction (operator ruling): 4.0.0 GA is
+> done-when-done, no longer date-gated (RCs keep shipping to early adopters off
+> `main`; red-CI-no-release per RC, Standing Order #9); the GA gate expands from
+> local-integrity-only to also gate on charter modular extraction (#645) and the
+> mission-status API backend; the charter is slated to become an independently
+> released external contract package in its own repository (direction; #3101, ADR
+> `2026-08-02-1`, ADR `2026-04-25-1`); Team Kitty is re-framed as "Multiplayer
+> Mode", the consumer side of the open-core Mission Status Read API — the
+> "no-build-toward" rule is scoped-lifted for consumer UI/multiplayer on that API
+> and for the produce/drain adapter seam, while the hosted backend surfaces stay
+> frozen (ADR `2026-10-06-1` amendment); and `packs/internal/` + `packs/built-in/`
+> now name `spec-kitty-open-packs` as their source home (source-location move only;
+> the no-bundle invariant is unchanged, ADR `2026-08-16-3` not reversed).
 > Updated: 2026-10-06 — Purpose now states the product purpose. Team Kitty is
 > no longer actively supported (owner ruling, ADR `2026-10-06-1`), so the 4.x
 > line no longer names hosted collaboration as current work, the SaaS
@@ -348,6 +361,20 @@ noted where they bind harder than advisory.
 
 `spec-kitty-tracker` owns tracker provider abstractions, hosted discovery/sync primitives, normalized tracker models, and tracker authority policy behavior.
 
+**Charter (direction; a 4.0.0 GA-gating precondition).** The charter layer
+(`src/charter/offering/`, or all of `src/charter/`) is slated to become a third external
+contract package: an independently-released unit that callers consume only through its public
+surface (`charter.offering.api`), exactly as the CLI consumes `spec-kitty-events` and
+`spec-kitty-tracker`, and extracted into its own repository. Its precondition is **#645** —
+moving the ~129 `specify_cli → charter` imports onto that stable API — which is **now
+GA-gating** (see Branch and Release Strategy). The enforced module chain
+(`kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli`) and the
+shared-package-boundary gates will gain charter as an external contract package once the
+extraction lands. **This is a direction note only: it changes no gate and no layer rule in
+this mission.** Grounded in #3101, ADR `2026-08-02-1` (charter-wheel-assessment) and ADR
+`2026-04-25-1` (this boundary); the repository extraction rides with a dedicated epic/ADR
+(to be filed).
+
 ### Internal Runtime Boundary
 
 Mission runtime behavior is CLI-owned implementation code, not an external shared dependency for the CLI release path.
@@ -373,6 +400,18 @@ explainer `packs/internal/README.md`):
   (`.kittify/config.yaml` → `doctrine.org.packs`) and **must never ship**:
   `pyproject.toml` narrows the wheel/sdist `packs` include to `packs/built-in/`,
   guarded by `tests/cross_cutting/packaging/test_packaging_safety.py`.
+
+**Source home (direction): `spec-kitty-open-packs`.** The *source* of **both** pack trees —
+`packs/built-in/` and `packs/internal/` — is moving to the `spec-kitty-open-packs`
+repository: authored there and vendored into this repository at release (a pinned,
+checksummed ref; #3504, with the deferred runtime-fetch step #3022). This is a
+**source-location move only, and it changes neither pack's packaging invariant.**
+`packs/internal/` stays excluded from the wheel/sdist (the `packs` include stays narrowed to
+`packs/built-in/`, guarded by `tests/cross_cutting/packaging/test_packaging_safety.py`), and
+built-in content stays present, byte-identical, in every consumer install. This is **not** a
+reversal of ADR `2026-08-16-3` (internal is a public org pack, not force-shipped); it extends
+the open-packs provenance already chosen for built-in content (ADR `2026-08-16-2`) to name
+internal's source home as well. No packaging code or gate is changed by this note.
 
 **Rule of placement.** Before adding doctrine to a pack, ask *"does this govern
 consumers, or only how the core team works?"* Product behavior → `built-in`;
@@ -413,7 +452,7 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 
 ### Release Versioning
 
-- **4.x** — Current active line: governed delivery from agreed intent to a verified result. The 4.0.0 GA gate is local CLI integrity (the CLI never reports success while it loses, overwrites or strands local work); the open-core structural finish continues on 4.x after GA. Hosted collaboration (Team Kitty over Zeitgeist) is no longer actively supported: its code still ships, hosted interaction is off unless an operator opts in, and its CLI entries are hidden from listings unless the hosted drain posture is on (ADR `2026-10-06-1`). The sync transport was retired in August 2026.
+- **4.x** — Current active line: governed delivery from agreed intent to a verified result. **4.0.0 GA ships "done when done" — it is not date-gated.** Release candidates keep shipping to early adopters off `main` in the meantime, and red-CI-no-release (Standing Order #9) still holds per release candidate. The GA gate is no longer local-integrity-only: it is (a) **local CLI integrity** (the CLI never reports success while it loses, overwrites or strands local work), (b) **charter modular extraction** — moving the ~129 `specify_cli → charter` imports onto the stable charter API (#645) so the charter can ship as its own externally-released unit (direction; see Shared Package Boundaries) — and (c) the **mission-status API backend**, the open-core producer surface (ADR `2026-10-01-2`). The remaining open-core structural finish continues on 4.x after GA. Team Kitty is re-framed as **"Multiplayer Mode"**, the **consumer** side of that open-core producer API (UI/multiplayer surfaces consume it across its public contract); the standing "do not build toward Team Kitty" rule is **scoped-lifted** for (i) consumer-side UI/multiplayer built on the Mission Status Read API and (ii) the event-dispatch / produce-drain adapter seam (`status/adapters.py`), while everything else hosted (zeitgeist auth, the hosted backend, the SaaS surface) stays frozen unless the operator asks (ADR `2026-10-06-1`, Amendment 2026-10-12). The hosted CLI entries still ship hidden unless the drain posture is on; hosted interaction is off unless an operator opts in. The sync transport was retired in August 2026.
 - **3.x** — Closed. The last release was **3.2.7** (2026-09-10). The planned 3.3.x cycle was retired on 2026-08-23 without shipping; its open work was re-triaged into 4.0.0 or CLI 4.x stable. Documents scoped to 3.2.x/3.3.x are historical records.
 - **1.x** — Historical maintenance branch. YAML activity logs, local-only operation, no spec-kitty-events dependency.
 
