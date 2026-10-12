@@ -534,6 +534,10 @@ def close_cmd(
     ``--force`` is also passed. The coordination + lane branches are
     deleted with ``git branch -D`` (force-delete) because mid-flight
     abandonment by definition leaves uncommitted or unmerged work.
+    A deleted Mission branch whose commits exist on no other branch keeps its
+    tip under ``refs/spec-kitty/discarded/<branch>``; remove it with
+    ``git update-ref -d refs/spec-kitty/discarded/<branch>`` once it is no
+    longer needed.
 
     Implements FR-016 from
     ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
@@ -1116,7 +1120,7 @@ def _announce_discard_loss(repo_root: Path, mission_slug: str, minted: str | Non
         if tip is None:
             continue
         lost = len(branch_only_commits(repo_root, branch, ignoring=doomed))
-        note = f": {lost} commit(s) that exist on no other branch will be deleted" if lost else ": no commits that exist on no other branch"
+        note = f": {lost} commit(s) that exist on no other branch will be deleted" if lost else ": every commit also exists on another branch (nothing is lost)"
         console.print(f"  Branch {branch} (tip {tip[:12]}){note}")
 
 

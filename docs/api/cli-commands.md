@@ -3841,6 +3841,10 @@ _Inspect mission types for this project._
  ``--force`` is also passed. The coordination + lane branches are
  deleted with ``git branch -D`` (force-delete) because mid-flight
  abandonment by definition leaves uncommitted or unmerged work.
+ A deleted Mission branch whose commits exist on no other branch keeps its
+ tip under ``refs/spec-kitty/discarded/<branch>``; remove it with
+ ``git update-ref -d refs/spec-kitty/discarded/<branch>`` once it is no
+ longer needed.
 
  Implements FR-016 from
  ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
@@ -4119,6 +4123,10 @@ _Inspect mission types for this project._
  ``--force`` is also passed. The coordination + lane branches are
  deleted with ``git branch -D`` (force-delete) because mid-flight
  abandonment by definition leaves uncommitted or unmerged work.
+ A deleted Mission branch whose commits exist on no other branch keeps its
+ tip under ``refs/spec-kitty/discarded/<branch>``; remove it with
+ ``git update-ref -d refs/spec-kitty/discarded/<branch>`` once it is no
+ longer needed.
 
  Implements FR-016 from
  ``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.
