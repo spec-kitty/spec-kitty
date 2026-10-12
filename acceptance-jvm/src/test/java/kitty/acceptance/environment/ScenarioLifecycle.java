@@ -8,7 +8,7 @@ import java.util.Comparator;
 import java.util.stream.Stream;
 
 /** The NFR-002 positive control and the teardown of the scenario's temp dir. */
-public final class ScenarioLifecycle {
+final class ScenarioLifecycle {
 
     private final Path homeDir;
     private final Path tempRoot;
@@ -18,16 +18,15 @@ public final class ScenarioLifecycle {
 
     private boolean commandObserved;
 
-    public ScenarioLifecycle(Path homeDir, Path tempRoot) {
+    ScenarioLifecycle(Path homeDir, Path tempRoot) {
         this.homeDir = homeDir;
         this.tempRoot = tempRoot;
     }
 
-    public void markCommandObserved() {
+    void markCommandObserved() {
         commandObserved = true;
     }
 
-    // --- positive control + teardown ------------------------------------
 
     /**
      * NFR-002 positive control, in two halves.
@@ -44,7 +43,7 @@ public final class ScenarioLifecycle {
      * another {@code spec-kitty} process on a developer machine touches them (for example
      * {@code auth/session.lock}) and would trip the check without the scenario being at fault.
      */
-    public void assertObservedWriteInsideTempDir() {
+    void assertObservedWriteInsideTempDir() {
         if (!commandObserved) {
             return;
         }
@@ -100,7 +99,7 @@ public final class ScenarioLifecycle {
         }
     }
 
-    public void cleanUp() {
+    void cleanUp() {
         if (!Files.exists(tempRoot)) {
             return;
         }

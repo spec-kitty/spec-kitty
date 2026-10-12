@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 /** The throwaway git repository in the working tree, plus the recorded HEAD / commit-count read model. */
-public final class GitFixture {
+final class GitFixture {
 
     private static final Duration GIT_TIMEOUT = Duration.ofSeconds(60);
     // The one source of the harness git identity: ScenarioEnvironment reuses it for GIT_AUTHOR_*/GIT_COMMITTER_*.
@@ -23,12 +23,12 @@ public final class GitFixture {
     private String recordedHead;
     private Integer recordedCommitCount;
 
-    public GitFixture(Path workDir, Map<String, String> environment) {
+    GitFixture(Path workDir, Map<String, String> environment) {
         this.workDir = workDir;
         this.environment = environment;
     }
 
-    public void initGitRepoWithCommit() {
+    void initGitRepoWithCommit() {
         git("init");
         try {
             Files.writeString(workDir.resolve("README.md"), "seed\n");
@@ -40,17 +40,17 @@ public final class GitFixture {
     }
 
     /** Records HEAD and the commit count, and returns the recorded count. */
-    public int recordRepoState() {
+    int recordRepoState() {
         recordedHead = git("rev-parse", "HEAD").trim();
         recordedCommitCount = Integer.parseInt(git("rev-list", "--count", "HEAD").trim());
         return recordedCommitCount;
     }
 
-    public boolean headUnchanged() {
+    boolean headUnchanged() {
         return recordedHead != null && recordedHead.equals(git("rev-parse", "HEAD").trim());
     }
 
-    public boolean commitCountUnchanged() {
+    boolean commitCountUnchanged() {
         return recordedCommitCount != null
                 && recordedCommitCount == Integer.parseInt(git("rev-list", "--count", "HEAD").trim());
     }

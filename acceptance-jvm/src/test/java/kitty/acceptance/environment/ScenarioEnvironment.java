@@ -19,7 +19,7 @@ import java.util.Map;
  * dirs, {@code LOCALAPPDATA}) is redirected inside the temp dir, and output is forced colourless,
  * UTF-8 and fixed-width.
  */
-public final class ScenarioEnvironment {
+final class ScenarioEnvironment {
 
     private static final String UTF8_LOCALE = "C.UTF-8";
 
@@ -39,7 +39,7 @@ public final class ScenarioEnvironment {
         this.environment = buildEnvironment();
     }
 
-    public static ScenarioEnvironment create(CliUnderTest cli) {
+    static ScenarioEnvironment create(CliUnderTest cli) {
         try {
             Path tempRoot = Files.createTempDirectory("spec-kitty-scenario-");
             Path homeDir = Files.createDirectories(tempRoot.resolve("home"));
@@ -102,30 +102,30 @@ public final class ScenarioEnvironment {
         return env;
     }
 
-    public Map<String, String> environment() {
+    Map<String, String> environment() {
         return new LinkedHashMap<>(environment);
     }
 
     /** Maps the {@code "spec-kitty"} token to the provisioned venv entry point; passes anything else through. */
-    public CliProcessDriver.CommandResolver commandResolver() {
+    CliProcessDriver.CommandResolver commandResolver() {
         return token -> "spec-kitty".equals(token) ? cli.entryPoint().toString() : token;
     }
 
-    public Path workDir() {
+    Path workDir() {
         return workDir;
     }
 
-    public Path resolve(String relative) {
+    Path resolve(String relative) {
         return workDir.resolve(relative);
     }
 
     /** The redirected home directory, for the collaborators that watch or tear it down. */
-    public Path homeDir() {
+    Path homeDir() {
         return homeDir;
     }
 
     /** The scenario's temp root (parent of home, work and tmp), for teardown. */
-    public Path tempRoot() {
+    Path tempRoot() {
         return tempRoot;
     }
 }

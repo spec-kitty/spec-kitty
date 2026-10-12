@@ -14,20 +14,20 @@ import java.util.TreeMap;
 import java.util.stream.Stream;
 
 /** Before/after SHA-256 snapshots of paths in the working tree, for the "unchanged" ratchet steps. */
-public final class FileSnapshots {
+final class FileSnapshots {
 
     private final Path workDir;
     private final Map<String, String> recordedDigests = new HashMap<>();
 
-    public FileSnapshots(Path workDir) {
+    FileSnapshots(Path workDir) {
         this.workDir = workDir;
     }
 
-    public void recordState(String relative) {
+    void recordState(String relative) {
         recordedDigests.put(relative, digest(workDir.resolve(relative)));
     }
 
-    public boolean isUnchanged(String relative) {
+    boolean isUnchanged(String relative) {
         String recorded = recordedDigests.get(relative);
         if (recorded == null) {
             throw new IllegalStateException("No recorded state for '" + relative + "'");
