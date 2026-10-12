@@ -986,6 +986,21 @@ def test_discard_intent_keeps_the_tip_of_a_branch_with_commits_found_nowhere_els
     )
     assert refs.stdout.split("\n")[:-1] == [f"refs/spec-kitty/discarded/lost {lost_tip}"]
 
+    # A second discard of the same branch name never overwrites the earlier kept tip.
+    _git(root, "checkout", "-q", "-b", "lost")
+    (root / "lost.txt").write_text("second attempt", encoding="utf-8")
+    _commit_all(root, "lost again")
+    _git(root, "checkout", "-q", "main")
+    second_tip = _git(root, "rev-parse", "lost").stdout.strip()
+
+    assert guarded_branch_delete(root, "lost", creation_base=None, operator_intent=DISCARD_INTENT) == second_tip
+
+    refs = _git(root, "for-each-ref", "--format=%(refname) %(objectname)", "refs/spec-kitty/")
+    assert refs.stdout.split("\n")[:-1] == [
+        f"refs/spec-kitty/discarded/lost {lost_tip}",
+        f"refs/spec-kitty/discarded/lost@{second_tip[:12]} {second_tip}",
+    ]
+
 
 def test_discard_intent_refuses_and_keeps_the_branch_when_its_tip_cannot_be_recorded(tmp_path: Path) -> None:
     """A ref already at ``discarded/x`` blocks ``discarded/x/y`` (file vs directory), so the only copy of ``x/y`` must survive."""
