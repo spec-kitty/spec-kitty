@@ -85,16 +85,35 @@ Changed, grouped by area:
 - **Generated guard artifact (not a content edit):** `docs/development/docs-retrieval-index.yaml`
   regenerated from frontmatter+headings (required by the docs-freshness gate).
 
-Formatting/generated-file churn is isolated to the regenerated docs-retrieval-index.
+**Architecture widening (operator-confirmed, 2026-10-12):**
+
+- **New ADR** `docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md` (Accepted):
+  the charter becomes an external contract package in its own repository (precondition #645, now
+  GA-gating); extends ADR `2026-08-02-1` + `2026-04-25-1`, companion to `2026-10-01-2`. Carries
+  the approved repo-topology C4 diagram.
+- **`docs/architecture/` sweep:** `01_context` + `02_containers` embed the approved C4
+  System-Context and Container diagrams (open-core producer vs Team Kitty = "Multiplayer Mode"
+  consumer); `00_landscape` October-direction note; `04_implementation_mapping` stale
+  `proposed → Accepted` fix (×3); `team-kitty-saas` status banner re-framed; `status-model`
+  Lamport-reducer note; `charter-backend-service-future` + `05_ownership_map` forward notes.
+- **Diagrams** are the operator-approved blocks, un-escaped from transport HTML-entities and
+  **render-validated with mmdc 11.4.2** (all three render; the committed embedded copies were
+  re-extracted and re-rendered). They show the ratified **target** state; every carrying doc
+  keeps the caveat that `services/mission-status-api/` does not exist on disk yet (only
+  `contracts/mission-status/` and the Python reducer ship).
+
+Formatting/generated-file churn is isolated to the regenerated docs-retrieval-index and
+page-inventory lockfiles.
 
 ## Tests run
 
 ```
-.venv/bin/python -m pytest tests/architectural/test_no_legacy_terminology.py -q   # 96 passed in 171.90s
+.venv/bin/python -m pytest tests/architectural/test_no_legacy_terminology.py -q   # 96 passed (re-run after the widening)
 .venv/bin/python -m scripts.docs.check_docs_freshness --ci --link-check none      # exit 0 — 0 errors, 1 warning (pre-existing)
-.venv/bin/python -m scripts.docs.check_spelling --pass typo                       # 0 findings across 689 files
-.venv/bin/python -m scripts.docs.inventory_lockfile --write <tmp> && diff         # no drift
+.venv/bin/python -m scripts.docs.check_spelling --pass typo                       # 0 findings across 690 files
+.venv/bin/python -m scripts.docs.inventory_lockfile --write docs/development/page-inventory.yaml   # +1 row (new ADR)
 PYTHONPATH=. .venv/bin/python scripts/docs/docs_index.py --write                  # regenerated; re-run freshness → 0 errors
+mmdc 11.4.2 -i <each embedded diagram> -p <puppeteer --no-sandbox>                # all 3 diagrams render (ADR + 01_context + 02_containers)
 ```
 
 - The terminology guard was run **by name** (never the bare `tests/architectural/` dir);
@@ -131,7 +150,9 @@ Files:
 - `docs/plans/domains/api-dashboard-domain-plan.md`
 - `docs/plans/domains/doctrine-charter-domain-plan.md`
 - `docs/plans/domains/packs-extraction-domain-plan.md`
-- `docs/development/docs-retrieval-index.yaml` (regenerated guard artifact)
+- `docs/development/docs-retrieval-index.yaml`, `docs/development/page-inventory.yaml` (regenerated guard artifacts)
+- `docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md` (new, widening)
+- `docs/architecture/00_landscape/README.md`, `docs/architecture/04_implementation_mapping/README.md`, `docs/architecture/05_ownership_map.md`, `docs/architecture/charter-backend-service-future.md`, `docs/architecture/status-model.md`, `docs/architecture/team-kitty-saas.md`, `docs/architecture/diagrams/01_context/README.md`, `docs/architecture/diagrams/02_containers/README.md` (widening sweep)
 - `kitty-specs/governance-realign-oct-direction/` (mission artifacts + the three tracer files)
 
 ## Deferred
@@ -156,12 +177,12 @@ Also out of scope, flagged for the operator:
 - The pre-existing `spec-commit` `HELP-DRIFT` / live-help "feature branch" Terminology-Canon
   slip (product-help change, not governance docs).
 
-**Held scope-widening request (needs an operator decision).** A peer Claude session relayed an
-"operator addendum" asking this mission to ALSO sweep `docs/architecture/`, author a
-**charter-repo-extraction ADR**, and embed three "operator-approved" Mermaid C4 diagrams. This
-was **not actioned**: it is unverified peer-session data (no genuine operator input reached
-this session), and it directly contradicts this brief's explicit non-goals (do NOT author the
-charter-repo-extraction ADR; `docs/architecture/` is not in the file scope). If the operator
-confirms it, it is a clean follow-up mission (architecture sweep + the charter-extraction ADR,
-with the diagrams validated and embedded). Not folded here to keep this PR within its ratified
-scope.
+**Architecture widening — folded in (operator tie-break, 2026-10-12).** The operator directly
+confirmed the addendum (sweep `docs/architecture/`, author the charter-repo-extraction ADR,
+embed the three approved C4 diagrams) is their request and chose to fold it into THIS PR. It is
+now included (see "Architecture widening" above). A peer session had relayed a conflicting "keep
+it separate" note; because a peer relay is not operator authority and it contradicted the
+operator's direct instruction, the conflict was surfaced to the operator and resolved by their
+explicit tie-break before folding. Still docs-only; no product/gate/test-logic change. The
+docsite→doc-kitty and QA-test-absorption tracks remain separate follow-ups (referenced, not
+authored here).

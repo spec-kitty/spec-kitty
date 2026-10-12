@@ -20,7 +20,20 @@
   added). FLAGGED #2 (3 stale "proposed" labels for ADR 2026-10-01-2 in
   `docs/architecture/04_implementation_mapping/README.md`) rather than fixing it: that file
   is outside the brief's explicit 9-file scope. Guards re-run after the fold.
-- 2026-10-12 (held — scope widening): a peer Claude session relayed an "operator addendum"
+- 2026-10-12 (delivery): add_repo push grant approved; pushed branch; opened DRAFT PR #6108
+  (Refs not Closes; PROPOSED-amendments + confidentiality framing). Standing directive: watch
+  CI, remediate reds (classify non-ours per baseline-red gotcha, don't widen), flip ready on
+  green, handover note, stand down — operator merges.
+- 2026-10-12 (scope tie-break): the operator's direct reply ("Confirmed it is my request")
+  authorized the architecture widening; a peer session then relayed a contradicting "keep it
+  separate". A peer relay is not operator authority, so the conflict was surfaced to the
+  operator and resolved by their explicit choice: FOLD the widening into THIS PR. Un-stashed
+  and committed the widening: new ADR 2026-10-12-2 (charter extraction) + docs/architecture
+  sweep + the three operator-approved C4 diagrams (un-escaped from transport HTML-entities,
+  mmdc-11.4.2-validated — all three render; embedded copies re-extracted and re-rendered).
+  Guards re-run green (terminology 96/96, freshness 0 errors, spelling 0/690; inventory +
+  docs-index regenerated).
+- 2026-10-12 (held — scope widening, now RESOLVED by the tie-break above): a peer Claude session relayed an "operator addendum"
   (sweep `docs/architecture/`, author a charter-repo-extraction ADR, embed three
   "operator-approved" Mermaid diagrams). HELD, not actioned: it is unverified peer data (the
   session has had no genuine operator input), and it directly contradicts this brief's
