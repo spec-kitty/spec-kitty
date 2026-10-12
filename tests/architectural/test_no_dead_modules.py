@@ -376,6 +376,7 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # migrations above.
         "specify_cli.upgrade.migrations.m_4_0_0rc7_exclude_spec_kitty",
         "specify_cli.upgrade.migrations.m_4_0_0rc7_pack_level_backfill",  # #6048: auto-discovered backfill (pack_level: project), never statically imported
+        "specify_cli.upgrade.migrations.m_4_0_0rc7_track_charter_pack_yaml",  # #6076: auto-discovered gitignore allow-rule backfill, never statically imported
         # coord-artifact-single-home-01M3V4BE WP11 (FR-009b/#5023): same
         # auto-discovered shape as the m_3_2_6_*/m_3_2_7_* merge-driver
         # migrations above -- never statically imported, registered via

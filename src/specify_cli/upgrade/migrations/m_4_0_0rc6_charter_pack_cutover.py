@@ -94,6 +94,7 @@ from ..registry import MigrationRegistry
 from ._charter_pack_cutover_report import CutoverReport
 from ._charter_pack_cutover_resets import apply_resets, plan_resets
 from ._charter_pack_cutover_skills import remove_skill_copies
+from ._charter_pack_gitignore import CHARTER_PACK_YAML_ALLOW_RULE, ensure_pack_yaml_allow_rule
 from .base import BaseMigration, MigrationResult, MigrationStateUnreadableError
 
 __all__ = ["CharterPackCutoverMigration"]
@@ -575,6 +576,13 @@ def _rewrite_gitignore(run: _Run) -> None:
     if text is None or LEGACY_PROJECT_ROOT_POSIX not in text:
         return
     lines, changes = _gitignore_rewrite(text.splitlines(keepends=True))
+    # #6076: a rewritten `.kittify/doctrine/**` becomes the blanket
+    # `.kittify/charter-packs/**`, which hides the rc7 pack_level backfill's
+    # `pack.yaml`. Emit its allow-rule here so a fresh cutover never
+    # reintroduces the gap (the shared helper is the single placement authority).
+    lines, added_allow = ensure_pack_yaml_allow_rule(lines)
+    if added_allow:
+        changes.append(f"added {CHARTER_PACK_YAML_ALLOW_RULE} (keeps the project pack.yaml tracked under the charter-pack ignore rule)")
     if not changes:
         return
     if not run.dry_run:
