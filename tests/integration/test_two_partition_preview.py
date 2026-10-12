@@ -455,16 +455,17 @@ def test_c001_merge_gate_agrees_with_real_writer_single_branch_two_separators(
     # reduced lane is DROPPED (the WP's first event still bootstraps regardless).
     # WP01 already carries the flat fixture's ``planned -> claimed`` seed (so it
     # starts at ``claimed``), while WP02 was freshly added and has no prior
-    # event. A lone terminal ``for_review -> approved`` jump would be dropped for
+    # event. A lone terminal ``in_review -> approved`` jump would be dropped for
     # WP01, so each WP needs a contiguous chain up to ``approved``. The merge
     # gate reads the verdict from the TERMINAL transition, so ``review_result``
-    # rides the final ``for_review -> approved`` event only.
+    # rides the final ``in_review -> approved`` event only.
     wp_chains = {
         # WP01 starts at ``claimed`` (the fixture's planned->claimed seed).
         "WP01": (
             (Lane.CLAIMED, Lane.IN_PROGRESS, "01KW2E7B0TERMC001WP01PRG01"),
             (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01KW2E7B0TERMC001WP01RVW02"),
-            (Lane.FOR_REVIEW, Lane.APPROVED, "01KW2E7B0TERMC001WP01APR04"),
+            (Lane.FOR_REVIEW, Lane.IN_REVIEW, "01KW2E7B0TERMC001WP01REV03"),
+            (Lane.IN_REVIEW, Lane.APPROVED, "01KW2E7B0TERMC001WP01APR04"),
         ),
         # WP02 was freshly added and has no prior event, so its chain starts at
         # ``planned`` (the first event bootstraps it).
@@ -472,7 +473,8 @@ def test_c001_merge_gate_agrees_with_real_writer_single_branch_two_separators(
             (Lane.PLANNED, Lane.CLAIMED, "01KW2E7B0TERMC001WP02PND00"),
             (Lane.CLAIMED, Lane.IN_PROGRESS, "01KW2E7B0TERMC001WP02CMD01"),
             (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01KW2E7B0TERMC001WP02RVW03"),
-            (Lane.FOR_REVIEW, Lane.APPROVED, "01KW2E7B0TERMC001WP02APR05"),
+            (Lane.FOR_REVIEW, Lane.IN_REVIEW, "01KW2E7B0TERMC001WP02REV04"),
+            (Lane.IN_REVIEW, Lane.APPROVED, "01KW2E7B0TERMC001WP02APR05"),
         ),
     }
     for wp_id, chain in wp_chains.items():
@@ -567,14 +569,15 @@ def test_c001_merge_gate_agrees_with_real_writer_under_coord_topology(
     # lane is DROPPED. After the ``status.events.jsonl`` clear above, the coord
     # seed run by the real writer re-carries the coord husk's existing WP01
     # transition, so WP01's current reduced lane is ``blocked`` -- a lone
-    # terminal ``for_review -> approved`` jump would be dropped and leave the WP
+    # terminal ``in_review -> approved`` jump would be dropped and leave the WP
     # stuck. Seed a contiguous chain from ``blocked`` up to ``approved`` on the
     # coord-husk STATUS surface; the pure-event merge gate reads the verdict from
     # the terminal transition, so ``review_result`` rides the final event only.
     coord_chain = (
         (Lane.BLOCKED, Lane.IN_PROGRESS, "01KW2E7A0TERMC001CRDPRG001"),
         (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01KW2E7A0TERMC001CRDRVW002"),
-        (Lane.FOR_REVIEW, Lane.APPROVED, "01KW2E7A0TERMC001CRDAPR004"),
+        (Lane.FOR_REVIEW, Lane.IN_REVIEW, "01KW2E7A0TERMC001CRDREV003"),
+        (Lane.IN_REVIEW, Lane.APPROVED, "01KW2E7A0TERMC001CRDAPR004"),
     )
     last_index = len(coord_chain) - 1
     for step, (from_lane, to_lane, event_id) in enumerate(coord_chain):

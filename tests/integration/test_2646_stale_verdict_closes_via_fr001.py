@@ -189,20 +189,21 @@ def _drive_reject_then_approve(repo: Path, mission_slug: str, tmp_path: Path) ->
 
 
 def _append_status_event(feature_dir: Path, mission_slug: str, mission_id: str, *, event_id: str) -> None:
-    """Append a contiguous ``claimed -> in_progress -> for_review -> approved``
-    chain that brings WP01 to the ``approved`` lane.
+    """Append a contiguous
+    ``claimed -> in_progress -> for_review -> in_review -> approved`` chain
+    that brings WP01 to the ``approved`` lane.
 
     The shared diary reducer enforces lane CONTIGUITY (tightened from
     #4990/#5279): a transition event whose ``from_lane`` is not contiguous with
     the WP's current reduced lane is DROPPED (the WP's first/only event still
     bootstraps regardless of ``from_lane``). WP01 is already at ``claimed`` in
     both the coord and flat fixtures (their seeded ``planned -> claimed``
-    event), so a lone terminal ``for_review -> approved`` jump is non-contiguous
+    event), so a lone terminal ``in_review -> approved`` jump is non-contiguous
     and would be dropped, leaving the WP stuck at ``claimed``. A realistic
     contiguous chain from the current ``claimed`` lane up to ``approved`` is
     therefore required.
 
-    ``event_id`` names the final ``for_review -> approved`` event; the two
+    ``event_id`` names the final ``in_review -> approved`` event; the three
     intermediate events derive distinct 26-char ULID-shaped ids from it so each
     caller's chain stays unique (the per-mission prefix differs between the
     coord and flat callers).
@@ -210,7 +211,8 @@ def _append_status_event(feature_dir: Path, mission_slug: str, mission_id: str, 
     transitions = (
         (Lane.CLAIMED, Lane.IN_PROGRESS, event_id[:-2] + "C2", "2026-08-02T12:00:00+00:00"),
         (Lane.IN_PROGRESS, Lane.FOR_REVIEW, event_id[:-2] + "R3", "2026-08-02T12:00:01+00:00"),
-        (Lane.FOR_REVIEW, Lane.APPROVED, event_id, "2026-08-02T12:00:02+00:00"),
+        (Lane.FOR_REVIEW, Lane.IN_REVIEW, event_id[:-2] + "V4", "2026-08-02T12:00:02+00:00"),
+        (Lane.IN_REVIEW, Lane.APPROVED, event_id, "2026-08-02T12:00:03+00:00"),
     )
     for from_lane, to_lane, eid, at in transitions:
         append_event(
