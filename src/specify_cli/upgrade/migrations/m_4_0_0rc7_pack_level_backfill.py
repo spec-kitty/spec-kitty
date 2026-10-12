@@ -89,7 +89,19 @@ def _needs_backfill(pack_root: Path) -> bool:
     return _PACK_LEVEL_KEY not in data
 
 
-def _write_fresh_descriptor(pack_root: Path) -> str:
+def _display_path(descriptor: Path, project_path: Path) -> str:
+    """Return *descriptor* relative to the project for change notes.
+
+    The notes land in the committed ``.kittify/metadata.yaml``, so they must
+    never carry the operator's absolute path.
+    """
+    try:
+        return descriptor.relative_to(project_path).as_posix()
+    except ValueError:
+        return descriptor.name
+
+
+def _write_fresh_descriptor(pack_root: Path, project_path: Path) -> str:
     """Write a new minimal project descriptor and return the change description."""
     descriptor = pack_root / _PACK_DESCRIPTOR_FILENAME
     payload = {
@@ -98,10 +110,10 @@ def _write_fresh_descriptor(pack_root: Path) -> str:
         _PACK_LEVEL_KEY: PROJECT,
     }
     _write_atomically(descriptor, payload, YAML())
-    return f"Wrote {descriptor} with {_PACK_LEVEL_KEY}: {PROJECT}"
+    return f"Wrote {_display_path(descriptor, project_path)} with {_PACK_LEVEL_KEY}: {PROJECT}"
 
 
-def _add_pack_level(pack_root: Path) -> str:
+def _add_pack_level(pack_root: Path, project_path: Path) -> str:
     """Add ``pack_level: project`` to an authored ``pack.yaml`` lacking it.
 
     Uses the round-trip loader so author comments, key order and a differing
@@ -112,7 +124,7 @@ def _add_pack_level(pack_root: Path) -> str:
     data = yaml.load(descriptor.read_text(encoding="utf-8"))
     data[_PACK_LEVEL_KEY] = PROJECT
     _write_atomically(descriptor, data, yaml)
-    return f"Added {_PACK_LEVEL_KEY}: {PROJECT} to {descriptor}"
+    return f"Added {_PACK_LEVEL_KEY}: {PROJECT} to {_display_path(descriptor, project_path)}"
 
 
 @MigrationRegistry.register
@@ -158,13 +170,13 @@ class PackLevelBackfillMigration(BaseMigration):
             has_descriptor = (pack_root / _PACK_DESCRIPTOR_FILENAME).is_file()
             if dry_run:
                 verb = "add pack_level: project to" if has_descriptor else "write"
-                changes.append(f"Would {verb} {pack_root / _PACK_DESCRIPTOR_FILENAME}")
+                changes.append(f"Would {verb} {_display_path(pack_root / _PACK_DESCRIPTOR_FILENAME, project_path)}")
                 continue
             try:
                 if has_descriptor:
-                    changes.append(_add_pack_level(pack_root))
+                    changes.append(_add_pack_level(pack_root, project_path))
                 else:
-                    changes.append(_write_fresh_descriptor(pack_root))
+                    changes.append(_write_fresh_descriptor(pack_root, project_path))
             except (YAMLError, OSError) as exc:
                 return MigrationResult(success=False, errors=[str(exc)])
 

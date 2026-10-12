@@ -173,3 +173,16 @@ def test_dry_run_writes_nothing(tmp_path: Path) -> None:
     assert result.success is True
     assert result.changes_made  # describes the would-be write
     assert not (pack_root / "pack.yaml").exists()
+
+
+def test_change_notes_use_project_relative_paths(tmp_path: Path) -> None:
+    """Change notes land in the committed metadata.yaml: no absolute paths."""
+    _make_project_pack(tmp_path)
+
+    dry = PackLevelBackfillMigration().apply(tmp_path, dry_run=True)
+    real = PackLevelBackfillMigration().apply(tmp_path)
+
+    notes = dry.changes_made + real.changes_made
+    assert notes
+    assert all(str(tmp_path) not in note for note in notes)
+    assert all(".kittify/charter-packs/pack.yaml" in note for note in notes)

@@ -440,3 +440,12 @@ migrations:
       .agents/skills/spec-kitty-spdd-reasons (spec-kitty-spdd-reasons; package-owned
       (manifest)); Removed skill .agents/skills/ad-hoc-profile-load (ad-hoc-profile-load;
       package-owned (manifest))'
+  - id: 4.0.0rc7_exclude_spec_kitty
+    applied_at: '2026-10-12T05:02:18.131858+00:00'
+    result: success
+    notes: Added .spec-kitty/ to .git/info/exclude
+  - id: 4.0.0rc7_pack_level_backfill
+    applied_at: '2026-10-12T05:02:18.155702+00:00'
+    result: success
+    notes: 'Wrote .kittify/charter-packs/pack.yaml
+      with pack_level: project'

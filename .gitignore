@@ -116,6 +116,7 @@ kitty-specs/*/.kittify/dossiers/*/snapshot-latest.json
 !.kittify/charter-packs/overlays/
 !.kittify/charter-packs/overlays/**
 !.kittify/charter-packs/graph.yaml
+!.kittify/charter-packs/pack.yaml
 
 # Generated glossary entity pages — never commit
 .kittify/charter/compiled/glossary/
