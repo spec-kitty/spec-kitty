@@ -81,64 +81,93 @@ def test_planned_fallback_unparseable_primary_keeps_planned() -> None:
     assert force is False
 
 
-# --- _parse_target_lanes_by_wp (split helper) -------------------------------
+# --- _target_lane_per_wp (canonical-reducer split helper, #1772/#5354) ------
 
 
-def test_parse_target_lanes_by_wp_keeps_latest() -> None:
+def _full_event(
+    wp_id: str,
+    *,
+    from_lane: str,
+    to_lane: str,
+    at: str,
+    event_id: str,
+    actor: str = "merge",
+) -> str:
     import json
 
-    # Object events + a blank line + a malformed (non-JSON) line — the shapes a
-    # real status.events.jsonl on a target branch actually contains.
+    return json.dumps(
+        {
+            "actor": actor,
+            "at": at,
+            "event_id": event_id,
+            "evidence": None,
+            "execution_mode": "worktree",
+            "feature_slug": "m",
+            "force": False,
+            "from_lane": from_lane,
+            "reason": None,
+            "review_ref": f"review-{wp_id}" if to_lane == "approved" else None,
+            "to_lane": to_lane,
+            "wp_id": wp_id,
+        }
+    )
+
+
+def test_target_lane_per_wp_keeps_latest(tmp_path: Path) -> None:
+    """A WP folded ``approved -> done`` resolves to ``done``; an unrelated WP keeps its lane."""
     text = "\n".join(
         [
-            json.dumps({"wp_id": "WP01", "to_lane": "approved"}),
-            json.dumps({"wp_id": "WP01", "to_lane": "done"}),
-            json.dumps({"wp_id": "WP02", "to_lane": "claimed"}),
-            json.dumps({"garbage": True}),
+            _full_event("WP01", from_lane="in_review", to_lane="approved", at="2026-10-10T10:00:01+00:00", event_id="01HXYZ0000000000000000WP1A"),
+            _full_event("WP01", from_lane="approved", to_lane="done", at="2026-10-10T10:00:02+00:00", event_id="01HXYZ0000000000000000WP1D"),
+            _full_event("WP02", from_lane="in_progress", to_lane="claimed", at="2026-10-10T10:00:03+00:00", event_id="01HXYZ0000000000000000WP2C"),
             "",
-            "{not valid json",
         ]
     )
-    result = db._parse_target_lanes_by_wp(text)
+    result = db._target_lane_per_wp(text, tmp_path, ["WP01", "WP02"])
     assert result == {"WP01": "done", "WP02": "claimed"}
 
 
-def test_parse_target_lanes_by_wp_orders_by_at_not_physical_line_order() -> None:
-    """#5354: a terminal ``done`` wins over a later-written older-``at`` seed.
+def test_target_lane_per_wp_causal_order_not_wall_clock(tmp_path: Path) -> None:
+    """#1772: a causally-``done`` WP resolves to ``done`` even when its ``done`` event
+    carries an EARLIER wall-clock ``at`` than its ``approved`` event.
 
-    A migrated/completed mission's target ``status.events.jsonl`` can carry a
-    newer terminal ``done`` event PHYSICALLY BEFORE an older-timestamp migration
-    backfill seed. The canonical reducer orders by ``(at, event_id)`` and keeps
-    the WP at ``done``; the parse helper must agree so the post-merge check does
-    not spuriously fail a WP that IS done. The last-written line (``claimed``,
-    older ``at``) must NOT win.
+    The approval and the merge-done are emitted moments apart, so the ``done``
+    event can legitimately carry an earlier ``at`` than the ``approved`` event.
+    A wall-clock ``(at, event_id)`` fold reorders them to ``[done, approved]``
+    and spuriously resolves ``approved``; the canonical (Lamport, causal)
+    reducer honours ``approved -> done`` and resolves ``done``.
     """
-    import json
-
     text = "\n".join(
         [
-            json.dumps(
-                {
-                    "wp_id": "WP01",
-                    "to_lane": "done",
-                    "at": "2026-09-29T04:02:00+00:00",
-                    "event_id": "01HZZZ_DONE",
-                    "actor": "merge",
-                }
-            ),
-            json.dumps(
-                {
-                    "wp_id": "WP01",
-                    "to_lane": "claimed",
-                    "at": "2026-09-24T02:47:00+00:00",
-                    "event_id": "01HAAA_SEED",
-                    "actor": "migration:backfill_runtime_state",
-                }
+            _full_event("WP01", from_lane="in_review", to_lane="approved", at="2026-10-10T10:00:05+00:00", event_id="01HXYZAPPR0000000000000001"),
+            _full_event("WP01", from_lane="approved", to_lane="done", at="2026-10-10T10:00:01+00:00", event_id="01HXYZDONE0000000000000001"),
+        ]
+    )
+    assert db._target_lane_per_wp(text, tmp_path, ["WP01"]) == {"WP01": "done"}
+
+
+def test_target_lane_per_wp_migration_seed_does_not_unadvance_done(tmp_path: Path) -> None:
+    """#5354: a terminal ``done`` wins over a later-written older-``at`` migration seed.
+
+    A migrated/completed mission's target log can carry a newer terminal
+    ``done`` event PHYSICALLY BEFORE an older-timestamp ``migration:*`` backfill
+    seed. The canonical reducer never lets the stale seed un-advance a WP that
+    IS done, so the post-merge check does not spuriously fail it.
+    """
+    text = "\n".join(
+        [
+            _full_event("WP01", from_lane="approved", to_lane="done", at="2026-09-29T04:02:00+00:00", event_id="01HZZZDONE0000000000000001", actor="merge"),
+            _full_event(
+                "WP01",
+                from_lane="planned",
+                to_lane="claimed",
+                at="2026-09-24T02:47:00+00:00",
+                event_id="01HAAASEED0000000000000001",
+                actor="migration:backfill_runtime_state",
             ),
         ]
     )
-    result = db._parse_target_lanes_by_wp(text)
-    assert result == {"WP01": "done"}
+    assert db._target_lane_per_wp(text, tmp_path, ["WP01"]) == {"WP01": "done"}
 
 
 # --- _assert_merged_wps_done_on_target (split) ------------------------------
@@ -159,9 +188,7 @@ def test_assert_done_on_target_raises_when_git_show_fails(tmp_path: Path) -> Non
 
 
 def test_assert_done_on_target_raises_when_wp_not_done(tmp_path: Path) -> None:
-    import json
-
-    events = json.dumps({"wp_id": "WP01", "to_lane": "approved"})
+    events = _full_event("WP01", from_lane="in_review", to_lane="approved", at="2026-10-10T10:00:01+00:00", event_id="01HXYZ0000000000000000WP1A")
     with (
         patch.object(db, "run_command", return_value=(0, events, "")),
         pytest.raises(typer.Exit) as exc,
@@ -171,9 +198,12 @@ def test_assert_done_on_target_raises_when_wp_not_done(tmp_path: Path) -> None:
 
 
 def test_assert_done_on_target_passes_when_all_done(tmp_path: Path) -> None:
-    import json
-
-    events = json.dumps({"wp_id": "WP01", "to_lane": "done"})
+    events = "\n".join(
+        [
+            _full_event("WP01", from_lane="in_review", to_lane="approved", at="2026-10-10T10:00:01+00:00", event_id="01HXYZ0000000000000000WP1A"),
+            _full_event("WP01", from_lane="approved", to_lane="done", at="2026-10-10T10:00:02+00:00", event_id="01HXYZ0000000000000000WP1D"),
+        ]
+    )
     with patch.object(db, "run_command", return_value=(0, events, "")):
         db._assert_merged_wps_done_on_target(tmp_path, "m", "main", ["WP01"], feature_dir=tmp_path / "kitty-specs" / "m", mission_id="01ID")
 

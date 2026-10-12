@@ -13,7 +13,6 @@ is consumed by ``orchestrator_api/consolidation.py`` and is re-exported from the
 
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -524,53 +523,43 @@ def _resolve_in_branch_status_events_path(
     return rel_events_path
 
 
-def _parse_target_lanes_by_wp(events_text: str) -> dict[str, str]:
-    """Reduce a target-branch event log to the latest ``to_lane`` per WP.
+#: Shared prefix for the three post-merge-target-validation refusals below (Sonar S1192).
+_POST_MERGE_TARGET_VALIDATION_FAILED = "[red]Error:[/red] Post-merge target validation failed: "
 
-    Events are ordered by ``(at, event_id)`` ascending before the last-wins
-    fold, matching the canonical status reducer's diary ordering
-    (``spec_kitty_events.diary`` sorts on the same key, as do the
-    ``status.reducer`` projections) rather than physical line order. A migrated
-    or completed mission's target log can carry a newer terminal ``done`` event
-    PHYSICALLY BEFORE an older-timestamp ``migration:backfill_runtime_state``
-    seed; folding in line order would let the stale seed win and spuriously fail
-    the post-merge ``done`` check on a WP that IS done (#5354). Sorting by ``at``
-    keeps each WP at the lane ``status materialize`` reports for the same log.
 
-    Malformed/blank lines and non-object JSON are skipped. A missing (or
-    non-string) ``at``/``event_id`` sorts as the empty string — i.e. earliest —
-    so an undated line can never spuriously override a real, timestamped
-    transition, and ``sorted`` being stable preserves physical order among
-    equal keys (an undated well-ordered log is unaffected).
+def _target_lane_per_wp(
+    events_text: str,
+    feature_dir: Path,
+    wp_ids: list[str],
+) -> dict[str, str]:
+    """Reduce a target-branch event log to each WP's lane via the CANONICAL reducer.
+
+    Routes through the shared Lamport reduction (``read_events_from_text`` +
+    ``status.reducer.reduce``), the single canonical authority the merge gate
+    already uses — NOT a second, hand-rolled wall-clock ``(at, event_id)`` fold.
+    The old fold (introduced by #5354 to beat a stale migration seed written
+    physically after a newer ``done``) disagreed with the canonical reducer on a
+    causal log: a WP folded ``approved -> done`` whose ``approved`` event carries
+    a LATER wall-clock ``at`` than its ``done`` event (the two are emitted moments
+    apart) sorted to ``[done, approved]`` and spuriously resolved to ``approved``
+    (#1772), even though the WP is causally ``done``. The canonical reducer
+    honours causal ordering, so it resolves ``done`` here while still keeping the
+    #5354 migration-seed case correct (``migration:*`` actors never un-advance a
+    terminal WP under the Lamport fold).
+
+    The log is reduced ONCE into a full snapshot; each requested WP is then read
+    out of it. ``feature_dir`` is the primary mission directory, used by the
+    canonical parser for legacy slug-to-mission-id resolution. A WP with no event
+    on the target log is absent from the snapshot and maps to ``"missing"``.
     """
-    parsed: list[tuple[str, str, str, str]] = []
-    for line in events_text.splitlines():
-        if not line.strip():
-            continue
-        try:
-            event = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(event, dict):
-            continue
-        wp_id = event.get("wp_id")
-        to_lane = event.get("to_lane")
-        if not (isinstance(wp_id, str) and isinstance(to_lane, str)):
-            continue
-        at = event.get("at")
-        event_id = event.get("event_id")
-        parsed.append(
-            (
-                at if isinstance(at, str) else "",
-                event_id if isinstance(event_id, str) else "",
-                wp_id,
-                to_lane,
-            )
-        )
+    from specify_cli.status import read_events_from_text, reduce
 
+    snapshot = reduce(read_events_from_text(feature_dir, events_text))
     lanes_by_wp: dict[str, str] = {}
-    for _at, _event_id, wp_id, to_lane in sorted(parsed, key=lambda item: (item[0], item[1])):
-        lanes_by_wp[wp_id] = to_lane
+    for wp_id in wp_ids:
+        state = snapshot.work_packages.get(wp_id)
+        lane = state.get("lane") if state else None
+        lanes_by_wp[wp_id] = str(lane) if lane is not None else "missing"
     return lanes_by_wp
 
 
@@ -601,13 +590,19 @@ def _assert_merged_wps_done_on_target(
     )
     if ret_show != 0:
         console.print(
-            "[red]Error:[/red] Post-merge target validation failed: "
-            f"could not read {target_branch}:{rel_events_path.as_posix()} "
-            f"({(err_show or out_show or '').strip()})"
+            _POST_MERGE_TARGET_VALIDATION_FAILED
+            + f"could not read {target_branch}:{rel_events_path.as_posix()} "
+            + f"({(err_show or out_show or '').strip()})"
         )
         raise typer.Exit(1)
 
-    lanes_by_wp = _parse_target_lanes_by_wp(out_show or "")
+    from specify_cli.status import StoreError
+
+    try:
+        lanes_by_wp = _target_lane_per_wp(out_show or "", feature_dir, wp_ids)
+    except StoreError as exc:
+        console.print(_POST_MERGE_TARGET_VALIDATION_FAILED + f"could not parse {target_branch}:{rel_events_path.as_posix()} ({exc})")
+        raise typer.Exit(1) from exc
 
     incomplete = [
         f"{wp_id}={lanes_by_wp.get(wp_id, 'missing')}"
@@ -615,10 +610,7 @@ def _assert_merged_wps_done_on_target(
         if lanes_by_wp.get(wp_id) != "done"
     ]
     if incomplete:
-        console.print(
-            "[red]Error:[/red] Post-merge target validation failed: "
-            "merged WPs did not reach done in target branch history."
-        )
+        console.print(_POST_MERGE_TARGET_VALIDATION_FAILED + "merged WPs did not reach done in target branch history.")
         console.print(f"  Offending WPs: {', '.join(incomplete)}")
         raise typer.Exit(1)
 
