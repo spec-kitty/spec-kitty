@@ -107,7 +107,8 @@ from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
-from kernel.git import GitCommandError, changed_paths, tree_entry
+from kernel.git import GitCommandError, changed_paths, commit_paths, tree_entry
+from kernel.paths import to_posix
 from kernel.resolution import is_symlink_loop_error, resolve_commit_path
 from kernel.git_topology import (
     GitTopologyError,
@@ -443,6 +444,44 @@ class SafeCommitIndexResidue(SafeCommitRecoveryFailed):
             commit_sha=commit_sha,
         )
         self.residue = tuple(residue)
+
+
+class SafeCommitUnrequestedPaths(SafeCommitRecoveryFailed):
+    """A commit landed carrying paths the operation never requested (#5903).
+
+    A pre-commit hook that stages files itself (``git add -u``, as formatter /
+    lint-staged-style hooks do) sweeps the operator's other modified tracked
+    files into the commit being built: git runs the hook against its own
+    temporary index during ``git commit --only`` (and against the FR-022 temp
+    index), so the hook's ``git add -u`` stages every modified tracked file into
+    the commit. Raised only AFTER HEAD moved, so it is a
+    :class:`SafeCommitRecoveryFailed` carrying ``commit_sha`` -- callers that
+    flatten a plain :class:`SafeCommitError` into "not committed" re-raise it and
+    report that the commit DID land, exactly as they already do for
+    :class:`SafeCommitIndexResidue`. The operator's real index is re-synced for
+    the extra paths before this is raised, so no stale ``MM`` revert remains.
+    It keeps its own ``error_code``.
+    """
+
+    error_code = "SAFE_COMMIT_UNREQUESTED_PATHS"
+
+    def __init__(
+        self,
+        *,
+        extra_paths: Sequence[str],
+        commit_sha: str,
+        worktree_root: Path,
+        destination_ref: str | None = None,
+    ) -> None:
+        super().__init__(
+            f"safe_commit: commit {commit_sha} landed, but it also carries path(s) the "
+            f"operation did not request (a pre-commit hook staged them): {', '.join(extra_paths)}",
+            destination_ref=destination_ref,
+            worktree_root=worktree_root,
+            unrecovered_paths=extra_paths,
+            commit_sha=commit_sha,
+        )
+        self.extra_paths = tuple(extra_paths)
 
 
 # ---------------------------------------------------------------------------
@@ -1034,6 +1073,70 @@ def _sync_real_index_after_commit(worktree_root: Path, destination_ref: str, sha
         raise SafeCommitIndexResidue(residue=leftover, commit_sha=sha, worktree_root=worktree_root, destination_ref=destination_ref)
 
 
+def _committed_paths(worktree_root: Path, sha: str) -> list[str]:
+    """Paths the commit ``sha`` changed versus its parent (worktree-relative, POSIX).
+
+    Delegates to :func:`kernel.git.commit_paths`, the single owner of path-listing
+    git argv and git-output parsing (mission ``git-paths-are-data``): a root commit
+    lists all its paths and a non-merge commit its diff versus the first parent, with
+    renames split into delete + add. ``safe_commit`` never builds a merge commit, so
+    the default (non-combined) listing is exactly the commit's own changed set.
+    """
+    try:
+        return [str(path) for path in commit_paths(worktree_root, sha)]
+    except GitCommandError as exc:
+        raise SafeCommitRecoveryFailed(
+            f"safe_commit: commit {sha} landed on {worktree_root}, but its committed path set could not be read: {exc}",
+            worktree_root=worktree_root,
+            commit_sha=sha,
+        ) from exc
+
+
+def _assert_committed_paths_requested(
+    worktree_root: Path,
+    destination_ref: str,
+    sha: str,
+    requested: Sequence[str],
+) -> None:
+    """Post-landing guard (#5903): refuse a commit that carries unrequested paths.
+
+    After the commit has landed, compare its changed path set against
+    ``requested``. A pre-commit hook that runs ``git add -u`` stages the
+    operator's other modified tracked files into the commit, so the committed
+    set becomes a superset of ``requested``. Any extra path means the hook swept
+    in content the operation never wrote: the commit has already landed, so
+    re-sync the operator's real index for those paths (clearing the stale ``MM``
+    that would otherwise stage a revert of the operator's edit) and report it the
+    "landed, but" way via :class:`SafeCommitUnrequestedPaths`, which names the
+    extra paths. A committed set that is a subset of ``requested`` (a partial
+    no-op) is fine, and a clean commit with no hook has an identical set, so this
+    never fires on the healthy path -- the only work it adds there is one
+    ``git diff-tree`` read and a set comparison, with no index mutation.
+
+    ``requested`` must be individual file paths, not directory pathspecs: the
+    comparison is against the per-file paths ``git diff-tree`` reports, so a
+    directory would not match its contained files. Every caller already expands
+    directories to files before :func:`safe_commit` (the ``safe-commit`` CLI and
+    ``upgrade`` autocommit both do). Both sides are normalized to forward-slashed
+    POSIX via :func:`kernel.paths.to_posix` (#2836) so the comparison is correct
+    on Windows, where ``str(Path)`` is backslash-separated but git's ``diff-tree``
+    output is always forward-slashed.
+    """
+    requested_set = {to_posix(path) for path in requested}
+    extra = sorted(path for path in _committed_paths(worktree_root, sha) if to_posix(path) not in requested_set)
+    if not extra:
+        return
+    # The commit already landed; make the operator's real index match the new
+    # HEAD for the swept paths so it no longer stages a revert of their edit.
+    _git_in(worktree_root, ["reset", "-q", "HEAD", "--", *extra])
+    raise SafeCommitUnrequestedPaths(
+        extra_paths=extra,
+        commit_sha=sha,
+        worktree_root=worktree_root,
+        destination_ref=destination_ref,
+    )
+
+
 def _commit_with_index_deletions(
     worktree_root: Path,
     destination_ref: str,
@@ -1075,6 +1178,10 @@ def _commit_with_index_deletions(
         if commit.stderr.strip():
             logger.warning("git commit in %s produced warnings on a successful commit: %s", worktree_root, commit.stderr.strip())
         _sync_real_index_after_commit(worktree_root, destination_ref, sha, [*requested, *deletions])
+        # #5903: a pre-commit hook that ran `git add -u` against the temp index
+        # may have swept the operator's other modified tracked files into the
+        # commit. The requested set here is the adds plus the index deletions.
+        _assert_committed_paths_requested(worktree_root, destination_ref, sha, [*requested, *deletions])
         return CommitResult(sha=sha, destination_ref=destination_ref, worktree_root=worktree_root)
     finally:
         _discard_temp_index(temp_index)
@@ -1889,6 +1996,13 @@ def safe_commit(
         raise RuntimeError(f"safe_commit: git commit failed in {worktree_root} for destination_ref={destination_ref!r}{detail}")
 
     assert new_sha is not None  # type narrow: commit_created => new_sha set
+
+    # #5903: `git commit --only` runs the pre-commit hook against git's own
+    # temporary index, so a hook that runs `git add -u` sweeps the operator's
+    # other modified tracked files into the commit. Refuse a commit that carries
+    # paths the operation never requested; the commit has already landed, so this
+    # is reported the "landed, but" way and the operator's real index is re-synced.
+    _assert_committed_paths_requested(worktree_root, destination_ref, new_sha, normalized_files)
 
     return CommitResult(
         sha=new_sha,

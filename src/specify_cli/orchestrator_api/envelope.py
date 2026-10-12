@@ -118,7 +118,14 @@ from kernel.clock import now_utc_iso
 # index still stages a committed path; a refinement of ``SAFE_COMMIT_RECOVERY_FAILED``, which
 # keeps meaning the commit may not have landed). New ``error_code`` values on existing verbs,
 # so a minor bump; no field is removed or renamed.
-CONTRACT_VERSION = "1.14.0"
+# 1.15.0: ``append-history`` (the safe-commit verbs) can newly fail with
+# ``SAFE_COMMIT_UNREQUESTED_PATHS`` (#5903): a pre-commit hook that runs ``git add -u`` swept the
+# operator's other modified tracked files into the commit, so the commit DID land -- ``commit_sha``
+# names it -- but it carries paths the operation never requested; the operator's real index is
+# re-synced for those paths before it is raised. Like ``SAFE_COMMIT_INDEX_RESIDUE`` it refines
+# ``SAFE_COMMIT_RECOVERY_FAILED`` (the commit landed). A new ``error_code`` on an existing verb,
+# so a minor bump; no field is removed or renamed.
+CONTRACT_VERSION = "1.15.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

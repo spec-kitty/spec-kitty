@@ -30,3 +30,9 @@
   single-component fixtures could not. Documented the individual-files precondition (Finding 2,
   latent). Finding 3 (re-sync drops a `git add -p` partial stage of a swept path) matches existing
   `_sync_real_index_after_commit` behaviour and is accepted.
+- **[2026-10-12][review] Use `kernel.git.commit_paths`, not a raw diff-tree argv (CI gate fold).** The
+  code-scoped architectural battery's `test_git_path_listing_owner` (mission `git-paths-are-data`,
+  empty allowlist) failed CI: `_committed_paths` built a `git diff-tree --name-only` argv and split
+  git output outside `src/kernel/git/`. Rewired it to delegate to `kernel.git.commit_paths` (the
+  single owner of path-listing argv + git-output parsing), which returns the commit's changed paths
+  as data; behaviour is identical (root commit lists all; non-merge commit vs first parent).
