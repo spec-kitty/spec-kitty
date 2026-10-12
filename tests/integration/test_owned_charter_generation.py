@@ -83,7 +83,7 @@ def test_invalid_owned_generation_claim_writes_nothing(checkouts, tmp_path, monk
     before = tuple(snapshot(root) for root in checkouts)
     result = generate(owned, claim=claim, handle=handle)
     assert result.exit_code == 1, result.output
-    assert json.loads(result.output)["error_code"].startswith(("OWNED_", "OWNERSHIP_", "FEATURE_CONTEXT_", "MISSION_CONTEXT_"))
+    assert json.loads(result.output)["error_code"].startswith(("OWNED_", "OWNERSHIP_", "MISSION_CONTEXT_"))
     assert tuple(snapshot(root) for root in checkouts) == before
 
 
