@@ -189,9 +189,7 @@ def _enforce_api_authoring_completion_gate(
     from specify_cli.design.receipts import api_authoring_enabled, authoring_lock
     from specify_cli.design.validation import validate_stage
 
-    from pathlib import Path as _Path
-
-    root = _Path(str(repo_root))
+    root = Path(str(repo_root))
     if not api_authoring_enabled(root, mission_slug):
         return
     try:
@@ -199,10 +197,12 @@ def _enforce_api_authoring_completion_gate(
             issued_stage = issued_step_id_for_mission(mission_slug, root, owned=owned)
             if issued_stage in {"specify", "plan", "tasks"}:
                 validate_stage(root, mission_slug, issued_stage)
-    except MissionNotFoundError:
-        # The native authority owns mission resolution; a missing run is handled
-        # downstream by ``decide_next`` rather than masked as a design refusal.
-        return
+    except MissionNotFoundError as exc:
+        # Fail closed, matching the refusal the orchestrator-api path has always
+        # raised here: a marker-enabled Mission whose native issued state cannot
+        # be resolved must not complete, not silently proceed.
+        _emit_design_refusal(DesignError("RUNTIME_NEXT_FAILED", "Native issued state is unavailable"), mission_slug, json_output)
+        raise typer.Exit(1) from exc
     except DesignError as exc:
         _emit_design_refusal(exc, mission_slug, json_output)
         raise typer.Exit(1) from exc
@@ -362,6 +362,15 @@ def next_step(
         # (no ``mission_id``) still proceeds, with an advisory backfill nudge.
         _maybe_emit_backfill_nudge(mission_slug, repo_root, owned=owned)
     _validate_result_and_answer(result, answer, json_output)
+    # #5879: for an API-authored Mission, enforce the marker-gated stale/unfinished
+    # content refusal on native completion, matching the orchestrator-api path. It
+    # runs BEFORE any mutation — including the decision-answer persistence and
+    # run-start in ``_maybe_handle_answer`` below — so a refused completion leaves
+    # no side effect. The validated stage is the native persisted ``issued_step_id``
+    # (``decide_next`` has not advanced yet), so answering an input to ISSUE a stage
+    # is unaffected.
+    if result == "success":
+        _enforce_api_authoring_completion_gate(mission_slug, repo_root, json_output, owned=owned)
     answered_id = _maybe_handle_answer(
         agent,
         mission_slug,
@@ -389,11 +398,6 @@ def next_step(
     if not agent:
         print("Error: --agent is required when --result is provided", file=sys.stderr)
         raise typer.Exit(1)
-
-    # #5879: for an API-authored Mission, enforce the marker-gated stale/unfinished
-    # content refusal on native completion, matching the orchestrator-api path.
-    if result == "success":
-        _enforce_api_authoring_completion_gate(mission_slug, repo_root, json_output, owned=owned)
 
     _dispatch_advancing_mode(
         agent,

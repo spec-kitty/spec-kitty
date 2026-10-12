@@ -345,6 +345,43 @@ def test_native_next_enforces_api_authored_stale_refusal(tmp_path: Path) -> None
     assert _call(root, "next", "--mission", mission)["data"]["step_id"] == "specify"
 
 
+def test_native_next_accepts_api_authored_valid(tmp_path: Path) -> None:
+    """#5879 gate is not over-eager: once the specify content is validly authored,
+    native ``next --result success`` completes the stage and advances (no false
+    refusal), the direct native-path positive control."""
+    root = _project(tmp_path)
+    created = _call(root, "specify", "--mission", "native-valid", "--mission-type", "software-dev", "--topology", "single_branch", "--policy", POLICY)["data"]
+    mission = created["mission_slug"]
+    assert _advance(root, mission)["step_id"] == "discovery"
+    _interview(root, mission, "specify")
+    assert _advance(root, mission)["step_id"] == "specify"
+    _submit(root, mission, "specify", "specification", SPEC, {})
+    exit_code, payload = _native_next(root, mission, "--agent", "planning-client", "--result", "success")
+    assert exit_code == 0, payload
+    assert payload.get("step_id") == "plan", payload
+
+
+@pytest.mark.regression
+def test_native_next_refusal_with_answer_persists_nothing(tmp_path: Path) -> None:
+    """#5879: the native gate runs BEFORE decision-answer handling, so a refused
+    stale completion carried with ``--answer``/``--decision-id`` persists no
+    answer and starts no run (no side effect on a refusal)."""
+    root = _project(tmp_path)
+    created = _call(root, "specify", "--mission", "native-answer", "--mission-type", "software-dev", "--topology", "single_branch", "--policy", POLICY)["data"]
+    mission = created["mission_slug"]
+    assert _advance(root, mission)["step_id"] == "discovery"
+    _interview(root, mission, "specify")
+    _submit(root, mission, "specify", "research", "# Research\n\nThe README client uses the canonical local API.\n", {})
+    assert _advance(root, mission)["step_id"] == "specify"
+    before = _runtime_bytes(root)
+    # A stale ``specify`` completion is refused at the gate, ahead of answer
+    # handling — so the spurious answer is never persisted and no run is started.
+    exit_code, payload = _native_next(root, mission, "--agent", "planning-client", "--result", "success", "--answer", "approve", "--decision-id", "input:approval")
+    assert exit_code != 0, payload
+    assert payload.get("reason") == "DESIGN_PREREQUISITES_FAILED", payload
+    assert _runtime_bytes(root) == before
+
+
 def _native_finalize(root: Path, mission: str) -> tuple[int, str]:
     """Drive the NATIVE ``spec-kitty agent mission finalize-tasks`` command.
 
