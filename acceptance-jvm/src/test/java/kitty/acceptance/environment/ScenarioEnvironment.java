@@ -22,8 +22,6 @@ import java.util.Map;
 public final class ScenarioEnvironment {
 
     private static final String UTF8_LOCALE = "C.UTF-8";
-    private static final String GIT_NAME = "Acceptance Harness";
-    private static final String GIT_EMAIL = "harness@example.invalid";
 
     private final Path tempRoot;
     private final Path homeDir;
@@ -86,10 +84,10 @@ public final class ScenarioEnvironment {
         env.put("COLUMNS", "100");
 
         // A git identity without reading the developer's global config (HOME is redirected).
-        env.put("GIT_AUTHOR_NAME", GIT_NAME);
-        env.put("GIT_AUTHOR_EMAIL", GIT_EMAIL);
-        env.put("GIT_COMMITTER_NAME", GIT_NAME);
-        env.put("GIT_COMMITTER_EMAIL", GIT_EMAIL);
+        env.put("GIT_AUTHOR_NAME", GitFixture.GIT_NAME);
+        env.put("GIT_AUTHOR_EMAIL", GitFixture.GIT_EMAIL);
+        env.put("GIT_COMMITTER_NAME", GitFixture.GIT_NAME);
+        env.put("GIT_COMMITTER_EMAIL", GitFixture.GIT_EMAIL);
         env.put("GIT_CONFIG_NOSYSTEM", "1");
 
         // Preserve the handful of OS-essential vars a process needs to start (Windows only; absent

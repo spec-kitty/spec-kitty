@@ -13,8 +13,9 @@ import java.util.Map;
 public final class GitFixture {
 
     private static final Duration GIT_TIMEOUT = Duration.ofSeconds(60);
-    private static final String GIT_NAME = "Acceptance Harness";
-    private static final String GIT_EMAIL = "harness@example.invalid";
+    // The one source of the harness git identity: ScenarioEnvironment reuses it for GIT_AUTHOR_*/GIT_COMMITTER_*.
+    static final String GIT_NAME = "Acceptance Harness";
+    static final String GIT_EMAIL = "harness@example.invalid";
 
     private final Path workDir;
     private final Map<String, String> environment;
