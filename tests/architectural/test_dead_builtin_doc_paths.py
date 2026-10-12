@@ -47,9 +47,16 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 #: still caught while a nested tail is not. Because the boundary excludes ``/``, a
 #: slash-preceded reference -- including a leading ``./src/charter/offering/…`` -- is
 #: treated as nested and left to ``test_no_dead_src_path_literals.py``, whose
-#: ``(?<!\w)src/`` lookbehind still flags it (``/`` is not a word char), exactly as
-#: the blob-URL case already is. That general ``src/``-literal gate, not Gate D,
-#: owns ``src/`` literals nested in a longer path. Scope is forward-slash paths
+#: ``(?<!\w)src/`` lookbehind flags it (``/`` is not a word char), exactly as the
+#: blob-URL case already is -- but only within that sibling's own reach: it scans
+#: live markdown (``*.md``) and excludes more subtrees than Gate D (``reports/``,
+#: ``changelog/``, ``archive/``, ``convergence/``, ``assets/``, ``migrations/``)
+#: plus retired-status and allowlisted files. So a slash-preceded dead ref living
+#: in a non-markdown live doc, or in one of those excluded subtrees, is owned by
+#: neither gate -- acceptable because those surfaces are historical-record/derived
+#: by the same rationale both gates already exclude, and the live tree has none
+#: today. That general ``src/``-literal gate, not Gate D, owns slash-preceded
+#: ``src/`` literals in the live markdown it scans. Scope is forward-slash paths
 #: (#6096); a backslash-separated tail is out of scope here (and not handled by the
 #: sibling gate either). This tightens the left boundary only; the two forbidden
 #: shapes and ``_GUARD_DOC_EXCLUSIONS`` are unchanged.
