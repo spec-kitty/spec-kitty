@@ -25,7 +25,7 @@ for today's numbers.*
 
 ## Bottom line
 
-4.0.0 is close. Five release candidates have shipped. **GA now ships "done when done" — it is
+4.0.0 is close. Six release candidates have shipped. **GA now ships "done when done" — it is
 no longer pinned to a date** (direction update, 12 October); release candidates keep going out
 to early adopters off `main` in the meantime. The GA gate has also **grown beyond local
 integrity**: alongside the data-safety work, it now covers **charter modular extraction** and

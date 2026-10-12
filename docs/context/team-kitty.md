@@ -19,7 +19,9 @@ related:
 > **Status (2026-10-06):** Team Kitty is no longer actively supported
 > ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)).
 > This page describes code that still ships but is off by default; do not build
-> toward it unless the operator asks for hosted work.
+> toward it unless the operator asks for hosted work. On 2026-10-12 the freeze was
+> scope-lifted for consumer-side work on the Mission Status Read API (ADR 2026-10-06-1,
+> Amendment 2026-10-12); the hosted backend stays frozen.
 
 **Read this before touching anything hosted.** It is the one-page model every
 agent needs when work mentions the SaaS, moments, presence, readiness, auth,

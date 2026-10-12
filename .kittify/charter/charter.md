@@ -599,7 +599,7 @@ Operational reference:
 
 ## Central CLI-SaaS API Contract
 
-- Team Kitty is no longer actively supported (ADR `2026-10-06-1`): start no new hosted work unless the operator asks for it. Any change that alters the hosted wire surface must still update the contract below.
+- Hosted backend work (zeitgeist auth, the hosted backend, the SaaS surface) stays frozen unless the operator asks (ADR `2026-10-06-1`, Amendment 2026-10-12); consumer-side work on the Mission Status Read API is not hosted work. Any change that alters the hosted wire surface must still update the contract below.
 - The published current-state CLI↔SaaS contract lives at `../spec-kitty-saas/contracts/cli-saas-current-api.yaml`.
 - Any CLI change that alters hosted routes, request/response bodies, auth headers, websocket behavior, sync payloads, or tracker control-plane semantics must update that contract in the same change.
 - ADRs, PRDs, and roadmap notes may describe future APIs, but the authoritative reference for what the CLI actually speaks to SaaS today is that contract file.

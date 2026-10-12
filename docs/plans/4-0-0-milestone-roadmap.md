@@ -57,7 +57,7 @@ existing authority; never build a parallel one.
 
 ## Direction update (2026-10-12): GA is done-when-done, and the gate expands
 
-The operator ratified five adjustments on 2026-10-12. They **extend** the 2026-10-01 update
+The operator ratified six adjustments on 2026-10-12. They **extend** the 2026-10-01 update
 below (which still holds where this one is silent); where the two differ, this one wins.
 
 1. **4.0.0 GA is no longer date-gated.** GA ships **"done when done."** Release candidates
@@ -95,6 +95,10 @@ below (which still holds where this one is silent); where the two differ, this o
    (zeitgeist auth, the hosted backend, the SaaS surface) stays frozen unless the operator
    asks ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md),
    Amendment 2026-10-12).
+6. **The packs source home moves to `spec-kitty-open-packs`.** `packs/internal/` and
+   `packs/built-in/` here are the vendored copy; the source is authored in
+   `spec-kitty-open-packs`. This is a source-location move only: the no-bundle invariant is
+   unchanged and ADR [2026-08-16-3](../adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md) is not reversed.
 
 ## Direction update (2026-10-01): hosted collaboration is off the critical path
 
@@ -163,7 +167,7 @@ The 14 open issues, by kind:
 | Correctness residuals | #5638 (rollback leaves coordination status files dirty), #5704 (protected `single_branch` create leaves a scaffold without `meta.json`), #5726 (timing-dependent error code when `specify` re-runs) | P2 bugs in the landing and create paths. |
 | Agent integration | #702 (P1, Codex `.agents/skills` drift) | The one open P1. |
 | Docs | #5428 (P2) | Docs cleanup after the 4.x re-anchor; this re-synthesis is part of it. |
-| Structural hygiene | #2560, #2561, #2562 (`runtime_bridge` strangler slices), #3732 (doctrine packs → charter packs rename), #4836 (doctrine→charter drift in operator surfaces), #5538 (residual kind-vocabulary mirror), #5629 (`tasks_move_task.py` split), #5715 (last CLI import in the lanes seam) | P2/P3 debt. Each is a candidate to move to CLI 4.x stable if it does not land by the due date. |
+| Structural hygiene | #2560, #2561, #2562 (`runtime_bridge` strangler slices), #3732 (doctrine packs → charter packs rename), #4836 (doctrine→charter drift in operator surfaces), #5538 (residual kind-vocabulary mirror), #5629 (`tasks_move_task.py` split), #5715 (last CLI import in the lanes seam) | P2/P3 debt. Each is a candidate to move to CLI 4.x stable if it does not land before GA. |
 
 **Not on milestone 11, but raised as GA questions (2026-10-06):**
 
@@ -174,7 +178,8 @@ The 14 open issues, by kind:
   reconciliation gate and no rollback, and it force-deletes the mission or coordination branch.
   Automation that lands work through the API does not get the protections `consolidate` has.
 
-**Milestone routing.** Only milestone 11 gates GA.
+**Milestone routing.** Milestone 11 is the local-integrity leg; the charter-extraction (#645)
+and mission-status API legs are tracked on their epics.
 
 - [**4.0.0 release scope**](https://github.com/spec-kitty/spec-kitty/milestone/11) (11): the GA
   gate.
