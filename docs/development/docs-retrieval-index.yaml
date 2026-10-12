@@ -4776,6 +4776,7 @@ pages:
     - {slug: "two-upgrade-scopes", text: "Two upgrade scopes", level: 2}
     - {slug: "synopsis", text: "Synopsis", level: 2}
     - {slug: "what-gets-modified", text: "What gets modified", level: 2}
+    - {slug: "generated-git-ignored-command-skills-agents-skills", text: "Generated, git-ignored command skills (`.agents/skills/`)", level: 3}
     - {slug: "what-does-not-get-modified", text: "What does **not** get modified", level: 2}
     - {slug: "lazy-compatibility-gate", text: "Lazy compatibility gate", level: 2}
     - {slug: "when-is-a-project-upgrade-required", text: "When is a project upgrade required?", level: 2}

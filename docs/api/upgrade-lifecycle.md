@@ -56,6 +56,28 @@ Project upgrade walks pending migrations in version order. For each migration, i
 
 Migrations are idempotent: re-running `spec-kitty upgrade` is a no-op when the schema is current.
 
+### Generated, git-ignored command skills (`.agents/skills/`)
+
+The shared command-skill projection `.agents/skills/spec-kitty.<command>/SKILL.md` — consumed
+by Codex, Mistral Vibe, Pi, and Letta — is **generated, local-only state**. It is declared
+`DERIVED` / git-`IGNORED` by the state contract (`shared_skills_projection`), so it is never
+committed. Do **not** stage or commit the `.agents/skills/` tree as normal project content;
+the tracked record is `.kittify/command-skills-manifest.json`.
+
+Because the projection is derived, `init`, `upgrade`, and `spec-kitty agent config sync`
+regenerate it **idempotently from the manifest**:
+
+- A projection that already matches the manifest is left byte-unchanged.
+- A **stale or drifted** projection — for example one written by an older build, or one that
+  disagrees with a manifest another checkout rewrote — is **regenerated to the canonical
+  render**, not treated as a local edit requiring consent (#702). This keeps `.agents/skills/`
+  coherent with the manifest after every reconcile and `spec-kitty doctor skills` green.
+- Your own, non-`spec-kitty` skills and files under `.agents/skills/` are never touched.
+
+**Fresh clone:** `.agents/skills/` is absent until it is produced by `init`/`upgrade`, or
+restored with `spec-kitty agent config sync --create-missing`. Its absence is expected, not a
+defect; the manifest describes what will be regenerated.
+
 After migration selection, one guarded finalizer orders activation provisioning,
 managed-surface repair, and the generated-churn commit. When hosted drain is on, upgrade
 only reports TeamSpace mission-state blockers (last, never committed); it never
@@ -116,8 +138,11 @@ Project upgrades modify version-controlled files. Inspect with git before commit
 
 ```bash
 git status
-git diff .kittify/ .claude/ .agents/skills/ .gemini/
+git diff .kittify/ .claude/ .gemini/
 ```
+
+`.agents/skills/` is git-ignored generated state (see above), so it does not appear in
+`git diff`; review it on disk and rely on `spec-kitty doctor skills` for its coherence.
 
 Typical changes:
 
