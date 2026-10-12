@@ -55,8 +55,9 @@ Backfill (:func:`backfill_runtime_state`)
 Verify (:func:`verify_backfill`) — **fail-closed**
     Asserts every value produced by the OLD frontmatter/checkbox reader exists in
     its deterministic seed row, independently witnesses all three claim-borne
-    slots, and requires an exact compatibility repair when a persisted pre-floor
-    seed corrupts current state. Legitimate later events remain authoritative.
+    slots, and tolerates a legitimately-shaped persisted pre-floor seed (an old
+    ``at``, or the pre-#2985 full-payload carrier) while keeping a tampered seed a
+    hard mismatch. Legitimate later events remain authoritative.
     The proof reads the **un-stripped** frontmatter:
     :func:`strip_mutable_fields` MUST NOT run before verify. The verifier also
     checks WP/count integrity, rejects corrupt deterministic seed rows, and raises
@@ -123,9 +124,6 @@ logger = logging.getLogger(__name__)
 #: Actor recorded on seed events (migration provenance, not a live agent).
 BACKFILL_ACTOR = "migration:backfill_runtime_state"
 
-#: Distinct provenance for append-only repairs of persisted pre-floor seeds.
-COMPATIBILITY_REPAIR_ACTOR = f"{BACKFILL_ACTOR}:compatibility"
-
 #: Smallest timestamp movement the ISO event format can express deterministically.
 _ORDERING_TICK = timedelta(microseconds=1)
 
@@ -135,17 +133,6 @@ _ORDERING_TICK = timedelta(microseconds=1)
 #: the already-migrated probe (:func:`_snapshot_claim_slots`) and the witness
 #: denominator (:func:`_claim_witness_denominator`) can never drift apart.
 _CLAIM_SLOTS = ("shell_pid", "shell_pid_created_at", "agent")
-
-#: Seed-owned snapshot slots a compatibility annotation can restore.
-_SEED_RUNTIME_SLOTS = (
-    "shell_pid",
-    "shell_pid_created_at",
-    "agent",
-    "assignee",
-    "tracker_refs",
-    "subtasks",
-    "review",
-)
 
 #: The concrete ``review_artifact_override_*`` frontmatter keys the write half
 #: (``tasks_materialization._persist_review_artifact_override``) emits. Enumerated
@@ -259,8 +246,8 @@ class BackfillResult:
         action: ``"wrote"`` — one or more seeds appended; ``"skip"`` — nothing to
             seed or already fully seeded (idempotent no-op); ``"error"`` — an
             unrecoverable per-mission error.
-        seeded_count: Number of NEW seed or compatibility-repair events appended
-            this run (0 on a converged re-run).
+        seeded_count: Number of NEW seed events appended this run (0 on a
+            converged re-run).
         reason: Human-readable explanation (populated on ``"skip"``/``"error"``).
         warnings: Non-fatal per-WP warnings (e.g. a never-claimed WP skipped, or a
             claim anchor synthesized from frontmatter — #2848).
@@ -336,14 +323,9 @@ def _seed_id(mission_id: str, wp_id: str, field_name: str) -> str:
     return str(deterministic_ulid(f"{mission_id}|{wp_id}|{field_name}"))
 
 
-def _repair_id(mission_id: str, wp_id: str, repair_kind: str) -> str:
-    """Return a deterministic ID in the append-only compatibility namespace."""
-    return str(deterministic_ulid(f"{mission_id}|{wp_id}|compatibility-repair-v1|{repair_kind}"))
-
-
 def _is_migration_actor(actor: object) -> bool:
-    """True for both ordinary seeds and compatibility repair events."""
-    return actor in (BACKFILL_ACTOR, COMPATIBILITY_REPAIR_ACTOR)
+    """True for a backfill seed event (migration provenance)."""
+    return actor == BACKFILL_ACTOR
 
 
 def _parse_ordering_timestamp(raw: str, *, wp_id: str) -> datetime:
@@ -392,9 +374,9 @@ def _shift_ordering_timestamp(
     any suffix. Both operands then render fraction-free, making lexical and
     chronological order agree again.
 
-    Before this, ``_compatibility_repair_at`` aborted the whole cutover with
-    :class:`MigrationOrderingError` on every ``Z``-encoded corpus mission — the
-    guard was right and the encoding was wrong.
+    A naive microsecond shift forward of a whole-second ``Z`` stamp would fail
+    that lexical postcondition and raise :class:`MigrationOrderingError`; the
+    escalation to the neighbouring whole second keeps the guard correct.
     """
     parsed = _parse_ordering_timestamp(raw, wp_id=wp_id)
     sign = -1 if direction == "before" else 1
@@ -431,29 +413,13 @@ def _combined_events(
 def _wp_events(
     stream: EventStream,
     wp_id: str,
-    *,
-    include_seeds: bool,
 ) -> list[StatusEvent | InnerStateChanged]:
-    """Return *wp_id* events with this module's own rows filtered out.
+    """Return *wp_id*'s AUTHENTIC history — every migration (seed) row dropped.
 
-    Compatibility-repair rows are ALWAYS dropped: both callers derive a position
-    relative to pre-repair history, so letting an already-persisted repair row
-    into the input would make the answer drift on every re-run.
-
-    *include_seeds* selects what else survives:
-
-    ``True``
-        Keep :data:`BACKFILL_ACTOR` seed rows — the "history the repair must land
-        after" for :func:`_compatibility_repair_at`, which exists precisely to
-        supersede a persisted seed.
-    ``False``
-        Drop every migration row, seeds included — the AUTHENTIC-only history
-        :func:`_wp_history_floor` needs so repeated invocations derive the same
-        floor.
+    :func:`_wp_history_floor` needs authentic-only history so repeated
+    invocations derive the same floor.
     """
     events: list[StatusEvent | InnerStateChanged] = [event for event in _combined_events(stream.transitions, stream.annotations) if event.wp_id == wp_id]
-    if include_seeds:
-        return [event for event in events if event.actor != COMPATIBILITY_REPAIR_ACTOR]
     return [event for event in events if not _is_migration_actor(event.actor)]
 
 
@@ -465,7 +431,7 @@ def _wp_history_floor(stream: EventStream, wp_id: str) -> str | None:
     ``(at, event_id)`` comparison instead of assuming chronological parsing and
     lexical ordering are interchangeable.
     """
-    history = _wp_events(stream, wp_id, include_seeds=False)
+    history = _wp_events(stream, wp_id)
     if not history:
         return None
     history_keys = [(event.at, event.event_id) for event in history]
@@ -480,23 +446,6 @@ def _wp_history_floor(stream: EventStream, wp_id: str) -> str | None:
     if not all((floor, "") < key for key in history_keys):
         raise MigrationOrderingError(f"{wp_id}: cannot represent a strict seed history floor below the reducer key {min(history_keys)!r}")
     return floor
-
-
-def _compatibility_repair_at(stream: EventStream, wp_id: str) -> str:
-    """Return a stable timestamp strictly after pre-repair history for *wp_id*."""
-    history = _wp_events(stream, wp_id, include_seeds=True)
-    if not history:
-        raise MigrationOrderingError(f"{wp_id}: compatibility repair requested without persisted history")
-    history_keys = [(event.at, event.event_id) for event in history]
-    latest_at = max(history_keys)[0]
-    repair_at = _shift_ordering_timestamp(
-        latest_at,
-        wp_id=wp_id,
-        direction="after",
-    )
-    if not all((repair_at, "") > key for key in history_keys):
-        raise MigrationOrderingError(f"{wp_id}: cannot place compatibility repair after reducer key {max(history_keys)!r}")
-    return repair_at
 
 
 # ---------------------------------------------------------------------------
@@ -610,8 +559,8 @@ def _claim_anchors(feature_dir: Path) -> dict[str, str]:
 
     The anchor is the ``at`` of the WP's first transition *into* ``claimed``; if
     the WP never entered ``claimed`` explicitly it falls back to the WP's earliest
-    transition ``at``. Migration seeds and compatibility repairs are excluded,
-    so repeated invocations cannot move their own anchor. A WP with no
+    transition ``at``. Migration seeds are excluded, so repeated invocations
+    cannot move their own anchor. A WP with no
     legitimate transitions is absent from this mapping — this function is
     event-log-only. :func:`_resolve_anchor` layers
     frontmatter-synthesized anchors on top of this for the missing/truncated-log
@@ -638,11 +587,9 @@ def _authentic_stream(feature_dir: Path) -> tuple[list[StatusEvent], list[InnerS
     expectation would dissolve the moment the seed it is meant to check exists).
 
     "Our own output" is decided by the single canonical predicate
-    :func:`_is_migration_actor`, so compatibility repairs
-    (:data:`COMPATIBILITY_REPAIR_ACTOR`) are excluded alongside ordinary seeds:
-    a repair row folded back in would make the next run's seed a function of the
-    previous run's repair. Keying on the migration actors is exact — no live
-    agent writes them.
+    :func:`_is_migration_actor`, so every backfill seed row is excluded: folding
+    one back in would make the next run's seed a function of the previous run's
+    own output. Keying on the migration actor is exact — no live agent writes it.
 
     This is the on-disk entry point for the same filter
     :func:`_stream_without_migration` applies to an already-loaded stream; both
@@ -1083,32 +1030,11 @@ def _event_payload_without_at(
     return payload
 
 
-@dataclass(frozen=True)
-class _LegacyCarrier:
-    """The pre-#2985 claim carrier for one WP, plus why today's build differs.
-
-    Attributes:
-        row: The exact row the old contract would have minted (``at`` is not
-            part of the comparison and is left empty).
-        fully_superseded: ``True`` when AUTHENTIC history already holds every
-            legacy claim slot, so the corrected builder is contractually
-            required to emit no carrier at all
-            (:func:`_unmigrated_claim_slots`). Derived from the legacy reader
-            and the migration-filtered event log — never from the builder — so
-            a builder that merely *forgets* to emit a carrier is not mistaken
-            for a legitimately superseded one.
-    """
-
-    row: StatusEvent
-    fully_superseded: bool
-
-
 def _legacy_contract_carriers(
     feature_dir: Path,
     read_dir: Path,
     legacy: dict[str, LegacyWPRuntime],
-    stream: EventStream,
-) -> dict[str, _LegacyCarrier]:
+) -> dict[str, StatusEvent]:
     """Return, keyed by seed id, the carrier the PRE-#2985 builder would mint.
 
     The old contract put *every* non-null legacy claim slot on one carrier at
@@ -1120,13 +1046,12 @@ def _legacy_contract_carriers(
 
     Reconstructing the old row exactly — rather than tolerating *any* divergence
     — is what keeps a genuinely tampered seed a hard mismatch: a corrupted slot
-    value or envelope field no longer equals this reference, so it never reaches
-    the append-only repair path (FR-010) and stays fail-closed.
+    value or envelope field no longer equals this reference, so
+    :func:`_verify_expected_seed_events` refuses it and stays fail-closed.
     """
     slug = feature_dir.name
     mission_id = _mission_id(read_dir)
-    present_claim_slots = _snapshot_claim_slots(stream)
-    carriers: dict[str, _LegacyCarrier] = {}
+    carriers: dict[str, StatusEvent] = {}
     for wp_id, runtime in legacy.items():
         claim_slots = _legacy_claim_slots(runtime)
         if not claim_slots:
@@ -1138,73 +1063,19 @@ def _legacy_contract_carriers(
             at="",
             policy_metadata=claim_slots,
         )
-        carriers[row.event_id] = _LegacyCarrier(
-            row=row,
-            fully_superseded=not _unmigrated_claim_slots(
-                runtime,
-                present_claim_slots.get(wp_id, {}),
-            ),
-        )
+        carriers[row.event_id] = row
     return carriers
 
 
 def _matches_legacy_contract(
     actual: StatusEvent | InnerStateChanged,
-    legacy_carriers: dict[str, _LegacyCarrier],
-    *,
-    require_superseded: bool = False,
+    legacy_carriers: dict[str, StatusEvent],
 ) -> bool:
-    """True iff *actual* is byte-equal (modulo ``at``) to the old-contract row.
-
-    With *require_superseded*, additionally demand that today's builder is
-    *contractually forbidden* to emit the row at all. That guard is what keeps
-    a builder which wrongly suppresses claim carriers from being read as
-    evidence that the persisted row is obsolete (plan IC-02 / C-002).
-    """
+    """True iff *actual* is byte-equal (modulo ``at``) to the old-contract row."""
     carrier = legacy_carriers.get(actual.event_id)
-    if carrier is None or (require_superseded and not carrier.fully_superseded):
+    if carrier is None:
         return False
-    return _event_payload_without_at(actual) == _event_payload_without_at(carrier.row)
-
-
-def _misaligned_seed_wps(
-    stream: EventStream,
-    expected_transitions: list[StatusEvent],
-    expected_annotations: list[InnerStateChanged],
-    legacy_carriers: dict[str, _LegacyCarrier],
-) -> set[str]:
-    """Return WPs whose persisted seed rows predate the corrected seed contract.
-
-    Reducer rows are immutable and deduplicated on first write, so a seed the
-    old contract already persisted can never be rewritten in place. Two shapes
-    qualify, and only these two:
-
-    * the row is semantically the seed we would write today but sits at the old
-      (pre-floor) ``at``; and
-    * the row is the old contract's full-payload claim carrier
-      (:func:`_legacy_contract_carriers`) — whether the corrected builder would
-      narrow its payload today or suppress it entirely because authentic history
-      now holds every slot.
-
-    Anything else — a mutated slot value, a mutated envelope field — is
-    tampering, is *not* returned here, and therefore stays a hard mismatch in
-    :func:`_verify_expected_seed_events`.
-    """
-    expected_by_id: dict[str, StatusEvent | InnerStateChanged] = {event.event_id: event for event in _combined_events(expected_transitions, expected_annotations)}
-    misaligned: set[str] = set()
-    for actual in _combined_events(stream.transitions, stream.annotations):
-        if actual.actor != BACKFILL_ACTOR:
-            continue
-        expected = expected_by_id.get(actual.event_id)
-        if expected is None:
-            if _matches_legacy_contract(actual, legacy_carriers, require_superseded=True):
-                misaligned.add(actual.wp_id)
-            continue
-        if actual.to_dict() == expected.to_dict():
-            continue
-        if _event_payload_without_at(actual) == _event_payload_without_at(expected) or _matches_legacy_contract(actual, legacy_carriers):
-            misaligned.add(actual.wp_id)
-    return misaligned
+    return _event_payload_without_at(actual) == _event_payload_without_at(carrier)
 
 
 def _stream_without_migration(stream: EventStream) -> EventStream:
@@ -1213,155 +1084,6 @@ def _stream_without_migration(stream: EventStream) -> EventStream:
         transitions=[event for event in stream.transitions if not _is_migration_actor(event.actor)],
         annotations=[event for event in stream.annotations if not _is_migration_actor(event.actor)],
     )
-
-
-def _stream_without_compatibility_repairs(stream: EventStream) -> EventStream:
-    """Return persisted history before any compatibility repair rows."""
-    return EventStream(
-        transitions=[event for event in stream.transitions if event.actor != COMPATIBILITY_REPAIR_ACTOR],
-        annotations=[event for event in stream.annotations if event.actor != COMPATIBILITY_REPAIR_ACTOR],
-    )
-
-
-def _repair_scalar_value(
-    desired: dict[str, Any],
-    current: dict[str, Any],
-    slot: str,
-) -> Any | None:
-    """Return a changed non-null replacement value, or ``None`` if unchanged."""
-    desired_value = desired.get(slot)
-    if desired_value == current.get(slot):
-        return None
-    if desired_value is None:
-        raise MigrationOrderingError(f"cannot append-only repair {slot!r}: the corrected seed history requires clearing a value")
-    return desired_value
-
-
-def _runtime_repair_delta(
-    desired: dict[str, Any],
-    current: dict[str, Any],
-) -> WPInnerStateDelta:
-    """Build the minimal annotation that restores seed-owned runtime slots."""
-    shell_pid = _repair_scalar_value(desired, current, "shell_pid")
-    shell_pid_created_at = _repair_scalar_value(
-        desired,
-        current,
-        "shell_pid_created_at",
-    )
-    agent = _repair_scalar_value(desired, current, "agent")
-    assignee = _repair_scalar_value(desired, current, "assignee")
-
-    tracker_refs_replace: list[str] | None = None
-    if desired.get("tracker_refs") != current.get("tracker_refs"):
-        tracker_refs_replace = list(desired.get("tracker_refs") or [])
-
-    subtasks: dict[str, Status] | None = None
-    if desired.get("subtasks") != current.get("subtasks"):
-        subtasks = {str(task_id): Status(str(status)) for task_id, status in dict(desired.get("subtasks") or {}).items()}
-
-    review: ReviewOverride | None = None
-    if desired.get("review") != current.get("review"):
-        review_raw = desired.get("review")
-        if not isinstance(review_raw, dict):
-            raise MigrationOrderingError("cannot append-only repair 'review': corrected seed history requires clearing or has an invalid review value")
-        review = ReviewOverride.from_dict(review_raw)
-
-    return WPInnerStateDelta(
-        shell_pid=int(shell_pid) if shell_pid is not None else None,
-        shell_pid_created_at=(str(shell_pid_created_at) if shell_pid_created_at is not None else None),
-        agent=str(agent) if agent is not None else None,
-        assignee=str(assignee) if assignee is not None else None,
-        tracker_refs_replace=tracker_refs_replace,
-        subtasks=subtasks,
-        review=review,
-    )
-
-
-def _plan_compatibility_repairs(
-    feature_dir: Path,
-    read_dir: Path,
-    legacy: dict[str, LegacyWPRuntime],
-    stream: EventStream,
-    expected_transitions: list[StatusEvent],
-    expected_annotations: list[InnerStateChanged],
-    new_transitions: list[StatusEvent],
-    new_annotations: list[InnerStateChanged],
-) -> tuple[list[StatusEvent], list[InnerStateChanged]]:
-    """Plan deterministic repairs for persisted seeds that predate the floor.
-
-    The target is the snapshot produced by corrected seeds followed by all
-    legitimate history. The pre-repair comparison includes any missing,
-    correctly ordered seeds planned in this same invocation, preventing a
-    partial legacy corpus from receiving unnecessary repair rows.
-
-    *read_dir* supplies the ``mission_id`` namespace, exactly as it does for
-    :func:`_build_seed_events` (#2966 part-1), so a repair id never depends on
-    which COORD directory happens to be seeded.
-    """
-    misaligned_wps = _misaligned_seed_wps(
-        stream,
-        expected_transitions,
-        expected_annotations,
-        _legacy_contract_carriers(feature_dir, read_dir, legacy, stream),
-    )
-    if not misaligned_wps:
-        return [], []
-
-    legitimate = _stream_without_migration(stream)
-    desired_snapshot = reduce(
-        [*expected_transitions, *legitimate.transitions],
-        [*expected_annotations, *legitimate.annotations],
-    )
-    persisted_pre_repair = _stream_without_compatibility_repairs(stream)
-    simulated_stream = EventStream(
-        transitions=[*persisted_pre_repair.transitions, *new_transitions],
-        annotations=[*persisted_pre_repair.annotations, *new_annotations],
-    )
-    current_snapshot = reduce(
-        simulated_stream.transitions,
-        simulated_stream.annotations,
-    )
-    mission_id = _mission_id(read_dir)
-    slug = feature_dir.name
-    transition_repairs: list[StatusEvent] = []
-    annotation_repairs: list[InnerStateChanged] = []
-
-    for wp_id in sorted(misaligned_wps):
-        desired = desired_snapshot.work_packages.get(wp_id, {})
-        current = current_snapshot.work_packages.get(wp_id, {})
-        repair_at = _compatibility_repair_at(simulated_stream, wp_id)
-        desired_lane = desired.get("lane")
-        current_lane = current.get("lane")
-        if desired_lane is not None and desired_lane != current_lane:
-            transition_repairs.append(
-                StatusEvent(
-                    event_id=_repair_id(mission_id, wp_id, "lane"),
-                    mission_slug=slug,
-                    wp_id=wp_id,
-                    from_lane=Lane(str(current_lane)),
-                    to_lane=Lane(str(desired_lane)),
-                    at=repair_at,
-                    actor=COMPATIBILITY_REPAIR_ACTOR,
-                    force=False,
-                    execution_mode="worktree",
-                    reason="append-only repair for persisted pre-floor seed",
-                    mission_id=mission_id if mission_id != slug else None,
-                )
-            )
-
-        delta = _runtime_repair_delta(desired, current)
-        if not delta.is_empty():
-            annotation_repairs.append(
-                annotate(
-                    wp_id,
-                    delta,
-                    actor=COMPATIBILITY_REPAIR_ACTOR,
-                    at=repair_at,
-                    event_id=_repair_id(mission_id, wp_id, "runtime"),
-                )
-            )
-
-    return transition_repairs, annotation_repairs
 
 
 def _runtime_feature_dir(feature_dir: Path, owned: OwnedCheckout | None) -> Path:
@@ -1460,18 +1182,6 @@ def _backfill_runtime_state_locked(
     existing_ids = {event.event_id for event in _combined_events(stream.transitions, stream.annotations)}
     new_transitions = [e for e in transitions if e.event_id not in existing_ids]
     new_annotations = [a for a in annotations if a.event_id not in existing_ids]
-    repair_transitions, repair_annotations = _plan_compatibility_repairs(
-        feature_dir,
-        read_dir,
-        legacy,
-        stream,
-        transitions,
-        annotations,
-        new_transitions,
-        new_annotations,
-    )
-    new_transitions.extend(event for event in repair_transitions if event.event_id not in existing_ids)
-    new_annotations.extend(event for event in repair_annotations if event.event_id not in existing_ids)
     seeded_count = len(new_transitions) + len(new_annotations)
 
     if seeded_count == 0:
@@ -1904,20 +1614,19 @@ def _seed_row_mismatch(
     expected: StatusEvent | InnerStateChanged,
     actual: StatusEvent | InnerStateChanged | None,
     field_name: str,
-    legacy_carriers: dict[str, _LegacyCarrier],
+    legacy_carriers: dict[str, StatusEvent],
     stream: EventStream,
 ) -> str | None:
     """Return one expected seed row's mismatch text, or ``None`` if it is sound.
 
     Absence is always a mismatch. A row that is present but not byte-identical
-    is tolerated here in exactly the two cases :func:`_misaligned_seed_wps`
-    routes to the append-only repair path — an old ``at`` with an otherwise
-    identical payload, and the pre-#2985 full-payload claim carrier
+    is tolerated in exactly two cases — an old (pre-floor) ``at`` with an
+    otherwise identical payload, and the pre-#2985 full-payload claim carrier
     (:func:`_matches_legacy_contract`). Event rows are immutable and deduplicated
-    on first write, so those cannot be corrected in place; the proof obligation
-    moves to :func:`_verify_compatibility_repairs`, which requires the
-    deterministic repair witness AND that it restores the desired lane and every
-    seed-owned runtime slot. Any other divergence is tampering and stays red.
+    on first write, so those legitimately-shaped pre-floor rows cannot be
+    rewritten in place and are accepted as sound; under the events 10.4.4
+    reducer the old seed's claim slots fold into the snapshot correctly with no
+    further action. Any other divergence is tampering and stays red.
     """
     if actual is None:
         return f"{expected.wp_id}: {field_name} mismatch (deterministic seed missing)"
@@ -1963,7 +1672,7 @@ def _verify_expected_seed_events(
     )
     stream = read_event_stream(feature_dir)
     actual_by_id: dict[str, StatusEvent | InnerStateChanged] = {event.event_id: event for event in _combined_events(stream.transitions, stream.annotations)}
-    legacy_carriers = _legacy_contract_carriers(feature_dir, read_dir, legacy, stream)
+    legacy_carriers = _legacy_contract_carriers(feature_dir, read_dir, legacy)
     mismatches: list[str] = []
 
     for expected in _combined_events(expected_transitions, expected_annotations):
@@ -1977,56 +1686,6 @@ def _verify_expected_seed_events(
         if mismatch is not None:
             mismatches.append(mismatch)
 
-    return mismatches
-
-
-def _verify_compatibility_repairs(
-    feature_dir: Path,
-    read_dir: Path,
-    legacy: dict[str, LegacyWPRuntime],
-    expected_transitions: list[StatusEvent],
-    expected_annotations: list[InnerStateChanged],
-) -> list[str]:
-    """Verify old seed rows have every required deterministic repair witness."""
-    stream = read_event_stream(feature_dir)
-    expected_repair_transitions, expected_repair_annotations = _plan_compatibility_repairs(
-        feature_dir,
-        read_dir,
-        legacy,
-        stream,
-        expected_transitions,
-        expected_annotations,
-        [],
-        [],
-    )
-    actual_by_id: dict[str, StatusEvent | InnerStateChanged] = {event.event_id: event for event in _combined_events(stream.transitions, stream.annotations)}
-    mismatches: list[str] = []
-    for expected in _combined_events(expected_repair_transitions, expected_repair_annotations):
-        actual = actual_by_id.get(expected.event_id)
-        if actual is None:
-            mismatches.append(f"{expected.wp_id}: compatibility repair witness missing")
-        elif actual.to_dict() != expected.to_dict():
-            mismatches.append(f"{expected.wp_id}: compatibility repair witness diverged")
-
-    legitimate = _stream_without_migration(stream)
-    desired_snapshot = reduce(
-        [*expected_transitions, *legitimate.transitions],
-        [*expected_annotations, *legitimate.annotations],
-    )
-    actual_snapshot = reduce(stream.transitions, stream.annotations)
-    for wp_id in sorted(
-        _misaligned_seed_wps(
-            stream,
-            expected_transitions,
-            expected_annotations,
-            _legacy_contract_carriers(feature_dir, read_dir, legacy, stream),
-        )
-    ):
-        desired = desired_snapshot.work_packages.get(wp_id, {})
-        actual_state = actual_snapshot.work_packages.get(wp_id, {})
-        for slot in ("lane", *_SEED_RUNTIME_SLOTS):
-            if desired.get(slot) != actual_state.get(slot):
-                mismatches.append(f"{wp_id}: compatibility repair did not restore {slot}")
     return mismatches
 
 
@@ -2330,22 +1989,6 @@ def verify_backfill(
     # rows. Compare those raw rows rather than the latest-wins snapshot value:
     # an already-active mission can legitimately carry a later reassignment.
     mismatches.extend(_verify_expected_seed_events(feature_dir, read_dir, legacy, anchors))
-    expected_transitions, expected_annotations = _build_seed_events(
-        feature_dir,
-        read_dir,
-        legacy,
-        anchors,
-        [],
-    )
-    mismatches.extend(
-        _verify_compatibility_repairs(
-            feature_dir,
-            read_dir,
-            legacy,
-            expected_transitions,
-            expected_annotations,
-        )
-    )
     # Independent of the seed builder: the denominator is read_legacy_runtime
     # output plus _resolve_seed_anchor, so a builder that suppresses claim
     # transitions cannot mask a missing raw claim seed (IC-02 / C-002).
