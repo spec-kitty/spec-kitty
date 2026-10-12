@@ -26,6 +26,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from types import FrameType
 from typing import Any, NamedTuple
@@ -352,10 +353,12 @@ def _executed_audit_src_modules(repo_root: Path) -> _AuditCapture:
 
     prior = sys.getprofile()
     sys.setprofile(_record)
+    threading.setprofile(_record)  # sys.setprofile is thread-local: cover work moved into a worker thread
     try:
         run = _run_audit_over_fixture(repo_root)
     finally:
         sys.setprofile(prior)  # restore, never clobber a pre-existing profiler
+        threading.setprofile(None)
 
     src_root = (ROOT / "src").resolve()
     modules: set[str] = set()
