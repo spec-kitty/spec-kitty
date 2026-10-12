@@ -11,6 +11,11 @@ from rich.panel import Panel
 
 from specify_cli.asset_preservation import guard_destructive_overwrite
 from specify_cli.cli import StepTracker
+from specify_cli.cli.commands._owned_checkout import (
+    OwnedCheckoutOption,
+    resolve_owned_or_refuse,
+    success_false_envelope,
+)
 from specify_cli.cli.console import console
 from specify_cli.cli.helpers import get_project_root_or_exit, show_banner
 from specify_cli.context.mission_resolver import mission_not_found_message
@@ -20,7 +25,7 @@ from specify_cli.mission import get_mission_type
 from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
 from specify_cli.runtime.resolver import resolve_template
 from specify_cli.task_utils import TaskCliError, find_repo_root
-from mission_runtime import MissionArtifactKind, placement_seam
+from mission_runtime import MissionArtifactKind, OwnedCheckout, placement_seam
 
 
 #: Destination (relative to the mission's planning dir) -> the shipped
@@ -134,7 +139,13 @@ def _write_research_asset(
     return _AssetOutcome(dest_rel, created=True, diagnostic=verdict.diagnostic, reason=verdict.reason)
 
 
-def _read_mission_dir_or_exit(repo_root: Path, mission_slug: str, kind: MissionArtifactKind) -> Path:
+def _read_mission_dir_or_exit(
+    repo_root: Path,
+    mission_slug: str,
+    kind: MissionArtifactKind,
+    *,
+    owned: OwnedCheckout | None = None,
+) -> Path:
     """Resolve a mission artifact read dir, exiting cleanly on an unsafe or
     ambiguous slug.
 
@@ -156,7 +167,7 @@ def _read_mission_dir_or_exit(repo_root: Path, mission_slug: str, kind: MissionA
     from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 
     try:
-        return placement_seam(repo_root, mission_slug).read_dir(kind)
+        return placement_seam(repo_root, mission_slug, owned=owned).read_dir(kind)
     except UnsafePathSegmentError as exc:
         from specify_cli.consolidation._constants import _SAFE_PATH_SEGMENT_DIAGNOSTIC
 
@@ -174,6 +185,7 @@ def research(
         help="Mission slug to target",
     ),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
     """Scaffold research artifacts from the mission type's shipped templates."""
 
@@ -185,7 +197,34 @@ def research(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    project_root = get_project_root_or_exit(repo_root)
+    # #5882: honour an owned checkout. `research` is an authoring command — the
+    # discovery prompt directs `spec-kitty research --mission <handle>`. Run from
+    # an owned single-branch checkout (a linked checkout whose `.git` is a pointer
+    # back to the primary), `find_repo_root` / `get_project_root_or_exit` follow
+    # that pointer to the PRIMARY, so without this the four research assets are
+    # scaffolded into the primary (into a stale same-slug copy) or the owned
+    # mission is unreachable. Mirror every sibling owned-single-branch lifecycle
+    # command (record-analysis / setup-plan, PR #6002): resolve the ownership
+    # fact once through the single `_owned_checkout` seam (explicit
+    # `--owned-checkout`, or auto-adopt when the caller is already inside an owned
+    # checkout), then resolve project + every mission dir from the owned root. A
+    # bad owned target refuses before any mkdir/write (NFR-003); a non-owned run
+    # returns `None` and keeps today's repository-root behaviour byte-for-byte.
+    from specify_cli.core.owned_mission import LIFECYCLE_OWNED_TOPOLOGIES
+
+    owned = resolve_owned_or_refuse(
+        repo_root,
+        owned_checkout,
+        mission,
+        cwd=Path.cwd(),
+        allowed_topologies=LIFECYCLE_OWNED_TOPOLOGIES,
+        json_output=False,
+        envelope=success_false_envelope,
+    )
+    if owned is not None:
+        repo_root = owned.owned_root
+
+    project_root = owned.owned_root if owned is not None else get_project_root_or_exit(repo_root)
 
     tracker = StepTracker("Research Phase Setup")
     tracker.add("project", "Locate project root")
@@ -209,7 +248,7 @@ def research(
     # seam. The comment below already documents ``feature_dir`` as "its
     # current STATUS-namespace surface" — the dossier sync consumer needs the
     # coord-aware STATUS home, which ``STATUS_STATE`` preserves (NFR-001).
-    feature_dir = _read_mission_dir_or_exit(repo_root, mission_slug, MissionArtifactKind.STATUS_STATE)
+    feature_dir = _read_mission_dir_or_exit(repo_root, mission_slug, MissionArtifactKind.STATUS_STATE, owned=owned)
     # FR-001: refuse a nonexistent mission BEFORE any mkdir/scaffold. The
     # resolver above is path-safety-only (it composes ``kitty-specs/<raw>`` for
     # an unresolvable handle), so without this gate ``planning_dir.mkdir`` below
@@ -245,7 +284,7 @@ def research(
     # the seam returns the same `target_branch` dir (NFR-001 — behavior-neutral).
     # The dossier sync below keeps `feature_dir` (its current STATUS-namespace
     # surface) untouched.
-    planning_dir = _read_mission_dir_or_exit(repo_root, mission_slug, MissionArtifactKind.RESEARCH)
+    planning_dir = _read_mission_dir_or_exit(repo_root, mission_slug, MissionArtifactKind.RESEARCH, owned=owned)
     planning_dir.mkdir(parents=True, exist_ok=True)
 
     # Get mission from feature's meta.json (not project-level default).
@@ -258,7 +297,7 @@ def research(
     # PRIMARY-partition kind (FINALIZED_EXECUTION_PLAN) — read it via the seam so
     # a coord-topology mission validates the authored primary plan, not an absent
     # `coord/plan.md`.
-    plan_read_dir = _read_mission_dir_or_exit(repo_root, mission_slug, MissionArtifactKind.FINALIZED_EXECUTION_PLAN)
+    plan_read_dir = _read_mission_dir_or_exit(repo_root, mission_slug, MissionArtifactKind.FINALIZED_EXECUTION_PLAN, owned=owned)
     plan_path = plan_read_dir / "plan.md"
     try:
         validate_plan_filled(plan_path, mission_slug=mission_slug, strict=True)
