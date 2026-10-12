@@ -7,11 +7,9 @@ captures the auditor's exit code and hands the JSON report to this script, which
 TeamSpace blocker (mission, code, artifact, detail, remedy) to the log as ``::error`` annotations
 and appends the same table to ``$GITHUB_STEP_SUMMARY``.
 
-The blocker predicate is *not* a second authority: :func:`is_blocking` restates
-``specify_cli.audit.models.is_teamspace_blocker`` over the JSON shape (that function takes a
-``MissionFinding``, not a dict) and imports the one code set it reads,
-``TEAMSPACE_BLOCKER_CODES``. ``tests/ci/test_mission_state_audit_report.py`` pins the two against
-each other over every code and severity.
+The blocker predicate is *not* a second authority: :func:`is_blocking` delegates to
+``specify_cli.audit.models.is_blocker_payload``, the function ``is_teamspace_blocker`` itself is built on,
+so the renderer lists exactly what the auditor's ``--fail-on teamspace-blocker`` counts.
 
 The script never changes the step's result (contract R5): :func:`main` returns 0 and the step's own
 ``exit "$status"`` decides. Usage::
@@ -29,7 +27,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from specify_cli.audit.models import TEAMSPACE_BLOCKER_CODES
+from specify_cli.audit.models import is_blocker_payload
 
 __all__ = ["is_blocking", "main", "render"]
 
@@ -55,7 +53,7 @@ Blocker = tuple[str, Mapping[str, Any]]
 
 def is_blocking(finding: Mapping[str, Any]) -> bool:
     """Whether a finding blocks TeamSpace readiness: error severity OR a blocker code."""
-    return finding.get("severity") == "error" or finding.get("code") in TEAMSPACE_BLOCKER_CODES
+    return bool(is_blocker_payload(finding.get("code"), finding.get("severity")))
 
 
 def _remedy(code: str, slug: str) -> str:

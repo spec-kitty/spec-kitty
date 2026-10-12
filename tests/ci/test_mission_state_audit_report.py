@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ast
 import itertools
 import json
 import re
@@ -15,7 +14,6 @@ import pytest
 from scripts.ci import mission_state_audit_report as report_mod
 from scripts.ci.mission_state_audit_report import is_blocking, main, render
 from specify_cli.audit.models import (
-    RESIDUE_DIRECTORY,
     TEAMSPACE_BLOCKER_CODES,
     MissionFinding,
     Severity,
@@ -24,21 +22,8 @@ from specify_cli.audit.models import (
 
 pytestmark = pytest.mark.fast
 
-#: Non-blocker codes the audit emits today (detectors.py, identity_adapter.py, models.py).
-NON_BLOCKER_CODES = frozenset(
-    {
-        "ACTOR_DRIFT",
-        "AMBIGUOUS_SELECTOR",
-        "CHECKOUT_DISAGREEMENT",
-        "DUPLICATE_PREFIX",
-        "MISSING_EVIDENCE",
-        RESIDUE_DIRECTORY,
-        "SNAPSHOT_DRIFT_PROVENANCE",
-        "SNAPSHOT_DRIFT_TERMINAL",
-        "UNKNOWN_SHAPE",
-    }
-)
-ALL_CODES = sorted(TEAMSPACE_BLOCKER_CODES | NON_BLOCKER_CODES)
+#: One representative non-blocker code; the blocker set itself is the canonical ``TEAMSPACE_BLOCKER_CODES``.
+PARITY_CODES = sorted(TEAMSPACE_BLOCKER_CODES | {"UNKNOWN_SHAPE"})
 
 
 def _finding(code: str = "SNAPSHOT_DRIFT", severity: str = "error", detail: str = "d") -> dict[str, Any]:
@@ -70,39 +55,9 @@ def test_is_blocking_truth_table(severity: str, code: str, expected: bool) -> No
     assert is_blocking(_finding(code, severity)) is expected
 
 
-#: Upper-case string constants in the audit package that are names, not finding codes (``__all__`` entries).
-NON_CODE_CONSTANTS = frozenset({"TEAMSPACE_BLOCKER_CODES"})
-CODE_SHAPE = re.compile(r"[A-Z][A-Z_]{3,}")
-
-
-def _audit_code_candidates() -> set[str]:
-    """Every code-shaped string constant anywhere under ``specify_cli/audit`` (AST, not a ``code=`` regex)."""
-    audit_dir = Path(report_mod.__file__).resolve().parents[2] / "src" / "specify_cli" / "audit"
-    found: set[str] = set()
-    for source in audit_dir.rglob("*.py"):
-        for node in ast.walk(ast.parse(source.read_text(encoding="utf-8"))):
-            if isinstance(node, ast.Constant) and isinstance(node.value, str) and CODE_SHAPE.fullmatch(node.value):
-                found.add(node.value)
-    return found - NON_CODE_CONSTANTS
-
-
-def test_every_code_the_audit_defines_is_in_the_parity_enumeration() -> None:
-    """A new audit code must join ``NON_BLOCKER_CODES`` (or the canonical blocker set) or this fails."""
-    candidates = _audit_code_candidates()
-
-    assert candidates, "the AST scan found no codes: the guard is vacuous"
-    assert set(ALL_CODES) >= candidates, f"audit codes missing from the parity enumeration: {sorted(candidates - set(ALL_CODES))}"
-    assert candidates >= TEAMSPACE_BLOCKER_CODES, "the scan must see every canonical blocker code"
-
-
-def test_the_blocker_code_set_is_covered_by_the_parity_enumeration() -> None:
-    assert set(ALL_CODES) >= TEAMSPACE_BLOCKER_CODES
-    assert not TEAMSPACE_BLOCKER_CODES & NON_BLOCKER_CODES
-
-
-@pytest.mark.parametrize(("code", "severity"), list(itertools.product(ALL_CODES, list(Severity))))
+@pytest.mark.parametrize(("code", "severity"), list(itertools.product(PARITY_CODES, list(Severity))))
 def test_is_blocking_matches_the_canonical_predicate(code: str, severity: Severity) -> None:
-    """Analysis C1: the renderer restates ``is_teamspace_blocker`` over dicts; pin the two together."""
+    """The renderer delegates to the audit package's one predicate; pin the JSON-dict path to ``is_teamspace_blocker``."""
     canonical = MissionFinding(code=code, severity=severity, artifact_path="status.json", detail="x")
 
     assert is_blocking(canonical.to_dict()) == is_teamspace_blocker(canonical)

@@ -100,9 +100,18 @@ class MissionFinding:
         }
 
 
+def is_blocker_payload(code: object, severity: object) -> bool:
+    """Return True when a finding's ``code`` / ``severity`` make it a TeamSpace blocker.
+
+    The single authority for the predicate; it takes the two fields so callers holding a serialized finding
+    (the ``--json`` report, as the CI renderer does) need not rebuild a :class:`MissionFinding`.
+    """
+    return severity == Severity.ERROR or code in TEAMSPACE_BLOCKER_CODES
+
+
 def is_teamspace_blocker(finding: MissionFinding) -> bool:
     """Return True when a finding should block TeamSpace import/sync readiness."""
-    return finding.severity == Severity.ERROR or finding.code in TEAMSPACE_BLOCKER_CODES
+    return is_blocker_payload(finding.code, finding.severity)
 
 
 @dataclass
