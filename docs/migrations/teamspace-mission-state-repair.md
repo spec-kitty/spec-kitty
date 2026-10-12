@@ -40,6 +40,15 @@ The repository also ships an opt-in GitHub Actions gate,
 It runs the same audit with a selectable `--fail-on` threshold and uploads
 `mission-state-audit.json` even when the gate fails.
 
+In pull requests, the `mission-state audit` job runs the same audit over every Mission and always publishes its
+blockers: one `::error` annotation per blocker in the log, the same table in the step summary, and the full JSON
+report as the `mission-state-audit-<attempt>` artifact. It runs when a change touches `kitty-specs/`, the
+reducer dependency manifests (`pyproject.toml`, `uv.lock`, the shared-package compatibility manifest), the audit
+workflow or renderer, or one of the modules the audit executes. A nightly `mission-state-audit` job on `main`
+backstops any input the path list misses; when it is red it blocks release and opens or updates a P0 issue. Many
+Missions reporting `SNAPSHOT_DRIFT` in one run usually point at a status-reducer (`spec-kitty-events`) change
+rather than at the Missions, so check the dependency bump before re-materializing anything.
+
 Then repair the repository:
 
 ```bash
