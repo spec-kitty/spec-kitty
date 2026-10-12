@@ -37,7 +37,7 @@ from specify_cli.skills.command_installer import (
     verify,
 )
 from specify_cli.skills import manifest_store
-from specify_cli.skills.manifest_store import ManifestEntry, SkillsManifest
+from specify_cli.skills.manifest_store import ManifestEntry
 from specify_cli.skills.command_installer import PreparedCommands
 from specify_cli.tool_surface.operations import OwnerAssessment
 from tests.upgrade.preview_support.snapshot import Snapshot
@@ -68,8 +68,15 @@ def test_wp04_late_collision_rechecked_before_any_write(repo: Path) -> None:
     install(repo, "codex")
     missing = _skill_path(repo, CANONICAL_COMMANDS[0])
     missing.unlink()
+    # A genuine late collision still blocks the whole batch before any write. An *owned*
+    # drifted projection now regenerates (#702), so it is no longer a collision; drop the
+    # manifest entry first so the path is unowned, then plant foreign non-manifest bytes
+    # (the surviving `preserve` collision).
     victim = _skill_path(repo, CANONICAL_COMMANDS[-1])
-    victim.write_bytes(b"edited owned content")
+    manifest = manifest_store.load(repo)
+    manifest.remove_path(victim.relative_to(repo).as_posix())
+    manifest_store.save(repo, manifest)
+    victim.write_bytes(b"foreign non-manifest content")
     with pytest.raises(InstallerError):
         install(repo, "codex")
     assert not missing.exists(), "Installer wrote before checking the whole batch"
@@ -202,13 +209,17 @@ def test_wp04_changed_batch_refuses_zero_writes(repo: Path, changed: str) -> Non
     assert_unchanged(before, snapshot({"project": repo}))
 
 
-def test_wp04_drift_and_unknown_preserved_while_gap_repaired(repo: Path) -> None:
+def test_wp04_owned_drift_regenerated_and_unknown_preserved_while_gap_repaired(repo: Path) -> None:
+    # #702: a manifest-owned DERIVED projection that drifted is regenerated to the canonical
+    # render (never consent_required); an *unowned* file at a canonical path stays preserved
+    # (NFR-002); an absent manifest-owned file (gap) is repaired.
     from specify_cli.skills import command_installer as owner
-    from tests.upgrade.preview_support.snapshot import snapshot
 
     install(repo, "codex")
     drift = _skill_path(repo, "plan")
+    canonical_plan = drift.read_bytes()
     drift.write_bytes(b"edited owned command")
+    drift_rel = drift.relative_to(repo).as_posix()
     custom = _skill_path(repo, "status")
     custom.write_bytes(b"unknown custom command")
     manifest = manifest_store.load(repo)
@@ -216,16 +227,16 @@ def test_wp04_drift_and_unknown_preserved_while_gap_repaired(repo: Path) -> None
     manifest_store.save(repo, manifest)
     missing = _skill_path(repo, "accept")
     missing.unlink()
-    before = snapshot({"project": repo})
+
     assessment = _wp04_assess(repo)
     assert assessment.complete
-    assert {d.state for d in assessment.dispositions} >= {"preserve", "consent_required"}
+    assert "consent_required" not in {d.state for d in assessment.dispositions if d.path == drift_rel}
+    assert any(d.state == "preserve" for d in assessment.dispositions)  # the unowned custom file
     assert owner.apply_commands(assessment, assessment.consent).outcome == "applied"
-    assert missing.is_file()
-    assert drift.read_bytes() == b"edited owned command"
-    assert custom.read_bytes() == b"unknown custom command"
+    assert missing.is_file()  # gap repaired
+    assert drift.read_bytes() == canonical_plan  # owned drift regenerated, not kept
+    assert custom.read_bytes() == b"unknown custom command"  # unowned content preserved
     assert manifest_store.load(repo).find(custom.relative_to(repo).as_posix()) is None
-    _wp04_equal_effects(assessment, before, snapshot({"project": repo}))
 
 
 def test_wp04_missing_manifest_adopts_only_canonical_bytes(repo: Path) -> None:
@@ -835,32 +846,31 @@ class TestCollisionError:
         assert exc_info.value.code == "unexpected_collision"
         assert skill_path.read_bytes() == b"CUSTOM LOCAL SKILL\n"
 
-    def test_unexpected_collision_raised_when_disk_hash_differs(self, repo: Path) -> None:
-        """Seed a stale manifest entry; install() should raise unexpected_collision."""
-        # Build a manifest with a stale entry (wrong hash) pointing to a real path.
-        kittify = repo / ".kittify"
-        kittify.mkdir(parents=True, exist_ok=True)
+    def test_owned_drift_with_stale_hash_regenerates(self, repo: Path) -> None:
+        """#702: a manifest-owned projection whose on-disk bytes match neither the recorded
+        hash nor the current render (the cross-checkout condition: another checkout rewrote
+        the tracked manifest hash while the ignored bytes stayed stale) is regenerated to the
+        canonical render -- it no longer raises unexpected_collision. The surface is DERIVED
+        and git-IGNORED (state/contract shared_skills_projection), so it is always regenerable.
+        """
+        install(repo, "vibe")
         rel_path = ".agents/skills/spec-kitty.specify/SKILL.md"
         abs_path = repo / rel_path
-        abs_path.parent.mkdir(parents=True, exist_ok=True)
-        abs_path.write_bytes(b"# stale content\n")
-
-        stale_hash = "a" * 64  # obviously wrong SHA-256
-        stale_entry = ManifestEntry(
-            path=rel_path,
-            content_hash=stale_hash,
-            agents=("vibe",),
-            installed_at="2024-01-01T00:00:00+00:00",
-            spec_kitty_version="0.0.1",
-        )
-        manifest = SkillsManifest(entries=[stale_entry])
+        canonical = abs_path.read_bytes()
+        abs_path.write_bytes(b"# stale content from another checkout\n")
+        # Record a hash matching neither the stale disk bytes nor the canonical render.
+        manifest = manifest_store.load(repo)
+        entry = manifest.find(rel_path)
+        assert entry is not None
+        manifest.upsert(ManifestEntry(entry.path, "a" * 64, entry.agents, entry.installed_at, entry.spec_kitty_version))
         manifest_store.save(repo, manifest)
 
-        with pytest.raises(InstallerError) as exc_info:
-            install(repo, "vibe")
+        install(repo, "vibe")
 
-        assert exc_info.value.code == "unexpected_collision"
-        assert exc_info.value.context.get("path") == rel_path
+        assert abs_path.read_bytes() == canonical
+        refreshed = manifest_store.load(repo).find(rel_path)
+        assert refreshed is not None and refreshed.content_hash == manifest_store.fingerprint(canonical)
+        assert verify(repo).drift == []
 
 
 # ---------------------------------------------------------------------------
@@ -1249,31 +1259,36 @@ def test_5575_consent_naming_the_path_overwrites_an_edited_command_skill(repo: P
     assert entry is not None and entry.content_hash == _sha256(canonical)
 
 
-def test_5575_automatic_consent_without_the_path_keeps_the_edit(repo: Path) -> None:
+def test_5575_automatic_consent_regenerates_a_drifted_projection(repo: Path) -> None:
+    # #702 supersedes the earlier #5575 "keep the edit under automatic consent" behaviour for
+    # this DERIVED/IGNORED surface: there is no committed user edit to protect, so the normal
+    # (non-overwrite) reconcile regenerates a drifted command-skill projection to canonical.
     from specify_cli.skills import command_installer as owner
 
-    skill, rel, _canonical = _edited_plan(repo)
-    edited = skill.read_bytes()
+    skill, rel, canonical = _edited_plan(repo)
 
     assessment = _prepare(repo)
 
-    assert "consent_required" in _states_for(assessment, rel)
-    assert owner.apply_commands(assessment, assessment.consent).outcome in {"applied", "skipped"}
-    assert skill.read_bytes() == edited
+    assert "consent_required" not in _states_for(assessment, rel)
+    assert owner.apply_commands(assessment, assessment.consent).outcome == "applied"
+    assert skill.read_bytes() == canonical
+    entry = manifest_store.load(repo).find(rel)
+    assert entry is not None and entry.content_hash == _sha256(canonical)
 
 
-def test_5575_consent_for_a_different_path_does_not_overwrite(repo: Path) -> None:
+def test_5575_drift_regenerates_regardless_of_named_consent_path(repo: Path) -> None:
+    # #702: on this DERIVED surface the reconcile regenerates drift unconditionally, so a
+    # consent path naming a *different* file no longer leaves the drifted one as a kept edit.
     from specify_cli.skills import command_installer as owner
 
-    skill, rel, _canonical = _edited_plan(repo)
-    edited = skill.read_bytes()
+    skill, rel, canonical = _edited_plan(repo)
     other = _skill_path(repo, "status").relative_to(repo).as_posix()
 
     assessment = _prepare(repo, overwrite_paths=(other,))
 
-    assert "consent_required" in _states_for(assessment, rel)
+    assert "consent_required" not in _states_for(assessment, rel)
     owner.apply_commands(assessment, assessment.consent)
-    assert skill.read_bytes() == edited
+    assert skill.read_bytes() == canonical
 
 
 def _entry(content_hash: str, agents: tuple[str, ...] = ("codex",)) -> ManifestEntry:

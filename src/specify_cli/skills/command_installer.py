@@ -692,7 +692,7 @@ class _CommandBatch:
             return
         before = FileState("absent") if package_link else self.observe_destination(rel)
         digest = manifest_store.fingerprint(content)
-        if self.preserve(rel, before, existing, digest):
+        if self.preserve(rel, before, existing, digest, adopt_only=adopt_only):
             return
         if adopt_only and not _adoptable(existing, before, digest):
             return
@@ -731,15 +731,28 @@ class _CommandBatch:
         else:
             self.disposition(rel, "unchanged", "Canonical bytes retained; manifest owners assessed separately")
 
-    def preserve(self, rel: str, before: FileState, existing: ManifestEntry | None, digest: str) -> bool:
+    def preserve(self, rel: str, before: FileState, existing: ManifestEntry | None, digest: str, *, adopt_only: bool = False) -> bool:
         if before.kind == "directory" or (before.kind == "symlink" and existing is None):
             self.disposition(rel, "preserve", "Unknown node is not command ownership")
             return True
         if before.kind != "file":
             return False
         if existing is not None and before.sha256 not in (existing.content_hash, digest):
+            if not adopt_only:
+                # The shared command-skill projection (.agents/skills/spec-kitty.<cmd>/SKILL.md)
+                # is a DERIVED, git-IGNORED surface -- state/contract.py `shared_skills_projection`:
+                # never committed, always regenerable. A manifest-owned projection whose on-disk
+                # bytes match neither the recorded hash nor the current render is stale or
+                # cross-checkout generated output (the tracked manifest and the ignored bytes
+                # legitimately disagree between checkouts), not a user edit to preserve.
+                # Regenerate it to the canonical render so install/upgrade/sync/init stay
+                # idempotent against the manifest (#702). overwrite_paths consent is subsumed
+                # here because the regenerate is unconditional on this surface.
+                return False
             if rel in self.inputs.consent.overwrite_paths:
                 return False  # Explicit exact-path consent: the canonical bytes replace the edit.
+            # adopt-only never writes bytes, so an edited manifest-owned file is not adoptable;
+            # surface it for explicit consent rather than silently skipping it (#5574).
             self.disposition(rel, "consent_required", "Managed command content has drifted")
             return True
         if existing is None and before.sha256 != digest:

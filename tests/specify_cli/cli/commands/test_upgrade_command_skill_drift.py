@@ -1,13 +1,16 @@
-"""Real-CLI proofs for command-skill drift under ``spec-kitty upgrade`` (#5574).
+"""Real-CLI proofs for command-skill drift under ``spec-kitty upgrade`` (#5574, #702).
 
 A command skill whose bytes equal today's canonical rendering is fresh,
 whatever hash the manifest recorded (an older release's render leaves such a
 hash behind). The adoption pass inside ``spec-kitty upgrade`` refreshes the
 recorded hash, so a following ``upgrade --yes`` exits 0.
 
-The ratchet leg proves the other half of the contract: a *genuinely edited*
-command skill is never rewritten by an unattended ``upgrade --yes``, which
-still reports the drift and exits non-zero.
+The regeneration leg (#702) proves the other half of the contract: the
+``.agents/skills/spec-kitty.<command>/SKILL.md`` projection is DERIVED,
+git-ignored generated state, so a *drifted* projection is regenerated to the
+canonical render by an unattended ``upgrade --yes`` (exit 0, no drift banner),
+keeping the surface idempotent against the manifest rather than keeping the
+stale bytes.
 """
 
 from __future__ import annotations
@@ -111,22 +114,24 @@ def test_canonical_bytes_with_stale_recorded_hash_converge_via_real_upgrade(proj
     assert skill.read_bytes() == canonical_bytes
 
 
-def test_real_edit_is_kept_and_reported_by_unattended_upgrade(project: Path) -> None:
-    """FR-002 ratchet: an unattended upgrade never rewrites a genuine edit."""
+def test_real_drift_is_regenerated_by_unattended_upgrade(project: Path) -> None:
+    """#702: an unattended upgrade regenerates a drifted DERIVED command-skill projection to
+    the canonical render instead of keeping it and reporting drift. The surface is generated,
+    git-ignored state (never a committed user edit), so this keeps it idempotent against the
+    manifest."""
     skill = project / _SKILL_REL
-    skill.write_bytes(skill.read_bytes() + b"\n<!-- local edit -->\n")
-    edited_bytes = skill.read_bytes()
-    recorded_before = _entry_hash(project)
-    assert manifest_store.fingerprint_file(skill) != recorded_before
+    canonical_bytes = skill.read_bytes()
+    canonical_hash = manifest_store.fingerprint_file(skill)
+    skill.write_bytes(canonical_bytes + b"\n<!-- stale generated output from another checkout -->\n")
+    assert manifest_store.fingerprint_file(skill) != canonical_hash
 
     human_exit, human_output = _upgrade_yes(project)
-    assert human_exit != 0, human_output
-    assert f"{_DRIFT_BANNER}: {_SKILL_REL}" in human_output, human_output
-    assert "already up to date" not in human_output.lower(), human_output
-    json_exit, payload = _upgrade_yes_json(project)
+    assert human_exit == 0, human_output
+    assert _DRIFT_BANNER not in human_output, human_output
+    assert skill.read_bytes() == canonical_bytes
+    assert _entry_hash(project) == canonical_hash
 
-    assert json_exit != 0, payload
-    assert any("doctor tool-surfaces" in error for error in payload["errors"]), payload
-    assert any(path.endswith(_SKILL_REL) for path in payload["surface_repair"]["drifted_reported"]), payload
-    assert skill.read_bytes() == edited_bytes
-    assert _entry_hash(project) == recorded_before
+    json_exit, payload = _upgrade_yes_json(project)
+    assert json_exit == 0, payload
+    assert payload["surface_repair"]["drifted_reported"] == [], payload
+    assert skill.read_bytes() == canonical_bytes
