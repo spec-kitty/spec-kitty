@@ -33,6 +33,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import mission_type
 from specify_cli.coordination import CoordinationWorkspace
+from specify_cli.lanes.branch_naming import code_lane_branch_name
 from tests._support.eacces import mode_bits_enforced
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -169,6 +170,9 @@ def test_close_discard_shows_and_keeps_consolidated_code_on_the_mission_branch(
     _git(worktree, "add", "-A")
     _git(worktree, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "merged lane code")
     old_tip = _git(repo, "rev-parse", COORD_BRANCH).stdout.strip()
+    # The consolidated commit is also reachable from a code lane branch, which this discard deletes
+    # too; the preview must count with that lane gone (``ignoring=``), or it would report no loss.
+    _git(repo, "branch", code_lane_branch_name(SLUG, "lane-a"), old_tip)
     monkeypatch.chdir(repo)
 
     result = runner.invoke(mission_type.app, ["close", "--mission", SLUG, "--discard", "--force"], env={"PWD": str(repo)})
