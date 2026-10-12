@@ -963,3 +963,17 @@ def test_branch_delete_rejects_an_unknown_operator_intent(tmp_path: Path) -> Non
     with pytest.raises(ValueError, match="operator_intent"):
         guarded_branch_delete(root, "keep-me", creation_base=None, operator_intent="because")
     assert subprocess.run(["git", "for-each-ref", "refs/heads/keep-me"], cwd=str(root), capture_output=True, text=True, check=True).stdout != ""
+
+
+def test_branch_delete_with_discard_intent_skips_the_unique_commit_check(tmp_path: Path) -> None:
+    """#6071: ``mission close --discard`` abandons the Mission; its own commits live nowhere else."""
+    from specify_cli.git.destructive_guard import DISCARD_INTENT
+
+    root = _mission_repo(tmp_path)
+    _branch_with_commit(root, "discard-me")
+
+    with pytest.raises(DestructiveOpRefused):
+        guarded_branch_delete(root, "discard-me", creation_base=None)
+    guarded_branch_delete(root, "discard-me", creation_base=None, operator_intent=DISCARD_INTENT)
+
+    assert subprocess.run(["git", "for-each-ref", "refs/heads/discard-me"], cwd=str(root), capture_output=True, text=True, check=True).stdout == ""

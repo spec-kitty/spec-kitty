@@ -55,6 +55,16 @@ BRANCH_HAS_UNIQUE_COMMITS = "BRANCH_HAS_UNIQUE_COMMITS"
 FORCE_RECREATE_INTENT = "force_recreate"
 """``operator_intent`` of ``mission create --force-recreate``: the operator asked for the branch to be discarded."""
 
+DISCARD_INTENT = "discard"
+"""``operator_intent`` of ``mission close --discard``: the operator explicitly abandoned the Mission.
+
+A mid-flight Mission's own finalization commits live nowhere but its branch — that
+is precisely what a discard throws away — so the unique-commit check (FR-009) would
+otherwise refuse the one operation whose purpose is to drop that work. This intent is
+accepted only for the operator-explicit discard of a Mission's *own* mission/coordination
+branch; lane branches and every other caller keep the full guard (a routing gate pins
+the exact callers allowed to pass it)."""
+
 _RESUME_NOTE = "then resume the operation (e.g. `spec-kitty consolidate --resume`)"
 
 
@@ -476,14 +486,15 @@ def guarded_branch_delete(
     or every commit is reachable from another ref. A branch that does not exist
     is a no-op.
 
-    ``operator_intent`` names the one explicit request that skips the
+    ``operator_intent`` names the two explicit requests that skip the
     unique-commit check: :data:`FORCE_RECREATE_INTENT` (``mission create
-    --force-recreate``, where the operator asked for the branch to be discarded).
-    Any other value is a :class:`ValueError`. A routing gate pins the single
-    caller allowed to pass it.
+    --force-recreate``) and :data:`DISCARD_INTENT` (``mission close --discard``),
+    each a case where the operator asked for the branch to be discarded. Any
+    other value is a :class:`ValueError`. A routing gate pins the exact callers
+    allowed to pass either.
     """
-    if operator_intent not in (None, FORCE_RECREATE_INTENT):
-        raise ValueError(f"unknown operator_intent {operator_intent!r}; expected None or {FORCE_RECREATE_INTENT!r}")
+    if operator_intent not in (None, FORCE_RECREATE_INTENT, DISCARD_INTENT):
+        raise ValueError(f"unknown operator_intent {operator_intent!r}; expected None, {FORCE_RECREATE_INTENT!r} or {DISCARD_INTENT!r}")
     if _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], env=env).returncode != 0:
         return
     if operator_intent is not None:

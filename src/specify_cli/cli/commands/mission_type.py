@@ -22,7 +22,7 @@ from kernel.git import GitCommandError, status_entries
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
 from specify_cli.core.utils import safe_is_dir
-from specify_cli.git.destructive_guard import DestructiveOpRefused, RemoveOutcome, guarded_branch_delete, guarded_worktree_remove
+from specify_cli.git.destructive_guard import DISCARD_INTENT, DestructiveOpRefused, RemoveOutcome, guarded_branch_delete, guarded_worktree_remove
 from specify_cli.git.remote_probes import RemoteLookup, remote_branch_lookup
 from specify_cli.mission_metadata import load_meta, recorded_mid8
 from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
@@ -799,7 +799,11 @@ def _discard_minted_single_branch(repo_root: Path, mission_slug: str, minted: st
     if lanes_manifest is not None:
         _remove_lane_worktrees(repo_root, mission_slug, lanes_manifest)
         _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
-    if _force_delete_branch_if_exists(repo_root, minted, creation_base=_existing_ref(repo_root, target)):
+    # Operator-explicit discard of this protected single_branch Mission's own minted
+    # branch: its finalization commits exist nowhere else, so bypass the unique-commit
+    # check (#6071). ``_delete_lane_branches`` above already removes it for the manifest
+    # case; this stays correct should the manifest ever be absent.
+    if _force_delete_branch_if_exists(repo_root, minted, creation_base=_existing_ref(repo_root, target), operator_intent=DISCARD_INTENT):
         console.print(f"  Deleted mission branch {minted}")
 
 
@@ -1129,8 +1133,15 @@ def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: An
         deleted_lanes += _force_delete_branch_if_exists(repo_root, branch_name, creation_base=lane_base)
 
     deletable = _deletable_mission_branch(lanes_manifest)
+    # The Mission's own mission/coordination branch is abandoned by an operator-explicit
+    # ``mission close --discard`` (the only path that reaches here), so bypass the
+    # unique-commit check on it (#6071). Code lives on the lane branches above, which keep
+    # the full guard — nothing the operator may want to preserve is force-deleted here.
     deleted_mission = deletable is not None and _force_delete_branch_if_exists(
-        repo_root, deletable, creation_base=_bookkeeping_branch_base(repo_root, deletable, lanes_manifest.target_branch)
+        repo_root,
+        deletable,
+        creation_base=_bookkeeping_branch_base(repo_root, deletable, lanes_manifest.target_branch),
+        operator_intent=DISCARD_INTENT,
     )
     # Report only what was actually removed: a single_branch mission has no lane
     # branch and (unprotected) no mission branch of its own to delete.
@@ -1252,19 +1263,37 @@ def _bookkeeping_branch_base(repo_root: Path, branch_name: str, target: str | No
     return base
 
 
-def _force_delete_branch_if_exists(repo_root: Path, branch_name: str, *, creation_base: str | None = None) -> bool:
+def _force_delete_branch_if_exists(
+    repo_root: Path,
+    branch_name: str,
+    *,
+    creation_base: str | None = None,
+    operator_intent: str | None = None,
+) -> bool:
     """Delete a branch through the destructive guard; ``True`` only when it was removed.
 
     The guard refuses (``DestructiveOpRefused``, ``BRANCH_HAS_UNIQUE_COMMITS``) while the
     branch holds commits beyond ``creation_base`` that no other ref reaches (#5965, FR-009).
-    A missing branch is ``False``; a failed ``git branch -D`` is ``False`` as before.
+    A missing branch is ``False``; a failed ``git branch -D`` (a ``RuntimeError`` from the
+    guard) is ``False`` as before.
+
+    ``operator_intent`` is forwarded to :func:`guarded_branch_delete` unchanged: the discard
+    path passes :data:`DISCARD_INTENT` only for a Mission's *own* mission/coordination branch,
+    which the operator explicitly abandoned with ``mission close --discard`` (#6071). Every
+    other site leaves it ``None`` so the unique-commit check still protects it.
+
+    A :class:`DestructiveOpRefused` from the guard is deliberately NOT swallowed here — the
+    ``except RuntimeError`` catches only a failed ``git branch -D``, and that refusal is a
+    different type. It propagates so a genuine refusal stays visible: ``_discard_mission``
+    renders it and exits 1, and a direct caller sees it unchanged. Masking it as ``False``
+    would hide an only-copy branch the operator did not ask to discard.
     """
     if branch_name.startswith("-") or _existing_ref(repo_root, branch_name) is None:
         # A leading dash is never a valid branch name; refusing it here keeps an
         # internally-derived value from ever being parsed as a ``git branch`` option (S6350).
         return False
     try:
-        guarded_branch_delete(repo_root, branch_name, creation_base=creation_base)
+        guarded_branch_delete(repo_root, branch_name, creation_base=creation_base, operator_intent=operator_intent)
     except RuntimeError:
         return False
     return True

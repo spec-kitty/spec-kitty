@@ -600,10 +600,17 @@ def test_a_tool_owned_use_planted_in_the_live_tree_turns_the_gate_red() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Named-intent pin: only --force-recreate may skip the unique-commit check.
+# Named-intent pin: only an operator-explicit discard may skip the
+# unique-commit check -- ``--force-recreate`` (mission create) and ``--discard``
+# (mission close). Each is a case where the operator asked for the branch to go.
 # ---------------------------------------------------------------------------
 
-_OPERATOR_INTENT_CALLERS: frozenset[tuple[str, str]] = frozenset({("src/specify_cli/missions/_create.py", "_delete_branch")})
+_OPERATOR_INTENT_CALLERS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("src/specify_cli/missions/_create.py", "_delete_branch"),
+        ("src/specify_cli/cli/commands/mission_type.py", "_force_delete_branch_if_exists"),
+    }
+)
 _GUARDED_BRANCH_DELETE = "guarded_branch_delete"
 
 
