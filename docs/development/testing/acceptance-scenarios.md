@@ -95,6 +95,34 @@ redirected home directory, which shows the environment redirection took effect. 
 `~/.spec-kitty` must be left untouched. Lock files are ignored in that comparison,
 because another `spec-kitty` process on your machine may touch them.
 
+## View the Allure report
+
+`acceptance-jvm/allure-results/` holds raw result JSON, not a report you can open in a
+browser. Turn it into the HTML report with the Allure command-line tool. If you have it
+installed, `serve` builds the report into a temporary directory and opens it:
+
+```bash
+allure serve acceptance-jvm/allure-results
+```
+
+Without a local install, run the same tool through `npx` (it needs a JDK on `PATH`):
+
+```bash
+npx allure-commandline serve acceptance-jvm/allure-results
+```
+
+To keep the report rather than serve it from a temporary directory, generate it into a
+folder and open that folder:
+
+```bash
+allure generate acceptance-jvm/allure-results --clean -o acceptance-jvm/allure-report
+allure open acceptance-jvm/allure-report
+```
+
+The nightly does not build this report; it uploads the raw Allure results inside the
+`acceptance-bdd-results-<os>` artifact. To view a nightly run as a report, download that
+artifact and run one of these commands on its `allure-results/` directory.
+
 ## Change a dependency
 
 `acceptance-jvm/gradle/verification-metadata.xml` pins every dependency by sha256. It is
