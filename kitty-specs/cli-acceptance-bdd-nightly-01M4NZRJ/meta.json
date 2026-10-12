@@ -1,0 +1,37 @@
+{
+  "accept_commit": "a4c26a7a0ff3d163d9a312ff8ad9f88bef6016d3",
+  "acceptance_history": [
+    {
+      "accept_commit": "a4c26a7a0ff3d163d9a312ff8ad9f88bef6016d3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-11T19:45:43.295689+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "e391bc296ff77ba6c3a48a4d5918a13e11e33f9f"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-11T19:45:43.295689+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "e391bc296ff77ba6c3a48a4d5918a13e11e33f9f",
+  "baseline_merge_commit": "e8014aa2164bf5133ed99a333836327db90f18c1",
+  "contracts": "none",
+  "contracts_rationale": "This mission authors no published API or wire contract. The SpecKittyDriver is an internal Java test-harness port, not a published interface; the runner only consumes existing published contracts (e.g. contracts/mission-status/openapi.yaml). No OpenAPI/GraphQL schema is produced.",
+  "created_at": "2026-10-11T17:21:57.066877+00:00",
+  "flattened": true,
+  "friendly_name": "CLI Acceptance Scenarios & Cucumber-JVM Nightly",
+  "merged_at": "2026-10-11T19:47:46.288043+00:00",
+  "merged_commit": "336515caf1b2f6b19beaff442a43ec2606e80392",
+  "mid8": "01M4NZRJ",
+  "mission_id": "01M4NZRJQ6EGCE9AA0QH28BQTB",
+  "mission_number": 228,
+  "mission_slug": "cli-acceptance-bdd-nightly-01M4NZRJ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "This mission gives Spec Kitty maintainers a black-box, behaviour-driven acceptance surface for the CLI: Gherkin scenarios kept in-repo and a nightly JVM runner that installs a freshly-built wheel and exercises the CLI as an external user would. It records an owner ruling that promise-sourced scenario tooling belongs to spec-kitty-qa, keeping core responsible only for the scenarios, the runner, and the nightly.",
+  "purpose_tldr": "Maintainers can write Gherkin acceptance scenarios for the CLI and have them run every night against a wheel built from the commit, on Linux, macOS and Windows.",
+  "slug": "cli-acceptance-bdd-nightly-01M4NZRJ",
+  "status_phase": "1",
+  "target_branch": "feat/cli-acceptance-bdd-nightly",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-11T18:26:48.120732+00:00"
+}

@@ -1,0 +1,144 @@
+schema_version: 1
+mission_id: 01M4NZRJQ6EGCE9AA0QH28BQTB
+mission_slug: cli-acceptance-bdd-nightly-01M4NZRJ
+mission_number: 228
+friendly_name: CLI Acceptance Scenarios & Cucumber-JVM Nightly
+mission_type: software-dev
+target_branch: feat/cli-acceptance-bdd-nightly
+created_at: '2026-10-11T19:48:10.597868+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-10-11T19:48:10.597868+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-007
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-013
+- id: h-008
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-013
+not_helpful:
+- id: n-001
+  category: doc
+  summary: analysis-report.md records 2 finding(s)
+  evidence_refs:
+  - e-014
+  details: The analysis-report.md artifact for this mission records 2 finding(s) in its structured frontmatter. Review
+    them to understand documented issues and decisions.
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/tasks/WP01-adr-amendment.md
+- id: e-006
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/tasks/WP02-seed-init-scenarios.md
+- id: e-007
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/tasks/WP03-acceptance-jvm-scaffolding.md
+- id: e-008
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/tasks/WP04-driver-and-runner.md
+- id: e-009
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/tasks/WP05-generalize-gradle-pin-guard.md
+- id: e-010
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/tasks/WP06-nightly-acceptance-bdd-job.md
+- id: e-011
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/tasks/WP07-ci-router-nongating-groups.md
+- id: e-012
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/tasks/WP08-sdist-exclude-and-assert.md
+- id: e-013
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/status.events.jsonl
+- id: e-014
+  kind: file
+  path: kitty-specs/cli-acceptance-bdd-nightly-01M4NZRJ/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

@@ -1,0 +1,13 @@
+{
+  "wp_id": "WP02",
+  "captured_at": "2026-10-11T18:30:07Z",
+  "base_branch": "feat/cli-acceptance-bdd-nightly",
+  "base_commit": "22565110d6843ce0b29b29f340c1b38aaa7adb48",
+  "test_runner": "custom",
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "DeclaredCommandScopeSource/junit_xml"
+}

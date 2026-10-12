@@ -1,0 +1,149 @@
+{
+  "mission_slug": "cli-acceptance-bdd-nightly-01M4NZRJ",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 ADR amendment commit e6245d33 \u2014 owner-ruling narrowing recorded; original Decision intact (reviewed)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:44:54.172508+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 commit bab8b950 \u2014 tests/scenarios/init/ layout established",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:44:57.191869+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 idempotent-restore scenario; ran GREEN e2e in WP04 gradle test (tests=2, pass) with same-fixture positive control",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:45:00.213003+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 no-git scenario; ran GREEN e2e in WP04 gradle test (tests=2, pass) with same-fixture positive control",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:45:03.270833+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 commit fa2cf82 \u2014 acceptance-jvm Gradle subproject mirrors contracts/ pinning (no wrapper jar, Java 25, generated verification-metadata.xml)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:45:06.352863+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 build.gradle \u2014 Cucumber-JVM 7 on JUnit Platform reading ../tests/scenarios in place; exercised by WP04 green run",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:45:09.366037+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 commit 73998c3 \u2014 SpecKittyDriver port + CliProcessDriver (drained streams, timeout, descendant-kill, CRLF norm, realpath); ran green e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:45:12.439546+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 ScenarioWorld per-scenario temp git repo + full env isolation + NFR-002 positive control; ran green e2e",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:45:15.456520+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 CliUnderTest uv build wheel into temp venv (never PyPI/editable); ran green e2e against the built wheel",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:45:18.473231+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 commit 467877e \u2014 acceptance-bdd 3-OS nightly job, gating not @wip and not @manual no-retry + non-gating @wip",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:45:21.521832+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 \u2014 Cucumber JSON/JUnit XML/Allure uploaded as OS-qualified artifacts (if: always)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:45:24.556948+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP07 commit 4135c05 \u2014 non-gating scenarios + acceptance_jvm router groups; 22 coherence+transcription guards green",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:45:27.553024+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP08 commit 511587f \u2014 sdist exclude acceptance-jvm/** + tests/scenarios/**; packaging test 8 passed with same-fixture positive control",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:45:30.524242+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 amendment (tags inert in core) + WP06 nightly filter (only @wip/@manual act); nightly backstop gates 27 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-11T19:45:33.503896+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

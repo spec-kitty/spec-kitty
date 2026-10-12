@@ -1,0 +1,149 @@
+{
+  "event_count": 56,
+  "last_event_id": "01M4P837WW5W17F957BZJKPMPW",
+  "materialized_at": "2026-10-11T19:47:34.940619+00:00",
+  "mission_number": "",
+  "mission_slug": "cli-acceptance-bdd-nightly-01M4NZRJ",
+  "mission_type": "",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 8,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P82ZHVJDFSXEKC69QW654V",
+      "last_transition_at": "2026-10-11T19:47:26.395317+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261011",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "shell_pid": 3063575,
+      "shell_pid_created_at": "1791743585.73"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "implement-command",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M4P82W4T7WXCVGKMBDRWZFFT",
+      "last_transition_at": "2026-10-11T19:47:22.906159+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261011",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "shell_pid": 3040880,
+      "shell_pid_created_at": "1791743203.67"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P82XVC5WRPJF0GH5YX7D9M",
+      "last_transition_at": "2026-10-11T19:47:24.652701+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP03:20261011",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "shell_pid": 3054327,
+      "shell_pid_created_at": "1791743488.49"
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P83144DFRMKJX2NGZTF4A6",
+      "last_transition_at": "2026-10-11T19:47:28.004164+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP04:20261011",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "shell_pid": 3126083,
+      "shell_pid_created_at": "1791744920.97"
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P832TRJCDQJ2FNXZS9VTGV",
+      "last_transition_at": "2026-10-11T19:47:29.752501+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP05:20261011",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "shell_pid": 3136237,
+      "shell_pid_created_at": "1791745065.21"
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P837WW5W17F957BZJKPMPW",
+      "last_transition_at": "2026-10-11T19:47:34.940619+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP06:20261011",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "shell_pid": 3227738,
+      "shell_pid_created_at": "1791746772.11"
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P834H0G8SB3K2SAQSF7BCS",
+      "last_transition_at": "2026-10-11T19:47:31.488260+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP07:20261011",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "shell_pid": 3145802,
+      "shell_pid_created_at": "1791745165.27"
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4P8366CVRGNQAR7NK2V9FY4",
+      "last_transition_at": "2026-10-11T19:47:33.196702+00:00",
+      "review_result": {
+        "reference": "auto-approval:WP08:20261011",
+        "reviewer": "Test",
+        "verdict": "approved"
+      },
+      "shell_pid": 3156902,
+      "shell_pid_created_at": "1791745265.33"
+    }
+  }
+}
