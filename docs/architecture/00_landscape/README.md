@@ -2,7 +2,7 @@
 title: System Landscape (living)
 description: "Living system landscape (C4 level 0): Spec Kitty's domain containers, their interaction directions, and the packages that implement them today."
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-12'
 audience: docs/context/audience/internal/system-architect.md
 ---
 # System Landscape (living)
@@ -49,6 +49,23 @@ implementation-agnostic:
 
 Whether a module is in-process, a separate service, or a remote API is an
 implementation detail — the contracts between them remain stable regardless.
+
+> **October direction (2026-10-12).** The open-core line is framed as a **producer**
+> ecosystem with Team Kitty as its **consumer**. (a) The **charter** is slated to become an
+> external contract package **in its own repository**, consumed through
+> `charter.offering.api` alongside `spec-kitty-events` / `spec-kitty-tracker` (ADR
+> [`2026-10-12-2`](../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md);
+> precondition #645, now GA-gating). (b) The **Mission Status Read API** is the open-core
+> **producer** surface (ADR
+> [`2026-10-01-2`](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
+> Accepted); **Team Kitty = "Multiplayer Mode"** (mission-ui, pack composer) is the opaque **consumer** across that contract. (c) Both pack tiers' source home is
+> `spec-kitty-open-packs` (source-location only; the no-bundle invariant is unchanged). The
+> producer/consumer container view and the repo-topology diagram are in
+> [`../diagrams/02_containers/README.md`](../diagrams/02_containers/README.md) and ADR
+> `2026-10-12-2`. *This is a derived view; the enforced pair (`pyproject.toml` +
+> `test_layer_rules.py`) wins on conflict, and no gate changes with this note. The landscape
+> Mermaid diagram below predates the dashboard removal (#5530) and this direction — flagged
+> for a later diagram refresh, not rewritten here.*
 
 ## Architectural Principles
 

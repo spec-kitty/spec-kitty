@@ -2,7 +2,7 @@
 title: Containers (living)
 description: 'Living containers view (C4 level 2): current logical containers and the planned charter read-service transition.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-12'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/01_context/README.md
@@ -16,7 +16,7 @@ related:
 | Status | Living |
 | Date | 2026-06-11 (charter service direction added 2026-10-03) |
 | Scope | C4 Level 2 container model — four bounded modules + Op tier |
-| Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-25-1`, `2026-05-16-1`, `2026-10-03-1` |
+| Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-25-1`, `2026-05-16-1`, `2026-10-03-1`, `2026-10-01-2`, `2026-10-12-2` |
 
 ## Purpose
 
@@ -249,6 +249,77 @@ execution/routing invariants.
 <!-- DECISION: 2026-06-03-1 - Four bounded modules; status owned exclusively by Mission Management -->
 <!-- DECISION: 2026-06-07-1 - mission_runtime is the canonical execution-state surface -->
 <!-- DECISION: 2026-06-03-2 - CommitTarget(ref, kind) is the one destination; GuardCapability asserts authorization -->
+
+## Open-core container view: producer ecosystem and the API contract seam (2026-10-12)
+
+This view groups the containers as the **open-core producer ecosystem** and draws the one
+boundary to the opaque Team Kitty consumer. The CLI owns the append-only event ledger and the
+Lamport reducer; the **Mission Status Read API** (a Java service that is to start in-repo as a
+modular component and be extracted when its contract freezes — ADR
+[2026-10-01-2](../../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
+Accepted) reads that ledger as a read model and **conforms to** the contract beside the Python
+reducer. The **charter** is extracting into its own external contract package / repository (ADR
+[2026-10-12-2](../../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md)); the
+pack source home is `spec-kitty-open-packs`. **Team Kitty ("Multiplayer Mode")** consumes the
+API across its contract boundary and is a single opaque container here.
+
+*Target state, not shipped state:* `services/mission-status-api/` is empty today (only
+`contracts/mission-status/` and the Python reducer ship); the diagram shows the ratified target.
+
+Alt-text: an open-core boundary containing the CLI, the event ledger, the Lamport reducer, the
+Mission-Status Read API (Java, in-repo, extractable later), the extracting charter and the pack
+source home; four extracted packages (events, tracker, open-packs, doc-kitty) as separate
+units; and the API contract seam as the one boundary to the opaque Team Kitty consumer.
+
+```mermaid
+%%{init: {'theme':'base','themeVariables': {
+  'fontFamily': 'Trebuchet MS, Verdana, Arial, sans-serif',
+  'fontSize': '14px',
+  'primaryColor': '#f5f5f5',
+  'primaryTextColor': '#103a82',
+  'primaryBorderColor': '#1c75cc',
+  'lineColor': '#0a0721'
+}}}%%
+flowchart TB
+    subgraph OpenCore["Spec Kitty open core (producer ecosystem)"]
+      direction TB
+      cli["<b>CLI</b> (Python)<br/>command surface + governance<br/><i>open-core · exists</i>"]
+      ledger[("<b>Event ledger</b><br/>status.events.jsonl<br/>append-only · sole lane authority<br/><i>open-core · exists</i>")]
+      reducer["<b>Lamport reducer</b><br/>status.reducer.materialize<br/>event → snapshot<br/><i>open-core · exists</i>"]
+      statusapi["<b>Mission-Status Read API</b><br/>Java service · services/mission-status-api/<br/>overview + mission detail<br/><i>open-core · exists (in-repo, extractable later)</i>"]
+      charter["<b>Charter</b><br/>src/charter/offering/<br/>governance / doctrine / DRG<br/><i>open-core · extracting</i>"]
+      packsrc["<b>Packs source home</b><br/>packs/built-in + packs/internal<br/><i>open-core · exists</i>"]
+    end
+    events["spec-kitty-events<br/><i>pkg (wheel) · exists</i>"]
+    tracker["spec-kitty-tracker<br/><i>pkg (wheel) · exists</i>"]
+    openpacks["spec-kitty-open-packs<br/><i>published packs · exists</i>"]
+    dockitty["doc-kitty<br/>docs-site toolkit<br/><i>pkg · exists</i>"]
+    seam(["<b>Mission-Status API contract</b><br/>contracts/mission-status/openapi.yaml<br/>+ conformance fixtures<br/><i>producer → consumer boundary</i>"])
+    teamkitty["<b>Team Kitty</b> consumer (opaque)<br/>mission-ui · pack composer<br/><i>consumer</i>"]
+    cli -->|appends events| ledger
+    ledger -->|folded by| reducer
+    reducer -->|snapshots| cli
+    ledger -->|read model| statusapi
+    reducer -. canonical reference beside Java .-> statusapi
+    cli -->|"loads governance (extracting)"| charter
+    cli -->|resolves doctrine| packsrc
+    events -->|consumed| cli
+    tracker -->|consumed| cli
+    packsrc -->|published as| openpacks
+    statusapi -->|conforms to| seam
+    statusapi -. extractable to own open-core repo .-> seam
+    seam -->|consumed across contract| teamkitty
+    classDef coreProducer fill:#dceafd,stroke:#1168bd,color:#103a82,stroke-width:2px;
+    classDef extracting fill:#fff4d6,stroke:#d9a400,color:#5a4600,stroke-width:2px,stroke-dasharray:5 3;
+    classDef pkg fill:#e3f3e8,stroke:#2f8f52,color:#1d5a34,stroke-width:1.5px;
+    classDef seam fill:#fde8c8,stroke:#d9731a,color:#6e3a05,stroke-width:2.5px;
+    classDef consumer fill:#f7e6ee,stroke:#b5457f,color:#6e2650,stroke-width:1.5px;
+    class cli,ledger,reducer,statusapi,packsrc coreProducer;
+    class charter extracting;
+    class events,tracker,openpacks,dockitty pkg;
+    class seam seam;
+    class teamkitty consumer;
+```
 
 ## Traceability
 

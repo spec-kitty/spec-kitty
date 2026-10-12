@@ -2,7 +2,7 @@
 title: Charter Backend Service (Future — Backlog)
 description: 'Preliminary backlog design for a separate charter/doctrine resolution process behind a stable API/MCP endpoint: remote compute, shared caching, out-of-cycle precompute. Backlog.'
 doc_status: draft
-updated: '2026-09-30'
+updated: '2026-10-12'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/architecture/profile-load-reliability.md
@@ -16,6 +16,14 @@ related:
 > (activation-data fix + orchestrator-injects contract + `/spk-load-profile`) is specified
 > in [Profile-Load Reliability](profile-load-reliability.md) §4. This document describes
 > the **evolution** that the orchestrator-injects contract deliberately makes possible.
+>
+> **Not the same as charter *package* extraction.** This page is about a future *runtime
+> resolution service* (a long-lived process behind an API/MCP seam). It is distinct from the
+> **charter → own-repository / external-contract-package** extraction ratified 2026-10-12 (ADR
+> [`2026-10-12-2`](../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md); that
+> one is packaging/repository topology, precondition #645, now GA-gating). The two can compose
+> later but are separate tracks; this backend service remains backlog and is unchanged by the
+> October direction.
 
 ## 1. Motivation
 

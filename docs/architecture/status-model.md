@@ -2,7 +2,7 @@
 title: 'Status Model: Operator Documentation'
 description: 'Operator reference for the Spec Kitty status model: the append-only event-log lane state machine, the canonical --mission selector, and mission_id ULID identity.'
 doc_status: active
-updated: '2026-10-11'
+updated: '2026-10-12'
 type: explanation
 audience: docs/context/audience/internal/system-architect.md
 related:
@@ -25,6 +25,15 @@ related:
 The status model uses a single canonical append-only event log per mission as the sole authority for work package status. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`. A deterministic reducer produces `status.json` snapshots.
 
 > **Which reducer is deterministic?** The Lamport wrapper (`status.reducer.materialize`). A second, wall-clock reducer also ships; see [Known limitations](#known-limitations).
+
+> **This event log is the open-core producer's read model (2026-10-12 direction).** The
+> **Mission Status Read API** — the open-core **producer** surface (ADR
+> [`2026-10-01-2`](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
+> Accepted) — reads mission/WP status through the **Lamport** reducer (`status.reducer.materialize`),
+> not the wall-clock sibling, so its answer matches `status.json`. Its external Java form is to
+> start in-repo and be extracted when its contract freezes; `contracts/mission-status/` and the
+> conformance fixtures stay canonical beside this Python reducer. Consumers (Team Kitty /
+> "Multiplayer Mode") read that API across its contract, never this log directly.
 
 **Key principles**:
 - `status.events.jsonl` is the **sole source of truth** for WP lane state

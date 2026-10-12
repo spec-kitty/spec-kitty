@@ -2,7 +2,7 @@
 title: System Context (living)
 description: 'Living system context (C4 level 1): current and planned external actors and system boundaries of Spec Kitty, including the charter read-service transition.'
 doc_status: active
-updated: '2026-10-03'
+updated: '2026-10-12'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/diagrams/02_containers/README.md
@@ -15,7 +15,7 @@ related:
 | Status | Living |
 | Date | 2026-06-11 (charter service direction added 2026-10-03) |
 | Scope | C4 Level 1 system boundary and external interactions |
-| Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-09-1`, `2026-04-09-2`, `2026-09-06-1`, `2026-09-26-3`, `2026-10-03-1` |
+| Related ADRs | `2026-06-03-1`, `2026-06-03-2`, `2026-06-03-3`, `2026-06-07-1`, `2026-04-09-1`, `2026-04-09-2`, `2026-09-06-1`, `2026-09-26-3`, `2026-10-03-1`, `2026-10-01-2`, `2026-10-12-2` |
 
 ## Purpose
 
@@ -97,6 +97,62 @@ cannot define different semantics.
 
 The Mission Status Read service is a sibling, not a shared process or domain.
 The external Mission UI consumes status and is not implicitly a charter client.
+
+## Open-core producer boundary and Team Kitty = "Multiplayer Mode" (2026-10-12)
+
+The October direction update (operator ruling) frames the system as an **open-core producer**
+with Team Kitty as its **consumer**. Spec Kitty Core (the open-core CLI) owns the event ledger
+and the Lamport reducer and *publishes* the **Mission Status Read API** — the open-core
+producer surface (ADR [2026-10-01-2](../../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
+Accepted). **Team Kitty — "Multiplayer Mode"** (mission-ui, the pack composer) is the **consumer**: it reads that API across its public contract boundary and is drawn
+here as a single opaque box, its internals not part of this repository's model. The charter is
+on its way to becoming its own external contract package / repository (ADR
+[2026-10-12-2](../../../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md)).
+
+*Target state, not shipped state:* `services/mission-status-api/` is empty today (only
+`contracts/mission-status/` and the Python reducer ship); the diagram shows the ratified target.
+
+Alt-text: the open-core CLI at the centre; actors Maintainer/Operator, AI coding-agent
+harnesses and an external API consumer; the CLI consumes `spec-kitty-events` and
+`spec-kitty-tracker` and publishes the Mission-Status Read API seam; one opaque Team Kitty
+consumer box sits behind the seam.
+
+```mermaid
+%%{init: {'theme':'base','themeVariables': {
+  'fontFamily': 'Trebuchet MS, Verdana, Arial, sans-serif',
+  'fontSize': '15px',
+  'primaryColor': '#f5f5f5',
+  'primaryTextColor': '#103a82',
+  'primaryBorderColor': '#1c75cc',
+  'lineColor': '#0a0721'
+}}}%%
+flowchart LR
+    operator["Maintainer / Operator<br/>(decision + acceptance authority)"]
+    harness["AI coding-agent harnesses<br/>Claude Code, Codex, Copilot, …<br/>(drive the CLI)"]
+    apiConsumer["External application /<br/>API consumer<br/>(reads mission status)"]
+    events["spec-kitty-events<br/><i>contract package (wheel) · exists</i>"]
+    tracker["spec-kitty-tracker<br/><i>contract package (wheel) · exists</i>"]
+    core["<b>Spec Kitty Core</b><br/>open-core CLI (Python)<br/>local-first state machine + governance<br/>owns event ledger + Lamport reducer<br/><i>open-core · producer · exists</i>"]
+    seam(["<b>Mission-Status Read API</b><br/>contract: contracts/mission-status/openapi.yaml<br/><i>producer → consumer boundary</i>"])
+    teamkitty["<b>Team Kitty</b> — consumer / 'Multiplayer Mode'<br/>mission-ui · pack composer<br/><i>opaque external · consumer</i>"]
+    operator -->|runs commands, approves| core
+    harness -->|invoke CLI, skills, Ops| core
+    apiConsumer -->|HTTP reads over the contract| seam
+    events -->|consumed import| core
+    tracker -->|consumed import| core
+    core -->|publishes| seam
+    seam -->|consumed across the contract| teamkitty
+    classDef coreProducer fill:#dceafd,stroke:#1168bd,color:#103a82,stroke-width:2.5px;
+    classDef pkg fill:#e3f3e8,stroke:#2f8f52,color:#1d5a34,stroke-width:1.5px;
+    classDef seam fill:#fde8c8,stroke:#d9731a,color:#6e3a05,stroke-width:2.5px;
+    classDef consumer fill:#f7e6ee,stroke:#b5457f,color:#6e2650,stroke-width:1.5px;
+    classDef actor fill:#ffffff,stroke:#5a5a5a,color:#2a2a2a,stroke-width:1.5px;
+    class core coreProducer;
+    class events,tracker pkg;
+    class seam seam;
+    class teamkitty consumer;
+    class operator,harness,apiConsumer actor;
+```
 
 ## External Interaction Contracts
 

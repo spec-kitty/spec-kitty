@@ -3694,6 +3694,19 @@ pages:
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md"
+    title: "ADR: the charter becomes an external contract package in its own repository"
+    divio_type: "none"
+    abstract: "The charter layer (src/charter/offering/, or all of src/charter/) is extracted into its own externally-released repository, consumed through charter.offering.api like spec-kitty-events / spec-kitty-tracker; its precondition #645 is now GA-gating. Extends 2026-08-02-1 and 2026-04-25-1."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "target-topology", text: "Target topology", level: 2}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -5074,6 +5087,7 @@ pages:
     - {slug: "primary-audience", text: "Primary Audience", level: 2}
     - {slug: "context-diagram-mermaid", text: "Context Diagram (Mermaid)", level: 2}
     - {slug: "planned-charter-read-and-write-transition", text: "Planned Charter Read and Write Transition", level: 2}
+    - {slug: "open-core-producer-boundary-and-team-kitty-multiplayer-mode-2026-10-12", text: "Open-core producer boundary and Team Kitty = \"Multiplayer Mode\" (2026-10-12)", level: 2}
     - {slug: "external-interaction-contracts", text: "External Interaction Contracts", level: 2}
     - {slug: "domain-context-map", text: "Domain Context Map", level: 2}
     - {slug: "branch-and-routing-boundary", text: "Branch and Routing Boundary", level: 2}
@@ -5099,6 +5113,7 @@ pages:
     - {slug: "runtime-execution-domain-detail", text: "Runtime/Execution Domain Detail", level: 2}
     - {slug: "interaction-constraints", text: "Interaction Constraints", level: 2}
     - {slug: "decision-traceability", text: "Decision Traceability", level: 2}
+    - {slug: "open-core-container-view-producer-ecosystem-and-the-api-contract-seam-2026-10-12", text: "Open-core container view: producer ecosystem and the API contract seam (2026-10-12)", level: 2}
     - {slug: "traceability", text: "Traceability", level: 2}
   - path: "docs/architecture/diagrams/02_containers/runtime-execution-domain.md"
     title: "Runtime/Execution Domain (living container detail)"

@@ -2,7 +2,7 @@
 title: 'Team Kitty (SaaS): the end-to-end hosted-sync flow'
 description: 'The opt-in-to-delivery flow for hosted Team Kitty sync — consent, store migration, admission, auth, history disclosure, and the 3-gate drain — with a Mermaid diagram.'
 doc_status: deprecated
-updated: '2026-09-30'
+updated: '2026-10-12'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/operations/sync-drain.md
@@ -15,10 +15,15 @@ related:
 ---
 # Team Kitty (SaaS): the end-to-end hosted-sync flow
 
-> **Status (2026-10-06):** Team Kitty is no longer actively supported
-> ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md)).
-> This page describes code that still ships but is off by default; do not build
-> toward it unless the operator asks for hosted work.
+> **Status (2026-10-12):** Team Kitty is re-framed as **"Multiplayer Mode" — the consumer
+> side** of the open-core Mission Status Read API (mission-ui and the pack composer consume that producer API across its public contract). The blanket
+> "do not build toward Team Kitty" rule is **scoped-lifted** for (a) consumer-side
+> UI/multiplayer on that API and (b) the produce/drain adapter seam
+> ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md),
+> Amendment 2026-10-12). The **hosted *backend*** this page documents — zeitgeist auth, the
+> hosted backend, the SaaS surface — **stays frozen** and off by default; do not build toward
+> it unless the operator asks. The sections below remain a deprecated historical record of the
+> retired "sync" transport (see the next note).
 
 
 > **Historical record (3.x cycle).** This page describes the retired "sync"

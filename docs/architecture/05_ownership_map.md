@@ -2,7 +2,7 @@
 title: Functional Ownership Map (demoted — narrative only)
 description: 'Historical functional-ownership narrative. Not authoritative: module boundaries are owned by the enforced pyproject wheel packages plus the test_layer_rules layer chain.'
 doc_status: superseded
-updated: '2026-09-30'
+updated: '2026-10-12'
 audience: docs/context/audience/internal/system-architect.md
 related:
 - docs/architecture/00_landscape/README.md
@@ -42,6 +42,13 @@ kernel <- charter <- {glossary, runtime, mission_runtime} <- specify_cli
 
 `charter.offering` holds the doctrine code the former top-level `src/doctrine/` package was
 relocated into (Convergence #3881); the `src/doctrine.py` deprecation shim was removed (#805).
+
+> **Direction (2026-10-12):** `charter` is slated to leave this in-tree layer chain and become
+> an external contract package **in its own repository**, consumed through `charter.offering.api`
+> like `spec-kitty-events` / `spec-kitty-tracker` (ADR
+> [`2026-10-12-2`](../adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md);
+> precondition #645, now GA-gating). The enforced pair stays the authority; this note changes
+> no gate.
 
 ## Client packages are consumers of upstream authoritative repos
 
