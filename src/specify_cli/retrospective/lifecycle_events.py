@@ -455,9 +455,9 @@ def emit_captured(
     # from — the MAIN repo root (``_compose_primary_feature_dir`` joins
     # ``KITTY_SPECS_DIR`` onto ``get_main_repo_root(repo_root)``) — so a worktree
     # or unresolved ``repo_root`` can never make ``relative_to`` raise.
-    from specify_cli.core.paths import get_main_repo_root
+    from specify_cli.retrospective.writer import repo_relative_record_path
 
-    record_relative_path = canonical_path.relative_to(get_main_repo_root(repo_root)).as_posix()
+    record_relative_path = repo_relative_record_path(canonical_path, repo_root)
 
     def _build(lamport: int) -> RetrospectiveCaptured:
         return RetrospectiveCaptured(

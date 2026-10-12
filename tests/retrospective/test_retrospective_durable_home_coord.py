@@ -216,14 +216,19 @@ def test_runtime_payload_path_equals_actual_durable_home(tmp_path: Path) -> None
     from runtime.next._internal_runtime.retrospective_terminus import _record_path_str
 
     record = _record_for(SLUG_WITH_MID8)
-    payload = Path(_record_path_str(record, tmp_path))
+    payload_str = _record_path_str(record, tmp_path)
+    payload = Path(payload_str)
 
+    # #5868: the tracked event payload is repository-relative -- never the
+    # operator's absolute home path.
+    assert not payload.is_absolute()
+    assert payload_str == f"kitty-specs/{SLUG_WITH_MID8}/retrospective.yaml"
     assert ".kittify" not in payload.parts, (
         "Runtime payload still reports the legacy .kittify/missions/ path — the "
         "brain is re-split (site #6 not consolidated)."
     )
     assert ".worktrees" not in payload.parts
-    assert payload.resolve() == canonical_record_path(tmp_path, SLUG_WITH_MID8).resolve()
+    assert (tmp_path / payload).resolve() == canonical_record_path(tmp_path, SLUG_WITH_MID8).resolve()
 
 
 # --------------------------------------------------------------------------- #

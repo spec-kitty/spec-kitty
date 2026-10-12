@@ -38,7 +38,11 @@ from specify_cli.retrospective.schema import (
     ActorRef,
     RetrospectiveRecord,
 )
-from specify_cli.retrospective.writer import canonical_record_path, write_record
+from specify_cli.retrospective.writer import (
+    canonical_record_path,
+    repo_relative_record_path,
+    write_record,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +70,7 @@ def _mission_slug_from_feature_dir(feature_dir: Path) -> str:
 
 
 def _record_path_str(record: RetrospectiveRecord, repo_root: Path) -> str:
-    """Return canonical record path as string for the event payload.
+    """Return the repository-relative canonical record path for the event payload (#5868).
 
     FR-001/003 (#2119): the emitted payload path MUST equal the ACTUAL write home
     (``kitty-specs/<slug>/retrospective.yaml``), not the legacy gitignored
@@ -77,7 +81,7 @@ def _record_path_str(record: RetrospectiveRecord, repo_root: Path) -> str:
     reports the canonical durable home.
     """
     canonical = canonical_record_path(repo_root, record.mission.mission_slug)
-    return str(canonical)
+    return repo_relative_record_path(canonical, repo_root)
 
 
 def _findings_summary(record: RetrospectiveRecord) -> dict[str, int]:
@@ -291,7 +295,7 @@ def _run_autonomous(
         actor=_RUNTIME_ACTOR,
         event_name="retrospective.completed",
         payload=CompletedPayload(
-            record_path=str(canonical_path),
+            record_path=repo_relative_record_path(canonical_path, repo_root),
             record_hash="",  # hash deferred to real integration
             findings_summary=_findings_summary(record),
             proposals_count=len(record.proposals),
@@ -415,7 +419,7 @@ def _run_hic(
             actor=operator_actor,
             event_name="retrospective.completed",
             payload=CompletedPayload(
-                record_path=str(canonical_path),
+                record_path=repo_relative_record_path(canonical_path, repo_root),
                 record_hash="",  # hash deferred to real integration
                 findings_summary=_findings_summary(record),
                 proposals_count=len(record.proposals),
@@ -470,7 +474,7 @@ def _run_hic(
             actor=operator_actor,
             event_name="retrospective.skipped",
             payload=SkippedPayload(
-                record_path=str(canonical_path),
+                record_path=repo_relative_record_path(canonical_path, repo_root),
                 skip_reason=skip_reason,
                 skipped_by=operator_actor,
             ),

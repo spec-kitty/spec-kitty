@@ -129,6 +129,25 @@ def canonical_record_path(repo_root: Path, mission_slug: str) -> Path:
     return path
 
 
+def repo_relative_record_path(path: Path, repo_root: Path) -> str:
+    """Return ``path`` as a POSIX path relative to the main repository root.
+
+    The SINGLE authority for the ``record_path`` persisted into tracked event
+    payloads (#5868): an absolute path would leak the operator's home directory
+    into ``status.events.jsonl``. Anchored on ``get_main_repo_root(repo_root)`` --
+    the same base :func:`resolve_retrospective_home` composes the durable home
+    from -- so a worktree or unresolved ``repo_root`` cannot make it raise for a
+    path produced by :func:`canonical_record_path`.
+
+    Fail-closed: a path outside the main repo root raises ``ValueError`` (from
+    ``Path.relative_to``) rather than falling back to the absolute path, which
+    would silently reintroduce the leak.
+    """
+    from specify_cli.core.paths import get_main_repo_root
+
+    return path.relative_to(get_main_repo_root(repo_root)).as_posix()
+
+
 def _legacy_record_path(repo_root: Path, mission_id: str) -> Path:
     """Return the pre-#1771 (gitignored) record path for back-compat reads only.
 
