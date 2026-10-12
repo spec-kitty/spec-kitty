@@ -30,6 +30,7 @@ Steps follow Arrange, Assume, Act, Assert. Reuse these before adding new ones.
 | Act | `When I run "<command line>"` |
 | Assert | `Then the command succeeds` |
 | Assert | `Then the folder "<path>" exists` |
+| Assert | `Then the folder "<path>" is not empty` |
 | Assert | `Then the folder "<path>" is unchanged` |
 | Assert | `Then the file "<path>" is unchanged` |
 | Assert | `Then no "<name>" folder exists in "<path>"` |

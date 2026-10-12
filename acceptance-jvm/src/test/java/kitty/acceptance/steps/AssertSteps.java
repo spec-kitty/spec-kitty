@@ -6,6 +6,12 @@ import io.cucumber.java.en.Then;
 
 import kitty.acceptance.driver.CliResult;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.stream.Stream;
+
 /** Assert ({@code Then}): check that the post-conditions hold after the action. */
 public final class AssertSteps {
 
@@ -26,25 +32,32 @@ public final class AssertSteps {
         assertThat(context.world().resolve(relative)).as("Folder '%s'", relative).isDirectory();
     }
 
+    @Then("the folder {string} is not empty")
+    public void theFolderIsNotEmpty(String relative) {
+        Path folder = context.world().resolve(relative);
+        assertThat(folder).as("Folder '%s'", relative).isDirectory();
+        try (Stream<Path> entries = Files.list(folder)) {
+            assertThat(entries.findAny()).as("Contents of folder '%s'", relative).isPresent();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not list " + folder, e);
+        }
+    }
+
     @Then("the folder {string} is unchanged")
     public void theFolderIsUnchanged(String relative) {
-        assertThat(context.world().isUnchanged(relative))
-                .as("Folder '%s' is unchanged since it was recorded", relative)
-                .isTrue();
+        assertUnchanged("Folder", relative);
     }
 
     @Then("the file {string} is unchanged")
     public void theFileIsUnchanged(String relative) {
-        assertThat(context.world().isUnchanged(relative))
-                .as("File '%s' is unchanged since it was recorded", relative)
-                .isTrue();
+        assertUnchanged("File", relative);
     }
 
     @Then("no {string} folder exists in {string}")
     public void noFolderExistsIn(String name, String parent) {
-        assertThat(context.world().resolve(parent).resolve(name))
-                .as("'%s' in '%s'", name, parent)
-                .doesNotExist();
+        Path parentDir = context.world().resolve(parent);
+        assertThat(parentDir).as("Parent folder '%s'", parent).isDirectory();
+        assertThat(parentDir.resolve(name)).as("'%s' in '%s'", name, parent).doesNotExist();
     }
 
     @Then("the repository HEAD is unchanged")
@@ -56,6 +69,12 @@ public final class AssertSteps {
     public void theRepositoryHasNoNewCommits() {
         assertThat(context.world().commitCountUnchanged())
                 .as("Commit count is unchanged since it was recorded")
+                .isTrue();
+    }
+
+    private void assertUnchanged(String kind, String relative) {
+        assertThat(context.world().isUnchanged(relative))
+                .as("%s '%s' is unchanged since it was recorded", kind, relative)
                 .isTrue();
     }
 }

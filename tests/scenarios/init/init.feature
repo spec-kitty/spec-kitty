@@ -17,6 +17,7 @@ Feature: Set up Spec Kitty in a repository
     When I run "spec-kitty init --non-interactive --ai claude,codex"
     Then the command succeeds
     And the folder ".claude/skills" exists
+    And the folder ".claude/skills" is not empty
     And the folder ".agents/skills" is unchanged
     And the file ".kittify/config.yaml" is unchanged
 
