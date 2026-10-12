@@ -30,7 +30,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.14.0`
+- `CONTRACT_VERSION`: `1.15.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 - A `--provider-version` below `MIN_PROVIDER_VERSION`, or one that does not
@@ -144,6 +144,14 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   refines `SAFE_COMMIT_RECOVERY_FAILED`, which keeps meaning the commit may not have
   landed. New `error_code` values on an existing verb, so a minor bump; no field is
   removed or renamed.
+- `1.15.0` — the safe-commit verbs (`append-history`) can newly fail with
+  `SAFE_COMMIT_UNREQUESTED_PATHS` (#5903) when a pre-commit hook that runs
+  `git add -u` sweeps the operator's other modified tracked files into the commit:
+  the commit DID land (`commit_sha` names it) but it carries paths the operation never
+  requested, and the operator's real index is re-synced for those paths before the
+  failure is raised. Like `SAFE_COMMIT_INDEX_RESIDUE` it refines
+  `SAFE_COMMIT_RECOVERY_FAILED` (the commit landed). A new `error_code` on an existing
+  verb, so a minor bump; no field is removed or renamed.
 
 ## Response Envelope
 
@@ -151,7 +159,7 @@ Every command returns exactly one JSON object with these 7 top-level keys:
 
 ```json
 {
-  "contract_version": "1.14.0",
+  "contract_version": "1.15.0",
   "command": "orchestrator-api.mission-state",
   "timestamp": "2026-04-08T12:00:00+00:00",
   "correlation_id": "corr-0123456789abcdef",
@@ -906,6 +914,7 @@ Current machine-readable error codes (the authoritative list is
 - `SAFE_COMMIT_PATH_LOOP`
 - `SAFE_COMMIT_INDEX_DELETION_CONFLICT`
 - `SAFE_COMMIT_INDEX_RESIDUE` (the commit DID land; `commit_sha` names it; a `SAFE_COMMIT_RECOVERY_FAILED` refinement)
+- `SAFE_COMMIT_UNREQUESTED_PATHS` (a pre-commit hook swept unrequested tracked paths into the commit, which DID land; `commit_sha` names it; the real index is re-synced for those paths; a `SAFE_COMMIT_RECOVERY_FAILED` refinement, contract `1.15.0`)
 - `SAFE_COMMIT_RECOVERY_FAILED`
 
 Added in contract `1.4.0` (#3837), for the 11 design-phase verbs above:

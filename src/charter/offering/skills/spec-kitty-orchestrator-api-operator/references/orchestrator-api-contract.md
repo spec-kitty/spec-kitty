@@ -925,6 +925,7 @@ transition — it never invokes the WP-loop or `next` engines.
 | `SAFE_COMMIT_PATH_LOOP` | append-history | Safe commit refused a requested path that is, or sits under, a symlink loop, before mutating the index (contract 1.14.0) |
 | `SAFE_COMMIT_INDEX_DELETION_CONFLICT` | append-history | Safe commit refused a path that was both requested for commit and listed as an index deletion, before committing (contract 1.14.0) |
 | `SAFE_COMMIT_INDEX_RESIDUE` | append-history | An index-deletion commit DID land (`commit_sha`), but the real index still stages a committed path; a `SAFE_COMMIT_RECOVERY_FAILED` refinement (contract 1.14.0) |
+| `SAFE_COMMIT_UNREQUESTED_PATHS` | append-history | A pre-commit hook (e.g. `git add -u`) swept the operator's other modified tracked files into the commit, which DID land (`commit_sha`), so it carries paths the operation never requested; the real index is re-synced for those paths before the refusal; a `SAFE_COMMIT_RECOVERY_FAILED` refinement (contract 1.15.0) |
 | `STATUS_READ_PATH_NOT_FOUND` | all mission-scoped commands | Coord topology with a stale/unaddressable primary surface (fail-closed read-path guard fired; carries coord/primary candidates) |
 
 ---
