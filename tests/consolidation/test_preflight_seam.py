@@ -1144,6 +1144,51 @@ def test_interrupted_fold_guidance_needs_a_recorded_identity_to_name_a_composed_
     assert preflight.interrupted_alias_fold_guidance([_FOLD_EVENTS, _FOLD_STATUS], main_repo=tmp_path, mission_slug=_FOLD_SLUG) is None
 
 
+# The fold's half-written projection to the PRIMARY directory that a kill leaves alongside the
+# composed-directory deletions: meta.json (baseline/number bake) and the coordination-kind status
+# pair, modified in the working tree but not yet committed (#6071).
+_FOLD_PRIMARY_META = f" M kitty-specs/{_FOLD_SLUG}/meta.json"
+_FOLD_PRIMARY_EVENTS = f" M kitty-specs/{_FOLD_SLUG}/status.events.jsonl"
+_FOLD_PRIMARY_STATUS = f" M kitty-specs/{_FOLD_SLUG}/status.json"
+
+
+def test_interrupted_fold_guidance_tolerates_the_primary_projection_a_kill_leaves(tmp_path: Path) -> None:
+    """#6071: a kill inside the fold leaves the composed-directory deletions AND the fold's own
+    half-written primary-directory projection (meta.json + the status pair). That is the real
+    interrupted state (the fold modifies the primary directory before unlinking the composed one),
+    and it must still be recognised as the interrupted fold, not sent to the stock remedy."""
+    _fold_mission(tmp_path)
+
+    lines = preflight.interrupted_alias_fold_guidance(
+        [_FOLD_EVENTS, _FOLD_STATUS, _FOLD_PRIMARY_META, _FOLD_PRIMARY_EVENTS, _FOLD_PRIMARY_STATUS],
+        main_repo=tmp_path,
+        mission_slug=_FOLD_SLUG,
+    )
+
+    assert lines is not None
+    text = "\n".join(lines)
+    assert f"kitty-specs/{_FOLD_COMPOSED}" in text
+    assert "spec-kitty consolidate --abort" in text
+
+
+@pytest.mark.parametrize(
+    "entries",
+    [
+        # A primary-directory modification that is NOT the fold's projection (a planning file) is
+        # genuine local work: keep the stock remedy.
+        [_FOLD_EVENTS, f" M kitty-specs/{_FOLD_SLUG}/spec.md"],
+        # The fold's primary projection WITHOUT any composed-directory deletion is not an
+        # interrupted fold at all.
+        [_FOLD_PRIMARY_META, _FOLD_PRIMARY_EVENTS, _FOLD_PRIMARY_STATUS],
+    ],
+    ids=["primary-non-projection-modification", "primary-projection-without-composed-deletion"],
+)
+def test_interrupted_fold_guidance_rejects_a_non_fold_primary_change(tmp_path: Path, entries: list[str]) -> None:
+    _fold_mission(tmp_path)
+
+    assert preflight.interrupted_alias_fold_guidance(entries, main_repo=tmp_path, mission_slug=_FOLD_SLUG) is None
+
+
 def _fold_refusal(entries: list[str], *, error_code: str | None = None) -> Any:
     from specify_cli.git.destructive_guard import MERGE_UNSAFE_PRIMARY_DIRTY, DestructiveOpRefused
 

@@ -108,6 +108,49 @@ def _resolve_coord_worktree_for_preflight(
     return Path(CoordinationWorkspace.worktree_path(main_repo, mission_slug, mid8))
 
 
+def _refuse_interrupted_alias_fold(main_repo: Path, *, mission_slug: str) -> None:
+    """Refuse a root checkout that an interrupted one-directory fold left dirty (#5748 / #6071).
+
+    The fold of a bare-slug coordination Mission unlinks the composed
+    ``<slug>-<mid8>`` directory's coordination-kind files before the commit that
+    records the removal; a process killed between the two leaves exactly those
+    deletions in the repository root checkout while the landed Mission is already
+    on the target. Since #5965/#5966 the role-based residue classifier treats
+    those deletions as disposable coordination residue, so
+    :func:`assert_worktree_clean` no longer raises on them — the run then proceeds
+    to the global merge lock (left held by the killed process) and dies with a
+    ``MergeLockError`` instead of refusing, and the #5748 abort-and-restart
+    guidance (keyed on a ``MERGE_UNSAFE_PRIMARY_DIRTY`` refusal) never renders.
+
+    Detect that exact state from the RAW tracked status entries (no residue
+    exemption) and refuse ``MERGE_UNSAFE_PRIMARY_DIRTY`` here, BEFORE the
+    residue-aware clean check, so :func:`resume_recovery._report_interrupted_alias_fold`
+    renders the ``consolidate --abort`` guidance. Recognition is exact
+    (:func:`~specify_cli.consolidation.preflight.interrupted_alias_fold_guidance`):
+    any other dirt — a non-deletion, a non-coordination path, a different
+    directory, or a Mission with no composed directory — does not match and falls
+    through to the normal residue-aware guard unchanged (NFR-002).
+    """
+    from specify_cli.consolidation.preflight import interrupted_alias_fold_guidance
+
+    # Only TRACKED changes carry the fold's signature: it modifies the mission's
+    # tracked primary files and deletes the composed directory's tracked
+    # coordination files. Untracked entries are excluded on purpose — a stray
+    # untracked file is irrelevant to the diagnosis and survives ``consolidate
+    # --abort`` (which never touches untracked content), so it must not suppress
+    # the refusal (and real interrupted runs leave tool-state untracked paths the
+    # fixture's .gitignore does not cover).
+    dirty = [entry.display() for entry in status_entries(main_repo, untracked="no", ignored=False)]
+    if not dirty or interrupted_alias_fold_guidance(dirty, main_repo=main_repo, mission_slug=mission_slug) is None:
+        return
+    raise DestructiveOpRefused(
+        error_code=MERGE_UNSAFE_PRIMARY_DIRTY,
+        worktree_path=main_repo,
+        dirty_entries=dirty,
+        remediation="roll the interrupted consolidation back with `spec-kitty consolidate --abort`, then start fresh.",
+    )
+
+
 def _pre_mutation_safety_preflight(
     main_repo: Path,
     mission_slug: str,
@@ -170,6 +213,11 @@ def _pre_mutation_safety_preflight(
     from specify_cli.lanes.single_branch_landing import expected_consolidate_checkout
 
     assert_checkout_on_target(main_repo, expected_consolidate_checkout(main_repo, lanes_manifest, target_branch))
+    # #5748 / #6071: catch the interrupted one-directory-fold state BEFORE the
+    # residue-aware clean check, which (since #5965/#5966) would otherwise exempt
+    # the composed-dir coordination deletions and let the run reach the stale
+    # global merge lock instead of refusing with the abort-and-restart guidance.
+    _refuse_interrupted_alias_fold(main_repo, mission_slug=mission_slug)
     assert_worktree_clean(
         main_repo,
         context=base_context,

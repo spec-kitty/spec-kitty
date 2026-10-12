@@ -949,33 +949,61 @@ def _is_deleted_coordination_file(entry: str, *, composed_prefix: str) -> bool:
     return path.startswith(composed_prefix) and is_coordination_kind_file(path[len(composed_prefix) :])
 
 
+def _is_primary_fold_projection(entry: str, *, primary_prefix: str) -> bool:
+    """True when *entry* modifies/adds the fold's OWN projection to the PRIMARY Mission directory.
+
+    A kill inside the one-directory fold leaves, besides the composed-directory deletions, the
+    fold's half-written projection to the primary directory in the working tree: its ``meta.json``
+    (the baseline / mission-number bake) and its coordination-kind status pair, modified or added
+    but not yet committed. Those are the fold's own uncommitted work, not genuine local changes, so
+    they do not disqualify the interrupted-fold recognition. A DELETION under the primary directory,
+    a rename, a modification OUTSIDE it, or a non-projection file is NOT this (kept to ``None``).
+    """
+    code = entry[:2]
+    if entry[2:3] != " " or code in ("??", "!!") or "D" in code or "R" in code or not ("M" in code or "A" in code):
+        return False
+    path = entry[3:]
+    if not path.startswith(primary_prefix):
+        return False
+    tail = path[len(primary_prefix) :]
+    return tail == "meta.json" or is_coordination_kind_file(tail)
+
+
 def interrupted_alias_fold_guidance(dirty_entries: list[str], *, main_repo: Path, mission_slug: str) -> list[str] | None:
     """Advice for a root checkout that an interrupted one-directory fold left dirty (#5748), else ``None``.
 
     The fold of a bare-slug coordination Mission (``bookkeeping_projection.coordination_alias_files``,
-    run by ``phase_bookkeeping._fold_alias_directory``) unlinks the composed ``<slug>-<mid8>``
-    directory's coordination-kind files (the status pair, traces, matrices, the decision log, review
-    cycles) one by one and then commits the removal. A run killed between the two leaves a non-empty
-    set of exactly those deletions in the repository root checkout; the landed Mission is
-    already on the target. Recording, stashing or restoring them does not let ``--resume``
-    complete, whereas rolling the interrupted run back with ``consolidate --abort`` and starting
-    fresh does.
+    run by ``phase_bookkeeping._fold_alias_directory``) writes its projection to the primary Mission
+    directory (``meta.json`` plus the coordination-kind status pair) and unlinks the composed
+    ``<slug>-<mid8>`` directory's coordination-kind files (the status pair, traces, matrices, the
+    decision log, review cycles), then commits the removal. A run killed before that commit leaves,
+    in the repository root checkout, those composed-directory deletions AND the fold's half-written
+    primary-directory projection; the landed Mission is already on the target. Recording, stashing or
+    restoring them does not let ``--resume`` complete, whereas rolling the interrupted run back with
+    ``consolidate --abort`` and starting fresh does.
 
     Recognition is exact. The composed name comes from
     :func:`~specify_cli.missions._read_path_resolver.mission_dir_aliases` (the Mission's recorded
-    identity, never a guess from the slug), and every entry of the refusal's ``dirty_entries`` must be
-    the deletion, unstaged or staged, of a file under that directory that the coordination seed
-    carries (:func:`~specify_cli.coordination.coherence.is_coordination_kind_file`, the predicate the
-    fold itself uses). Anything else (a modified or untracked file, a deleted planning file or source, a
-    different directory, a Mission with no composed directory, no entry at all) is genuine local work
-    and keeps the stock remedy: ``None``.
+    identity, never a guess from the slug). At least one entry must be the deletion, unstaged or
+    staged, of a coordination-kind file under the composed directory
+    (:func:`~specify_cli.coordination.coherence.is_coordination_kind_file`, the predicate the fold
+    itself uses), and every remaining entry must be either another such composed-directory deletion
+    or the fold's own primary-directory projection (:func:`_is_primary_fold_projection`). Anything
+    else (a file outside the Mission's directories, a composed-directory modification, a
+    primary-directory deletion, an untracked file, a Mission with no composed directory, no entry at
+    all) is genuine local work and keeps the stock remedy: ``None``.
     """
     composed = mission_dir_aliases(main_repo, mission_slug) - {mission_slug}
     if len(composed) != 1:
         return None
     (composed_name,) = composed
     composed_prefix = f"{KITTY_SPECS_DIR}/{composed_name}/"
-    if not dirty_entries or not all(_is_deleted_coordination_file(entry, composed_prefix=composed_prefix) for entry in dirty_entries):
+    primary_prefix = f"{KITTY_SPECS_DIR}/{mission_slug}/"
+    composed_deletions = [entry for entry in dirty_entries if _is_deleted_coordination_file(entry, composed_prefix=composed_prefix)]
+    if not composed_deletions or not all(
+        _is_deleted_coordination_file(entry, composed_prefix=composed_prefix) or _is_primary_fold_projection(entry, primary_prefix=primary_prefix)
+        for entry in dirty_entries
+    ):
         return None
     return [
         f"An earlier consolidation of {mission_slug} was interrupted while folding the composed directory {KITTY_SPECS_DIR}/{composed_name} "
