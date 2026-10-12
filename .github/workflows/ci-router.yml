@@ -1082,9 +1082,13 @@ jobs:
   # unrelated upgrade PR instead of its own. The corpus jobs do not catch it: the reality check passes on a
   # drifted snapshot. This job runs the same audit on every kitty-specs/ change: about 20-30 s of audit after
   # the environment install, against the 4 upgrade shards or the corpus-blocking job (5-10 min). It is
-  # read-only. On failure it prints the offending Missions and their error findings; the fix for
-  # SNAPSHOT_DRIFT is `spec-kitty agent status materialize --mission <slug>`. Pinned by
-  # tests/ci/test_mission_state_audit_routing.py.
+  # read-only. The audit step always reports (#6058): it captures the auditor's exit code instead of letting
+  # `bash -e` abort on it, prints every TeamSpace blocker (error severity or a TEAMSPACE_BLOCKER_CODES code)
+  # to the log and the step summary through scripts/ci/mission_state_audit_report.py, uploads the JSON report
+  # as an artifact, and then fails with the audit's own status. The fix for SNAPSHOT_DRIFT is
+  # `spec-kitty agent status materialize --mission <slug>`, unless many unrelated Missions drift at once (suspect
+  # a reducer or dependency change first). Pinned by tests/ci/test_mission_state_audit_routing.py and
+  # tests/ci/test_mission_state_audit_step.py.
   mission-state-audit:
     name: mission-state audit
     runs-on: ubuntu-24.04
@@ -1111,15 +1115,19 @@ jobs:
           if ! jq -e . "$report" >/dev/null 2>&1; then
             echo "::error::doctor mission-state --audit produced no JSON report (exit $status)."
             cat "$report"
-            if [ "$status" -ne 0 ]; then exit "$status"; fi
-            exit 1
+            echo "## Mission-state audit: no JSON report (exit $status)" >> "$GITHUB_STEP_SUMMARY"
+            exit $(( status == 0 ? 1 : status ))
           fi
-          jq '.repo_summary' "$report"
-          if [ "$status" -ne 0 ]; then
-            echo "::error::doctor mission-state --audit found Missions with errors or TeamSpace blockers (exit $status)."
-            jq -c '.missions[] | select(.has_errors or .has_teamspace_blockers) | {mission: .mission_slug, errors: [.findings[] | select(.severity == "error") | {code, artifact_path, detail}]}' "$report"
-          fi
+          uv run --frozen --no-sync python scripts/ci/mission_state_audit_report.py "$report" "$status" || echo "::warning::the audit report renderer failed; the JSON report is in the uploaded artifact."
           exit "$status"
+      - name: Upload the mission-state audit report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mission-state-audit-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/mission-state-audit.json
+          if-no-files-found: ignore
+          retention-days: 14
 
   # ---------------------------------------------------------------------------
   # router-gate: terminal aggregator. `if: always() && !cancelled()` realizes

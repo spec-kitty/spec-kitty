@@ -21,6 +21,7 @@ import json
 import shlex
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -141,24 +142,36 @@ def test_a_failing_audit_still_prints_the_failing_missions(tmp_path: Path) -> No
             }
         ],
     }
+    summary = tmp_path / "summary.md"
     stub_dir = tmp_path / "bin"
     stub_dir.mkdir()
     stub = stub_dir / "uv"
-    stub.write_text(f"#!/usr/bin/env bash\ncat <<'JSON'\n{json.dumps(report)}\nJSON\nexit 1\n", encoding="utf-8")
+    # The auditor call prints the report and fails; the renderer call (`uv run --frozen --no-sync python ...`)
+    # runs the real script under the real interpreter, like the stub in test_mission_state_audit_step.py.
+    renderer_branch = 'if [ "$4" = "python" ]; then\n  shift 4\n  exec "$STUB_PYTHON" "$@"\nfi\n'
+    auditor_branch = f"cat <<'JSON'\n{json.dumps(report)}\nJSON\nexit 1\n"
+    stub.write_text(f"#!/usr/bin/env bash\n{renderer_branch}{auditor_branch}", encoding="utf-8")
     stub.chmod(0o755)
 
     result = subprocess.run(
         ["bash", "-e", "-c", step["run"]],
-        env={"PATH": f"{stub_dir}:/usr/bin:/bin", "RUNNER_TEMP": str(tmp_path)},
+        cwd=ROOT,
+        env={
+            "PATH": f"{stub_dir}:/usr/bin:/bin",
+            "RUNNER_TEMP": str(tmp_path),
+            "GITHUB_STEP_SUMMARY": str(summary),
+            "STUB_PYTHON": sys.executable,
+        },
         capture_output=True,
         text=True,
         check=False,
     )
 
     assert result.returncode == 1
-    assert "found Missions with errors or TeamSpace blockers" in result.stdout
+    assert "::error" in result.stdout
     assert "076-init-command-overhaul" in result.stdout
     assert "SNAPSHOT_DRIFT" in result.stdout
+    assert "SNAPSHOT_DRIFT" in summary.read_text(encoding="utf-8")
 
 
 def test_scrub_documentation_copy_equals_the_router_group() -> None:

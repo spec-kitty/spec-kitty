@@ -1,0 +1,83 @@
+{
+ "missions": [
+  {
+   "finding_count": 47,
+   "findings": [
+    {
+     "artifact_path": "status.json",
+     "code": "SNAPSHOT_DRIFT",
+     "detail": "reducer output does not match persisted status.json",
+     "severity": "error"
+    }
+   ],
+   "has_errors": true,
+   "has_teamspace_blockers": true,
+   "mission_dir": "kitty-specs/062-fix-doctrine-migration-test-failures",
+   "mission_slug": "062-fix-doctrine-migration-test-failures"
+  },
+  {
+   "finding_count": 95,
+   "findings": [
+    {
+     "artifact_path": "status.json",
+     "code": "SNAPSHOT_DRIFT",
+     "detail": "reducer output does not match persisted status.json",
+     "severity": "error"
+    }
+   ],
+   "has_errors": true,
+   "has_teamspace_blockers": true,
+   "mission_dir": "kitty-specs/062-tracker-binding-context-discovery",
+   "mission_slug": "062-tracker-binding-context-discovery"
+  },
+  {
+   "finding_count": 26,
+   "findings": [
+    {
+     "artifact_path": "status.events.jsonl",
+     "code": "CHECKOUT_DISAGREEMENT",
+     "detail": "status.events.jsonl disagrees with primary (invoking sha256 abe60866020495c7f529cc1bc21f94bd97d405b961665e1936cfee5162d5dfb0, primary sha256 4cf4a61673311ca5025a6609a816f1734a5e66b9c8ca724c36b459c9842e7716)",
+     "severity": "error"
+    },
+    {
+     "artifact_path": "status.json",
+     "code": "CHECKOUT_DISAGREEMENT",
+     "detail": "status.json disagrees with primary (invoking sha256 2cbe7e14d0e453be59a74e2a096003360839115e316561359a84410c227babb9, primary sha256 852b8b6127c8e763cec613464bed07039b2cd03e03cb3c65be12970314d735f7)",
+     "severity": "error"
+    }
+   ],
+   "has_errors": true,
+   "has_teamspace_blockers": true,
+   "mission_dir": "kitty-specs/audit-baseline-seed-payload-01M4P42D",
+   "mission_slug": "audit-baseline-seed-payload-01M4P42D"
+  },
+  {
+   "finding_count": 25,
+   "findings": [
+    {
+     "artifact_path": "meta.json",
+     "code": "UNKNOWN_SHAPE",
+     "detail": "unknown key: 'status_phase' (artifact_type='meta.json')",
+     "severity": "info"
+    },
+    {
+     "artifact_path": "status.events.jsonl",
+     "code": "UNKNOWN_SHAPE",
+     "detail": "unknown key: 'delta' (artifact_type='status_event_row')",
+     "severity": "info"
+    }
+   ],
+   "has_errors": false,
+   "has_teamspace_blockers": false,
+   "mission_dir": "kitty-specs/002-lightweight-pypi-release",
+   "mission_slug": "002-lightweight-pypi-release"
+  }
+ ],
+ "repo_summary": {
+  "findings_by_severity": {
+   "error": 4
+  },
+  "missions_with_teamspace_blockers": 3,
+  "total_missions": 4
+ }
+}
