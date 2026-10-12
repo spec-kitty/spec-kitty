@@ -23,6 +23,7 @@ from specify_cli.coordination.coherence import CheckoutRole, residue_context_or_
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError
+from specify_cli.missions._read_path_resolver import mission_dir_aliases
 from kernel.git import GitCommandError
 from kernel.git import changed_paths as git_changed_paths
 from specify_cli.git.bookkeeping_commit import (
@@ -340,7 +341,15 @@ def _unlanded_paths_outside_mission_dir(run: _MergeRunState, base: str, coord_re
     landed (the lane code the run itself merged into the coordination branch) and is not reported.
     """
     target = run.lanes_manifest.target_branch
-    own_prefixes = tuple(f"{KITTY_SPECS_DIR}/{name}/" for name in {run.mission_slug, run.target_feature_dir.name})
+    # A bare-slug coordination Mission keeps its coordination directory under the
+    # composed ``<slug>-<mid8>`` name; its status pair is landed by the fold, not
+    # stranded. Recognise that directory through the ONE canonical authority that
+    # pairs a bare-slug primary with its composed coord dir (#5651), the same
+    # resolver ``interrupted_alias_fold_guidance`` uses — else a resume teardown
+    # misreads the composed-dir status files as "outside the Mission directory"
+    # (#6071 / regressed by #5965/#5966).
+    own_names = {run.mission_slug, run.target_feature_dir.name} | mission_dir_aliases(run.main_repo, run.mission_slug)
+    own_prefixes = tuple(f"{KITTY_SPECS_DIR}/{name}/" for name in own_names)
     unlanded: list[str] = []
     for changed in git_changed_paths(run.main_repo, base, coord_ref, renames=True):
         path = str(changed)
