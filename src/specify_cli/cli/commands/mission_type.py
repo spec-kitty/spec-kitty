@@ -810,9 +810,11 @@ def _discard_minted_single_branch(repo_root: Path, mission_slug: str, minted: st
         _remove_lane_worktrees(repo_root, mission_slug, lanes_manifest)
         _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
     # Operator-explicit discard of this protected single_branch Mission's own minted
-    # branch: its finalization commits exist nowhere else, so bypass the unique-commit
-    # check (#6071). ``_delete_lane_branches`` above already removes it for the manifest
-    # case; this stays correct should the manifest ever be absent.
+    # branch. It holds ALL of the Mission's commits (finalization AND implementation),
+    # so they exist nowhere else: the unique-commit check is bypassed on purpose
+    # (#6071), after ``_announce_discard_loss`` showed them, and the tip is kept under
+    # ``refs/spec-kitty/discarded/``. ``_delete_lane_branches`` above already removes
+    # it for the manifest case; this stays correct should the manifest ever be absent.
     if _force_delete_branch_if_exists(repo_root, minted, creation_base=_existing_ref(repo_root, target), operator_intent=DISCARD_INTENT):
         console.print(f"  Deleted mission branch {minted}")
 
@@ -1177,9 +1179,12 @@ def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: An
 
     deletable = _deletable_mission_branch(lanes_manifest)
     # The Mission's own mission/coordination branch is abandoned by an operator-explicit
-    # ``mission close --discard`` (the only path that reaches here), so bypass the
-    # unique-commit check on it (#6071). Code lives on the lane branches above, which keep
-    # the full guard — nothing the operator may want to preserve is force-deleted here.
+    # ``mission close --discard`` (the only path that reaches here), so the unique-commit
+    # check is bypassed on it (#6071). That branch is NOT only bookkeeping: after an
+    # interrupted ``consolidate`` it holds already-merged lane code whose lane branches
+    # were deleted just above. It is deleted on purpose, after ``_announce_discard_loss``
+    # showed those commits, and its tip is kept under ``refs/spec-kitty/discarded/``.
+    # The lane branches keep the full guard.
     deleted_mission = deletable is not None and _force_delete_branch_if_exists(
         repo_root,
         deletable,
@@ -1321,9 +1326,12 @@ def _force_delete_branch_if_exists(
     guard) is ``False`` as before.
 
     ``operator_intent`` is forwarded to :func:`guarded_branch_delete` unchanged: the discard
-    path passes :data:`DISCARD_INTENT` only for a Mission's *own* mission/coordination branch,
-    which the operator explicitly abandoned with ``mission close --discard`` (#6071). Every
-    other site leaves it ``None`` so the unique-commit check still protects it.
+    path passes :data:`DISCARD_INTENT` only for a Mission's *own* branch (implementation
+    commits on a single_branch Mission, consolidated lane code after an interrupted
+    consolidate), which the operator explicitly abandoned with ``mission close --discard``
+    (#6071) after being shown what is lost. The guard keeps the tip under
+    ``refs/spec-kitty/discarded/`` and this helper prints the restore command. Every other
+    site leaves the intent ``None`` so the unique-commit check still protects the branch.
 
     A :class:`DestructiveOpRefused` from the guard is deliberately NOT swallowed here — the
     ``except RuntimeError`` catches only a failed ``git branch -D``, and that refusal is a

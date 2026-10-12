@@ -58,12 +58,18 @@ FORCE_RECREATE_INTENT = "force_recreate"
 DISCARD_INTENT = "discard"
 """``operator_intent`` of ``mission close --discard``: the operator explicitly abandoned the Mission.
 
-A mid-flight Mission's own finalization commits live nowhere but its branch — that
-is precisely what a discard throws away — so the unique-commit check (FR-009) would
-otherwise refuse the one operation whose purpose is to drop that work. This intent is
-accepted only for the operator-explicit discard of a Mission's *own* mission/coordination
-branch; lane branches and every other caller keep the full guard (a routing gate pins
-the exact callers allowed to pass it)."""
+A Mission's own branch can hold real work: on a protected single_branch Mission the
+minted mission branch carries ALL of its implementation commits, and after an
+interrupted ``consolidate`` the mission/coordination branch carries already-merged
+lane code whose lane branches are deleted just before it. The unique-commit check
+(FR-009) would refuse the one operation whose purpose is to drop that work, so this
+intent skips it, on purpose and only after the discard has shown the operator the
+commits that exist nowhere else. The tip of such a branch is kept as
+``refs/spec-kitty/discarded/<branch>`` so the deletion can be undone with
+``git branch <branch> refs/spec-kitty/discarded/<branch>``. The intent is accepted
+only for the operator-explicit discard of a Mission's *own* branch; lane branches and
+every other caller keep the full guard (a routing gate pins the exact callers allowed
+to pass it)."""
 
 DISCARDED_REF_PREFIX = "refs/spec-kitty/discarded/"
 """Namespace of the hidden, never-pushed refs that keep the tip of a branch deleted with :data:`DISCARD_INTENT`.
