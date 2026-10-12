@@ -532,20 +532,23 @@ def _target_lane_per_wp(
     feature_dir: Path,
     wp_ids: list[str],
 ) -> dict[str, str]:
-    """Reduce a target-branch event log to each WP's lane via the CANONICAL reducer.
+    """Reduce a target-branch event log to each WP's lane via the shared reducer.
 
-    Routes through the shared Lamport reduction (``read_events_from_text`` +
-    ``status.reducer.reduce``), the single canonical authority the merge gate
-    already uses — NOT a second, hand-rolled wall-clock ``(at, event_id)`` fold.
-    The old fold (introduced by #5354 to beat a stale migration seed written
-    physically after a newer ``done``) disagreed with the canonical reducer on a
-    causal log: a WP folded ``approved -> done`` whose ``approved`` event carries
-    a LATER wall-clock ``at`` than its ``done`` event (the two are emitted moments
-    apart) sorted to ``[done, approved]`` and spuriously resolved to ``approved``
-    (#1772), even though the WP is causally ``done``. The canonical reducer
-    honours causal ordering, so it resolves ``done`` here while still keeping the
-    #5354 migration-seed case correct (``migration:*`` actors never un-advance a
-    terminal WP under the Lamport fold).
+    Routes through the shared ``status.reducer.reduce`` fold
+    (``read_events_from_text`` + ``reduce``) — NOT a second, hand-rolled
+    wall-clock ``(at, event_id)`` fold. Note this is the ``reduce_parsed``
+    sibling of the two reducers the codebase ships (see the reducer-duality note
+    in ``CLAUDE.md``), NOT the merge gate's Lamport ``reduce_shared_state``
+    path; what fixes #1772 here is the fold's ROLLBACK-AWARE PRECEDENCE, not
+    Lamport/causal sort ordering. The old fold (introduced by #5354 to beat a
+    stale migration seed written physically after a newer ``done``) sorted
+    purely by wall-clock: a WP folded ``approved -> done`` whose ``approved``
+    event carries a LATER ``at`` than its ``done`` event (the two are emitted
+    moments apart) sorted to ``[done, approved]`` and spuriously resolved to
+    ``approved`` (#1772), even though the WP is causally ``done``. The shared
+    fold's rollback-aware precedence resolves ``done`` here while still keeping
+    the #5354 migration-seed case correct (``migration:*`` actors never
+    un-advance a terminal WP).
 
     The log is reduced ONCE into a full snapshot; each requested WP is then read
     out of it. ``feature_dir`` is the primary mission directory, used by the
