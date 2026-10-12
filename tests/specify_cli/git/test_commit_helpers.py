@@ -25,6 +25,7 @@ from specify_cli.git.commit_helpers import (
     SafeCommitEmptyChangeset,
     SafeCommitHeadMismatch,
     SafeCommitNotAWorktree,
+    SafeCommitRecoveryFailed,
     safe_commit,
 )
 
@@ -708,3 +709,230 @@ def test_expected_parent_commit_remains_success_when_temp_cleanup_raises_oserror
     assert "temporary" in result.diagnostic.lower() and "cleanup" in result.diagnostic.lower()
     assert "injected temporary-directory cleanup failure" in result.diagnostic
     assert target.read_bytes() == _git(lane_repo, "show", f"{result.sha}:cleanup-content.txt").stdout.encode()
+
+
+# ---------------------------------------------------------------------------
+# #5903: a pre-commit hook that stages files (git add -u) must not sweep the
+# operator's unstaged edits into a safe_commit commit. Regression tests for the
+# post-landing requested-paths check on both affected routes, with the
+# expected-parent route as the GREEN negative control.
+# ---------------------------------------------------------------------------
+
+_HOOK_STAGED_ERROR_CODE = "SAFE_COMMIT_UNREQUESTED_PATHS"
+
+
+def _install_git_add_u_hook(repo: Path) -> None:
+    """Install a pre-commit hook that stages every modified tracked file.
+
+    Mirrors the formatter / lint-staged-style hooks #5903 is about: the hook's
+    ``git add -u`` runs against git's temporary index during ``git commit
+    --only`` (and against the FR-022 temp index), staging the operator's other
+    modified tracked files into the commit being built.
+    """
+    hooks_dir = repo / ".git" / "hooks"
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    hook_path = hooks_dir / "pre-commit"
+    hook_path.write_text("#!/bin/sh\ngit add -u\n", encoding="utf-8")
+    hook_path.chmod(0o755)
+
+
+def _seed_5903_repo(repo: Path, *, with_hook: bool, with_deletion: bool) -> str:
+    """Seed ``repo`` with the #5903 scenario and return its HEAD sha.
+
+    ``tool.txt`` is the file the operation writes; ``operator.txt`` holds an
+    in-progress edit the operator has NOT staged; ``untrack.txt`` (when
+    ``with_deletion``) is a tracked file the FR-022 route index-deletes.
+    """
+    (repo / "tool.txt").write_text("v1\n", encoding="utf-8")
+    (repo / "operator.txt").write_text("v1\n", encoding="utf-8")
+    if with_deletion:
+        (repo / "untrack.txt").write_text("v1\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "seed 5903 files")
+    head = _git(repo, "rev-parse", "HEAD").stdout.strip()
+    if with_hook:
+        _install_git_add_u_hook(repo)
+    # operator work in progress (unstaged) + the file the operation wrote
+    (repo / "operator.txt").write_text("operator draft, not staged\n", encoding="utf-8")
+    (repo / "tool.txt").write_text("tool output\n", encoding="utf-8")
+    return head
+
+
+def _committed_paths(repo: Path) -> list[str]:
+    out = _git(repo, "show", "--name-only", "--format=", "HEAD").stdout
+    return sorted(line for line in out.splitlines() if line.strip())
+
+
+def _staged_paths(repo: Path) -> list[str]:
+    out = _git(repo, "diff", "--cached", "--name-only").stdout
+    return sorted(line for line in out.splitlines() if line.strip())
+
+
+def test_only_route_refuses_paths_a_hook_staged(lane_repo: Path) -> None:
+    """#5903 (--only route): a ``git add -u`` pre-commit hook sweeps the
+    operator's unstaged edit into the commit. safe_commit must report the
+    already-landed commit the "landed, but" way (naming the extra path) and
+    re-sync the operator's real index so it no longer stages a revert.
+    """
+    _seed_5903_repo(lane_repo, with_hook=True, with_deletion=False)
+
+    with pytest.raises(SafeCommitRecoveryFailed) as excinfo:
+        safe_commit(
+            repo_root=lane_repo,
+            worktree_root=lane_repo,
+            destination_ref="kitty/mission-test-01ABCDEF",
+            message="tool commit",
+            paths=(Path("tool.txt"),),
+        )
+
+    exc = excinfo.value
+    # It is a "landed, but" report: the commit DID land (commit_sha set) and it
+    # is a SafeCommitRecoveryFailed, so every caller's shared predicate
+    # (isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None)
+    # surfaces it as landed, the way SAFE_COMMIT_INDEX_RESIDUE already is.
+    assert exc.commit_sha is not None
+    assert exc.error_code == _HOOK_STAGED_ERROR_CODE
+    assert "operator.txt" in str(exc)
+    assert "operator.txt" in exc.unrecovered_paths
+    # The commit really landed and carries the requested path.
+    assert "tool.txt" in _committed_paths(lane_repo)
+    # The operator's real index no longer stages a revert of their draft.
+    assert "operator.txt" not in _staged_paths(lane_repo)
+
+
+def test_index_deletions_route_refuses_paths_a_hook_staged(lane_repo: Path) -> None:
+    """#5903 (FR-022 temp-index route): same defect through
+    ``safe_commit(paths=..., index_deletions=...)``. The requested path and the
+    index deletion are NOT reported as extra — only the hook-swept path is.
+    """
+    _seed_5903_repo(lane_repo, with_hook=True, with_deletion=True)
+
+    with pytest.raises(SafeCommitRecoveryFailed) as excinfo:
+        safe_commit(
+            repo_root=lane_repo,
+            worktree_root=lane_repo,
+            destination_ref="kitty/mission-test-01ABCDEF",
+            message="tool commit with index deletion",
+            paths=(Path("tool.txt"),),
+            index_deletions=(Path("untrack.txt"),),
+        )
+
+    exc = excinfo.value
+    assert exc.commit_sha is not None
+    assert exc.error_code == _HOOK_STAGED_ERROR_CODE
+    assert "operator.txt" in exc.unrecovered_paths
+    assert "tool.txt" not in exc.unrecovered_paths
+    assert "untrack.txt" not in exc.unrecovered_paths
+    assert "operator.txt" not in _staged_paths(lane_repo)
+
+
+def test_expected_parent_route_drops_hook_staged_paths(lane_repo: Path) -> None:
+    """#5903 negative control: the expected-parent route rebuilds the tree from
+    the requested paths only, so a hook's extra staging is dropped — it commits
+    exactly the requested path and raises nothing. This route must stay
+    unaffected by the fix."""
+    head = _seed_5903_repo(lane_repo, with_hook=True, with_deletion=False)
+
+    result = safe_commit(
+        repo_root=lane_repo,
+        worktree_root=lane_repo,
+        destination_ref="kitty/mission-test-01ABCDEF",
+        message="tool commit",
+        paths=(Path("tool.txt"),),
+        expected_parent_sha=head,
+    )
+
+    assert isinstance(result, CommitResult)
+    assert _committed_paths(lane_repo) == ["tool.txt"]
+
+
+def test_only_route_clean_no_hook_commit_is_unaffected(lane_repo: Path) -> None:
+    """Positive control for FR-004 (same fixture, hook removed): with no hook,
+    ``safe_commit(paths=(tool.txt,))`` commits exactly the requested path and
+    raises nothing — proving the new guard is non-vacuous (it fires only when a
+    hook actually sweeps in an extra path)."""
+    _seed_5903_repo(lane_repo, with_hook=False, with_deletion=False)
+
+    result = safe_commit(
+        repo_root=lane_repo,
+        worktree_root=lane_repo,
+        destination_ref="kitty/mission-test-01ABCDEF",
+        message="tool commit",
+        paths=(Path("tool.txt"),),
+    )
+
+    assert isinstance(result, CommitResult)
+    assert _committed_paths(lane_repo) == ["tool.txt"]
+
+
+def test_index_deletions_route_clean_no_hook_commit_is_unaffected(lane_repo: Path) -> None:
+    """Positive control for FR-004 on the FR-022 route (same fixture, hook
+    removed): the add and the index deletion both land and nothing is raised."""
+    _seed_5903_repo(lane_repo, with_hook=False, with_deletion=True)
+
+    result = safe_commit(
+        repo_root=lane_repo,
+        worktree_root=lane_repo,
+        destination_ref="kitty/mission-test-01ABCDEF",
+        message="tool commit with index deletion",
+        paths=(Path("tool.txt"),),
+        index_deletions=(Path("untrack.txt"),),
+    )
+
+    assert isinstance(result, CommitResult)
+    assert _committed_paths(lane_repo) == ["tool.txt", "untrack.txt"]
+
+
+def test_unrequested_paths_error_surfaces_as_did_land(lane_repo: Path) -> None:
+    """#5903 FR-006: the new outcome must surface as "DID land" the way
+    SAFE_COMMIT_INDEX_RESIDUE already does. Every safe_commit caller keys that
+    decision on the shared predicate ``isinstance(exc, SafeCommitRecoveryFailed)
+    and exc.commit_sha is not None`` (some walking the ``__cause__`` chain), so a
+    subclass that satisfies it inherits correct handling with no per-caller edit.
+    Also pins the error code into the published contract."""
+    import json
+    from importlib.resources import files
+
+    _seed_5903_repo(lane_repo, with_hook=True, with_deletion=False)
+
+    with pytest.raises(SafeCommitRecoveryFailed) as excinfo:
+        safe_commit(
+            repo_root=lane_repo,
+            worktree_root=lane_repo,
+            destination_ref="kitty/mission-test-01ABCDEF",
+            message="tool commit",
+            paths=(Path("tool.txt"),),
+        )
+    exc = excinfo.value
+
+    # The exact predicate callers use to treat the commit as landed.
+    assert isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None
+    # Contract-visible error code, registered in the published contract.
+    assert exc.error_code == _HOOK_STAGED_ERROR_CODE
+    contract = json.loads(files("specify_cli.core").joinpath("upstream_contract.json").read_text(encoding="utf-8"))
+    assert _HOOK_STAGED_ERROR_CODE in contract["orchestrator_api"]["allowed_error_codes"]
+
+
+def test_only_route_nested_path_no_hook_commit_is_unaffected(lane_repo: Path) -> None:
+    """#5903 Windows guard: a clean no-hook commit of a NESTED path must not
+    fire the post-landing check. git's ``diff-tree`` always reports POSIX
+    (forward-slashed) paths, but ``str(Path)`` is backslash-separated on Windows;
+    comparing the two path-spaces directly would flag every nested-path commit as
+    "unrequested" even with no hook (a false positive that mutates the index).
+    The requested and committed sets are normalized to POSIX, so this holds on
+    every platform. A single-component fixture cannot catch this — the path has
+    no separator — so this test commits a nested path explicitly."""
+    nested = lane_repo / "pkg" / "sub" / "tool.txt"
+    nested.parent.mkdir(parents=True, exist_ok=True)
+    nested.write_text("nested v1\n", encoding="utf-8")
+
+    result = safe_commit(
+        repo_root=lane_repo,
+        worktree_root=lane_repo,
+        destination_ref="kitty/mission-test-01ABCDEF",
+        message="commit nested path",
+        paths=(Path("pkg/sub/tool.txt"),),
+    )
+
+    assert isinstance(result, CommitResult)
+    assert _committed_paths(lane_repo) == ["pkg/sub/tool.txt"]
