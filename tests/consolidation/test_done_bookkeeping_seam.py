@@ -208,6 +208,27 @@ def test_assert_done_on_target_passes_when_all_done(tmp_path: Path) -> None:
         db._assert_merged_wps_done_on_target(tmp_path, "m", "main", ["WP01"], feature_dir=tmp_path / "kitty-specs" / "m", mission_id="01ID")
 
 
+def test_assert_done_on_target_fail_closes_on_malformed_target_log(tmp_path: Path) -> None:
+    """A malformed target-branch status log fail-closes (exit 1 + "could not parse"),
+    never a silent skip.
+
+    Routing the done-check through the canonical parser (``read_events_from_text``)
+    makes an unparseable target log raise ``StoreError``; the check then refuses,
+    matching the sibling ``_assert_merged_wps_reached_done`` fail-closed handling.
+    A corrupt target log must never read as a clean merge (#6107 landing: the old
+    wall-clock fold silently skipped the bad line).
+    """
+    malformed = '{"actor": "merge", this-is-not-valid-json'
+    with (
+        patch.object(db, "run_command", return_value=(0, malformed, "")),
+        patch.object(db.console, "print") as mock_print,
+        pytest.raises(typer.Exit) as exc,
+    ):
+        db._assert_merged_wps_done_on_target(tmp_path, "m", "main", ["WP01"], feature_dir=tmp_path / "kitty-specs" / "m", mission_id="01ID")
+    assert exc.value.exit_code == 1
+    assert any("could not parse" in str(call.args[0]) for call in mock_print.call_args_list)
+
+
 # --- _reconcile_completed_wps_for_resume ------------------------------------
 
 
