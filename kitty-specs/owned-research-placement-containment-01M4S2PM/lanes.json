@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "owned-research-placement-containment-01M4S2PM",
+  "mission_id": "01M4S2PMDMRWZK1Q4RYKZX1C9E",
+  "mission_branch": "issue-5882-owned-research-placement-and-plan",
+  "target_branch": "issue-5882-owned-research-placement-and-plan",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "packs/built-in/missions/mission-steps/software-dev/research/prompt.md",
+        "src/specify_cli/cli/commands/lifecycle.py",
+        "src/specify_cli/cli/commands/research.py",
+        "tests/integration/test_owned_research_placement.py",
+        "tests/specify_cli/cli/commands/test_plan_owned_forwarding.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-12T22:16:00.120695+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "5f4a6934d10778671d594f9f0c53cf8ec91cb1f7"
+}

@@ -1,0 +1,82 @@
+{
+  "event_count": 14,
+  "last_event_id": "01M4S5FMMGEFBTBFEB6VHM7F8T",
+  "materialized_at": "2026-10-12T22:59:38.768143+00:00",
+  "mission_number": "",
+  "mission_slug": "owned-research-placement-containment-01M4S2PM",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M4S5FFS4R0B5Y99A8BTT6XBH",
+      "last_transition_at": "2026-10-12T22:59:33.797005+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Independent review confirmed owned threading mirrors #6002 record-analysis/setup-plan; blocking format finding resolved; red-first GREEN, 93 research + owned single-authority gates pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261012",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 5466,
+      "shell_pid_created_at": "1791843441.49",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "done",
+      "last_event_id": "01M4S5FMMGEFBTBFEB6VHM7F8T",
+      "last_transition_at": "2026-10-12T22:59:38.768143+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Forwarding mirrors the independently-reviewed WP01 owned pattern; setup_plan owns the single ownership validation. Red-first GREEN, non-owned plan tests (6) + terminology + template-consistency gates pass; ruff/format/mypy clean."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20261012",
+        "reviewer": "Claude",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 4943,
+      "shell_pid_created_at": "1791845188.83",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
+    }
+  }
+}

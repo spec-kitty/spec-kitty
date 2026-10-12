@@ -1,0 +1,173 @@
+{
+  "rows": {
+    "#2624": {
+      "evidence_ref": "parent epic; this mission is a child on the owned-resolution half (research placement). Detection-mechanism backbone unchanged.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Epic: Root & worktree-path detection (parent)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#2683": {
+      "evidence_ref": "cross-reference only; coord-topology placement stays with #2683",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": "coord topology \u2014 OUT OF SCOPE; #5882 is the owned/single_branch analog. Cross-linked, not duplicated.",
+      "source_file": "spec.md",
+      "title": "research and plan split artifact authority in coord-topology missions (sibling)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#4252": {
+      "evidence_ref": "context/prior-art referenced in analysis-report.md; not an implementation target of this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5026": {
+      "evidence_ref": "context/prior-art referenced in analysis-report.md; not an implementation target of this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5277": {
+      "evidence_ref": "context/prior-art referenced in analysis-report.md; not an implementation target of this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5380": {
+      "evidence_ref": "context/prior-art referenced in analysis-report.md; not an implementation target of this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5697": {
+      "evidence_ref": "context/prior-art referenced in analysis-report.md; not an implementation target of this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5874": {
+      "evidence_ref": "context/prior-art referenced in analysis-report.md; not an implementation target of this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5882": {
+      "evidence_ref": "research owned threading (research.py) + red-first tests/integration/test_owned_research_placement.py; top-level plan forwarding (lifecycle.py)",
+      "fr": "FR-001,FR-002,FR-003,FR-004,FR-005",
+      "nfr": "NFR-001,NFR-002,NFR-003",
+      "repo": "spec-kitty/spec-kitty",
+      "sc": "SC-001,SC-002,SC-003,SC-004",
+      "scope": "owned/single_branch research placement (WP01) + top-level plan owned forwarding (WP02); coord-topology split is #2683",
+      "source_file": "spec.md",
+      "title": "Owned Mission research redirects into dirty primary; specify-to-plan lacks an owned authoring path",
+      "verdict": "fixed",
+      "wp": "WP01,WP02"
+    },
+    "#5917": {
+      "evidence_ref": "context/prior-art referenced in analysis-report.md; not an implementation target of this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5925": {
+      "evidence_ref": "already closed by PR #5926; the reporter's scaffold template-capture boundary is a NON-GOAL here per the issue",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "owned next commits the persistent decisions lock as mission content (adjacent, closed)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6001": {
+      "evidence_ref": "seam-direction follow-up; this mission reuses the existing _owned_checkout seam and adds no new resolver (NFR-002), consistent with #6001",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Resolve owned-checkout lock root at _primary_meta seam / seam-bound write handle (coordinate)",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6002": {
+      "evidence_ref": "merged 2026-10-10; delivered slice 2 (setup-plan/record-analysis/decision/check-prerequisites/review owned selectors). This mission mirrors its pattern for research + top-level plan.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "thread validated OwnedCheckout through owned single-branch lifecycle commands (prior-art, merged)",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#6003": {
+      "evidence_ref": "context/prior-art referenced in analysis-report.md; not an implementation target of this mission",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

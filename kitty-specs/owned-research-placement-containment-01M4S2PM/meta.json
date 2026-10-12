@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-10-12T22:11:02.305452+00:00",
+  "flattened": false,
+  "friendly_name": "owned research placement containment",
+  "mid8": "01M4S2PM",
+  "mission_id": "01M4S2PMDMRWZK1Q4RYKZX1C9E",
+  "mission_number": null,
+  "mission_slug": "owned-research-placement-containment-01M4S2PM",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances owned research placement containment on issue-5882-owned-research-placement-and-plan so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "owned research placement containment",
+  "slug": "owned-research-placement-containment-01M4S2PM",
+  "target_branch": "issue-5882-owned-research-placement-and-plan",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-12T22:17:25.592414+00:00"
+}
