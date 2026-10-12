@@ -5,7 +5,7 @@ status: Accepted
 date: '2026-10-11'
 ---
 
-**Status:** Accepted
+**Status:** Accepted — Amended 2026-10-11 — see [Amendment](#amendment-2026-10-11-owner-ruling); the promise-machinery paragraphs below are narrowed by it (never built in core).
 
 **Date:** 2026-10-11
 
@@ -69,5 +69,48 @@ A new `acceptance-bdd` job in `ci-nightly.yml` runs on Linux, macOS and Windows.
 
 ## Open Questions
 
-1. The org-owned sync secret (`PROMISE_INDEX_SYNC_TOKEN`) still has to be created, scoped like `CHARTER_SHARD_RECAPTURE_TOKEN` to pull requests on this repository.
+1. The org-owned sync secret (`PROMISE_INDEX_SYNC_TOKEN`) still has to be created, scoped like `CHARTER_SHARD_RECAPTURE_TOKEN` to pull requests on this repository. *(Narrowed out of core — see the Amendment below; this open question is now closed for core and owned by spec-kitty-qa.)*
 2. The `@wip` age limit (30 days is a placeholder) is set in the trace lint, not here.
+
+## Amendment (2026-10-11 owner ruling)
+
+**Author:** Stijn Dejongh (owner). **Date:** 2026-10-11.
+
+After acceptance, the owner ruled that the promise-tracking machinery this ADR
+specified belongs to **spec-kitty-qa**, not to core. The ruling does not rewrite the
+decision above — the Context, Considered Options, Decision and Consequences stay as the
+record of what was accepted — it **narrows** the parts that were specified for core but
+**never built here**. The following four items are owned by spec-kitty-qa (its ADR-0001
+and ADR-0002 are the owning home) and were never added to this repository:
+
+1. **`tests/scenarios/promise-index.json`** — the public promise-index slice (ratified and
+   retired ids with titles, `schema_version: 1`). It does not exist in this tree and will not
+   be added here.
+2. **The per-PR check `tests/architectural/test_scenario_promise_tags.py`** — the stdlib
+   check that asserted each `@promise:<id>` is `ratified` in the index (with one broken
+   fixture per rule). It was never written in core.
+3. **The `PROMISE_INDEX_SYNC_TOKEN` org sync** — the org-owned sync secret of Open Question 1
+   above, which would have opened the index-update pull requests. It is not created or scoped
+   in core.
+4. **Turning a promise into a scenario** (the promise→scenario mapping) — the act of deriving
+   a Gherkin scenario from a ratified promise. That mapping lives with the promise pages in
+   spec-kitty-qa.
+
+Because none of the four was ever built, this amendment records a **narrowing of a
+never-built plan**, not the deletion of code.
+
+### Consequences of the narrowing
+
+- **The `scenarios` ci-router group now gates NO per-PR job.** The accepted Decision had the
+  `scenarios` group (`tests/scenarios/**`) gate the architectural job — and that architectural
+  job was precisely the dropped promise-tag check (item 2). With the check gone, the group
+  gates nothing; it is a deliberately-ungated filter group, like `ci`. The `acceptance_jvm`
+  group (`acceptance-jvm/**`) still gates no per-PR job, unchanged.
+- **Core keeps the scenarios, the Cucumber-JVM runner and the nightly.** Gherkin files under
+  `tests/scenarios/<area>/`, the `acceptance-jvm/` Gradle subproject, the `SpecKittyDriver`
+  port and the nightly `acceptance-bdd` job all stay in core as the Decision describes.
+- **Tag semantics in core.** `@promise:<id>`, `@defect:<issue>` and `@qa:SC-A-NNN` are
+  **inert in core** — there is no index to check them against and no per-PR check reads them.
+  Only `@wip` and `@manual` carry meaning: each excludes a scenario from the gating nightly
+  run (`not @wip and not @manual`). `@manual` is an allowed tag, reserved for heavy or
+  on-demand scenarios.
