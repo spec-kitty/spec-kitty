@@ -159,6 +159,26 @@ def test_close_discard_tears_down_coordination_worktree_and_branch(
     assert branches == "", f"coordination branch leaked after `close --discard`: {branches!r}"
 
 
+def test_close_discard_shows_and_keeps_consolidated_code_on_the_mission_branch(
+    coord_mission: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """After an interrupted consolidate the mission branch holds merged lane code that exists nowhere else (#6071)."""
+    repo = coord_mission
+    worktree = CoordinationWorkspace.worktree_path(repo, SLUG, MID8)
+    (worktree / "merged_lane_code.py").write_text("VALUE = 1\n", encoding="utf-8")
+    _git(worktree, "add", "-A")
+    _git(worktree, "-c", "commit.gpgsign=false", "commit", "-q", "-m", "merged lane code")
+    old_tip = _git(repo, "rev-parse", COORD_BRANCH).stdout.strip()
+    monkeypatch.chdir(repo)
+
+    result = runner.invoke(mission_type.app, ["close", "--mission", SLUG, "--discard", "--force"], env={"PWD": str(repo)})
+
+    assert result.exit_code == 0, result.output
+    assert f"Branch {COORD_BRANCH} (tip {old_tip[:12]}): 2 commit(s) that exist on no other branch will be deleted" in result.output
+    assert f"restore with: git branch {COORD_BRANCH} refs/spec-kitty/discarded/{COORD_BRANCH}" in result.output
+    assert _git(repo, "rev-parse", f"refs/spec-kitty/discarded/{COORD_BRANCH}").stdout.strip() == old_tip
+
+
 def test_close_discard_is_idempotent_on_rerun(
     coord_mission: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -942,18 +942,25 @@ def test_branch_delete_accepts_a_branch_name_that_looks_like_an_option(tmp_path:
     assert listing == ""
 
 
-def test_branch_delete_with_force_recreate_intent_skips_the_unique_commit_check(tmp_path: Path) -> None:
-    """T046d: the operator asked for the branch to be discarded; nothing else may pass this intent."""
-    from specify_cli.git.destructive_guard import FORCE_RECREATE_INTENT
+@pytest.mark.parametrize("intent", ["force_recreate", "discard"])
+def test_branch_delete_with_an_operator_intent_skips_the_unique_commit_check(tmp_path: Path, intent: str) -> None:
+    """T046d / #6071: the operator asked for the branch to be discarded; nothing else may pass these intents."""
+    from specify_cli.git.destructive_guard import DISCARD_INTENT, FORCE_RECREATE_INTENT
 
+    assert intent in (FORCE_RECREATE_INTENT, DISCARD_INTENT)
     root = _mission_repo(tmp_path)
     _branch_with_commit(root, "discard-me")
 
     with pytest.raises(DestructiveOpRefused):
         guarded_branch_delete(root, "discard-me", creation_base=None)
-    guarded_branch_delete(root, "discard-me", creation_base=None, operator_intent=FORCE_RECREATE_INTENT)
+    guarded_branch_delete(root, "discard-me", creation_base=None, operator_intent=intent)
 
     assert subprocess.run(["git", "for-each-ref", "refs/heads/discard-me"], cwd=str(root), capture_output=True, text=True, check=True).stdout == ""
+
+
+def test_a_refusal_is_not_a_runtime_error() -> None:
+    """``mission_type`` catches ``RuntimeError`` around the guard to mean "git failed"; a refusal must pass through it."""
+    assert not issubclass(DestructiveOpRefused, RuntimeError)
 
 
 def test_branch_delete_rejects_an_unknown_operator_intent(tmp_path: Path) -> None:
@@ -963,20 +970,6 @@ def test_branch_delete_rejects_an_unknown_operator_intent(tmp_path: Path) -> Non
     with pytest.raises(ValueError, match="operator_intent"):
         guarded_branch_delete(root, "keep-me", creation_base=None, operator_intent="because")
     assert subprocess.run(["git", "for-each-ref", "refs/heads/keep-me"], cwd=str(root), capture_output=True, text=True, check=True).stdout != ""
-
-
-def test_branch_delete_with_discard_intent_skips_the_unique_commit_check(tmp_path: Path) -> None:
-    """#6071: ``mission close --discard`` abandons the Mission; its own commits live nowhere else."""
-    from specify_cli.git.destructive_guard import DISCARD_INTENT
-
-    root = _mission_repo(tmp_path)
-    _branch_with_commit(root, "discard-me")
-
-    with pytest.raises(DestructiveOpRefused):
-        guarded_branch_delete(root, "discard-me", creation_base=None)
-    guarded_branch_delete(root, "discard-me", creation_base=None, operator_intent=DISCARD_INTENT)
-
-    assert subprocess.run(["git", "for-each-ref", "refs/heads/discard-me"], cwd=str(root), capture_output=True, text=True, check=True).stdout == ""
 
 
 def test_discard_intent_keeps_the_tip_of_a_branch_with_commits_found_nowhere_else(tmp_path: Path) -> None:
