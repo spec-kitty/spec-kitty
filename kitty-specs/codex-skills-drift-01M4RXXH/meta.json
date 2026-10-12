@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-12T20:47:25.714601+00:00",
+  "flattened": false,
+  "friendly_name": "Codex .agents/skills manifest-drift idempotency (#702)",
+  "mid8": "01M4RXXH",
+  "mission_id": "01M4RXXHCX400P012JDH7DCNH1",
+  "mission_number": null,
+  "mission_slug": "codex-skills-drift-01M4RXXH",
+  "mission_type": "software-dev",
+  "purpose_context": "The .agents/skills/spec-kitty.<command>/SKILL.md command-skill projection is a DERIVED, git-ignored surface, yet the command-skill installer classifies a manifest-owned projection whose on-disk bytes match neither the recorded hash nor the current render as a user edit requiring consent. In a second checkout the tracked manifest and the ignored output legitimately disagree, so untouched generated state reads as drift and is kept rather than regenerated, breaking idempotency against the manifest (GitHub #702).",
+  "purpose_tldr": "upgrade/sync/init regenerate drifted DERIVED Codex command-skill projections instead of flagging them as user edits",
+  "slug": "codex-skills-drift-01M4RXXH",
+  "target_branch": "issue-702-codex-skills-drift",
+  "topology": "single_branch"
+}

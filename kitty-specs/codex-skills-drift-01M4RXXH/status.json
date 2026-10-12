@@ -1,0 +1,29 @@
+{
+  "event_count": 4,
+  "last_event_id": "01M4S299MZ18462P1S3A6Y0MGB",
+  "materialized_at": "2026-10-12T22:03:45.183214+00:00",
+  "mission_number": "",
+  "mission_slug": "codex-skills-drift-01M4RXXH",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 1,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "force_count": 1,
+      "lane": "for_review",
+      "last_event_id": "01M4S299MZ18462P1S3A6Y0MGB",
+      "last_transition_at": "2026-10-12T22:03:45.183214+00:00"
+    }
+  }
+}

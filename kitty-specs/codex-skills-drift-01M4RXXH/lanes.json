@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "mission_slug": "codex-skills-drift-01M4RXXH",
+  "mission_id": "01M4RXXHCX400P012JDH7DCNH1",
+  "mission_branch": "issue-702-codex-skills-drift",
+  "target_branch": "issue-702-codex-skills-drift",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/skills/command_installer.py",
+        "tests/specify_cli/skills/test_command_installer.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-12T20:54:14.860271+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "91906745ec38040036de2a643c0d82463594b795"
+}
