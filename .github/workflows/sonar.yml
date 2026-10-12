@@ -228,6 +228,41 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "sonar: resolved sonar.projectVersion=$version (from pyproject.toml)"
 
+      # The acceptance-jvm Java test scaffolding is scanned here, nightly only,
+      # with Sonar's full Java rule set (quality and security), which needs
+      # compiled classes. This scan runs on trusted, already-merged code. The
+      # per-PR sonar-pr job (ci-aggregate.yml) leaves the Java out: compiling a
+      # PR's own Gradle build there would run untrusted build code beside
+      # SONAR_TOKEN. sonar-project.properties keeps acceptance-jvm out of the
+      # coverage figure. If the compile fails, the Python scan still runs.
+      - name: Set up JDK 25 (Temurin) for the acceptance-jvm Java analysis
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Install the pinned Gradle (checksum verified before it runs)
+        id: gradle
+        if: always() && steps.sonar_token.outputs.enabled == 'true'
+        continue-on-error: true
+        shell: bash
+        run: python3 contracts/tools/install_tools.py --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
+
+      - name: Compile the acceptance-jvm Java for analysis
+        id: java
+        if: always() && steps.sonar_token.outputs.enabled == 'true' && steps.gradle.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle -p acceptance-jvm compileTestJava --no-daemon
+          {
+            echo "args=-Dsonar.sources=src,acceptance-jvm/src/test/java"
+            echo "binaries=acceptance-jvm/build/classes/java/test"
+            echo "libraries=$HOME/.gradle/caches/modules-2/files-2.1/**/*.jar"
+          } >> "$GITHUB_OUTPUT"
+
       - name: SonarCloud Scan
         if: always() && steps.sonar_token.outputs.enabled == 'true'
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
@@ -235,6 +270,7 @@ jobs:
           args: >
             -Dsonar.projectVersion=${{ steps.version.outputs.version }}
             -Dsonar.python.coverage.reportPaths=${{ steps.coverage.outputs.report-paths }}
+            ${{ steps.java.outcome == 'success' && format('{0} -Dsonar.java.binaries={1} -Dsonar.java.libraries={2}', steps.java.outputs.args, steps.java.outputs.binaries, steps.java.outputs.libraries) || '' }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
