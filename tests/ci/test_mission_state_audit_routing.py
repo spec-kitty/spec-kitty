@@ -17,14 +17,18 @@ authority, never a restated copy.
 from __future__ import annotations
 
 import ast
+import contextlib
 import copy
+import io
 import json
 import os
 import re
 import shlex
 import shutil
 import subprocess
+import sys
 from pathlib import Path
+from types import FrameType
 from typing import Any
 
 import pytest
@@ -150,40 +154,30 @@ BUMP_PATHS = (
     "uv.lock",
 )
 
-# Hand copy of the audit-input paths (deriving it from the audit call trace is tracked in #6090).
-AUDIT_INPUT_PATHS = (
+# The audit's executed *modules* are derived (test_every_executed_audit_module_matches_the_group),
+# not hand copied (#6090). These are the remaining trigger inputs the audit depends on that an
+# in-process function-call trace cannot observe, so they stay an explicit (small) list:
+#   - the dependency manifests that carry the reducer (spec-kitty-events);
+#   - the router workflow itself and the report renderer (CI machinery, not src modules the audit runs);
+#   - the typer command shell above the in-process run_mission_state entry (doctor.py, _doctor_shared.py);
+#   - a module-level-only constant source the audit imports but calls no function in (core/constants.py).
+# Each must still match the mission_state group; the manifests must also fire the events-alignment workflow.
+NON_DERIVABLE_TRIGGER_INPUTS = (
     "uv.lock",
     "pyproject.toml",
     ".kittify/release/shared-package-compatibility.json",
     ".github/workflows/ci-router.yml",
     "scripts/ci/mission_state_audit_report.py",
-    "src/specify_cli/status/reducer.py",
-    "src/specify_cli/audit/engine.py",
-    "src/specify_cli/migration/mission_state.py",
-    "src/specify_cli/mission_metadata.py",
-    "src/specify_cli/frontmatter.py",
-    "src/specify_cli/context/mission_resolver.py",
-    "src/specify_cli/core/paths.py",
-    "src/specify_cli/core/utils.py",
-    "src/specify_cli/core/constants.py",
-    "src/specify_cli/core/checkout_identity.py",
-    "src/specify_cli/identity/aliases.py",
-    "src/specify_cli/lanes/branch_naming.py",
-    "src/specify_cli/cli/commands/_mission_state_doctor.py",
     "src/specify_cli/cli/commands/doctor.py",
     "src/specify_cli/cli/commands/_doctor_shared.py",
-    "src/kernel/meta_decode.py",
-    "src/kernel/git/listing.py",
-    "src/kernel/git/paths.py",
-    "src/kernel/git/runner.py",
-    "src/kernel/guarded_read.py",
-    "src/charter/activation/mission_type_key.py",
+    "src/specify_cli/core/constants.py",
 )
 
 
 def _alignment_trigger_paths(event: str) -> set[str]:
     workflow: dict[Any, Any] = yaml.safe_load(ALIGNMENT.read_text(encoding="utf-8"))
     triggers = workflow.get("on", workflow.get(True))  # YAML 1.1 parses the bare `on` key as boolean True
+    assert triggers is not None, "the events-alignment workflow has no `on:` triggers"
     return set(triggers[event]["paths"])
 
 
@@ -191,11 +185,11 @@ def test_the_reducer_bump_commit_selects_the_audit_job() -> None:
     selection = select_gates(list(BUMP_PATHS), router=load_router())
 
     assert JOB in selection.selected_jobs
-    assert set(AUDIT_INPUT_PATHS) >= MANIFESTS, "the alignment pin below must cover every manifest"
+    assert set(NON_DERIVABLE_TRIGGER_INPUTS) >= MANIFESTS, "the alignment pin below must cover every manifest"
 
 
-@pytest.mark.parametrize("path", AUDIT_INPUT_PATHS)
-def test_audit_inputs_match_the_group_directly(path: str) -> None:
+@pytest.mark.parametrize("path", NON_DERIVABLE_TRIGGER_INPUTS)
+def test_non_derivable_trigger_inputs_match_the_group(path: str) -> None:
     router = load_router()
 
     selection = select_gates([path], router=router)
@@ -210,6 +204,209 @@ def test_audit_inputs_match_the_group_directly(path: str) -> None:
 def test_the_audit_modules_are_not_spelled_src() -> None:
     """A `src/` glob would make the group src-backed (a code-shard gate); the globs are `**/`-prefixed."""
     assert not [g for g in load_router().filters[GROUP] if g.startswith("src/")]
+
+
+# ---------------------------------------------------------------------------
+# #6090: derive the executed-module trigger set from a real in-process audit run,
+# instead of hand-copying "the modules the audit touches" (which drifts, #6058).
+# ---------------------------------------------------------------------------
+
+# Positive control: the derived set must be non-empty and contain these anchors, so a
+# vacuous capture (zero modules) cannot satisfy the coverage assertion vacuously.
+_AUDIT_ANCHOR_MODULES = frozenset(
+    {
+        "src/specify_cli/audit/engine.py",
+        "src/specify_cli/status/reducer.py",
+    }
+)
+
+# One clean mission and one whose persisted status.json drifts from its event log, so
+# the audit's reducer SNAPSHOT_DRIFT / findings-rendering path (the #6058 surface) runs
+# too — not only the no-findings happy path.
+_FIXTURE_CLEAN_ID = "01KQHRB8GCFJAX7HM4ZY52AQGR"
+_FIXTURE_DRIFT_ID = "01KQHRB9GCFJAX7HM4ZY52AQGR"
+
+
+def _git(repo: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True)
+
+
+def _fixture_event(event_id: str, at: str, from_lane: str, to_lane: str) -> dict[str, Any]:
+    return {
+        "actor": "claude",
+        "at": at,
+        "event_id": event_id,
+        "evidence": None,
+        "execution_mode": "worktree",
+        "force": False,
+        "from_lane": from_lane,
+        "reason": None,
+        "review_ref": None,
+        "to_lane": to_lane,
+        "wp_id": "WP01",
+    }
+
+
+def _write_fixture_mission(specs_dir: Path, slug: str, mission_id: str, *, drift: bool) -> None:
+    """Write one modern (``mission_id``-keyed) fixture mission.
+
+    ``drift=False`` writes a reducer-generated ``status.json`` (no finding); ``drift=True``
+    writes a valid-but-mismatching ``status.json`` so the reducer's ``SNAPSHOT_DRIFT``
+    check produces a finding and the findings-rendering path runs. Modern events only:
+    a legacy ``feature_slug`` would route the audit through a slug-resolution module the
+    real corpus never runs (#6090 grounding).
+    """
+    mission = specs_dir / slug
+    mission.mkdir(parents=True)
+    (mission / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": mission_id,
+                "mission_slug": slug,
+                "mission_number": 1,
+                "friendly_name": f"Audit trigger fixture ({slug})",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+            }
+        ),
+        encoding="utf-8",
+    )
+    events = (
+        _fixture_event("01HXYZAUDIT01", "2026-02-08T12:00:00+00:00", "planned", "claimed"),
+        _fixture_event("01HXYZAUDIT02", "2026-02-08T12:05:00+00:00", "claimed", "in_progress"),
+    )
+    (mission / "status.events.jsonl").write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
+    (mission / "spec.md").write_text("# Spec\n\nFixture mission.\n", encoding="utf-8")
+    (mission / "tasks").mkdir()
+    (mission / "tasks" / "WP01.md").write_text("---\nwp_id: WP01\n---\n\n# WP01\n", encoding="utf-8")
+    from specify_cli.status import materialize_snapshot, materialize_to_json
+
+    if drift:
+        # Valid JSON object that does not match the reduced snapshot → SNAPSHOT_DRIFT.
+        (mission / "status.json").write_text(json.dumps({"work_packages": {}}) + "\n", encoding="utf-8")
+    else:
+        (mission / "status.json").write_text(materialize_to_json(materialize_snapshot(mission)), encoding="utf-8")
+
+
+def _build_audit_fixture(repo_root: Path) -> None:
+    """Create a small git repo with two modern missions that drive the audit's normal path.
+
+    One clean mission (no findings) and one whose ``status.json`` drifts from its event
+    log, so both the classifier path and the reducer / findings-rendering path (the #6058
+    surface) execute. Committed so git-tracked mission detection runs.
+    """
+    _git(repo_root, "init", "-q")
+    _git(repo_root, "config", "user.email", "fixture@example.invalid")
+    _git(repo_root, "config", "user.name", "Fixture")
+    specs_dir = repo_root / "kitty-specs"
+    _write_fixture_mission(specs_dir, "001-audit-trigger-clean", _FIXTURE_CLEAN_ID, drift=False)
+    _write_fixture_mission(specs_dir, "002-audit-trigger-drift", _FIXTURE_DRIFT_ID, drift=True)
+    _git(repo_root, "add", "-A")
+    _git(repo_root, "commit", "-qm", "audit fixture")
+
+
+def _run_audit_over_fixture(repo_root: Path) -> None:
+    """Drive the real ``doctor mission-state --audit`` dispatch in-process (read-only)."""
+    import typer
+
+    from specify_cli.cli.commands._mission_state_doctor import run_mission_state
+
+    sink = io.StringIO()
+    # The audit is read-only; typer.Exit is the gate's exit-code signal, irrelevant to capture.
+    with (
+        contextlib.redirect_stdout(sink),
+        contextlib.redirect_stderr(sink),
+        contextlib.suppress(typer.Exit),
+    ):
+        run_mission_state(
+            audit=True,
+            fix=False,
+            teamspace_dry_run=False,
+            json_output=True,
+            mission=None,
+            fail_on=None,
+            fixture_dir=None,
+            include_fixtures=False,
+            manifest_path=None,
+            allow_dirty=False,
+            repo_root=repo_root,
+        )
+
+
+def _executed_audit_src_modules(repo_root: Path) -> frozenset[str]:
+    """Return the ``src/`` modules whose functions run during the audit over ``repo_root``.
+
+    A warm-up run resolves every lazy import first; the profiled second run then records
+    only function-call frames (``co_name != "<module>"``), so one-time import-body
+    execution of eagerly-imported siblings is never mistaken for an audit dependency.
+    This makes the derived set deterministic and order-independent (profiling the first
+    run instead would wrongly fold in ~12 import-only modules — see #6090 grounding).
+    """
+    _run_audit_over_fixture(repo_root)  # warm-up: resolve lazy imports
+    executed: set[str] = set()
+
+    def _record(frame: FrameType, event: str, _arg: object) -> None:
+        if event == "call" and frame.f_code.co_name != "<module>":
+            executed.add(frame.f_code.co_filename)
+
+    prior = sys.getprofile()
+    sys.setprofile(_record)
+    try:
+        _run_audit_over_fixture(repo_root)
+    finally:
+        sys.setprofile(prior)  # restore, never clobber a pre-existing profiler
+
+    src_root = (ROOT / "src").resolve()
+    modules: set[str] = set()
+    for filename in executed:
+        try:
+            relative = Path(filename).resolve().relative_to(src_root)
+        except (ValueError, OSError):
+            continue
+        modules.add("src/" + relative.as_posix())
+    return frozenset(modules)
+
+
+@pytest.fixture(scope="module")
+def executed_audit_modules(tmp_path_factory: pytest.TempPathFactory) -> frozenset[str]:
+    if shutil.which("git") is None:
+        pytest.skip("git is required to build the audit fixture repo")
+    repo_root = tmp_path_factory.mktemp("audit-trigger-fixture")
+    _build_audit_fixture(repo_root)
+    return _executed_audit_src_modules(repo_root)
+
+
+def test_every_executed_audit_module_matches_the_group(executed_audit_modules: frozenset[str]) -> None:
+    """Every ``src/`` module the audit executes must match a ``mission_state`` glob (#6090).
+
+    Derived from a real in-process ``doctor mission-state --audit`` run — not a hand copy —
+    so the trigger cannot silently go stale when the audit's module graph changes (#6058).
+
+    Scope and premise (deliberate): this is an ongoing drift *tripwire*, not a corpus-wide
+    completeness proof. It guards the ``src/`` modules the audit executes **at runtime** over
+    these two modern missions (one clean, one drifting). It rests on one premise verified by
+    the mission's grounding corpus scan (604 real missions → 33 modules, all glob-covered),
+    not re-verified here: a module that runs only at a *cold* process's import time (e.g. a
+    package's eager ``__init__`` siblings) is structural, not verdict-affecting, so folding it
+    out via the warm-up is sound. It therefore does not guard a module reachable only through
+    a path no real mission takes (a legacy ``feature_slug`` shape routes through a
+    slug-resolution module the real corpus never runs) or a mode CI never invokes
+    (``--fix`` / ``--teamspace-dry-run``). Widen the fixture if the audit later routes a
+    verdict-affecting module through one of those paths.
+    """
+    router = load_router()
+
+    # Positive control: a vacuous (empty / anchor-less) capture must not pass vacuously.
+    assert executed_audit_modules >= _AUDIT_ANCHOR_MODULES, (
+        f"the audit fixture did not exercise the anchor modules {sorted(_AUDIT_ANCHOR_MODULES)}; derived set was {sorted(executed_audit_modules)}"
+    )
+
+    uncovered = sorted(module for module in executed_audit_modules if GROUP not in select_gates([module], router=router).matched_groups)
+    assert not uncovered, (
+        f"the audit executes these src modules but no {GROUP} glob matches them, so a PR that "
+        f"changes the audit's verdict would skip the audit (#6058/#6090): {uncovered}"
+    )
+    assert GROUP not in router.src_backed_groups, "a src glob would make the audit a code shard"
 
 
 def _nightly_jobs() -> dict[str, Any]:
