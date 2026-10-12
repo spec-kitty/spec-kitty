@@ -345,6 +345,63 @@ def test_native_next_enforces_api_authored_stale_refusal(tmp_path: Path) -> None
     assert _call(root, "next", "--mission", mission)["data"]["step_id"] == "specify"
 
 
+def _native_finalize(root: Path, mission: str) -> tuple[int, str]:
+    """Drive the NATIVE ``spec-kitty agent mission finalize-tasks`` command.
+
+    This is the canonical native finalize for a governed Mission (it regenerates
+    ``tasks.md`` from the authored ``wps.yaml``); ``agent tasks finalize-tasks``
+    requires a hand-authored ``tasks.md`` the API-authoring flow never produces,
+    so it cannot finalize an API-authored Mission and is not a bypass surface.
+    """
+    with contextlib.chdir(root):
+        result = runner.invoke(native_app, ["agent", "mission", "finalize-tasks", "--mission", mission, "--json"], catch_exceptions=False)
+    return result.exit_code, result.stdout + result.stderr
+
+
+def _build_api_authored_tasks_stage(root: Path, mission_name: str) -> tuple[str, dict[str, str]]:
+    """Author a complete, valid API-authored tasks stage; return (slug, parents)."""
+    created = _call(root, "specify", "--mission", mission_name, "--mission-type", "software-dev", "--topology", "single_branch", "--policy", POLICY)["data"]
+    mission = created["mission_slug"]
+    _interview(root, mission, "specify")
+    spec = _submit(root, mission, "specify", "specification", SPEC, {})
+    _call(root, "design-validate", "--mission", mission, "--stage", "specify")
+    _call(root, "plan", "--mission", mission, "--policy", POLICY)
+    _interview(root, mission, "plan")
+    plan = _submit(root, mission, "plan", "plan", PLAN, {"specification": spec["sha256"]})
+    _call(root, "design-validate", "--mission", mission, "--stage", "plan")
+    parents = {"specification": spec["sha256"], "plan": plan["sha256"]}
+    outline = _submit(root, mission, "tasks", "outline", OUTLINE, parents)
+    _submit(root, mission, "tasks", "work_package", PROMPT, {**parents, "outline": outline["sha256"]}, "WP01")
+    _call(root, "design-validate", "--mission", mission, "--stage", "tasks")
+    return mission, parents
+
+
+@pytest.mark.regression
+def test_native_mission_finalize_refuses_api_authored_stale(tmp_path: Path) -> None:
+    """#5879: native ``agent mission finalize-tasks`` must refuse stale content for
+    an API-authored Mission, matching the orchestrator-api ``tasks`` verb. RED on
+    origin/main (native finalize skipped ``validate_stage`` and finalized anyway);
+    GREEN once the marker-gated check guards the native finalize seam.
+    """
+    root = _project(tmp_path)
+    mission, _ = _build_api_authored_tasks_stage(root, "native-finalize-stale")
+    # Make the plan's recorded specification parent stale by re-authoring the spec.
+    _submit(root, mission, "specify", "specification", SPEC + "\nAmended after planning.\n", {})
+    exit_code, output = _native_finalize(root, mission)
+    assert exit_code != 0, output
+    assert "DESIGN_" in output, output
+
+
+def test_native_mission_finalize_accepts_api_authored_valid(tmp_path: Path) -> None:
+    """#5879 guard is not over-eager: a valid, current API-authored Mission still
+    finalizes natively (the marker gate passes, no false refusal)."""
+    root = _project(tmp_path)
+    mission, _ = _build_api_authored_tasks_stage(root, "native-finalize-valid")
+    exit_code, output = _native_finalize(root, mission)
+    assert exit_code == 0, output
+    assert '"result": "success"' in output, output
+
+
 def _configure_required_input(root: Path, step_id: str) -> None:
     import yaml
     from runtime.next.runtime_bridge_io import _runtime_template_key
