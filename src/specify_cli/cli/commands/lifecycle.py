@@ -17,6 +17,7 @@ from mission_runtime import MissionTopology
 from specify_cli.cli.console import console as _console
 
 from specify_cli.cli.selector_resolution import resolve_selector
+from specify_cli.cli.commands._owned_checkout import OwnedCheckoutOption
 from specify_cli.cli.commands.agent import mission as agent_feature
 from specify_cli.core.paths import locate_project_root
 from specify_cli.workspace.assert_initialized import (
@@ -246,11 +247,20 @@ def _require_mission_or_exit(mission: str | None, *, json_output: bool) -> str:
 def plan(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug (e.g., 001-user-authentication)"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
+    owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
     """Scaffold plan.md for a feature."""
     _enforce_initialized(json_output=json_output)
     mission_slug = _require_mission_or_exit(mission, json_output=json_output)
-    agent_feature.setup_plan(feature=mission_slug, json_output=json_output)
+    # #5882: the top-level `plan` wrapper is a thin delegate to the owned-aware
+    # `setup_plan` seam (which gained `--owned-checkout` in PR #6002). Forward the
+    # owned selector so the plan authoring path honours an owned single-branch
+    # checkout instead of resolving the primary. `setup_plan` performs the single
+    # ownership validation/refusal; a non-owned run passes `None` and is
+    # unchanged. The interactive widen interview below stays primary-keyed and is
+    # already skipped in `--json` (agent) mode, which is the owned-flow path;
+    # owned-aware interactive interview resolution is tracked as a follow-up.
+    agent_feature.setup_plan(feature=mission_slug, json_output=json_output, owned_checkout=owned_checkout)
 
     # FR-002: Wire widen-enabled interview for the plan flow.
     # Only run in interactive (non-JSON) mode so agent/script callers are unaffected.
