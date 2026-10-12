@@ -218,11 +218,11 @@ _AUDIT_ANCHOR_MODULES = frozenset(
     }
 )
 
-# One clean mission and one whose persisted status.json drifts from its event log, so
-# the audit's reducer SNAPSHOT_DRIFT / findings-rendering path (the #6058 surface) runs
-# too — not only the no-findings happy path.
-_FIXTURE_CLEAN_ID = "01KQHRB8GCFJAX7HM4ZY52AQGR"
-_FIXTURE_DRIFT_ID = "01KQHRB9GCFJAX7HM4ZY52AQGR"
+# One mission whose persisted status.json drifts from its event log, so the audit's reducer
+# SNAPSHOT_DRIFT / findings-rendering path (the #6058 surface) runs. A clean mission derives the
+# identical module set (measured), so it is not planted.
+_FIXTURE_SLUG = "001-audit-trigger-drift"
+_FIXTURE_MISSION_ID = "01KQHRB9GCFJAX7HM4ZY52AQGR"
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -245,14 +245,13 @@ def _fixture_event(event_id: str, at: str, from_lane: str, to_lane: str) -> dict
     }
 
 
-def _write_fixture_mission(specs_dir: Path, slug: str, mission_id: str, *, drift: bool) -> None:
-    """Write one modern (``mission_id``-keyed) fixture mission.
+def _write_fixture_mission(specs_dir: Path, slug: str, mission_id: str) -> None:
+    """Write one modern (``mission_id``-keyed) fixture mission whose ``status.json`` drifts.
 
-    ``drift=False`` writes a reducer-generated ``status.json`` (no finding); ``drift=True``
-    writes a valid-but-mismatching ``status.json`` so the reducer's ``SNAPSHOT_DRIFT``
-    check produces a finding and the findings-rendering path runs. Modern events only:
-    a legacy ``feature_slug`` would route the audit through a slug-resolution module the
-    real corpus never runs (#6090 grounding).
+    The valid-but-mismatching ``status.json`` makes the reducer's ``SNAPSHOT_DRIFT`` check
+    produce a finding, so the findings-rendering path runs. Modern events only: a legacy
+    ``feature_slug`` would route the audit through a slug-resolution module the real corpus
+    never runs (#6090 grounding).
     """
     mission = specs_dir / slug
     mission.mkdir(parents=True)
@@ -277,28 +276,21 @@ def _write_fixture_mission(specs_dir: Path, slug: str, mission_id: str, *, drift
     (mission / "spec.md").write_text("# Spec\n\nFixture mission.\n", encoding="utf-8")
     (mission / "tasks").mkdir()
     (mission / "tasks" / "WP01.md").write_text("---\nwp_id: WP01\n---\n\n# WP01\n", encoding="utf-8")
-    from specify_cli.status import materialize_snapshot, materialize_to_json
-
-    if drift:
-        # Valid JSON object that does not match the reduced snapshot → SNAPSHOT_DRIFT.
-        (mission / "status.json").write_text(json.dumps({"work_packages": {}}) + "\n", encoding="utf-8")
-    else:
-        (mission / "status.json").write_text(materialize_to_json(materialize_snapshot(mission)), encoding="utf-8")
+    # Valid JSON object that does not match the reduced snapshot → SNAPSHOT_DRIFT.
+    (mission / "status.json").write_text(json.dumps({"work_packages": {}}) + "\n", encoding="utf-8")
 
 
 def _build_audit_fixture(repo_root: Path) -> None:
-    """Create a small git repo with two modern missions that drive the audit's normal path.
+    """Create a small git repo with one modern mission whose ``status.json`` drifts from its event log.
 
-    One clean mission (no findings) and one whose ``status.json`` drifts from its event
-    log, so both the classifier path and the reducer / findings-rendering path (the #6058
-    surface) execute. Committed so git-tracked mission detection runs.
+    The classifier path and the reducer / findings-rendering path (the #6058 surface) both
+    execute. Committed so git-tracked mission detection runs.
     """
     _git(repo_root, "init", "-q")
     _git(repo_root, "config", "user.email", "fixture@example.invalid")
     _git(repo_root, "config", "user.name", "Fixture")
     specs_dir = repo_root / "kitty-specs"
-    _write_fixture_mission(specs_dir, "001-audit-trigger-clean", _FIXTURE_CLEAN_ID, drift=False)
-    _write_fixture_mission(specs_dir, "002-audit-trigger-drift", _FIXTURE_DRIFT_ID, drift=True)
+    _write_fixture_mission(specs_dir, _FIXTURE_SLUG, _FIXTURE_MISSION_ID)
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-qm", "audit fixture")
 
@@ -388,7 +380,7 @@ def test_every_executed_audit_module_matches_the_group(executed_audit_modules: _
 
     Scope and premise (deliberate): this is an ongoing drift *tripwire*, not a corpus-wide
     completeness proof. It guards the ``src/`` modules the audit executes **at runtime** over
-    these two modern missions (one clean, one drifting). It rests on one premise verified by
+    this modern, drifting fixture mission. It rests on one premise verified by
     the mission's grounding corpus scan (604 real missions → 33 modules, all glob-covered),
     not re-verified here: a module that runs only at a *cold* process's import time (e.g. a
     package's eager ``__init__`` siblings) is structural, not verdict-affecting, so folding it
@@ -407,6 +399,9 @@ def test_every_executed_audit_module_matches_the_group(executed_audit_modules: _
     )
     # The gate CI runs (`--fail-on teamspace-blocker`) fires on the planted drift: exit 1, never swallowed.
     assert run.exit_code == 1, f"the audit gate must exit 1 over the drifting fixture, got {run.exit_code}"
+    # The fixture's purpose: the audit reported the mission and produced the SNAPSHOT_DRIFT finding.
+    findings = {(m["mission_slug"], f["code"]) for m in run.report["missions"] for f in m["findings"]}
+    assert (_FIXTURE_SLUG, "SNAPSHOT_DRIFT") in findings, f"the planted drift was not reported; findings were {sorted(findings)}"
 
     uncovered = sorted(module for module in modules if GROUP not in select_gates([module], router=router).matched_groups)
     assert not uncovered, (
