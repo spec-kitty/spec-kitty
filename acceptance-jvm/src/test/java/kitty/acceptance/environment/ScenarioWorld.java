@@ -94,6 +94,8 @@ public final class ScenarioWorld {
         env.put("LOCALAPPDATA", homeDir.resolve("AppData/Local").toString());
         env.put("APPDATA", homeDir.resolve("AppData/Roaming").toString());
         env.put("TMPDIR", tmpDir.toString());
+        env.put("TEMP", tmpDir.toString());
+        env.put("TMP", tmpDir.toString());
         env.put("VIRTUAL_ENV", cli.binDir().getParent().toString());
 
         // Deterministic, colourless, fixed-width, UTF-8 output on every OS.
@@ -109,6 +111,7 @@ public final class ScenarioWorld {
         env.put("GIT_AUTHOR_EMAIL", GIT_EMAIL);
         env.put("GIT_COMMITTER_NAME", GIT_NAME);
         env.put("GIT_COMMITTER_EMAIL", GIT_EMAIL);
+        env.put("GIT_CONFIG_NOSYSTEM", "1");
 
         // Preserve the handful of OS-essential vars a process needs to start (Windows only; absent
         // and therefore skipped on POSIX).
