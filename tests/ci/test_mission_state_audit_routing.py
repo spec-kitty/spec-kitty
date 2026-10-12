@@ -183,10 +183,10 @@ def test_the_reducer_bump_commit_selects_the_audit_job() -> None:
     selection = select_gates(list(BUMP_PATHS), router=load_router())
 
     assert JOB in selection.selected_jobs
-    assert set(NON_DERIVABLE_TRIGGER_INPUTS) >= MANIFESTS, "the alignment pin below must cover every manifest"
 
 
-@pytest.mark.parametrize("path", NON_DERIVABLE_TRIGGER_INPUTS)
+# The union, so a manifest dropped from the tuple is still checked (routing and events-alignment).
+@pytest.mark.parametrize("path", sorted(set(NON_DERIVABLE_TRIGGER_INPUTS) | MANIFESTS))
 def test_non_derivable_trigger_inputs_match_the_group(path: str) -> None:
     router = load_router()
 
