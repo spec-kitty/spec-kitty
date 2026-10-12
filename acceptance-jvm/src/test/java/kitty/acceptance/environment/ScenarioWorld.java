@@ -27,8 +27,8 @@ import java.util.stream.Stream;
  *
  * <p>Every home-ish location ({@code HOME}, {@code USERPROFILE}, {@code SPEC_KITTY_HOME}, the XDG
  * dirs, {@code LOCALAPPDATA}) is redirected inside the temp dir, output is forced colourless, UTF-8
- * and fixed-width, and a positive control proves the run actually wrote inside the temp dir — so
- * "never touched the real home" is non-vacuous. The instance also records and compares filesystem
+ * and fixed-width, and a positive control proves the run wrote under the redirected home and left the real
+ * {@code ~/.spec-kitty} untouched — so "never touched the real home" is non-vacuous. The instance also records and compares filesystem
  * and git state for the ratchet/positive-control step pairs.
  */
 public final class ScenarioWorld {
@@ -45,6 +45,8 @@ public final class ScenarioWorld {
     private final Map<String, String> environment;
     private final Map<String, String> recordedDigests = new HashMap<>();
     private final long startEpochMillis = System.currentTimeMillis();
+    private final Path realSpecKittyHome = Path.of(System.getProperty("user.home"), ".spec-kitty");
+    private final String realHomeBefore = fingerprint(realSpecKittyHome);
 
     private String recordedHead;
     private Integer recordedCommitCount;
@@ -223,29 +225,65 @@ public final class ScenarioWorld {
     // --- positive control + teardown ------------------------------------
 
     /**
-     * NFR-002 positive control: after a CLI invocation, assert the run observably wrote inside the
-     * isolated temp dir. Without this, a vacuously "clean" real home could pass for the wrong reason.
+     * NFR-002 positive control, in two halves.
+     *
+     * <p><b>Redirection took effect.</b> After a CLI invocation, something under the redirected
+     * home directory (not the working tree, which also holds the harness's own git fixture) must
+     * have been written since the scenario started. {@code spec-kitty init} installs its global
+     * command and skill files and missions under {@code HOME}, so a missing write there means the
+     * environment redirection is not in effect. The start time is floored to whole seconds so
+     * coarse-mtime filesystems cannot hide a fresh write.
+     *
+     * <p><b>The real home stayed clean.</b> The real {@code ~/.spec-kitty} must look exactly as it
+     * did when the scenario started (existence, file count, newest mtime).
      */
     public void assertObservedWriteInsideTempDir() {
         if (!commandObserved) {
             return;
         }
-        try (Stream<Path> tree = Files.walk(tempRoot)) {
-            boolean wrote = tree.filter(Files::isRegularFile).anyMatch(this::createdDuringScenario);
+        long floor = startEpochMillis / 1000 * 1000;
+        try (Stream<Path> tree = Files.walk(homeDir)) {
+            boolean wrote = tree.filter(Files::isRegularFile).anyMatch(file -> modifiedSince(file, floor));
             if (!wrote) {
-                throw new AssertionError("Positive control failed: the CLI run wrote nothing inside the "
-                        + "isolated temp dir " + tempRoot + " - environment redirection may not be in effect");
+                throw new AssertionError("Positive control failed: the CLI run wrote nothing under the "
+                        + "redirected home " + homeDir + " - environment redirection may not be in effect");
             }
         } catch (IOException e) {
-            throw new UncheckedIOException("Could not walk the temp dir for the positive control", e);
+            throw new UncheckedIOException("Could not walk the redirected home for the positive control", e);
+        }
+        String after = fingerprint(realSpecKittyHome);
+        if (!realHomeBefore.equals(after)) {
+            throw new AssertionError("The scenario changed the real " + realSpecKittyHome
+                    + " (before: " + realHomeBefore + ", after: " + after + ")");
         }
     }
 
-    private boolean createdDuringScenario(Path file) {
+    private static boolean modifiedSince(Path file, long floorMillis) {
         try {
-            return Files.getLastModifiedTime(file).toMillis() >= startEpochMillis;
+            return Files.getLastModifiedTime(file).toMillis() >= floorMillis;
         } catch (IOException e) {
             return false;
+        }
+    }
+
+    /** Existence, regular-file count and newest mtime of a tree; cheap proof it was left alone. */
+    private static String fingerprint(Path root) {
+        if (!Files.exists(root)) {
+            return "absent";
+        }
+        try (Stream<Path> tree = Files.walk(root)) {
+            long[] stats = {0, 0};
+            tree.filter(Files::isRegularFile).forEach(file -> {
+                stats[0]++;
+                try {
+                    stats[1] = Math.max(stats[1], Files.getLastModifiedTime(file).toMillis());
+                } catch (IOException ignored) {
+                    // A file vanishing mid-walk is itself a change the count will show.
+                }
+            });
+            return "files=" + stats[0] + ",newestMtime=" + stats[1];
+        } catch (IOException e) {
+            throw new UncheckedIOException("Could not fingerprint " + root, e);
         }
     }
 
