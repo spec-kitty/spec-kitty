@@ -608,7 +608,7 @@ def test_a_tool_owned_use_planted_in_the_live_tree_turns_the_gate_red() -> None:
 _OPERATOR_INTENT_CALLERS: frozenset[tuple[str, str]] = frozenset(
     {
         ("src/specify_cli/missions/_create.py", "_delete_branch"),
-        ("src/specify_cli/cli/commands/mission_type.py", "_force_delete_branch_if_exists"),
+        ("src/specify_cli/cli/commands/mission_type.py", "_discard_own_mission_branch"),
     }
 )
 _GUARDED_BRANCH_DELETE = "guarded_branch_delete"

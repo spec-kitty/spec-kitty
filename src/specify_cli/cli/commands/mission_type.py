@@ -815,7 +815,7 @@ def _discard_minted_single_branch(repo_root: Path, mission_slug: str, minted: st
     # (#6071), after ``_announce_discard_loss`` showed them, and the tip is kept under
     # ``refs/spec-kitty/discarded/``. ``_delete_lane_branches`` above already removes
     # it for the manifest case; this stays correct should the manifest ever be absent.
-    if _force_delete_branch_if_exists(repo_root, minted, creation_base=_existing_ref(repo_root, target), operator_intent=DISCARD_INTENT):
+    if _discard_own_mission_branch(repo_root, minted, creation_base=_existing_ref(repo_root, target)):
         console.print(f"  Deleted mission branch {minted}")
 
 
@@ -1185,11 +1185,10 @@ def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: An
     # were deleted just above. It is deleted on purpose, after ``_announce_discard_loss``
     # showed those commits, and its tip is kept under ``refs/spec-kitty/discarded/``.
     # The lane branches keep the full guard.
-    deleted_mission = deletable is not None and _force_delete_branch_if_exists(
+    deleted_mission = deletable is not None and _discard_own_mission_branch(
         repo_root,
         deletable,
         creation_base=_bookkeeping_branch_base(repo_root, deletable, lanes_manifest.target_branch),
-        operator_intent=DISCARD_INTENT,
     )
     # Report only what was actually removed: a single_branch mission has no lane
     # branch and (unprotected) no mission branch of its own to delete.
@@ -1311,13 +1310,7 @@ def _bookkeeping_branch_base(repo_root: Path, branch_name: str, target: str | No
     return base
 
 
-def _force_delete_branch_if_exists(
-    repo_root: Path,
-    branch_name: str,
-    *,
-    creation_base: str | None = None,
-    operator_intent: str | None = None,
-) -> bool:
+def _force_delete_branch_if_exists(repo_root: Path, branch_name: str, *, creation_base: str | None = None) -> bool:
     """Delete a branch through the destructive guard; ``True`` only when it was removed.
 
     The guard refuses (``DestructiveOpRefused``, ``BRANCH_HAS_UNIQUE_COMMITS``) while the
@@ -1325,13 +1318,8 @@ def _force_delete_branch_if_exists(
     A missing branch is ``False``; a failed ``git branch -D`` (a ``RuntimeError`` from the
     guard) is ``False`` as before.
 
-    ``operator_intent`` is forwarded to :func:`guarded_branch_delete` unchanged: the discard
-    path passes :data:`DISCARD_INTENT` only for a Mission's *own* branch (implementation
-    commits on a single_branch Mission, consolidated lane code after an interrupted
-    consolidate), which the operator explicitly abandoned with ``mission close --discard``
-    (#6071) after being shown what is lost. The guard keeps the tip under
-    ``refs/spec-kitty/discarded/`` and this helper prints the restore command. Every other
-    site leaves the intent ``None`` so the unique-commit check still protects the branch.
+    This helper never passes an ``operator_intent``: a Mission's own branch goes through
+    :func:`_discard_own_mission_branch`, the only discard site that does.
 
     A :class:`DestructiveOpRefused` from the guard is deliberately NOT swallowed here — the
     ``except RuntimeError`` catches only a failed ``git branch -D``, and that refusal is a
@@ -1344,7 +1332,26 @@ def _force_delete_branch_if_exists(
         # internally-derived value from ever being parsed as a ``git branch`` option (S6350).
         return False
     try:
-        kept_tip = guarded_branch_delete(repo_root, branch_name, creation_base=creation_base, operator_intent=operator_intent)
+        guarded_branch_delete(repo_root, branch_name, creation_base=creation_base)
+    except RuntimeError:
+        return False
+    return True
+
+
+def _discard_own_mission_branch(repo_root: Path, branch_name: str, *, creation_base: str | None) -> bool:
+    """Delete a Mission's OWN branch on an operator-explicit ``mission close --discard``; ``True`` only when removed.
+
+    The one site that passes :data:`DISCARD_INTENT` (pinned by the routing gate): the branch
+    can hold implementation commits (single_branch) or consolidated lane code (after an
+    interrupted consolidate) that exist nowhere else. The operator was shown them by
+    :func:`_announce_discard_loss`; the guard keeps the tip under
+    ``refs/spec-kitty/discarded/<branch>`` and this helper prints the restore command.
+    A :class:`DestructiveOpRefused` propagates, as in :func:`_force_delete_branch_if_exists`.
+    """
+    if branch_name.startswith("-") or _existing_ref(repo_root, branch_name) is None:
+        return False
+    try:
+        kept_tip = guarded_branch_delete(repo_root, branch_name, creation_base=creation_base, operator_intent=DISCARD_INTENT)
     except RuntimeError:
         return False
     if kept_tip is not None:
