@@ -1,32 +1,41 @@
-"""Check that the versions the JVM build uses equal the versions ``contracts/tools/pins.json`` pins (FR-018, NFR-003).
+"""Check that the versions a JVM build uses equal the versions its ``pins.json`` pins (FR-018, NFR-003).
 
 ``verify_pins.py`` judges the manifest, the workflow ``uses:`` lines and the install form; it never reads the
-build. This check closes that gap: the JVM toolchain is installed from ``pins.json``, but the build file declares
-its own plugin version, and the two can drift apart without any other check noticing. It compares, for the two
-JVM-side tools of the manifest:
+build. This check closes that gap: a JVM toolchain is installed from ``pins.json``, but the build file declares
+its own plugin version, and the two can drift apart without any other check noticing.
 
-* ``openapi-generator-gradle-plugin``: the ``id 'org.openapi.generator' version '...'`` line of
-  ``contracts/build.gradle``, and every ``openapi-generator-gradle-plugin`` and
-  ``org.openapi.generator.gradle.plugin`` component of ``contracts/gradle/verification-metadata.xml``.
-* ``gradle``: the version in ``distributionUrl`` of ``contracts/gradle/wrapper/gradle-wrapper.properties`` (the
-  repository commits no wrapper, so this is compared only if the file exists) and every ``gradle-version:`` input
-  of a ``contracts*.yml`` workflow step.
-* both: the manifest's own ``url`` must carry the entry's ``version`` (a bumped ``version`` with an old ``url``
-  would install the old tool while every comparison above passed).
+One canonical authority, two subprojects. The same scan runs, parameterised by a :class:`Subproject`, over:
+
+* ``contracts/`` — pins ``gradle`` and the ``openapi-generator-gradle-plugin``. It compares the
+  ``id 'org.openapi.generator' version '...'`` line of ``contracts/build.gradle``; every
+  ``openapi-generator-gradle-plugin`` and ``org.openapi.generator.gradle.plugin`` component of
+  ``contracts/gradle/verification-metadata.xml``; the version in ``distributionUrl`` of
+  ``contracts/gradle/wrapper/gradle-wrapper.properties`` (the repository commits no wrapper, so this is
+  compared only if the file exists); and every ``gradle-version:`` input of a ``contracts*.yml`` workflow step.
+* ``acceptance-jvm/`` — pins only ``gradle`` (a Java test harness with no Gradle plugin of its own). It compares
+  the ``acceptance-jvm/tools/pins.json`` url; an optional wrapper the same way; and the ``gradle-version:`` input
+  of the ``acceptance-bdd`` job in ``.github/workflows/ci-nightly.yml``. An absent plugin pin, wrapper or
+  ``acceptance-bdd`` job is tolerated exactly like the absent wrapper file — the plugin-side checks simply do not
+  run — so this guard does not hard-fail before the nightly job exists.
+
+For both subprojects the manifest's own ``url`` must carry the entry's ``version`` (a bumped ``version`` with an
+old ``url`` would install the old tool while every comparison above passed).
 
 Failure, one stable code: ``GRADLE_PIN_MISMATCH`` (a value the build uses is not the pinned version).
 
 Cannot do its job (exit 2, fail closed): ``GRADLE_PIN_UNREADABLE`` (a file that must be read is missing, is not
-valid JSON, XML or YAML, or the manifest lacks a JVM-side entry), ``GRADLE_PIN_UNPARSEABLE`` (a file was read but
-holds no value to compare: no plugin version in ``build.gradle``, no plugin component in the verification
+valid JSON, XML or YAML, or the manifest lacks a required tool entry), ``GRADLE_PIN_UNPARSEABLE`` (a file was read
+but holds no value to compare: no plugin version in ``build.gradle``, no plugin component in the verification
 metadata) and ``ZERO_COMPARISONS`` (nothing was compared at all). Output
 ``CONTRACT-CHECK gradle_pin_check: <CODE>: <file>: <detail>`` per violation and a last
-``counts: pinned=N compared=N`` line (the pinned JVM-side tools found, the build values compared); exit 0 pass,
+``counts: pinned=N compared=N`` line (the pinned tools found, the build values compared); exit 0 pass,
 1 violation, 2 cannot do its job.
 
 Run as a bare script (``python contracts/tools/gradle_pin_check.py [--root DIR] [--pins FILE] [--build FILE]
-[--metadata FILE] [--wrapper FILE] [--workflow FILE ...]``); ``--root`` is the repository root. Standard library
-plus PyYAML; imports nothing from ``tests/`` or ``scripts/``.
+[--metadata FILE] [--wrapper FILE] [--workflow FILE ...]``); ``--root`` is the repository root. With only
+``--root`` the whole repository is scanned (both subprojects); any explicit ``--pins/--build/--metadata/--wrapper/
+--workflow`` targets the ``contracts/`` scan alone. Standard library plus PyYAML; imports nothing from ``tests/``
+or ``scripts/``.
 """
 
 from __future__ import annotations
@@ -51,6 +60,13 @@ DEFAULT_METADATA = Path("contracts") / "gradle" / "verification-metadata.xml"
 DEFAULT_WRAPPER = Path("contracts") / "gradle" / "wrapper" / "gradle-wrapper.properties"
 WORKFLOW_DIRECTORY = Path(".github") / "workflows"
 DEFAULT_WORKFLOW_GLOB = "contracts*.yml"
+ACCEPTANCE_ROOT = Path("acceptance-jvm")
+ACCEPTANCE_PINS = ACCEPTANCE_ROOT / "tools" / "pins.json"
+ACCEPTANCE_BUILD = ACCEPTANCE_ROOT / "build.gradle"
+ACCEPTANCE_METADATA = ACCEPTANCE_ROOT / "gradle" / "verification-metadata.xml"
+ACCEPTANCE_WRAPPER = ACCEPTANCE_ROOT / "gradle" / "wrapper" / "gradle-wrapper.properties"
+NIGHTLY_WORKFLOW = Path("ci-nightly.yml")
+ACCEPTANCE_JOB = "acceptance-bdd"
 PLUGIN_ID_LINE = re.compile(r"""\bid\s*\(?\s*['"]org\.openapi\.generator['"]\s*\)?\s*version\s*\(?\s*['"]([^'"]+)['"]""")
 WRAPPER_URL_LINE = re.compile(r"^\s*distributionUrl\s*=\s*(\S+)\s*$", re.MULTILINE)
 WRAPPER_VERSION = re.compile(r"gradle-(\d[^/]*?)-(?:bin|all)\.zip")
@@ -65,6 +81,29 @@ class Finding:
 
     def render(self) -> str:
         return f"CONTRACT-CHECK {CHECK_NAME}: {self.code}: {self.subject}: {self.detail}"
+
+
+@dataclass(frozen=True)
+class Subproject:
+    """One JVM build to cross-check against its own ``pins.json`` (the parameters the scan varies on)."""
+
+    pins: Path
+    build: Path
+    metadata: Path
+    wrapper: Path
+    candidates: tuple[str, ...]
+    required: tuple[str, ...]
+    plugin_tool: str | None
+    job: str | None
+    workflows: tuple[Path, ...] | None = None
+    workflow_glob: str | None = None
+
+    def resolve_workflows(self, root: Path) -> list[Path]:
+        if self.workflows is not None:
+            return list(self.workflows)
+        if self.workflow_glob is not None:
+            return sorted((root / WORKFLOW_DIRECTORY).glob(self.workflow_glob))
+        return []
 
 
 @dataclass
@@ -103,7 +142,7 @@ def _read(report: Report, root: Path, path: Path) -> str | None:
         return None
 
 
-def _load_pins(report: Report, root: Path, pins: Path) -> dict[str, dict[str, Any]]:
+def _load_pins(report: Report, root: Path, pins: Path, candidates: tuple[str, ...], required: tuple[str, ...]) -> dict[str, dict[str, Any]]:
     subject = _rel(pins, root)
     text = _read(report, root, pins)
     if text is None:
@@ -116,10 +155,11 @@ def _load_pins(report: Report, root: Path, pins: Path) -> dict[str, dict[str, An
     tools = manifest.get("tools") if isinstance(manifest, dict) else None
     entries = {str(t["name"]): t for t in tools or [] if isinstance(t, dict) and isinstance(t.get("name"), str)}
     found: dict[str, dict[str, Any]] = {}
-    for name in (GRADLE_TOOL, PLUGIN_TOOL):
+    for name in candidates:
         entry = entries.get(name)
         if entry is None or not isinstance(entry.get("version"), str) or not entry["version"]:
-            report.blocked.append(Finding("GRADLE_PIN_UNREADABLE", subject, f"the manifest has no {name} entry with a version"))
+            if name in required:
+                report.blocked.append(Finding("GRADLE_PIN_UNREADABLE", subject, f"the manifest has no {name} entry with a version"))
             continue
         found[name] = entry
         report.counts["pinned"] += 1
@@ -181,7 +221,7 @@ def _check_wrapper(report: Report, root: Path, wrapper: Path, pinned: str) -> No
     report.compare(_rel(wrapper, root), "the wrapper distribution version", version.group(1), pinned)
 
 
-def _check_workflow(report: Report, root: Path, workflow: Path, pinned: str) -> None:
+def _check_workflow(report: Report, root: Path, workflow: Path, pinned: str, job: str | None = None) -> None:
     text = _read(report, root, workflow)
     if text is None:
         return
@@ -191,11 +231,77 @@ def _check_workflow(report: Report, root: Path, workflow: Path, pinned: str) -> 
         report.blocked.append(Finding("GRADLE_PIN_UNREADABLE", _rel(workflow, root), f"not valid YAML: {type(error).__name__}"))
         return
     jobs = document.get("jobs") if isinstance(document, dict) else None
-    for job_name, job in (jobs or {}).items():
-        for step in (job.get("steps") or []) if isinstance(job, dict) else []:
+    for job_name, job_body in (jobs or {}).items():
+        if job is not None and job_name != job:
+            continue
+        for step in (job_body.get("steps") or []) if isinstance(job_body, dict) else []:
             options = step.get("with") if isinstance(step, dict) else None
             if isinstance(options, dict) and "gradle-version" in options:
                 report.compare(f"{_rel(workflow, root)}:{job_name}", "the gradle-version input", str(options["gradle-version"]), pinned)
+
+
+def _scan(report: Report, root: Path, subproject: Subproject) -> None:
+    found = _load_pins(report, root, subproject.pins, subproject.candidates, subproject.required)
+    plugin = found.get(subproject.plugin_tool) if subproject.plugin_tool is not None else None
+    gradle = found.get(GRADLE_TOOL)
+    if plugin is not None:
+        _check_build(report, root, subproject.build, plugin["version"])
+        _check_metadata(report, root, subproject.metadata, plugin["version"])
+    if gradle is not None:
+        _check_wrapper(report, root, subproject.wrapper, gradle["version"])
+        for workflow in subproject.resolve_workflows(root):
+            _check_workflow(report, root, workflow, gradle["version"], subproject.job)
+
+
+def _finalize(report: Report, root: Path) -> None:
+    if report.counts["compared"] == 0 and not report.blocked:
+        report.blocked.append(Finding("ZERO_COMPARISONS", _rel(root, root), "no build value was compared with a pin"))
+
+
+def _contracts_subproject(
+    root: Path,
+    pins: str | Path | None,
+    build: str | Path | None,
+    metadata: str | Path | None,
+    wrapper: str | Path | None,
+    workflows: list[Path] | None,
+) -> Subproject:
+    return Subproject(
+        pins=Path(pins) if pins else root / DEFAULT_PINS,
+        build=Path(build) if build else root / DEFAULT_BUILD,
+        metadata=Path(metadata) if metadata else root / DEFAULT_METADATA,
+        wrapper=Path(wrapper) if wrapper else root / DEFAULT_WRAPPER,
+        candidates=(GRADLE_TOOL, PLUGIN_TOOL),
+        required=(GRADLE_TOOL, PLUGIN_TOOL),
+        plugin_tool=PLUGIN_TOOL,
+        job=None,
+        workflows=tuple(workflows) if workflows is not None else None,
+        workflow_glob=DEFAULT_WORKFLOW_GLOB,
+    )
+
+
+def _acceptance_jvm_subproject(
+    root: Path,
+    pins: str | Path | None = None,
+    build: str | Path | None = None,
+    metadata: str | Path | None = None,
+    wrapper: str | Path | None = None,
+    workflows: list[Path] | None = None,
+) -> Subproject:
+    nightly = [root / WORKFLOW_DIRECTORY / NIGHTLY_WORKFLOW]
+    resolved = tuple(workflows) if workflows is not None else tuple(path for path in nightly if path.exists())
+    return Subproject(
+        pins=Path(pins) if pins else root / ACCEPTANCE_PINS,
+        build=Path(build) if build else root / ACCEPTANCE_BUILD,
+        metadata=Path(metadata) if metadata else root / ACCEPTANCE_METADATA,
+        wrapper=Path(wrapper) if wrapper else root / ACCEPTANCE_WRAPPER,
+        candidates=(GRADLE_TOOL, PLUGIN_TOOL),
+        required=(GRADLE_TOOL,),
+        plugin_tool=PLUGIN_TOOL,
+        job=ACCEPTANCE_JOB,
+        workflows=resolved,
+        workflow_glob=None,
+    )
 
 
 def check(
@@ -206,26 +312,43 @@ def check(
     wrapper: str | Path | None = None,
     workflows: list[Path] | None = None,
 ) -> Report:
+    """Cross-check the ``contracts/`` build against its pins (unchanged contracts authority)."""
     root = Path(root)
     report = Report()
-    found = _load_pins(report, root, Path(pins) if pins else root / DEFAULT_PINS)
-    plugin = found.get(PLUGIN_TOOL)
-    gradle = found.get(GRADLE_TOOL)
-    if plugin is not None:
-        _check_build(report, root, Path(build) if build else root / DEFAULT_BUILD, plugin["version"])
-        _check_metadata(report, root, Path(metadata) if metadata else root / DEFAULT_METADATA, plugin["version"])
-    if gradle is not None:
-        _check_wrapper(report, root, Path(wrapper) if wrapper else root / DEFAULT_WRAPPER, gradle["version"])
-        files = workflows if workflows is not None else sorted((root / WORKFLOW_DIRECTORY).glob(DEFAULT_WORKFLOW_GLOB))
-        for workflow in files:
-            _check_workflow(report, root, workflow, gradle["version"])
-    if report.counts["compared"] == 0 and not report.blocked:
-        report.blocked.append(Finding("ZERO_COMPARISONS", _rel(root, root), "no build value was compared with a pin"))
+    _scan(report, root, _contracts_subproject(root, pins, build, metadata, wrapper, workflows))
+    _finalize(report, root)
+    return report
+
+
+def check_acceptance_jvm(
+    root: str | Path,
+    pins: str | Path | None = None,
+    build: str | Path | None = None,
+    metadata: str | Path | None = None,
+    wrapper: str | Path | None = None,
+    workflows: list[Path] | None = None,
+) -> Report:
+    """Cross-check the ``acceptance-jvm/`` build against its pins (same authority, tolerant of absent pieces)."""
+    root = Path(root)
+    report = Report()
+    _scan(report, root, _acceptance_jvm_subproject(root, pins, build, metadata, wrapper, workflows))
+    _finalize(report, root)
+    return report
+
+
+def check_all(root: str | Path) -> Report:
+    """Scan every subproject present under ``root`` into one report (the whole-repository guard)."""
+    root = Path(root)
+    report = Report()
+    _scan(report, root, _contracts_subproject(root, None, None, None, None, None))
+    if (root / ACCEPTANCE_PINS).exists():
+        _scan(report, root, _acceptance_jvm_subproject(root))
+    _finalize(report, root)
     return report
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Check that the JVM build's versions equal the versions pinned in pins.json.")
+    parser = argparse.ArgumentParser(description="Check that a JVM build's versions equal the versions pinned in pins.json.")
     parser.add_argument("--root", default=".", help="repository root (default: .)")
     parser.add_argument("--pins", default=None, help="manifest file (default: <root>/contracts/tools/pins.json)")
     parser.add_argument("--build", default=None, help="build file (default: <root>/contracts/build.gradle)")
@@ -234,7 +357,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--workflow", action="append", default=None, help="workflow file (repeatable; default: <root>/.github/workflows/contracts*.yml)")
     arguments = parser.parse_args(argv)
     workflows = [Path(w) for w in arguments.workflow] if arguments.workflow else None
-    report = check(arguments.root, arguments.pins, arguments.build, arguments.metadata, arguments.wrapper, workflows)
+    targets_contracts_only = any(value is not None for value in (arguments.pins, arguments.build, arguments.metadata, arguments.wrapper, workflows))
+    if targets_contracts_only:
+        report = check(arguments.root, arguments.pins, arguments.build, arguments.metadata, arguments.wrapper, workflows)
+    else:
+        report = check_all(arguments.root)
     for finding in (*report.blocked, *report.findings):
         print(finding.render())
     print(report.counts_line())

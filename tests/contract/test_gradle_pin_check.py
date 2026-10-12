@@ -198,3 +198,135 @@ def test_the_script_prints_the_rendered_finding_the_counts_line_and_the_exit_cod
     blocked = _run("--root", str(root))
     assert blocked.returncode == 2
     assert "GRADLE_PIN_UNREADABLE" in blocked.stdout
+
+
+# --- acceptance-jvm scan (WP05 / NFR-003): the same canonical authority, a second subproject -------------------
+
+AJVM_GRADLE_PIN = "8.0.1"
+AJVM_PLUGIN_PIN = "7.1.0"
+AJVM_PINS = "acceptance-jvm/tools/pins.json"
+AJVM_BUILD = "acceptance-jvm/build.gradle"
+AJVM_METADATA = "acceptance-jvm/gradle/verification-metadata.xml"
+AJVM_WRAPPER = "acceptance-jvm/gradle/wrapper/gradle-wrapper.properties"
+NIGHTLY = ".github/workflows/ci-nightly.yml"
+
+_AJVM_PINS_JSON = """{{
+  "tools": [
+    {{"name": "gradle", "kind": "archive", "version": "{gradle}",
+     "url": "https://example.invalid/distributions/gradle-{gradle}-bin.zip", "sha256": "0"}},
+    {{"name": "openapi-generator-gradle-plugin", "kind": "gradle-plugin", "version": "{plugin}",
+     "url": "https://example.invalid/m2/openapi-generator-gradle-plugin/{plugin}/openapi-generator-gradle-plugin-{plugin}.jar", "sha256": "0"}}
+  ]
+}}
+"""
+_AJVM_GRADLE_ONLY_PINS = """{{
+  "tools": [
+    {{"name": "gradle", "kind": "archive", "version": "{gradle}",
+     "url": "https://example.invalid/distributions/gradle-{gradle}-bin.zip", "sha256": "0"}}
+  ]
+}}
+"""
+_AJVM_BUILD_GRADLE = "plugins {{\n    id 'org.openapi.generator' version '{plugin}'\n}}\n"
+_AJVM_METADATA_XML = """<?xml version="1.0" encoding="UTF-8"?>
+<verification-metadata xmlns="https://schema.gradle.org/dependency-verification">
+   <components>
+      <component group="org.openapitools" name="openapi-generator-gradle-plugin" version="{plugin}">
+         <artifact name="openapi-generator-gradle-plugin-{plugin}.jar">
+            <sha256 value="0000000000000000000000000000000000000000000000000000000000000000"/>
+         </artifact>
+      </component>
+   </components>
+</verification-metadata>
+"""
+_NIGHTLY_WITH_JOB = "jobs:\n  acceptance-bdd:\n    steps:\n      - uses: ./local\n        with:\n          gradle-version: '{gradle}'\n"
+_NIGHTLY_OTHER_JOB = "jobs:\n  performance:\n    steps:\n      - uses: ./local\n        with:\n          gradle-version: '{gradle}'\n"
+
+
+def _acceptance_tree(tmp_path: Path, *, with_plugin: bool = True, nightly: str | None = _NIGHTLY_WITH_JOB, root: Path | None = None) -> Path:
+    """A repo root holding a clean acceptance-jvm/ subproject (plus an optional nightly workflow)."""
+    root = root if root is not None else tmp_path / "root"
+    pins = _AJVM_PINS_JSON if with_plugin else _AJVM_GRADLE_ONLY_PINS
+    _write(root, AJVM_PINS, pins.format(gradle=AJVM_GRADLE_PIN, plugin=AJVM_PLUGIN_PIN))
+    if with_plugin:
+        _write(root, AJVM_BUILD, _AJVM_BUILD_GRADLE.format(plugin=AJVM_PLUGIN_PIN))
+        _write(root, AJVM_METADATA, _AJVM_METADATA_XML.format(plugin=AJVM_PLUGIN_PIN))
+    if nightly is not None:
+        _write(root, NIGHTLY, nightly.format(gradle=AJVM_GRADLE_PIN))
+    return root
+
+
+def test_a_clean_acceptance_jvm_tree_passes_and_compares_every_new_path(tool: Any, tmp_path: Path) -> None:
+    report = tool.check_acceptance_jvm(_acceptance_tree(tmp_path))
+    assert report.findings == []
+    assert report.blocked == []
+    assert report.exit_code == 0
+    # pins url (gradle, plugin), build.gradle plugin, 1 metadata component, acceptance-bdd gradle-version.
+    assert report.counts == {"pinned": 2, "compared": 5}
+
+
+@pytest.mark.parametrize(
+    ("relative", "old", "new", "subject"),
+    [
+        (AJVM_BUILD, AJVM_PLUGIN_PIN, "7.9.9", AJVM_BUILD),
+        (AJVM_METADATA, f'version="{AJVM_PLUGIN_PIN}"', 'version="7.0.0"', AJVM_METADATA),
+        (AJVM_PINS, f"gradle-{AJVM_GRADLE_PIN}-bin.zip", "gradle-9.9.9-bin.zip", AJVM_PINS),
+        (NIGHTLY, f"'{AJVM_GRADLE_PIN}'", "'9.9.9'", f"{NIGHTLY}:acceptance-bdd"),
+    ],
+    ids=["build-gradle", "verification-metadata", "manifest-url", "nightly-gradle-version"],
+)
+def test_injected_acceptance_jvm_drift_is_a_mismatch(tool: Any, tmp_path: Path, relative: str, old: str, new: str, subject: str) -> None:
+    root = _acceptance_tree(tmp_path)
+    _edit(root, relative, old, new)
+    report = tool.check_acceptance_jvm(root)
+    assert [(f.code, f.subject) for f in report.findings] == [("GRADLE_PIN_MISMATCH", subject)]
+    assert report.blocked == []
+    assert report.exit_code == 1
+
+
+def test_acceptance_jvm_tolerates_an_absent_acceptance_bdd_job(tool: Any, tmp_path: Path) -> None:
+    # A nightly file without the acceptance-bdd job (e.g. before WP06) must not hard-fail, and a gradle-version in
+    # some other job is not ours to judge even when it drifts — the job filter keeps the authority scoped.
+    root = _acceptance_tree(tmp_path, nightly=_NIGHTLY_OTHER_JOB)
+    _edit(root, NIGHTLY, f"'{AJVM_GRADLE_PIN}'", "'9.9.9'")
+    report = tool.check_acceptance_jvm(root)
+    assert report.findings == []
+    assert report.blocked == []
+    assert report.exit_code == 0
+
+
+def test_acceptance_jvm_gradle_only_build_is_tolerated_like_the_real_subproject(tool: Any, tmp_path: Path) -> None:
+    # The live acceptance-jvm pins only gradle, commits no wrapper, and the acceptance-bdd job does not exist yet;
+    # the scan must stay green (not UNPARSEABLE/UNREADABLE/ZERO_COMPARISONS) so WP06 ordering never hard-fails.
+    root = _acceptance_tree(tmp_path, with_plugin=False, nightly=_NIGHTLY_OTHER_JOB)
+    report = tool.check_acceptance_jvm(root)
+    assert report.findings == []
+    assert report.blocked == []
+    assert report.exit_code == 0
+    assert report.counts == {"pinned": 1, "compared": 1}
+
+
+def test_check_all_scans_both_subprojects_and_skips_acceptance_jvm_when_absent(tool: Any, tmp_path: Path) -> None:
+    # Whole-repo mode: a contracts-only root yields the unchanged single counts line (acceptance-jvm skipped).
+    contracts_only = tool.check_all(FIXTURE_ROOT / "clean")
+    assert contracts_only.counts == {"pinned": 2, "compared": 5}
+    assert contracts_only.exit_code == 0
+    # With both subprojects present, one report aggregates both authorities.
+    root = _copy(tmp_path)
+    _acceptance_tree(tmp_path, root=root)
+    both = tool.check_all(root)
+    assert both.findings == []
+    assert both.blocked == []
+    assert both.counts == {"pinned": 4, "compared": 10}
+    assert both.exit_code == 0
+
+
+@pytest.mark.skipif(
+    not (REPO_ROOT / "acceptance-jvm" / "tools" / "pins.json").exists(),
+    reason="acceptance-jvm subproject (WP03) not present in this checkout",
+)
+def test_the_real_acceptance_jvm_build_agrees_with_its_pins(tool: Any) -> None:
+    report = tool.check_acceptance_jvm(REPO_ROOT)
+    assert report.findings == []
+    assert report.blocked == []
+    assert report.counts["pinned"] >= 1
+    assert report.counts["compared"] >= 1
