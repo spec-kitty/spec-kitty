@@ -36,7 +36,7 @@ import stat
 import subprocess
 import sys
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -460,16 +460,52 @@ def guarded_worktree_prune(repo_root: Path, *, env: dict[str, str] | None = None
     _git_ok(repo_root, ["worktree", "prune"], env)
 
 
-def _unique_commits(repo_root: Path, branch: str, extra_not: list[str], env: dict[str, str] | None) -> list[str]:
-    """Commits on ``branch`` that no other local ref, remote ref or tag (and none of ``extra_not``) reaches."""
+def _unique_commits(
+    repo_root: Path,
+    branch: str,
+    extra_not: list[str],
+    env: dict[str, str] | None,
+    *,
+    ignoring: Sequence[str] = (),
+) -> list[str]:
+    """Commits on ``branch`` that no other local ref, remote ref or tag (and none of ``extra_not``) reaches.
+
+    ``ignoring`` names local branches that do not count as "another ref" (the
+    branches the caller is about to delete together with ``branch``).
+    """
     own_ref = f"refs/heads/{branch}"
+    skipped = {own_ref, *(f"refs/heads/{name}" for name in ignoring)}
     refs = _git_ok(repo_root, ["for-each-ref", "--format=%(refname) %(objectname)", "refs/heads", "refs/remotes", "refs/tags"], env)
-    others = [line.split(" ")[1] for line in refs.splitlines() if line and line.split(" ")[0] != own_ref]
+    others = [line.split(" ")[1] for line in refs.splitlines() if line and line.split(" ")[0] not in skipped]
     negated = "".join(f"^{rev}\n" for rev in [*others, *extra_not])
     result = _run_git(repo_root, ["rev-list", own_ref, "--stdin"], env=env, stdin=negated)
     if result.returncode != 0:
         raise RuntimeError(f"git rev-list failed in {repo_root}: {result.stderr.strip() or result.stdout.strip()}")
     return result.stdout.split()
+
+
+def branch_tip(repo_root: Path, branch: str, *, env: dict[str, str] | None = None) -> str | None:
+    """The full tip SHA of local ``branch``, or ``None`` when it does not exist."""
+    result = _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}^{{commit}}"], env=env)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def branch_only_commits(
+    repo_root: Path,
+    branch: str,
+    *,
+    ignoring: Sequence[str] = (),
+    env: dict[str, str] | None = None,
+) -> list[str]:
+    """Commits on local ``branch`` that exist on no other ref once the ``ignoring`` branches are gone.
+
+    The same count :func:`guarded_branch_delete` refuses on (FR-009), exposed
+    read-only so a caller can show what a deletion would lose before it asks
+    the operator to confirm. A missing branch has none.
+    """
+    if _run_git(repo_root, ["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"], env=env).returncode != 0:
+        return []
+    return _unique_commits(repo_root, branch, [], env, ignoring=ignoring)
 
 
 def guarded_branch_delete(

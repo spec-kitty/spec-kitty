@@ -22,7 +22,15 @@ from kernel.git import GitCommandError, status_entries
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root, load_meta_fail_closed
 from specify_cli.core.utils import safe_is_dir
-from specify_cli.git.destructive_guard import DISCARD_INTENT, DestructiveOpRefused, RemoveOutcome, guarded_branch_delete, guarded_worktree_remove
+from specify_cli.git.destructive_guard import (
+    DISCARD_INTENT,
+    DestructiveOpRefused,
+    RemoveOutcome,
+    branch_only_commits,
+    branch_tip,
+    guarded_branch_delete,
+    guarded_worktree_remove,
+)
 from specify_cli.git.remote_probes import RemoteLookup, remote_branch_lookup
 from specify_cli.mission_metadata import load_meta, recorded_mid8
 from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
@@ -713,10 +721,11 @@ def _discard_mission_steps(
     force: bool,
 ) -> str | None:
     _require_mission_on_checkout(repo_root, mission_slug, meta_path)
-    _confirm_discard(mission_slug, force=force)
     lanes_manifest = _load_lanes_manifest_for_discard(feature_dir, mission_slug)
     target = _discard_target_branch(meta_path, lanes_manifest)
     minted = _minted_branch_for_discard(repo_root, mission_slug, target)
+    _announce_discard_loss(repo_root, mission_slug, minted, lanes_manifest)
+    _confirm_discard(mission_slug, force=force, single_branch=minted is not None)
     if minted is not None:
         _discard_minted_single_branch(repo_root, mission_slug, minted, target, lanes_manifest)
         return minted
@@ -1079,14 +1088,46 @@ def _commit_flattened_meta(repo_root: Path, feature_dir: Path, mission_slug: str
         )
 
 
-def _confirm_discard(mission_slug: str, *, force: bool) -> None:
+def _own_branches_for_discard(minted: str | None, lanes_manifest: Any | None) -> list[str]:
+    """The Mission's own branch(es) a discard deletes with :data:`DISCARD_INTENT` (the unique-commit check is skipped)."""
+    if minted is not None:
+        return [minted]
+    deletable = _deletable_mission_branch(lanes_manifest) if lanes_manifest is not None else None
+    return [deletable] if deletable is not None else []
+
+
+def _announce_discard_loss(repo_root: Path, mission_slug: str, minted: str | None, lanes_manifest: Any | None) -> None:
+    """Print, per branch the discard deletes unguarded, its tip and the commits that exist on no other branch.
+
+    Counted with the guard's own predicate (:func:`branch_only_commits`), treating
+    every branch this discard deletes as gone, so a commit reachable only from the
+    Mission's own branches and its lane branches is reported as lost. Runs before
+    the confirmation prompt and also under ``--force``.
+    """
+    own = _own_branches_for_discard(minted, lanes_manifest)
+    if not own:
+        return
+    doomed = [*own, *_code_lane_branch_names(mission_slug, lanes_manifest)] if lanes_manifest is not None else list(own)
+    for branch in own:
+        tip = branch_tip(repo_root, branch)
+        if tip is None:
+            continue
+        lost = len(branch_only_commits(repo_root, branch, ignoring=doomed))
+        note = f": {lost} commit(s) that exist on no other branch will be deleted" if lost else ": no commits that exist on no other branch"
+        console.print(f"  Branch {branch} (tip {tip[:12]}){note}")
+
+
+def _confirm_discard(mission_slug: str, *, force: bool, single_branch: bool = False) -> None:
     if force:
         return
+    if single_branch:
+        scope = "the mission branch and all worktrees"
+        history = "the mission's files kept on that branch"
+    else:
+        scope = "the coordination branch, every lane branch, and all worktrees"
+        history = "the coordination history kept there (review cycles, traces, issue matrix) unless it is already on the primary branch"
     confirm = typer.confirm(
-        f"Discard mission {mission_slug}? This deletes the coordination "
-        f"branch, every lane branch, and all worktrees. Unmerged work "
-        f"on those branches WILL BE LOST, and so will the coordination history "
-        f"kept there (review cycles, traces, issue matrix) unless it is already on the primary branch.",
+        f"Discard mission {mission_slug}? This deletes {scope}. Unmerged work on those branches WILL BE LOST, and so will {history}.",
         default=False,
     )
     if not confirm:
@@ -1120,16 +1161,17 @@ def _deletable_mission_branch(manifest: Any) -> str | None:
     return str(mission_branch)
 
 
-def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: Any) -> None:
+def _code_lane_branch_names(mission_slug: str, lanes_manifest: Any) -> list[str]:
     from specify_cli.lanes.branch_naming import code_lane_branch_name
     from specify_cli.lanes.compute import is_planning_lane
 
+    return [code_lane_branch_name(mission_slug, lane.lane_id) for lane in lanes_manifest.lanes if not is_planning_lane(lane)]
+
+
+def _delete_lane_branches(repo_root: Path, mission_slug: str, lanes_manifest: Any) -> None:
     lane_base = _existing_ref(repo_root, lanes_manifest.mission_branch) or _existing_ref(repo_root, lanes_manifest.target_branch)
     deleted_lanes = 0
-    for lane in lanes_manifest.lanes:
-        if is_planning_lane(lane):
-            continue
-        branch_name = code_lane_branch_name(mission_slug, lane.lane_id)
+    for branch_name in _code_lane_branch_names(mission_slug, lanes_manifest):
         deleted_lanes += _force_delete_branch_if_exists(repo_root, branch_name, creation_base=lane_base)
 
     deletable = _deletable_mission_branch(lanes_manifest)

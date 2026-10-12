@@ -33,10 +33,15 @@ def _branch_exists(repo: Path, branch: str) -> bool:
 def test_discard_from_mission_branch_switches_to_target_and_deletes_branch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo, slug, minted, _feature_dir = _finalized_protected_mission(tmp_path, monkeypatch, "discard-on-branch")
     assert _git(repo, "branch", "--show-current") == minted
+    old_tip = _git(repo, "rev-parse", minted)
+    lost = len(_git(repo, "rev-list", minted, "--not", "main").split())
+    assert lost > 0, "the minted branch carries the Mission's own commits"
 
     result = runner.invoke(root_app, ["mission", "close", "--mission", slug, "--discard", "--force"])
 
     assert result.exit_code == 0, result.output
+    # The loss is shown even under --force (no prompt): branch, tip, and how many commits exist nowhere else.
+    assert f"Branch {minted} (tip {old_tip[:12]}): {lost} commit(s) that exist on no other branch will be deleted" in result.output
     assert _git(repo, "branch", "--show-current") == "main"
     assert not _branch_exists(repo, minted)
     assert "Error" not in result.output
