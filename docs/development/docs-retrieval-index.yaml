@@ -3681,6 +3681,8 @@ pages:
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "open-questions", text: "Open Questions", level: 2}
+    - {slug: "amendment-2026-10-11-owner-ruling", text: "Amendment (2026-10-11 owner ruling)", level: 2}
+    - {slug: "consequences-of-the-narrowing", text: "Consequences of the narrowing", level: 3}
   - path: "docs/adr/4.x/2026-10-12-1-baseline-captured-at-for-review-not-claim.md"
     title: "ADR: the test baseline is captured at for_review, at the lane fork point, not at the claim"
     divio_type: "none"
@@ -11427,6 +11429,17 @@ pages:
     - {slug: "pill-vocabulary-the-design-system-s-sk-tag", text: "Pill vocabulary (the design system's `.sk-tag`)", level: 2}
     - {slug: "voice-content-conventions", text: "Voice & content conventions", level: 2}
     - {slug: "promotion-done", text: "Promotion (done)", level: 2}
+  - path: "docs/development/testing/acceptance-scenarios.md"
+    title: "CLI Acceptance Scenarios (Cucumber-JVM nightly)"
+    divio_type: "how-to"
+    abstract: "How to write, run and read the Gherkin acceptance scenarios that check the built spec-kitty CLI every night on Linux, macOS and Windows."
+    anchors:
+    - {slug: "write-a-scenario", text: "Write a scenario", level: 2}
+    - {slug: "step-structure-arrange-assume-act-assert", text: "Step structure: Arrange, Assume, Act, Assert", level: 2}
+    - {slug: "tags", text: "Tags", level: 2}
+    - {slug: "run-the-scenarios-locally", text: "Run the scenarios locally", level: 2}
+    - {slug: "change-a-dependency", text: "Change a dependency", level: 2}
+    - {slug: "read-a-nightly-failure", text: "Read a nightly failure", level: 2}
   - path: "docs/development/testing/index.md"
     title: "Testing the Spec Kitty codebase"
     divio_type: "none"

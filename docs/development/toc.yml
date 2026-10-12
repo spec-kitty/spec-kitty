@@ -64,6 +64,8 @@
 - name: Testing
   href: testing/index.md
   items:
+    - name: CLI acceptance scenarios (Cucumber-JVM nightly)
+      href: testing/acceptance-scenarios.md
     - name: Test-flakiness handling policy
       href: testing/testing-flakiness.md
     - name: Running the test suite in parallel
