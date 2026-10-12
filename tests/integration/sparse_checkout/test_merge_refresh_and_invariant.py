@@ -156,6 +156,16 @@ class TestPostMergeRefreshAndInvariant:
         def fake_mark_wp_merged_done(*args, **kwargs):  # noqa: ANN001
             call_log.append("mark_done")
 
+        def fake_guarded_reset_hard(*args, **kwargs):  # noqa: ANN001, ANN202
+            # #5965/#5966: the post-merge `git reset --hard HEAD` now routes
+            # through ``guarded_reset_hard`` (its own ``_git_ok``/``_run_git``
+            # wrapper), not ``run_command``, so the ``fake_run_command`` reset
+            # arm no longer fires. Record the refresh here, at the same ordering
+            # point the production reset runs, so the FR-013 ordering assertion
+            # still sees it.
+            call_log.append("hard_refresh")
+            return None
+
         stale_report = MagicMock()
         stale_report.findings = []
         gate_eval = MagicMock()
@@ -182,6 +192,9 @@ class TestPostMergeRefreshAndInvariant:
             # WP10 (#2057): the post-merge hard refresh runs in the git_probes
             # seam; spy it into the same call log so the ordering assertion sees it.
             patch("specify_cli.consolidation.git_probes.run_command", side_effect=fake_run_command),
+            # #5965/#5966: the reset itself now routes through ``guarded_reset_hard``;
+            # spy it so the ordering assertion still observes the refresh.
+            patch("specify_cli.consolidation.git_probes.guarded_reset_hard", side_effect=fake_guarded_reset_hard),
             patch("specify_cli.consolidation.phase_bookkeeping._raw_porcelain_status", side_effect=fake_raw_porcelain),
             patch_executor_family("_paths_have_status_changes", return_value=True),
             patch("specify_cli.consolidation.phase_finalize.has_remote", return_value=False),

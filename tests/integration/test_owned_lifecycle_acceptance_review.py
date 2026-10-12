@@ -265,15 +265,33 @@ class TestUs3As5OwnedReviewBaseUnavailable:
         _assert_review_base_blocked(_owned_next(owned_checkouts, monkeypatch))
 
     def test_no_claim_event_is_blocked(self, owned_checkouts: OwnedCheckouts, monkeypatch: pytest.MonkeyPatch) -> None:
+        # The claim event must stay a real planned->claimed TRANSITION in the log,
+        # or the contiguity reducer orphans WP01's later events and it reduces to
+        # `planned` (action=implement), never reaching the review-base block.
+        # So keep the transition and instead make its claim COMMIT unresolvable:
+        # rewrite the claim event's id to a value that was NEVER committed and
+        # leave it UNCOMMITTED. WP01 still reduces to `for_review`, but
+        # `claim_commit_for_wp`'s `git log -S<id> HEAD` finds no commit
+        # introducing the id -> `no_commit` -> OWNED_REVIEW_BASE_UNAVAILABLE. This
+        # is the genuine "review base unavailable because the claim is not on any
+        # commit of HEAD" shape (distinct from the ambiguous sibling below), the
+        # same `no_commit` path the claim-commit unit suite exercises.
         _owned_review_ready(owned_checkouts, monkeypatch)
         events = owned_checkouts.mission_dir / _EVENTS
-        kept = [
-            line
-            for line in events.read_text(encoding="utf-8").splitlines()
-            if not (json.loads(line).get("wp_id") == "WP01" and json.loads(line).get("to_lane") == "claimed")
-        ]
-        events.write_text("\n".join(kept) + "\n", encoding="utf-8")
-        _commit_all(owned_checkouts.owned_root, "strip the WP01 claim event")
+        fresh_uncommitted_claim_id = "01NOCOMMITCLAIMZZZZZZZZZZ1"
+        rewritten: list[str] = []
+        for line in events.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            record = json.loads(line)
+            if record.get("wp_id") == "WP01" and record.get("to_lane") == "claimed":
+                record["event_id"] = fresh_uncommitted_claim_id
+                rewritten.append(json.dumps(record, sort_keys=True))
+            else:
+                rewritten.append(line)
+        # Deliberately NOT committed: the fresh id lives only in the working tree,
+        # so no commit of HEAD introduced it.
+        events.write_text("\n".join(rewritten) + "\n", encoding="utf-8")
 
         _assert_review_base_blocked(_owned_next(owned_checkouts, monkeypatch))
 

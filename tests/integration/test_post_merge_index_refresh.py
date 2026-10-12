@@ -140,6 +140,16 @@ def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
         call_log.append(("git", "status", "--porcelain=v1", "-z"))
         return ()
 
+    def fake_guarded_reset_hard(*args, **kwargs):  # noqa: ANN001, ANN202
+        # #5965/#5966: the post-merge `git reset --hard HEAD` now routes through
+        # ``guarded_reset_hard`` (its own ``_git_ok``/``_run_git`` wrapper), not
+        # ``run_command``, so ``fake_run_command`` never sees the reset. Record a
+        # ``reset --hard HEAD``-equivalent marker here, at the same ordering point
+        # the production reset runs, so the FR-003 "reset fires" / ordering
+        # assertions hold against the current seam.
+        call_log.append(("git", "reset", "--hard", "HEAD"))
+        return None
+
     patches = [
         patch("specify_cli.consolidation.entry_preflight.require_lanes_json", return_value=manifest),
         patch("specify_cli.consolidation.resolve.load_state", return_value=None),
@@ -159,6 +169,9 @@ def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
         # git update-index --refresh) lives in the git_probes seam; spy its
         # run_command into the same call log so the FR-003 assertion still sees it.
         patch("specify_cli.consolidation.git_probes.run_command", side_effect=fake_run_command),
+        # #5965/#5966: the reset itself now routes through ``guarded_reset_hard``;
+        # spy it so the FR-003 ordering/"reset fires" assertions still observe it.
+        patch("specify_cli.consolidation.git_probes.guarded_reset_hard", side_effect=fake_guarded_reset_hard),
         patch("specify_cli.consolidation.git_probes.status_entries", side_effect=fake_status_entries),
         patch("specify_cli.consolidation.phase_finalize.has_remote", return_value=False),
         patch("specify_cli.consolidation.phase_finalize.cleanup_merge_workspace"),
