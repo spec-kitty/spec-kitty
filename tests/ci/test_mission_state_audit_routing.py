@@ -376,19 +376,22 @@ def test_every_executed_audit_module_matches_the_group(executed_audit_modules: _
     """Every ``src/`` module the audit executes must match a ``mission_state`` glob (#6090).
 
     Derived from a real ``doctor mission-state --audit --fail-on teamspace-blocker`` run through the
-    typer app (the argv is read from the CI job) — not a hand copy — so the trigger cannot silently go stale when the audit's module graph changes (#6058).
+    typer app (the argv is read from the CI job), not a hand copy, so the trigger cannot silently
+    go stale when the audit's module graph changes (#6058).
 
-    Scope and premise (deliberate): this is an ongoing drift *tripwire*, not a corpus-wide
-    completeness proof. It guards the ``src/`` modules the audit executes **at runtime** over
-    this modern, drifting fixture mission. It rests on one premise verified by
-    the mission's grounding corpus scan (604 real missions → 33 modules, all glob-covered),
-    not re-verified here: a module that runs only at a *cold* process's import time (e.g. a
-    package's eager ``__init__`` siblings) is structural, not verdict-affecting, so folding it
-    out via the warm-up is sound. It therefore does not guard a module reachable only through
-    a path no real mission takes (a legacy ``feature_slug`` shape routes through a
-    slug-resolution module the real corpus never runs) or a mode CI never invokes
-    (``--fix`` / ``--teamspace-dry-run``). Widen the fixture if the audit later routes a
-    verdict-affecting module through one of those paths.
+    Scope and blind spots (deliberate): this is an ongoing drift *tripwire*, not a corpus-wide
+    completeness proof. It guards the ``src/`` modules whose functions the audit **calls** over
+    this modern, drifting fixture mission (37 at landing; the grounding corpus scan of 604 real
+    missions found the same in-audit set). A call-frame profile cannot see purely declarative
+    modules (constants, regexes, frozensets, enums, models without validators) or
+    dataclass-generated methods: such an input can change the verdict (``core/constants.py``
+    sets the scan root) yet never shows up here, so it must be added to
+    ``NON_DERIVABLE_TRIGGER_INPUTS`` by hand. The nightly full-corpus audit is the backstop for
+    what neither covers. The warm-up also folds out code that runs only at a cold process's
+    import time. Nor does the test guard a module reachable only through a path no real mission
+    takes (a legacy ``feature_slug`` shape routes through a slug-resolution module the real
+    corpus never runs) or a mode CI never invokes (``--fix`` / ``--teamspace-dry-run``). Widen
+    the fixture if the audit later routes a verdict-affecting module through one of those paths.
     """
     router = load_router()
     modules, run = executed_audit_modules
