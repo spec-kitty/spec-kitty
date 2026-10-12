@@ -57,9 +57,18 @@ def guard_native_finalization(repo_root: Path, mission_slug: str) -> None:
     would raise a false stale verdict once finalization rewrote the work-package
     frontmatter. The check is read-only; it never writes or advances state.
     """
+    from kernel.git_topology import GitTopologyError
+
     from specify_cli.design.receipts import api_authoring_enabled, authoring_lock
 
-    if not api_authoring_enabled(repo_root, mission_slug):
+    try:
+        enabled = api_authoring_enabled(repo_root, mission_slug)
+    except GitTopologyError:
+        # The API-authoring marker lives in the git common dir, so a path with no
+        # resolvable git repository cannot carry one — there is nothing to enforce.
+        # (The native finalize path owns any real git failure downstream.)
+        return
+    if not enabled:
         return
     status_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
     with authoring_lock(repo_root, mission_slug):

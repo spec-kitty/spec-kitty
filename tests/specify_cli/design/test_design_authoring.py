@@ -498,3 +498,10 @@ def test_guard_native_finalization_refuses_stale_when_unfinalized(mission: tuple
         validation.guard_native_finalization(repo, slug)
     assert caught.value.code == "DESIGN_PREREQUISITES_FAILED"
     validate.assert_called_once_with(repo, slug, "tasks")
+
+
+def test_guard_native_finalization_noop_outside_git_repository(tmp_path: Path) -> None:
+    # #5879 CI remediation: a path with no resolvable git repository cannot carry
+    # the API-authoring marker, so the guard is a no-op (it must NOT raise
+    # NotAGitRepositoryError from the git_common_dir probe).
+    assert validation.guard_native_finalization(tmp_path, "no-such-mission") is None

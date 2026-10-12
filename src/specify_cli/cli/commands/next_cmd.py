@@ -183,6 +183,7 @@ def _enforce_api_authoring_completion_gate(
     ``issued_step_id``, never a caller-supplied stage. Non-API-authored Missions
     (no marker) keep byte-identical native behavior.
     """
+    from kernel.git_topology import GitTopologyError
     from runtime.next.runtime_bridge_query import MissionNotFoundError, issued_step_id_for_mission
 
     from specify_cli.design.errors import DesignError
@@ -190,7 +191,14 @@ def _enforce_api_authoring_completion_gate(
     from specify_cli.design.validation import validate_stage
 
     root = Path(str(repo_root))
-    if not api_authoring_enabled(root, mission_slug):
+    try:
+        enabled = api_authoring_enabled(root, mission_slug)
+    except GitTopologyError:
+        # The API-authoring marker lives in the git common dir; a path with no
+        # resolvable git repository cannot carry one, so there is nothing to
+        # enforce here (the native authority owns any real git failure).
+        return
+    if not enabled:
         return
     try:
         with authoring_lock(root, mission_slug):
