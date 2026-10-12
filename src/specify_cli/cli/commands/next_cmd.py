@@ -144,6 +144,70 @@ def _runtime_bridge_module():
     return sys.modules.get("runtime.next.runtime_bridge") or importlib.import_module("runtime.next.runtime_bridge")
 
 
+def _emit_design_refusal(exc: object, mission_slug: str, json_output: bool) -> None:
+    """Surface a design-authoring refusal as the single-JSON error contract.
+
+    In ``--json`` mode the payload is the only document on stdout (native notices
+    stay on stderr), so the orchestrator-api projection's single-document decode
+    keeps working and maps ``reason`` to the typed ``DesignError`` code. In human
+    mode the refusal goes to stderr.
+    """
+    code = getattr(exc, "code", "DESIGN_REQUEST_INVALID")
+    message = getattr(exc, "message", str(exc))
+    details = getattr(exc, "details", {})
+    if json_output:
+        payload: dict[str, object] = {"kind": "error", "error": message, "reason": code, "mission_slug": mission_slug}
+        if details:
+            payload["details"] = details
+        print(json.dumps(payload))
+    else:
+        print(f"Error: {message} ({code})", file=sys.stderr)
+
+
+def _enforce_api_authoring_completion_gate(
+    mission_slug: str,
+    repo_root: object,
+    json_output: bool,
+    *,
+    owned: OwnedCheckout | None,
+) -> None:
+    """Refuse native completion of an API-authored Mission with stale content (#5879).
+
+    The marker-gated stale/unfinished-content proof (``validate_stage``) used to
+    run only on the orchestrator-api ``next`` path, so a user could bypass the
+    API-authoring contract by switching to native ``spec-kitty next
+    --result success``. Running it here makes the native surface enforce the same
+    refusal, and the orchestrator-api verb inherits it because that verb drives
+    ``next_step`` in-process (one canonical authority). The check is read-only and
+    runs before any runtime mutation; the stage validated is the native persisted
+    ``issued_step_id``, never a caller-supplied stage. Non-API-authored Missions
+    (no marker) keep byte-identical native behavior.
+    """
+    from runtime.next.runtime_bridge_query import MissionNotFoundError, issued_step_id_for_mission
+
+    from specify_cli.design.errors import DesignError
+    from specify_cli.design.receipts import api_authoring_enabled, authoring_lock
+    from specify_cli.design.validation import validate_stage
+
+    from pathlib import Path as _Path
+
+    root = _Path(str(repo_root))
+    if not api_authoring_enabled(root, mission_slug):
+        return
+    try:
+        with authoring_lock(root, mission_slug):
+            issued_stage = issued_step_id_for_mission(mission_slug, root, owned=owned)
+            if issued_stage in {"specify", "plan", "tasks"}:
+                validate_stage(root, mission_slug, issued_stage)
+    except MissionNotFoundError:
+        # The native authority owns mission resolution; a missing run is handled
+        # downstream by ``decide_next`` rather than masked as a design refusal.
+        return
+    except DesignError as exc:
+        _emit_design_refusal(exc, mission_slug, json_output)
+        raise typer.Exit(1) from exc
+
+
 def _legacy_main_repo_guard() -> None:
     """The unchanged syntactic ``.worktrees`` guard (US7-AS2/AS3), as a callable fall-through.
 
@@ -325,6 +389,11 @@ def next_step(
     if not agent:
         print("Error: --agent is required when --result is provided", file=sys.stderr)
         raise typer.Exit(1)
+
+    # #5879: for an API-authored Mission, enforce the marker-gated stale/unfinished
+    # content refusal on native completion, matching the orchestrator-api path.
+    if result == "success":
+        _enforce_api_authoring_completion_gate(mission_slug, repo_root, json_output, owned=owned)
 
     _dispatch_advancing_mode(
         agent,

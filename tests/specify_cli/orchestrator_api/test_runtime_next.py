@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib
-import contextlib
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -38,7 +37,6 @@ def invoke(args: list[str], delegate):
         with (
             patch.object(module._common, "_get_main_repo_root", return_value=root),
             patch("specify_cli.cli.commands.next_cmd.next_step", side_effect=delegate),
-            patch.object(module, "_completion_gate", return_value=contextlib.nullcontext()),
         ):
             result = CliRunner().invoke(app, ["next", *args])
     return result, json.loads(result.stdout)

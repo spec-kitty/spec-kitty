@@ -6,7 +6,6 @@ import contextlib
 import io
 import json
 from pathlib import Path
-from collections.abc import Iterator
 from typing import Any
 
 import typer
@@ -45,39 +44,6 @@ def _run_native(arguments: dict[str, Any]) -> tuple[dict[str, Any] | None, bool]
     return _decode(capture.getvalue()), failed
 
 
-@contextlib.contextmanager
-def _completion_gate(arguments: dict[str, Any]) -> Iterator[None]:
-    """Guard API-authored content while the native authority completes its step.
-
-    The native persisted snapshot identifies the issued step, never a planner
-    preview or caller-supplied stage. Initial issuance and legacy manual authoring preserve native behavior.
-    The lock coordinates API writers; native/manual writers remain outside it.
-    """
-    if arguments["result"] != "success":
-        yield
-        return
-    from specify_cli.design.receipts import api_authoring_enabled, authoring_lock
-    from specify_cli.design.validation import validate_stage
-    from runtime.next.runtime_bridge_query import issued_step_id_for_mission, MissionNotFoundError
-
-    root = _common._get_main_repo_root()
-    slug = _common._resolve_mission_dir_or_fail("next", root, arguments["mission"]).name
-    with authoring_lock(root, slug):
-        if api_authoring_enabled(root, slug):
-            try:
-                issued_stage = issued_step_id_for_mission(slug, root)
-            except MissionNotFoundError as exc:
-                raise DesignContextError("RUNTIME_NEXT_FAILED", "Native issued state is unavailable") from exc
-            if issued_stage in {"specify", "plan", "tasks"}:
-                validate_stage(root, slug, issued_stage)
-        yield
-
-
-def _run_governed(arguments: dict[str, Any]) -> tuple[dict[str, Any] | None, bool]:
-    with _completion_gate(arguments):
-        return _run_native(arguments)
-
-
 def _project_prompt(payload: dict[str, Any]) -> None:
     path = payload.get("prompt_file")
     if not path:
@@ -113,7 +79,10 @@ def runtime_next(
     mission = _common._resolve_mission_dir_or_fail(cmd, root, mission).name
     arguments = {"agent": agent, "result": result, "mission": mission, "json_output": True, "answer": answer, "decision_id": decision_id, "owned_checkout": None}
     try:
-        payload, failed = _run_governed(arguments)
+        # #5879: the marker-gated stale-content refusal now lives in the shared
+        # native seam (``next_cmd.next_step``), so this verb inherits it by driving
+        # native ``next`` directly — one canonical enforcement authority.
+        payload, failed = _run_native(arguments)
         if payload is None:
             raise DesignContextError("RUNTIME_NEXT_FAILED", "Native next produced no parseable JSON", {"mission_slug": mission})
         payload.setdefault("mission_slug", mission)
