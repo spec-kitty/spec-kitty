@@ -1,9 +1,9 @@
 ---
 title: '4.x Executive Overview'
-description: 'Summary of the 4.x cycle for decision owners: where 4.0.0 stands, what the release candidates delivered, what still gates GA, and the calls to make.'
+description: 'Summary of the 4.x cycle for decision owners: where 4.0.0 stands, what the release candidates delivered, what still gates GA, and the calls to make. Updated 2026-10-12 — GA is done-when-done and the gate now also covers charter modular extraction and the mission-status API backend.'
 doc_status: active
 type: explanation
-updated: '2026-10-06'
+updated: '2026-10-12'
 audience: docs/context/audience/external/product-manager-evaluator.md
 related:
 - docs/plans/4-0-0-milestone-roadmap.md
@@ -25,12 +25,16 @@ for today's numbers.*
 
 ## Bottom line
 
-4.0.0 is close. Five release candidates have shipped, and the GA gate stands at **210 items
-closed, with 14 open**, due 16 October. Most of the cycle went into one thing customers will
-feel directly: **the CLI no longer loses or overwrites their work without saying so**. Every
-data-safety P0 that was open on 1 October has closed. One P0 is left on the gate, a red
-performance suite in the nightly. The open questions are when to ship rc6, and whether two
-new collaboration P0s belong in 4.0.0.
+4.0.0 is close. Five release candidates have shipped. **GA now ships "done when done" — it is
+no longer pinned to a date** (direction update, 12 October); release candidates keep going out
+to early adopters off `main` in the meantime. The GA gate has also **grown beyond local
+integrity**: alongside the data-safety work, it now covers **charter modular extraction** and
+the **mission-status API backend** (the open-core producer surface). The local-integrity leg
+stands at **210 items closed, with 14 open**. Most of the cycle went into one thing customers
+will feel directly: **the CLI no longer loses or overwrites their work without saying so**.
+Every data-safety P0 that was open on 1 October has closed. One P0 is left on that leg, a red
+performance suite in the nightly. The open questions are when to ship rc6, and whether two new
+collaboration P0s belong in 4.0.0.
 
 ## Where 4.0.0 stands
 
@@ -39,12 +43,14 @@ new collaboration P0s belong in 4.0.0.
 | Last 3.x release | 3.2.7, 2026-09-10 |
 | Release candidates shipped | rc1 (09-13), rc2 (09-14), rc3 (09-17), rc4 (09-21), rc5 (10-02) |
 | Next candidate | rc6, open on `main` with the `consolidate` fixes made after rc5 |
-| GA gate | [milestone 11](https://github.com/spec-kitty/spec-kitty/milestone/11): 210 closed, 14 open, due 2026-10-16 |
+| GA timing | done-when-done — not date-gated; RCs keep shipping to early adopters off `main` |
+| GA gate | three legs: local integrity ([milestone 11](https://github.com/spec-kitty/spec-kitty/milestone/11): 210 closed, 14 open) · charter modular extraction (#645) · the mission-status API backend (#5528) |
 | Nightly | 56 of 57 jobs green on 2026-10-06; not fully green since 2026-09-15 |
 | After GA | [CLI 4.x stable](https://github.com/spec-kitty/spec-kitty/milestone/12) (milestone 12) and [4.x Work](https://github.com/spec-kitty/spec-kitty/milestone/8) (milestone 8) |
 
-Only milestone 11 gates GA. An issue on 4.x Work or CLI 4.x stable is planned work, not a
-release blocker.
+The GA gate is now three legs (local integrity, charter extraction, the mission-status API
+backend), not milestone 11 alone. An issue on 4.x Work or CLI 4.x stable is planned work, not a
+release blocker, unless it is one of those three legs.
 
 ## What the release candidates delivered
 
@@ -81,14 +87,25 @@ measurement.
 
 ## What still gates GA
 
-The 14 open issues on milestone 11 (read 2026-10-06), by kind:
+The GA gate now has **three legs**. Leg 1 is local integrity (milestone 11, 14 open, read
+2026-10-06); legs 2 and 3 are structural pieces promoted onto the gate on 12 October.
+
+**Leg 1 — local integrity (milestone 11), by kind:**
 
 | Kind | Issues | What it means |
 | --- | --- | --- |
-| Nightly | #5419 (P0) | The performance suite is the one red job. A release needs a green nightly; rc5 shipped under a logged waiver. |
+| Nightly | #5419 (P0) | The performance suite is the one red job. A release candidate needs a green nightly; rc5 shipped under a logged waiver. |
 | Correctness residuals | #5638, #5704, #5726 (P2) | Smaller bugs in the landing and create paths. |
 | Agent integration | #702 (P1) | Codex skill files drift from their manifest. |
-| Hygiene and docs | #2560, #2561, #2562, #3732, #4836, #5428, #5538, #5629, #5715 (P2/P3) | Structural clean-up and docs; candidates to move after GA if they miss the due date. |
+| Hygiene and docs | #2560, #2561, #2562, #3732, #4836, #5428, #5538, #5629, #5715 (P2/P3) | Structural clean-up and docs; non-gating items can move after GA. |
+
+**Leg 2 — charter modular extraction.** #645 moves the ~129 `specify_cli → charter` imports
+onto the stable charter API so the charter can be released as its own external contract
+package in its own repository.
+
+**Leg 3 — the mission-status API backend.** The open-core producer surface (#5528) — the
+stable entry point to ledger and event data the free CLI exposes — ships its backend, with the
+contract canonical beside the Python reducer.
 
 Two P0s and two P1s are open **without a milestone**:
 
@@ -100,34 +117,46 @@ Two P0s and two P1s are open **without a milestone**:
 Our policy is that `main` stays honestly red on known P0s instead of hiding them. The nightly
 reds are that policy working, not an outage.
 
-## What moved out of 4.0.0
+## What moved — out of 4.0.0, and (newly) onto the gate
 
-Two things the original [4.0.0 declaration](../changelog/4.0.0.md) promised are no longer on
-the GA gate:
+From the original [4.0.0 declaration](../changelog/4.0.0.md), still off the GA gate:
 
 - **The structural "one execution context" work** (#1619) was about 70% done (31 of 44
   sub-issues) on 2026-10-01 and sits on CLI 4.x stable. It continues after GA.
-- **Hosted collaboration as a whole** is off the critical path. On 2026-10-01 the CEO, CPO
-  and CTO froze Team Kitty / SaaS work while the commercial vision is reviewed. Nothing
-  hosted gates GA; all external interaction will flow through the CLI's adapter module.
+- **The hosted *backend*** (zeitgeist auth, the hosted backend, the SaaS surface) stays frozen
+  while the commercial vision is reviewed. Nothing hosted-backend gates GA.
 - **Hosted "sync"** as the declaration describes it no longer exists. Its goals (never report
   success while state is stranded, consent before egress) are now carried by the relay model
-  and the opt-in above. The roadmap and the declaration were re-anchored on 2026-10-01 and
-  re-synthesized against the live milestone on 2026-10-06 (#5428).
+  and the opt-in above.
+
+Newly promoted **onto** the GA gate (12 October): **charter modular extraction** and the
+**mission-status API backend** — two pieces of the open-core structural finish that the
+2026-10-06 synthesis had placed after GA. And re-scoped, not frozen: **Team Kitty is now
+"Multiplayer Mode," the consumer side** of the open-core producer API — consumer-side
+UI/multiplayer on that API, and the produce/drain adapter seam, are no longer blocked, while
+the hosted backend stays frozen. The roadmap was re-anchored to this direction on 12 October
+(#5428).
 
 ## Calls that need product ownership
 
 1. **When to ship rc6.** Users on rc5 have the known `consolidate` defects until it ships. The
    release rule needs a green nightly; the last run had one red job (#5419). Wait for it, or
-   waive the rule again as was done for rc5.
+   waive the rule again as was done for rc5. (RCs keep shipping to early adopters regardless of
+   the GA date, which no longer exists.)
 2. **Whether #5780 and #5758 are in 4.0.0.** Both mean a teammate's rejection can be ignored.
-   Neither has an owner or a milestone, and the GA milestone is due on 16 October.
-3. **Whether 16 October is the cut-off.** If it is, anything still open then moves to CLI 4.x
-   stable unless someone pulls it in. Intake is high: 159 issues were opened in the four days
-   after rc5 against 90 closed.
-4. **How GA relates to the Team Kitty launch: decided 2026-10-01.** It does not wait. Team
-   Kitty / SaaS is frozen, and CLI 4.0.0 GA is milestone 11 alone.
+   Neither has an owner or a milestone.
+3. **Scope at each release candidate, not a date.** GA is done-when-done, so the cut-off is a
+   judgment call per RC: a non-gating item moves to CLI 4.x stable with a rationale rather than
+   holding the release. Intake is high: 159 issues were opened in the four days after rc5
+   against 90 closed.
+4. **Charter extraction and the mission-status API backend are now GA-gating.** They are two of
+   the three gate legs, promoted on 12 October from "after GA." Resourcing them is now a
+   release decision, not a 4.x-line one.
+5. **How GA relates to the Team Kitty backend: still decided.** GA does not wait on the hosted
+   backend (frozen). Team Kitty is re-framed as "Multiplayer Mode," the consumer side of the
+   open-core producer API; its consumer work and the adapter seam are unblocked.
 
 **In one sentence:** *4.0.0 turned a CLI that could quietly lose customer work into one that
-refuses instead of guessing, and what stands between the fifth release candidate and GA is a
-short, named list.*
+refuses instead of guessing — and GA now also waits on the charter becoming its own package
+and the open-core mission-status API backend, shipping when those are done rather than on a
+fixed date.*

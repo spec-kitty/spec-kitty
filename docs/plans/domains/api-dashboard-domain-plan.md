@@ -1,8 +1,8 @@
 ---
 title: 'API & Dashboard — Domain Plan'
-description: 'Durable domain plan for the application/mission-data API surface (#645) and dashboard/UX (#650): stable data API, dashboard consumers, retiring the Feature-labelled UI drift.'
+description: 'Durable domain plan for the application/mission-data API surface (#645) and dashboard/UX (#650): the open-core producer API, its consumers, retiring the Feature-labelled UI drift. Updated 2026-10-12 — the mission-status API is the open-core producer surface, now GA-gating; Team Kitty is its consumer; ADR 2026-10-01-2 is Accepted.'
 doc_status: durable
-updated: '2026-10-01'
+updated: '2026-10-12'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
@@ -55,7 +55,12 @@ project's own consumers read mission state from, and the UX that renders it:
   operator decision 2026-10-01), ahead of the read API; the Mission Status Read API
   (#5528), reader re-pointing (#5532) and route rehoming (#5533) continue afterwards as
   the replacement read path. A replacement UI is built in its own repository and consumes
-  the Mission Status Read API ([ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md), proposed).
+  the Mission Status Read API ([ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md), Accepted 2026-10-12).
+  **Direction (2026-10-12):** that read API is the **open-core producer** surface (internally
+  "Build Kitty") — the stable entry point to ledger and event data the free CLI exposes — and
+  its **backend is now GA-gating**. The replacement UI and any multiplayer surface are the
+  **consumer** side ("Multiplayer Mode," Team Kitty), consuming the producer API across its
+  public contract (see §3.1, §6).
 - **Terminology fidelity in the UI (#650)** — the dashboard renders the **Mission** canon
   end to end; the historical `Feature`-labelled UI drift is retired (see §3.3). This is a
   drift-elimination goal, not new vocabulary.
@@ -113,8 +118,9 @@ surface was distributed across two surfaces:
    3.3.x by the [3.2.x milestone roadmap](../3-2-x-milestone-roadmap.md); 3.3.x was retired
    on 2026-08-23 without shipping. #645 is now on the **4.x Work** milestone and #650 in
    **Product backlog** (checked 2026-09-30), and the
-   [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) (Theme 3) places #645 on the
-   post-rc structural tail.
+   [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) (Theme 3), as re-anchored
+   2026-10-12, makes the **mission-status API backend GA-gating** (the open-core producer
+   surface) and #645 GA-gating as the charter-extraction precondition.
 
 **This plan now becomes the domain's index.** It ties #645 and #650 together under one set
 of invariants and surfaces the gaps they leave open (§4), and it draws the boundary with
@@ -140,12 +146,16 @@ projection as its stable surface; internal churn behind it is not externally vis
 service-extraction → typed-contract → architectural-test single-entry-point pattern
 (the #645/#460 precedent) is the shape of the contract; the
 [status model](../../architecture/status-model.md) projection as the data
-source the contract exposes. [ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md) (proposed) names the contract the
-**Mission Status Read API**. It has two granularities: an **overview** built from
-`meta.json` and the event ledger, and a **detail** view with each WP's authored and
-resolved state and its assignment. It is read-only and independent of drain. Its first
-form is an in-process module in the `specify_cli` layer with CLI `--json` verbs. No HTTP
-server or daemon ships in the CLI.
+source the contract exposes. [ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md) (Accepted 2026-10-12) names the contract the
+**Mission Status Read API** and frames it as the **open-core producer surface**, not a hosted
+Team Kitty surface. It has two granularities: an **overview** built from `meta.json` and the
+event ledger, and a **detail** view with each WP's authored and resolved state and its
+assignment. It is read-only and independent of drain. The CLI's own read path is an in-process
+Python module in the `specify_cli` layer behind one read seam; the external form is a
+read-only Java service (`services/mission-status-api/`) that **starts in-repo as a modular
+component and is extracted as needed as an open-core surface — never into a Team Kitty repo**,
+with `contracts/mission-status/` and the conformance fixtures canonical beside the Python
+reducer (ADR Amendment 2026-10-12). **The backend is now GA-gating** (roadmap, Theme 3).
 
 **Open work.** Enumerate and version the mission-data contract (the #645 application-data
 facet — *distinct from* the #3179 doctrine-import facet §3.6 owns), then pin it with a
@@ -259,9 +269,9 @@ drift being killed — not a live UI label.*
 - [Status model architecture](../../architecture/status-model.md) — the
   `status.events.jsonl` event log and `reduce()` projection the mission-data API exposes.
 - [ADR 2026-10-01-2](../../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md) — the Mission Status Read API and the removal of the CLI-bundled dashboard
-  (proposed; the direction is operator-accepted).
-- [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) — the active cycle; Theme 3
-  holds #645 on the post-rc structural tail.
+  (**Accepted 2026-10-12**: the open-core producer surface; in-repo now, extracted when frozen).
+- [4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) — the active cycle; Theme 3 makes
+  the mission-status API backend GA-gating (2026-10-12 re-anchor).
 - [3.2.x milestone roadmap](../3-2-x-milestone-roadmap.md) — *superseded, prior cycle.*
   Recorded the original deferral of experience-shaped (UX/dashboard) work to the retired
   3.3.x milestone.

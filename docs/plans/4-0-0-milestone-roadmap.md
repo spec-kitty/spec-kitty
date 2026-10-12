@@ -1,10 +1,10 @@
 ---
 title: 4.0.0 Milestone — Roadmap
-description: 'Roadmap for the 4.0.0 cycle, re-synthesized 2026-10-06 against the GA milestone: release posture, what still gates GA, dependency spine, exit criteria and risks.'
+description: 'Roadmap for the 4.0.0 cycle: release posture, what still gates GA, dependency spine, exit criteria and risks. Re-anchored 2026-10-12 to the October direction — GA is done-when-done (not date-gated) and the gate expands beyond local integrity to charter modular extraction and the mission-status API backend.'
 doc_status: active
 type: explanation
 audience: docs/context/audience/internal/maintainer.md
-updated: '2026-10-06'
+updated: '2026-10-12'
 related:
 - docs/changelog/4.0.0.md
 - docs/changelog/index.md
@@ -32,21 +32,66 @@ A summary for decision owners is in the [4.x Executive Overview](4-x-executive-o
 
 4.0.0 was declared on 2026-09-04 as the **hosted-collaboration + structural-finish** cycle:
 **G1 hosted collaboration (Team Kitty)**, **G2 next-generation product capabilities**, and
-**G3 the open-core structural strangler finish**. Since the 2026-10-01 direction update,
-4.0.0 GA is a **local CLI integrity** release: G1 is frozen, and the structural work of G2
-and G3 continues on the 4.x line after GA. The four operator-stated goal themes keep their
-numbering:
+**G3 the open-core structural strangler finish**. The 2026-10-01 direction update made GA a
+**local CLI integrity** release. The **2026-10-12 direction update** (below) **expands the GA
+gate** beyond local integrity to also gate on two pieces of the open-core structural finish:
+**charter modular extraction** (#645) and the **mission-status API backend** (the open-core
+producer surface). GA now ships **"done when done" — it is not date-gated** (see "Release
+posture"). The four operator-stated goal themes keep their numbering:
 
 1. **Stability.** The CLI never reports success while it loses, overwrites or strands local
    work. Failures are named, not swallowed.
 2. **Maturity.** One canonical local event store, honestly reported; large modules split
    into owned seams.
 3. **Extensibility.** A governed front door and a stable, versioned application API, so
-   CLI, UI, MCP and SDK consumers build against one surface.
-4. **Team Kitty enablers.** Frozen since 2026-10-01 (see below).
+   CLI, UI, MCP and SDK consumers build against one surface. Two of its pieces — charter
+   modular extraction and the mission-status API backend — are now on the GA gate (Theme 3,
+   below).
+4. **Team Kitty enablers.** Re-framed 2026-10-12 as **"Multiplayer Mode" — the consumer side**
+   of the open-core producer API. The hosted *backend* lane stays frozen, but consumer-side
+   UI/multiplayer on the mission-status API and the produce/drain adapter seam are no longer
+   blocked (see "Direction update (2026-10-12)").
 
 Same discipline as the prior cycles: **no new shadow paths**. Route or extract onto an
 existing authority; never build a parallel one.
+
+## Direction update (2026-10-12): GA is done-when-done, and the gate expands
+
+The operator ratified five adjustments on 2026-10-12. They **extend** the 2026-10-01 update
+below (which still holds where this one is silent); where the two differ, this one wins.
+
+1. **4.0.0 GA is no longer date-gated.** GA ships **"done when done."** Release candidates
+   keep shipping to early adopters off `main` in the meantime, and **red-CI-no-release**
+   (charter Standing Order #9) still holds **per release candidate**. The milestone-11
+   identity of the gate is unchanged; only the fixed due date is dropped. (The GitHub
+   milestone object's own due date is handled outside this roadmap.)
+2. **The GA gate expands beyond local integrity.** It is now local CLI integrity **plus**
+   (a) **charter modular extraction** and (b) the **mission-status API backend**. The
+   "re-synthesized to local-integrity-only" framing from 2026-10-06 is superseded: those two
+   structural pieces move from "4.x after GA" onto the gate.
+3. **Charter modular extraction → its own repository, and it is GA-gating.** The charter
+   (`src/charter/offering/`, or all of `src/charter/`) becomes an independently-released unit
+   consumed through its public surface, like `spec-kitty-events` / `spec-kitty-tracker`. Its
+   precondition, **#645** (move the ~129 `specify_cli → charter` imports onto the stable API),
+   is now GA-gating. Grounded in #3101, ADR
+   [2026-08-02-1](../adr/3.x/2026-08-02-1-charter-wheel-assessment.md) and ADR
+   [2026-04-25-1](../adr/3.x/2026-04-25-1-shared-package-boundary.md). The repository
+   extraction itself rides with a dedicated epic/ADR (to be filed).
+4. **The mission-status read API is the open-core producer surface** (internally "Build
+   Kitty"), not a Team Kitty surface. Its Java implementation (`services/mission-status-api/`,
+   epic #5528) starts **in-repo as a modular component** and is **extracted as needed as an
+   open-core surface** — never into a Team Kitty repository; `contracts/mission-status/` and
+   the conformance fixtures stay canonical beside the Python reducer
+   ([ADR 2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
+   Accepted). Its backend is the GA-gating piece from rule 2.
+5. **Team Kitty = "Multiplayer Mode," the consumer side.** UI/multiplayer surfaces
+   (mission-ui, the pack composer) **consume** the open-core producer
+   API across its contract boundary. The "do not build toward Team Kitty" rule is
+   **scoped-lifted** for (i) consumer-side UI/multiplayer built on that API and (ii) the
+   event-dispatch / produce-drain adapter seam (`status/adapters.py`). Everything else hosted
+   (zeitgeist auth, the hosted backend, the SaaS surface) stays frozen unless the operator
+   asks ([ADR 2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md),
+   Amendment 2026-10-12).
 
 ## Direction update (2026-10-01): hosted collaboration is off the critical path
 
@@ -72,13 +117,16 @@ auth or Zeitgeist as release-gating. Four rules follow for the rest of the 4.x l
    silences producers when drain is off. Decoupling them amends
    [ADR 2026-09-26-3](../adr/3.x/2026-09-26-3-hosted-interaction-opt-in.md) and needs a 4.x
    ADR of its own.
-4. **The charter may ship on its own.** Charter content that tells users to run the CLI is
-   acceptable. The only strangler blocker is code coupling: `specify_cli` imports `charter`
-   internals directly (129 files at `8a581be1`), and those imports must move onto a stable
-   API (#645) before the charter can be packaged separately.
+4. **The charter ships on its own, in its own repository.** Charter content that tells users
+   to run the CLI is acceptable. The strangler blocker is code coupling: `specify_cli` imports
+   `charter` internals directly (129 files at `8a581be1`), and those imports must move onto a
+   stable API (#645) before the charter can be packaged separately. **As of the 2026-10-12
+   update, #645 is GA-gating and the charter becomes an independently-released external
+   contract package in its own repository** (not just "shippable alone").
 
-Theme 4 (Team Kitty enablers) is frozen, and the Stability and Maturity themes apply to the
-**local** CLI only.
+Theme 4's hosted *backend* lane is frozen; its **consumer side was re-scoped on 2026-10-12**
+(Team Kitty = "Multiplayer Mode," above). The Stability and Maturity themes apply to the
+**local** CLI.
 
 ## Release posture
 
@@ -97,9 +145,12 @@ waiver logged. rc5 also carried defects in `consolidate`; their fixes are on `ma
 users only with rc6.
 
 **The GA gate, [milestone 11](https://github.com/spec-kitty/spec-kitty/milestone/11):** 14 open,
-210 closed (201 issues, 119 of them P0), due **2026-10-16**. Of the 16 issues open on
-2026-10-01, every one except #5419 has closed. 58 issues closed on the milestone from
-2026-10-01 to 2026-10-06, 29 of them P0.
+210 closed (201 issues, 119 of them P0). **GA is done-when-done — no fixed due date** (see the
+2026-10-12 direction update); the milestone object's own date field is managed outside this
+roadmap. Of the 16 issues open on 2026-10-01, every one except #5419 has closed. 58 issues
+closed on the milestone from 2026-10-01 to 2026-10-06, 29 of them P0. This milestone is local
+integrity; the two other GA-gating pieces (charter modular extraction #645, and the
+mission-status API backend) are tracked on their own epics — see the dependency spine.
 
 The 14 open issues, by kind:
 
@@ -160,27 +211,29 @@ Never design against or "re-enable" the old sync path; see
 
 ## The dependency spine
 
-*Re-anchored 2026-10-06.*
+*Re-anchored 2026-10-12. GA is done-when-done; the gate now has three legs.*
 
 ```
-   LOCAL INTEGRITY (the GA gate, milestone 11)
-       green nightly (#5419, 1 of 57 jobs red) ───────────────┐
-       landing + create residuals (#5638 #5704 #5726)         ├──▶  4.0.0 GA
-       agent integration (#702) · docs (#5428)                │     (red CI == no release)
-       structural hygiene (#2560-2 #3732 #4836 #5538 ...)     ┘     due 2026-10-16
-       UNDECIDED: pushed-rejection P0s (#5780 #5758),
-                  orchestrator-api gate + rollback (#5722 #5603)
+   THE GA GATE (done when done — red CI == no release, per release candidate)
+     ┌ LOCAL INTEGRITY (milestone 11)
+     │    green nightly (#5419, 1 of 57 jobs red) · landing+create residuals (#5638 #5704 #5726)
+     │    agent integration (#702) · docs (#5428) · structural hygiene (#2560-2 #3732 #4836 #5538 ...)
+     │    UNDECIDED: pushed-rejection P0s (#5780 #5758), orchestrator-api gate+rollback (#5722 #5603)
+     ├ CHARTER MODULAR EXTRACTION
+     │    #645 stable application API ──▶ ~129 specify_cli→charter imports move onto it
+     │    ──▶ charter ships as its own external contract package, in its own repository
+     └ MISSION-STATUS API BACKEND (open-core producer surface, "Build Kitty")
+          #5528 Mission Status Read API (contract 1.0/1.1 shipped; services/mission-status-api/ in-repo now)
+          ──▶ #5532 readers re-point · #5533 routes rehome
+                                                                     ──▶  4.0.0 GA
 
-   STRANGLER PREP (4.x line, does NOT gate GA)
-       #645 stable application API  ──▶  charter imports move onto it  ──▶  charter ships alone
-       #645 planned Java charter reads (4.x Work) · #2519 later Java writes (CLI 4.x stable)
-       #5530 bundled dashboard removed (done)  ──▶  #5528 Mission Status Read API
-         (contract 1.0 and 1.1 shipped)  ──▶  #5532 readers re-point · #5533 routes rehome
-       produce / drain decoupling (ADR not yet written)  ──▶  adapter module as pub/sub seam
-       #1619 one execution context (CLI 4.x stable)
+   OFF-GATE 4.x STRUCTURAL (continues after GA)
+       produce / drain decoupling (ADR tbd) ──▶ adapter seam as pub/sub (consumer side unblocked 2026-10-12)
+       #2519 later Java charter writes (CLI 4.x stable) · #1619 one execution context (CLI 4.x stable)
+       Team Kitty = "Multiplayer Mode": consumer UI/multiplayer on the producer API
 
-   FROZEN (4.x Work, waits for the commercial review)
-       #3892 zeitgeist-client auth · auth residual #2941 · Team Kitty launch work
+   FROZEN (hosted backend — waits for the commercial review)
+       #3892 zeitgeist-client auth · auth residual #2941 · hosted backend · SaaS surface
 
    QUALITY DEBT (Infra & Enablers 4.x, OUTSIDE the blocking graph)
        #1928 ──▶ #4304 #4305 #2970 (security and BLOCKER findings still open)
@@ -195,15 +248,21 @@ Never design against or "re-enable" the old sync path; see
    unguarded API landing path (#5722, #5603) are in the same "says success, did the wrong
    thing" class as the defects the cycle fixed. Either pull them onto milestone 11 or record
    why GA ships without them.
-3. **Strangler prep is the 4.x structural work.** #645 is the precondition for shipping the
-   charter separately; produce/drain decoupling is the precondition for any external consumer.
-   The Mission Status Read API
+3. **Two structural pieces are now on the GA gate (2026-10-12).** #645 (move the ~129
+   `specify_cli → charter` imports onto the stable API) is the precondition for extracting the
+   charter into its own externally-released repository — **GA-gating**. The mission-status API
+   **backend** — the open-core producer surface
    ([ADR 2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
-   Proposed) is #645's read facet; the bundled dashboard is already removed (#5530), and the
-   contract shipped as versions 1.0 and 1.1. The charter read/write service strangler
+   Accepted) — is also **GA-gating**: the bundled dashboard is already removed (#5530), the
+   contract shipped as versions 1.0 and 1.1, and `services/mission-status-api/` starts in-repo
+   now. What stays **off** the GA gate and continues on the 4.x line: produce/drain decoupling
+   (the precondition for any external *consumer*), the consumer-side UI/multiplayer ("Multiplayer
+   Mode"), the charter read/write service strangler
    ([ADR 2026-10-03-1](../adr/4.x/2026-10-03-1-charter-read-write-service-strangler.md),
-   Proposed) starts only after callers move onto #645. None of this gates milestone 11.
-4. **Hosted work is frozen, not cancelled.** Nothing on that lane is deleted; it waits.
+   Proposed; starts only after callers move onto #645), and #1619.
+4. **The hosted backend is frozen, not cancelled.** Nothing on that lane is deleted; it waits.
+   Its *consumer* side (UI/multiplayer on the producer API) and the produce/drain adapter seam
+   were scoped back in on 2026-10-12 — see the direction update.
 5. **Quality debt is a standing campsite epic**, outside the blocking graph. It burns down
    per touched file and never gates a release candidate.
 
@@ -253,26 +312,40 @@ attested. The rc6 upgrade notes must say so.
 
 ### Theme 3 — Extensibility (governed front door + stable API)
 
-- **Open:** **#645** (stable application API, 4.x Work), **#901** (governed front door, 4.x
-  Work), **#5528** (Mission Status Read API epic, no milestone), #5532 and #5533 (CLI 4.x
-  stable).
+**Two of its pieces are now GA-gating (2026-10-12).**
+
+- **GA-gating (2026-10-12):** **#645** (stable application API) as the precondition for
+  **charter modular extraction** into its own externally-released repository; and the
+  **mission-status API backend** — the open-core **producer** surface (ADR
+  [2026-10-01-2](../adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md),
+  Accepted), epic **#5528**, `services/mission-status-api/` in-repo now, extracted when its
+  contract freezes (never into a Team Kitty repo).
+- **Open (off-gate, 4.x line):** **#901** (governed front door, 4.x Work), #5532 and #5533
+  (reader re-point / route rehome, CLI 4.x stable), and the consumer-side "Multiplayer Mode"
+  UI/multiplayer that *consumes* the producer API.
 - **Done:** the bundled dashboard is removed (#5530); the Mission Status contract shipped as
   versions 1.0 and 1.1, with lint, breaking-change checks and a test against every mission
   in the repository; teams can share agent commands as pack skills
   ([ADR 2026-09-27-1](../adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md));
   org packs carry their own built-in override sanction
   ([ADR 2026-10-05-3](../adr/4.x/2026-10-05-3-org-packs-ship-their-builtin-override-sanction.md)).
-- **On the gate:** #3732 and #4836 (the doctrine → charter vocabulary), #5538.
+- **On milestone 11:** #3732 and #4836 (the doctrine → charter vocabulary), #5538.
 
-**Progress:** the read facet of #645 has a contract; the API itself and the front door are
-4.x-line work.
+**Progress:** the producer API has a shipped contract and an in-repo service build; its
+backend and the charter extraction are now gate items, and the governed front door and the
+consumer UI remain 4.x-line work.
 
-### Theme 4 — Team Kitty enablers (frozen)
+### Theme 4 — Team Kitty = "Multiplayer Mode" (consumer side; backend frozen)
 
-**Frozen 2026-10-01.** Nothing here gates GA.
+**Re-scoped 2026-10-12.** Team Kitty is the **consumer** side of the open-core producer API
+(mission-ui, the pack composer). The **backend** lane stays frozen and
+nothing on it gates GA; the **consumer** side (UI/multiplayer on the mission-status API) and
+the produce/drain adapter seam (`status/adapters.py`) are no longer blocked (ADR
+[2026-10-06-1](../adr/4.x/2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md),
+Amendment 2026-10-12). Everything hosted below stays frozen unless the operator asks.
 
-- **Open:** **#3892** (zeitgeist-client auth, 4.x Work), #2941 (widen bypasses renewable CLI
-  auth, Live Work NOW), #4195 (review of the #4121 charter forward-port, 4.x Work).
+- **Open (frozen backend):** **#3892** (zeitgeist-client auth, 4.x Work), #2941 (widen bypasses
+  renewable CLI auth, Live Work NOW), #4195 (review of the #4121 charter forward-port, 4.x Work).
 - **Closed:** #1091, #3322, #3233, #3980, #3277, #1621.
 - **Closed as not planned:** #3196, #3197, #3198 (sync consent and identity, retired with the
   transport), #2520 (charter events to SaaS; a hosted charter signal would need a new issue
@@ -295,23 +368,30 @@ record false-positive rulings.
 
 ## Exit criteria for 4.0.0
 
-*Re-anchored 2026-10-06.*
+*Re-anchored 2026-10-12. GA is done-when-done; the gate has three legs (criteria 1, 5, 6).*
 
-1. **Milestone 11 is closed.** Every issue on
+1. **Local integrity: milestone 11 is closed.** Every issue on
    [4.0.0 release scope](https://github.com/spec-kitty/spec-kitty/milestone/11) is closed or
    re-milestoned with a rationale.
 2. **The nightly is green on the release commit.** Red CI means no release (charter Standing
-   Order 9). A `skip_nightly` waiver is an operator decision, recorded each time; rc5 used one.
+   Order 9), **per release candidate**. A `skip_nightly` waiver is an operator decision,
+   recorded each time; rc5 used one.
 3. **The CLI never reports success while losing or stranding local work.** This is what the
    consolidation, status and workflow P0s test. #5780 and #5758 are in this class and need an
    explicit in-or-out decision.
 4. **No new shadow path.** Every landing routes onto an existing authority. No re-introduction
    of the retired sync transport, and no module other than the adapter seam talks to an
    external system.
-5. **(Post-GA) Strangler prep is dispositioned.** #645 (including the Mission Status Read API,
-   #5528), the produce/drain decoupling and #901 land or are re-milestoned on the 4.x line with
-   a rationale.
-6. **(Post-GA) Security debt adjudicated.** #4304, #4305 and #2970 close or carry recorded
+5. **Charter modular extraction (GA-gating, 2026-10-12).** #645 moves the ~129
+   `specify_cli → charter` imports onto the stable charter API, and the charter is released as
+   its own external contract package in its own repository (its extraction epic/ADR filed).
+6. **Mission-status API backend (GA-gating, 2026-10-12).** The open-core producer surface
+   (ADR 2026-10-01-2) ships its backend: contract canonical beside the Python reducer,
+   `services/mission-status-api/` in-repo, extracted when its contract freezes.
+7. **(Post-GA) Off-gate structural dispositioned.** The produce/drain decoupling, #901, #1619
+   and the consumer-side "Multiplayer Mode" UI land or are re-milestoned on the 4.x line with a
+   rationale.
+8. **(Post-GA) Security debt adjudicated.** #4304, #4305 and #2970 close or carry recorded
    false-positive rulings.
 
 ## Risks / watch items
@@ -328,8 +408,10 @@ record false-positive rulings.
   (see `RELEASE_CHECKLIST.md`).
 - **The gate refills.** Milestone 11 went from 11 open (2026-09-30) to 16 (2026-10-01) to 14
   (2026-10-06) while 58 issues closed. 159 issues were opened in the four days after rc5
-  against 90 closed, 33 of them new open P1s. The due date (2026-10-16) is the cut-off: new
-  issues after it go to CLI 4.x stable unless an operator pulls them in.
+  against 90 closed, 33 of them new open P1s. With GA now done-when-done (no fixed due date),
+  the cut-off is a judgment call at each release candidate, not a calendar date: a P2/P3
+  hygiene item that is not GA-gating moves to CLI 4.x stable with a one-line rationale rather
+  than holding the release.
 - **Review depends on one person.** 60 of the 66 PRs merged after rc5 have one author.
 - **The API landing path is unguarded.** `orchestrator-api consolidate-mission` lacks the
   reconciliation gate and rollback (#5722, #5603).
@@ -346,14 +428,18 @@ record false-positive rulings.
    recorded.
 3. **Decide #5722 and #5603**: fix the API landing path for GA, or document that automation
    must use `consolidate` until it is.
-4. **Hold the 2026-10-16 due date as the cut-off.** Move any P2/P3 hygiene item still open
-   then to CLI 4.x stable with a one-line rationale.
+4. **Judge the cut-off per release candidate, not by calendar date (GA is done-when-done).**
+   Move any non-GA-gating P2/P3 hygiene item to CLI 4.x stable with a one-line rationale.
 5. **Write the produce/drain ADR** (4.x), amending ADR 2026-09-26-3, then split the toggles in
-   `status/adapters.py` and `core/hosted_posture.py`.
-6. **Move the `specify_cli` → `charter` imports onto #645** so the charter can ship on its
-   own. Per [ADR 2026-09-30-1](../adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md),
-   drain them rather than holding them in an allowlist.
-7. **Ratify ADRs 2026-10-01-2 and 2026-10-03-1** (both Proposed).
+   `status/adapters.py` and `core/hosted_posture.py`. The adapter seam is now unblocked for the
+   consumer side (2026-10-12).
+6. **Move the `specify_cli` → `charter` imports onto #645** so the charter can be extracted
+   into its own externally-released repository — **this is now GA-gating**. Per
+   [ADR 2026-09-30-1](../adr/4.x/2026-09-30-1-allowlist-ratchets-are-priced-debt.md), drain
+   them rather than holding them in an allowlist. File the charter-repo-extraction epic/ADR.
+7. **Ratified 2026-10-12:** ADR 2026-10-01-2 is now **Accepted** (open-core producer surface;
+   in-repo now, extracted when frozen). ADR 2026-10-03-1 (charter read/write service strangler)
+   remains Proposed and off-gate.
 8. **Re-run this synthesis at each rc bump.** Read
    `gh api repos/spec-kitty/spec-kitty/milestones/11` and the milestone's open issues before
    acting.

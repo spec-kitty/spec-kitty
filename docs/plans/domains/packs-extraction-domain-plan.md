@@ -1,8 +1,8 @@
 ---
 title: 'Packs Extraction — Domain Plan'
-description: 'Durable domain plan for re-extracting the doctrine layer from src/charter/offering/ and packs/built-in/ into separately released units: invariants, sub-areas, open epics.'
+description: 'Durable domain plan for re-extracting the doctrine layer from src/charter/offering/ and packs/built-in/ into separately released units: invariants, sub-areas, open epics. Updated 2026-10-12 — the charter wheel/repository split is now GA-gating; both pack tiers name spec-kitty-open-packs as their source home.'
 doc_status: durable
-updated: '2026-09-30'
+updated: '2026-10-12'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
@@ -38,9 +38,17 @@ keep, whatever release ships each step. The epics and the milestone roadmap deci
 content across a package, wheel or repository boundary:
 
 - **Code.** The `charter.offering` subtree (or all of `src/charter/`) is released as its
-  own wheel (#3101).
-- **Content.** Built-in doctrine is authored in `spec-kitty-open-packs` and vendored into
-  `packs/built-in/` at release (#3504). A later step may fetch it at runtime (#3022).
+  own externally-versioned unit — **its own repository**, consumed through
+  `charter.offering.api` like `spec-kitty-events` / `spec-kitty-tracker` (#3101). **Direction
+  update 2026-10-12: this is now GA-gating** — its precondition #645 (move the ~129
+  `specify_cli → charter` imports onto the stable API) is a GA gate leg (see the
+  [4.0.0 roadmap](../4-0-0-milestone-roadmap.md)). The repository extraction itself rides with
+  a dedicated epic/ADR (to be filed).
+- **Content.** Doctrine content for **both** pack tiers is authored in `spec-kitty-open-packs`
+  and vendored into the repository at release: `packs/built-in/` (#3504) and, as of the
+  2026-10-12 direction update, `packs/internal/` as well — a **source-location move only**. A
+  later step may fetch built-in content at runtime (#3022). The packaging invariants are
+  unchanged (§3.2).
 - **Distribution integrity.** Pinned, checksummed and verifiable pack distribution
   (#2539, on 4.x Work).
 
@@ -64,7 +72,7 @@ rather than restating either one.
 | The public import surface is curated in `src/charter/offering/api.py`. That was #3179, the wheel's own precondition. | `tests/architectural/test_doctrine_public_surface.py` |
 | The dormant `spec-kitty-doctrine` wheel groundwork was **deleted**, not kept. No doctrine wheel has ever been built or shipped. | mission `charter-code-topology-01M152G1`; comment in `pyproject.toml` |
 | Built-in content lives at the repository root in `packs/built-in/`. The CLI wheel force-includes it. | `pyproject.toml` `force-include`; `tests/cross_cutting/packaging/test_packaging_safety.py` |
-| In-house doctrine lives in `packs/internal/` and never ships. | ADR `2026-08-16-3` |
+| In-house doctrine lives in `packs/internal/` and never ships (its source home moves to `spec-kitty-open-packs` — source-location only; still excluded from the wheel/sdist). | ADR `2026-08-16-3`; `test_packaging_safety.py` |
 | The mission data move to `packs/built-in/missions` has landed. | #3091, closed by PR #3204 |
 
 ---
@@ -80,23 +88,36 @@ part that turns over).
 through `charter.offering.api`. The layer rules and the public-surface test stay the
 mechanical guard; a function-local import never papers over an upward reach.
 
-**Open work.** #3101 is a design spike on Product backlog. It must decide:
+**Open work.** #3101 is a design spike. **As of the 2026-10-12 direction update it is
+GA-gating** (via its precondition #645), and the target is the charter's **own repository**
+(an independently-released external contract package), not merely a wheel built in-tree. It
+must decide:
 
-- whether the wheel is `charter.offering` alone or all of `src/charter/`;
+- whether the released unit is `charter.offering` alone or all of `src/charter/`;
 - whether `kernel` ships as its own wheel first (`src/kernel/pyproject.toml` is dormant
   metadata for that, per ADR `2026-08-02-1`);
-- whether the new wheel starts version-locked to the CLI, as `spec-kitty-events` and
+- whether the new package starts version-locked to the CLI, as `spec-kitty-events` and
   `spec-kitty-tracker` did (ADR `2026-04-25-1`).
+
+The repository-extraction mechanics themselves ride with a dedicated epic/ADR (to be filed);
+this plan owns the invariant and the precondition, not that epic.
 
 ### 3.2 Content provenance (#3504, then #3022)
 
-**Invariant.** A consumer's install does not change when content provenance moves.
-Built-in doctrine is always present in the wheel, byte-identical to a pinned source.
-The filesystem resolver `resolve_pack_root("built-in")` stays as it is.
+**Invariant.** A consumer's install does not change when content provenance moves. Built-in
+doctrine is always present in the wheel, byte-identical to a pinned source; the filesystem
+resolver `resolve_pack_root("built-in")` stays as it is. **`packs/internal/` stays excluded
+from the wheel/sdist** regardless of where its source is authored (the `packs` include stays
+narrowed to `packs/built-in/`, guarded by `tests/cross_cutting/packaging/test_packaging_safety.py`).
+Moving a tier's *source* changes neither its presence nor its exclusion in the consumer install.
 
-**Design of record.** ADR `2026-08-16-2` (Accepted) chose Option B: author the content
-in `spec-kitty-open-packs`, and have a release step vendor a pinned, checksummed ref into
-`packs/built-in/` before `hatch build`.
+**Design of record.** ADR `2026-08-16-2` (Accepted) chose Option B: author the content in
+`spec-kitty-open-packs`, and have a release step vendor a pinned, checksummed ref before
+`hatch build`. **Direction update 2026-10-12:** that open-packs source home now covers **both**
+tiers — `packs/built-in/` and `packs/internal/`. This is a **source-location move only** and is
+**not** a reversal of ADR `2026-08-16-3` (internal is a public org pack, not force-shipped);
+it extends the already-chosen built-in provenance to name internal's source home too. No
+packaging code or gate changes for it.
 
 **Open work.**
 - #3504 builds the re-vendor pipeline and a local `materialize` path for contributors.
@@ -132,8 +153,12 @@ eight sub-issues is done.
 2. **Epic facets are mixed in the tracker.** #2466 carries both authoring work (§3.2 of
    the doctrine-charter plan) and packaging work (this plan) as sub-issues. The scope
    split in §1 of this plan is the reconciling map until the tracker mirrors it.
-3. **Nothing here is 4.0.0 scope.** None of #3101, #3504, #3022 or #2539 is on milestone
-   11. Treat this plan as post-4.0.0 direction, not a GA dependency.
+3. **Mixed GA scope as of 2026-10-12.** The charter modular extraction (§3.1, #3101, with #645
+   as its GA-gating precondition) is **now a GA gate leg** — no longer post-4.0.0. The content
+   provenance move (#3504/#3022) and verified distribution (#2539) remain post-4.0.0 direction,
+   not GA dependencies. None of these issues is *on milestone 11* (local integrity); the GA gate
+   now spans three legs (see the roadmap), and the charter-extraction leg is tracked on #645 and
+   a charter-repo-extraction epic/ADR (to be filed), not on milestone 11.
 
 ---
 

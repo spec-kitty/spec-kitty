@@ -1,8 +1,8 @@
 ---
 title: 'Doctrine & Charter — Domain Plan'
-description: 'Durable, version-spanning plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary.'
+description: 'Durable, version-spanning plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary. Updated 2026-10-12 — charter modular extraction (its own repository) is now GA-gating via #645.'
 doc_status: durable
-updated: '2026-09-30'
+updated: '2026-10-12'
 audience: docs/context/audience/internal/maintainer.md
 related:
 - docs/plans/index.md
@@ -81,6 +81,33 @@ owning workstream — **#3275** still P3/no-milestone/no-epic) and §4 gap 4 (ac
 reachability R1/R2, unspecced and blast-radius-bearing) remain the domain's largest
 declared-vs-in-force gaps. The §5 table was revised in place on 2026-09-30 to show live
 state.
+
+---
+
+## Addendum 2026-10-12 — charter modular extraction is now GA-gating, and targets its own repository
+
+*The October direction update (operator ruling; see the
+[4.0.0 Milestone Roadmap](../4-0-0-milestone-roadmap.md) "Direction update (2026-10-12)")
+changes the release-scoped "what ships when" for this domain. The **invariants below are
+unchanged**; only the gating and the extraction target move.*
+
+- **Charter modular extraction is a GA gate leg.** The charter (`src/charter/offering/`, or all
+  of `src/charter/`) becomes an **independently-released external contract package in its own
+  repository**, consumed through its public surface (`charter.offering.api`), like
+  `spec-kitty-events` / `spec-kitty-tracker`. Its precondition — **#645**, moving the ~129
+  `specify_cli → charter` imports onto that stable surface — is **now GA-gating** (it had been
+  "after GA"). The §3.1/§3.6 sole-door and single-entry-point invariants are exactly what make
+  that extraction safe; this addendum changes when it must land, not the invariant. The
+  physical split (wheel/repository) is the sibling
+  [Packs Extraction plan](packs-extraction-domain-plan.md)'s §3.1; the repository extraction
+  itself rides with a dedicated epic/ADR (to be filed). Grounded in #3101, ADR
+  [2026-08-02-1](../../adr/3.x/2026-08-02-1-charter-wheel-assessment.md), ADR
+  [2026-04-25-1](../../adr/3.x/2026-04-25-1-shared-package-boundary.md).
+- **The API-as-consumer boundary is unchanged, and now named open-core.** §3.6 here owns the
+  doctrine/charter **Python import surface** (#3179); the **application/mission-data API**
+  the [API & Dashboard plan](api-dashboard-domain-plan.md) owns is a *different* surface and is
+  now framed as the **open-core producer** API. Team Kitty ("Multiplayer Mode") is its
+  **consumer**, not part of this domain. The non-goal boundary in §1 and §6 stands.
 
 ---
 
