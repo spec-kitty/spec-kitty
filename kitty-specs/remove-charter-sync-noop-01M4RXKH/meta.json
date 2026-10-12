@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-10-12T20:41:58.125152+00:00",
+  "flattened": false,
+  "friendly_name": "Remove the charter sync no-op compatibility command",
+  "mid8": "01M4RXKH",
+  "mission_id": "01M4RXKHFTJ0NF5CPVGXCF0MME",
+  "mission_number": null,
+  "mission_slug": "remove-charter-sync-noop-01M4RXKH",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Remove the charter sync no-op compatibility command on issue-5828-remove-charter-sync-noop so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Delete the inert 'spec-kitty charter sync' CLI command and every reference/hint that points at it (#5828).",
+  "slug": "remove-charter-sync-noop-01M4RXKH",
+  "target_branch": "issue-5828-remove-charter-sync-noop",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-12T20:46:57.981539+00:00"
+}

@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "mission_slug": "remove-charter-sync-noop-01M4RXKH",
+  "mission_id": "01M4RXKHFTJ0NF5CPVGXCF0MME",
+  "mission_branch": "issue-5828-remove-charter-sync-noop",
+  "target_branch": "issue-5828-remove-charter-sync-noop",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".kittify/charter/charter.md",
+        "docs/api/charter-commands.md",
+        "docs/api/cli-commands.md",
+        "docs/changelog/CHANGELOG.md",
+        "docs/guides/how-to/governance/synthesize-doctrine.md",
+        "src/charter/activation/schemas.py",
+        "src/charter/offering/skills/spk-charter-governance/SKILL.md",
+        "src/charter/offering/skills/spk-charter-governance/references/charter-artifact-structure.md",
+        "src/charter/offering/skills/spk-charter-governance/references/charter-command-map.md",
+        "src/charter/offering/skills/spk-charter-governance/references/charter-governance-workflow.md",
+        "src/specify_cli/_completion_manifest.json",
+        "src/specify_cli/charter_runtime/preflight/cli.py",
+        "src/specify_cli/charter_runtime/preflight/references_refresh.py",
+        "src/specify_cli/cli/commands/charter/__init__.py",
+        "src/specify_cli/cli/commands/charter/status.py",
+        "src/specify_cli/cli/commands/charter/sync.py",
+        "tests/agent/cli/commands/test_charter_cli.py",
+        "tests/agent/cli/commands/test_next_preflight.py",
+        "tests/architectural/test_json_contract_enumeration.py",
+        "tests/architectural/test_no_retired_subsystems.py",
+        "tests/architectural/test_remediation_effectiveness.py",
+        "tests/charter/test_retrospective_governance_emit.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-12T20:46:44.334763+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9d5b59e9b57bc81a715d8e025fc4be7437daf2fd"
+}
