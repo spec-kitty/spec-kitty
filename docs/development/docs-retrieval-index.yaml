@@ -11438,6 +11438,7 @@ pages:
     - {slug: "step-structure-arrange-assume-act-assert", text: "Step structure: Arrange, Assume, Act, Assert", level: 2}
     - {slug: "tags", text: "Tags", level: 2}
     - {slug: "run-the-scenarios-locally", text: "Run the scenarios locally", level: 2}
+    - {slug: "view-the-allure-report", text: "View the Allure report", level: 2}
     - {slug: "change-a-dependency", text: "Change a dependency", level: 2}
     - {slug: "read-a-nightly-failure", text: "Read a nightly failure", level: 2}
   - path: "docs/development/testing/index.md"
