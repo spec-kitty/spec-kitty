@@ -462,17 +462,17 @@ def test_c001_merge_gate_agrees_with_real_writer_single_branch_two_separators(
     wp_chains = {
         # WP01 starts at ``claimed`` (the fixture's planned->claimed seed).
         "WP01": (
-            (Lane.CLAIMED, Lane.IN_PROGRESS, "01KW2E7B0TERMC001WP01PROG1"),
-            (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01KW2E7B0TERMC001WP01REVW2"),
-            (Lane.FOR_REVIEW, Lane.APPROVED, "01KW2E7B0TERMC00100001A"),
+            (Lane.CLAIMED, Lane.IN_PROGRESS, "01KW2E7B0TERMC001WP01PRG01"),
+            (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01KW2E7B0TERMC001WP01RVW02"),
+            (Lane.FOR_REVIEW, Lane.APPROVED, "01KW2E7B0TERMC001WP01APR04"),
         ),
         # WP02 was freshly added and has no prior event, so its chain starts at
         # ``planned`` (the first event bootstraps it).
         "WP02": (
-            (Lane.PLANNED, Lane.CLAIMED, "01KW2E7B0TERMC001WP02PLND0"),
-            (Lane.CLAIMED, Lane.IN_PROGRESS, "01KW2E7B0TERMC001WP02CLMD1"),
-            (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01KW2E7B0TERMC001WP02PROG2"),
-            (Lane.FOR_REVIEW, Lane.APPROVED, "01KW2E7B0TERMC00100001B"),
+            (Lane.PLANNED, Lane.CLAIMED, "01KW2E7B0TERMC001WP02PND00"),
+            (Lane.CLAIMED, Lane.IN_PROGRESS, "01KW2E7B0TERMC001WP02CMD01"),
+            (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01KW2E7B0TERMC001WP02RVW03"),
+            (Lane.FOR_REVIEW, Lane.APPROVED, "01KW2E7B0TERMC001WP02APR05"),
         ),
     }
     for wp_id, chain in wp_chains.items():
@@ -572,9 +572,9 @@ def test_c001_merge_gate_agrees_with_real_writer_under_coord_topology(
     # coord-husk STATUS surface; the pure-event merge gate reads the verdict from
     # the terminal transition, so ``review_result`` rides the final event only.
     coord_chain = (
-        (Lane.BLOCKED, Lane.IN_PROGRESS, "01KW2E7A0TERMC001COORDPRG1"),
-        (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01KW2E7A0TERMC001COORDRVW2"),
-        (Lane.FOR_REVIEW, Lane.APPROVED, "01KW2E7A0TERMC0010000001"),
+        (Lane.BLOCKED, Lane.IN_PROGRESS, "01KW2E7A0TERMC001CRDPRG001"),
+        (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01KW2E7A0TERMC001CRDRVW002"),
+        (Lane.FOR_REVIEW, Lane.APPROVED, "01KW2E7A0TERMC001CRDAPR004"),
     )
     last_index = len(coord_chain) - 1
     for step, (from_lane, to_lane, event_id) in enumerate(coord_chain):

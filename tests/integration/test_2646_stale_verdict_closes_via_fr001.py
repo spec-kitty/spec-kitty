@@ -256,7 +256,7 @@ def test_2646_coord_topology_approved_wp_has_no_stale_verdict_warning(
         ctx.coord_feature_dir,
         ctx.slug,
         ctx.mission_id,
-        event_id="01KW2E7A0FR001APPROVEEVT01",
+        event_id="01KW2E7A0FR001APPRVEEVT001",
     )
 
     monkeypatch.chdir(ctx.repo)
@@ -308,7 +308,7 @@ def test_2646_flat_topology_approved_wp_has_no_stale_verdict_warning(
         ctx.primary_feature_dir,
         ctx.slug,
         ctx.mission_id,
-        event_id="01KW2E7B0FR001APPROVEEVT01",
+        event_id="01KW2E7B0FR001APPRVEEVT001",
     )
 
     monkeypatch.chdir(ctx.repo)
