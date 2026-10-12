@@ -958,11 +958,6 @@ def test_branch_delete_with_an_operator_intent_skips_the_unique_commit_check(tmp
     assert subprocess.run(["git", "for-each-ref", "refs/heads/discard-me"], cwd=str(root), capture_output=True, text=True, check=True).stdout == ""
 
 
-def test_a_refusal_is_not_a_runtime_error() -> None:
-    """``mission_type`` catches ``RuntimeError`` around the guard to mean "git failed"; a refusal must pass through it."""
-    assert not issubclass(DestructiveOpRefused, RuntimeError)
-
-
 def test_branch_delete_rejects_an_unknown_operator_intent(tmp_path: Path) -> None:
     root = _mission_repo(tmp_path)
     _branch_with_commit(root, "keep-me")

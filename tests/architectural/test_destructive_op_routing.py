@@ -628,7 +628,8 @@ def _operator_intent_callers(path: Path) -> list[tuple[int, str]]:
     return callers
 
 
-def test_only_force_recreate_passes_an_operator_intent() -> None:
+def test_only_operator_discard_sites_pass_an_operator_intent() -> None:
+    """Only the operator-explicit force-recreate and discard sites may name ``operator_intent``."""
     live = {
         (rel, qualname)
         for root in _SCAN_ROOTS
