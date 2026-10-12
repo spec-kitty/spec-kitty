@@ -19,7 +19,11 @@ from __future__ import annotations
 import ast
 import copy
 import json
+import os
+import re
 import shlex
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -222,17 +226,54 @@ def _nightly_audit_job() -> dict[str, Any]:
     return dict(_nightly_jobs()[_nightly_audit_name()])
 
 
-def test_a_red_nightly_audit_escalates_to_a_deduped_p0_on_main() -> None:
+def _escalation_argv(step: dict[str, Any], tmp_path: Path, outcome: str | None) -> list[str]:
+    """Run the escalation step's real ``run:`` body under bash with a stub ``python3``; return the argv it received."""
+    bin_dir = tmp_path / f"bin-{outcome}"
+    bin_dir.mkdir()
+    argv_file = tmp_path / f"argv-{outcome}.txt"
+    stub = bin_dir / "python3"
+    stub.write_text('#!/bin/sh\nfor arg in "$@"; do printf \'%s\\n\' "$arg"; done > "$ARGV_FILE"\n', encoding="utf-8")
+    stub.chmod(0o755)
+    env = {
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+        "ARGV_FILE": str(argv_file),
+        "GH_TOKEN": "dummy",
+        "GITHUB_REF": "refs/heads/main",
+    }
+    if outcome is not None:
+        env["AUDIT_OUTCOME"] = outcome
+    body = re.sub(r"\$\{\{.*?\}\}", "expr", str(step["run"]))  # GitHub expressions are expanded before bash runs
+    subprocess.run(["bash", "-e", "-c", body], env=env, check=True, capture_output=True, text=True)
+    return argv_file.read_text(encoding="utf-8").splitlines()
+
+
+@pytest.mark.skipif(shutil.which("bash") is None, reason="bash is required to run the step body")
+@pytest.mark.parametrize(
+    ("outcome", "expected"),
+    [
+        ("success", "success"),
+        ("failure", "failure"),
+        ("cancelled", "failure"),
+        ("skipped", "failure"),
+        ("", "failure"),
+        (None, "failure"),
+    ],
+)
+def test_a_red_nightly_audit_escalates_to_a_deduped_p0_on_main(tmp_path: Path, outcome: str | None, expected: str) -> None:
     job = _nightly_audit_job()
     (step,) = [s for s in job["steps"] if str(s.get("name", "")).startswith(ESCALATION_STEP_PREFIX)]
 
-    assert "--suite-key mission-state-audit" in step["run"]
-    assert "nightly_escalation.py" in step["run"] and '--ref "$GITHUB_REF"' in step["run"]
     assert step["if"] == "always() && github.ref == 'refs/heads/main'"
     assert job["permissions"]["issues"] == "write"
-    # Fail-closed: only an explicit success outcome of the audit step closes the P0.
-    assert "AUDIT_OUTCOME:-failure" in step["run"] and "steps.audit.outcome" in step["env"]["AUDIT_OUTCOME"]
+    assert "steps.audit.outcome" in step["env"]["AUDIT_OUTCOME"]
     assert [s for s in job["steps"] if s.get("id") == "audit"], "the escalation reads the audit step's outcome"
+
+    # Behaviour: fail-closed. Only an explicit success outcome of the audit step closes the P0.
+    argv = _escalation_argv(step, tmp_path, outcome)
+    assert argv[0].endswith("nightly_escalation.py")
+    assert argv[argv.index("--suite-key") + 1] == "mission-state-audit"
+    assert argv[argv.index("--conclusion") + 1] == expected
+    assert argv[argv.index("--ref") + 1] == "refs/heads/main"
 
 
 def test_the_nightly_run_audits_main() -> None:
