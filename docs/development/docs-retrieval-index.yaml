@@ -3385,7 +3385,7 @@ pages:
   - path: "docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md"
     title: "ADR: a mission status read API replaces the CLI-bundled dashboard (extract and replace)"
     divio_type: "none"
-    abstract: "Remove the bundled dashboard daemon; keep one read-only mission status API with an overview and a detail granularity that external UIs consume (#645). Accepted 2026-10-12 as the open-core producer surface, in-repo now and extracted when its contract freezes."
+    abstract: "Remove the bundled dashboard; keep one read-only mission status API (overview + detail) consumed by external UIs (#645). Accepted 2026-10-12 as the open-core producer surface."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -3697,7 +3697,7 @@ pages:
   - path: "docs/adr/4.x/2026-10-12-2-charter-extraction-to-its-own-repository.md"
     title: "ADR: the charter becomes an external contract package in its own repository"
     divio_type: "none"
-    abstract: "The charter layer (src/charter/offering/, or all of src/charter/) is extracted into its own externally-released repository, consumed through charter.offering.api like spec-kitty-events / spec-kitty-tracker; its precondition #645 is now GA-gating. Extends 2026-08-02-1 and 2026-04-25-1."
+    abstract: "The charter becomes an external contract package in its own repository, consumed through charter.offering.api; precondition #645 is now GA-gating. Extends 2026-08-02-1."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -13657,7 +13657,7 @@ pages:
   - path: "docs/plans/4-0-0-milestone-roadmap.md"
     title: "4.0.0 Milestone — Roadmap"
     divio_type: "explanation"
-    abstract: "Roadmap for the 4.0.0 cycle: release posture, what still gates GA, dependency spine, exit criteria and risks. Re-anchored 2026-10-12 to the October direction — GA is done-when-done (not date-gated) and the gate expands beyond local integrity to charter modular extraction and the mission-status API backend."
+    abstract: "Roadmap for the 4.0.0 cycle: release posture, what still gates GA, dependency spine, exit criteria and risks. Re-anchored 2026-10-12 to the October direction."
     anchors:
     - {slug: "intent-of-4-0-0", text: "Intent of 4.0.0", level: 2}
     - {slug: "direction-update-2026-10-12-ga-is-done-when-done-and-the-gate-expands", text: "Direction update (2026-10-12): GA is done-when-done, and the gate expands", level: 2}
@@ -13678,7 +13678,7 @@ pages:
   - path: "docs/plans/4-x-executive-overview.md"
     title: "4.x Executive Overview"
     divio_type: "explanation"
-    abstract: "Summary of the 4.x cycle for decision owners: where 4.0.0 stands, what the release candidates delivered, what still gates GA, and the calls to make. Updated 2026-10-12 — GA is done-when-done and the gate now also covers charter modular extraction and the mission-status API backend."
+    abstract: "Summary of the 4.x cycle for decision owners: where 4.0.0 stands, what the release candidates delivered, what still gates GA, and the calls to make."
     anchors:
     - {slug: "bottom-line", text: "Bottom line", level: 2}
     - {slug: "where-4-0-0-stands", text: "Where 4.0.0 stands", level: 2}
@@ -14050,7 +14050,7 @@ pages:
   - path: "docs/plans/domains/api-dashboard-domain-plan.md"
     title: "API & Dashboard — Domain Plan"
     divio_type: "none"
-    abstract: "Durable domain plan for the application/mission-data API surface (#645) and dashboard/UX (#650): the open-core producer API, its consumers, retiring the Feature-labelled UI drift. Updated 2026-10-12 — the mission-status API is the open-core producer surface, now GA-gating; Team Kitty is its consumer; ADR 2026-10-01-2 is Accepted."
+    abstract: "Durable domain plan for the mission-data API (#645) and dashboard/UX (#650): the open-core producer API, its consumers, and retiring the Feature-labelled UI drift."
     anchors:
     - {slug: "1-purpose-scope", text: "1. Purpose & scope", level: 2}
     - {slug: "2-where-api-dashboard-planning-lives-today-honest-inventory", text: "2. Where API/dashboard planning lives today (honest inventory)", level: 2}
@@ -14064,7 +14064,7 @@ pages:
   - path: "docs/plans/domains/doctrine-charter-domain-plan.md"
     title: "Doctrine & Charter — Domain Plan"
     divio_type: "none"
-    abstract: "Durable, version-spanning plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary. Updated 2026-10-12 — charter modular extraction (its own repository) is now GA-gating via #645."
+    abstract: "Durable plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary."
     anchors:
     - {slug: "addendum-2026-09-04-milestone-re-key-resolved-sub-areas-post-2026-08-23-reconciliation", text: "Addendum 2026-09-04 — milestone re-key + resolved sub-areas (post-2026-08-23 reconciliation)", level: 2}
     - {slug: "addendum-2026-10-12-charter-modular-extraction-is-now-ga-gating-and-targets-its-own-repository", text: "Addendum 2026-10-12 — charter modular extraction is now GA-gating, and targets its own repository", level: 2}
@@ -14091,7 +14091,7 @@ pages:
   - path: "docs/plans/domains/packs-extraction-domain-plan.md"
     title: "Packs Extraction — Domain Plan"
     divio_type: "none"
-    abstract: "Durable domain plan for re-extracting the doctrine layer from src/charter/offering/ and packs/built-in/ into separately released units: invariants, sub-areas, open epics. Updated 2026-10-12 — the charter wheel/repository split is now GA-gating; both pack tiers name spec-kitty-open-packs as their source home."
+    abstract: "Durable domain plan for re-extracting the doctrine layer from src/charter/offering/ and packs/built-in/ into separately released units: invariants, sub-areas, open epics."
     anchors:
     - {slug: "1-scope", text: "1. Scope", level: 2}
     - {slug: "2-where-things-stand-checked-2026-09-30", text: "2. Where things stand (checked 2026-09-30)", level: 2}

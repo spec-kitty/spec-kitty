@@ -1,6 +1,6 @@
 ---
 title: 4.0.0 Milestone — Roadmap
-description: 'Roadmap for the 4.0.0 cycle: release posture, what still gates GA, dependency spine, exit criteria and risks. Re-anchored 2026-10-12 to the October direction — GA is done-when-done (not date-gated) and the gate expands beyond local integrity to charter modular extraction and the mission-status API backend.'
+description: 'Roadmap for the 4.0.0 cycle: release posture, what still gates GA, dependency spine, exit criteria and risks. Re-anchored 2026-10-12 to the October direction.'
 doc_status: active
 type: explanation
 audience: docs/context/audience/internal/maintainer.md

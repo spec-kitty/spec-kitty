@@ -1,6 +1,6 @@
 ---
 title: 'ADR: a mission status read API replaces the CLI-bundled dashboard (extract and replace)'
-description: 'Remove the bundled dashboard daemon; keep one read-only mission status API with an overview and a detail granularity that external UIs consume (#645). Accepted 2026-10-12 as the open-core producer surface, in-repo now and extracted when its contract freezes.'
+description: 'Remove the bundled dashboard; keep one read-only mission status API (overview + detail) consumed by external UIs (#645). Accepted 2026-10-12 as the open-core producer surface.'
 status: Accepted
 date: '2026-10-01'
 updated: '2026-10-12'

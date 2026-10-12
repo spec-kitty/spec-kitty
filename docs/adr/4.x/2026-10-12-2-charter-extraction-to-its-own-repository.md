@@ -1,6 +1,6 @@
 ---
 title: 'ADR: the charter becomes an external contract package in its own repository'
-description: 'The charter layer (src/charter/offering/, or all of src/charter/) is extracted into its own externally-released repository, consumed through charter.offering.api like spec-kitty-events / spec-kitty-tracker; its precondition #645 is now GA-gating. Extends 2026-08-02-1 and 2026-04-25-1.'
+description: 'The charter becomes an external contract package in its own repository, consumed through charter.offering.api; precondition #645 is now GA-gating. Extends 2026-08-02-1.'
 status: Accepted
 date: '2026-10-12'
 updated: '2026-10-12'

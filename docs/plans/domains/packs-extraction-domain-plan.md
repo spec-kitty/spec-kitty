@@ -1,6 +1,6 @@
 ---
 title: 'Packs Extraction — Domain Plan'
-description: 'Durable domain plan for re-extracting the doctrine layer from src/charter/offering/ and packs/built-in/ into separately released units: invariants, sub-areas, open epics. Updated 2026-10-12 — the charter wheel/repository split is now GA-gating; both pack tiers name spec-kitty-open-packs as their source home.'
+description: 'Durable domain plan for re-extracting the doctrine layer from src/charter/offering/ and packs/built-in/ into separately released units: invariants, sub-areas, open epics.'
 doc_status: durable
 updated: '2026-10-12'
 audience: docs/context/audience/internal/maintainer.md

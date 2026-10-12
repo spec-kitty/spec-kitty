@@ -1,6 +1,6 @@
 ---
 title: 'Doctrine & Charter — Domain Plan'
-description: 'Durable, version-spanning plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary. Updated 2026-10-12 — charter modular extraction (its own repository) is now GA-gating via #645.'
+description: 'Durable plan for the doctrine/charter surface: charter lifecycle, sole-door access, extensibility, activation, fail-closed reads, public API, and glossary.'
 doc_status: durable
 updated: '2026-10-12'
 audience: docs/context/audience/internal/maintainer.md

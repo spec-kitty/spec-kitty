@@ -1,6 +1,6 @@
 ---
 title: '4.x Executive Overview'
-description: 'Summary of the 4.x cycle for decision owners: where 4.0.0 stands, what the release candidates delivered, what still gates GA, and the calls to make. Updated 2026-10-12 — GA is done-when-done and the gate now also covers charter modular extraction and the mission-status API backend.'
+description: 'Summary of the 4.x cycle for decision owners: where 4.0.0 stands, what the release candidates delivered, what still gates GA, and the calls to make.'
 doc_status: active
 type: explanation
 updated: '2026-10-12'
