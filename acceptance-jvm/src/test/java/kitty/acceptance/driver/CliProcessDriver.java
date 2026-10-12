@@ -72,8 +72,7 @@ public final class CliProcessDriver implements SpecKittyDriver {
             int exit = process.exitValue();
             String stdout = normaliseLineEndings(out.await());
             String stderr = normaliseLineEndings(err.await());
-            Object json = maybeParseJson(args, stdout);
-            return CliResult.of(exit, stdout, stderr, json, realPath(cwd));
+            return CliResult.of(exit, stdout, stderr, realPath(cwd));
         } catch (IOException e) {
             throw new CliExecutionException("Failed to launch " + command, e);
         } catch (InterruptedException e) {
@@ -83,17 +82,6 @@ public final class CliProcessDriver implements SpecKittyDriver {
             if (process != null && process.isAlive()) {
                 killTree(process);
             }
-        }
-    }
-
-    private static Object maybeParseJson(List<String> args, String stdout) {
-        if (!args.contains("--json") || stdout.isBlank()) {
-            return null;
-        }
-        try {
-            return Json.parse(stdout.trim());
-        } catch (Json.JsonParseException ignored) {
-            return null; // not fatal: the caller inspects exit/stderr for malformed output
         }
     }
 

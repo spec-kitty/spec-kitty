@@ -19,7 +19,7 @@ public interface SpecKittyDriver {
      * @param args the full token list, e.g. {@code ["spec-kitty", "init", "--non-interactive"]}; a
      *             leading {@code "spec-kitty"} token is resolved to the entry point under test.
      * @param cwd  the working directory the process is launched in; must already exist.
-     * @return the captured {@link CliResult} (exit code, drained stdout/stderr, parsed {@code --json},
+     * @return the captured {@link CliResult} (exit code, drained stdout/stderr,
      *         the real working-tree path).
      */
     CliResult run(List<String> args, Path cwd);
