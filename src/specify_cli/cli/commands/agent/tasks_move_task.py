@@ -200,6 +200,8 @@ from specify_cli.cli.commands.agent.tasks_move_task_gates import (
     _mt_resolve_scope_source as _mt_resolve_scope_source,
     _mt_resolve_active_gate_bindings as _mt_resolve_active_gate_bindings,
     _mt_baseline_artifact_location as _mt_baseline_artifact_location,
+    _baseline_artifact_path as _baseline_artifact_path,
+    _mt_baseline_capture_ref as _mt_baseline_capture_ref,
     _mt_resolve_gate_baseline as _mt_resolve_gate_baseline,
     _mt_capture_baseline_if_missing as _mt_capture_baseline_if_missing,
     _mt_build_transition_gate_context as _mt_build_transition_gate_context,
