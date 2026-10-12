@@ -198,7 +198,7 @@ class _FakeService:
 
 @pytest.mark.parametrize(
     "provenance,expected",
-    [("builtin", "built-in"), ("project", "project"), ("org", "org")],
+    [("built-in", "built-in"), ("project", "project"), ("org", "org")],
 )
 def test_resolve_artifact_source_from_provenance(provenance: str, expected: str) -> None:
     service = _FakeService({"directives": _FakeRepo({"d1": provenance})})

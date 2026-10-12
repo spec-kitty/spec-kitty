@@ -278,7 +278,9 @@ def test_fr012_project_root_moved(tmp_path: Path) -> None:
     assert result.exit_code == 0, describe(result)
     new_root = project / ".kittify" / "charter-packs"
     assert not legacy.exists()
-    assert sorted(p.relative_to(new_root).as_posix() for p in new_root.rglob("*") if p.is_file()) == files
+    # The pack-level backfill (#6048) writes a ``pack.yaml`` (``pack_level: project``)
+    # at the new project pack root; every legacy file still moves across unchanged.
+    assert sorted(p.relative_to(new_root).as_posix() for p in new_root.rglob("*") if p.is_file()) == sorted([*files, "pack.yaml"])
     assert (new_root / "directive" / edited.name).read_text(encoding="utf-8").endswith("# uncommitted operator edit\n")
     assert len(cutover_report(payload)["moved"]) == len(files)
 
