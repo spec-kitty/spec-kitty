@@ -234,9 +234,16 @@ jobs:
       # per-PR sonar-pr job (ci-aggregate.yml) leaves the Java out: compiling a
       # PR's own Gradle build there would run untrusted build code beside
       # SONAR_TOKEN. sonar-project.properties keeps acceptance-jvm out of the
-      # coverage figure. If the compile fails, the Python scan still runs.
+      # coverage figure. If the JDK setup or the compile fails, the Python scan
+      # still runs.
+      #
+      # The Java is analysed as MAIN code (`sonar.sources`) on purpose, not as
+      # test code, so the full Java rule set, security rules included, applies to
+      # it. It is excluded from the coverage figure only (sonar.coverage.exclusions).
       - name: Set up JDK 25 (Temurin) for the acceptance-jvm Java analysis
+        id: jdk
         if: always() && steps.sonar_token.outputs.enabled == 'true'
+        continue-on-error: true
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
@@ -244,7 +251,7 @@ jobs:
 
       - name: Install the pinned Gradle (checksum verified before it runs)
         id: gradle
-        if: always() && steps.sonar_token.outputs.enabled == 'true'
+        if: always() && steps.sonar_token.outputs.enabled == 'true' && steps.jdk.outcome == 'success'
         continue-on-error: true
         shell: bash
         run: python3 contracts/tools/install_tools.py --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
