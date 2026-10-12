@@ -36,7 +36,24 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 #: per-kind built-in content home ``src/charter/offering/<kind>/built-in`` and the
 #: sharded per-kind fragments ``src/charter/offering/<kind>.graph.yaml``. Both now live
 #: under ``packs/built-in/``.
-_MOVED_BUILTIN_DOC_RE = r"src/charter/offering/[a-z_]+/built-in|src/charter/offering/[a-zA-Z0-9_.-]*\.graph\.yaml"
+#:
+#: The leading ``(^|[^A-Za-z0-9_./-])`` is a LEFT BOUNDARY (#6096). ``git grep -E``
+#: has no look-behind, so without it the shape matched as an unanchored substring
+#: and any longer path whose tail was ``…/src/charter/offering/<kind>/built-in``
+#: (a ``packs/…/src/…`` path, an absolute ``/…/src/…`` path, a ``…/blob/…/src/…``
+#: URL) was wrongly flagged as the retired TOP-LEVEL home. The boundary admits a
+#: match only at start-of-line or after a character that cannot be part of a path
+#: (not ``/``, a word char, ``.`` or ``-``), so a genuine top-level reference is
+#: still caught while a nested tail is not. Because the boundary excludes ``/``, a
+#: slash-preceded reference -- including a leading ``./src/charter/offering/…`` -- is
+#: treated as nested and left to ``test_no_dead_src_path_literals.py``, whose
+#: ``(?<!\w)src/`` lookbehind still flags it (``/`` is not a word char), exactly as
+#: the blob-URL case already is. That general ``src/``-literal gate, not Gate D,
+#: owns ``src/`` literals nested in a longer path. Scope is forward-slash paths
+#: (#6096); a backslash-separated tail is out of scope here (and not handled by the
+#: sibling gate either). This tightens the left boundary only; the two forbidden
+#: shapes and ``_GUARD_DOC_EXCLUSIONS`` are unchanged.
+_MOVED_BUILTIN_DOC_RE = r"(^|[^A-Za-z0-9_./-])(src/charter/offering/[a-z_]+/built-in|src/charter/offering/[a-zA-Z0-9_.-]*\.graph\.yaml)"
 
 #: Documentation subtrees excluded from the live-reference guard, each because
 #: its references are NOT live pointers to where doctrine currently lives:
