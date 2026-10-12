@@ -1413,6 +1413,115 @@ jobs:
         run: uv run --frozen python -m scripts.ci.collect_universe_prestep compare
 
   # ---------------------------------------------------------------------------
+  # acceptance-bdd (WP06 -- FR-010/FR-011/FR-014/NFR-001/NFR-004/NFR-005/SC-001):
+  # the FIRST multi-OS nightly job. Runs the acceptance-jvm Cucumber-JVM 7
+  # runner over ../tests/scenarios (read in place) under a Java 25 toolchain on
+  # Linux, macOS and Windows. `fail-fast: false` so one OS's red never cancels
+  # the other legs (matches every other matrix in this file).
+  #
+  # Nightly-only (NFR-004: 0 per-PR JDK cost) -- it lives ONLY here, never in
+  # any pull_request workflow. It is deliberately LEFT OUT of
+  # nightly-summary.needs: it is non-gating, uploads its own artifacts, and
+  # nothing in core consumes them (spec-kitty-qa consumes them cross-repo,
+  # US-3). The release/ownership guards -- tests/release/test_release_ci_ownership.py
+  # and .github/workflows/release-readiness.yml -- do NOT require every nightly
+  # job in the summary (ci-nightly.yml is asserted only as an INTRODUCED
+  # WORKFLOW name, not a frozen job set), so omitting it keeps this hot file's
+  # diff minimal and additive (research.md §6, IC-06).
+  #
+  # Gradle is the pinned 8.14.5 distribution (acceptance-jvm/tools/pins.json),
+  # downloaded + sha256-checked + $GITHUB_PATH-wired by the shared, reused
+  # contracts/tools/install_tools.py (single canonical installer, not copied --
+  # DM-01M4P2B3). JDK 25 via actions/setup-java (temurin), diverging from
+  # contracts/ (Java 21) on purpose. A pin-guard pre-step runs the generalized
+  # contracts/tools/gradle_pin_check.py once (on the Linux leg) so acceptance-jvm
+  # pin drift fails the nightly (NFR-003); it keeps the one canonical
+  # GRADLE_PIN_MISMATCH authority.
+  #
+  # Maintainer guide (writing, running and reading the scenarios):
+  # docs/development/testing/acceptance-scenarios.md.
+  #
+  # The GATING run filters `not @wip and not @manual` with NO retry wrapper --
+  # a flake IS the signal (NFR-005), never retried-to-green. A separate
+  # non-gating `@wip` run is continue-on-error so WIP scenarios never fail the
+  # leg (FR-014). timeout-minutes: the job is new and unmeasured; sized
+  # generously from the stages (one env sync, a Gradle download, a JVM compile
+  # and two scenario runs) -- a generous cap costs nothing unless a leg hangs.
+  # ---------------------------------------------------------------------------
+  acceptance-bdd:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: Acceptance BDD (acceptance-jvm, nightly-only, 3-OS)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+
+      - name: Install the locked Python environment
+        shell: bash
+        run: uv sync --frozen --no-install-project
+
+      # Pin-guard pre-step (NFR-003), run ONCE on the Linux leg: the generalized
+      # gradle_pin_check.py scans acceptance-jvm/ (the pins.json Gradle url, and
+      # -- if present -- this job's own gradle-version input) against the pins,
+      # failing the nightly on any drift under the single GRADLE_PIN_MISMATCH
+      # authority. Stdlib + PyYAML, so it is cheap.
+      - name: Verify the acceptance-jvm Gradle pins equal pins.json
+        if: matrix.os == 'ubuntu-24.04'
+        shell: bash
+        run: uv run --frozen --no-sync python contracts/tools/gradle_pin_check.py
+
+      - name: Set up JDK 25 (Temurin)
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25'
+
+      - name: Install the pinned Gradle (checksum verified before it runs)
+        shell: bash
+        run: uv run --frozen --no-sync python contracts/tools/install_tools.py --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
+
+      # GATING run: the ratified scenarios (`not @wip and not @manual`) with NO
+      # retry wrapper. A flake here fails the leg -- that IS the signal (NFR-005).
+      - name: Run the gating acceptance scenarios (no retries)
+        shell: bash
+        run: gradle -p acceptance-jvm test --no-daemon -Dcucumber.filter.tags="not @wip and not @manual"
+
+      # NON-GATING run: the @wip scenarios. continue-on-error so a WIP scenario
+      # never fails the leg (FR-014); --rerun-tasks forces the test task to
+      # re-execute with the new tag filter rather than resolving UP-TO-DATE.
+      - name: Run the non-gating @wip scenarios (never fails the leg)
+        continue-on-error: true
+        shell: bash
+        run: gradle -p acceptance-jvm test --no-daemon --rerun-tasks -Dcucumber.filter.tags="@wip"
+
+      # Hand all three result formats (Cucumber JSON, JUnit XML, Allure) to the
+      # spec-kitty-qa nightly (FR-011) under an OS-qualified name so the three
+      # legs never collide. if: always() so a red gating run still uploads its
+      # evidence. Allure's default results dir can land beside build/, so both
+      # are listed; if-no-files-found: warn keeps a format a leg did not emit
+      # from failing the upload.
+      - name: Upload acceptance-bdd results (Cucumber JSON, JUnit XML, Allure)
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: acceptance-bdd-results-${{ matrix.os }}
+          path: |
+            acceptance-jvm/build/
+            acceptance-jvm/allure-results/
+          if-no-files-found: warn
+
+  # ---------------------------------------------------------------------------
   # nightly-summary: terminal `if: always()` aggregator so a scheduled/dispatch
   # run's complete failure set is visible in one place, never short-circuited.
   # ---------------------------------------------------------------------------

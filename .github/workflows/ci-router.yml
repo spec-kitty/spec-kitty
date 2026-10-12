@@ -124,6 +124,13 @@ jobs:
       # Mission-state group (#5864): non-src, like contract_tools above; gates only `mission-state audit`.
       # Never in the unmatched loop.
       mission_state: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.mission_state }}
+      # Acceptance-scenarios group (cli-acceptance-bdd-nightly, FR-012/C-005): non-src, like
+      # mission_state above; gates no job BY DESIGN (seed CLI scenarios run in the nightly
+      # acceptance-bdd job). Never in the unmatched loop.
+      scenarios: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.scenarios }}
+      # Acceptance-JVM group (cli-acceptance-bdd-nightly, FR-012/C-005): non-src, like scenarios
+      # above; gates no job BY DESIGN (Cucumber-JVM subproject runs nightly only). Never in the unmatched loop.
+      acceptance_jvm: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.acceptance_jvm }}
       # Raw fail-closed catch-all signal (FR-004): any src/** changed but no named src group did.
       unmatched: ${{ steps.unmatched.outputs.unmatched }}
     steps:
@@ -243,6 +250,16 @@ jobs:
             # planning leaves, so a status-only diff used to select no job and a drifted snapshot landed unchecked (#5862).
             mission_state:
               - 'kitty-specs/**'
+            # Acceptance-scenarios group (cli-acceptance-bdd-nightly, FR-012/C-005): NON-src (not in
+            # the unmatched loop). No job gates on this group BY DESIGN: the seed CLI scenarios run
+            # inside the nightly acceptance-bdd job, so a PR touching them needs no JDK per-PR home.
+            scenarios:
+              - 'tests/scenarios/**'
+            # Acceptance-JVM group (cli-acceptance-bdd-nightly, FR-012/C-005): NON-src (not in the
+            # unmatched loop). No job gates on this group BY DESIGN: the Cucumber-JVM subproject runs
+            # nightly only (NFR-004: 0 per-PR JDK cost), so no per-PR job gates on it.
+            acceptance_jvm:
+              - 'acceptance-jvm/**'
             e2e:
               - 'tests/e2e/**'
               - 'tests/cross_cutting/**'

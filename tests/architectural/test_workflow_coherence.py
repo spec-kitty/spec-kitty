@@ -307,7 +307,15 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
 #   deliberate exclusions — the exemption here is safe only together with that
 #   pin. Adding a new deliberately-ungated group means naming it here AND
 #   pinning it the same way, never silently.
-_DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset({"any_src", "ci"})
+#
+# * ``scenarios`` + ``acceptance_jvm`` (cli-acceptance-bdd-nightly, FR-012/C-005)
+#   — the acceptance-test routing groups (``tests/scenarios/**`` and
+#   ``acceptance-jvm/**``). Both gate no router job BY DESIGN: the seed CLI
+#   scenarios and the Cucumber-JVM subproject run inside the nightly
+#   acceptance-bdd job (NFR-004: 0 per-PR JDK cost), so no per-PR job may gate
+#   on them. They route (appear in the ``changes.outputs`` block) but are
+#   excluded from the ``unmatched`` union because they are non-src.
+_DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset({"any_src", "ci", "scenarios", "acceptance_jvm"})
 
 
 def test_every_literal_cov_target_is_live() -> None:

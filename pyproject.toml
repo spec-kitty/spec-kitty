@@ -222,6 +222,11 @@ exclude = [
     ".kittify/**",
     ".kittify/active-mission",
     "src/specify_cli/**/tests/**",
+    # The Cucumber-JVM acceptance runner and the scenario corpus are
+    # nightly/CI-only trees that must never ship in the published source
+    # distribution (cli-acceptance-bdd-nightly, FR-013 / C-004).
+    "acceptance-jvm/**",
+    "tests/scenarios/**",
 ]
 
 # NOTE: pytest configuration (markers, pythonpath, testpaths, addopts) lives in

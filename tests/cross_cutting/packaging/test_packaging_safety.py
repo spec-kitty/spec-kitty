@@ -165,3 +165,32 @@ def test_sdist_contains_no_kittify_paths(build_artifacts: dict[str, Path]) -> No
     bad_kittify_files = [f for f in all_files if ".kittify/" in f and "/src/" not in f]
 
     assert not bad_kittify_files, f"Source dist contains .kittify/ paths outside src/: {bad_kittify_files}"
+
+
+@pytest.mark.slow
+def test_sdist_excludes_acceptance_runner_and_scenarios(build_artifacts: dict[str, Path]) -> None:
+    """The acceptance runner + scenario corpus must not ship in the sdist (FR-013 / C-004).
+
+    ``acceptance-jvm/`` (the Cucumber-JVM nightly runner) and
+    ``tests/scenarios/`` (the scenario corpus) are nightly/CI-only trees
+    excluded from the published source distribution via
+    ``[tool.hatch.build.targets.sdist].exclude``. A same-fixture positive
+    control (a known ``src/`` package IS present) guarantees the absence
+    assertions are non-vacuous and not merely passing against an
+    empty/broken archive.
+    """
+    sdist_path = build_artifacts["sdist"]
+
+    with tarfile.open(sdist_path, "r:gz") as tar:
+        all_files = tar.getnames()
+
+    leaked_runner = [f for f in all_files if "acceptance-jvm/" in f]
+    leaked_scenarios = [f for f in all_files if "tests/scenarios/" in f]
+
+    assert not leaked_runner, f"Source dist contains the acceptance-jvm runner: {leaked_runner}"
+    assert not leaked_scenarios, f"Source dist contains the scenario corpus: {leaked_scenarios}"
+
+    # Positive control (same built sdist): a known src/ package must be present,
+    # so the absence assertions above cannot pass against an empty archive.
+    present_src_pkg = [f for f in all_files if "src/specify_cli/" in f]
+    assert present_src_pkg, "Source dist is missing the specify_cli package (positive control failed)"
