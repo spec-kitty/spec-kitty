@@ -225,7 +225,9 @@ public final class ScenarioWorld {
      * coarse-mtime filesystems cannot hide a fresh write.
      *
      * <p><b>The real home stayed clean.</b> The real {@code ~/.spec-kitty} must look exactly as it
-     * did when the scenario started (existence, file count, newest mtime).
+     * did when the scenario started (existence, file count, newest mtime). Lock files are left out:
+     * another {@code spec-kitty} process on a developer machine touches them (for example
+     * {@code auth/session.lock}) and would trip the check without the scenario being at fault.
      */
     public void assertObservedWriteInsideTempDir() {
         if (!commandObserved) {
@@ -256,14 +258,19 @@ public final class ScenarioWorld {
         }
     }
 
-    /** Existence, regular-file count and newest mtime of a tree; cheap proof it was left alone. */
+    /**
+     * Existence, regular-file count and newest mtime of a tree, ignoring {@code *.lock} files; cheap
+     * proof it was left alone.
+     */
     private static String fingerprint(Path root) {
         if (!Files.exists(root)) {
             return "absent";
         }
         try (Stream<Path> tree = Files.walk(root)) {
             long[] stats = {0, 0};
-            tree.filter(Files::isRegularFile).forEach(file -> {
+            tree.filter(Files::isRegularFile)
+                    .filter(file -> !file.getFileName().toString().endsWith(".lock"))
+                    .forEach(file -> {
                 stats[0]++;
                 try {
                     stats[1] = Math.max(stats[1], Files.getLastModifiedTime(file).toMillis());
