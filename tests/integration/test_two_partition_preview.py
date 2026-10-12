@@ -33,7 +33,7 @@ the identical verdict — is added on top of @rayjohnson's originals.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
+from kernel.clock import UTC, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
