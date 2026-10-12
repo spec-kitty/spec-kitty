@@ -317,6 +317,9 @@ def test_fr012_path_references_rewritten(tmp_path: Path) -> None:
     assert ".kittify/doctrine" not in provenance
     ignore = (project / ".gitignore").read_text(encoding="utf-8")
     assert ".kittify/charter-packs/**" in ignore and "!.kittify/charter-packs/graph.yaml" in ignore and ".kittify/doctrine" not in ignore
+    # #6076: the cutover must also emit the pack.yaml allow-rule going forward,
+    # so the rc7 pack_level backfill's pack.yaml is not hidden by the blanket rule.
+    assert "!.kittify/charter-packs/pack.yaml" in ignore
     skills = build("project_pack_skills", tmp_path)
     upgrade(skills)
     entries = json.loads((skills / ".kittify" / "skills-manifest.json").read_text(encoding="utf-8"))["entries"]
