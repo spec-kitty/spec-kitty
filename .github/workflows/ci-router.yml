@@ -248,8 +248,48 @@ jobs:
             # Every file of a Mission can change what `doctor mission-state --audit` reports (status.json against
             # its event log, meta.json, lanes.json, WP frontmatter), and the `corpus` globs above name only the
             # planning leaves, so a status-only diff used to select no job and a drifted snapshot landed unchecked (#5862).
+            # #6058: the audit's verdict also depends on its inputs, not only on Mission files. Commit 2e97550eb
+            # bumped the reducer (spec-kitty-events) through pyproject.toml/uv.lock/the compatibility manifest and
+            # changed no Mission file, so main went red unseen. The group therefore also names: the reducer
+            # dependency manifests, this workflow and the report renderer, and the modules the audit actually
+            # EXECUTES (a call trace of `doctor mission-state --audit`, not the ~534-module import graph).
+            # `**/`-prefixed, never `src/...`, so the group stays non-src (like contract_tools above); the paths
+            # still select their own code shards through their own groups.
+            # Deliberate over-match (cost only, correctness unaffected; mirrors `contract_tools`): `**/specify_cli/audit/**`
+            # and `**/specify_cli/status/**` also match tests/specify_cli/{audit,status}/**, so a test-only PR there runs the
+            # ~1 min audit. dorny/paths-filter ORs patterns and cannot exclude inside one list without changing the group's
+            # predicate, so this is accepted; pinned by test_test_only_diffs_under_the_audit_modules_deliberately_over_match.
+            # Path lists drift: the nightly
+            # `mission-state-audit` job in ci-nightly.yml is the post-merge backstop (no push clause here:
+            # test_changes_outputs_never_force_run_all_on_push forbids it).
             mission_state:
               - 'kitty-specs/**'
+              - 'uv.lock'
+              - 'pyproject.toml'
+              - '.kittify/release/shared-package-compatibility.json'
+              - '.github/workflows/ci-router.yml'
+              - 'scripts/ci/mission_state_audit_report.py'
+              - '**/specify_cli/audit/**'
+              - '**/specify_cli/status/**'
+              - '**/specify_cli/migration/mission_state.py'
+              - '**/specify_cli/mission_metadata.py'
+              - '**/specify_cli/frontmatter.py'
+              - '**/specify_cli/context/mission_resolver.py'
+              - '**/specify_cli/core/paths.py'
+              - '**/specify_cli/core/utils.py'
+              - '**/specify_cli/core/constants.py'
+              - '**/specify_cli/core/checkout_identity.py'
+              - '**/specify_cli/identity/aliases.py'
+              - '**/specify_cli/lanes/branch_naming.py'
+              - '**/specify_cli/cli/commands/_mission_state_doctor.py'
+              - '**/specify_cli/cli/commands/doctor.py'
+              - '**/specify_cli/cli/commands/_doctor_shared.py'
+              - '**/kernel/meta_decode.py'
+              - '**/kernel/git/listing.py'
+              - '**/kernel/git/paths.py'
+              - '**/kernel/git/runner.py'
+              - '**/kernel/guarded_read.py'
+              - '**/charter/activation/mission_type_key.py'
             # Acceptance-scenarios group (cli-acceptance-bdd-nightly, FR-012/C-005): NON-src (not in
             # the unmatched loop). No job gates on this group BY DESIGN: the seed CLI scenarios run
             # inside the nightly acceptance-bdd job, so a PR touching them needs no JDK per-PR home.

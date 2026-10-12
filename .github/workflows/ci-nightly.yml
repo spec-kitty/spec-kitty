@@ -1525,13 +1525,60 @@ jobs:
           if-no-files-found: warn
 
   # ---------------------------------------------------------------------------
+  # mission-state-audit (#6058): the post-merge backstop of the router's `mission-state audit`.
+  # The router job runs only when a path in the `mission_state` group changes, and no `changes` output may
+  # force run-all on push (test_changes_outputs_never_force_run_all_on_push), so a verdict-changing input
+  # outside the group (a path list that drifted, a transitive dependency) would land unaudited. This job
+  # audits main every night, unconditionally, with the SAME step body and upload as ci-router.yml's
+  # `mission-state-audit` job (parity pinned by tests/ci/test_mission_state_audit_routing.py). Read-only.
+  # ---------------------------------------------------------------------------
+  mission-state-audit:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    name: mission-state audit (nightly backstop, #6058)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the locked Python environment
+        run: uv sync --frozen
+      - name: Audit every Mission's state
+        run: |
+          set -uo pipefail
+          report="$RUNNER_TEMP/mission-state-audit.json"
+          # The step shell is `bash -e`: capture a non-zero exit instead of letting it end the step
+          # before the report and the failing Missions below are printed (#6058).
+          status=0
+          uv run --frozen --no-sync spec-kitty doctor mission-state --audit --fail-on teamspace-blocker --json > "$report" || status=$?
+          if ! jq -e . "$report" >/dev/null 2>&1; then
+            echo "::error::doctor mission-state --audit produced no JSON report (exit $status)."
+            cat "$report"
+            echo "## Mission-state audit: no JSON report (exit $status)" >> "$GITHUB_STEP_SUMMARY"
+            exit $(( status == 0 ? 1 : status ))
+          fi
+          uv run --frozen --no-sync python scripts/ci/mission_state_audit_report.py "$report" "$status" || echo "::warning::the audit report renderer failed; the JSON report is in the uploaded artifact."
+          exit "$status"
+      - name: Upload the mission-state audit report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mission-state-audit-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/mission-state-audit.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------
   # nightly-summary: terminal `if: always()` aggregator so a scheduled/dispatch
   # run's complete failure set is visible in one place, never short-circuited.
   # ---------------------------------------------------------------------------
   nightly-summary:
     name: Nightly full-mode summary
     runs-on: ubuntu-24.04
-    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence]
+    needs: [performance, e2e, stress, p0-repro, interpreter-matrix-shard-1, interpreter-matrix-shard-2, interpreter-matrix-shard-3, interpreter-matrix-shard-4, interpreter-matrix-shard-5, interpreter-matrix-shard-6, integration-next, integration-slice, specify-cli-out-of-matrix, architectural-backstop, full-module-matrix, universe-equivalence, mission-state-audit]
     if: ${{ (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always() }}
     steps:
       - name: Report full-mode results (run-all-regardless, never fail-fast)
@@ -1553,3 +1600,4 @@ jobs:
           echo "architectural-backstop: ${{ needs.architectural-backstop.result }}"
           echo "full-module-matrix: ${{ needs.full-module-matrix.result }}"
           echo "universe-equivalence: ${{ needs.universe-equivalence.result }}"
+          echo "mission-state-audit: ${{ needs.mission-state-audit.result }}"

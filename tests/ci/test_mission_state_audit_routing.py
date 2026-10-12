@@ -17,6 +17,7 @@ authority, never a restated copy.
 from __future__ import annotations
 
 import ast
+import copy
 import json
 import shlex
 import shutil
@@ -59,8 +60,10 @@ def _jobs() -> dict[str, Any]:
 def _audit_commands(job: dict[str, Any]) -> list[list[str]]:
     """Every ``spec-kitty doctor mission-state`` invocation in the job's ``run:`` scripts, tokenized."""
     commands: list[list[str]] = []
-    for step in job["steps"]:
+    for step in job.get("steps", []):
         for line in str(step.get("run", "")).splitlines():
+            if "mission-state" not in line:  # other workflows' scripts need not be shlex-clean
+                continue
             tokens = shlex.split(line, comments=True)
             if "doctor" in tokens and "mission-state" in tokens:
                 commands.append(tokens)
@@ -179,3 +182,133 @@ def test_scrub_documentation_copy_equals_the_router_group() -> None:
     (row,) = [row for row in scrub["non_src_router_groups"] if row["group"] == GROUP]
 
     assert sorted(row["roots"]) == sorted(load_router().filters[GROUP])
+
+
+# ---------------------------------------------------------------------------
+# #6058 / WP04: the audit runs on every input that can change its verdict.
+# ---------------------------------------------------------------------------
+
+NIGHTLY = ROOT / ".github" / "workflows" / "ci-nightly.yml"
+
+# The 5 files of commit 2e97550eb (the reducer bump that turned main red unseen): none was a Mission file.
+BUMP_PATHS = (
+    ".kittify/release/shared-package-compatibility.json",
+    "docs/changelog/CHANGELOG.md",
+    "pyproject.toml",
+    "tests/architectural/test_pyproject_shape.py",
+    "uv.lock",
+)
+
+AUDIT_INPUT_PATHS = (
+    "uv.lock",
+    "pyproject.toml",
+    ".kittify/release/shared-package-compatibility.json",
+    ".github/workflows/ci-router.yml",
+    "scripts/ci/mission_state_audit_report.py",
+    "src/specify_cli/status/reducer.py",
+    "src/specify_cli/audit/engine.py",
+    "src/specify_cli/migration/mission_state.py",
+    "src/specify_cli/mission_metadata.py",
+    "src/specify_cli/frontmatter.py",
+    "src/specify_cli/context/mission_resolver.py",
+    "src/specify_cli/core/paths.py",
+    "src/specify_cli/core/utils.py",
+    "src/specify_cli/core/constants.py",
+    "src/specify_cli/core/checkout_identity.py",
+    "src/specify_cli/identity/aliases.py",
+    "src/specify_cli/lanes/branch_naming.py",
+    "src/specify_cli/cli/commands/_mission_state_doctor.py",
+    "src/specify_cli/cli/commands/doctor.py",
+    "src/specify_cli/cli/commands/_doctor_shared.py",
+    "src/kernel/meta_decode.py",
+    "src/kernel/git/listing.py",
+    "src/kernel/git/paths.py",
+    "src/kernel/git/runner.py",
+    "src/kernel/guarded_read.py",
+    "src/charter/activation/mission_type_key.py",
+)
+
+
+def test_the_reducer_bump_commit_selects_the_audit_job() -> None:
+    selection = select_gates(list(BUMP_PATHS), router=load_router())
+
+    assert JOB in selection.selected_jobs
+
+
+@pytest.mark.parametrize("path", AUDIT_INPUT_PATHS)
+def test_audit_inputs_match_the_group_directly(path: str) -> None:
+    router = load_router()
+
+    selection = select_gates([path], router=router)
+
+    assert GROUP in selection.matched_groups, f"{path} can change the audit verdict but misses the {GROUP} group"
+    assert JOB in selection.selected_jobs
+    assert GROUP not in router.src_backed_groups
+
+
+def test_the_audit_modules_are_not_spelled_src() -> None:
+    """A `src/` glob would make the group src-backed (a code-shard gate); the globs are `**/`-prefixed."""
+    assert not [g for g in load_router().filters[GROUP] if g.startswith("src/")]
+
+
+def _nightly_jobs() -> dict[str, Any]:
+    return dict(yaml.safe_load(NIGHTLY.read_text(encoding="utf-8"))["jobs"])
+
+
+def _nightly_audit_name() -> str:
+    matches = [name for name, job in _nightly_jobs().items() if _audit_commands(job)]
+    assert len(matches) == 1, "exactly one nightly job runs `doctor mission-state`"
+    return matches[0]
+
+
+def _nightly_audit_job() -> dict[str, Any]:
+    return dict(_nightly_jobs()[_nightly_audit_name()])
+
+
+def test_the_nightly_run_audits_main() -> None:
+    jobs = _nightly_jobs()
+    name = _nightly_audit_name()
+    job = jobs[name]
+
+    (command,) = _audit_commands(job)
+    assert "--audit" in command and "--json" in command
+    assert command[command.index("--fail-on") + 1] == "teamspace-blocker"
+    assert "--mission" not in command
+    assert any("upload-artifact" in str(s.get("uses", "")) for s in job["steps"]), "the report is uploaded"
+    assert "changes" not in job.get("needs", []), "no path gating: the nightly audits main unconditionally"
+    assert "changes." not in str(job.get("if", ""))
+    assert name in jobs["nightly-summary"]["needs"]
+    assert "github.repository == 'spec-kitty/spec-kitty'" in str(job["if"]), "the fork guard"
+
+
+def _steps_match(router_steps: list[dict[str, Any]], nightly_steps: list[dict[str, Any]]) -> bool:
+    """The whole steps list (checkout, setup-uv, uv sync, audit, upload) must be equal: no justified difference exists."""
+    return router_steps == nightly_steps
+
+
+def test_the_nightly_audit_steps_are_the_router_steps() -> None:
+    """Parity: every step of the nightly job equals the router job's, so no pin or body can drift apart."""
+    router_steps = _jobs()[JOB]["steps"]
+    nightly_steps = _nightly_audit_job()["steps"]
+
+    assert _steps_match(router_steps, nightly_steps)
+    assert [s.get("run") for s in nightly_steps if str(s.get("run", "")).startswith("uv sync")] == ["uv sync --frozen"]
+
+
+def test_the_parity_check_is_not_vacuous() -> None:
+    """Mutating the nightly checkout pin (or any step) must break the parity."""
+    router_steps = _jobs()[JOB]["steps"]
+    mutated = copy.deepcopy(_nightly_audit_job()["steps"])
+    mutated[0]["uses"] = "actions/checkout@" + "0" * 40 + " # v5.0.0"
+
+    assert not _steps_match(router_steps, mutated)
+
+
+@pytest.mark.parametrize("path", ["tests/specify_cli/status/test_agent_assignment.py", "tests/specify_cli/audit/test_detectors_row_family.py"])
+def test_test_only_diffs_under_the_audit_modules_deliberately_over_match(path: str) -> None:
+    """Documented over-match (cost only): the `**/specify_cli/{audit,status}/**` globs also match their tests.
+
+    dorny/paths-filter ORs patterns and cannot exclude inside one list without changing the group's
+    predicate, so the over-match is accepted (mirrors `contract_tools`). Narrowing it is a conscious change.
+    """
+    assert GROUP in select_gates([path], router=load_router()).matched_groups

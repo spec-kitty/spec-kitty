@@ -292,9 +292,35 @@
     {
       "group": "mission_state",
       "roots": [
-        "kitty-specs/**"
+        "kitty-specs/**",
+        "uv.lock",
+        "pyproject.toml",
+        ".kittify/release/shared-package-compatibility.json",
+        ".github/workflows/ci-router.yml",
+        "scripts/ci/mission_state_audit_report.py",
+        "**/specify_cli/audit/**",
+        "**/specify_cli/status/**",
+        "**/specify_cli/migration/mission_state.py",
+        "**/specify_cli/mission_metadata.py",
+        "**/specify_cli/frontmatter.py",
+        "**/specify_cli/context/mission_resolver.py",
+        "**/specify_cli/core/paths.py",
+        "**/specify_cli/core/utils.py",
+        "**/specify_cli/core/constants.py",
+        "**/specify_cli/core/checkout_identity.py",
+        "**/specify_cli/identity/aliases.py",
+        "**/specify_cli/lanes/branch_naming.py",
+        "**/specify_cli/cli/commands/_mission_state_doctor.py",
+        "**/specify_cli/cli/commands/doctor.py",
+        "**/specify_cli/cli/commands/_doctor_shared.py",
+        "**/kernel/meta_decode.py",
+        "**/kernel/git/listing.py",
+        "**/kernel/git/paths.py",
+        "**/kernel/git/runner.py",
+        "**/kernel/guarded_read.py",
+        "**/charter/activation/mission_type_key.py"
       ],
-      "note": "Every Mission file under kitty-specs/ (#5864): gates only the mission-state audit job; non-src, no --cov subject."
+      "note": "Every Mission file plus every input that can change the mission-state audit verdict (#5864, #6058): the reducer dependency manifests, the audit-path CLI modules, the workflow and renderer; non-src, no --cov subject."
     }
   ],
   "excluded_surfaces": [
