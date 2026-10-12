@@ -43,9 +43,10 @@ it from `acceptance-jvm/` with the pinned Gradle on `PATH`:
 gradle --write-verification-metadata sha256 test --no-daemon
 ```
 
-Commit the regenerated file. The Gradle version in `tools/pins.json` and the plugin/
-distribution the build uses must stay consistent (WP05 generalizes
-`contracts/tools/gradle_pin_check.py` to cross-check this subproject).
+Commit the regenerated file. This build declares no Gradle version and no Gradle plugin.
+The nightly's pin-guard step runs `contracts/tools/gradle_pin_check.py`, which for this
+subproject checks only that the `url` in `tools/pins.json` carries the pinned `version`
+(and a `gradle-version:` input of the `acceptance-bdd` job, if one is ever added).
 
 ## Run the scenarios
 

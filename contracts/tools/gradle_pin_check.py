@@ -12,11 +12,13 @@ One canonical authority, two subprojects. The same scan runs, parameterised by a
   ``contracts/gradle/verification-metadata.xml``; the version in ``distributionUrl`` of
   ``contracts/gradle/wrapper/gradle-wrapper.properties`` (the repository commits no wrapper, so this is
   compared only if the file exists); and every ``gradle-version:`` input of a ``contracts*.yml`` workflow step.
-* ``acceptance-jvm/`` — pins only ``gradle`` (a Java test harness with no Gradle plugin of its own). It compares
-  the ``acceptance-jvm/tools/pins.json`` url; an optional wrapper the same way; and the ``gradle-version:`` input
-  of the ``acceptance-bdd`` job in ``.github/workflows/ci-nightly.yml``. An absent plugin pin, wrapper or
-  ``acceptance-bdd`` job is tolerated exactly like the absent wrapper file — the plugin-side checks simply do not
-  run — so this guard does not hard-fail before the nightly job exists.
+* ``acceptance-jvm/`` — pins only ``gradle`` (a Java test harness with no Gradle plugin of its own, and no
+  committed wrapper). It declares no Gradle version in its build, so the only live comparison is internal
+  consistency: the ``acceptance-jvm/tools/pins.json`` ``url`` must carry that entry's ``version``. Two further
+  comparisons run only if their input exists: an optional wrapper (the repository commits none) and a
+  ``gradle-version:`` input of the ``acceptance-bdd`` job in ``.github/workflows/ci-nightly.yml`` (the job has
+  none today; it installs Gradle from ``pins.json``). No plugin-side check runs for this subproject. An absent
+  wrapper or ``acceptance-bdd`` job is tolerated exactly like the absent wrapper file in ``contracts/``.
 
 For both subprojects the manifest's own ``url`` must carry the entry's ``version`` (a bumped ``version`` with an
 old ``url`` would install the old tool while every comparison above passed).
@@ -295,9 +297,9 @@ def _acceptance_jvm_subproject(
         build=Path(build) if build else root / ACCEPTANCE_BUILD,
         metadata=Path(metadata) if metadata else root / ACCEPTANCE_METADATA,
         wrapper=Path(wrapper) if wrapper else root / ACCEPTANCE_WRAPPER,
-        candidates=(GRADLE_TOOL, PLUGIN_TOOL),
+        candidates=(GRADLE_TOOL,),
         required=(GRADLE_TOOL,),
-        plugin_tool=PLUGIN_TOOL,
+        plugin_tool=None,
         job=ACCEPTANCE_JOB,
         workflows=resolved,
         workflow_glob=None,

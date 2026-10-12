@@ -1434,9 +1434,11 @@ jobs:
   # contracts/tools/install_tools.py (single canonical installer, not copied --
   # DM-01M4P2B3). JDK 25 via actions/setup-java (temurin), diverging from
   # contracts/ (Java 21) on purpose. A pin-guard pre-step runs the generalized
-  # contracts/tools/gradle_pin_check.py once (on the Linux leg) so acceptance-jvm
-  # pin drift fails the nightly (NFR-003); it keeps the one canonical
-  # GRADLE_PIN_MISMATCH authority.
+  # contracts/tools/gradle_pin_check.py once (on the Linux leg). For acceptance-jvm
+  # it checks only that the pins.json Gradle url carries the pinned version (and
+  # a gradle-version input of this job, which it does not have today); the build
+  # declares no Gradle version, so it does not compare the installed Gradle to
+  # the build. It keeps the one canonical GRADLE_PIN_MISMATCH authority.
   #
   # Maintainer guide (writing, running and reading the scenarios):
   # docs/development/testing/acceptance-scenarios.md.
@@ -1472,10 +1474,11 @@ jobs:
         run: uv sync --frozen --no-install-project
 
       # Pin-guard pre-step (NFR-003), run ONCE on the Linux leg: the generalized
-      # gradle_pin_check.py scans acceptance-jvm/ (the pins.json Gradle url, and
-      # -- if present -- this job's own gradle-version input) against the pins,
-      # failing the nightly on any drift under the single GRADLE_PIN_MISMATCH
-      # authority. Stdlib + PyYAML, so it is cheap.
+      # gradle_pin_check.py checks that the acceptance-jvm/tools/pins.json Gradle
+      # url carries the pinned version (and, if this job ever gains one, that its
+      # gradle-version input equals it). It does not compare the build, which
+      # declares no Gradle version. A mismatch fails this step under the single
+      # GRADLE_PIN_MISMATCH authority. Stdlib + PyYAML, so it is cheap.
       - name: Verify the acceptance-jvm Gradle pins equal pins.json
         if: matrix.os == 'ubuntu-24.04'
         shell: bash

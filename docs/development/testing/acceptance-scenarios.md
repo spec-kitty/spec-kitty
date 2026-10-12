@@ -94,8 +94,12 @@ it and commit the result:
 gradle -p acceptance-jvm --write-verification-metadata sha256 test --no-daemon
 ```
 
-`contracts/tools/gradle_pin_check.py` fails CI when the Gradle version in the build and
-in `acceptance-jvm/tools/pins.json` disagree.
+`acceptance-jvm` declares no Gradle version of its own and commits no wrapper; the
+nightly installs Gradle from `acceptance-jvm/tools/pins.json`. The nightly's pin-guard
+step runs `contracts/tools/gradle_pin_check.py`, which for `acceptance-jvm` checks only
+that the `url` in `pins.json` carries the pinned `version` (and a `gradle-version:` input
+of the `acceptance-bdd` job, if one is ever added). It does not check the plugin or
+dependency pins; the sha256 `verification-metadata.xml` covers those.
 
 ## Read a nightly failure
 
