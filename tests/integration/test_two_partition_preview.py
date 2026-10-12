@@ -450,8 +450,8 @@ def test_c001_merge_gate_agrees_with_real_writer_single_branch_two_separators(
         encoding="utf-8",
     )
 
-    # The shared diary reducer enforces lane CONTIGUITY (tightened from
-    # #4990/#5279): a ``from_lane`` that is not contiguous with the WP's current
+    # The shared diary reducer enforces lane CONTIGUITY (#5967,
+    # spec-kitty-events#69): a ``from_lane`` that is not contiguous with the WP's current
     # reduced lane is DROPPED (the WP's first event still bootstraps regardless).
     # WP01 already carries the flat fixture's ``planned -> claimed`` seed (so it
     # starts at ``claimed``), while WP02 was freshly added and has no prior
@@ -564,8 +564,8 @@ def test_c001_merge_gate_agrees_with_real_writer_under_coord_topology(
         reviewer_agent="reviewer-renata",
         verdict="rejected",
     )
-    # The shared diary reducer enforces lane CONTIGUITY (tightened from
-    # #4990/#5279): a ``from_lane`` not contiguous with the WP's current reduced
+    # The shared diary reducer enforces lane CONTIGUITY (#5967,
+    # spec-kitty-events#69): a ``from_lane`` not contiguous with the WP's current reduced
     # lane is DROPPED. After the ``status.events.jsonl`` clear above, the coord
     # seed run by the real writer re-carries the coord husk's existing WP01
     # transition, so WP01's current reduced lane is ``blocked`` -- a lone

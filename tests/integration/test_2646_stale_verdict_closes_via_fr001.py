@@ -193,8 +193,8 @@ def _append_status_event(feature_dir: Path, mission_slug: str, mission_id: str, 
     ``claimed -> in_progress -> for_review -> in_review -> approved`` chain
     that brings WP01 to the ``approved`` lane.
 
-    The shared diary reducer enforces lane CONTIGUITY (tightened from
-    #4990/#5279): a transition event whose ``from_lane`` is not contiguous with
+    The shared diary reducer enforces lane CONTIGUITY (#5967,
+    spec-kitty-events#69): a transition event whose ``from_lane`` is not contiguous with
     the WP's current reduced lane is DROPPED (the WP's first/only event still
     bootstraps regardless of ``from_lane``). WP01 is already at ``claimed`` in
     both the coord and flat fixtures (their seeded ``planned -> claimed``
