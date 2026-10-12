@@ -100,7 +100,7 @@ def test_cells_escape_pipes_flatten_newlines_truncate_and_defuse_markup() -> Non
 
     # Repo-controlled text: code-span cells (slug/code/artifact/remedy) must not hold backticks that end the
     # span; the Markdown detail must not render links, images or HTML.
-    finding = _finding(code="C`ODE", detail="see [x](http://evil) and ![i](http://evil/p.png) <img src=x> a\\[b")
+    finding = _finding(code="C`ODE", detail="see [x](http://evil) and ![i](http://evil/p.png) <img src=x> a\\[b \\[x](y)")
     finding["artifact_path"] = "dir/`tick`.md"
     _, summary = render(_report({"sl`ug": [finding]}), 1)
 
@@ -112,6 +112,8 @@ def test_cells_escape_pipes_flatten_newlines_truncate_and_defuse_markup() -> Non
     detail = cells[3]
     assert not re.search(r"(?<!\\)\[", detail) and not re.search(r"(?<!\\)!", detail) and not re.search(r"(?<!\\)<", detail), detail
     assert "\\[x\\]" in detail and "\\!\\[i\\]" in detail and "\\<img" in detail
+    # A backslash in the repo text must itself be escaped, or it would un-escape the bracket that follows it.
+    assert "a\\\\\\[b" in detail and "\\\\\\[x\\]" in detail, detail
 
 
 def test_annotations_escape_newlines_so_a_blocker_stays_one_line() -> None:
