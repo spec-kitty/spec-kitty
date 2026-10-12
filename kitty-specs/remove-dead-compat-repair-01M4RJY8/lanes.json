@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "remove-dead-compat-repair-01M4RJY8",
+  "mission_id": "01M4RJY8N8XK5C1T20ST3MADAY",
+  "mission_branch": "issue-6095-dead-compat-repair",
+  "target_branch": "issue-6095-dead-compat-repair",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/migration/backfill_runtime_state.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/migration/test_birth_cutover.py",
+        "tests/unit/migration/test_backfill_runtime_state.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-12T17:45:41.780540+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a981fb29914a67f0790c9a0b99c3fbca70884298"
+}
