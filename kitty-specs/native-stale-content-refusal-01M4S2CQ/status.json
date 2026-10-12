@@ -1,0 +1,33 @@
+{
+  "event_count": 3,
+  "last_event_id": "01M4S2VXNJ9NE8ZNFQJWF2YHMN",
+  "materialized_at": "2026-10-12T22:13:55.358293+00:00",
+  "mission_number": "",
+  "mission_slug": "native-stale-content-refusal-01M4S2CQ",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "implement-command",
+      "agent": "implement-command",
+      "force_count": 0,
+      "implementer_of_record": "implement-command",
+      "lane": "in_progress",
+      "last_event_id": "01M4S2VXNJ9NE8ZNFQJWF2YHMN",
+      "last_transition_at": "2026-10-12T22:13:55.358293+00:00",
+      "shell_pid": 5068,
+      "shell_pid_created_at": "1791843229.78"
+    }
+  }
+}

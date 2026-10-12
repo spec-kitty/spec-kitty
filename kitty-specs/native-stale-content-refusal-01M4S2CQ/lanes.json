@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "mission_slug": "native-stale-content-refusal-01M4S2CQ",
+  "mission_id": "01M4S2CQWWRWJH4R2G7K71B4N3",
+  "mission_branch": "issue-5879-native-stale-content-refusal",
+  "target_branch": "issue-5879-native-stale-content-refusal",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
+        "src/specify_cli/cli/commands/agent/tasks_finalize.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/orchestrator_api/runtime_next.py",
+        "tests/specify_cli/design/test_design_authoring.py",
+        "tests/specify_cli/orchestrator_api/test_planning_client_journey.py",
+        "tests/specify_cli/orchestrator_api/test_runtime_next.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-12T22:13:04.522589+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a94aebb660f1224345ef569e584439860b711f07"
+}

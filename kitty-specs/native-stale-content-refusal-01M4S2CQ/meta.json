@@ -1,0 +1,15 @@
+{
+  "created_at": "2026-10-12T22:05:38.189481+00:00",
+  "flattened": false,
+  "friendly_name": "Native stale-content refusal enforcement",
+  "mid8": "01M4S2CQ",
+  "mission_id": "01M4S2CQWWRWJH4R2G7K71B4N3",
+  "mission_number": null,
+  "mission_slug": "native-stale-content-refusal-01M4S2CQ",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Native stale-content refusal enforcement on issue-5879-native-stale-content-refusal so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Enforce the API-authored stale/unfinished-content refusal on native completion paths, not just orchestrator-api.",
+  "slug": "native-stale-content-refusal-01M4S2CQ",
+  "target_branch": "issue-5879-native-stale-content-refusal",
+  "topology": "single_branch"
+}
