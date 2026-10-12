@@ -169,7 +169,16 @@ def _bootstrap_direct_on_target_mission(
         _event(mission_slug, WP_ID, "01HXYZSK750000000000000001", from_lane="claimed", to_lane="in_progress", actor="implementer-bot"),
     ]
     if merge_ready:
-        events.append(_event(mission_slug, WP_ID, "01HXYZSK750000000000000002", from_lane="in_review", to_lane="approved", actor="reviewer-renata"))
+        # A reducer-valid transition chain to ``approved``. The canonical status
+        # reducer (events 10.4.x) validates ``from_lane`` against the WP's current
+        # reduced lane and DROPS a mismatched event, so the previous two-event
+        # shortcut (`claimed->in_progress` then `in_review->approved`) left WP01
+        # stuck at ``in_progress`` and the merge-ready precondition correctly
+        # reported it missing approval. Emit the intermediate transitions a real
+        # Mission records so WP01 genuinely reduces to ``approved`` (#6073).
+        events.append(_event(mission_slug, WP_ID, "01HXYZSK750000000000000002", from_lane="in_progress", to_lane="for_review", actor="implementer-bot"))
+        events.append(_event(mission_slug, WP_ID, "01HXYZSK750000000000000003", from_lane="for_review", to_lane="in_review", actor="reviewer-renata"))
+        events.append(_event(mission_slug, WP_ID, "01HXYZSK750000000000000004", from_lane="in_review", to_lane="approved", actor="reviewer-renata"))
     (feature_dir / "status.events.jsonl").write_text("\n".join(json.dumps(e, sort_keys=True) for e in events) + "\n", encoding="utf-8")
     code_path = repo / "src" / code_filename
     code_path.parent.mkdir(parents=True, exist_ok=True)
