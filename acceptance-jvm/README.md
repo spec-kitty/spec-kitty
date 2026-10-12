@@ -51,7 +51,7 @@ subproject checks only that the `url` in `tools/pins.json` carries the pinned `v
 ## Run the scenarios
 
 ```bash
-gradle test -Dcucumber.filter.tags='@init and not @manual' --no-daemon
+gradle test -Dcucumber.filter.tags='not @wip and not @manual' --no-daemon
 ```
 
 The feature files are read from `../tests/scenarios` in place (no copy). The

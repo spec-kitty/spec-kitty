@@ -81,8 +81,19 @@ The runner builds a wheel from your checkout with `uv build` and installs it int
 throwaway virtual environment, so it tests your working tree as a user would install
 it. Each scenario gets its own temporary directory, home directory and git repository.
 
-Reports land in `acceptance-jvm/build/`: JUnit XML under `test-results/`, Cucumber JSON
-under `cucumber-report/`, and Allure results in `acceptance-jvm/allure-results/`.
+Reports land in three places:
+
+- JUnit XML: `acceptance-jvm/build/test-results/test/`
+- Cucumber JSON: `acceptance-jvm/build/cucumber-report/cucumber.json`
+- Allure results: `acceptance-jvm/allure-results/` (written beside `build/`, not inside it)
+
+A gating run fails if no scenario ran, so a mistyped tag filter or a wrong feature path
+cannot pass as green. Only the `@wip` run may find none.
+
+Each scenario also checks its own isolation. The CLI must write something under the
+redirected home directory, which shows the environment redirection took effect. The real
+`~/.spec-kitty` must be left untouched. Lock files are ignored in that comparison,
+because another `spec-kitty` process on your machine may touch them.
 
 ## Change a dependency
 
