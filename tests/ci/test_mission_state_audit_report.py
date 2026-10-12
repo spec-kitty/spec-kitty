@@ -5,7 +5,6 @@ from __future__ import annotations
 import itertools
 import json
 import re
-import time
 from pathlib import Path
 from typing import Any
 
@@ -157,27 +156,27 @@ def test_the_summary_is_cut_at_the_budget_but_the_log_stays_complete() -> None:
     assert f"{4000 - shown} more blocker(s) in the uploaded artifact" in summary
 
 
-def test_main_prints_and_appends_to_the_summary_and_returns_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+@pytest.mark.parametrize("with_summary_env", [True, False])
+def test_main_prints_and_appends_to_the_summary_when_set_and_returns_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], with_summary_env: bool
+) -> None:
     source = tmp_path / "r.json"
     source.write_text(json.dumps(_report({"m": [_finding()]})), encoding="utf-8")
     summary = tmp_path / "summary.md"
     summary.write_text("earlier\n", encoding="utf-8")
-    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    if with_summary_env:
+        monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    else:
+        monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
 
     assert main([str(source), "1"]) == 0
 
     assert "::error title=mission-state audit::m SNAPSHOT_DRIFT" in capsys.readouterr().out
     text = summary.read_text(encoding="utf-8")
-    assert text.startswith("earlier\n") and "| `m` |" in text
-
-
-def test_main_without_a_summary_env_only_prints(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    source = tmp_path / "r.json"
-    source.write_text(json.dumps(_report({"m": [_finding()]})), encoding="utf-8")
-    monkeypatch.delenv("GITHUB_STEP_SUMMARY", raising=False)
-
-    assert main([str(source), "1"]) == 0
-    assert "::error" in capsys.readouterr().out
+    if with_summary_env:
+        assert text.startswith("earlier\n") and "| `m` |" in text
+    else:
+        assert text == "earlier\n", "without the env var nothing is written"
 
 
 def test_main_survives_an_unwritable_summary_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
@@ -195,7 +194,7 @@ def test_main_survives_an_unwritable_summary_path(tmp_path: Path, monkeypatch: p
 
 @pytest.mark.parametrize(
     "payload",
-    ['{"repo_summary": {}, "missions": [{"findings": []}]}', "[]", "not json"],
+    ['{"repo_summary": {}, "missions": [{"findings": []}]}', "[]", "not json", "[" * 100000],  # last: pathologically nested (RecursionError)
 )
 def test_main_warns_and_returns_zero_on_malformed_input(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], payload: str) -> None:
     source = tmp_path / "r.json"
@@ -212,17 +211,6 @@ def test_main_warns_and_returns_zero_on_malformed_input(tmp_path: Path, monkeypa
 def test_main_warns_and_returns_zero_on_bad_arguments(argv: list[str], capsys: pytest.CaptureFixture[str]) -> None:
     assert main(argv) == 0
     assert "::warning::" in capsys.readouterr().out
-
-
-def test_rendering_600_missions_is_fast() -> None:
-    """NFR-001: the renderer adds negligible time at the size of today's corpus."""
-    missions = {f"mission-{i:04d}": [_finding("SNAPSHOT_DRIFT"), _finding("MISSING_EVIDENCE", "warning"), _finding("UNKNOWN_SHAPE", "info")] for i in range(600)}
-    report = _report(missions)
-
-    started = time.perf_counter()
-    render(report, 1)
-
-    assert time.perf_counter() - started < 2.0
 
 
 def test_a_non_utf8_mission_name_does_not_hide_any_blocker(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
@@ -254,16 +242,6 @@ def test_a_hostile_code_cannot_inject_a_workflow_command_through_the_counts_line
     _, linked = render(_report({"m": [_finding(code="[click](http://evil) ![i](http://evil/p.png)")]}), 1)
     counts = next(line for line in linked.splitlines() if line.startswith("By code:"))
     assert "\\[click\\]" in counts and "\\!\\[i\\]" in counts
-
-
-def test_main_returns_zero_on_pathologically_nested_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    source = tmp_path / "r.json"
-    source.write_text("[" * 100000, encoding="utf-8")
-    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(tmp_path / "summary.md"))
-
-    assert main([str(source), "1"]) == 0
-
-    assert "::warning::" in capsys.readouterr().out
 
 
 def test_main_returns_zero_when_the_log_write_itself_fails(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

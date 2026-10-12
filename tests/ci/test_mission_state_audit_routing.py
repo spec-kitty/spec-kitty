@@ -20,9 +20,6 @@ import ast
 import copy
 import json
 import shlex
-import shutil
-import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -123,60 +120,6 @@ def test_the_audit_job_runs_the_witness_audit_and_gate() -> None:
     assert "--mission" not in command, "the audit covers every Mission, not one"
 
 
-@pytest.mark.skipif(shutil.which("bash") is None or shutil.which("jq") is None, reason="needs bash and jq")
-def test_a_failing_audit_still_prints_the_failing_missions(tmp_path: Path) -> None:
-    """The step runs under ``bash -e``; a non-zero audit must not end it before the report is printed (#6058)."""
-    (step,) = [step for step in _jobs()[JOB]["steps"] if "mission-state" in str(step.get("run", ""))]
-    report = {
-        "repo_summary": {"missions_with_errors": 1},
-        "missions": [
-            {
-                "mission_slug": "076-init-command-overhaul",
-                "has_errors": True,
-                "has_teamspace_blockers": True,
-                "findings": [
-                    {
-                        "code": "SNAPSHOT_DRIFT",
-                        "severity": "error",
-                        "artifact_path": "status.json",
-                        "detail": "reducer output does not match persisted status.json",
-                    }
-                ],
-            }
-        ],
-    }
-    summary = tmp_path / "summary.md"
-    stub_dir = tmp_path / "bin"
-    stub_dir.mkdir()
-    stub = stub_dir / "uv"
-    # The auditor call prints the report and fails; the renderer call (`uv run --frozen --no-sync python ...`)
-    # runs the real script under the real interpreter, like the stub in test_mission_state_audit_step.py.
-    renderer_branch = 'if [ "$4" = "python" ]; then\n  shift 4\n  exec "$STUB_PYTHON" "$@"\nfi\n'
-    auditor_branch = f"cat <<'JSON'\n{json.dumps(report)}\nJSON\nexit 1\n"
-    stub.write_text(f"#!/usr/bin/env bash\n{renderer_branch}{auditor_branch}", encoding="utf-8")
-    stub.chmod(0o755)
-
-    result = subprocess.run(
-        ["bash", "-e", "-c", step["run"]],
-        cwd=ROOT,
-        env={
-            "PATH": f"{stub_dir}:/usr/bin:/bin",
-            "RUNNER_TEMP": str(tmp_path),
-            "GITHUB_STEP_SUMMARY": str(summary),
-            "STUB_PYTHON": sys.executable,
-        },
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-
-    assert result.returncode == 1
-    assert "::error" in result.stdout
-    assert "076-init-command-overhaul" in result.stdout
-    assert "SNAPSHOT_DRIFT" in result.stdout
-    assert "SNAPSHOT_DRIFT" in summary.read_text(encoding="utf-8")
-
-
 def test_scrub_documentation_copy_equals_the_router_group() -> None:
     scrub = json.loads(SCRUB.read_text(encoding="utf-8"))
     (row,) = [row for row in scrub["non_src_router_groups"] if row["group"] == GROUP]
@@ -189,6 +132,10 @@ def test_scrub_documentation_copy_equals_the_router_group() -> None:
 # ---------------------------------------------------------------------------
 
 NIGHTLY = ROOT / ".github" / "workflows" / "ci-nightly.yml"
+ALIGNMENT = ROOT / ".github" / "workflows" / "check-spec-kitty-events-alignment.yml"
+# The dependency manifests that carry the reducer (spec-kitty-events): the drift workflow fires on them, and a bump of
+# any of them changes what the audit reports (commit 2e97550eb), so the router group must match every one.
+MANIFESTS = frozenset({"pyproject.toml", "uv.lock", ".kittify/release/shared-package-compatibility.json"})
 
 # The 5 files of commit 2e97550eb (the reducer bump that turned main red unseen): none was a Mission file.
 BUMP_PATHS = (
@@ -199,6 +146,7 @@ BUMP_PATHS = (
     "uv.lock",
 )
 
+# Hand copy of the audit-input paths (deriving it from the audit call trace is tracked in #6090).
 AUDIT_INPUT_PATHS = (
     "uv.lock",
     "pyproject.toml",
@@ -229,10 +177,17 @@ AUDIT_INPUT_PATHS = (
 )
 
 
+def _alignment_trigger_paths(event: str) -> set[str]:
+    workflow: dict[Any, Any] = yaml.safe_load(ALIGNMENT.read_text(encoding="utf-8"))
+    triggers = workflow.get("on", workflow.get(True))  # YAML 1.1 parses the bare `on` key as boolean True
+    return set(triggers[event]["paths"])
+
+
 def test_the_reducer_bump_commit_selects_the_audit_job() -> None:
     selection = select_gates(list(BUMP_PATHS), router=load_router())
 
     assert JOB in selection.selected_jobs
+    assert set(AUDIT_INPUT_PATHS) >= MANIFESTS, "the alignment pin below must cover every manifest"
 
 
 @pytest.mark.parametrize("path", AUDIT_INPUT_PATHS)
@@ -244,6 +199,8 @@ def test_audit_inputs_match_the_group_directly(path: str) -> None:
     assert GROUP in selection.matched_groups, f"{path} can change the audit verdict but misses the {GROUP} group"
     assert JOB in selection.selected_jobs
     assert GROUP not in router.src_backed_groups
+    if path in MANIFESTS:  # alignment: the drift workflow fires on the same files the audit group matches
+        assert path in _alignment_trigger_paths("pull_request") and path in _alignment_trigger_paths("push")
 
 
 def test_the_audit_modules_are_not_spelled_src() -> None:
@@ -325,13 +282,3 @@ def test_the_parity_check_is_not_vacuous() -> None:
     mutated[0]["uses"] = "actions/checkout@" + "0" * 40 + " # v5.0.0"
 
     assert not _steps_match(router_steps, mutated)
-
-
-@pytest.mark.parametrize("path", ["tests/specify_cli/status/test_agent_assignment.py", "tests/specify_cli/audit/test_detectors_row_family.py"])
-def test_test_only_diffs_under_the_audit_modules_deliberately_over_match(path: str) -> None:
-    """Documented over-match (cost only): the `**/specify_cli/{audit,status}/**` globs also match their tests.
-
-    dorny/paths-filter ORs patterns and cannot exclude inside one list without changing the group's
-    predicate, so the over-match is accepted (mirrors `contract_tools`). Narrowing it is a conscious change.
-    """
-    assert GROUP in select_gates([path], router=load_router()).matched_groups

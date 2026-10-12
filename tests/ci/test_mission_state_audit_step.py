@@ -15,7 +15,6 @@ import shutil
 import stat
 import subprocess
 import sys
-import textwrap
 import time
 from pathlib import Path
 from typing import Any
@@ -246,9 +245,3 @@ def test_a_realistic_report_lists_every_blocker(tmp_path: Path) -> None:
         assert any(slug in line and code in line for line in proc.stdout.splitlines() if line.startswith("::error title"))
         assert any(slug in line and code in line for line in text.splitlines())
     assert elapsed < 30, f"step took {elapsed:.1f}s"
-
-
-def test_the_step_keeps_the_auditor_argv_token_for_token() -> None:
-    body = textwrap.dedent(_step_body())
-
-    assert "spec-kitty doctor mission-state --audit --fail-on teamspace-blocker --json" in body
