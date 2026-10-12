@@ -368,6 +368,18 @@ class TestReducerOrdering:
         assert result.result is not None
         assert result.result.verdict == "approved"
 
+    @pytest.mark.xfail(
+        reason=(
+            "#6084 / spec-kitty-events#80: spec-kitty-events 10.4.2 exempts a "
+            "'migration:' current setter from the from_lane drop (the "
+            "reconstruction-seed exemption). The verdict backfill writes its "
+            "rejection as 'migration:verdict_provenance_backfill', so the bare "
+            "approval is applied and the verdict resolves 'approved'. Passes on "
+            "10.4.0. Remove this marker once a release narrows the exemption to "
+            "genesis seeds and the pin is bumped."
+        ),
+        strict=True,
+    )
     def test_bare_approval_after_rejection_resolves_changes_requested(self, tmp_path: Path) -> None:
         """Positive pin (#4990 contract, #5279): a real approval with NO
         rework causally following the backfilled rejection carries
@@ -380,6 +392,12 @@ class TestReducerOrdering:
         used before #4990/#5279; that test now additionally threads a real
         rework chain to reach ``approved``, and this test keeps the original
         bare-approval shape as the contract pin for the drop.
+
+        XFAIL (#6084, spec-kitty-events#80): since spec-kitty-events 10.4.2 the
+        reducer applies this bare approval because the backfilled rejection's
+        ``migration:`` actor falls under the reconstruction-seed exemption. The
+        marker is strict, so it flips to XPASS and comes off once a release
+        narrows that exemption and the pin is bumped.
         """
         feature_dir = _make_feature_dir(tmp_path)
         _write_review_cycle(
