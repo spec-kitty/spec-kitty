@@ -3707,6 +3707,18 @@ pages:
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "target-topology", text: "Target topology", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-10-13-1-acceptance-scenarios-link-to-promises-by-identifier-only.md"
+    title: "ADR: acceptance scenarios link to product promises by identifier only; core checks the scenario contract per pull request and hands on versioned evidence"
+    divio_type: "none"
+    abstract: "Scenarios cite promises only by @promise identifier; a stdlib per-PR check validates feature files, tags and step bindings; nightly legs upload versioned evidence."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
     divio_type: "explanation"
@@ -4884,6 +4896,17 @@ pages:
     - {slug: "creating-a-new-adr", text: "Creating a new ADR", level: 2}
     - {slug: "find-adrs", text: "Find ADRs", level: 2}
     - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/architecture/acceptance-scenario-contract.md"
+    title: "The acceptance scenario contract"
+    divio_type: "explanation"
+    abstract: "How CLI acceptance scenarios link to product promises by identifier only, what a pull request checks about them, and what evidence each nightly run hands on."
+    anchors:
+    - {slug: "two-layers-one-link", text: "Two layers, one link", level: 2}
+    - {slug: "a-the-scenario-contract", text: "A. The scenario contract", level: 2}
+    - {slug: "b-the-per-pull-request-scenario-check-not-built", text: "B. The per-pull-request scenario check (not built)", level: 2}
+    - {slug: "c-the-evidence-bundle-not-built", text: "C. The evidence bundle (not built)", level: 2}
+    - {slug: "d-fixture-builders-not-built", text: "D. Fixture builders (not built)", level: 2}
+    - {slug: "what-this-design-does-not-cover", text: "What this design does not cover", level: 2}
   - path: "docs/architecture/adr-template.md"
     title: "[Short descriptive title]"
     divio_type: "none"

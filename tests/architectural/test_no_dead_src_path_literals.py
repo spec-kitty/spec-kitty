@@ -138,6 +138,9 @@ _ALLOWED_DEAD_LITERALS: dict[str, dict[str, str]] = {
     "docs/api/profile-invocation.md": {
         "src/auth/token.py": "hypothetical artifact ref inside a JSON event example",
     },
+    "docs/architecture/acceptance-scenario-contract.md": {
+        "src/test/java/*": "module-relative path: acceptance-jvm/src/test/java/**, the JVM acceptance module's own source tree, not the repository's src/",
+    },
     "docs/architecture/00_landscape/README.md": {
         "src/doctrine/": "relocation history: 'absorbed the former src/doctrine/ package at src/charter/offering/'",
     },
