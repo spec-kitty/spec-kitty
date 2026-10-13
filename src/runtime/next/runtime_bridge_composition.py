@@ -470,8 +470,11 @@ def _check_composed_action_guard(
 
     * **Composition-only path** (``legacy_step_id`` is ``None``): a direct
       ``action="tasks"`` invocation represents the terminal state of the
-      whole composed action; the guard demands the **union** of all three
-      legacy substep checks (no weakening).
+      whole composed action; the guard demands the terminal checks: ``tasks.md``,
+      the finalized WP files, requirement mapping, dependencies and the
+      occurrence gate. It deliberately does **not** require ``wps.yaml``
+      (that is the outline substep's artifact), so legacy Missions that
+      only have ``tasks.md`` still pass.
 
     ``repo_root`` (#3704 WP03, FR-003) is forwarded to
     :func:`runtime_bridge_io.gather_artifact_presence` for org-tier

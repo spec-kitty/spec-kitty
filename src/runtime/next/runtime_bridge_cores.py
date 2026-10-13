@@ -728,7 +728,9 @@ def _evaluate_composed_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotL
 
 def _evaluate_composed_tasks_terminal_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     """Composed ``tasks`` for ``legacy_step_id in {"tasks_finalize", None}`` —
-    the union of all three legacy substep checks (no weakening).
+    the terminal checks (``tasks.md``, finalized WP files, requirement mapping,
+    dependencies, occurrence gate). ``wps.yaml`` is deliberately not required,
+    so legacy Missions with only ``tasks.md`` still pass.
 
     WP05 (#3396) FR-002: the bare-prose fact is read FIRST, unconditionally,
     before every other check in this guard -- see
