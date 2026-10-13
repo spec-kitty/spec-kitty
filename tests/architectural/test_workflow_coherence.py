@@ -329,8 +329,22 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
 #   executor. ``cli_lifecycle``'s glob is ``**/``-prefixed (not ``src/...``), so the
 #   group is non-src and stays out of the ``unmatched`` union. Both are pinned by
 #   tests/architectural/test_gate_selection_authority.py.
+#
+# * ``mission_type_definitions`` (#6166 landing review) — ``packs/built-in/missions/mission_types/**``,
+#   split from ``mission_pack_content`` because its consumer set differs
+#   (charter/core_misc/upgrade). Gates no router job BY DESIGN; fanned out by
+#   ``GROUP_MODULE_FANOUT`` and pinned by the same test file.
 _DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
-    {"any_src", "ci", "scenarios", "acceptance_jvm", "mission_manifest", "mission_pack_content", "cli_lifecycle"}
+    {
+        "any_src",
+        "ci",
+        "scenarios",
+        "acceptance_jvm",
+        "mission_manifest",
+        "mission_pack_content",
+        "cli_lifecycle",
+        "mission_type_definitions",
+    }
 )
 
 

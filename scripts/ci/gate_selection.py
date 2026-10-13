@@ -57,17 +57,27 @@ PROBE_GROUPS = frozenset({"any_src"})
 GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
     "mission_manifest": frozenset({"charter", "dossier", "specify_cli_runtime"}),
     # #6166 task A -- mission pack content beyond expected-artifacts.yaml (the mission-step
-    # prompt/step contracts, per-type templates, mission yaml). Every module whose tests read
-    # that content, so a pack edit runs them per-PR instead of selecting zero (the #6156 class).
+    # prompt/step contracts, per-type templates, mission.yaml, mission-runtime.yaml, actions/**,
+    # governance-profile.yaml, built_in_step_contracts/**). Every module whose tests read that
+    # content, so a pack edit runs them per-PR instead of selecting zero (the #6156 class).
     #   charter            -- reads mission-step prompt.md BODIES + mission.yaml + templates and
-    #                         asserts on their content (tests/charter_offering prompt-walk/emptiness).
+    #                         asserts on their content (tests/charter_offering prompt-walk/emptiness);
+    #                         also the action indexes, step contracts and governance profiles.
     #   next               -- runtime-resolves the prompts (spec-kitty next) and reads prompt.md
-    #                         directly (tests/next discovery-step contract -- the #6156 break).
+    #                         directly (tests/next discovery-step contract -- the #6156 break);
+    #                         reads mission-runtime.yaml (tests/next/test_plan_mission_runtime.py).
+    #   missions           -- (also) tests/missions/test_mission_type_profile_resolution.py
+    #                         loads the shipped governance-profile.yaml files.
     #   missions           -- globs the real mission-steps prompt.md + loads mission.yaml.
     #   execution_context  -- inherits tests/runtime (resolve_command -> mission-steps prompt.md).
     #   dossier            -- reads expected-artifacts.yaml manifests (the #6153 class).
     #   specify_cli_runtime-- owns src/charter/offering/missions/**; its tests read real manifests.
     "mission_pack_content": frozenset({"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime"}),
+    # #6166 landing review -- packs/built-in/missions/mission_types/** (the mission-type YAMLs):
+    #   charter   -- MissionTypeRepository.default over the shipped types (tests/charter*).
+    #   core_misc -- tests/core/test_mission_creation_identity.py loads default_missions_root()/"mission_types".
+    #   upgrade   -- tests/upgrade/test_activate_builtin_types_migration.py copies the shipped *.yaml.
+    "mission_type_definitions": frozenset({"charter", "core_misc", "upgrade"}),
     # #6166 task B -- src/specify_cli/cli/commands/lifecycle.py already routes to `cli`; add the
     # modules whose tests exercise it but that `cli` does not reach:
     #   agent     -- tests/agent/test_commands.py imports specify_cli.cli.commands.lifecycle (the #6161 break).

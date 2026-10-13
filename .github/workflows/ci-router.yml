@@ -133,6 +133,9 @@ jobs:
       # Mission-pack-content group (#6166): non-src, like mission_manifest above; gates no job BY DESIGN
       # (select_modules fans it out to the modules whose tests read mission pack content). Never in the unmatched loop.
       mission_pack_content: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.mission_pack_content }}
+      # Mission-type-definitions group (#6166 landing review): non-src, like mission_pack_content above;
+      # gates no job BY DESIGN (fanned out to charter/core_misc/upgrade). Never in the unmatched loop.
+      mission_type_definitions: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.mission_type_definitions }}
       # Lifecycle-command group (#6166): non-src (the glob is **/-prefixed, not src/..., so it is not
       # src-backed), like mission_pack_content above; gates no job BY DESIGN (fanned out to agent + core_misc). Never in the unmatched loop.
       cli_lifecycle: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli_lifecycle }}
@@ -219,20 +222,34 @@ jobs:
             mission_manifest:
               - 'packs/built-in/missions/**/expected-artifacts.yaml'
             # Mission-pack-content group (#6166): NON-src (not in the unmatched loop, so a data-only
-            # pack path can never mask an unmapped src/** change, FR-004). Covers the mission pack
-            # content BEYOND expected-artifacts.yaml (which mission_manifest above owns): the
-            # mission-step prompt/step contracts, the per-type templates, and the mission yaml.
+            # pack path can never mask an unmapped src/** change, FR-004). Covers the CONSUMED mission
+            # pack content beyond expected-artifacts.yaml (which mission_manifest above owns) and
+            # mission_types/** (which mission_type_definitions below owns): the mission-step
+            # prompt/step contracts, the per-type templates, mission.yaml, mission-runtime.yaml,
+            # actions/** (action indexes), governance-profile.yaml and built_in_step_contracts/**.
             # Three regressions reached main (#6166) because such edits matched only the non-module
             # `corpus` group and selected zero modules. Not a module: select_modules fans it out to the
-            # modules whose tests read mission pack content (charter, next, missions, dossier,
+            # modules whose tests read that content (charter, next, missions, dossier,
             # specify_cli_runtime, execution_context -- gate_selection.GROUP_MODULE_FANOUT). Gates no
             # router job BY DESIGN; the module matrix is its per-PR executor. Sub-tree-specific globs
-            # (not a blanket packs/built-in/missions/**) so a genuinely non-consumed pack file still
-            # selects zero modules (the corpus zero-module golden is preserved).
+            # (not a blanket packs/built-in/missions/**): the files left out are the READMEs, which no
+            # module test reads (the always-on architectural battery still scans them), so they keep
+            # selecting zero modules (the corpus zero-module golden is preserved).
             mission_pack_content:
               - 'packs/built-in/missions/mission-steps/**'
               - 'packs/built-in/missions/*/templates/**'
               - 'packs/built-in/missions/*/mission.yaml'
+              - 'packs/built-in/missions/*/mission-runtime.yaml'
+              - 'packs/built-in/missions/*/actions/**'
+              - 'packs/built-in/missions/*/governance-profile.yaml'
+              - 'packs/built-in/missions/built_in_step_contracts/**'
+            # Mission-type-definitions group (#6166 landing review): NON-src, like mission_pack_content
+            # above. The built-in mission-type YAMLs have a wider consumer set than the rest of the pack
+            # (core_misc + upgrade read them; next/missions/dossier do not), so they get their own group
+            # instead of widening every prompt.md edit by 9 shards. Fanned out to charter, core_misc and
+            # upgrade by gate_selection.GROUP_MODULE_FANOUT; gates no router job BY DESIGN.
+            mission_type_definitions:
+              - 'packs/built-in/missions/mission_types/**'
             # Lifecycle-command group (#6166): NON-src. The glob is **/-prefixed (not src/...), so the
             # group is NOT src-backed and stays out of the unmatched loop -- the same shape the
             # contract_tools / mission_state groups use to name a src file without becoming a code-shard
