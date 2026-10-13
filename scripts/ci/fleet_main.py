@@ -45,7 +45,7 @@ def main_workflows(root: Path) -> tuple[set[str], set[str]]:
         trigger = document.get("on", document.get(True, {})).get("push")
         if trigger is None:
             continue
-        if set(trigger) - {"branches", "paths"}:
+        if set(trigger) - {"branches", "paths", "tags"}:
             raise ValueError(f"unsupported main push policy in {name}")
         if not any(fnmatch.fnmatchcase("main", pattern) for pattern in trigger.get("branches", [])):
             continue

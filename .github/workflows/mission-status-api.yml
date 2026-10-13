@@ -1,7 +1,9 @@
 # Mission Status API: the standalone Java service under services/mission-status-api/. Path-filtered on push to main and on pull
 # requests (the service tree, the contract module, the shared contract fragments, the bundler and the gate helper script);
 # `workflow_dispatch` carries no filter. There is no `schedule` trigger. Jobs: `contract-bundle` (the contract document, built once
-# by the Python resolver), `jvm` (./gradlew check), `native` (four targets, binary smoke) and the terminal `mission-status-api-gate`.
+# by the Python resolver), `jvm` (./gradlew check), `native` (four targets, golden replay and digest), the terminal
+# `mission-status-api-gate`, `release` (a mission-status-api-v*.*.* tag push only) and `nightly-corpus` (workflow_dispatch only: the
+# full-corpus Python/service compare, no exemptions; it runs when a maintainer dispatches it, until a cron is added deliberately).
 # It is NOT a router dependency, but it IS registered in the fleet verdict (ci-fleet-verdict.yml on.workflow_run.workflows and
 # scripts/ci/fleet_verdict.py PR_WORKFLOWS), which treats it as applicable only when its path filter matches the PR.
 # No pytest runs here: the Python tests of the helper script and the build pins run in the router's `ci` module shard (tests/ci),
@@ -11,6 +13,10 @@ name: Mission Status API
 on:
   push:
     branches: [main]
+    # GitHub applies no paths filter to a tag push (Unverified 15: the first tag confirms it). The pattern is disjoint from the CLI's
+    # v*.*.* (release.yml) and contract-*-v*.*.* (contracts-release.yml); the maintainer cuts the first tag (operator decision E-4).
+    tags:
+      - 'mission-status-api-v*.*.*'
     paths:
       - 'services/mission-status-api/**'
       - 'contracts/mission-status/**'
@@ -209,21 +215,101 @@ jobs:
       - name: Compile the native image and run the tagged native tests
         working-directory: ${{ env.SERVICE_DIR }}
         run: ./gradlew --no-daemon nativeCompile nativeTest
-      - name: Start the built binary and ask it an unmapped route
+      # The golden replay (requests.json, stage base) against the binary the compile step produced, byte for byte; it writes the
+      # per-leg digest build/nativesmoke/digest-<target>.json that the gate compares across the four legs.
+      - name: Replay the golden requests against the built binary
         working-directory: ${{ env.SERVICE_DIR }}
         env:
           WORKSPACE: ${{ github.workspace }}
         run: ./gradlew --no-daemon nativeSmoke "-PnativeBinary=$WORKSPACE/services/mission-status-api/build/native/nativeCompile/mission-status-api${{ matrix.exe }}"
+      - name: Show the replay summary
+        if: always()
+        run: |
+          summary="services/mission-status-api/build/nativesmoke/summary-${{ matrix.target }}.txt"
+          if [ -f "$summary" ]; then cat "$summary" >> "$GITHUB_STEP_SUMMARY"; else echo "no replay summary was written" >> "$GITHUB_STEP_SUMMARY"; fi
+      # --- WP13 ---
+      # NFR-002 floor (ADR 2026-10-05-2): a trivial native binary built on THIS leg from a one-class source written here (nothing is
+      # committed). Without it the perf test records the start-up ratio as UNMEASURED and asserts the ceiling, so a failed floor build
+      # degrades the measurement, not the leg. That is done in the script, not with `continue-on-error` (which this workflow forbids on
+      # every job and step): the build runs as the condition of an `if`, a failure is reported as a ::warning:: and as the step output
+      # `floor=unmeasured`, and the step then exits 0 on purpose. Only the native-image build can take that branch; the Java source
+      # write above it still fails the step under `set -e`.
+      - name: Build the trivial native binary (the NFR-002 start-up floor)
+        id: floor
+        run: |
+          set -eu
+          floor="$RUNNER_TEMP/floor"
+          mkdir -p "$floor/src"
+          cat > "$floor/src/FloorServer.java" <<'JAVA'
+          import java.io.IOException;
+          import java.net.InetAddress;
+          import java.net.ServerSocket;
+          import java.net.Socket;
+          import java.nio.charset.StandardCharsets;
+
+          public class FloorServer {
+            public static void main(String[] args) throws IOException {
+              int port = Integer.parseInt(args[0]);
+              byte[] reply = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}".getBytes(StandardCharsets.ISO_8859_1);
+              try (ServerSocket server = new ServerSocket(port, 50, InetAddress.getLoopbackAddress())) {
+                while (true) {
+                  try (Socket client = server.accept()) {
+                    client.getInputStream().read(new byte[4096]);
+                    client.getOutputStream().write(reply);
+                  } catch (IOException ignored) {
+                    // the next client
+                  }
+                }
+              }
+            }
+          }
+          JAVA
+          if mkdir -p "$floor/classes" \
+            && "$JAVA_HOME/bin/javac" -d "$floor/classes" "$floor/src/FloorServer.java" \
+            && (cd "$floor/classes" && "$JAVA_HOME/bin/native-image" -cp . FloorServer -o "$floor/floor-binary"); then
+            echo "MISSION_STATUS_FLOOR_BINARY=$(cygpath -m "$floor/floor-binary${{ matrix.exe }}" 2>/dev/null || echo "$floor/floor-binary${{ matrix.exe }}")" >> "$GITHUB_ENV"
+            echo "floor=built" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::the NFR-002 floor binary did not build on ${{ matrix.target }}; the start-up ratio will be UNMEASURED and the ceiling still asserts"
+            echo "floor=unmeasured" >> "$GITHUB_OUTPUT"
+          fi
+      # NFR-002 (start-up) and NFR-004 (native memory and threads) against the binary the compile step produced. A miss fails once and
+      # is classified under the ADR; the step is never retried. Timeouts of this job stay provisional until the first CI run.
+      - name: Measure start-up, memory and threads of the built binary
+        working-directory: ${{ env.SERVICE_DIR }}
+        env:
+          WORKSPACE: ${{ github.workspace }}
+        run: ./gradlew --no-daemon nativePerf "-PnativeBinary=$WORKSPACE/services/mission-status-api/build/native/nativeCompile/mission-status-api${{ matrix.exe }}"
+      # A floor build that failed leaves the leg ceiling-only; say so in the job summary (the test fails when the variable names a missing file).
+      - name: Show the floor build outcome
+        if: ${{ !cancelled() }}
+        run: |
+          echo "NFR-002 floor binary build on ${{ matrix.target }}: ${{ steps.floor.outputs.floor }}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Show the performance summary
+        if: always()
+        run: |
+          summary="services/mission-status-api/build/nativesmoke/perf-summary-${{ matrix.target }}.txt"
+          if [ -f "$summary" ]; then cat "$summary" >> "$GITHUB_STEP_SUMMARY"; else echo "no performance summary was written" >> "$GITHUB_STEP_SUMMARY"; fi
+      # A nativePerf miss (possibly runner noise, ADR 2026-10-05-2) must not skip the digest upload, the native floor check or the staging.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() }}
+        with:
+          name: digest-${{ matrix.target }}
+          path: ${{ env.SERVICE_DIR }}/build/nativesmoke/digest-${{ matrix.target }}.json
+          retention-days: 30
+          if-no-files-found: error
+          overwrite: true
       # The native binary must have executed at least the committed number of tagged tests: zero selected must not read as green.
       # Two literal interpreter names (no run-time command word, tests/architectural/test_no_duplicate_suite_execution.py): the Windows
       # image has `python`, the Linux and macOS images have `python3`.
       - name: Require the native test floor
-        if: runner.os != 'Windows'
+        if: ${{ !cancelled() && runner.os != 'Windows' }}
         run: python3 scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor 3
       - name: Require the native test floor (Windows)
-        if: runner.os == 'Windows'
+        if: ${{ !cancelled() && runner.os == 'Windows' }}
         run: python scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor 3
       - name: Stage the binary and its checksum
+        if: ${{ !cancelled() }}
         run: |
           set -eu
           mkdir -p dist
@@ -232,6 +318,7 @@ jobs:
           (cd dist && ${{ matrix.sha256 }} "$binary" > "$binary.sha256")
           cat "dist/$binary.sha256"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() }}
         with:
           name: mission-status-api-${{ matrix.target }}${{ matrix.exe }}
           path: dist/*
@@ -264,3 +351,178 @@ jobs:
               exit 1
             fi
           done
+      # AC-15e: the four native legs replayed the same requests and produced the same bytes. The helper reads exactly four
+      # digest-<target>.json files; --request-floor is the sum of the requestCountFloor values in requests.json.
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: digest-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/digests
+      - name: Compare the four per-leg digests
+        run: python3 scripts/ci/mission_status_gate_checks.py digests --dir "$RUNNER_TEMP/digests" --expected-count 4 --request-floor 49
+
+  # --- WP15 ---
+  # The release job (plan.md section 12, operator decision E-4). It runs only on a push of a mission-status-api-v*.*.* tag in the
+  # upstream repository, after the gate of the SAME run passed (the gate needs the jvm job and all four native legs, so a release
+  # exists only for a commit that built and replayed on all four targets). The only job holding a write token. Binaries are unsigned.
+  # Nothing is published here except the GitHub release of the tag: no package registry, no wheel, no installer.
+  release:
+    needs: [mission-status-api-gate]
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mission-status-api-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # contents: write publishes the release; id-token and attestations: write let the attestation step mint and store the build
+    # provenance of the four binaries (operator ruling 2026-10-13). No other job holds any of the three.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      # Full history: the ancestor check needs origin/main. Written as a flow mapping so the WP14 pin that counts the nightly job's
+      # `fetch-depth: 0` line (it asserts exactly one) is not disturbed.
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with: {persist-credentials: false, fetch-depth: 0}
+      # A tag can be pushed on any commit. Only a commit that is on main (so it went through review) publishes; fails closed.
+      - name: Require the tagged commit to be on main
+        run: |
+          set -eu
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::the tagged commit $GITHUB_SHA is not an ancestor of origin/main; tag a commit that is on main"
+            exit 1
+          fi
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          pattern: mission-status-api-*
+          merge-multiple: true
+          path: ${{ runner.temp }}/release-assets
+      - name: Require exactly the eight release assets and verify each checksum
+        run: |
+          set -eu
+          cd "$RUNNER_TEMP/release-assets"
+          for binary in mission-status-api-linux-x64 mission-status-api-linux-arm64 mission-status-api-macos-arm64 mission-status-api-windows-x64.exe; do
+            test -s "$binary"
+            test -s "$binary.sha256"
+            sha256sum -c "$binary.sha256"
+          done
+          count=$(find . -maxdepth 1 -type f | wc -l)
+          if [ "$count" -ne 8 ]; then
+            echo "::error::expected exactly 8 release assets, found $count"
+            ls -la
+            exit 1
+          fi
+      # The tag is a mutable ref until it is published: confirm it still resolves to the commit the gate verified (the peeled commit of
+      # an annotated tag). The tag name only ever reaches the shell through the environment.
+      - name: Require the tag to still resolve to the built commit
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -eu
+          resolved=$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${TAG_NAME}" "refs/tags/${TAG_NAME}^{}" | awk '{print $1}' | tail -n 1)
+          if [ "$resolved" != "$GITHUB_SHA" ]; then
+            echo "::error::the tag ${TAG_NAME} resolves to '${resolved}', not the built commit ${GITHUB_SHA}; it was moved or deleted after the checks ran"
+            exit 1
+          fi
+      # Build provenance (SLSA, Sigstore-signed, stored by GitHub) for the four binaries only, never their checksum files. It runs after
+      # every check and just before the publish step, so a binary that failed a check is never attested. Verify a download with
+      # `gh attestation verify <binary> --repo spec-kitty/spec-kitty`.
+      - name: Attest the build provenance of the four binaries
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            ${{ runner.temp }}/release-assets/mission-status-api-linux-x64
+            ${{ runner.temp }}/release-assets/mission-status-api-linux-arm64
+            ${{ runner.temp }}/release-assets/mission-status-api-macos-arm64
+            ${{ runner.temp }}/release-assets/mission-status-api-windows-x64.exe
+      # The one publish step. The version comes from the tag only (the build version stays 0.0.0-dev); a semver prerelease tag is
+      # marked as a prerelease; the release is never marked latest, so it cannot displace the CLI's latest release.
+      - name: Publish the GitHub release with the four binaries and their checksums
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -eu
+          version="${TAG_NAME#mission-status-api-v}"
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+            echo "::error::the tag ${TAG_NAME} is not mission-status-api-v<semver>"
+            exit 1
+          fi
+          flags=(--latest=false)
+          case "$version" in
+            *-*) flags+=(--prerelease) ;;
+          esac
+          cd "$RUNNER_TEMP/release-assets"
+          gh release create "$TAG_NAME" mission-status-api-linux-x64 mission-status-api-linux-x64.sha256 mission-status-api-linux-arm64 mission-status-api-linux-arm64.sha256 mission-status-api-macos-arm64 mission-status-api-macos-arm64.sha256 mission-status-api-windows-x64.exe mission-status-api-windows-x64.exe.sha256 --verify-tag --target "$GITHUB_SHA" "${flags[@]}" --title "Mission Status API ${version}" --notes "Standalone Mission Status API ${version}: native binaries for linux-x64, linux-arm64, macos-arm64 and windows-x64, each with its SHA-256 file. The binaries are unsigned, so macOS Gatekeeper and Windows SmartScreen will warn. Verify a download with the .sha256 file, and verify its build-provenance attestation with: gh attestation verify <binary> --repo spec-kitty/spec-kitty"
+
+  # --- WP14 ---
+  # The full-corpus comparison (plan.md section 7, AC-8c, operator decision E-10: no exemptions). It builds the JVM jar from this
+  # checkout, starts it against the checkout itself and lets scripts/ci/mission_status_corpus_compare.py compare, byte for byte, the
+  # Python oracle's answer for every Mission of kitty-specs/ with what the service answers. Any difference fails the job. The workflow
+  # has no `schedule` trigger (the slice 1 landing removed an empty one), so this job runs on workflow_dispatch only; a cron is a
+  # deliberate later addition that must also update the trigger pins. It is not a `needs` of the gate. It builds its own contract
+  # bundle (it does not depend on the contract-bundle job). No step runs the test runner: the oracle module imports
+  # it, so the fully synced environment is installed.
+  nightly-corpus:
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    # Provisional (plan.md section 7); final value from the first dispatch run's per-step times.
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # A real .git is required: the oracle reads the worktree registry and the corpus is `git ls-files`.
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the fully synced environment (the oracle module imports the test extras)
+        run: uv sync --frozen --all-extras
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: graalvm/setup-graalvm@27b360dbb857524eaf0b4c4cef364d38e5b4f173 # v1.6.7
+        with:
+          java-version: '25.0.2'
+          distribution: 'graalvm-community'
+          github-token: ${{ github.token }}
+      - name: Build the contract bundle and point the build at it
+        run: |
+          set -eu
+          uv run --frozen --no-sync python contracts/tools/bundle.py --root contracts --out "$RUNNER_TEMP/bundle-out" --module mission-status --bundle-only
+          mkdir -p "$RUNNER_TEMP/contract-bundle"
+          cp "$RUNNER_TEMP/bundle-out/bundle/mission-status/openapi.yaml" "$RUNNER_TEMP/contract-bundle/openapi.yaml"
+          echo "CONTRACT_BUNDLE=$RUNNER_TEMP/contract-bundle/openapi.yaml" >> "$GITHUB_ENV"
+          echo "CONTRACT_BUNDLE_SHA256=$(sha256sum "$RUNNER_TEMP/contract-bundle/openapi.yaml" | cut -d' ' -f1)" >> "$GITHUB_ENV"
+      # The JVM artifact, not the native binary: the byte equality of the native binaries is the legs' job (AC-15b, AC-15e); this job
+      # compares the service logic with the oracle over the whole corpus.
+      - name: Build the service jar
+        working-directory: ${{ env.SERVICE_DIR }}
+        run: ./gradlew --no-daemon bootJar
+      - name: Start the service against this checkout
+        working-directory: ${{ env.SERVICE_DIR }}
+        run: |
+          set -eu
+          java -jar build/libs/mission-status-api.jar --mission-status.project-root="$GITHUB_WORKSPACE" --mission-status.port=8787 > "$RUNNER_TEMP/service.log" 2>&1 &
+          echo "SERVICE_PID=$!" >> "$GITHUB_ENV"
+      # The script polls the project route every 2 s for at most 60 s and exits non-zero when the service never answers.
+      - name: Compare every Mission, Python against the service
+        run: uv run --frozen --no-sync python scripts/ci/mission_status_corpus_compare.py --base-url http://127.0.0.1:8787 --repo-root "$GITHUB_WORKSPACE" --report "$RUNNER_TEMP/nightly-report.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: nightly-corpus-report
+          path: |
+            ${{ runner.temp }}/nightly-report.json
+            ${{ runner.temp }}/service.log
+          if-no-files-found: warn
+          overwrite: true
+      # Stops the process by the recorded PID, never by a pattern.
+      - name: Stop the service
+        if: always()
+        run: |
+          if [ -n "${SERVICE_PID:-}" ]; then kill "$SERVICE_PID" || true; fi

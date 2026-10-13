@@ -11368,6 +11368,7 @@ pages:
     - {slug: "contracts-gates", text: "Contracts gates", level: 2}
     - {slug: "what-runs-where", text: "What runs where", level: 3}
     - {slug: "a-reader-or-test-only-change-selects-no-corpus-job", text: "A reader or test-only change selects no corpus job", level: 3}
+    - {slug: "mission-status-api-workflow", text: "Mission Status API workflow", level: 3}
     - {slug: "what-only-a-merge-can-confirm", text: "What only a merge can confirm", level: 3}
     - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/reference/coverage-signals.md"

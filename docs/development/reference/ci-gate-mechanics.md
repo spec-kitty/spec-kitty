@@ -2,7 +2,7 @@
 title: 'CI and Architectural Gate Mechanics'
 description: 'What trips each spec-kitty CI gate — marker gates, the architectural battery, docs-freshness registration, and accept-to-consolidate close-out — with symptom and repro.'
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-12'
 audience: docs/context/audience/internal/maintainer.md
 type: reference
 related:
@@ -855,6 +855,52 @@ places. The conventions themselves are in [`contracts/README.md`](../../../contr
   `PWHEADLESS=1 .venv/bin/python -m pytest -q tests/contract/test_mission_status_reality.py`,
   and dispatch the router in full mode on the branch:
   `gh workflow run ci-router.yml -f mode=full --ref <branch>`.
+
+### Mission Status API workflow
+
+The standalone service under `services/mission-status-api/` has its own workflow,
+`mission-status-api.yml`. It is not a Python workflow: no pytest runs in it, and the
+Python tests of its helper scripts run in the router's module shards.
+
+- **Triggers.** `push` to `main` and `pull_request`, both path-filtered
+  (`services/mission-status-api/**`, `contracts/mission-status/**` and the workflow
+  file itself); `schedule` (the nightly full-corpus comparison only) and
+  `workflow_dispatch`, which carry no path filter; and a pushed tag
+  `mission-status-api-v*.*.*`, which GitHub does not path-filter. The tag pattern is
+  disjoint from the CLI release tags (`v*.*.*`) and the contract tags
+  (`contract-*-v*.*.*`). A change that touches only `src/` never starts it.
+- **Router and fleet verdict.** It is not a router dependency: a skipped path-filtered
+  workflow posts no check, so `router-gate` ignores it. It is registered in the fleet
+  verdict (`fleet_verdict.PR_WORKFLOWS` and the `workflow_run.workflows` list of
+  `ci-fleet-verdict.yml`; operator ruling 2026-10-11, DD-77), so a red
+  gate posts the pull request `[ci]` comment. A scheduled nightly red has no pull
+  request and surfaces only through GitHub's own scheduled-failure notice.
+  `fleet_main.main_workflows` accepts `on.push.tags` so that the tag trigger does not
+  read as an unsupported main push policy.
+- **Required check.** Whether the workflow is a required status check is the
+  maintainer's decision at merge. A required path-filtered check can stall unrelated
+  pull requests, so the pull request says so instead of deciding it.
+- **One-slot ceiling.** The workflow uses the last free slot under the 20-file ceiling
+  (`test_reusable_workflow_ceiling_respected`). Any further CI need for this service
+  must be a job of this file, not a new workflow.
+- **Jobs.** `contract-bundle` writes the contract document once, so every leg serves
+  the same bytes. `jvm` runs `./gradlew check`. `native` is a matrix of four targets
+  (Linux x64, Linux arm64, macOS arm64, Windows x64): each builds the binary, runs its
+  native tests, replays the literal request set of `requests.json` (stages `base` and
+  `hostOrigin`) against it and uploads a digest of the response bodies.
+  `mission-status-api-gate` needs `jvm` and the four legs and fails unless all succeed;
+  its digests step fails when the four digests differ or the request count is below
+  the `--request-floor`, which must equal the sum of the stage floors in
+  `requests.json`. `nightly-corpus` (schedule and dispatch only) compares the service
+  with the Python reference over the whole repository corpus, with no exemption list.
+  `release` needs the gate, runs on a tag push only and holds the only write token; it attests
+  build provenance for each binary (verify with
+  `gh attestation verify <binary> --repo spec-kitty/spec-kitty`).
+- **Run it locally.** From `services/mission-status-api/`: `./gradlew check` (with the
+  contract bundle properties the build asks for), then
+  `./gradlew nativeCompile nativeTest` and
+  `./gradlew nativeSmoke -PnativeBinary=<built binary>`. The Python pins are
+  `.venv/bin/python -m pytest tests/ci/test_mission_status_api_build.py tests/ci/test_mission_status_gate_checks.py -q`.
 
 ### What only a merge can confirm
 

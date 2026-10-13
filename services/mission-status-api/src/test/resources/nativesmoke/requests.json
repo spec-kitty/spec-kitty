@@ -1,0 +1,574 @@
+{
+  "stages": {
+    "base": {
+      "requestCountFloor": 37
+    },
+    "hostOrigin": {
+      "requestCountFloor": 12
+    }
+  },
+  "groups": [
+    {
+      "stage": "base",
+      "tree": "interleaved/two-missions",
+      "requests": [
+        {
+          "id": "interleaved-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:project.json",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "interleaved-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:missions.json",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "contract-document",
+          "method": "GET",
+          "path": "/api/v1/openapi.yaml",
+          "expectedStatus": 200,
+          "expectedGolden": "contract",
+          "expectedContentType": "application/yaml"
+        },
+        {
+          "id": "page-cursor-empty",
+          "method": "GET",
+          "path": "/api/v1/missions?pageCursor=",
+          "expectedStatus": 400,
+          "expectedProblemCode": "invalid_page_cursor",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "stream-negative",
+          "method": "GET",
+          "path": "/api/v1/events?missionId=01J01000000000000000000001&streamCursor=-1:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "expectedStatus": 400,
+          "expectedProblemCode": "negative",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Accept": "text/event-stream"
+          }
+        },
+        {
+          "id": "stream-misaligned",
+          "method": "GET",
+          "path": "/api/v1/events?missionId=01J01000000000000000000001&streamCursor=5:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "expectedStatus": 400,
+          "expectedProblemCode": "misaligned",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Accept": "text/event-stream"
+          }
+        },
+        {
+          "id": "stream-cursor-without-mission",
+          "method": "GET",
+          "path": "/api/v1/events?streamCursor=0:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "expectedStatus": 400,
+          "expectedProblemCode": "cursor_without_mission",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Accept": "text/event-stream"
+          }
+        },
+        {
+          "id": "stream-out-of-range",
+          "method": "GET",
+          "path": "/api/v1/events?missionId=01J01000000000000000000001&streamCursor=3555:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "expectedStatus": 409,
+          "expectedProblemCode": "out_of_range",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Accept": "text/event-stream"
+          }
+        },
+        {
+          "id": "stream-content-mismatch",
+          "method": "GET",
+          "path": "/api/v1/events?missionId=01J01000000000000000000001&streamCursor=361:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "expectedStatus": 409,
+          "expectedProblemCode": "content_mismatch",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Accept": "text/event-stream"
+          }
+        },
+        {
+          "id": "stream-unknown-mission",
+          "method": "GET",
+          "path": "/api/v1/events?missionId=01J09000000000000000000009",
+          "expectedStatus": 404,
+          "expectedProblemCode": "unknown_mission",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Accept": "text/event-stream"
+          }
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "crlf-and-listing/crlf-and-lf-twin",
+      "requests": [
+        {
+          "id": "crlf-twin-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:project.json",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "crlf-twin-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:missions.json",
+          "expectedContentType": "application/json"
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "crlf-and-listing/listing-order",
+      "requests": [
+        {
+          "id": "listing-order-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:project.json",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "listing-order-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:missions.json",
+          "expectedContentType": "application/json"
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "secret-canaries/planted-canaries",
+      "requests": [
+        {
+          "id": "canaries-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 200,
+          "expectedGolden": "smoke:secret-canaries-project.json",
+          "expectedContentType": "application/json",
+          "mustNotContain": [
+            "CANARY-NOT-A-SECRET"
+          ]
+        },
+        {
+          "id": "canaries-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 200,
+          "expectedGolden": "smoke:secret-canaries-missions.json",
+          "expectedContentType": "application/json",
+          "mustNotContain": [
+            "CANARY-NOT-A-SECRET"
+          ]
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "project-header/healthy",
+      "requests": [
+        {
+          "id": "header-healthy-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:project.json",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "header-healthy-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:missions.json",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "stream-append-one-row",
+          "method": "GET",
+          "path": "/api/v1/events?missionId=01J40000000000000000000018",
+          "expectedStatus": 200,
+          "expectedGolden": "smoke:stream-append-one-row.frame",
+          "expectedContentType": "text/event-stream",
+          "headers": {
+            "Accept": "text/event-stream"
+          },
+          "stream": {
+            "file": "kitty-specs/header-healthy/status.events.jsonl",
+            "append": "{\"actor\": \"claude\", \"at\": \"2026-09-01T10:02:00Z\", \"event_id\": \"000000000000000000000004WA\", \"evidence\": null, \"execution_mode\": \"worktree\", \"force\": false, \"from_lane\": \"claimed\", \"mission_id\": \"01J40000000000000000000018\", \"mission_slug\": \"header-healthy\", \"policy_metadata\": null, \"reason\": null, \"review_ref\": null, \"to_lane\": \"in_progress\", \"wp_id\": \"WP01\"}\n",
+            "expectedEventId": "720:45cd2299019a4c6757a9ebdec50a666392d629d83566064a2665b7f882bd1134"
+          }
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "project-header/branch-host-path-shaped",
+      "requests": [
+        {
+          "id": "header-host-path-branch-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:project.json",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "header-host-path-branch-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:missions.json",
+          "expectedContentType": "application/json"
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "project-header/unborn-branch",
+      "requests": [
+        {
+          "id": "header-unborn-branch-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:project.json",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "header-unborn-branch-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:missions.json",
+          "expectedContentType": "application/json"
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "coordination/coordinated-mission",
+      "requests": [
+        {
+          "id": "coordinated-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:project.json",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "coordinated-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:missions.json",
+          "expectedContentType": "application/json"
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "projection/human-text-redaction",
+      "requests": [
+        {
+          "id": "redaction-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:project.json",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "redaction-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:missions.json",
+          "expectedContentType": "application/json"
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "lifecycle-only/seven-lifecycle-types",
+      "requests": [
+        {
+          "id": "lifecycle-only-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:project.json",
+          "expectedContentType": "application/json"
+        },
+        {
+          "id": "lifecycle-only-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:missions.json",
+          "expectedContentType": "application/json"
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "projection/strict-field-refused",
+      "requests": [
+        {
+          "id": "strict-field-refused-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 500,
+          "expectedProblemCode": "projection_refused",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "strict-field-refused-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 500,
+          "expectedProblemCode": "projection_refused",
+          "expectedContentType": "application/problem+json"
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "torn-final-line/unparseable-final-line",
+      "requests": [
+        {
+          "id": "torn-unparseable-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 500,
+          "expectedProblemCode": "ledger_torn_tail",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "torn-unparseable-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 500,
+          "expectedProblemCode": "ledger_torn_tail",
+          "expectedContentType": "application/problem+json"
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "torn-final-line/valid-json-final-line",
+      "requests": [
+        {
+          "id": "torn-valid-json-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 500,
+          "expectedProblemCode": "ledger_torn_tail",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "torn-valid-json-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 500,
+          "expectedProblemCode": "ledger_torn_tail",
+          "expectedContentType": "application/problem+json"
+        }
+      ]
+    },
+    {
+      "stage": "base",
+      "tree": "malformed-rows/invalid-json-line",
+      "requests": [
+        {
+          "id": "malformed-invalid-json-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 500,
+          "expectedProblemCode": "ledger_unparseable",
+          "expectedContentType": "application/problem+json"
+        },
+        {
+          "id": "malformed-invalid-json-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 500,
+          "expectedProblemCode": "ledger_unparseable",
+          "expectedContentType": "application/problem+json"
+        }
+      ]
+    },
+    {
+      "stage": "hostOrigin",
+      "tree": "project-header/healthy",
+      "requests": [
+        {
+          "id": "host-foreign-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 403,
+          "expectedGolden": "smoke:host-origin-refused.json",
+          "expectedProblemCode": "request_refused",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Host": "evil.example:<port>"
+          }
+        },
+        {
+          "id": "host-foreign-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 403,
+          "expectedGolden": "smoke:host-origin-refused.json",
+          "expectedProblemCode": "request_refused",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Host": "evil.example:<port>"
+          }
+        },
+        {
+          "id": "host-foreign-events",
+          "method": "GET",
+          "path": "/api/v1/events",
+          "expectedStatus": 403,
+          "expectedGolden": "smoke:host-origin-refused.json",
+          "expectedProblemCode": "request_refused",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Host": "evil.example:<port>",
+            "Accept": "text/event-stream"
+          }
+        },
+        {
+          "id": "host-foreign-contract-document",
+          "method": "GET",
+          "path": "/api/v1/openapi.yaml",
+          "expectedStatus": 403,
+          "expectedGolden": "smoke:host-origin-refused.json",
+          "expectedProblemCode": "request_refused",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Host": "evil.example:<port>"
+          }
+        },
+        {
+          "id": "host-container-rejected",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 400,
+          "headers": {
+            "Host": "evil.example@127.0.0.1:<port>"
+          },
+          "mustNotContain": [
+            "evil.example",
+            "kitty-specs"
+          ]
+        },
+        {
+          "id": "origin-foreign-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 403,
+          "expectedGolden": "smoke:host-origin-refused.json",
+          "expectedProblemCode": "request_refused",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Origin": "https://evil.example"
+          }
+        },
+        {
+          "id": "origin-foreign-missions",
+          "method": "GET",
+          "path": "/api/v1/missions?pageSize=50",
+          "expectedStatus": 403,
+          "expectedGolden": "smoke:host-origin-refused.json",
+          "expectedProblemCode": "request_refused",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Origin": "https://evil.example"
+          }
+        },
+        {
+          "id": "origin-null-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 403,
+          "expectedGolden": "smoke:host-origin-refused.json",
+          "expectedProblemCode": "request_refused",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Origin": "null"
+          }
+        },
+        {
+          "id": "origin-wrong-scheme-project",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 403,
+          "expectedGolden": "smoke:host-origin-refused.json",
+          "expectedProblemCode": "request_refused",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Origin": "https://127.0.0.1:<port>"
+          }
+        },
+        {
+          "id": "trace-foreign-host",
+          "method": "TRACE",
+          "path": "/api/v1/project",
+          "expectedStatus": 403,
+          "expectedGolden": "smoke:host-origin-refused.json",
+          "expectedProblemCode": "request_refused",
+          "expectedContentType": "application/problem+json",
+          "headers": {
+            "Host": "evil.example:<port>"
+          }
+        },
+        {
+          "id": "control-localhost-host",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:project.json",
+          "expectedContentType": "application/json",
+          "headers": {
+            "Host": "localhost:<port>"
+          }
+        },
+        {
+          "id": "control-accepted-origin",
+          "method": "GET",
+          "path": "/api/v1/project",
+          "expectedStatus": 200,
+          "expectedGolden": "tree:project.json",
+          "expectedContentType": "application/json",
+          "headers": {
+            "Origin": "http://127.0.0.1:<port>"
+          }
+        }
+      ]
+    }
+  ]
+}

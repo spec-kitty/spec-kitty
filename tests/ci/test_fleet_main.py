@@ -504,3 +504,27 @@ def test_retry_budget_pair_is_imported_not_redefined() -> None:
     assert fleet_main.FLEET_MAX_ATTEMPTS is fleet_verdict.FLEET_MAX_ATTEMPTS
     assert fleet_main.fleet_backoff_seconds is fleet_verdict.fleet_backoff_seconds
     assert fleet_main.AlreadyReported is fleet_verdict.AlreadyReported
+
+
+def test_a_push_block_with_tags_is_accepted_and_a_tag_run_never_supplies_main_evidence() -> None:
+    """mission-status-api.yml carries `on.push.tags` (release trigger, operator decision E-4): the policy reader accepts the key,
+    and a tag-push run (head_branch is the tag name, not main) is excluded from the main snapshot like any non-main push."""
+    required, conditional = fleet_main.main_workflows(ROOT)
+    assert "mission-status-api.yml" in conditional
+    assert "tags" in yaml.safe_load((ROOT / ".github/workflows/mission-status-api.yml").read_text(encoding="utf-8"))[True]["push"]
+    api = MainAPI()
+    api.runs["ci-quality.yml"][0]["head_branch"] = "mission-status-api-v0.1.0"
+    evidence = fleet_main.snapshot(api, ROOT, IDS)
+    assert evidence["runs"]["ci-quality.yml"] is None
+
+
+def test_removing_tags_from_the_accepted_push_keys_turns_the_tag_acceptance_red() -> None:
+    import types
+
+    source = Path(fleet_main.__file__).read_text(encoding="utf-8")
+    reverted = source.replace('{"branches", "paths", "tags"}', '{"branches", "paths"}')
+    assert reverted != source
+    module = types.ModuleType("fleet_main_reverted")
+    exec(compile(reverted, "fleet_main_reverted.py", "exec"), module.__dict__)  # noqa: S102  (in-memory revert row)
+    with pytest.raises(ValueError, match="unsupported main push policy"):
+        module.main_workflows(ROOT)

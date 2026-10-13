@@ -1,0 +1,4 @@
+event: status-transition
+id: 720:45cd2299019a4c6757a9ebdec50a666392d629d83566064a2665b7f882bd1134
+data: {"actor":{"profile":null,"role":null,"tool":"claude"},"at":"2026-09-01T10:02:00Z","eventId":"000000000000000000000004WA","force":false,"fromStatusLane":"claimed","missionId":"01J40000000000000000000018","streamCursor":{"invariant":"45cd2299019a4c6757a9ebdec50a666392d629d83566064a2665b7f882bd1134","offset":720},"toStatusLane":"in_progress","wpId":"WP01"}
+

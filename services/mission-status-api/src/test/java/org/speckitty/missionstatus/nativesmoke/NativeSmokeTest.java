@@ -3,69 +3,119 @@ package org.speckitty.missionstatus.nativesmoke;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
+import java.util.List;
+import java.util.OptionalLong;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
- * Skeleton smoke test (WP12 replaces the body): starts the built binary and asks an unmapped route as 127.0.0.1:port (the answer is the service's own 404, so the test names no route a later slice could move). Tagged
- * native-binary, so only the nativeSmoke task runs it (with -PnativeBinary=path), never test or check.
+ * The native smoke replay (AC-15b, AC-15e producer side): starts the BUILT binary once per group of {@code requests.json} over a copy of
+ * the group's fixture tree, replays the literal requests through raw sockets, compares every 2xx body byte for byte with its golden,
+ * and writes {@code build/nativesmoke/digest-<os>-<arch>.json}. Tagged native-binary, so only the {@code nativeSmoke} task runs it
+ * (with {@code -PnativeBinary=path}), never {@code test} or {@code check}.
  */
 @Tag("native-binary")
 class NativeSmokeTest {
 
+  static final Path OUTPUT = Path.of("build", "nativesmoke");
+
   @Test
-  void theBuiltBinaryAnswersOnTheLoopbackAddress() throws Exception {
+  void theBuiltBinaryServesTheGoldenRequestSetByteForByte() throws Exception {
     String binary = System.getProperty("nativeBinary");
     assertThat(binary).as("the nativeBinary system property (-PnativeBinary)").isNotBlank();
-    Path projectRoot = Files.createTempDirectory("mission-status-smoke");
-    int port = freePort();
+    SmokeRequests requests = SmokeRequests.load();
 
-    Process process =
-        new ProcessBuilder(binary, "--mission-status.project-root=" + projectRoot, "--mission-status.port=" + port)
-            .redirectErrorStream(true)
-            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-            .start();
-    try {
-      HttpResponse<String> response = awaitAnswer(port, process);
-      assertThat(response.statusCode()).as("an unmapped route is answered 404 by the running service").isEqualTo(404);
-    } finally {
-      process.destroy();
-      process.waitFor(10, TimeUnit.SECONDS);
-      Files.deleteIfExists(projectRoot);
-    }
+    Replay.Outcome outcome = Replay.replayAll(requests, (root, port) -> new BinaryProcess(Path.of(binary), root, port));
+
+    Replay.requireCounts(outcome.exchanges().size(), outcome.bodies().size());
+    Replay.requireFloors(requests, outcome.requestsPerStage());
+    String sha256 = Digest.sha256(outcome.bodies());
+    String os = Digest.osToken(System.getProperty("os.name"));
+    String arch = Digest.archToken(System.getProperty("os.arch"));
+    Path file = Digest.write(OUTPUT, os, arch, outcome.exchanges().size(), outcome.bodies().size(), sha256);
+
+    String summary =
+        "native smoke " + os + "-" + arch + ": " + outcome.exchanges().size() + " requests replayed in " + outcome.groupsStarted() + " binary starts, " + outcome.bodies().size()
+            + " bodies compared and hashed, sha256 " + sha256 + "; child processes " + (outcome.childrenSamples() > 0 ? "sampled equal before and after on " + outcome.childrenSamples() + " start(s)" : "not measurable on this leg");
+    System.out.println(summary);
+    Files.writeString(OUTPUT.resolve("summary-" + os + "-" + arch + ".txt"), summary + "\n", StandardCharsets.UTF_8);
+    assertThat(file).exists();
   }
 
-  private static HttpResponse<String> awaitAnswer(int port, Process process) throws Exception {
-    HttpClient client = HttpClient.newHttpClient();
-    HttpRequest request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/v1/no-such-route")).GET().build();
-    long deadline = System.nanoTime() + Duration.ofSeconds(60).toNanos();
-    IOException last = null;
-    while (System.nanoTime() < deadline) {
+  /** The binary as a child process: output goes to a log file that is only ever shown path-free, after a failure. */
+  static final class BinaryProcess implements Replay.Running {
+    private final Process process;
+    private final Path log;
+    private final Path root;
+
+    BinaryProcess(Path binary, Path projectRoot, int port) {
+      this.root = projectRoot;
+      try {
+        this.log = Files.createTempFile("mission-status-smoke-", ".log");
+        this.process =
+            new ProcessBuilder(binary.toString(), "--mission-status.project-root=" + projectRoot, "--mission-status.port=" + port)
+                .redirectErrorStream(true)
+                .redirectOutput(log.toFile())
+                .start();
+      } catch (IOException failure) {
+        throw new UncheckedIOException(failure);
+      }
+    }
+
+    /** The operating-system process id, for the thread and resident-set reads of the performance probe. */
+    long pid() {
+      return process.pid();
+    }
+
+    @Override
+    public void requireAlive() {
       if (!process.isAlive()) {
-        throw new AssertionError("the binary exited early with status " + process.exitValue());
+        throw new AssertionError("the binary exited early with status " + process.exitValue() + "; log tail:\n" + tail());
+      }
+    }
+
+    @Override
+    public OptionalLong childProcesses() {
+      try {
+        return OptionalLong.of(process.toHandle().children().count());
+      } catch (UnsupportedOperationException | SecurityException notMeasurable) {
+        return OptionalLong.empty();
+      }
+    }
+
+    @Override
+    public void close() {
+      process.destroy();
+      try {
+        if (!process.waitFor(10, TimeUnit.SECONDS)) {
+          process.destroyForcibly();
+          process.waitFor(10, TimeUnit.SECONDS);
+        }
+      } catch (InterruptedException interrupted) {
+        Thread.currentThread().interrupt();
+        process.destroyForcibly();
       }
       try {
-        return client.send(request, HttpResponse.BodyHandlers.ofString());
-      } catch (IOException notYet) {
-        last = notYet;
-        Thread.sleep(200);
+        Files.deleteIfExists(log);
+      } catch (IOException ignored) {
+        // the operating system cleans its temporary directory
       }
     }
-    throw new AssertionError("the binary did not answer within 60 s", last);
-  }
 
-  private static int freePort() throws IOException {
-    try (ServerSocket socket = new ServerSocket(0, 1, java.net.InetAddress.getLoopbackAddress())) {
-      return socket.getLocalPort();
+    /** The last lines of the log with the project root and the temporary directory replaced, so a report names no directory of the machine. */
+    private String tail() {
+      try {
+        List<String> lines = Files.readAllLines(log, StandardCharsets.UTF_8);
+        String tmp = System.getProperty("java.io.tmpdir");
+        return String.join("\n", lines.subList(Math.max(0, lines.size() - 20), lines.size())).replace(root.toString(), "<project-root>").replace(tmp, "<tmp>");
+      } catch (IOException | RuntimeException unreadable) {
+        return "(no readable log)";
+      }
     }
   }
 }

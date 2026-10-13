@@ -10,6 +10,7 @@ The build script is parsed as text, not executed: the Gradle run itself is the j
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import re
@@ -50,8 +51,7 @@ WRAPPER_JAR_SHA256 = "7a9ce74cff467ca1bf60a4fcd9f05185acceda4d0f382434d393e17864
 API_PACKAGE = "org.speckitty.missionstatus.adapter.in.http.api"
 MODEL_PACKAGE = "org.speckitty.missionstatus.adapter.in.http.model"
 MODELS_LIST = "MissionOverview,MissionOverviewPage,MissionProgress,PageCursorRefusal,PageInfo,Problem,Problem_1,Project,StatusLaneCounts,StreamCursor,Workspace"
-# Discovered-count floor for the NFR-009 scan: the tracked paths under the service tree. It is what the slice holds, rounded down, and
-# is raised slice by slice until it reaches the 300 recorded when WP03 landed (the scan must not pass on a handful of paths).
+# Discovered-count floor for the NFR-009 scan: the tracked paths under the service tree when WP03 landed.
 TRACKED_SERVICE_PATH_FLOOR = 300
 
 
@@ -441,6 +441,7 @@ def gitignore_violations(gitignore_text: str) -> list[str]:
             "/out/",
             "!/src/test/java/org/speckitty/missionstatus/build/",
             "!/src/main/java/org/speckitty/missionstatus/adapter/out/",
+            "!/src/**/out/",
         )
         if needle not in lines
     ]
@@ -534,6 +535,7 @@ def test_the_gitignore_pin_turns_red_when_a_negation_is_dropped_or_a_pattern_is_
     text = _text(SERVICE / ".gitignore")
     assert gitignore_violations(text.replace("!/src/main/java/org/speckitty/missionstatus/adapter/out/\n", ""))
     assert gitignore_violations(text.replace("/build/", "build/", 1))
+    assert gitignore_violations(text.replace("!/src/**/out/\n", ""))
 
 
 # --- WP03: packaging exclusion (C-009) -------------------------------------------------------------------------------------------
@@ -845,6 +847,8 @@ EXPECTED_PINS = {
     "astral-sh/setup-uv": ("20cfd1bf945f4377ade1205e4dbc17946fc9a30d", "v10.0.1"),
     # The fleet's own pin (ci-quality.yml and others), reused for the native legs' python3 with PyYAML.
     "actions/setup-python": ("83679a892e2d95755f2dac6acb0bfd1e9ac5d548", "v6.1.0"),
+    # v4.2.2 (2026-08-06); a lightweight tag, so the tag object is the commit itself (checked with gh api git/ref/tags).
+    "actions/attest-build-provenance": ("4d101475d8b20a2381f78447822ac1eab6504dd8", "v4.2.2"),
 }
 CODEOWNERS_LINE = "/services/mission-status-api/ @stijn-dejongh @MOES-Media"
 SHA_PIN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_./-]+@[0-9a-f]{40}$")
@@ -1178,6 +1182,33 @@ def gate_violations(text: str) -> list[str]:
     body = "\n".join(str(step.get("env", "")) + str(step.get("run", "")) for step in _steps(gate))
     if "needs.*.result" not in body or '!= "success"' not in body:
         found.append("the gate must fail unless every needed result is success")
+    found.extend(_gate_step_violations(gate))
+    return found
+
+
+def _gate_step_violations(gate: dict[str, object]) -> list[str]:
+    """WP12 F1: the gate's checkout, download and digests steps always run, cannot be softened, and come after the success check."""
+    steps = _steps(gate)
+    found: list[str] = []
+    if gate.get("continue-on-error") is not None:
+        found.append("the gate job must not set continue-on-error")
+    check = _step_index(steps, lambda s: "needs.*.result" in json.dumps(s.get("env", {})) and '!= "success"' in str(s.get("run", "")))
+    kinds = {
+        "checkout": lambda s: str(s.get("uses", "")).startswith("actions/checkout@"),
+        "download": lambda s: str(s.get("uses", "")).startswith("actions/download-artifact@"),
+        "digests": lambda s: "mission_status_gate_checks.py digests" in str(s.get("run", "")),
+    }
+    for label, matcher in kinds.items():
+        position = _step_index(steps, matcher)
+        if position is None:
+            found.append(f"the gate has no {label} step")
+            continue
+        if "if" in steps[position]:
+            found.append(f"the gate's {label} step must carry no if: (it must run on every gate run)")
+        if "continue-on-error" in steps[position]:
+            found.append(f"the gate's {label} step must carry no continue-on-error")
+        if check is None or position < check:
+            found.append(f"the gate's {label} step must follow the success check")
     return found
 
 
@@ -1221,6 +1252,24 @@ def _mutate(old: str, new: str, count: int = 1) -> str:
 
 PUSH_PATHS_MSG = "on.push must carry branches [main] and exactly the WORKFLOW_PATHS"
 PULL_PATHS_MSG = "on.pull_request must carry exactly the WORKFLOW_PATHS"
+
+
+def test_softening_or_reordering_the_gates_checkout_download_or_digests_steps_turns_the_gate_pin_red() -> None:
+    """Revert rows for WP12 F1: an `if`, a continue-on-error, a job-level continue-on-error or a moved success check."""
+    base = _wf(_workflow_text())
+    assert gate_violations(_workflow_text()) == []
+
+    def after(edit: Callable[[dict[str, object]], None]) -> list[str]:
+        workflow = copy.deepcopy(base)
+        edit(_jobs(workflow)["mission-status-api-gate"])
+        return gate_violations(yaml.safe_dump(workflow, sort_keys=False))
+
+    for position, label in ((1, "checkout"), (2, "download"), (3, "digests")):
+        assert after(lambda job, i=position: _steps(job)[i].update({"if": "always()"})), f"if on {label}"
+        assert after(lambda job, i=position: _steps(job)[i].update({"continue-on-error": True})), f"continue-on-error on {label}"
+        assert after(lambda job, i=position: job["steps"].insert(0, job["steps"].pop(i))), f"{label} before the success check"
+    assert after(lambda job: job.update({"continue-on-error": True}))
+    assert after(lambda job: job["steps"].append(job["steps"].pop(0)))  # the success check moved last
 
 
 @pytest.mark.parametrize("path", WORKFLOW_PATHS)
@@ -1611,3 +1660,1269 @@ def test_the_native_tag_pin_turns_red_for_a_missing_class_a_dropped_tag_or_a_dro
     assert native_tag_violations({k: v for k, v in sources.items() if k != name})
     assert native_tag_violations({**sources, name: sources[name].replace('@Tag("native")', "")})
     assert native_tag_violations({**sources, name: sources[name].replace("classes = MissionStatusApplication.class", "")})
+
+
+# --- WP12 ---------------------------------------------------------------------------------------------------------------------------
+# The native smoke replay (AC-15b, AC-15e): requests.json and its floors, the per-leg digest file, the workflow's digest upload and the
+# gate's `digests` step, the native test floor tied to its source, and the retirement of the skeleton hello route (DD-28, DD-110).
+# Hello-route pins of earlier sections: there were none in this file; the route's only readers were the old NativeSmokeTest and the
+# workflow's step name, both replaced by WP12.
+
+SMOKE_TEST_DIR = TEST_JAVA / "nativesmoke"
+SMOKE_RESOURCES = SERVICE / "src" / "test" / "resources" / "nativesmoke"
+REQUESTS_JSON = SMOKE_RESOURCES / "requests.json"
+DIGEST_JAVA = SMOKE_TEST_DIR / "Digest.java"
+GATE_SCRIPT = REPO_ROOT / "scripts" / "ci" / "mission_status_gate_checks.py"
+BINARY_PATH = "build/native/nativeCompile/mission-status-api"
+# Built from parts: this file is scanned for the retired route and must not hold the literal itself.
+RETIRED_ROUTE = "/api/v1/" + "hello"
+RETIRED_BODY = "mission-status-api " + "hello"
+SKELETON_DIRS = (
+    SERVICE / "src" / "main" / "java" / "org" / "speckitty" / "missionstatus" / "adapter" / "in" / "http" / "skeleton",
+    TEST_JAVA / "skeleton",
+)
+
+
+def requests_file_violations(text: str) -> list[str]:
+    try:
+        document = json.loads(text)
+    except ValueError as error:
+        return [f"requests.json is not JSON: {error}"]
+    found: list[str] = []
+    stages = document.get("stages") if isinstance(document, dict) else None
+    groups = document.get("groups") if isinstance(document, dict) else None
+    if not isinstance(stages, dict) or "base" not in stages or "hostOrigin" not in stages:
+        return ["requests.json must declare the stages base and hostOrigin"]
+    if not isinstance(groups, list) or not groups:
+        return ["requests.json has no group (a replay of nothing)"]
+    counted: dict[str, int] = {}
+    ids: set[str] = set()
+    for group in groups:
+        requests = group.get("requests") if isinstance(group, dict) else None
+        if not isinstance(requests, list) or not requests or not group.get("tree"):
+            found.append("a group has no tree or no request")
+            continue
+        counted[group.get("stage", "")] = counted.get(group.get("stage", ""), 0) + len(requests)
+        for request in requests:
+            if request.get("id") in ids:
+                found.append(f"duplicate request id {request.get('id')}")
+            ids.add(request.get("id"))
+            if not str(request.get("path", "")).startswith("/api/v1/") or not isinstance(request.get("expectedStatus"), int):
+                found.append(f"request {request.get('id')}: path or literal expectedStatus is wrong")
+    for name, stage in stages.items():
+        floor = stage.get("requestCountFloor") if isinstance(stage, dict) else None
+        if not isinstance(floor, int) or isinstance(floor, bool):
+            found.append(f"stage {name} has no integer requestCountFloor")
+        elif counted.get(name, 0) < floor:
+            found.append(f"stage {name}: {counted.get(name, 0)} request(s) are below the floor of {floor} (a group was dropped, or the floor was raised)")
+    for name in ("base", "hostOrigin"):
+        if stages[name].get("requestCountFloor") != counted.get(name, 0):
+            found.append(f"the {name} floor is not exactly the number of {name} requests")
+    return found
+
+
+def requests_floor_sum(text: str) -> int:
+    return sum(int(stage["requestCountFloor"]) for stage in json.loads(text)["stages"].values())
+
+
+def _step_index(steps: list[dict[str, object]], predicate: Callable[[dict[str, object]], bool]) -> int | None:
+    return next((index for index, step in enumerate(steps) if predicate(step)), None)
+
+
+def digest_wiring_violations(text: str, request_floor: int) -> list[str]:
+    jobs = _jobs(_wf(text))
+    found: list[str] = []
+    native_steps = _steps(jobs.get("native", {}))
+    smoke = _step_index(native_steps, lambda s: "./gradlew --no-daemon nativeSmoke" in str(s.get("run", "")))
+    upload = _step_index(native_steps, lambda s: str((s.get("with") or {}).get("name", "")) == "digest-${{ matrix.target }}")
+    if smoke is None:
+        found.append("the native job has no nativeSmoke step")
+    if upload is None:
+        found.append("the native job does not upload the artifact digest-${{ matrix.target }}")
+    else:
+        step = native_steps[upload]
+        options = step.get("with") or {}
+        if not str(step.get("uses", "")).startswith("actions/upload-artifact@"):
+            found.append("the digest is not uploaded with actions/upload-artifact")
+        if smoke is not None and upload < smoke:
+            found.append("the digest upload comes before the smoke step that writes it")
+        if not str(options.get("path", "")).endswith("build/nativesmoke/digest-${{ matrix.target }}.json"):
+            found.append("the digest upload path is not build/nativesmoke/digest-${{ matrix.target }}.json")
+        if options.get("if-no-files-found") != "error":
+            found.append("the digest upload must set if-no-files-found: error")
+        if options.get("retention-days") != 30:
+            found.append("the digest upload must keep the artifact 30 days")
+    gate_steps = _steps(jobs.get("mission-status-api-gate", {}))
+    download = _step_index(
+        gate_steps, lambda s: str(s.get("uses", "")).startswith("actions/download-artifact@") and (s.get("with") or {}).get("pattern") == "digest-*"
+    )
+    checkout = _step_index(gate_steps, lambda s: str(s.get("uses", "")).startswith("actions/checkout@"))
+    digests = _step_index(gate_steps, lambda s: "mission_status_gate_checks.py digests" in str(s.get("run", "")))
+    if digests is None:
+        found.append("the gate has no `mission_status_gate_checks.py digests` step")
+    else:
+        run = str(gate_steps[digests].get("run", ""))
+        if "--expected-count 4" not in run:
+            found.append("the digests step must pass --expected-count 4")
+        floor = re.search(r"--request-floor\s+(\d+)\b", run)
+        if floor is None or int(floor.group(1)) != request_floor:
+            found.append(f"the digests step's --request-floor is not the requests.json floor sum {request_floor}")
+        if "--dir" not in run:
+            found.append("the digests step must pass --dir")
+        if checkout is None or checkout > digests:
+            found.append("the gate must check the repository out before the digests step (the script lives in it)")
+        if download is None or download > digests:
+            found.append("the gate must download the digest-* artifacts before the digests step")
+    if download is not None and (gate_steps[download].get("with") or {}).get("merge-multiple") is not True:
+        found.append("the digest download must set merge-multiple: true")
+    return found
+
+
+def smoke_binary_violations(text: str) -> list[str]:
+    native = _steps(_jobs(_wf(text)).get("native", {}))
+    smoke = [str(s.get("run", "")) for s in native if "./gradlew --no-daemon nativeSmoke" in str(s.get("run", ""))]
+    compile_runs = [str(s.get("run", "")) for s in native if "./gradlew --no-daemon nativeCompile nativeTest" in str(s.get("run", ""))]
+    stage = [str(s.get("run", "")) for s in native if "dist" in str(s.get("run", "")) and "cp " in str(s.get("run", ""))]
+    found: list[str] = []
+    if not smoke or not compile_runs or not stage:
+        return ["the native job needs a compile step, a smoke step and a staging step"]
+    if f"-PnativeBinary=$WORKSPACE/{SERVICE_REL}/{BINARY_PATH}${{{{ matrix.exe }}}}" not in smoke[0]:
+        found.append("the smoke step does not replay the binary the compile step produced")
+    if f"{SERVICE_REL}/{BINARY_PATH}${{{{ matrix.exe }}}}" not in stage[0]:
+        found.append("the staging step does not copy the binary the compile step produced")
+    return found
+
+
+def native_test_count() -> int:
+    total = 0
+    for path in NATIVE_TAGGED_DIR.glob("*.java"):
+        text = _text(path)
+        if '@Tag("native")' in text:
+            total += len(re.findall(r"^\s*@Test\b", text, re.MULTILINE))
+    return total
+
+
+def native_floor_violations(text: str, tests: int) -> list[str]:
+    runs = "\n".join(_runs(_jobs(_wf(text)).get("native", {})))
+    floors = [int(value) for value in re.findall(r"native-tag-floor .*?--floor\s+(\d+)", runs)]
+    found: list[str] = []
+    if len(floors) != 2:
+        found.append(f"expected the floor on both the POSIX and the Windows step, found {len(floors)}")
+    found += [f"--floor {value} is not the {tests} native-tagged tests of the source" for value in floors if value != tests]
+    if tests < 3:
+        found.append("the native-tagged tests fell below the three real ones")
+    return found
+
+
+def digest_format_violations(java_text: str, helper_fields: tuple[str, ...]) -> list[str]:
+    keys = tuple(re.findall(r'static final String \w+_KEY = "(\w+)";', java_text))
+    found: list[str] = []
+    if keys != helper_fields:
+        found.append(f"Digest.java keys {keys} are not the gate helper's {helper_fields}")
+    if "digest-" not in java_text or "SHA-256" not in java_text:
+        found.append("Digest.java no longer names digest-<os>-<arch>.json or SHA-256")
+    return found
+
+
+def skeleton_violations(existing_dirs: list[str], scanned: dict[str, str]) -> list[str]:
+    found = [f"the skeleton directory {name} still exists" for name in existing_dirs]
+    found += [f"{name} still references the retired hello route" for name, text in scanned.items() if RETIRED_ROUTE in text or RETIRED_BODY in text]
+    if not scanned:
+        found.append("no file was scanned for the retired route (vacuous)")
+    return found
+
+
+def _scanned_files() -> dict[str, str]:
+    roots = (SERVICE / "src", REPO_ROOT / "tests" / "ci", REPO_ROOT / ".github" / "workflows", REPO_ROOT / "scripts" / "ci")
+    scanned: dict[str, str] = {}
+    for root in roots:
+        for path in root.rglob("*"):
+            if path.is_file() and path.suffix in {".java", ".json", ".py", ".yml", ".yaml", ".properties", ".kts", ".md"} and "__pycache__" not in path.parts:
+                scanned[str(path.relative_to(REPO_ROOT))] = path.read_text(encoding="utf-8", errors="replace")
+    return scanned
+
+
+def test_requests_json_is_well_formed_and_its_base_floor_is_its_request_count() -> None:
+    assert requests_file_violations(_text(REQUESTS_JSON)) == []
+
+
+def test_the_requests_pin_turns_red_for_a_dropped_group_a_raised_floor_or_an_empty_file() -> None:
+    document = json.loads(_text(REQUESTS_JSON))
+    dropped = json.loads(_text(REQUESTS_JSON))
+    dropped["groups"] = dropped["groups"][1:]
+    assert requests_file_violations(json.dumps(dropped))
+    raised = json.loads(_text(REQUESTS_JSON))
+    raised["stages"]["base"]["requestCountFloor"] += 1
+    assert requests_file_violations(json.dumps(raised))
+    lowered = json.loads(_text(REQUESTS_JSON))
+    lowered["stages"]["hostOrigin"]["requestCountFloor"] -= 1
+    assert requests_file_violations(json.dumps(lowered))
+    no_host_origin = json.loads(_text(REQUESTS_JSON))
+    no_host_origin["groups"] = [group for group in no_host_origin["groups"] if group["stage"] != "hostOrigin"]
+    assert requests_file_violations(json.dumps(no_host_origin))
+    assert requests_file_violations("{}") and requests_file_violations("not json")
+    assert requests_file_violations(json.dumps({"stages": document["stages"], "groups": []}))
+
+
+def test_the_workflow_uploads_each_digest_and_the_gate_compares_four_against_the_requests_floor() -> None:
+    assert digest_wiring_violations(_workflow_text(), requests_floor_sum(_text(REQUESTS_JSON))) == []
+
+
+def test_the_digest_wiring_pin_turns_red_for_a_dropped_upload_a_changed_floor_or_a_removed_digests_step() -> None:
+    floor = requests_floor_sum(_text(REQUESTS_JSON))
+    text = _workflow_text()
+    upload = "          name: digest-${{ matrix.target }}\n"
+    assert upload in text
+    assert digest_wiring_violations(text.replace(upload, "          name: digest-renamed\n", 1), floor)
+    assert digest_wiring_violations(
+        text.replace("          retention-days: 30\n          if-no-files-found: error\n", "          retention-days: 7\n          if-no-files-found: error\n", 1),
+        floor,
+    )
+    assert digest_wiring_violations(
+        text.replace("          retention-days: 30\n          if-no-files-found: error\n", "          retention-days: 30\n          if-no-files-found: warn\n", 1),
+        floor,
+    )
+    assert digest_wiring_violations(text.replace(f"--request-floor {floor}", f"--request-floor {floor - 1}"), floor)
+    assert digest_wiring_violations(text, floor + 1)
+    assert digest_wiring_violations(text.replace("--expected-count 4", "--expected-count 3"), floor)
+    step = (
+        "      - name: Compare the four per-leg digests\n"
+        '        run: python3 scripts/ci/mission_status_gate_checks.py digests --dir "$RUNNER_TEMP/digests" '
+        f"--expected-count 4 --request-floor {floor}\n"
+    )
+    assert step in text
+    assert digest_wiring_violations(text.replace(step, ""), floor)
+    assert digest_wiring_violations(text.replace("          pattern: digest-*\n          merge-multiple: true\n", "          merge-multiple: true\n"), floor)
+    assert digest_wiring_violations("", floor)
+
+
+def test_the_upload_step_is_dropped_from_the_native_leg_and_the_pin_notices() -> None:
+    floor = requests_floor_sum(_text(REQUESTS_JSON))
+    text = _workflow_text()
+    start = text.index(
+        "      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1\n"
+        "        if: ${{ !cancelled() }}\n        with:\n          name: digest-"
+    )
+    end = text.index("      # The native binary must have executed")
+    assert digest_wiring_violations(text[:start] + text[end:], floor)
+
+
+def test_the_smoke_replays_the_binary_the_compile_step_produced() -> None:
+    assert smoke_binary_violations(_workflow_text()) == []
+    assert smoke_binary_violations(
+        _workflow_text().replace('build/native/nativeCompile/mission-status-api${{ matrix.exe }}"', 'build/native/other/mission-status-api${{ matrix.exe }}"', 1)
+    )
+    assert smoke_binary_violations("")
+
+
+def test_the_native_floor_is_the_number_of_native_tagged_tests() -> None:
+    assert native_test_count() == 3
+    assert native_floor_violations(_workflow_text(), native_test_count()) == []
+
+
+def test_the_native_floor_pin_turns_red_for_a_lowered_or_a_stale_floor() -> None:
+    text = _workflow_text()
+    assert native_floor_violations(text.replace("--floor 3", "--floor 2"), 3)
+    assert native_floor_violations(text.replace("--floor 3", "--floor 1", 1), 3)
+    assert native_floor_violations(text, 4)
+    assert native_floor_violations(text, 2)
+
+
+def test_the_digest_file_keys_are_the_ones_the_gate_helper_reads() -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("mission_status_gate_checks_wp12", GATE_SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    assert digest_format_violations(_text(DIGEST_JAVA), tuple(module.DIGEST_FIELDS)) == []
+    assert digest_format_violations(_text(DIGEST_JAVA).replace('BODY_COUNT_KEY = "bodyCount"', 'BODY_COUNT_KEY = "bodies"'), tuple(module.DIGEST_FIELDS))
+    assert digest_format_violations("", tuple(module.DIGEST_FIELDS))
+
+
+def test_four_digest_files_in_the_format_the_java_side_writes_pass_the_gate_helper(tmp_path: Path) -> None:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("mission_status_gate_checks_wp12_run", GATE_SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    keys = re.findall(r'static final String \w+_KEY = "(\w+)";', _text(DIGEST_JAVA))
+    for target in ("linux-x64", "linux-arm64", "macos-arm64", "windows-x64"):
+        os_name, arch = target.split("-")
+        values = {"os": os_name, "arch": arch, "requestCount": 37, "bodyCount": 37, "sha256": "ab" * 32}
+        (tmp_path / f"digest-{target}.json").write_text(json.dumps({key: values[key] for key in keys}, separators=(",", ":")) + "\n", encoding="utf-8")
+    assert module.digests(tmp_path, 4, 37) == module.EXIT_PASS
+    differing = {"os": "windows", "arch": "x64", "requestCount": 37, "bodyCount": 37, "sha256": "cd" * 32}
+    (tmp_path / "digest-windows-x64.json").write_text(json.dumps(differing) + "\n", encoding="utf-8")
+    assert module.digests(tmp_path, 4, 37) == module.EXIT_FAIL
+
+
+def test_the_skeleton_and_its_hello_route_are_gone() -> None:
+    assert skeleton_violations([str(path) for path in SKELETON_DIRS if path.exists()], _scanned_files()) == []
+
+
+def test_the_skeleton_pin_turns_red_for_a_left_directory_or_a_re_added_route() -> None:
+    scanned = _scanned_files()
+    assert scanned
+    assert skeleton_violations(["skeleton"], scanned)
+    assert skeleton_violations([], {**scanned, "requests.json": '{"path": "' + RETIRED_ROUTE + '"}'})
+    assert skeleton_violations([], {**scanned, "NativeSmokeTest.java": RETIRED_BODY})
+    assert skeleton_violations([], {})
+
+
+# --- WP13 ---------------------------------------------------------------------------------------------------------------------------
+# Performance budgets (NFR-001, NFR-002, NFR-004; ADR 2026-10-05-2): the native legs run nativePerf, every perf class that holds a test
+# carries @Tag("perf") and names both a RATIO and a CEILING constant, at least two perf classes exist, and no workflow step runs pytest.
+
+PERF_DIR = TEST_JAVA / "perf"
+NATIVE_PERF_JAVA = SMOKE_TEST_DIR / "NativePerfTest.java"
+PERF_CLASS_FLOOR = 2
+
+
+def _perf_sources() -> dict[str, str]:
+    return {path.name: _text(path) for path in sorted(PERF_DIR.glob("*.java"))}
+
+
+def _holds_a_test(source: str) -> bool:
+    return bool(re.search(r"^\s*@Test\b", source, re.MULTILINE))
+
+
+def perf_class_violations(sources: dict[str, str]) -> list[str]:
+    found: list[str] = []
+    testing = {name: text for name, text in sources.items() if _holds_a_test(text)}
+    if len(testing) < PERF_CLASS_FLOOR:
+        found.append(f"only {len(testing)} perf class(es) hold a test; at least {PERF_CLASS_FLOOR} are required")
+    for name, text in testing.items():
+        if '@Tag("perf")' not in text:
+            found.append(f'{name} holds a test and lacks @Tag("perf")')
+    for name in ("Nfr001OverviewLatencyTest.java", "Nfr004SseConnectionsTest.java"):
+        if name not in sources:
+            found.append(f"{name} is missing")
+            continue
+        text = sources[name]
+        if not re.search(r"\b\w*RATIO\w*\b", text):
+            found.append(f"{name} names no RATIO constant")
+        if not re.search(r"\b\w*CEILING\w*\b", text):
+            found.append(f"{name} names no CEILING constant")
+    return found
+
+
+def native_perf_violations(source: str) -> list[str]:
+    found: list[str] = []
+    if '@Tag("native-binary")' not in source:
+        found.append('NativePerfTest lacks @Tag("native-binary")')
+    if not re.search(r"\bSTARTUP_RATIO_LIMIT\b", source) or not re.search(r"\bSTARTUP_CEILING_MS\b", source):
+        found.append("NativePerfTest does not name both the NFR-002 RATIO and CEILING constants")
+    if not re.search(r"\bTHREADS_RATIO_LIMIT\b", source) or not re.search(r"\bRSS_CEILING_MIB\b", source):
+        found.append("NativePerfTest does not name the NFR-004 RATIO and CEILING constants")
+    if "peakCarriers()).as(" not in source or "availableProcessors()" not in source:
+        found.append("NativePerfTest does not assert the native carriers at most the core count")
+    if ".isRegularFile()" not in source:
+        found.append("NativePerfTest does not fail when MISSION_STATUS_FLOOR_BINARY names a missing file")
+    return found
+
+
+def _perf_native_steps(text: str) -> list[str]:
+    native = text[text.index("\n  native:") : text.index("\n  mission-status-api-gate:")]
+    return native.split("\n      - ")
+
+
+def _perf_step_index(steps: list[str], needle: str) -> int:
+    for position, step in enumerate(steps):
+        if needle in step:
+            return position
+    return -1
+
+
+def perf_workflow_violations(text: str) -> list[str]:
+    found: list[str] = []
+    steps = _perf_native_steps(text)
+    perf = [step for step in steps if "nativePerf" in step]
+    if not perf:
+        found.append("a native leg has no nativePerf step")
+    elif not any("-PnativeBinary=" in step and "build/native/nativeCompile/mission-status-api" in step for step in perf):
+        found.append("the nativePerf step does not pass -PnativeBinary of the compiled binary")
+    floor = _perf_step_index(steps, "Build the trivial native binary")
+    if floor < 0 or "MISSION_STATUS_FLOOR_BINARY" not in steps[floor]:
+        found.append("the native leg does not build the NFR-002 floor binary")
+    else:
+        step = steps[floor]
+        if "continue-on-error: true" not in step:
+            found.append("the floor step must be continue-on-error (a floor build break must not fail the leg's build)")
+        if "id: floor" not in step:
+            found.append("the floor step has no id (its outcome cannot reach the job summary)")
+        if not re.search(r'MISSION_STATUS_FLOOR_BINARY=.*>> "\$GITHUB_ENV"', step):
+            found.append("the floor step does not write MISSION_STATUS_FLOOR_BINARY to GITHUB_ENV")
+        if "cygpath -m" not in step:
+            found.append("the floor step lost its cygpath fallback for the Windows path")
+    if "steps.floor.outcome" not in text:
+        found.append("the floor step outcome is not shown in the job summary")
+    run = _perf_step_index(steps, "./gradlew --no-daemon nativePerf")
+    digest = _perf_step_index(steps, "name: digest-")
+    if not (0 <= floor < run < digest):
+        found.append("the order must be floor build, then nativePerf, then the digest upload")
+    # a nativePerf miss must not skip these (ADR 2026-10-05-2: a miss may be runner noise)
+    for label, needle in (
+        ("the digest upload", "name: digest-"),
+        ("the native test floor check", "Require the native test floor\n"),
+        ("the native test floor check (Windows)", "Require the native test floor (Windows)"),
+        ("the binary staging", "Stage the binary and its checksum"),
+    ):
+        position = _perf_step_index(steps, needle)
+        if position < 0:
+            found.append(f"{label} is missing")
+        elif "!cancelled()" not in steps[position]:
+            found.append(f"{label} must carry if: !cancelled() so a nativePerf miss does not skip it")
+    if any(re.search(r"\bpytest\b", line) for line in text.splitlines() if not line.lstrip().startswith("#")):
+        found.append("a workflow step runs pytest")
+    return found
+
+
+def test_the_perf_classes_carry_the_tag_and_both_a_ratio_and_a_ceiling() -> None:
+    assert perf_class_violations(_perf_sources()) == []
+
+
+def test_the_perf_pin_turns_red_for_a_dropped_tag_a_dropped_ceiling_a_dropped_ratio_or_a_missing_class() -> None:
+    sources = _perf_sources()
+    assert len([name for name, text in sources.items() if _holds_a_test(text)]) >= PERF_CLASS_FLOOR
+    nfr1 = "Nfr001OverviewLatencyTest.java"
+    nfr4 = "Nfr004SseConnectionsTest.java"
+    assert perf_class_violations({**sources, nfr1: sources[nfr1].replace('@Tag("perf")', "")})
+    assert perf_class_violations({**sources, nfr1: re.sub(r"\w*CEILING\w*", "LIMIT", sources[nfr1])})
+    assert perf_class_violations({**sources, nfr4: re.sub(r"\w*RATIO\w*", "LIMIT", sources[nfr4])})
+    assert perf_class_violations({name: text for name, text in sources.items() if name != nfr4})
+    assert perf_class_violations({})
+
+
+def test_the_native_perf_probe_asserts_both_a_ratio_and_a_ceiling() -> None:
+    assert native_perf_violations(_text(NATIVE_PERF_JAVA)) == []
+    mutated = _text(NATIVE_PERF_JAVA).replace("STARTUP_CEILING_MS", "STARTUP_LIMIT")
+    assert native_perf_violations(mutated)
+    assert native_perf_violations(_text(NATIVE_PERF_JAVA).replace('@Tag("native-binary")', ""))
+    assert native_perf_violations("")
+
+
+def test_each_native_leg_runs_nativeperf_against_the_compiled_binary() -> None:
+    assert perf_workflow_violations(_workflow_text()) == []
+
+
+def test_the_workflow_pin_turns_red_for_a_removed_step_a_lost_binary_property_or_a_pytest_step() -> None:
+    text = _workflow_text()
+    assert perf_workflow_violations(text.replace("nativePerf", "nativeSmoke"))
+    assert perf_workflow_violations(text.replace('nativePerf "-PnativeBinary=', 'nativePerf "-Pother='))
+    assert perf_workflow_violations(text.replace("MISSION_STATUS_FLOOR_BINARY", "OTHER"))
+    assert perf_workflow_violations(text + "      - run: pytest tests\n")
+    # the floor step: each property pinned alone
+    assert perf_workflow_violations(text.replace("        continue-on-error: true\n", "", 1))
+    assert perf_workflow_violations(text.replace("        id: floor\n", "", 1))
+    assert perf_workflow_violations(text.replace('matrix.exe }}")" >> "$GITHUB_ENV"', 'matrix.exe }}")" >> /dev/null', 1))
+    assert perf_workflow_violations(text.replace("cygpath -m", "cygpath -w", 1))
+    assert perf_workflow_violations(text.replace("steps.floor.outcome", "steps.other.outcome"))
+
+
+def test_a_nativeperf_miss_does_not_skip_the_digest_upload_the_floor_check_or_the_staging() -> None:
+    text = _workflow_text()
+    assert perf_workflow_violations(text) == []
+    # drop the guard from each of the four steps in turn
+    assert perf_workflow_violations(
+        text.replace("        if: ${{ !cancelled() }}\n        with:\n          name: digest-", "        with:\n          name: digest-", 1)
+    )
+    assert perf_workflow_violations(text.replace("if: ${{ !cancelled() && runner.os != 'Windows' }}", "if: runner.os != 'Windows'", 1))
+    assert perf_workflow_violations(text.replace("if: ${{ !cancelled() && runner.os == 'Windows' }}", "if: runner.os == 'Windows'", 1))
+    assert perf_workflow_violations(
+        text.replace("      - name: Stage the binary and its checksum\n        if: ${{ !cancelled() }}\n", "      - name: Stage the binary and its checksum\n", 1)
+    )
+
+
+def test_nativeperf_runs_after_the_floor_build_and_before_the_digest_upload() -> None:
+    text = _workflow_text()
+    steps = _perf_native_steps(text)
+    assert (
+        0
+        <= _perf_step_index(steps, "Build the trivial native binary")
+        < _perf_step_index(steps, "./gradlew --no-daemon nativePerf")
+        < _perf_step_index(steps, "name: digest-")
+    )
+    # move nativePerf after the digest upload: red
+    block_start = text.index("      - name: Measure start-up, memory and threads of the built binary")
+    block_end = text.index("      - name: Show the performance summary")
+    block = text[block_start:block_end]
+    moved = text[:block_start] + text[block_end:]
+    anchor = "      # A nativePerf miss (possibly runner noise"
+    assert perf_workflow_violations(moved.replace(anchor, block + anchor, 1)) == []  # still before the digest upload, so still green
+    after = moved.replace("      # Two literal interpreter names", block + "      # Two literal interpreter names", 1)
+    assert perf_workflow_violations(after)
+
+
+# --- WP14 ---------------------------------------------------------------------------------------------------------------------------
+# The nightly full-corpus job (plan.md section 7, AC-8c, E-10). Each rule is a function over the workflow text; the real file passes it
+# and the real text with one mutation fails it.
+
+NIGHTLY_JOB = "nightly-corpus"
+NIGHTLY_IF = f"{FORK_GUARD} && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')"
+NIGHTLY_SCRIPT_RUN = (
+    "uv run --frozen --no-sync python scripts/ci/mission_status_corpus_compare.py "
+    '--base-url http://127.0.0.1:8787 --repo-root "$GITHUB_WORKSPACE" --report "$RUNNER_TEMP/nightly-report.json"'
+)
+NIGHTLY_START = (
+    'java -jar build/libs/mission-status-api.jar --mission-status.project-root="$GITHUB_WORKSPACE" --mission-status.port=8787 > "$RUNNER_TEMP/service.log" 2>&1 &'
+)
+
+
+def _nightly(text: str) -> dict[str, object]:
+    return _jobs(_wf(text)).get(NIGHTLY_JOB, {})
+
+
+def _checkout_with(job: dict[str, object]) -> dict[str, object]:
+    for step in _steps(job):
+        if str(step.get("uses", "")).startswith("actions/checkout@"):
+            with_ = step.get("with")
+            return with_ if isinstance(with_, dict) else {}
+    return {}
+
+
+def _always_steps(job: dict[str, object]) -> list[dict[str, object]]:
+    return [step for step in _steps(job) if _norm(step.get("if", "")) == "always()"]
+
+
+def nightly_violations(text: str) -> list[str]:
+    jobs = _jobs(_wf(text))
+    job = jobs.get(NIGHTLY_JOB)
+    if job is None:
+        return [f"job {NIGHTLY_JOB} is missing"]
+    found: list[str] = []
+    if _norm(job.get("if")) != NIGHTLY_IF:
+        found.append(f"{NIGHTLY_JOB}: if: is not exactly {NIGHTLY_IF!r} (the canonical guard first, then schedule or workflow_dispatch only)")
+    if job.get("runs-on") != "ubuntu-24.04" or job.get("timeout-minutes") != 45:
+        found.append(f"{NIGHTLY_JOB} must run on ubuntu-24.04 with timeout-minutes: 45")
+    if _needs(job):
+        found.append(f"{NIGHTLY_JOB} must not need another job (the contract-bundle job is skipped on schedule)")
+    if any(NIGHTLY_JOB in _needs(other) for other in jobs.values()):
+        found.append(f"no job may need {NIGHTLY_JOB} (the gate does not wait for it)")
+    checkout = _checkout_with(job)
+    if checkout.get("fetch-depth") != 0 or checkout.get("persist-credentials") is not False:
+        found.append(f"{NIGHTLY_JOB}: the checkout must set fetch-depth: 0 and persist-credentials: false")
+    runs = "\n".join(_runs(job))
+    for needle in ("uv sync --frozen --all-extras", "./gradlew --no-daemon bootJar", NIGHTLY_START, NIGHTLY_SCRIPT_RUN, 'echo "SERVICE_PID=$!" >> "$GITHUB_ENV"'):
+        if needle not in runs:
+            found.append(f"{NIGHTLY_JOB} must run {needle!r}")
+    if "pytest" in runs:
+        found.append(f"{NIGHTLY_JOB} runs pytest")
+    always = "\n".join(str(step.get("uses", "")) + str(step.get("run", "")) for step in _always_steps(job))
+    if "actions/upload-artifact@" not in always or 'kill "$SERVICE_PID"' not in always:
+        found.append(f"{NIGHTLY_JOB} must upload the report and stop the service by PID in `if: always()` steps")
+    if re.search(r"\b(pkill|killall)\b|\bkill\s+(-\S+\s+)*\$\(", runs):
+        found.append(f"{NIGHTLY_JOB} must stop the service by the recorded PID, never by a pattern")
+    return found
+
+
+def test_the_workflow_carries_the_nightly_corpus_job_exactly_as_the_recipe_says() -> None:
+    assert nightly_violations(_workflow_text()) == []
+
+
+def test_the_nightly_pin_reports_something_for_an_empty_workflow() -> None:
+    assert nightly_violations("")
+
+
+def test_the_cron_trigger_the_nightly_job_rides_on_is_a_single_schedule_entry_apart_from_the_ci_nightly_slot() -> None:
+    on = _on(_wf(_workflow_text()))
+    schedule = on.get("schedule")
+    assert isinstance(schedule, list) and len(schedule) == 1
+    other = _wf(_text(WORKFLOWS_DIR / "ci-nightly.yml"))
+    other_crons = [entry["cron"] for entry in _on(other).get("schedule", [])]
+    assert other_crons and schedule[0]["cron"] not in other_crons
+
+
+def test_the_nightly_job_is_not_a_need_of_the_gate_and_the_legs_stay_skipped_on_schedule() -> None:
+    jobs = _jobs(_wf(_workflow_text()))
+    assert NIGHTLY_JOB not in _needs(jobs["mission-status-api-gate"])
+    for name in ("contract-bundle", "jvm", "native"):
+        assert NOT_SCHEDULED in _norm(jobs[name].get("if"))
+
+
+def test_dropping_fetch_depth_turns_the_nightly_pin_red() -> None:
+    text = _workflow_text()
+    anchor = "          fetch-depth: 0\n"
+    assert text.count(anchor) == 1
+    assert nightly_violations(text.replace(anchor, "", 1))
+
+
+def test_adding_a_pytest_step_to_the_nightly_job_turns_the_pin_red() -> None:
+    text = _workflow_text()
+    assert nightly_violations(text + "      - run: python -m pytest tests/ci -q\n")
+
+
+def test_letting_the_nightly_job_run_on_a_pull_request_turns_the_pin_red() -> None:
+    text = _workflow_text()
+    pr = text.replace(f"    if: {NIGHTLY_IF}", f"    if: {FORK_GUARD} && (github.event_name == 'schedule' || github.event_name == 'pull_request')", 1)
+    assert nightly_violations(pr)
+    assert nightly_violations(text.replace(f"    if: {NIGHTLY_IF}", f"    if: {FORK_GUARD}", 1))
+    assert nightly_violations(text.replace(f"    if: {NIGHTLY_IF}", "    if: github.event_name == 'schedule'", 1))
+
+
+def test_the_other_nightly_pins_each_turn_red_for_one_change() -> None:
+    text = _workflow_text()
+    assert nightly_violations(
+        text.replace(
+            "timeout-minutes: 45\n    defaults:\n      run:\n        shell: bash\n    steps:\n      # A real",
+            "timeout-minutes: 60\n    defaults:\n      run:\n        shell: bash\n    steps:\n      # A real",
+            1,
+        )
+    )
+    assert nightly_violations(text.replace("run: uv sync --frozen --all-extras", "run: uv sync --frozen", 1))
+    assert nightly_violations(text.replace("./gradlew --no-daemon bootJar", "./gradlew --no-daemon assemble", 1))
+    assert nightly_violations(text.replace('--report "$RUNNER_TEMP/nightly-report.json"', "--report nightly-report.json", 1))
+    assert nightly_violations(text.replace('kill "$SERVICE_PID" || true', "pkill -f mission-status-api || true", 1))
+    assert nightly_violations(
+        text.replace("        if: always()\n        with:\n          name: nightly-corpus-report", "        with:\n          name: nightly-corpus-report", 1)
+    )
+    assert nightly_violations(text.replace(f"    if: {NIGHTLY_IF}\n", f"    needs: contract-bundle\n    if: {NIGHTLY_IF}\n", 1))
+    assert nightly_violations(text.replace("needs: [jvm, native]", "needs: [jvm, native, nightly-corpus]", 1))
+
+
+# --- WP15 ---------------------------------------------------------------------------------------------------------------------------
+# The tag-triggered release job (plan.md section 12, operator decision E-4, AC-15a (iii) to (vii)). Each rule is a function over the
+# workflow text; the real file passes it and the real text with one mutation fails it. This mission pushes no tag: the maintainer's first
+# tag is the only real run, so everything about the job that can be pinned offline is pinned here.
+
+RELEASE_JOB = "release"
+TAG_PATTERN = "mission-status-api-v*.*.*"
+RELEASE_IF = f"{FORK_GUARD} && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mission-status-api-v')"
+RELEASE_BINARIES = (
+    "mission-status-api-linux-x64",
+    "mission-status-api-linux-arm64",
+    "mission-status-api-macos-arm64",
+    "mission-status-api-windows-x64.exe",
+)
+RELEASE_ASSETS = tuple(name for binary in RELEASE_BINARIES for name in (binary, f"{binary}.sha256"))
+RELEASE_WORKFLOW = WORKFLOWS_DIR / "release.yml"
+CONTRACTS_RELEASE_WORKFLOW = WORKFLOWS_DIR / "contracts-release.yml"
+ATTEST_ACTION = "actions/attest-build-provenance"
+# Build provenance (operator ruling 2026-10-13): the four binaries, not their checksum files, are the attested subjects. The paths are
+# the download step's directory plus each binary name, one per line, in the order of RELEASE_BINARIES.
+ATTEST_SUBJECTS = "\n".join(f"${{{{ runner.temp }}}}/release-assets/{binary}" for binary in RELEASE_BINARIES) + "\n"  # a YAML block scalar keeps its final newline
+RELEASE_PERMISSIONS = {"contents": "write", "id-token": "write", "attestations": "write"}
+ANCESTOR_CHECK = 'git merge-base --is-ancestor "$GITHUB_SHA" origin/main'
+TAG_RESOLUTION = 'git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${TAG_NAME}" "refs/tags/${TAG_NAME}^{}"'
+
+
+def _release(text: str) -> dict[str, object]:
+    return _jobs(_wf(text)).get(RELEASE_JOB, {})
+
+
+def _step_text(step: dict[str, object]) -> str:
+    return str(step.get("uses", "")) + "\n" + str(step.get("run", ""))
+
+
+def _first_step(job: dict[str, object], needle: str) -> int:
+    for index, step in enumerate(_steps(job)):
+        if needle in _step_text(step):
+            return index
+    return -1
+
+
+def release_trigger_violations(text: str) -> list[str]:
+    on = _on(_wf(text))
+    found: list[str] = []
+    push = on.get("push")
+    if not isinstance(push, dict):
+        return ["on.push is missing"]
+    if push.get("tags") != [TAG_PATTERN]:
+        found.append(f"on.push.tags must be exactly [{TAG_PATTERN!r}]")
+    if push.get("branches") != ["main"] or push.get("paths") != WORKFLOW_PATHS:
+        found.append("the tag pattern must sit in the SAME push block as branches [main] and the three paths (AC-15a (iv))")
+    for trigger in ("pull_request", "schedule", "workflow_dispatch"):
+        entry = on.get(trigger)
+        if isinstance(entry, dict) and "tags" in entry:
+            found.append(f"on.{trigger} must carry no tags")
+    dispatch = on.get("workflow_dispatch")
+    if isinstance(dispatch, dict) and "inputs" in dispatch:
+        found.append("workflow_dispatch must declare no inputs (nothing a manual run supplies may reach the release job)")
+    return found
+
+
+def release_permission_violations(text: str) -> list[str]:
+    workflow = _wf(text)
+    found: list[str] = []
+    if workflow.get("permissions") != {"contents": "read"}:
+        found.append("workflow permissions must be exactly contents: read (AC-15a (v))")
+    writers = [name for name, job in _jobs(workflow).items() if "write" in json.dumps(job.get("permissions", {}))]
+    if writers != [RELEASE_JOB]:
+        found.append(f"contents: write must appear on the release job only, found on {writers}")
+    if _release(text).get("permissions") != RELEASE_PERMISSIONS:
+        found.append(f"the release job permissions must be exactly {RELEASE_PERMISSIONS} (the attestation needs id-token and attestations next to contents)")
+    return found
+
+
+def _release_header_violations(job: dict[str, object]) -> list[str]:
+    found: list[str] = []
+    if _norm(job.get("if")) != RELEASE_IF:
+        found.append(f"release: if: is not exactly {RELEASE_IF!r}")
+    if _needs(job) != ["mission-status-api-gate"]:
+        found.append("release must need exactly mission-status-api-gate (only a fully green four-leg run releases)")
+    if job.get("runs-on") != "ubuntu-24.04" or job.get("timeout-minutes") != 15:
+        found.append("release must run on ubuntu-24.04 with timeout-minutes: 15")
+    checkout = _checkout_with(job)
+    if checkout.get("fetch-depth") != 0 or checkout.get("persist-credentials") is not False:
+        found.append("the release checkout must set fetch-depth: 0 and persist-credentials: false")
+    steps = _steps(job)
+    if not steps or not str(steps[0].get("uses", "")).startswith("actions/checkout@"):
+        found.append("the first release step must be the checkout")
+    if "pytest" in "\n".join(_runs(job)):
+        found.append("the release job runs pytest")
+    if any("${{" in str(step["run"]) for step in steps if "run" in step):
+        found.append("a release run: step interpolates an expression; the tag name may reach the shell only through env:")
+    if "inputs" in json.dumps(job):
+        found.append("the release job must not read any workflow input")
+    return found
+
+
+def _release_order_violations(steps: list[dict[str, object]], job: dict[str, object]) -> tuple[list[str], dict[str, int]]:
+    index = {
+        "ancestor": _first_step(job, ANCESTOR_CHECK),
+        "download": _first_step(job, "actions/download-artifact@"),
+        "verify": _first_step(job, "sha256sum -c"),
+        "resolve": _first_step(job, TAG_RESOLUTION),
+        "attest": _first_step(job, ATTEST_ACTION),
+    }
+    publish_steps = [i for i, step in enumerate(steps) if "gh release create" in str(step.get("run", ""))]
+    if sum(str(step.get("run", "")).count("gh release create") for step in steps) != 1:
+        return ["gh release create must occur exactly once in the release job"], {}
+    if min(index.values()) < 0 or len(publish_steps) != 1:
+        return [
+            "the release job needs the ancestor check, the download, the checksum check, the tag re-resolution, "
+            "the build-provenance attestation and ONE gh release create"
+        ], {}
+    index["publish"] = publish_steps[0]
+    found: list[str] = []
+    in_order = 0 < index["ancestor"] < index["download"] < index["verify"] < index["resolve"] < index["attest"] < index["publish"]
+    if not in_order or index["publish"] != len(steps) - 1:
+        found.append("release steps must run checkout, ancestor check, download, checksum check, tag re-resolution, attestation, then the one publish step last")
+    resolve_run, ancestor_run = str(steps[index["resolve"]].get("run", "")), str(steps[index["ancestor"]].get("run", ""))
+    if 'if [ "$resolved" != "$GITHUB_SHA" ]' not in resolve_run or "exit 1" not in resolve_run:
+        found.append("the tag re-resolution must fail closed when the tag no longer points at $GITHUB_SHA")
+    if "exit 1" not in ancestor_run or "if !" not in ancestor_run:
+        found.append("the ancestor check must fail closed")
+    fetch = steps[index["download"]].get("with") or {}
+    if fetch.get("pattern") != "mission-status-api-*" or fetch.get("merge-multiple") is not True:
+        found.append("the download must take pattern mission-status-api-* with merge-multiple: true")
+    if any("GH_TOKEN" in json.dumps(steps[i].get("env", {})) for i in range(index["publish"])):
+        found.append("no step before the publish step may receive the token")
+    return found, index
+
+
+def _release_publish_violations(step: dict[str, object]) -> list[str]:
+    found: list[str] = []
+    run, env = str(step.get("run", "")), step.get("env") or {}
+    if "--verify-tag" not in run or '--target "$GITHUB_SHA"' not in run or "--latest=false" not in run:
+        found.append('gh release create must carry --verify-tag, --target "$GITHUB_SHA" and --latest=false')
+    if env.get("GH_TOKEN") != "${{ github.token }}" or env.get("TAG_NAME") != "${{ github.ref_name }}":
+        found.append("the publish step must take GH_TOKEN and TAG_NAME from env:")
+    found.extend(f"gh release create does not upload {asset}" for asset in RELEASE_ASSETS if asset not in run)
+    if "unsigned" not in run.lower():
+        found.append("the release notes must state that the binaries are unsigned")
+    if "gh attestation verify" not in run or "--repo spec-kitty/spec-kitty" not in run:
+        found.append("the release notes must give the gh attestation verify command for spec-kitty/spec-kitty")
+    return found
+
+
+# Review cycle 1 (F1 to F4): the fail-closed steps are pinned by their exact run text, so a trailing `|| true` or a weakened count cannot pass.
+ANCESTOR_RUN = r"""set -eu
+if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+  echo "::error::the tagged commit $GITHUB_SHA is not an ancestor of origin/main; tag a commit that is on main"
+  exit 1
+fi"""
+VERIFY_RUN = r"""set -eu
+cd "$RUNNER_TEMP/release-assets"
+for binary in mission-status-api-linux-x64 mission-status-api-linux-arm64 mission-status-api-macos-arm64 mission-status-api-windows-x64.exe; do
+  test -s "$binary"
+  test -s "$binary.sha256"
+  sha256sum -c "$binary.sha256"
+done
+count=$(find . -maxdepth 1 -type f | wc -l)
+if [ "$count" -ne 8 ]; then
+  echo "::error::expected exactly 8 release assets, found $count"
+  ls -la
+  exit 1
+fi"""
+RESOLVE_RUN = r"""set -eu
+resolved=$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${TAG_NAME}" "refs/tags/${TAG_NAME}^{}" | awk '{print $1}' | tail -n 1)
+if [ "$resolved" != "$GITHUB_SHA" ]; then
+  echo "::error::the tag ${TAG_NAME} resolves to '${resolved}', not the built commit ${GITHUB_SHA}; it was moved or deleted after the checks ran"
+  exit 1
+fi"""
+SEMVER_GATE = r"""if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+  echo "::error::the tag ${TAG_NAME} is not mission-status-api-v<semver>"
+  exit 1
+fi"""
+PRERELEASE_CASE = """case "$version" in
+  *-*) flags+=(--prerelease) ;;
+esac"""
+
+
+def _release_exact_violations(steps: list[dict[str, object]], index: dict[str, int]) -> list[str]:
+    found: list[str] = []
+    for key, expected in (("ancestor", ANCESTOR_RUN), ("verify", VERIFY_RUN), ("resolve", RESOLVE_RUN)):
+        if str(steps[index[key]].get("run", "")).strip() != expected:
+            found.append(f"the {key} step's run text is not exactly the pinned fail-closed text")
+    publish = str(steps[index["publish"]].get("run", ""))
+    if SEMVER_GATE not in publish:
+        found.append("the publish step must keep the anchored semver gate with its exit 1")
+    if PRERELEASE_CASE not in publish:
+        found.append("the publish step must keep the --prerelease case for a version with a suffix")
+    if publish.count("gh release create") != 1 or '"${flags[@]}"' not in publish:
+        found.append("the publish step must contain exactly one gh release create, passing the computed flags")
+    return found
+
+
+# Review cycle 2 (G1): the whole mapping of the job and of every step is pinned, so a key that changes how a step gates publishing
+# (continue-on-error, if, shell, an extra env) cannot be added unnoticed. Steps are pinned by position: reorder and duplicate go red too.
+RELEASE_JOB_KEYS = {"needs", "if", "runs-on", "timeout-minutes", "permissions", "steps"}
+RELEASE_STEP_KEYS: tuple[tuple[str, ...], ...] = (
+    ("uses", "with"),
+    ("name", "run"),
+    ("uses", "with"),
+    ("name", "run"),
+    ("env", "name", "run"),
+    ("name", "uses", "with"),
+    ("env", "name", "run"),
+)
+RELEASE_STEP_ENV: dict[int, dict[str, str]] = {
+    4: {"TAG_NAME": "${{ github.ref_name }}"},
+    6: {"GH_TOKEN": "${{ github.token }}", "GH_REPO": "${{ github.repository }}", "TAG_NAME": "${{ github.ref_name }}"},
+}
+
+
+def _release_shape_violations(job: dict[str, object]) -> list[str]:
+    found: list[str] = []
+    if set(job) != RELEASE_JOB_KEYS:
+        found.append(f"the release job keys must be exactly {sorted(RELEASE_JOB_KEYS)}, found {sorted(job)}")
+    if job.get("permissions") != RELEASE_PERMISSIONS:
+        found.append(f"the release job permissions must be exactly {RELEASE_PERMISSIONS}")
+    steps = _steps(job)
+    if len(steps) != len(RELEASE_STEP_KEYS):
+        found.append(f"the release job must have exactly {len(RELEASE_STEP_KEYS)} steps, found {len(steps)}")
+        return found
+    for position, (step, keys) in enumerate(zip(steps, RELEASE_STEP_KEYS, strict=True)):
+        if tuple(sorted(step)) != keys:
+            found.append(f"release step {position}: keys must be exactly {list(keys)}, found {sorted(step)}")
+        if position in RELEASE_STEP_ENV and step.get("env") != RELEASE_STEP_ENV[position]:
+            found.append(f"release step {position}: env must be exactly {RELEASE_STEP_ENV[position]}")
+    if steps[0].get("with") != {"persist-credentials": False, "fetch-depth": 0}:
+        found.append("release step 0: the checkout inputs must be exactly persist-credentials: false and fetch-depth: 0")
+    if steps[2].get("with") != {
+        "pattern": "mission-status-api-*",
+        "merge-multiple": True,
+        "path": "${{ runner.temp }}/release-assets",
+    }:
+        found.append("release step 2: the download inputs must be exactly pattern, merge-multiple and path")
+    if not str(steps[5].get("uses", "")).startswith(f"{ATTEST_ACTION}@") or steps[5].get("with") != {"subject-path": ATTEST_SUBJECTS}:
+        found.append("release step 5: the attestation must use actions/attest-build-provenance with the four binaries (not the checksum files) as its only input")
+    return found
+
+
+def release_job_violations(text: str) -> list[str]:
+    job = _release(text)
+    if not job:
+        return [f"job {RELEASE_JOB} is missing"]
+    steps = _steps(job)
+    found = _release_header_violations(job)
+    found.extend(_release_shape_violations(job))
+    order, index = _release_order_violations(steps, job)
+    found.extend(order)
+    if index:
+        found.extend(_release_publish_violations(steps[index["publish"]]))
+        found.extend(_release_exact_violations(steps, index))
+    return found
+
+
+def _expression(condition: str, event: str, ref: str, repository: str) -> bool:
+    """Evaluate a job `if:` the way these workflows write them: ||, &&, ==, !=, startsWith, always()."""
+    translated = condition.replace("||", " or ").replace("&&", " and ")
+    translated = re.sub(r"github\.(repository|event_name|ref)\b", r"ctx_\1", translated)
+    scope = {
+        "__builtins__": {},
+        "ctx_repository": repository,
+        "ctx_event_name": event,
+        "ctx_ref": ref,
+        "startsWith": lambda value, prefix: str(value).startswith(prefix),
+        "always": lambda: True,
+    }
+    return bool(eval(translated, scope))  # noqa: S307  (a closed vocabulary over the workflow's own text)
+
+
+def jobs_that_run(text: str, event: str, ref: str, repository: str = "spec-kitty/spec-kitty") -> set[str]:
+    return {name for name, job in _jobs(_wf(text)).items() if _expression(_norm(job.get("if", "true")).replace("true", "True"), event, ref, repository)}
+
+
+TAG_REF = "refs/tags/mission-status-api-v0.1.0"
+LEG_JOBS = {"contract-bundle", "jvm", "native", "mission-status-api-gate"}
+
+
+def tag_run_violations(text: str) -> list[str]:
+    cases = {
+        ("push", TAG_REF, "spec-kitty/spec-kitty"): LEG_JOBS | {RELEASE_JOB},
+        ("push", TAG_REF, "someone/fork"): set(),
+        ("push", "refs/heads/main", "spec-kitty/spec-kitty"): LEG_JOBS,
+        ("pull_request", "refs/pull/1/merge", "spec-kitty/spec-kitty"): LEG_JOBS,
+        ("workflow_dispatch", "refs/heads/main", "spec-kitty/spec-kitty"): LEG_JOBS | {NIGHTLY_JOB},
+        ("workflow_dispatch", TAG_REF, "spec-kitty/spec-kitty"): LEG_JOBS | {NIGHTLY_JOB},
+        ("schedule", "refs/heads/main", "spec-kitty/spec-kitty"): {NIGHTLY_JOB},
+        ("push", "refs/tags/v1.2.3", "spec-kitty/spec-kitty"): LEG_JOBS,
+    }
+    found: list[str] = []
+    for (event, ref, repository), expected in cases.items():
+        actual = jobs_that_run(text, event, ref, repository)
+        if actual != expected:
+            found.append(f"{event} on {ref} in {repository}: jobs {sorted(actual)} run, expected {sorted(expected)}")
+    return found
+
+
+def _glob_regex(pattern: str) -> re.Pattern[str]:
+    """GitHub's filter-pattern glob: ``*`` is any run of characters but ``/``, ``**`` any run at all, ``?`` makes the previous character optional."""
+    out, index = "", 0
+    while index < len(pattern):
+        char = pattern[index]
+        if pattern.startswith("**", index):
+            out += ".*"
+            index += 2
+            continue
+        if char == "*":
+            out += "[^/]*"
+        elif char == "?":
+            out += "?"
+        elif char == "+":
+            out += "+"
+        elif char == "[":
+            close = pattern.index("]", index)
+            out += pattern[index : close + 1]
+            index = close
+        else:
+            out += re.escape(char)
+        index += 1
+    return re.compile(out)
+
+
+def glob_matches(pattern: str, name: str) -> bool:
+    return _glob_regex(pattern).fullmatch(name) is not None
+
+
+def _tag_patterns(workflow_path: Path) -> list[str]:
+    push = _on(_wf(_text(workflow_path))).get("push")
+    tags = push.get("tags") if isinstance(push, dict) else None
+    return [str(tag) for tag in tags] if isinstance(tags, list) else []
+
+
+SAMPLE_TAGS = {
+    "cli": ("v1.2.3", "v1.2.3rc1", "v0.1.0-rc.1"),
+    "contract": ("contract-mission-status-v1.0.0", "contract-mission-status-v0.1.0-rc.1"),
+    "mission-status-api": ("mission-status-api-v0.1.0", "mission-status-api-v1.2.3-rc.1"),
+}
+
+
+def disjointness_violations(own: str, cli: str, contract: str) -> list[str]:
+    patterns = {"cli": cli, "contract": contract, "mission-status-api": own}
+    found: list[str] = []
+    for namespace, tags in SAMPLE_TAGS.items():
+        for tag in tags:
+            matching = sorted(name for name, pattern in patterns.items() if glob_matches(pattern, tag))
+            if matching != [namespace]:
+                found.append(f"{tag} matches {matching}, expected only [{namespace!r}]")
+    return found
+
+
+def test_the_workflow_carries_the_tag_trigger_in_the_single_push_block() -> None:
+    assert release_trigger_violations(_workflow_text()) == []
+    assert len(re.findall(r"^  push:\n", _workflow_text(), flags=re.M)) == 1
+
+
+def test_the_release_job_permissions_are_least_privilege() -> None:
+    assert release_permission_violations(_workflow_text()) == []
+
+
+def test_the_release_job_has_the_exact_if_needs_steps_and_one_publish_step() -> None:
+    assert release_job_violations(_workflow_text()) == []
+
+
+def test_a_tag_push_runs_the_legs_the_gate_and_the_release_and_skips_the_nightly_job() -> None:
+    assert tag_run_violations(_workflow_text()) == []
+
+
+@pytest.mark.parametrize("rule", [release_trigger_violations, release_permission_violations, release_job_violations, tag_run_violations])
+def test_every_release_rule_reports_something_for_an_empty_workflow(rule: Callable[[str], list[str]]) -> None:
+    assert rule("")
+
+
+def test_the_release_if_pin_is_the_text_of_the_plan() -> None:
+    assert _norm(_release(_workflow_text()).get("if")) == RELEASE_IF
+    assert RELEASE_IF.startswith(FORK_GUARD)
+    for name, job in _jobs(_wf(_workflow_text())).items():
+        assert _norm(job.get("if", "")).startswith(FORK_GUARD) or _needs(job), f"job {name}: if: does not open with the guard (AC-15a (iii))"
+
+
+def test_the_release_job_reaches_every_pinned_asset_name_the_native_leg_stages() -> None:
+    text = _workflow_text()
+    assert 'binary="mission-status-api-${{ matrix.target }}${{ matrix.exe }}"' in text
+    targets = {"linux-x64": "", "linux-arm64": "", "macos-arm64": "", "windows-x64": ".exe"}
+    assert {f"mission-status-api-{target}{exe}" for target, exe in targets.items()} == set(RELEASE_BINARIES)
+    assert len(RELEASE_ASSETS) == 8
+
+
+def test_the_fleet_verdict_ignores_a_tag_run_of_this_workflow() -> None:
+    script = _text(FLEET_VERDICT_SCRIPT)
+    assert 'source.get("event") == "push" and source.get("head_branch") == "main"' in script
+    assert 'source.get("event") != "pull_request"' in script
+
+
+# revert rows ------------------------------------------------------------------------------------------------------------------------
+
+
+def _release_mutate(old: str, new: str) -> str:
+    return _mutate(old, new)
+
+
+def test_a_release_that_also_runs_on_a_push_to_main_turns_the_pins_red() -> None:
+    widened = _release_mutate(
+        "startsWith(github.ref, 'refs/tags/mission-status-api-v')", "startsWith(github.ref, 'refs/tags/mission-status-api-v') || github.ref == 'refs/heads/main'"
+    )
+    assert release_job_violations(widened) and tag_run_violations(widened)
+    dropped = _release_mutate(" && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/mission-status-api-v')", "")
+    assert release_job_violations(dropped) and tag_run_violations(dropped)
+    on_main = _release_mutate("startsWith(github.ref, 'refs/tags/mission-status-api-v')", "github.ref == 'refs/heads/main'")
+    assert release_job_violations(on_main) and tag_run_violations(on_main)
+
+
+def test_a_release_without_the_gate_dependency_turns_the_pin_red() -> None:
+    assert release_job_violations(_release_mutate("  release:\n    needs: [mission-status-api-gate]\n", "  release:\n"))
+    assert release_job_violations(_release_mutate("  release:\n    needs: [mission-status-api-gate]\n", "  release:\n    needs: [jvm]\n"))
+
+
+def test_a_broader_write_permission_turns_the_permission_pin_red() -> None:
+    assert release_permission_violations(_release_mutate("permissions:\n  contents: read\n", "permissions:\n  contents: write\n"))
+    assert release_permission_violations(
+        _release_mutate(
+            "  mission-status-api-gate:\n    needs: [jvm, native]\n",
+            "  mission-status-api-gate:\n    permissions:\n      contents: write\n    needs: [jvm, native]\n",
+        )
+    )
+    assert release_permission_violations(
+        _release_mutate("    permissions:\n      contents: write\n", "    permissions:\n      contents: write\n      packages: write\n")
+    )
+    assert release_permission_violations(_release_mutate(RELEASE_PERMISSIONS_BLOCK, ""))
+
+
+RELEASE_SUBJECT_ROOT = "${{ runner.temp }}/release-assets"
+RELEASE_PERMISSIONS_BLOCK = "    permissions:\n      contents: write\n      id-token: write\n      attestations: write\n"
+ATTEST_STEP_START = "      - name: Attest the build provenance of the four binaries\n"
+
+
+def test_the_release_job_attests_the_four_binaries_and_holds_the_two_extra_permissions() -> None:
+    """Operator ruling 2026-10-13: build provenance for the four binaries, on the one job that already holds a write token."""
+    job = _release(_workflow_text())
+    assert job["permissions"] == RELEASE_PERMISSIONS
+    attest = [step for step in _steps(job) if str(step.get("uses", "")).startswith(f"{ATTEST_ACTION}@")]
+    assert len(attest) == 1
+    assert attest[0]["with"] == {"subject-path": ATTEST_SUBJECTS}
+    assert ATTEST_SUBJECTS.count("\n") == 4 and ".sha256" not in ATTEST_SUBJECTS
+    assert EXPECTED_PINS[ATTEST_ACTION] == ("4d101475d8b20a2381f78447822ac1eab6504dd8", "v4.2.2")
+    assert pin_violations(_workflow_text()) == []
+    # No other job may hold a token-minting permission: the attestation is minted by the release job alone.
+    others = [name for name, other in _jobs(_wf(_workflow_text())).items() if name != RELEASE_JOB and "id-token" in json.dumps(other.get("permissions", {}))]
+    assert others == []
+
+
+def test_the_dependency_hashes_are_recorded_as_trust_on_first_use() -> None:
+    """Operator ruling 2026-10-13: first-use trust is a deliberate decision, written next to the hashes it concerns."""
+    text = VERIFICATION_METADATA.read_text(encoding="utf-8")
+    assert "Trust on first use, deliberately" in text
+    assert "<verify-signatures>false</verify-signatures>" in text
+    assert "Trust on first use" not in text.replace("Trust on first use, deliberately", "")
+
+
+def test_dropping_a_release_permission_or_the_attestation_or_its_pin_turns_the_release_pins_red() -> None:
+    """Revert rows for the provenance attestation."""
+    text = _workflow_text()
+    assert RELEASE_PERMISSIONS_BLOCK in text and ATTEST_STEP_START in text
+    for dropped in ("      id-token: write\n", "      attestations: write\n"):
+        mutated = text.replace(RELEASE_PERMISSIONS_BLOCK, RELEASE_PERMISSIONS_BLOCK.replace(dropped, ""), 1)
+        assert release_permission_violations(mutated) and release_job_violations(mutated), dropped
+    widened = text.replace(RELEASE_PERMISSIONS_BLOCK, RELEASE_PERMISSIONS_BLOCK + "      packages: write\n", 1)
+    assert release_permission_violations(widened) and release_job_violations(widened)
+    start = text.index(ATTEST_STEP_START)
+    end = text.index("      # The one publish step.", start)
+    attest_block = text[start:end]
+    assert ATTEST_ACTION in attest_block
+    removed = text.replace(attest_block, "", 1)
+    assert release_job_violations(removed)
+    sha, tag = EXPECTED_PINS[ATTEST_ACTION]
+    assert pin_violations(text.replace(f"{ATTEST_ACTION}@{sha} # {tag}", f"{ATTEST_ACTION}@v4", 1))
+    assert pin_violations(text.replace(f"{ATTEST_ACTION}@{sha} # {tag}", f"{ATTEST_ACTION}@{'0' * 40} # {tag}", 1))
+    assert pin_violations(text.replace(f"{ATTEST_ACTION}@{sha} # {tag}", f"{ATTEST_ACTION}@{sha}", 1))
+    # Attested before the checksum check, after the publish step, or with the checksum files as subjects.
+    verify_start = text.index("      - name: Require exactly the eight release assets")
+    early = text.replace(attest_block, "", 1)
+    early = early[:verify_start] + attest_block + early[verify_start:]
+    assert release_job_violations(early)
+    assert release_job_violations(text.replace(ATTEST_SUBJECTS.split("\n")[3].split("/")[-1], "mission-status-api-windows-x64.exe.sha256", 1))
+    three = text.replace(f"            {RELEASE_SUBJECT_ROOT}/mission-status-api-macos-arm64\n", "", 1)
+    assert three != text and release_job_violations(three)
+
+
+def test_an_unpinned_action_in_the_release_job_turns_the_pin_red() -> None:
+    text = _workflow_text()
+    sha = EXPECTED_PINS["actions/download-artifact"][0]
+    anchor = f"actions/download-artifact@{sha} # v4.1.8\n        with:\n          pattern: mission-status-api-*"
+    assert anchor in text
+    assert pin_violations(
+        text.replace(
+            f"download-artifact@{sha} # v4.1.8\n        with:\n          pattern: mission-status-api-*",
+            "download-artifact@v4\n        with:\n          pattern: mission-status-api-*",
+        )
+    )
+    assert pin_violations(text.replace(anchor, anchor.replace(sha, "0" * 40)))
+
+
+def test_widening_the_tag_pattern_turns_the_trigger_and_the_disjointness_pins_red() -> None:
+    assert release_trigger_violations(_release_mutate(f"- '{TAG_PATTERN}'", "- '*-v*.*.*'"))
+    cli = _tag_patterns(RELEASE_WORKFLOW)[0]
+    contract = _tag_patterns(CONTRACTS_RELEASE_WORKFLOW)[0]
+    assert disjointness_violations("*-v*.*.*", cli, contract)
+    assert disjointness_violations("*-v*.*.*", cli, contract) != []
+    assert disjointness_violations("mission-*-v*.*.*", cli, contract) == []  # narrower than the match-all, still disjoint
+    assert disjointness_violations("v*.*.*", cli, contract)
+
+
+def test_a_nightly_job_that_runs_on_a_tag_turns_the_tag_run_pin_red() -> None:
+    assert tag_run_violations(_release_mutate(f"    if: {NIGHTLY_IF}", f"    if: {FORK_GUARD}"))
+    assert tag_run_violations(_release_mutate(f"    if: {NIGHTLY_IF}", f"    if: {FORK_GUARD} && github.event_name != 'pull_request'"))
+
+
+def test_a_leg_that_stops_running_on_a_tag_turns_the_tag_run_pin_red() -> None:
+    assert tag_run_violations(_release_mutate(f"if: {JVM_IF}", f"if: {JVM_IF} && !startsWith(github.ref, 'refs/tags/')").replace("&& !startsWith", "&& startsWith"))
+
+
+def test_the_release_structure_pins_each_turn_red_for_one_change() -> None:
+    text = _workflow_text()
+    assert release_job_violations(text.replace(ANCESTOR_CHECK, "true", 1))
+    assert release_job_violations(text.replace(TAG_RESOLUTION, "echo skipped", 1))
+    assert release_job_violations(text.replace('if [ "$resolved" != "$GITHUB_SHA" ]', 'if [ "$resolved" = "" ]', 1))
+    assert release_job_violations(text.replace("--verify-tag ", "", 1))
+    assert release_job_violations(text.replace('--target "$GITHUB_SHA"', "--target main", 1))
+    assert release_job_violations(text.replace("--latest=false", "--latest", 1))
+    assert release_job_violations(text.replace("sha256sum -c", "cat", 1))
+    assert release_job_violations(text.replace("mission-status-api-windows-x64.exe.sha256 ", "", 1))
+    assert release_job_violations(
+        text.replace("          merge-multiple: true\n          path: ${{ runner.temp }}/release-assets", "          path: ${{ runner.temp }}/release-assets", 1)
+    )
+    assert release_job_violations(text.replace("with: {persist-credentials: false, fetch-depth: 0}", "with: {fetch-depth: 0}", 1))
+    assert release_job_violations(text.replace("TAG_NAME: ${{ github.ref_name }}", "TAG_NAME: ${{ github.ref_name }}\n          INPUT: ${{ inputs.tag }}", 1))
+    assert release_job_violations(text.replace('"$TAG_NAME"', '"${{ github.ref_name }}"', 1))
+    assert release_job_violations(text.replace("with: {persist-credentials: false, fetch-depth: 0}", "with: {persist-credentials: false}", 1))
+    assert release_job_violations(text.replace("timeout-minutes: 15", "timeout-minutes: 45", 1))
+    assert release_job_violations(
+        text.replace(
+            "      - name: Require the tagged commit to be on main\n",
+            "      - run: python -m pytest tests/ci -q\n      - name: Require the tagged commit to be on main\n",
+            1,
+        )
+    )
+    assert release_trigger_violations(text.replace("  workflow_dispatch:\n", "  workflow_dispatch:\n    inputs:\n      tag:\n        type: string\n", 1))
+    assert release_trigger_violations(text.replace("    branches: [main]\n", "", 1))
+
+
+def test_the_tag_glob_matcher_follows_githubs_rules_on_adversarial_tags() -> None:
+    assert glob_matches(TAG_PATTERN, "mission-status-api-v0.1.0")
+    assert glob_matches(TAG_PATTERN, "mission-status-api-v1.2.3-rc.1")
+    assert not glob_matches(TAG_PATTERN, "mission-status-api-v1.0.0/x")  # `*` never crosses a slash
+    assert not glob_matches(TAG_PATTERN, "v-mission-status-api-v1.0.0")  # anchored at both ends
+    assert not glob_matches(TAG_PATTERN, "mission-status-api-v1.0")  # needs two dots
+    assert glob_matches("v*.*.*", "v-mission-status-api-v1.0.0")  # the CLI pattern does match it: that tag is not ours
+    assert glob_matches("v**", "va/b") and not glob_matches("v*", "va/b")
+    assert glob_matches("colou?r", "color") and glob_matches("colou?r", "colour")  # `?` makes the previous character optional
+    assert glob_matches("v[0-9]*.*.*", "v1.2.3") and not glob_matches("v[0-9]*.*.*", "va.2.3")
+
+
+def test_the_three_tag_namespaces_are_disjoint_over_sample_tags() -> None:
+    cli, contract = _tag_patterns(RELEASE_WORKFLOW), _tag_patterns(CONTRACTS_RELEASE_WORKFLOW)
+    assert len(cli) == 1 and len(contract) == 1, "a release workflow's tag pattern list changed; the disjointness sample must be reviewed"
+    assert (cli[0], contract[0]) == ("v*.*.*", "contract-*-v*.*.*")
+    assert _tag_patterns(WORKFLOW) == [TAG_PATTERN]
+    assert disjointness_violations(TAG_PATTERN, cli[0], contract[0]) == []
+    assert sum(len(tags) for tags in SAMPLE_TAGS.values()) == 7
+
+
+def test_the_seven_review_escapes_each_turn_the_release_pins_red() -> None:
+    """Review cycle 1 of WP15: the seven workflow mutations that once got past every pin."""
+    text = _workflow_text()
+    rows = {
+        "ancestor check fails open (|| true)": (
+            'git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then',
+            'git merge-base --is-ancestor "$GITHUB_SHA" origin/main || true; then',
+        ),
+        "checksum verification fails open": ('sha256sum -c "$binary.sha256"\n', 'sha256sum -c "$binary.sha256" || true\n'),
+        "asset count -ne 9": ('"$count" -ne 8', '"$count" -ne 9'),
+        "asset count -ne 0": ('"$count" -ne 8', '"$count" -ne 0'),
+        "semver gate unanchored": ("grep -Eq '^[0-9]+", "grep -Eq '[0-9]+"),
+        "prerelease flag dropped": ("*-*) flags+=(--prerelease) ;;", "*-*) : ;;"),
+        "second gh release create in the step": (
+            "--latest=false",
+            '--latest=false\n          gh release create "$TAG_NAME" --verify-tag',
+        ),
+        "release notes lose the attestation verify command": (
+            "attestation with: gh attestation verify <binary>",
+            "attestation with: gh attestation check <binary>",
+        ),
+        "release notes name another repository": (
+            '<binary> --repo spec-kitty/spec-kitty"',
+            '<binary> --repo other/repo"',
+        ),
+        "tail -n 1 became head -n 1": ("tail -n 1", "head -n 1"),
+        "ancestor with a colon after it": ("origin/main; then", "origin/main; : ; then"),
+        "semver gate deleted": ("grep -Eq '^[0-9]+", "grep -Eq '.*"),
+    }
+    for label, (old, new) in rows.items():
+        assert old in text, label
+        mutated = text.replace(old, new, 1)
+        assert mutated != text and release_job_violations(mutated), f"mutation survived: {label}"
+    assert release_job_violations(text.replace("gh release create", "gh release create", 1)) == []
+
+
+def test_step_and_job_level_evasions_of_the_release_gates_each_turn_the_pins_red() -> None:
+    """Review cycle 2 (G1): parsed-YAML edits of the real workflow; each one must report a violation."""
+    base = _wf(_workflow_text())
+    assert release_job_violations(_workflow_text()) == []
+
+    def violations_after(edit: Callable[[dict[str, object]], None]) -> list[str]:
+        workflow = copy.deepcopy(base)
+        edit(_jobs(workflow)[RELEASE_JOB])
+        return release_job_violations(yaml.safe_dump(workflow, sort_keys=False))
+
+    names = {1: "ancestor", 2: "download", 3: "verify", 4: "resolve", 5: "attest", 6: "publish", 0: "checkout"}
+    for position, label in names.items():
+        assert violations_after(lambda job, i=position: _steps(job)[i].update({"continue-on-error": True})), f"continue-on-error on {label}"
+        assert violations_after(lambda job, i=position: _steps(job)[i].update({"if": "always()"})), f"if on {label}"
+        assert violations_after(lambda job, i=position: _steps(job)[i].update({"timeout-minutes": 1})), f"extra key on {label}"
+    assert violations_after(lambda job: _steps(job)[1].update({"shell": "bash {0}"}))
+    assert violations_after(lambda job: _steps(job)[3].update({"shell": "bash {0}"}))
+    assert violations_after(lambda job: _steps(job)[6].update({"if": "always()"}))
+    assert violations_after(lambda job: job.update({"continue-on-error": True}))
+    assert violations_after(lambda job: job.update({"strategy": {"matrix": {"x": [1]}}}))
+    assert violations_after(lambda job: job.update({"env": {"X": "1"}}))
+    assert violations_after(lambda job: job.update({"defaults": {"run": {"shell": "bash {0}"}}}))
+    assert violations_after(lambda job: job.update({"if": "always()"}))
+    assert violations_after(lambda job: job.update({"timeout-minutes": 60}))
+    assert violations_after(lambda job: job.update({"permissions": {"contents": "write", "id-token": "write"}}))
+    assert violations_after(lambda job: job.update({"needs": ["jvm"]}))
+    assert violations_after(lambda job: _steps(job)[4]["env"].update({"EXTRA": "1"}))
+    assert violations_after(lambda job: _steps(job)[6]["env"].update({"GH_TOKEN": "${{ secrets.OTHER }}"}))
+    assert violations_after(lambda job: job["steps"].insert(2, copy.deepcopy(job["steps"][1])))  # a duplicated gating step
+    assert violations_after(lambda job: job["steps"].append(copy.deepcopy(job["steps"][1])))  # a step after the publish step
+    assert violations_after(lambda job: job["steps"].reverse())
+    assert violations_after(lambda job: job["steps"].__setitem__(slice(1, 3), [job["steps"][2], job["steps"][1]]))  # swapped
+    assert violations_after(lambda job: job["steps"].pop(1))  # a dropped gating step
+    assert violations_after(lambda job: _steps(job)[0]["with"].update({"persist-credentials": True}))
+    assert violations_after(lambda job: _steps(job)[2]["with"].update({"pattern": "*"}))
+    assert violations_after(lambda job: _steps(job)[5]["with"].update({"push-to-registry": True}))
+    assert violations_after(lambda job: _steps(job)[5]["with"].update({"subject-path": "${{ runner.temp }}/release-assets/*"}))
+    assert violations_after(lambda job: _steps(job)[5].update({"env": {"X": "1"}}))
