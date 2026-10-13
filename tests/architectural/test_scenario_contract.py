@@ -7,12 +7,11 @@ fail. The step vocabulary is read from the Java sources; nothing here duplicates
 
 from __future__ import annotations
 
-import importlib.util
-import sys
 from pathlib import Path
-from types import ModuleType
 
 import pytest
+
+from scripts.ci import scenario_contract as contract
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = Path(__file__).parent / "fixtures" / "scenarios"
@@ -20,19 +19,6 @@ FIXTURE_FEATURES = FIXTURES / "features"
 FIXTURE_STEPS = FIXTURES / "steps"
 REAL_FEATURES = REPO_ROOT / "tests" / "scenarios"
 REAL_STEPS = REPO_ROOT / "acceptance-jvm" / "src" / "test" / "java"
-_MODULE_NAME = "scripts.ci.scenario_contract"
-
-
-def _load() -> ModuleType:
-    spec = importlib.util.spec_from_file_location(_MODULE_NAME, REPO_ROOT / "scripts" / "ci" / "scenario_contract.py")
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[_MODULE_NAME] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-contract = _load()
 
 
 @pytest.fixture(scope="module")
