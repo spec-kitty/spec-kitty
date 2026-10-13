@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-13T11:26:32.933219+00:00",
+      "accepted_by": "system",
+      "accepted_from_commit": "7db2d92f158e0be36ed745b040114c1432ea5d00"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-13T11:26:32.933219+00:00",
+  "accepted_by": "system",
+  "accepted_from_commit": "7db2d92f158e0be36ed745b040114c1432ea5d00",
   "coordination_branch": "kitty/mission-acceptance-scenario-contract-01M4T9GC",
   "created_at": "2026-10-13T09:29:20.008383+00:00",
   "flattened": false,
