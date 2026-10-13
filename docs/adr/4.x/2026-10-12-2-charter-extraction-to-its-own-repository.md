@@ -196,3 +196,11 @@ flowchart LR
 - [4.0.0 milestone roadmap](../../plans/4-0-0-milestone-roadmap.md) — the three-leg GA gate.
 - The docsite→doc-kitty and QA test-absorption tracks ride with their own epics/ADRs (to be
   filed); this ADR references them only.
+
+## Amendment 2026-10-13: two sibling entry-point seams, and a shrink-only activation baseline (#6188, #6099)
+
+D-1 and D-2 name one seam, `charter.offering.api`. The offering / activation split (ADR 2026-10-06-2 §1) means the charter has two independently extractable layers, so there are two sibling seams. The decisions above are unchanged; this note says how they apply.
+
+- **Two seams.** `charter.offering.api` is the seam for the offering layer. `charter.activation.api` is the seam for the activation layer. Each re-exports only its own layer's symbols, by object identity. `tests/architectural/test_charter_offering_does_not_import_activation.py` keeps the layers apart.
+- **The `charter.*` facades stay the in-tree door for offering.** `specify_cli` must not import `charter.offering.*`, `charter.offering.api` included (C-001, stated in the `charter.offering.api` docstring and ratcheted by `tests/architectural/test_runtime_charter_doctrine_boundary.py`). It reaches offering through the `charter.*` facades, which re-export the offering objects. `src/glossary` and `src/mission_runtime` are scanned by the same gate.
+- **A sanctioned exception to D-2.** 236 `(file, module)` reaches from `specify_cli`, `runtime`, `glossary` and `mission_runtime` into `charter.activation` internals existed when the activation seam was added. They are held as a shrink-only baseline (`tests/architectural/charter_activation_boundary_baseline.yaml`, count in `tests/architectural/_baselines.yaml`), owner #6099, drained onto `charter.activation.api` before the 4.0.0 GA gate. `tests/architectural/test_runtime_charter_activation_boundary.py` fails on a new reach and on a stale row, and it also covers the lazy `charter.<name>` root facade. This is a temporary, priced exception to "drain rather than allowlist", not a precedent.

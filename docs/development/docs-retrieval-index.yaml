@@ -3710,6 +3710,7 @@ pages:
     - {slug: "confirmation", text: "Confirmation", level: 3}
     - {slug: "target-topology", text: "Target topology", level: 2}
     - {slug: "more-information", text: "More Information", level: 2}
+    - {slug: "amendment-2026-10-13-two-sibling-entry-point-seams-and-a-shrink-only-activation-baseline-6188-6099", text: "Amendment 2026-10-13: two sibling entry-point seams, and a shrink-only activation baseline (#6188, #6099)", level: 2}
   - path: "docs/adr/4.x/2026-10-13-1-acceptance-scenarios-link-to-promises-by-identifier-only.md"
     title: "ADR: acceptance scenarios link to product promises by identifier only; core checks the scenario contract per pull request and hands on versioned evidence"
     divio_type: "none"
