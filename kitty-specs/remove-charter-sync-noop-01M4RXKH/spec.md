@@ -42,7 +42,7 @@ generated reference, skills, docs, emitted YAML header) and assert no live
 1. **Given** a project on 4.0.0rc7+, **When** the operator runs `spec-kitty charter sync`, **Then** the CLI exits non-zero with the standard unknown-command error (no bespoke no-op banner).
 2. **Given** the shipped CLI, **When** shell completion / `--help` / the generated CLI reference is produced, **Then** `charter sync` does not appear.
 3. **Given** `charter status` reports a stale charter, **When** the human readout is rendered, **Then** it does not direct the operator to `spec-kitty charter sync` (the deeper STALE-verdict rework stays with #4042).
-4. **Given** every other `charter` subcommand (`status`, `generate`, `synthesize`, `context`, `interview`, `lint`, `resynthesize`, `activate`, `preflight`, `bundle`, `pack`, `mission-type`), **When** it is invoked, **Then** its behaviour is byte-for-byte unchanged.
+4. **Given** every other `charter` subcommand (`status`, `generate`, `synthesize`, `context`, `interview`, `lint`, `resynthesize`, `activate`, `preflight`, `bundle`, `pack`, `mission-type`), **When** it is invoked, **Then** its behaviour is unchanged, except that `status` no longer prints the `charter sync` hint (Scenario 3) and now prints the freshness remediation when one exists.
 
 ### Edge Cases
 
