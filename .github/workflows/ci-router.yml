@@ -127,6 +127,9 @@ jobs:
       # Mission-state group (#5864): non-src, like contract_tools above; gates only `mission-state audit`.
       # Never in the unmatched loop.
       mission_state: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.mission_state }}
+      # Mission-manifest group (#6125): non-src, like mission_state above; gates no job BY DESIGN
+      # (select_modules fans it out to the charter/dossier/specify_cli_runtime modules). Never in the unmatched loop.
+      mission_manifest: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.mission_manifest }}
       # Acceptance-scenarios group (cli-acceptance-bdd-nightly, FR-012/C-005): non-src, like
       # mission_state above; gates no job BY DESIGN (seed CLI scenarios run in the nightly
       # acceptance-bdd job). Never in the unmatched loop.
@@ -197,15 +200,17 @@ jobs:
             charter:
               - 'src/charter/**'
               - 'src/specify_cli/charter_runtime/**'
-              # issue #6125: a mission-manifest edit must run the charter module per-PR. File-specific
-              # (never broad packs/built-in/missions/**). Verbatim the scrub `charter` roots.
-              - 'packs/built-in/missions/**/expected-artifacts.yaml'
             # issue #6125: dossier is a src-backed module (minted so tests/dossier runs per-PR);
-            # it also routes the file-specific mission-manifest glob (its consumer is
-            # dossier.ManifestRegistry). Globs verbatim the scrub `dossier` roots; because it is
-            # src-backed it joins the unmatched union and the heavy-battery `if:` below.
+            # globs verbatim the scrub `dossier` roots; src-backed, so it joins the unmatched
+            # union and the heavy-battery `if:` below.
             dossier:
               - 'src/specify_cli/dossier/**'
+            # issue #6125: mission-manifest group, NON-src (not in the unmatched loop, so a
+            # data-only manifest path can never mask an unmapped src/** change). File-specific
+            # (never broad packs/built-in/missions/**). Not a module: select_modules fans it out
+            # to charter + dossier + specify_cli_runtime (gate_selection.GROUP_MODULE_FANOUT).
+            # Gates no router job BY DESIGN; the module matrix is its per-PR executor.
+            mission_manifest:
               - 'packs/built-in/missions/**/expected-artifacts.yaml'
             agent:
               - 'src/specify_cli/agent_utils/**'

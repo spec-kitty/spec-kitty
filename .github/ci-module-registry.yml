@@ -148,14 +148,6 @@ modules:
   roots:
   - src/charter/**
   - src/specify_cli/charter_runtime/**
-  # issue #6125: a mission-manifest edit (packs/built-in/missions/<type>/expected-artifacts.yaml)
-  # is consumed by charter.activation (tests/charter, tests/charter_offering); route it to the
-  # charter module per-PR. File-specific on purpose (never the broad packs/built-in/missions/**,
-  # which _canonical_test_mirror would map to tests/missions). Non-src root, like the `ci` row's
-  # scripts/ci/** + .github/workflows/** — verbatim from the scrub group (test_registry_consumes_
-  # scrub_verbatim_no_divergent_rescrub) and the router filter (test_router_src_filters_derive_
-  # from_scrub_verbatim).
-  - packs/built-in/missions/**/expected-artifacts.yaml
   cov_targets:
   - charter
   - specify_cli.charter_runtime
@@ -216,15 +208,14 @@ modules:
 - module: dossier
   roots:
   - src/specify_cli/dossier/**
-  - packs/built-in/missions/**/expected-artifacts.yaml
   cov_targets:
   - specify_cli.dossier
   tier: standard
-  # issue #6125: minted so a dossier-source OR mission-manifest edit runs tests/dossier +
-  # tests/specify_cli/dossier per-PR. Previously nightly-only (out_of_matrix_test_dirs); a
-  # src/specify_cli/dossier/** edit used to force run-all yet still never ran tests/dossier
-  # (it was in no module's matrix). roots + cov_targets are VERBATIM from the scrub `dossier`
-  # group; the manifest glob is file-specific and non-src (like the `ci` row's non-src roots).
+  # issue #6125: minted so a dossier-source edit runs tests/dossier + tests/specify_cli/dossier
+  # per-PR. Previously nightly-only (out_of_matrix_test_dirs); a src/specify_cli/dossier/** edit
+  # used to force run-all yet still never ran tests/dossier (it was in no module's matrix).
+  # roots + cov_targets are VERBATIM from the scrub `dossier` group (src-only). A mission-manifest
+  # edit selects this module through gate_selection.py's GROUP_MODULE_FANOUT, not a root here.
   # shard_count=1: measured via scripts/ci/capture_shard_timings.py --module dossier --write
   # (committed == collected; inter-shard skew is trivially 0 at one shard, and the measured
   # local total projects well under module-tests.yml's 40m per-shard cap).

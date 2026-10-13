@@ -32,6 +32,7 @@ import yaml
 __all__ = [
     "DEFAULT_REGISTRY_PATH",
     "DEFAULT_ROUTER_PATH",
+    "GROUP_MODULE_FANOUT",
     "PROBE_GROUPS",
     "GateSelection",
     "Router",
@@ -48,6 +49,14 @@ DEFAULT_REGISTRY_PATH = _REPO_ROOT / ".github" / "ci-module-registry.yml"
 # ``src/**``), consumed only by the router's ``unmatched`` step. It is never a
 # routing group and is never gated on a job (contract Invariant 1).
 PROBE_GROUPS = frozenset({"any_src"})
+
+# Non-src routing groups that select registry modules they are not named after (#6125).
+# ``select_modules`` unions these modules in when the group matches. The group stays
+# non-src so it can never mask an unmapped ``src/**`` change (FR-004); every target must
+# be a registry module (pinned by tests/architectural/test_gate_selection_authority.py).
+GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
+    "mission_manifest": frozenset({"charter", "dossier", "specify_cli_runtime"}),
+}
 
 _GROUP_REF = re.compile(r"needs\.changes\.outputs\.([A-Za-z0-9_]+)")
 
@@ -313,5 +322,8 @@ def select_modules(
     if mode == "full" or selection.unmatched_src:
         return modules
     src_selected = selection.matched_groups & modules
+    for group, targets in GROUP_MODULE_FANOUT.items():
+        if group in selection.matched_groups:
+            src_selected = src_selected | (targets & modules)
     test_selected = _modules_for_test_paths(paths, router=router, registry_path=registry_path, modules=modules)
     return src_selected | test_selected

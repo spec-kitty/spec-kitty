@@ -225,6 +225,19 @@ def test_select_modules_selects_the_ci_module_on_ci_infra_change(router: Router)
     assert "ci" in select_modules([".github/workflows/ci-modules.yml"], router=router)
 
 
+def test_manifest_edit_cannot_mask_an_unmapped_src_change(router: Router) -> None:
+    """#6125 fail-closed: a data-only manifest path never masks unmapped ``src/**``.
+
+    The manifest glob rides a NON-src group, so it stays out of the ``unmatched``
+    union: manifest + a ``src/**`` path no named group owns is still run-all, not
+    the manifest's narrow module set.
+    """
+    unmapped = "src/specify_cli/__unmapped_probe__/thing.py"
+    manifest = "packs/built-in/missions/software-dev/expected-artifacts.yaml"
+    assert select_gates([unmapped, manifest], router=router).unmatched_src is True
+    assert select_modules([unmapped, manifest], router=router) == select_modules([], router=router, mode="full")
+
+
 def test_select_modules_single_src_group_selects_only_that_module(router: Router) -> None:
     """A change confined to one src group selects exactly that module."""
     selected = select_modules(["src/specify_cli/consolidation/executor.py"], router=router)

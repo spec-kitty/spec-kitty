@@ -315,7 +315,12 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
 #   acceptance-bdd job (NFR-004: 0 per-PR JDK cost), so no per-PR job may gate
 #   on them. They route (appear in the ``changes.outputs`` block) but are
 #   excluded from the ``unmatched`` union because they are non-src.
-_DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset({"any_src", "ci", "scenarios", "acceptance_jvm"})
+#
+# * ``mission_manifest`` (#6125) — the mission-manifest glob. Gates no router job
+#   BY DESIGN: ``select_modules`` fans it out to charter/dossier/specify_cli_runtime
+#   (``GROUP_MODULE_FANOUT``), so the module matrix is its per-PR executor. Pinned
+#   by tests/architectural/test_gate_selection_authority.py.
+_DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset({"any_src", "ci", "scenarios", "acceptance_jvm", "mission_manifest"})
 
 
 def test_every_literal_cov_target_is_live() -> None:
