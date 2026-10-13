@@ -674,9 +674,9 @@ The `--feature` → `--mission` rename has been a persistent source of regressio
 
 ## Charter Resolution Hints
 
-These declarations are read by the action-scoped governance resolver (surfaced via
-`spec-kitty charter context`, per FR-007 / FR-008 of mission
-`wp-prompt-governance-payload-01KRR8HS`) so that `spec-kitty charter context --action <name>`
+These declarations are mirrored in `charter.yaml`, which the action-scoped governance resolver
+reads (surfaced via `spec-kitty charter context`, per FR-007 / FR-008 of mission
+`wp-prompt-governance-payload-01KRR8HS`), so that `spec-kitty charter context --action <name>`
 does not need to fall back to runtime defaults. Keep this block up to date as the project adopts new
 template sets, tools, or authority directories.
 
