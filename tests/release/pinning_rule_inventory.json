@@ -1077,7 +1077,7 @@
       ],
       "form": "set-equality",
       "lines": [
-        114
+        117
       ],
       "dependency": true,
       "disposition": "none",
@@ -1092,7 +1092,7 @@
       ],
       "form": "derived-relation",
       "lines": [
-        459
+        462
       ],
       "dependency": false,
       "disposition": "none",
@@ -1107,7 +1107,7 @@
       ],
       "form": "path-anchored",
       "lines": [
-        444
+        447
       ],
       "dependency": false,
       "disposition": "none",
@@ -1122,7 +1122,22 @@
       ],
       "form": "derived-relation",
       "lines": [
-        355
+        358
+      ],
+      "dependency": false,
+      "disposition": "none",
+      "reason": "References only the host workflow, which SURVIVES the retirement (the job is removed, the file is not), and does so as a lookup or prose mention rather than as a claim about the file's contents. Nothing it asserts changes."
+    },
+    {
+      "rule": "tests/ci/test_mission_status_api_build.py::EXPECTED_PINS",
+      "file": "tests/ci/test_mission_status_api_build.py",
+      "scope": "EXPECTED_PINS",
+      "subjects": [
+        "retiring-host"
+      ],
+      "form": "docstring-or-comment",
+      "lines": [
+        846
       ],
       "dependency": false,
       "disposition": "none",
