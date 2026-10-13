@@ -39,6 +39,8 @@ from pathlib import Path
 import pytest
 import yaml
 
+from tests.architectural._ast_scan import parse_file
+
 pytestmark = [pytest.mark.architectural]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -135,12 +137,11 @@ def current_violators() -> set[tuple[str, str]]:
         if not root.exists():
             continue
         for path in sorted(root.rglob("*.py")):
-            try:
-                tree = ast.parse(path.read_text(encoding="utf-8"))
-            except SyntaxError:
-                continue
+            # Fail closed on an unparseable file via the canonical scanner helper
+            # (tests/architectural/test_scanner_parse_fail_closed.py forbids swallowing
+            # SyntaxError — a dropped file could hide a reach-through).
             visitor = _ActivationVisitor()
-            visitor.visit(tree)
+            visitor.visit(parse_file(path))
             for module in visitor.paths:
                 found.add((_rel(path), module))
     return found
