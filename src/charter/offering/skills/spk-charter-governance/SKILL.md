@@ -2,11 +2,11 @@
 name: spk-charter-governance
 description: >-
   Run Spec Kitty charter interview, generation, context loading, and
-  synchronization workflows for project governance. Access charter artifacts
+  status workflows for project governance. Access charter artifacts
   programmatically via ActiveCharterService. Resolve agent profiles. Load
   action-scoped governance context iteratively, not all at once.
   Triggers: "interview for charter", "generate charter",
-  "sync charter", "use doctrine", "set up governance",
+  "use doctrine", "set up governance",
   "charter status", "extract governance config", "load doctrine",
   "agent profile", "ActiveCharterService", "action index".
   Does NOT handle: generic spec writing not tied to governance, direct runtime

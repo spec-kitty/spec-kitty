@@ -1,6 +1,6 @@
 # Charter Governance Workflow (spk-charter-governance reference)
 
-Manage the charter lifecycle: interview, generate, context-load, sync,
+Manage the charter lifecycle: interview, generate, context-load,
 and status. Access doctrine artifacts programmatically via `ActiveCharterService`.
 Resolve agent profiles for role-scoped behavior. Load governance context
 iteratively at action boundaries rather than dumping everything upfront.
