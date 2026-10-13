@@ -10763,6 +10763,15 @@ pages:
     - {slug: "deterministic-gate-human-clarification", text: "Deterministic Gate, Human Clarification", level: 3}
     - {slug: "high-severity-block-rule", text: "High-Severity Block Rule", level: 3}
     - {slug: "human-in-charge-cross-reference", text: "Human-in-Charge (Cross-Reference)", level: 3}
+  - path: "docs/context/product-lines.md"
+    title: "Context: Spec Kitty Inc. Product Lines"
+    divio_type: "reference"
+    abstract: "Glossary context for the Spec Kitty Inc. product lines (Build Kitty, Brain Kitty, Team Kitty) and how they differ from the Spec Kitty toolkit and CLI."
+    anchors:
+    - {slug: "context-spec-kitty-inc-product-lines", text: "Context: Spec Kitty Inc. Product Lines", level: 2}
+    - {slug: "build-kitty", text: "Build Kitty", level: 3}
+    - {slug: "brain-kitty", text: "Brain Kitty", level: 3}
+    - {slug: "team-kitty", text: "Team Kitty", level: 3}
   - path: "docs/context/spec-driven.md"
     title: "Specification-Driven Development (SDD)"
     divio_type: "explanation"

@@ -2,7 +2,7 @@
 title: Context
 description: "Context section landing page: the unified home for Spec Kitty's canonical glossary contexts, the stakeholder/audience persona catalog, and the Charter governance model."
 doc_status: active
-updated: '2026-08-10'
+updated: '2026-10-13'
 audience: docs/context/audience/internal/system-architect.md
 type: explanation
 ---
@@ -34,6 +34,9 @@ root-level `glossary/` stub and the previously homeless context docs:
   schema every context page follows (folded from the root `glossary/` stub).
 - [Contextive Glossary Integration](contextive-glossaries.md) — how the context
   pages generate Contextive-compatible IDE hover glossaries.
+- [Spec Kitty Inc. Product Lines](product-lines.md) — Build Kitty and Brain Kitty (the
+  open-core producer lines) and Team Kitty (the consumer line, "Multiplayer Mode"),
+  distinct from the Spec Kitty toolkit and the SkyKitty fleet.
 - [Team Kitty and Zeitgeist](team-kitty.md) — the hosted product model:
   CLI → per-team Zeitgeist relay → Team Kitty Pulse, the canonical vocabulary
   (moment, relay, capability, admission), and why "sync" is a dead word.

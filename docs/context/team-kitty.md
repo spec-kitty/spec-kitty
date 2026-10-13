@@ -2,7 +2,7 @@
 title: 'Context: Team Kitty and Zeitgeist'
 description: "Glossary context for the hosted product: how the CLI, its Zeitgeist client, the per-team relay, and the Team Kitty SaaS fit together, and why 'sync' is a dead word."
 doc_status: active
-updated: '2026-10-08'
+updated: '2026-10-13'
 audience: docs/context/audience/internal/ai-collaboration-agent.md
 type: explanation
 related:
@@ -98,6 +98,8 @@ prefix kept for one live endpoint, stale docs, and comments. When you read
 Do not design against, extend, or "re-enable" sync.
 
 ## Canonical vocabulary
+
+For where Team Kitty sits among the Spec Kitty Inc. product lines (Build Kitty, Brain Kitty), see [Product Lines](product-lines.md).
 
 | Term | Meaning | Do not say |
 |---|---|---|
