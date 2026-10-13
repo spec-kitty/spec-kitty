@@ -480,6 +480,28 @@ def test_mismatched_mid8_retention_keeps_exactly_created_names(tmp_path: Path) -
     assert not _branch_exists(mission.repo_root, identity_form)
 
 
+def test_resume_reuses_persisted_cleanup_before_execution(tmp_path: Path) -> None:
+    """A resume without flags passes the original cleanup choices to the executor."""
+    mission = shape_mismatched_mid8(tmp_path)
+    save_state(
+        ConsolidationState(
+            mission_id=mission.mission_id,
+            mission_slug=mission.slug,
+            target_branch=mission.manifest.target_branch,
+            wp_order=_all_wp_ids(mission),
+            delete_branch=False,
+            remove_worktree=True,
+        ),
+        mission.repo_root,
+    )
+
+    with patch("specify_cli.consolidation.executor._run_lane_based_consolidation_locked") as execute, _run_real_merge(mission):
+        pass
+
+    assert execute.call_args.kwargs["delete_branch"] is False
+    assert execute.call_args.kwargs["remove_worktree"] is True
+
+
 # --------------------------------------------------------------------------- #
 # Old-form persisted tip record refuses a resume
 # --------------------------------------------------------------------------- #

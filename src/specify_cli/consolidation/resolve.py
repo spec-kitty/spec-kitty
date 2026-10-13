@@ -230,6 +230,8 @@ def _load_or_create_merge_state(
     push_requested: bool,
     skip_lanes: bool = False,
     strategy: str | None = None,
+    delete_branch: bool | None = None,
+    remove_worktree: bool | None = None,
 ) -> tuple[ConsolidationState, bool]:
     """Load canonical/legacy merge state, migrating legacy state to canonical.
 
@@ -276,6 +278,8 @@ def _load_or_create_merge_state(
         wp_order=wp_order,
         push_requested=push_requested,
         skip_lanes=skip_lanes,
+        delete_branch=delete_branch,
+        remove_worktree=remove_worktree,
     )
     if strategy is not None:
         state.strategy = strategy

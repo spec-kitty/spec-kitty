@@ -180,6 +180,10 @@ class ConsolidationState:
     updated_at: str = field(default_factory=now_utc_iso)
     mission_number_baked: bool = False  # WP04 — set True once mission_number is committed
     push_requested: bool = False  # WP02 — True when --push was passed at merge start
+    # Effective cleanup choices from the first attempt. None denotes a legacy
+    # state that predates persisted retention.
+    delete_branch: bool | None = None
+    remove_worktree: bool | None = None
     # #2786 / #2367-B FR-004: durable coord-strand reconcile marker. A plain dict
     # (NOT a nested dataclass) because ``from_dict`` rehydrates JSON objects as
     # dicts and drops unknown keys — so pre-existing state files that predate this

@@ -84,7 +84,7 @@ from specify_cli.consolidation.preflight import (
 )
 from specify_cli.consolidation import rollback
 from specify_cli.consolidation.push_preflight import _enforce_target_branch_sync_preflight
-from specify_cli.consolidation.resolve import _load_or_create_merge_state
+from specify_cli.consolidation.resolve import _load_merge_state_entry_for_mission, _load_or_create_merge_state
 from specify_cli.consolidation.state import (
     MergeLockError,
     ConsolidationState,
@@ -438,6 +438,8 @@ def _run_lane_based_consolidation_locked(
         push_requested=push,
         skip_lanes=skip_lanes,
         strategy=strategy.value,
+        delete_branch=delete_branch,
+        remove_worktree=remove_worktree,
     )
 
     # terminus-merge-integrity WP06 (C-1 wiring half / T029): reseed the manifest
@@ -692,6 +694,15 @@ def _warn_on_materialization_drift(feature_dir: Path, mission_slug: str) -> None
     console.print(f"Re-materialize it with [bold]spec-kitty agent status materialize --mission {escape(mission_slug)}[/bold] and commit the refreshed status.json.")
 
 
+def _resume_cleanup_choice(explicit: bool | None, persisted: bool | None, flag: str) -> bool | None:
+    """Reuse an interrupted run's cleanup choice, refusing a conflicting flag."""
+    if persisted is None:
+        return explicit
+    if type(persisted) is not bool or (explicit is not None and explicit != persisted):
+        raise ValueError(f"{flag} conflicts with the interrupted consolidation's cleanup choice; resume without that flag or abort first")
+    return persisted
+
+
 def _run_lane_based_consolidation(
     repo_root: Path,
     mission_slug: str,
@@ -810,6 +821,18 @@ def _run_lane_based_consolidation(
     # legacy missions without a backfilled ULID (NOT a mission_id field value).
     canonical_mission_id = identity.mission_id
     canonical_id = identity.mission_id if identity.mission_id is not None else mission_slug
+
+    existing_state = load_state(main_repo, canonical_id)
+    if existing_state is None:
+        legacy_entry = _load_merge_state_entry_for_mission(main_repo, mission_slug)
+        existing_state = legacy_entry[1] if legacy_entry is not None else None
+    if existing_state is not None:
+        try:
+            delete_branch = _resume_cleanup_choice(delete_branch, existing_state.delete_branch, "--delete-branch/--keep-branch")
+            remove_worktree = _resume_cleanup_choice(remove_worktree, existing_state.remove_worktree, "--remove-worktree/--keep-worktree")
+        except ValueError as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1) from exc
 
     # -- #3131 T007: resolve the retention decision ONCE, off primary_meta_dir --
     # (NOT the locked driver's coord STATUS husk — the partition trap). Emitted
