@@ -23,7 +23,15 @@
       "force_count": 1,
       "lane": "for_review",
       "last_event_id": "01M4S299MZ18462P1S3A6Y0MGB",
-      "last_transition_at": "2026-10-12T22:03:45.183214+00:00"
+      "last_transition_at": "2026-10-12T22:03:45.183214+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done"
+      }
     }
   }
 }
