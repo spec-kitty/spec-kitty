@@ -57,6 +57,7 @@ this section at publish._
 - **`spec-kitty doctor charter-packs` and the org lint cover glossary packs, skills and assets** (#5996). **Before:** they scanned only the eight original kinds. **After:** they scan every layered kind, so an existing org pack may surface new findings.
 
 ### Fixed
+- **Claude plugin bundle repair now works from the project root** (#5843). `doctor tool-surfaces --kind plugin-manifest --fix` skips informational unsupported native-config entries instead of treating `<unsupported>` as a source file; selected staging and validation give the same result from any working directory.
 - **`spec-kitty implement --recover` now works when a coordination mission's worktree has not been checked out** (#5410). Recovery materializes the declared local coordination branch before scanning status, then reports or repairs crashed sessions as usual.
 - **`consolidate --resume` preserves cleanup choices** (#5439). **Before:** resuming without `--keep-branch` could delete lane and mission branches kept by the interrupted run. **After:** resume reuses the original branch and worktree cleanup choices and refuses conflicting flags.
 

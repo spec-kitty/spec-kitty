@@ -205,6 +205,7 @@ BUNDLE_SURFACE_KINDS: frozenset[ToolSurfaceKind] = frozenset(
         ToolSurfaceKind.NATIVE_CONFIG,
     }
 )
+_NON_FILE_SENTINELS = frozenset({Path("<unsupported>"), Path("<not-applicable>")})
 
 # Inert placeholder manifest version. The manifest is a declarative descriptor;
 # its presence never triggers install/publish behaviour.
@@ -255,7 +256,7 @@ def bundle_entries_for_plans(
     for plan in plans:
         for instance in plan.instances:
             kind = instance.definition.kind
-            if kind not in bundle_kinds or instance.definition.activation_mode == ActivationMode.DISABLED:
+            if kind not in bundle_kinds or instance.definition.activation_mode == ActivationMode.DISABLED or instance.path in _NON_FILE_SENTINELS:
                 continue
             if not _within_project(instance.path, project_root):
                 continue

@@ -176,6 +176,34 @@ def test_canonical_selected_bundle_exact_effects_and_read_only_assessment(
     assert_unchanged(settled, snapshot({"project": project, "home": Path.home()}))
 
 
+def test_claude_bundle_selection_and_repair_ignore_unsupported_native_config_from_any_cwd(
+    tmp_path: Path,
+    canonical_bundle_tree: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from specify_cli.core.agent_config import AgentConfig, save_agent_config
+
+    project = tmp_path / "project"
+    shutil.copytree(canonical_bundle_tree, project)
+    save_agent_config(project, AgentConfig(available=["claude"], auto_commit=False))
+    provider = PluginBundleProvider()
+
+    monkeypatch.chdir(tmp_path)
+    outside = _selected(provider, project)
+    assert outside.complete and outside.effects, outside.diagnostics
+
+    monkeypatch.chdir(project)
+    inside = _selected(provider, project)
+    assert inside.complete and inside.effects, inside.diagnostics
+    assert inside.effects == outside.effects
+    assert all("<unsupported>" not in effect.path for effect in inside.effects)
+
+    result = provider.apply(inside, inside.consent)
+    assert result.outcome == "applied", result
+    assert _selected(provider, project).complete
+    assert not _selected(provider, project).effects
+
+
 def test_canonical_multi_harness_profile_conflict_is_read_only(tmp_path: Path, canonical_bundle_tree: Path) -> None:
     from tests.upgrade.preview_support.snapshot import assert_unchanged, snapshot
 
