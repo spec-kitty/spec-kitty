@@ -34,7 +34,7 @@
       "--json"
     ],
     "exit_code": 1,
-    "expected_stdout": "{\"error\": \"Invalid status 'shipped'. Must be 'done' or 'pending'.\"}\n"
+    "expected_stdout": "{\"error\": \"Invalid status 'shipped'. Must be 'done', 'pending', 'skipped', or 'not_applicable'.\"}\n"
   },
   "status_success_indent2": {
     "site": "tasks.py:1235 status/success (indent=2 _StatusRender, printed at :4117)",
