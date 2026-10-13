@@ -47,7 +47,6 @@ __all__ = [
     "Accepted",
     "Rejected",
     "RefVerdict",
-    "kinds_for",
     "parse",
     "canonical",
     "find_all",
@@ -78,14 +77,14 @@ _KIND_ALT: str = "FR|NFR|SC|C"
 _RESEARCH_KINDS: tuple[str, ...] = ("DR", "AR", "QR")
 
 
-def kinds_for(mission_type: str = "software-dev") -> frozenset[str]:
+def _kinds_for(mission_type: str = "software-dev") -> frozenset[str]:
     """Requirement kinds admitted by this Mission type."""
     kinds = frozenset(("FR", "NFR", "SC", "C"))
     return kinds | frozenset(_RESEARCH_KINDS) if mission_type == "research" else kinds
 
 
 def _kind_alt(mission_type: str) -> str:
-    allowed = kinds_for(mission_type)
+    allowed = _kinds_for(mission_type)
     return "|".join(kind for kind in (*_KIND_ALT.split("|"), *_RESEARCH_KINDS) if kind in allowed)
 
 
