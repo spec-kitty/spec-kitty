@@ -107,8 +107,8 @@ tests/
 
 ### IC-02 — Native `agent` finalize-tasks gate + cooperative lock
 
-- **Purpose**: Wrap native `agent mission finalize-tasks` and `agent tasks finalize-tasks` (when `api_authoring_enabled`) in `design.validation.finalization_scope`, matching the orchestrator-api `tasks` verb — enforcing `validate_stage("tasks")` and acquiring `authoring_lock`.
+- **Purpose**: Wrap native `agent mission finalize-tasks` (when `api_authoring_enabled`) in `design.validation.finalization_scope` (via `native_finalization_scope`; `agent tasks finalize-tasks` is deliberately not wrapped: it needs a hand-authored `tasks.md` the API-authoring flow never produces, so it is not a bypass surface), matching the orchestrator-api `tasks` verb — enforcing `validate_stage("tasks")` and acquiring `authoring_lock`.
 - **Relevant requirements**: FR-004, FR-005; NFR-001; C-001, C-003.
-- **Affected surfaces**: `src/specify_cli/cli/commands/agent/tasks_finalize.py`, `src/specify_cli/cli/commands/agent/mission_finalize.py`.
+- **Affected surfaces**: `src/specify_cli/cli/commands/agent/mission_finalize.py` (`tasks_finalize.py` intentionally untouched).
 - **Sequencing/depends-on**: may follow IC-01 (independent, but IC-01 establishes the test fixture pattern).
 - **Risks**: success-gated receipt re-stamp must mirror the api verb exactly; non-API-authored missions must stay byte-identical; `finalize-tasks` writes status directly — must not become a second status authority.
