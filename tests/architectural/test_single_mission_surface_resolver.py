@@ -352,6 +352,37 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
     # remains and the entry was removed to keep this guard precise
     # (``test_allowlist_entries_are_not_stale``).  The slug guard survives: the
     # helper still calls ``assert_safe_path_segment`` before consulting the seam.
+    # ----- command_target.py: #6142 declaration-first command-entry producer -----
+    # ``resolve_command_repo_target`` reads the PRIMARY mission dir's meta.json
+    # ``target_branch`` declaration. It is intentionally topology-blind: the
+    # ``target_branch`` declaration lives only in the primary ``meta.json`` (the
+    # SAME rationale as ``get_feature_target_branch`` / ``resolve_merge_target_branch``,
+    # which also read the primary surface rather than a topology-aware candidate).
+    # ``assert_safe_path_segment(mission_slug)`` is called at the top of the
+    # function, before this join; ``primary_root`` is
+    # ``get_main_repo_root``/``resolve_canonical_root``-collapsed; the composed
+    # ``feature_dir`` feeds only the read-only ``read_target_branch_from_meta``
+    # (no mutating FS sink). Routing a fuzzy handle through the canonical
+    # ``_canonicalize_primary_read_handle`` is deferred to #6152 (the entry's
+    # contract requires callers pass the resolved dir name).
+    ContentDescriptor(
+        rel_path="specify_cli/core/command_target.py",
+        qualname="resolve_command_repo_target",
+        token_substring="feature_dir = primary_root / KITTY_SPECS_DIR / mission_slug",
+        occurrence=None,
+        rationale=(
+            "TBYD — #6142 declaration-first command-entry producer: resolves the "
+            "PRIMARY mission dir to read its meta.json target_branch declaration, "
+            "intentionally topology-blind (the target_branch declaration lives only in "
+            "the primary meta.json, same rationale as get_feature_target_branch / "
+            "resolve_merge_target_branch). assert_safe_path_segment(mission_slug) is "
+            "called at the top of resolve_command_repo_target, before this join; "
+            "primary_root is get_main_repo_root/resolve_canonical_root-collapsed; the "
+            "composed feature_dir feeds only the read-only read_target_branch_from_meta "
+            "(no mutating sink). Routing a fuzzy handle through the canonical "
+            "_canonicalize_primary_read_handle is deferred to #6152."
+        ),
+    ),
 )
 
 
