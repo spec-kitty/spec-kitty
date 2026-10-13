@@ -16,17 +16,18 @@ Sliced by surface; each independently reviewable. Status reflects this mission's
   no-offering-leak). 50 passed. ✅
 - **S4 — Activation seam: enforcing boundary gate (shrink-only).** New
   `test_runtime_charter_activation_boundary.py` + `charter_activation_boundary_baseline.yaml`
-  (236 pre-existing reaches frozen; new FAIL / drained WARN) + `_baselines.yaml` leaf +
+  (236 pre-existing reaches frozen; new FAIL / drained (stale) FAIL) + `_baselines.yaml` leaf +
   `test_ratchet_baselines.py` `_SIZE_RATCHETS` row. 3 passed. ✅
 - **S5 — First activation drain tranche.** Repoint the 11
   `charter.activation.mission_type_key` consumers onto `charter.activation.api`. ✅
 
 ## Staged follow-on (owner: epic #6099 — the extraction)
 
-- **Drain the remaining 235 activation-internal reaches** onto `charter.activation.api`,
-  growing the seam tranche by tranche (`pack_context` 29, `layer_roots` 18,
-  `mission_type_profiles` 14, `charter_yaml_io` 12, `compiler`/`kind_vocabulary` 10 each, the
-  `synthesizer.*` cluster, …), lowering the `_baselines.yaml` count each time, until the
+- **Drain the 236 baselined activation-internal reaches** (`(file, module)` pairs across 81 files) onto `charter.activation.api`,
+  growing the seam tranche by tranche (`pack_context` 25 pairs, `layer_roots` 18,
+  `mission_type_profiles` 13, `charter_yaml_io` 12, `compiler` and
+  `active_charter_service_builder` 10 each, `kind_vocabulary` and `invocation_context` 9 each, the
+  `synthesizer.*` cluster 33 across 20 modules, …), lowering the `_baselines.yaml` count each time, until the
   baseline is empty and the gate's non-exempt set closes to zero.
 - **Drain the offering seam's ticketed residuals** (#3179/#2173/#3593): the 11 lazy
   `charter.offering.*` reaches (sole-door service, override_policy, operating_procedures,

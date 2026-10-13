@@ -89,7 +89,7 @@ key with the wrong type. Raised by `mission create`, the `charter` commands
 and the runtime prompt builders; with `--json` the code is the payload's
 error code.
 
-**Replaces**: the code this error carried before #3732 (ADR 2026-10-06-1
+**Replaces**: the code this error carried before #3732 (ADR 2026-10-06-2
 section 1; the changelog Before/After names it). No alias is accepted.
 
 **JSON stability**: this code string is stable across minor releases; consumers

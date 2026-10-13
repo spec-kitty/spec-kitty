@@ -16,7 +16,7 @@ for the charter extraction (epic #6099); it is the import-decoupling only, not t
 
 ## Acceptance (this mission)
 
-- **Two seams, kept split** (ADR `2026-10-06-1` §1): offering → `charter.offering.api` + the
+- **Two seams, kept split** (ADR `2026-10-06-2` §1): offering → `charter.offering.api` + the
   `charter.*` offering facades; activation → new `charter.activation.api`. Neither seam fronts
   the other layer's symbols.
 - **Offering seam enforced for every external consumer.** The boundary gate
@@ -27,7 +27,7 @@ for the charter extraction (epic #6099); it is the import-decoupling only, not t
   the curated identity-re-export entry point (first tranche: the mission-type-key access
   cluster). A new boundary gate `test_runtime_charter_activation_boundary.py` forbids external
   consumers from importing `charter.activation` internals except via the seam, with the 236
-  pre-existing reaches frozen as a shrink-only baseline (new reaches FAIL; drained reaches WARN)
+  pre-existing reaches frozen as a shrink-only baseline (new reaches FAIL; stale rows FAIL, so the ratchet is shrink-only)
   governed through `_baselines.yaml` (owner: epic #6099).
 - **First drain tranche landed:** the 11 `charter.activation.mission_type_key` consumers are
   repointed onto `charter.activation.api`.
@@ -49,6 +49,6 @@ The issue's literal "route specify_cli onto `charter.offering.api`" is incompati
 gate-enforced facade architecture (`charter.offering.api` is a facade/wheel door, not a
 `specify_cli` door — C-001) and cannot host the activation surface. The operator steer resolves
 it: give **each** layer its own entry-point seam, kept split. The dominant coupling is
-`→ charter.activation` internals (253 reaches), so the activation seam is the load-bearing new
+`→ charter.activation` internals (236 `(file, module)` pairs across 81 files), so the activation seam is the load-bearing new
 work; the offering seam already exists and only needed its enforcement widened to all consumers.
 Full reconciliation in the three committed grounding docs.

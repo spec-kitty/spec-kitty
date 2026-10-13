@@ -1,6 +1,6 @@
 """Retired charter pack fields and their ``RETIRED_PACK_FIELD`` rejection (#3732).
 
-The charter-pack cutover (ADR 2026-10-06-1) removes some fields from pack files
+The charter-pack cutover (ADR 2026-10-06-2) removes some fields from pack files
 outright, with no alias (C-001). A file that still carries one is rejected with
 the code :data:`RETIRED_PACK_FIELD`, naming the field and its replacement, instead
 of pydantic's generic "extra fields not permitted" error (``contracts/errors.md``).

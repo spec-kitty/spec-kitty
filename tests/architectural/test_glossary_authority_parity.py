@@ -61,7 +61,7 @@ _CANONICAL_GOVERNING_SURFACE = "charter"
 
 #: T004's required Terminology-Canon senses for the new ``### charter`` entry
 #: (plan.md Slice 4 / mission prompt bullet 4).
-#: Mission charter-pack-cutover-01M491G6 (FR-013, ADR 2026-10-06-1 §1) retires the
+#: Mission charter-pack-cutover-01M491G6 (FR-013, ADR 2026-10-06-2 §1) retires the
 #: "Pack Default Charter" sense in favour of the activation preset and adds the
 #: active charter; the entry must name both instead.
 _REQUIRED_CHARTER_CANON_SENSES: tuple[str, ...] = (

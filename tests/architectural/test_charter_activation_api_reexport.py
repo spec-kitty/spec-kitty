@@ -12,7 +12,7 @@ offering seam's identity gate). It pins three invariants on the activation seam
    exactly the enumerated contract.
 3. **Split from offering** — the activation seam re-exports ONLY
    ``charter.activation`` symbols, never a ``charter.offering`` one. Offering and
-   activation are separate extractable units (ADR ``2026-10-06-1`` §1); an offering
+   activation are separate extractable units (ADR ``2026-10-06-2`` §1); an offering
    symbol belongs on ``charter.offering.api`` / the ``charter.*`` offering facades,
    never here.
 

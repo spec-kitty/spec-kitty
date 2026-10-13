@@ -2,7 +2,7 @@
 
 ## Architecture
 
-Two independent module entry-point seams, kept split (ADR `2026-10-06-1` §1), so each layer's
+Two independent module entry-point seams, kept split (ADR `2026-10-06-2` §1), so each layer's
 internals are swappable/extractable behind a stable import surface:
 
 ```
@@ -32,8 +32,8 @@ touching a consumer. Each seam is guarded by:
   `charter.drg` facade (identity-preserved) and add `glossary` + `mission_runtime` to the scan.
 - **Activation seam is new.** Activation was built "no eager re-exports — import submodules
   directly", which is exactly what blocks extraction. Introduce `charter.activation.api` as the
-  single seam; because 253 pre-existing internal reaches exist, enforce with a **shrink-only
-  baseline ratchet** (new reaches FAIL, drained WARN) governed through `_baselines.yaml`, and
+  single seam; because 236 pre-existing internal `(file, module)` reaches exist, enforce with a **shrink-only
+  baseline ratchet** (new reaches FAIL, stale rows FAIL) governed through `_baselines.yaml`, and
   drain tranche by tranche (owner #6099). First tranche: the mission-type-key access cluster.
 - **Do NOT widen `charter.offering.api`** — the charter-blessed design prefers facade doors over
   api widening (DISPOSITION manifest; `scope-c-public-contract-delta.md`). The seam pattern is
@@ -50,4 +50,4 @@ notice thereafter. Collision watch: sibling run #6164 (hosted/sync removal) dele
 - mypy-strict `Any`-leak (#4188): seam uses explicit `X as X` re-exports; mypy verified clean on
   the seam + repointed consumers.
 - Gate baseline correctness: the activation baseline is generated from the gate's own predicate,
-  so gate and baseline match by construction; growth-fails/shrink-warns tolerates over-inclusion.
+  so gate and baseline match by construction; growth fails and a stale row fails, so over-inclusion is caught.

@@ -1,7 +1,7 @@
 """External consumers reach the charter **activation** layer only through its seam.
 
 Companion to :mod:`tests.architectural.test_runtime_charter_doctrine_boundary` (the
-offering seam). The offering / activation split (ADR ``2026-10-06-1`` §1) means each
+offering seam). The offering / activation split (ADR ``2026-10-06-2`` §1) means each
 layer is an independently extractable unit behind its *own* module entry-point seam:
 
 * offering seam  -> ``charter.offering.api`` + the ``charter.*`` offering facades

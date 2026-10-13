@@ -1,7 +1,7 @@
 """FR-018 / SC-003 gate: the retired charter vocabulary stays off the living surfaces (#3732).
 
 Mission ``charter-pack-cutover-01M491G6`` retired the "doctrine pack" vocabulary
-for the three names of ADR ``2026-10-06-1`` (charter pack, active charter, charter
+for the three names of ADR ``2026-10-06-2`` (charter pack, active charter, charter
 offering). This gate keeps the retired spellings from coming back on a living
 surface. Every list below is closed and restates spec FR-018 ("FR-018 closed
 lists"): no token, root or file may be added without a spec change.

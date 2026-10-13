@@ -64,7 +64,7 @@ class ActiveCharterConfigError(KittyInternalConsistencyError):
     """Raised when the active charter configuration has an invalid shape.
 
     The active charter configuration is ``.kittify/config.yaml`` or the
-    ``charter.yaml`` it points to (#3732, ADR 2026-10-06-1 section 1).
+    ``charter.yaml`` it points to (#3732, ADR 2026-10-06-2 section 1).
     """
 
     def __init__(self, body: str) -> None:
