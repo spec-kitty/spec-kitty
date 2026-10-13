@@ -26,7 +26,7 @@ An **activation preset** is a named set of activations that a pack ships, applie
 The **active charter** is what your project has activated (`activated_<kind>` keys, `activated_kinds`, `mission_type_activations`).
 The older "doctrine" names are removed, not deprecated: the `spec-kitty doctrine` command group, the `doctrine.*` and `organisation_packs` config keys, the `.kittify/doctrine/` directory, the `spk-doctrine-*` skills and their older `spec-kitty-*` twins.
 There are no aliases. An old command fails as an unknown command (exit 2), and an old project layout stops every command until you run `spec-kitty upgrade` once.
-The glossary entries are in [docs/context/charter.md](../context/charter.md); the full list of renamed names is in the [changelog](../changelog/CHANGELOG.md) and in [Saved scripts](#saved-scripts) below.
+The glossary entries are in [docs/context/charter.md](../context/charter.md); the full list of renamed names is in [Saved scripts](#saved-scripts) below.
 
 ## Operators
 
@@ -238,4 +238,23 @@ Text mode prints coded errors as `Error (<CODE>): <message>`; `--json` mode prin
 
 ### Python callers
 
-If you import Spec Kitty internals, see the changelog's "Charter pack cutover" entries for renamed classes and modules (for example `CharterPackManager` → `ActiveCharterManager`, `DoctrineService` → `CharterOfferingService` / `ActiveCharterService`, `specify_cli.doctrine` → `charter.offering.packs`, `charter.activation` and `specify_cli.charter_packs`).
+These Python names changed, with no re-export alias. Update imports if you use Spec Kitty as a library.
+
+| Old | New |
+|---|---|
+| `CharterPackManager` | `ActiveCharterManager` |
+| `CharterPackConfigError` | `ActiveCharterConfigError` |
+| `DefaultCharterPackMissingError` | `DefaultPresetMissingError` |
+| `DoctrineService` | `CharterOfferingService` (offering) or `ActiveCharterService` (activation-aware) |
+| `DoctrineCatalog`, `load_doctrine_catalog` | `OfferingCatalog`, `load_offering_catalog` |
+| `DoctrineSelectionConfig` | `GovernanceCharterConfig` |
+| `resolve_doctrine_root` | `resolve_offering_root` |
+| `build_activation_aware_doctrine_service` | `build_active_charter_service` |
+| keyword `doctrine_service=` on `compile_charter` and related functions | `charter_service=` |
+| `BaseDoctrineRepository` | `BaseArtifactRepository` |
+| `DoctrineLayerCollisionWarning`, `DoctrineArtifactLoadError`, `DoctrineResolutionCycleError` | `ArtifactLayerCollisionWarning`, `ArtifactLoadError`, `ArtifactResolutionCycleError` |
+| `OrgDoctrineSource` | `OrgCharterPackSource` |
+| `specify_cli.doctrine` | `charter.offering.packs`, `charter.activation` and `specify_cli.charter_packs` |
+| `doctrine_service_builder`, `action_doctrine_bundle`, `kernel.doctrine_root`, `specify_cli.doctrine_synthesizer` | `active_charter_service_builder`, `action_governance_bundle`, `kernel.charter_pack_paths`, `specify_cli.charter_pack_synthesizer` |
+
+Removed outright: the `charter.activation.default_pack` module, `BUILTIN_PACKS`, `MissingDoctrinePackError`, `LegacyDoctrineRootWarning`, `LegacyTrackerOwnershipKeyWarning` and `apply_legacy_governance_selection_key_compat`.
