@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.core.toml_table import write_toml_table_key
+from specify_cli.core.toml_table import UnreadableTomlTableError, write_toml_table_key
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -46,12 +46,39 @@ class TestWriteTomlTableKey:
 
         assert _read(path)["hosted"]["drain"] is True  # type: ignore[index]
 
-    def test_default_strict_false_tolerates_a_corrupt_file(self, tmp_path: Path) -> None:
+    def test_default_strict_false_refuses_a_present_but_unparseable_file(self, tmp_path: Path) -> None:
+        # Regression for #5451: the non-strict default must NOT start from an
+        # empty document and overwrite a present-but-unparseable file wholesale
+        # (that silently dropped every other table/key, e.g. ``[sync].server_url``).
+        # It now refuses and leaves the file byte-for-byte unchanged.
         path = tmp_path / "config.toml"
-        path.write_text("not [ valid toml")
+        original = b'[sync]\nserver_url = "http://127.0.0.1:9"\n\n[moments]\nkinds = ["WPStatusChanged"\n'
+        path.write_bytes(original)
 
-        write_toml_table_key(path, table="hosted", key="drain", value=True)
+        with pytest.raises(UnreadableTomlTableError):
+            write_toml_table_key(path, table="moments", key="agents", value="team")
 
+        assert path.read_bytes() == original
+
+    def test_default_strict_false_refuses_an_unreadable_file(self, tmp_path: Path) -> None:
+        # A present-but-unreadable file (an OSError other than FileNotFoundError,
+        # here a directory in the file's place) is also refused, never treated
+        # as an empty document to overwrite.
+        path = tmp_path / "config.toml"
+        path.mkdir()
+
+        with pytest.raises(UnreadableTomlTableError):
+            write_toml_table_key(path, table="hosted", key="drain", value=True)
+
+    def test_default_strict_false_still_writes_a_missing_file(self, tmp_path: Path) -> None:
+        # A genuinely absent file has nothing to preserve, so starting from an
+        # empty document and writing is correct -- the absent-vs-unparseable
+        # distinction the #5451 fix draws.
+        path = tmp_path / "nested" / "config.toml"
+
+        written = write_toml_table_key(path, table="hosted", key="drain", value=True)
+
+        assert written == path
         assert _read(path) == {"hosted": {"drain": True}}
 
     def test_strict_raises_on_a_corrupt_file_and_leaves_bytes_unchanged(self, tmp_path: Path) -> None:

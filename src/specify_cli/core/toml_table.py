@@ -21,7 +21,18 @@ from typing import Any
 import tomllib
 import tomli_w
 
-__all__ = ["write_toml_table_key"]
+__all__ = ["UnreadableTomlTableError", "write_toml_table_key"]
+
+
+class UnreadableTomlTableError(RuntimeError):
+    """An existing TOML file could not be read or parsed.
+
+    Raised by :func:`write_toml_table_key` in non-strict mode instead of
+    silently starting from an empty document and overwriting the file
+    wholesale -- that would drop every other table and key the file carries
+    (e.g. ``[sync].server_url`` / ``[hosted] drain``). Refusing preserves the
+    data; the caller can surface the actionable message and leave the file be.
+    """
 
 
 def write_toml_table_key(
@@ -36,30 +47,35 @@ def write_toml_table_key(
     key and table in the document, via an atomic load-mutate-dump-rename
     cycle. Returns ``path``.
 
-    A missing file always starts from an empty document -- there is nothing
-    to preserve. An existing file that ``tomllib`` cannot parse, or cannot be
-    read for another OS-level reason, is handled according to ``strict``:
+    A missing file (``FileNotFoundError``) always starts from an empty
+    document -- there is nothing to preserve. An existing file that
+    ``tomllib`` cannot parse, or cannot be read for another OS-level reason,
+    must NOT start from ``{}``: the whole-file rewrite below would then drop
+    every other table and key. Both modes refuse rather than destroy data:
 
-    * ``strict=False`` (the default, used by
-      ``moments.write_agents_mode``): the rewrite starts from an empty
-      document, exactly matching that function's historical behaviour --
-      today's callers accept losing an unreadable file's other keys in
-      exchange for never raising on a corrupt preference file.
-    * ``strict=True``: the same condition raises instead, and nothing is
-      written. This is for a caller whose file also carries state it must
-      never silently drop by starting over from ``{}`` (e.g. the personal
-      ``config.toml``'s ``[sync].server_url`` -- see
-      ``hosted_posture.set_personal_drain``).
+    * ``strict=True``: re-raises the original ``tomllib.TOMLDecodeError`` /
+      ``OSError`` and writes nothing. Used by a caller whose file carries
+      state it must never silently drop (e.g. the personal ``config.toml``'s
+      ``[sync].server_url`` -- see ``hosted_posture.set_personal_drain``).
+    * ``strict=False`` (the default, used by ``moments.write_agents_mode``):
+      raises :class:`UnreadableTomlTableError` with an actionable message and
+      writes nothing. This replaces the historical behaviour of starting from
+      an empty document and overwriting the file wholesale, which silently
+      destroyed the file's other keys with no backup (#5451).
     """
     try:
         with path.open("rb") as fh:
             document: dict[str, Any] = tomllib.load(fh)
     except FileNotFoundError:
         document = {}
-    except (tomllib.TOMLDecodeError, OSError):
+    except (tomllib.TOMLDecodeError, OSError) as error:
         if strict:
             raise
-        document = {}
+        raise UnreadableTomlTableError(
+            f"{path}: existing TOML config is unreadable and cannot be safely "
+            f"rewritten without losing its other keys ({error}). "
+            "Fix or remove the file, then retry."
+        ) from error
 
     section = document.get(table)
     section = dict(section) if isinstance(section, Mapping) else {}
