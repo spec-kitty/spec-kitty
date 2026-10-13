@@ -1316,6 +1316,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-10-13-1-acceptance-scenarios-link-to-promises-by-identifier-only.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/index.md
   tag: current
   divio_type: explanation
@@ -1667,6 +1673,12 @@
 - path: docs/architecture/README.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/acceptance-scenario-contract.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null

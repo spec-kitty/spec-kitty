@@ -26,6 +26,8 @@
   href: status-model.md
 - name: Mission Transition Gates
   href: mission-gates.md
+- name: Acceptance Scenario Contract
+  href: acceptance-scenario-contract.md
 - name: Runtime Loop
   href: runtime-loop.md
 - name: AI Agent Architecture

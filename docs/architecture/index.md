@@ -46,6 +46,7 @@ cycle is 4.0.0; see the [4.0.0 milestone roadmap](../plans/4-0-0-milestone-roadm
 - [Zeitgeist publisher and lease identity](zeitgeist-session-identity.md) — logical agents, SaaS leases, and relay session references.
 - [Kanban workflow](kanban-workflow.md) — the nine lanes and their transitions.
 - [Mission transition gates](mission-gates.md) — the declarative, asset-backed, trust-gated model for the checks that guard lane transitions.
+- [The acceptance scenario contract](acceptance-scenario-contract.md) — how scenarios link to product promises by identifier only, the per-PR scenario check, and the nightly evidence bundle.
 - [The runtime loop](runtime-loop.md) — how `spec-kitty next` inverts control.
 - [AI agent architecture](ai-agent-architecture.md) — how Spec Kitty stays agent-agnostic across the 17 supported agents.
 - [Why the Divio documentation system?](divio-documentation.md) — tutorials/how-to/reference/explanation mapping.
