@@ -894,6 +894,41 @@ class _FinalizeRequirementGates:
     dep_resolution: _DependencyResolution
 
 
+def _finish_outline_validation_if_applicable(
+    gates: _FinalizeRequirementGates,
+    mission_slug: str,
+    *,
+    validate_only: bool,
+    json_output: bool,
+) -> bool:
+    """Validate a manifest-only outline before tasks-packages writes WP prompts."""
+    if gates.wp_files or gates.wps_manifest is None:
+        return False
+    if not validate_only:
+        error_msg = "WP prompt files are required to finalize tasks; run tasks-packages first"
+        if json_output:
+            _emit_json({"error": error_msg})
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
+        raise typer.Exit(1)
+    if json_output:
+        _emit_json(
+            {
+                "result": "validation_passed",
+                "validation_stage": "tasks-outline",
+                "mission_slug": mission_slug,
+                "wp_count": len(gates.wps_manifest.work_packages),
+                "validate_only": True,
+                "dependencies_parsed": gates.dep_resolution.wp_dependencies,
+                "requirement_refs_parsed": gates.dep_resolution.wp_requirement_refs,
+                **gates.dep_resolution.requirement_diagnostics,
+            }
+        )
+    else:
+        console.print("tasks-outline manifest validation passed; WP prompt validation runs after tasks-packages")
+    return True
+
+
 def _run_finalize_validation_gates(
     ctx: _FinalizeContext,
     target_branch: str,
@@ -953,6 +988,8 @@ def _run_finalize_validation_gates(
 
     wp_files = list(tasks_dir.glob("WP*.md"))
     wp_ids = _extract_wp_ids_from_task_files(wp_files)
+    if not wp_files and wps_manifest is not None:
+        wp_ids = [entry.id for entry in wps_manifest.work_packages]
     dep_resolution.requirement_diagnostics = _validate_requirement_mapping(
         wp_ids,
         dep_resolution.wp_requirement_refs,
@@ -1390,6 +1427,9 @@ def finalize_tasks(
         tasks_dir = req_gates.tasks_dir
         functional_spec_requirement_ids = req_gates.functional_spec_requirement_ids
         preexisting_primary_files = req_gates.preexisting_primary_files
+
+        if _finish_outline_validation_if_applicable(req_gates, mission_slug, validate_only=validate_only, json_output=json_output):
+            return
 
         # #5100 / planning-refresh: a --refresh-planning-commit run is a
         # primary-only lanes.json pin write, so every frontmatter/tasks.md

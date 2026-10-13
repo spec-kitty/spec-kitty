@@ -201,6 +201,13 @@ Rules:
 
 **DO NOT generate WP prompt files in this step.** That happens in the next step.
 
+### 7. Validate the outline
+
+Run `spec-kitty agent mission finalize-tasks --validate-only --mission <mission-slug> --json`.
+With no WP prompt files yet, this checks requirement refs and dependencies from
+`wps.yaml` and reports `validation_stage: tasks-outline`. Full WP prompt,
+ownership, and lane validation runs after `tasks-packages`.
+
 ## Output
 
 After completing this step:

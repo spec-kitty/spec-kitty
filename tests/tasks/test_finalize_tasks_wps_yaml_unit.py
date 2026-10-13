@@ -155,6 +155,44 @@ def _invoke_finalize_tasks(
 class TestFinalizTasksWithWpsYaml:
     """Tests for wps.yaml tier-0 integration in finalize-tasks (FR-006, FR-007, FR-011, FR-012)."""
 
+    def test_outline_validates_manifest_refs_before_wp_prompts_exist(self, tmp_path: Path) -> None:
+        feature_dir = _build_feature_with_wps_yaml(
+            tmp_path,
+            "work_packages:\n  - id: WP01\n    title: Test\n    dependencies: []\n    requirement_refs: [FR-001]\n",
+        )
+        (feature_dir / "tasks" / "WP01-test.md").unlink()
+
+        result = _invoke_finalize_tasks(tmp_path, feature_dir, extra_args=["--validate-only"])
+
+        assert result.exit_code == 0, result.stdout
+        assert '"validation_stage": "tasks-outline"' in result.stdout
+        assert '"WP01": ["FR-001"]' in result.stdout
+
+    def test_outline_rejects_unmapped_manifest_refs(self, tmp_path: Path) -> None:
+        feature_dir = _build_feature_with_wps_yaml(
+            tmp_path,
+            "work_packages:\n  - id: WP01\n    title: Test\n    dependencies: []\n    requirement_refs: []\n",
+        )
+        (feature_dir / "tasks" / "WP01-test.md").unlink()
+
+        result = _invoke_finalize_tasks(tmp_path, feature_dir, extra_args=["--validate-only"])
+
+        assert result.exit_code == 1
+        assert '"missing_requirement_refs_wps": ["WP01"]' in result.stdout
+        assert '"unmapped_functional_requirements": ["FR-001"]' in result.stdout
+
+    def test_finalization_requires_wp_prompts(self, tmp_path: Path) -> None:
+        feature_dir = _build_feature_with_wps_yaml(
+            tmp_path,
+            "work_packages:\n  - id: WP01\n    title: Test\n    dependencies: []\n    requirement_refs: [FR-001]\n",
+        )
+        (feature_dir / "tasks" / "WP01-test.md").unlink()
+
+        result = _invoke_finalize_tasks(tmp_path, feature_dir)
+
+        assert result.exit_code == 1
+        assert "WP prompt files are required to finalize tasks" in result.stdout
+
     def test_wps_yaml_deps_used_not_prose(self, tmp_path: Path) -> None:
         """FR-006: wps.yaml dependencies take precedence over tasks.md prose.
 

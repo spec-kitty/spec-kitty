@@ -288,6 +288,10 @@ def _resolve_dependencies_and_refs(
     # here directly; see the docstring above for why this must be the raw
     # reader rather than a normalising one).
     res.wp_requirement_refs = read_all_wp_raw_requirement_refs(planning_dir / "tasks")
+    # tasks-outline has authored only wps.yaml. Its refs are authoritative
+    # until tasks-packages materializes the prompt files.
+    if wps_manifest is not None and not wp_files:
+        res.wp_requirement_refs = {entry.id: list(entry.requirement_refs) for entry in wps_manifest.work_packages}
 
     if wps_manifest is None and tasks_md.exists():
         tasks_content = tasks_md.read_text(encoding="utf-8")
