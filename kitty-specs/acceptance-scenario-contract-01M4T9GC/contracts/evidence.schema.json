@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "acceptance-bdd evidence bundle",
+  "type": "object",
+  "required": ["schema_version", "commit_sha", "cli_version", "os", "run_url", "passes"],
+  "additionalProperties": true,
+  "properties": {
+    "schema_version": {"const": 1},
+    "commit_sha": {"type": ["string", "null"]},
+    "cli_version": {"type": ["string", "null"]},
+    "os": {"type": "string"},
+    "run_url": {"type": ["string", "null"]},
+    "passes": {
+      "type": "object",
+      "required": ["gating", "wip"],
+      "additionalProperties": {
+        "type": "object",
+        "required": ["outcome", "tests", "failures", "errors", "skipped", "results"],
+        "properties": {
+          "outcome": {"enum": ["passed", "failed", "missing"]},
+          "tests": {"type": "integer", "minimum": 0},
+          "failures": {"type": "integer", "minimum": 0},
+          "errors": {"type": "integer", "minimum": 0},
+          "skipped": {"type": "integer", "minimum": 0},
+          "results": {
+            "type": "object",
+            "required": ["allure", "cucumber", "junit"],
+            "properties": {
+              "allure": {"type": "string"},
+              "cucumber": {"type": "string"},
+              "junit": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
