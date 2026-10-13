@@ -17,7 +17,7 @@ date: '2026-10-13'
 - This is the produce/drain decision that the [4.0.0 milestone roadmap](../../plans/4-0-0-milestone-roadmap.md) lists as a next step.
 - It amends [ADR 2026-09-26-3](../3.x/2026-09-26-3-hosted-interaction-opt-in.md), D-1 and D-2.
 - It builds on the 2026-10-12 amendments to [ADR 2026-10-01-2](2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md) and [ADR 2026-10-06-1](2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md).
-- It retires the `canonical-producer-exempt` markers #1198 and #1248 as follow-up debt.
+- It retires, as follow-up debt, the `canonical-producer-exempt` markers that still cite the closed issues #1198 and #1248.
 
 **Reader:** a maintainer changing what the CLI writes to its event logs, how an integration reads them, or what the CLI may delete.
 
@@ -119,7 +119,7 @@ The in-process fan-out seam in `status/adapters.py` stays transport-free, but th
 ### D-3: retention has two tiers
 
 **Committed tier: never pruned by the CLI.**
-- `status.events.jsonl`, `decisions.events.jsonl`, the decision ledger (`decisions/`) and committed Op records (`kitty-ops/<id>.jsonl`) live in git, and their history is git's to keep.
+- These files are tracked by git: `status.events.jsonl`, `decisions.events.jsonl`, the Mission's `mission-events.jsonl`, `.kittify/canonical-events.jsonl`, the decision ledger (`decisions/`) and committed Op records (`kitty-ops/<id>.jsonl`). Their history is git's to keep.
 - A finished Mission is archived under the archive-freeze rule of [ADR 2026-10-11-1](2026-10-11-1-archive-freeze-verifies-reducer-outcome-not-byte-identity.md), not truncated.
 - No retention setting may delete or rewrite a committed row.
 
