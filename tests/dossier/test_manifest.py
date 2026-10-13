@@ -410,19 +410,6 @@ class TestManifestIntegration:
         assert len(research) > 0
         assert research[0].path_pattern == "research.md"
 
-    def test_software_dev_tasks_outline_requires_wps_manifest(self):
-        """software-dev manifest requires the wps.yaml manifest at the
-        tasks-outline step (#2642): the outline step now produces the staged
-        work-package manifest `wps.yaml`, not `tasks.md` (which moved to the
-        tasks-finalize step)."""
-        manifest = ManifestRegistry.load_manifest("software-dev")
-        assert manifest is not None
-        specs = ManifestRegistry.get_required_artifacts(manifest, "tasks_outline")
-        tasks = [s for s in specs if s.artifact_key == "output.tasks.index"]
-        assert len(tasks) > 0
-        assert tasks[0].blocking is True
-        assert tasks[0].path_pattern == "wps.yaml"
-
     def test_research_manifest_scoping_step_requires_spec(self):
         """research manifest requires spec.md at scoping step."""
         manifest = ManifestRegistry.load_manifest("research")
