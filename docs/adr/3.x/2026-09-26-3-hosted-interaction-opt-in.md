@@ -140,3 +140,7 @@ or not.
   follow-up issue; retiring the `SPEC_KITTY_ENABLE_SAAS_SYNC` residue is likewise deferred except
   where a future change happens to touch the same lines. This ADR records only what this mission
   shipped.
+
+## Amendments
+
+- **Amended by [ADR 2026-10-13-2](../4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md)** (the event ledger is the publication seam, on by default). D-1 keeps its meaning, but the drain gate moves off the `status/adapters.py` fan-out seam onto the Zeitgeist handlers, so a local adapter on the seam fires with drain off. D-2 is unchanged and gains a `ledger.retention` sibling for the gitignored local logs.

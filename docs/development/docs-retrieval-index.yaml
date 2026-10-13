@@ -3258,6 +3258,7 @@ pages:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
     - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "amendments", text: "Amendments", level: 2}
   - path: "docs/adr/3.x/2026-09-27-1-pack-skills-share-commands-through-charter-packs.md"
     title: "ADR: pack skills — share and co-maintain agent commands through charter packs"
     divio_type: "none"
@@ -3720,6 +3721,31 @@ pages:
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/4.x/2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md"
+    title: "ADR: the event ledger is the publication seam, on by default, with a versioned row contract and local-log retention"
+    divio_type: "none"
+    abstract: "Integrations read the committed ledger through a versioned row schema in spec-kitty-events; publication is on by default, apart from hosted drain; local logs get retention."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "the-row-contract", text: "The row contract", level: 3}
+    - {slug: "publication", text: "Publication", level: 3}
+    - {slug: "retention", text: "Retention", level: 3}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "d-1-the-ledger-row-is-a-versioned-contract-in-spec-kitty-events", text: "D-1: the ledger row is a versioned contract in spec-kitty-events", level: 3}
+    - {slug: "d-2-the-ledger-is-the-publication-seam-and-publication-is-on-by-default", text: "D-2: the ledger is the publication seam, and publication is on by default", level: 3}
+    - {slug: "d-3-retention-has-two-tiers", text: "D-3: retention has two tiers", level: 3}
+    - {slug: "follow-up-debt", text: "Follow-up debt", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "row-contract-canonical-3-0-0-envelopes-in-the-ledger", text: "Row contract: canonical 3.0.0 envelopes in the ledger", level: 3}
+    - {slug: "row-contract-rows-stay-internal-read-api-only", text: "Row contract: rows stay internal, read API only", level: 3}
+    - {slug: "publication-hosted-drain-on-by-default", text: "Publication: `hosted.drain` on by default", level: 3}
+    - {slug: "publication-a-second-toggle-for-local-subscribers", text: "Publication: a second toggle for local subscribers", level: 3}
+    - {slug: "retention-one-policy-for-every-log", text: "Retention: one policy for every log", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/4.x/index.md"
     title: "4.x Architectural Decision Records"
