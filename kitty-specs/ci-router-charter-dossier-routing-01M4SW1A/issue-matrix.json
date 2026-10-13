@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#6125": {
+      "evidence_ref": "Router selects charter+dossier for manifest edits; dossier module minted. Parity gate green; 2066+459 guard tests green.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP02"
+    }
+  },
+  "schema_version": 1
+}

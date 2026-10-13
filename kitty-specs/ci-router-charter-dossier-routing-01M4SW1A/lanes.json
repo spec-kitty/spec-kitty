@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "ci-router-charter-dossier-routing-01M4SW1A",
+  "mission_id": "01M4SW1AASD2S9X22CPFV32X5N",
+  "mission_branch": "issue-6125-ci-router-charter-dossier-routing",
+  "target_branch": "issue-6125-ci-router-charter-dossier-routing",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/ci-module-registry.yml",
+        ".github/ci-shard-timings.json",
+        ".github/workflows/ci-router.yml",
+        "tests/architectural/test_manifest_edit_routes_charter_and_dossier.py",
+        "tests/release/ci_retirement_scrub.json"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-13T05:42:22.496560+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "866d3bc7c0c7b5f857f69d50452b0bd6b7711f1f"
+}
