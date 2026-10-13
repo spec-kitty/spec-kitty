@@ -149,9 +149,12 @@ class PiLettaBackfillMigration(BaseMigration):
 
             try:
                 from specify_cli.skills import command_installer as _ci
+                from specify_cli.tool_surface.repair import render_regenerated_surface_lines
 
-                _ci.install(project_path, agent_key)
+                report = _ci.install(project_path, agent_key)
                 changes.append(f"Repaired skill pack for {agent_key}")
+                # #6155: name any drifted shared command skill this reinstall regenerated.
+                changes.extend(render_regenerated_surface_lines(report.regenerated))
             except Exception as exc:
                 warnings.append(
                     f"Skill repair for {agent_key} skipped: {exc}"

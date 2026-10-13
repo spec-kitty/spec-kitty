@@ -1006,9 +1006,9 @@ def _render_text_report(
     # #6155 item 1: name each regenerated DERIVED command-skill projection. These are owned by
     # the surface-repair summary (not the outcome), so this does not assemble outcome messages.
     if surface_repair_summary is not None:
-        from specify_cli.tool_surface.repair import render_regenerated_surface_lines  # noqa: PLC0415
+        from specify_cli.tool_surface.repair import render_regenerated_surface_lines
 
-        for regenerated_line in render_regenerated_surface_lines(surface_repair_summary):
+        for regenerated_line in render_regenerated_surface_lines(surface_repair_summary.regenerated):
             console.print(regenerated_line, markup=False, highlight=False)
     # Dry-run parity: the finalizer provisions mission_type_activations on BOTH paths, so an
     # up-to-date project still missing the key is seeded on a real run; a dry run must preview
@@ -1173,7 +1173,7 @@ def _regenerated_paths(prepared: PreparedUpgradeRepairs) -> set[Path]:
     folded into the ``repaired`` count. The path is built the same way an effect's
     ``destination`` is, so membership against ``effect.destination`` matches.
     """
-    from specify_cli.skills.command_installer import PreparedCommands  # noqa: PLC0415
+    from specify_cli.skills.command_installer import PreparedCommands
 
     regenerated: set[Path] = set()
     for owner in prepared.owners:

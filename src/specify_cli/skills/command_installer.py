@@ -214,6 +214,11 @@ class InstallReport:
     regenerated: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
+    @property
+    def installed_count(self) -> int:
+        """Command skills this run wrote or newly claimed: added, reused and regenerated (#6155)."""
+        return len(self.added) + len(self.reused_shared) + len(self.regenerated)
+
 
 @dataclass
 class RemoveReport:

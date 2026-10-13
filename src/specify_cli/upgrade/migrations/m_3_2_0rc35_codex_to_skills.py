@@ -125,11 +125,16 @@ def _classify(prompts_dir: Path) -> list[LegacyCodexPrompt]:
     return results
 
 
-def _install_skills(project_path: Path) -> None:
-    """Install ``.agents/skills/`` packages for the ``codex`` agent."""
-    from specify_cli.skills import command_installer  # noqa: PLC0415
+def _install_skills(project_path: Path) -> list[str]:
+    """Install ``.agents/skills/`` packages for the ``codex`` agent.
 
-    command_installer.install(project_path, "codex")
+    Returns one notice line per drifted command skill the installer regenerated (#6155).
+    """
+    from specify_cli.skills import command_installer  # noqa: PLC0415
+    from specify_cli.tool_surface.repair import render_regenerated_surface_lines
+
+    report = command_installer.install(project_path, "codex")
+    return render_regenerated_surface_lines(report.regenerated)
 
 
 def _print_preservation_notice(preserved: list[LegacyCodexPrompt]) -> None:
@@ -314,10 +319,11 @@ class CodexToSkillsMigration(BaseMigration):
             return self._apply_dry_run(changes, warnings, errors, owned, third_party)
 
         try:
-            _install_skills(project_path)
+            regenerated_lines = _install_skills(project_path)
             changes.append(
                 "Installed 11 Codex skill packages under .agents/skills/"
             )
+            changes.extend(regenerated_lines)
         except Exception as exc:
             errors.append(f"Skill installation failed: {exc}")
             return MigrationResult(

@@ -14,7 +14,7 @@ function.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from contextlib import ExitStack
 from dataclasses import dataclass, field, replace
 from pathlib import Path
@@ -355,13 +355,16 @@ class DriftPolicySummary:
 REGENERATED_SURFACE_LINE = "Regenerated a generated command skill that differed from the current version: {path}"
 
 
-def render_regenerated_surface_lines(summary: DriftPolicySummary) -> list[str]:
-    """One human line PER regenerated command-skill projection path (#6155 item 1).
+def render_regenerated_surface_lines(paths: Iterable[Path | str]) -> list[str]:
+    """One plain human line PER regenerated command-skill projection path (#6155 item 1).
 
-    Unlike the count-based buckets in :func:`render_surface_summary_lines`, each regenerated
-    path is named individually so a replaced edit on the git-ignored surface is visible.
+    The single renderer for this notice: ``upgrade`` passes ``DriftPolicySummary.regenerated``,
+    ``init`` / ``agent config`` pass ``InstallReport.regenerated``, and the rc35 skill migrations
+    fold the lines into ``changes_made``. Unlike the count-based buckets in
+    :func:`render_surface_summary_lines`, each path is named individually so a replaced edit on
+    the git-ignored surface is visible. Lines are plain text; print them with ``markup=False``.
     """
-    return [REGENERATED_SURFACE_LINE.format(path=path) for path in summary.regenerated]
+    return [REGENERATED_SURFACE_LINE.format(path=path) for path in paths]
 
 
 def render_surface_summary_lines(summary: DriftPolicySummary) -> list[str]:

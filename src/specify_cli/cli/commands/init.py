@@ -147,6 +147,7 @@ def _install_command_skill_agents(project: Path, agents: list[str]) -> bool:
     """Retain init's per-agent warnings and the installer's ownership checks."""
     from specify_cli.skills import command_installer
     from specify_cli.skills.vibe_config import ensure_project_skill_path
+    from specify_cli.tool_surface.repair import render_regenerated_surface_lines
 
     assert _console is not None
     complete = True
@@ -155,14 +156,10 @@ def _install_command_skill_agents(project: Path, agents: list[str]) -> bool:
             report = command_installer.install(project, agent_key)
             if agent_key == "vibe":
                 ensure_project_skill_path(project)
-            installed = len(report.added) + len(report.reused_shared)
-            _console.print(f"[dim]{AI_CHOICES[agent_key]}: {installed} command skills installed[/dim]")
-            # #6155 item 1: name each drifted DERIVED command-skill projection regenerated here,
-            # so a replaced edit on this git-ignored surface is visible rather than silent.
-            from specify_cli.tool_surface.repair import REGENERATED_SURFACE_LINE  # noqa: PLC0415
-
-            for regenerated in report.regenerated:
-                _console.print(f"[dim]{REGENERATED_SURFACE_LINE.format(path=regenerated)}[/dim]")
+            _console.print(f"[dim]{AI_CHOICES[agent_key]}: {report.installed_count} command skills installed[/dim]")
+            # #6155: name each drifted DERIVED command-skill projection regenerated here.
+            for line in render_regenerated_surface_lines(report.regenerated):
+                _console.print(line, style="dim", markup=False, highlight=False)
         except Exception as exc:
             complete = False
             _console.print(f"[yellow]Warning:[/yellow] Could not install skills for {AI_CHOICES[agent_key]}: {exc}")

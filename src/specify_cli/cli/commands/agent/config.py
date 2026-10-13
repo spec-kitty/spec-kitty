@@ -179,28 +179,33 @@ def _register_skill_agent(
     agent_key: str,
     *,
     update_config: bool = True,
+    regenerated_sink: list[str] | None = None,
 ) -> tuple[bool, str | None]:
-    """Install command skills for skill-only agents and update config."""
+    """Install command skills for skill-only agents and update config.
+
+    Each drifted command skill the installer regenerated (#6155) is named on the console, or,
+    when *regenerated_sink* is given (``sync --json``), appended to it instead so the JSON
+    payload carries it and no human line reaches stdout.
+    """
     from specify_cli.skills import command_installer  # noqa: PLC0415
     from specify_cli.skills.vibe_config import ensure_project_skill_path  # noqa: PLC0415
+    from specify_cli.tool_surface.repair import render_regenerated_surface_lines
 
     try:
         report = command_installer.install(repo_root, agent_key)
         if agent_key == "vibe":
             ensure_project_skill_path(repo_root)
-        installed = len(report.added) + len(report.reused_shared)
         if update_config:
             config.available.append(agent_key)
         console.print(
             f"[green]✓[/green] Registered {agent_key} "
-            f"({installed} command skills in .agents/skills/)"
+            f"({report.installed_count} command skills in .agents/skills/)"
         )
-        # #6155 item 1: name each drifted DERIVED command-skill projection regenerated here, so
-        # a replaced edit on this git-ignored surface is visible rather than silent.
-        from specify_cli.tool_surface.repair import REGENERATED_SURFACE_LINE  # noqa: PLC0415
-
-        for regenerated in report.regenerated:
-            console.print(f"[dim]{REGENERATED_SURFACE_LINE.format(path=regenerated)}[/dim]")
+        if regenerated_sink is not None:
+            regenerated_sink.extend(report.regenerated)
+        else:
+            for line in render_regenerated_surface_lines(report.regenerated):
+                console.print(line, style="dim", markup=False, highlight=False)
         return True, None
     except Exception as exc:
         return False, f"Failed to install {agent_key} skills: {exc}"
@@ -322,8 +327,16 @@ def _restore_installed_skill_agent_pointer(repo_root: Path, agent_key: str) -> t
     return True, None
 
 
-def _check_or_create_configured_agent_dirs(repo_root: Path, config: AgentConfig) -> bool:
-    """Check configured managed surfaces and create legacy local dirs if needed."""
+def _check_or_create_configured_agent_dirs(
+    repo_root: Path,
+    config: AgentConfig,
+    *,
+    regenerated_sink: list[str] | None = None,
+) -> bool:
+    """Check configured managed surfaces and create legacy local dirs if needed.
+
+    *regenerated_sink* collects regenerated command-skill paths instead of printing them (#6155).
+    """
     console.print("\n[cyan]Checking for missing directories...[/cyan]")
     changes_made = False
     errors_found = False
@@ -356,6 +369,7 @@ def _check_or_create_configured_agent_dirs(repo_root: Path, config: AgentConfig)
                 config,
                 agent_key,
                 update_config=False,
+                regenerated_sink=regenerated_sink,
             )
             if ok:
                 changes_made = True
@@ -706,6 +720,8 @@ def sync_agents(
     manifest_before = manifest_path.read_bytes() if manifest_path.exists() else None
 
     changes_made = False
+    # #6155: under --json, regenerated command skills go into the payload, not onto stdout.
+    regenerated: list[str] | None = [] if json_output else None
 
     # Remove orphaned directories
     if remove_orphaned:
@@ -713,7 +729,7 @@ def sync_agents(
 
     # Create missing directories
     if create_missing:
-        changes_made = _check_or_create_configured_agent_dirs(repo_root, config) or changes_made
+        changes_made = _check_or_create_configured_agent_dirs(repo_root, config, regenerated_sink=regenerated) or changes_made
 
     # Sync hooks
     if sync_hooks:
@@ -725,7 +741,7 @@ def sync_agents(
     if json_output:
         console.print(
             json.dumps(
-                {"changes_made": changes_made, "tracked_mutations": tracked_mutations},
+                {"changes_made": changes_made, "tracked_mutations": tracked_mutations, "regenerated": regenerated or []},
                 indent=2,
             )
         )
