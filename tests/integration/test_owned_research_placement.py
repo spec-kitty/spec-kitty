@@ -38,6 +38,7 @@ fabrication when no template resolves, which would mask placement.
 
 from __future__ import annotations
 
+import contextlib
 import os
 from collections.abc import Callable
 from pathlib import Path
@@ -75,16 +76,14 @@ def _invoke_research(args: list[str], *, cwd: Path, home: Path) -> object:
     app = typer.Typer()
     app.command(name="research")(research_mod.research)
     runner = CliRunner()
-    prior = os.getcwd()
-    os.chdir(cwd)
-    try:
-        with mock.patch.dict(
+    with (
+        contextlib.chdir(cwd),
+        mock.patch.dict(
             os.environ,
             {"SPEC_KITTY_ENABLE_SAAS_SYNC": "0", "SPEC_KITTY_HOME": str(home), "HOME": str(home)},
-        ):
-            return runner.invoke(app, args, catch_exceptions=False)
-    finally:
-        os.chdir(prior)
+        ),
+    ):
+        return runner.invoke(app, args, catch_exceptions=False)
 
 
 def test_research_accepts_owned_checkout_and_scaffolds_into_owned(
@@ -140,5 +139,30 @@ def test_research_from_owned_cwd_does_not_redirect_into_dirty_primary(
     # The owned checkout received the artifacts...
     owned_mission_dir = p_root / "kitty-specs" / owned_checkouts.mission_slug
     assert (owned_mission_dir / "research.md").exists()
+    # ...the operator is told R's copy is stale, like every sibling owned command...
+    assert "holds a stale copy of mission" in " ".join(result.output.split()), result.output
     # ...and the dirty primary was never written into.
+    r_snapshot.assert_unchanged(before, r_snapshot.take())
+
+
+def test_research_owned_checkout_without_mission_reports_missing_mission(
+    owned_checkouts: OwnedCheckouts,
+    r_snapshot,  # type: ignore[no-untyped-def]
+    tmp_path: Path,
+) -> None:
+    """``--owned-checkout P`` with no ``--mission`` refuses naming ``--mission`` and writes nothing."""
+    p_root = owned_checkouts.owned_root
+    home = tmp_path / "home"
+    home.mkdir(exist_ok=True)
+
+    before = r_snapshot.take()
+    result = _invoke_research(
+        ["--owned-checkout", str(p_root)],
+        cwd=owned_checkouts.repository_root,
+        home=home,
+    )
+
+    assert result.exit_code != 0
+    assert "requires an explicit --mission" in result.output, result.output
+    assert not (p_root / "kitty-specs" / owned_checkouts.mission_slug / "research.md").exists()
     r_snapshot.assert_unchanged(before, r_snapshot.take())

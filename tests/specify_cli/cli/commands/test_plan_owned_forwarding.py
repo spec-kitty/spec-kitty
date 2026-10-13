@@ -12,6 +12,8 @@ RED on base: ``--owned-checkout`` is ``No such option`` on the top-level ``plan`
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import typer
 from typer.testing import CliRunner
 
@@ -31,7 +33,7 @@ def test_plan_help_lists_owned_checkout() -> None:
     assert "--owned-checkout" in result.output
 
 
-def test_plan_forwards_owned_checkout_to_setup_plan(monkeypatch) -> None:  # type: ignore[no-untyped-def]
+def test_plan_forwards_owned_checkout_to_setup_plan(monkeypatch, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
     """The top-level ``plan`` wrapper forwards the owned fact to the ``setup_plan`` seam (FR-004)."""
     captured: dict[str, object] = {}
 
@@ -42,7 +44,7 @@ def test_plan_forwards_owned_checkout_to_setup_plan(monkeypatch) -> None:  # typ
     monkeypatch.setattr(lifecycle_mod, "_enforce_initialized", lambda **_k: None)
     monkeypatch.setattr(lifecycle_mod.agent_feature, "setup_plan", _fake_setup_plan)
 
-    owned_path = "/tmp/owned-producer"
+    owned_path = str(tmp_path / "owned-producer")
     result = CliRunner().invoke(
         _plan_app(),
         ["--mission", "demo-01ABCDEF", "--owned-checkout", owned_path, "--json"],
@@ -52,3 +54,32 @@ def test_plan_forwards_owned_checkout_to_setup_plan(monkeypatch) -> None:  # typ
     assert result.exit_code == 0, result.output
     assert captured["feature"] == "demo-01ABCDEF"
     assert str(captured["owned_checkout"]) == owned_path
+
+
+def test_plan_with_owned_checkout_does_not_run_repository_root_interview(monkeypatch, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    """Interactive ``plan --owned-checkout P`` never opens Decision Moments in the repository root checkout.
+
+    The widen interview resolves its repository from the repository root checkout and
+    has no owned seam, so running it would write ``decisions/index.json`` into R's copy
+    of the Mission while ``plan.md`` went to P.
+    """
+    interview_calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(lifecycle_mod, "_enforce_initialized", lambda **_k: None)
+    monkeypatch.setattr(lifecycle_mod.agent_feature, "setup_plan", lambda **_k: None)
+    monkeypatch.setattr(lifecycle_mod, "locate_project_root", lambda *a, **k: tmp_path)
+
+    import specify_cli.cli.commands.agent.context as context_mod
+    import specify_cli.missions.plan.plan_interview as interview_mod
+
+    monkeypatch.setattr(context_mod, "_find_feature_directory", lambda *a, **k: tmp_path / "kitty-specs" / "demo-01ABCDEF")
+    monkeypatch.setattr(interview_mod, "run_plan_interview", lambda **kw: interview_calls.append(kw) or {})
+
+    result = CliRunner().invoke(
+        _plan_app(),
+        ["--mission", "demo-01ABCDEF", "--owned-checkout", str(tmp_path / "owned-producer")],
+        catch_exceptions=False,
+    )
+
+    assert result.exit_code == 0, result.output
+    assert interview_calls == []
