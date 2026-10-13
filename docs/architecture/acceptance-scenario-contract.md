@@ -107,7 +107,8 @@ An engineer binds or rewords the steps, adds the positive control
 The nightly is the only thing that runs scenarios today, so a malformed feature file or a typo'd
 step is found the next morning. The check below finds it on the pull request, without a JDK.
 
-- **Where:** `tests/architectural/test_scenario_contract.py`, Python standard library only, with
+- **Where:** `tests/architectural/test_scenario_contract.py`, Python standard library plus first-party
+  `kernel.clock` (no third-party dependency), with
   a small Gherkin reader for the subset the scenarios use (`Feature`, `Background`, `Scenario`,
   `Scenario Outline`, `Examples`, `Rule`, tags, steps, doc strings and data tables). No new
   dependency.

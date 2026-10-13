@@ -1,6 +1,6 @@
 ---
 title: 'ADR: acceptance scenarios link to product promises by identifier only; core checks the scenario contract per pull request and hands on versioned evidence'
-description: 'Scenarios cite promises only by @promise identifier; a stdlib per-PR check validates feature files, tags and step bindings; nightly legs upload versioned evidence.'
+description: 'Scenarios cite promises only by @promise identifier; a per-PR check with no third-party dependency validates feature files, tags and step bindings; nightly legs upload versioned evidence.'
 status: Accepted
 date: '2026-10-13'
 ---
@@ -75,7 +75,7 @@ Four problems remain:
    `@wip-since:<YYYY-MM-DD>`; `@manual`; `@defect:<issue>`; `@qa:<ref>`; free-form bare tags. A
    drafted scenario lands as `@wip`. Only a person adds a `@promise` tag.
 3. **Per-PR scenario check.** `tests/architectural/test_scenario_contract.py`, standard library
-   only, checks that every feature file parses, every tag follows the vocabulary, and every step
+   plus first-party `kernel.clock` (no third-party dependency), checks that every feature file parses, every tag follows the vocabulary, and every step
    of a scenario without `@wip` matches exactly one step definition read from the
    `acceptance-jvm` step annotations. It has one broken fixture per rule. The `scenarios` and
    `acceptance_jvm` router groups gate the job that runs it. This narrows the 2026-10-11-3

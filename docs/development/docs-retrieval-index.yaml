@@ -3711,7 +3711,7 @@ pages:
   - path: "docs/adr/4.x/2026-10-13-1-acceptance-scenarios-link-to-promises-by-identifier-only.md"
     title: "ADR: acceptance scenarios link to product promises by identifier only; core checks the scenario contract per pull request and hands on versioned evidence"
     divio_type: "none"
-    abstract: "Scenarios cite promises only by @promise identifier; a stdlib per-PR check validates feature files, tags and step bindings; nightly legs upload versioned evidence."
+    abstract: "Scenarios cite promises only by @promise identifier; a per-PR check with no third-party dependency validates feature files, tags and step bindings; nightly legs upload versioned evidence."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
@@ -11487,6 +11487,9 @@ pages:
     - {slug: "write-a-scenario", text: "Write a scenario", level: 2}
     - {slug: "step-structure-arrange-assume-act-assert", text: "Step structure: Arrange, Assume, Act, Assert", level: 2}
     - {slug: "tags", text: "Tags", level: 2}
+    - {slug: "linking-a-scenario-to-a-promise", text: "Linking a scenario to a promise", level: 3}
+    - {slug: "drafted-scenarios", text: "Drafted scenarios", level: 3}
+    - {slug: "per-pr-check", text: "Per-PR check", level: 3}
     - {slug: "run-the-scenarios-locally", text: "Run the scenarios locally", level: 2}
     - {slug: "view-the-allure-report", text: "View the Allure report", level: 2}
     - {slug: "change-a-dependency", text: "Change a dependency", level: 2}
