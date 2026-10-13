@@ -200,6 +200,51 @@ def test_missing_retrospective_returns_error_envelope(
     assert envelope["warnings"] == []
 
 
+@pytest.mark.parametrize(
+    ("collect_dependencies", "build_dependencies", "expected_reference"),
+    [
+        ("[colect-typo]", "[collect]", "colect-typo"),
+        ("[build]", "[collect]", "collect"),
+    ],
+)
+def test_invalid_dependencies_refuse_run_before_runtime_start(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    collect_dependencies: str,
+    build_dependencies: str,
+    expected_reference: str,
+) -> None:
+    repo_root = tmp_path
+    mission_dir = repo_root / ".kittify" / "missions" / "bad"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "mission.yaml").write_text(
+        "mission: {key: bad, name: Bad, version: 0.1.0}\n"
+        "steps:\n"
+        f"  - {{id: collect, title: Collect, agent_profile: researcher, depends_on: {collect_dependencies}}}\n"
+        f"  - {{id: build, title: Build, agent_profile: implementer, depends_on: {build_dependencies}}}\n"
+        "  - {id: retrospective, title: Retro, depends_on: [build]}\n",
+        encoding="utf-8",
+    )
+
+    from runtime.next import runtime_bridge
+
+    def _should_not_run(**_: object) -> None:
+        raise AssertionError("invalid mission must not start a runtime")
+
+    monkeypatch.setattr(runtime_bridge, "get_or_start_run", _should_not_run)
+
+    result = run_custom_mission(
+        "bad", "m-bad", repo_root, discovery_context=_isolated_context(repo_root)
+    )
+
+    assert result.exit_code == 2
+    assert result.envelope["result"] == "error"
+    assert result.envelope["error_code"] == "MISSION_STEP_DEPENDENCY_INVALID"
+    assert expected_reference in result.envelope["message"]
+    assert not (repo_root / "kitty-specs" / "m-bad").exists()
+    assert not (repo_root / ".kittify" / "runtime").exists()
+
+
 def test_reserved_key_shadow_returns_error_envelope(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
