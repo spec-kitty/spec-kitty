@@ -11,6 +11,14 @@ without running anything:
 
 Unbound or ambiguous steps in a non-gating scenario are reported as ``info``.
 
+Known limits of the step matcher (it models Cucumber expressions, not every Cucumber feature):
+
+* ``{string}`` does not understand escaped quotes inside the quoted text (``"say \\"hi\\""``);
+* ``^...$`` regular-expression step definitions are not supported: an expression that starts
+  with ``^`` or ends with an unescaped ``$`` is reported as ``UNSUPPORTED_EXPRESSION``;
+* only ``@Given``, ``@When`` and ``@Then`` annotations are read; ``@And`` and ``@But`` step
+  definitions are not seen.
+
 Usage::
 
     python -m scripts.ci.scenario_contract [--features DIR] [--steps DIR]
@@ -304,6 +312,8 @@ class _Reader:
     def _on_step(self, number: int, stripped: str) -> None:
         self._reject_pending(number)
         block = self.current
+        if block is None and self.feature_seen:
+            return  # directly under Feature: or Rule: this is description text, not a step
         if block is None or block.in_examples:
             self.error(PARSE_ERROR, number, "step outside a Scenario, Scenario Outline or Background")
             return
@@ -339,9 +349,16 @@ class _Reader:
     def _on_text(self, number: int, stripped: str) -> None:
         self._reject_pending(number)
         block = self.current
-        description_allowed = self.feature_seen and (block is None or (not block.steps and not block.in_examples))
+        description_allowed = self.feature_seen and (block is None or self._in_description(block))
         if not description_allowed:
             self.error(PARSE_ERROR, number, f"unparseable line {stripped!r}")
+
+    @staticmethod
+    def _in_description(block: _Block) -> bool:
+        """Free text is description before a block's first step, or under Examples: before its rows."""
+        if block.in_examples:
+            return not block.tables[-1]
+        return not block.steps
 
     # -- block completion --------------------------------------------------
 
@@ -529,8 +546,17 @@ def _parameter(expression: str, index: int) -> tuple[str, int]:
     return pattern, end + 1
 
 
+def _ends_with_unescaped_dollar(expression: str) -> bool:
+    if not expression.endswith("$"):
+        return False
+    backslashes = len(expression) - 1 - len(expression[:-1].rstrip("\\"))
+    return backslashes % 2 == 0
+
+
 def expression_to_regex(expression: str) -> re.Pattern[str]:
     """Translate a Cucumber expression to a regex; use ``fullmatch`` on step text."""
+    if expression.startswith("^") or _ends_with_unescaped_dollar(expression):
+        raise _unsupported(expression, "regular expression anchor ('^...$' step definitions are not Cucumber expressions)")
     parts: list[str] = []
     index = 0
     while index < len(expression):

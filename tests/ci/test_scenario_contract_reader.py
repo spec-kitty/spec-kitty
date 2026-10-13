@@ -153,7 +153,8 @@ def test_outline_without_rows_reports_no_examples():
 
 def test_examples_without_header_is_parse_error():
     _, problems = parse("Feature: F\n  Scenario Outline: O\n    Given a\n    Examples:\n    stray\n")
-    assert codes(problems) == ["PARSE_ERROR", "PARSE_ERROR", "NO_EXAMPLES"]
+    # "stray" is description text; the headerless Examples is still the error
+    assert codes(problems) == ["PARSE_ERROR", "NO_EXAMPLES"]
 
 
 def test_outline_row_with_wrong_cell_count_is_parse_error():
@@ -178,7 +179,6 @@ def test_rule_and_background_are_rejected_before_feature():
 
 def test_malformed_tag_and_step_outside_a_block():
     assert "PARSE_ERROR" in codes(parse("Feature: F\n  @ok bad\n  Scenario: S\n    Given a\n")[1])
-    assert "PARSE_ERROR" in codes(parse("Feature: F\n  Given a\n")[1])
     assert "PARSE_ERROR" in codes(parse("Feature: F\n  Examples:\n  Given a\n")[1])
 
 
@@ -513,3 +513,49 @@ def test_and_after_star_opener_is_accepted():
     scenarios, problems = parse("Feature: F\n  Scenario: S\n    * a\n    And b\n")
     assert problems == []
     assert [s.keyword for s in scenarios[0].steps] == ["*", "*"]
+
+
+def test_description_under_examples_before_the_table_is_accepted():
+    text = "Feature: F\n  Scenario Outline: O\n    Given <x>\n    Examples:\n      some words about the data\n      | x |\n      | 1 |\n"
+    scenarios, problems = parse(text)
+    assert problems == []
+    assert len(scenarios) == 1
+
+
+def test_text_under_examples_after_rows_is_still_an_error():
+    text = "Feature: F\n  Scenario Outline: O\n    Given <x>\n    Examples:\n      | x |\n      | 1 |\n      stray\n"
+    assert codes(parse(text)[1]) == ["PARSE_ERROR"]
+
+
+def test_description_under_rule_is_accepted():
+    scenarios, problems = parse("Feature: F\n  Rule: R\n    about the rule\n    Scenario: S\n      Given a\n")
+    assert problems == []
+    assert len(scenarios) == 1
+
+
+@pytest.mark.parametrize("header", ["Feature: F\n", "Feature: F\n  Rule: R\n"])
+def test_step_keyword_description_under_feature_or_rule_is_accepted(header):
+    text = header + "    Given a free sentence\n    When something is described\n    And more\n  Scenario: S\n    Given a\n"
+    scenarios, problems = parse(text)
+    assert problems == []
+    assert [s.text for s in scenarios[0].steps] == ["a"]
+
+
+def test_step_keyword_line_before_feature_is_still_an_error():
+    assert "PARSE_ERROR" in codes(parse("Given a\nFeature: F\n  Scenario: S\n    Given a\n")[1])
+
+
+def test_step_keyword_line_under_scenario_is_a_step_not_description():
+    scenarios, problems = parse("Feature: F\n  Scenario: S\n    Given a\n    When b\n")
+    assert problems == []
+    assert len(scenarios[0].steps) == 2
+
+
+@pytest.mark.parametrize("expr", ["^a step$", "^a step", "a step$"])
+def test_regex_anchored_expressions_are_unsupported(expr):
+    with pytest.raises(sc.UnsupportedExpression, match="regular expression"):
+        sc.expression_to_regex(expr)
+
+
+def test_escaped_trailing_dollar_is_a_literal():
+    assert sc.expression_to_regex("costs 5\\$").fullmatch("costs 5$")
