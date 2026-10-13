@@ -2,8 +2,8 @@
 
 The wire spelling of every code in :class:`LoaderErrorCode` and
 :class:`LoaderWarningCode` is part of the loader's stability contract
-(NFR-002). See ``kitty-specs/local-custom-mission-loader-01KQ2VNJ/contracts/
-validation-errors.md`` for the canonical reference.
+(NFR-002). See ``docs/api/missions.md`` (Validation error codes) for the
+current reference. The original mission contract remains a historical record.
 """
 
 from __future__ import annotations

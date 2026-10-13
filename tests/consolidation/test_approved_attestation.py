@@ -107,8 +107,9 @@ def test_stripping_approval_stamps_does_not_scan_git_object_directories(tmp_path
             raise FileNotFoundError(f"Git object directory disappeared during packing: {path}")
         return scandir(path)
 
-    monkeypatch.setattr(os, "scandir", _object_directory_disappeared)
-    strip_approval_stamps(mission, "WP01")
+    with monkeypatch.context() as scan_guard:
+        scan_guard.setattr(os, "scandir", _object_directory_disappeared)
+        strip_approval_stamps(mission, "WP01")
 
     assert not scanned_git, "fixture log discovery must prune Git internals before traversing them"
     events = read_events(mission.feature_dir)

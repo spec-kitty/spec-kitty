@@ -2,7 +2,7 @@
 title: Mission Types Reference
 description: Reference for Spec Kitty mission types (software-dev, research, documentation, and plan). Learn how blueprints define phases, step bindings, and custom workflows.
 doc_status: active
-updated: '2026-09-03'
+updated: '2026-10-13'
 related:
 - docs/api/configuration.md
 ---
@@ -473,8 +473,8 @@ Use `spec-kitty workflow list` to see the workflow ids visible from the current 
 
 The loader emits a closed enumeration of error and warning codes. Wire spellings are stable: removal or rename is a breaking change requiring a deprecation cycle. Additions are non-breaking. Tooling MAY rely on string equality on `error_code` / warning `code` and MUST NOT fail on unknown `details` keys.
 
-<!-- This table mirrors kitty-specs/local-custom-mission-loader-01KQ2VNJ/contracts/validation-errors.md.
-     Mission-review verifies parity. -->
+<!-- Current loader contract. The original mission's validation-errors.md
+     remains an immutable historical record. -->
 
 Errors (exit code 2):
 
@@ -488,6 +488,7 @@ Errors (exit code 2):
 | `MISSION_RETROSPECTIVE_MISSING` | Validator R-001: the last step's `id` is not `"retrospective"`. | `file`, `mission_key`, `actual_last_step_id`, `expected: "retrospective"` |
 | `MISSION_STEP_NO_PROFILE_BINDING` | Validator FR-008: a step with empty `requires_inputs` declares neither `agent_profile` nor `contract_ref`. | `file`, `mission_key`, `step_id` |
 | `MISSION_STEP_AMBIGUOUS_BINDING` | Validator: a step declares both `agent_profile` AND `contract_ref`. | `file`, `mission_key`, `step_id` |
+| `MISSION_STEP_DEPENDENCY_INVALID` | A prompt or audit step names an unknown `depends_on` step or the dependency graph contains a cycle. | `file`, `mission_key`, `step_id`, and either `dependency` (unknown reference) or `cycle` (ordered list of step ids) |
 | `MISSION_CONTRACT_REF_UNRESOLVED` | A step's `contract_ref` does not resolve in the on-disk `MissionStepContractRepository`. | `file`, `mission_key`, `step_id`, `contract_ref` |
 
 `spec-kitty mission run` adds one CLI-layer refusal outside the loader's enumeration (exit code 2):

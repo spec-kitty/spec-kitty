@@ -13,6 +13,7 @@ written event.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -202,9 +203,13 @@ def strip_lane_head_stamps(mission: CoordMission, wp_id: str) -> None:
     """
     import json
 
-    for log in mission.repo.rglob("status.events.jsonl"):
-        if ".git" in log.parts:
+    for directory, subdirectories, files in os.walk(mission.repo):
+        # Git may pack and remove object directories while we rewrite logs.
+        # Prune its internals before traversal, not after globbing a result.
+        subdirectories[:] = [name for name in subdirectories if name != ".git"]
+        if _STATUS_EVENTS_FILENAME not in files:
             continue
+        log = Path(directory) / _STATUS_EVENTS_FILENAME
         rewritten: list[str] = []
         for line in log.read_text(encoding="utf-8").splitlines():
             if not line.strip():
