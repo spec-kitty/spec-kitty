@@ -81,7 +81,7 @@ def test_skipped_tests_are_not_counted(checks: ModuleType, tmp_path: Path) -> No
     assert _floor(checks, tmp_path, 3) == FAIL
 
 
-def test_failed_tests_do_not_inflate_the_executed_count_below_the_floor(checks: ModuleType, tmp_path: Path) -> None:
+def test_failed_tests_count_as_executed_toward_the_floor(checks: ModuleType, tmp_path: Path) -> None:
     # A failing test was executed, so it counts; the Gradle task fails on it, this guard only proves the binary ran enough tests.
     _junit(tmp_path, "TEST-a.xml", 2, failed=1)
     assert _floor(checks, tmp_path, 3) == PASS

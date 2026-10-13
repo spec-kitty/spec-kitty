@@ -229,6 +229,23 @@ def test_select_modules_selects_the_ci_module_on_ci_infra_change(router: Router)
     assert "ci" in select_modules([".github/workflows/ci-modules.yml"], router=router)
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "services/mission-status-api/build.gradle.kts",
+        "services/mission-status-api/gradle/libs.versions.toml",
+        "services/mission-status-api/gradle/wrapper/gradle-wrapper.properties",
+        "services/mission-status-api/.gitattributes",
+    ],
+)
+def test_a_services_only_diff_selects_the_ci_module(router: Router, path: str) -> None:
+    """#5529 landing review B: tests/ci/test_mission_status_api_build.py pins the service's build inputs, and its only
+    per-PR home is the ``ci`` module shard. A diff confined to services/mission-status-api/ must select that module, or the
+    pins never run on the PR that breaks them (the service workflow runs no pytest by design)."""
+    assert select_modules([path], router=router) == frozenset({"ci"})
+    assert not select_gates([path], router=router).unmatched_src
+
+
 def test_manifest_edit_cannot_mask_an_unmapped_src_change(router: Router) -> None:
     """#6125 fail-closed: a data-only manifest path never masks unmapped ``src/**``.
 

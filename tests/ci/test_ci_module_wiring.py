@@ -55,7 +55,7 @@ _REGISTRY_PATH = _REPO_ROOT / ".github" / "ci-module-registry.yml"
 _SCRUB_PATH = _REPO_ROOT / "tests" / "release" / "ci_retirement_scrub.json"
 
 _MODULE = "ci"
-_ROOTS = ["scripts/ci/**", ".github/workflows/**"]
+_ROOTS = ["scripts/ci/**", ".github/workflows/**", "services/mission-status-api/**"]
 _TEST_DIRS = ["tests/ci"]
 
 

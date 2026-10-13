@@ -741,7 +741,7 @@ def test_ci_module_row_claims_the_ci_guard_suites() -> None:
     rows = [row for row in _modules(registry) if row.get("module") == "ci"]
     assert len(rows) == 1, "expected exactly one `ci` module row (spec-kitty#4386)"
     row = rows[0]
-    assert list(row["roots"]) == ["scripts/ci/**", ".github/workflows/**"], (
+    assert list(row["roots"]) == ["scripts/ci/**", ".github/workflows/**", "services/mission-status-api/**"], (
         "the ci row's roots must be the CI-infrastructure paths whose regressions tests/ci guards"
     )
     assert list(row.get("test_dirs", [])) == ["tests/ci"], "the ci row must claim tests/ci explicitly"
