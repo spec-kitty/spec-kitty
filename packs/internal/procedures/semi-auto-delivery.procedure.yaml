@@ -38,7 +38,7 @@ steps:
       The charter overrides the brief; flag any drift rather than picking silently.
     actor: agent
 
-  - title: Research and grounding squad first, before specifying
+  - title: Research, grounding and discovery squads first, before specifying
     description: >
       Run a read-only code-grounding pass and commit it as the mission's research
       note before any spec or plan exists. It records: the sizes and a
@@ -46,9 +46,22 @@ steps:
       each with its ADR and CLAUDE.md citation; every architectural or AST gate and
       shrink-only ledger that references those files, and how to keep each one green
       honestly; the current test seams and what they cost; interactions with open
-      P0s and sibling runs; and 90-day churn. Never specify before grounding — a
-      spec written from assumptions the code does not hold sends the whole run after
-      stale scope.
+      P0s and sibling runs; and 90-day churn. In the same read-only pass, run two
+      discovery squads whose whole purpose is to beat the pointfix tendency — a fix
+      that lands only where the ticket points and leaves its siblings or its issue
+      family untouched. A similar-surfaces squad sweeps the codebase for every
+      sibling surface that shares this defect or change shape — other call sites,
+      parallel branches, the same anti-pattern or duplicated logic elsewhere — and
+      gives each a disposition: in-scope-now for this run, or file-and-link as a new
+      issue, with a reason. A tracked-issues squad searches the tracker for
+      duplicate, related, parent/child and superseding tickets and records which to
+      Closes, which to Refs, which to fold, and which supersede this work. Both
+      verdicts go in the research note and, at closeout, in the PR's Discovery
+      sub-section; "no related surfaces, no related issues" is a claim made
+      explicitly, never an omission, and scope is never widened past the agreed
+      issue-set silently — an out-of-scope sibling is filed-and-linked and surfaced
+      to the operator. Never specify before grounding — a spec written from
+      assumptions the code does not hold sends the whole run after stale scope.
     actor: agent
 
   - title: Decide Mission vs Ops by blast radius
@@ -158,6 +171,13 @@ anti_patterns:
     description: >
       Writing a spec or plan before the read-only grounding run. It commits the run
       to assumptions the code does not hold.
+  - name: Pointfix without discovery
+    description: >
+      Fixing only the exact surface the ticket names and skipping the discovery
+      squads, so sibling surfaces that share the defect stay broken and duplicate or
+      superseding tickets go unlinked. The discovery verdict — similar surfaces with
+      their disposition, related issues with their disposition — is part of
+      grounding, not an optional extra, and "no related work" is stated explicitly.
   - name: Greening by erasure
     description: >
       Skipping, disabling, xfailing or quarantining a test, or retrying to green,

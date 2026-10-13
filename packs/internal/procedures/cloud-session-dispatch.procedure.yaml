@@ -78,7 +78,16 @@ steps:
       and CLAUDE.md citations; every architectural or AST gate and shrink-only
       ledger that references those files, and how to keep each one green
       honestly; the current test seams and what they cost; interactions with
-      open P0s and sibling runs; and 90-day churn.
+      open P0s and sibling runs; and 90-day churn. It also runs two discovery
+      squads that beat the pointfix tendency: a similar-surfaces squad that
+      sweeps the code for sibling surfaces sharing the defect or change shape
+      (other call sites, parallel branches, duplicated logic) and dispositions
+      each as in-scope-now or file-and-link; and a tracked-issues squad that
+      searches the tracker for duplicate, related, parent/child and superseding
+      tickets and records their disposition (Closes, Refs, fold, superseded).
+      The prompt tells the runner to put both verdicts in the research note and
+      the PR's Discovery section, and never to widen scope past the dispatched
+      issues silently.
       (2) The bound doctrine and the explicit non-goals. Bind the runner's
       semi-auto standing orders by reference — tell the runner to load
       `spec-kitty charter context --include procedure:semi-auto-delivery` and
@@ -117,6 +126,11 @@ anti_patterns:
     description: >
       Re-scope notes, collisions and blocking P0s live in the comments and links.
       A prompt built from the title sends the runner after stale scope.
+  - name: Grounding prompt without discovery
+    description: >
+      Writing section (1) as a solo code-read with no similar-surfaces and
+      tracked-issues squads. The runner then pointfixes the named surface and
+      leaves its siblings and its issue family untouched.
   - name: Placeholder prompts
     description: >
       A runner cannot ask what an unfilled field meant. Every section must be

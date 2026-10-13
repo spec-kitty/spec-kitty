@@ -9,7 +9,7 @@ The standing orders are identical in both modes and live in the `semi-auto-deliv
 Follow the `semi-auto-delivery` procedure end to end:
 
 1. Orientation gate — sync the environment, read CLAUDE.md, AGENTS.md and the charter in full, load the phase context. The charter overrides any brief.
-2. Research and grounding squad first — commit the read-only grounding note (sizes, responsibility map, invariants with citations, the gates and ledgers touched, test seams, open-P0 and sibling-run interactions, 90-day churn) before any spec exists.
+2. Research, grounding and discovery squads first — commit the read-only grounding note (sizes, responsibility map, invariants with citations, the gates and ledgers touched, test seams, open-P0 and sibling-run interactions, 90-day churn) plus the two discovery-squad verdicts — sibling surfaces and related/superseding issues, each with its disposition — before any spec exists. The discovery verdict lands in the PR's Discovery sub-section at closeout; it beats the pointfix tendency.
 3. Decide Mission vs Ops by blast radius; split an issue-set that spans unrelated surfaces. State the choice.
 4. Work autonomously, but STOP and surface the decision to the operator on the escalation classes: a regression-vs-stale-test verdict; a shared-seam, public-contract or architectural-boundary change; a test-expectation edit; scope widening; a charter Decision Moment; contract versioning. A path that decides also signals — never resolve one silently.
 5. Brownfield discipline — smallest viable diff, locality of change, single canonical source, red-first, and never skip/disable/xfail/quarantine a test or retry-to-green.
