@@ -305,3 +305,28 @@ def test_partial_mutation_functions_are_not_flagged() -> None:
         _scan_source_for_full_flatten(topology_and_flattened_only, Path("partial2.py"))
         == []
     )
+
+
+def test_shared_coordination_flatten_keys_use_the_canonical_meta_json_names() -> None:
+    """The flatten owner writes meta.json through the shared ``meta_keys``
+    constants (#3461), so each constant's STRING VALUE *is* the persisted
+    meta.json key name. A silent value change would rename a persisted key and
+    desync the audit shape registry that consumes the same frozenset, so pin the
+    canonical coordination names and the composed key set here (an in-matrix,
+    per-PR guard; the parity assertion in ``tests/audit`` runs only out-of-matrix).
+    """
+    from specify_cli.meta_keys import (
+        COORDINATION_BRANCH_KEY,
+        COORDINATION_KEYS,
+        FLATTENED_KEY,
+        PR_BOUND_KEY,
+        TOPOLOGY_KEY,
+    )
+
+    assert COORDINATION_BRANCH_KEY == "coordination_branch"
+    assert TOPOLOGY_KEY == "topology"
+    assert FLATTENED_KEY == "flattened"
+    assert PR_BOUND_KEY == "pr_bound"
+    assert frozenset(
+        {COORDINATION_BRANCH_KEY, TOPOLOGY_KEY, FLATTENED_KEY, PR_BOUND_KEY}
+    ) == COORDINATION_KEYS
