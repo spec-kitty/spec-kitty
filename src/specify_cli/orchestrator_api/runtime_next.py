@@ -59,6 +59,26 @@ def _project_prompt(payload: dict[str, Any]) -> None:
     payload.pop("prompt_file", None)
 
 
+def _fail_native_refusal(cmd: str, mission: str, payload: dict[str, Any]) -> None:
+    """Fail the verb for a native refusal, keeping the envelope shape stable.
+
+    A design-authoring refusal (native ``next`` emits ``{kind: error, error, reason,
+    details?}`` for it, #5879) projects to the same ``message`` and
+    ``data = {mission_slug, reason, **details}`` this verb always returned for it;
+    any other native error keeps the generic message with the raw payload.
+    """
+    reason = payload.get("reason")
+    if payload.get("kind") == "error" and isinstance(reason, str) and isinstance(payload.get("error"), str):
+        details = payload.get("details")
+        _common._fail(
+            cmd,
+            "RUNTIME_NEXT_FAILED",
+            payload["error"],
+            {"mission_slug": mission, "reason": reason, **(details if isinstance(details, dict) else {})},
+        )
+    _common._fail(cmd, "RUNTIME_NEXT_FAILED", "Native next refused the request", payload)
+
+
 def runtime_next(
     mission: str = typer.Option(..., "--mission", help="Mission handle"),
     agent: str | None = typer.Option(None, "--agent", help="Agent required for advancement"),
@@ -87,7 +107,7 @@ def runtime_next(
             raise DesignContextError("RUNTIME_NEXT_FAILED", "Native next produced no parseable JSON", {"mission_slug": mission})
         payload.setdefault("mission_slug", mission)
         if failed or payload.get("kind") == "error" or "error" in payload:
-            _common._fail(cmd, "RUNTIME_NEXT_FAILED", "Native next refused the request", payload)
+            _fail_native_refusal(cmd, mission, payload)
         if payload.get("kind") == "blocked":
             _common._fail(cmd, "RUNTIME_BLOCKED", "Native next is blocked", payload)
         _project_prompt(payload)
