@@ -131,9 +131,10 @@ def test_specify_command_delegates_to_agent_lifecycle(monkeypatch) -> None:
 def test_plan_and_tasks_delegate_to_agent_lifecycle(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
-    def fake_setup_plan(feature=None, json_output: bool = False):
+    def fake_setup_plan(feature=None, json_output: bool = False, owned_checkout=None):
         captured["plan_feature"] = feature
         captured["plan_json"] = json_output
+        captured["plan_owned_checkout"] = owned_checkout
 
     def fake_finalize_tasks(feature=None, json_output: bool = False):
         captured["tasks_feature"] = feature
@@ -150,6 +151,7 @@ def test_plan_and_tasks_delegate_to_agent_lifecycle(monkeypatch) -> None:
     assert tasks_result.exit_code == 0
     assert captured["plan_feature"] == "001-demo"
     assert captured["plan_json"] is True
+    assert captured["plan_owned_checkout"] is None
     assert captured["tasks_feature"] == "001-demo"
     assert captured["tasks_json"] is True
 
