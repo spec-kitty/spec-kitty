@@ -4083,7 +4083,6 @@ pages:
     - {slug: "spec-kitty-charter-synthesize", text: "spec-kitty charter synthesize", level: 2}
     - {slug: "spec-kitty-charter-resynthesize", text: "spec-kitty charter resynthesize", level: 2}
     - {slug: "spec-kitty-charter-status", text: "spec-kitty charter status", level: 2}
-    - {slug: "spec-kitty-charter-sync", text: "spec-kitty charter sync", level: 2}
     - {slug: "spec-kitty-charter-lint", text: "spec-kitty charter lint", level: 2}
     - {slug: "spec-kitty-charter-context", text: "spec-kitty charter context", level: 2}
     - {slug: "spec-kitty-charter-bundle-validate", text: "spec-kitty charter bundle validate", level: 2}
@@ -4133,7 +4132,6 @@ pages:
     - {slug: "spec-kitty-charter-preflight", text: "spec-kitty charter preflight", level: 2}
     - {slug: "spec-kitty-charter-resynthesize", text: "spec-kitty charter resynthesize", level: 2}
     - {slug: "spec-kitty-charter-status", text: "spec-kitty charter status", level: 2}
-    - {slug: "spec-kitty-charter-sync", text: "spec-kitty charter sync", level: 2}
     - {slug: "spec-kitty-charter-synthesize", text: "spec-kitty charter synthesize", level: 2}
     - {slug: "spec-kitty-charter-validate", text: "spec-kitty charter validate", level: 2}
     - {slug: "spec-kitty-config", text: "spec-kitty config", level: 2}
@@ -10564,7 +10562,7 @@ pages:
     anchors:
     - {slug: "file-table", text: "File Table", level: 2}
     - {slug: "external-governance-documents", text: "External Governance Documents", level: 2}
-    - {slug: "sync-behavior", text: "Sync Behavior", level: 3}
+    - {slug: "editing-charter-yaml", text: "Editing `charter.yaml`", level: 3}
     - {slug: "git-policy", text: "Git Policy", level: 2}
     - {slug: "what-happens-if-you-edit-a-generated-section", text: "What Happens If You Edit a Generated Section", level: 2}
     - {slug: "migrating-constitution-era-files", text: "Migrating Constitution-Era Files", level: 2}
