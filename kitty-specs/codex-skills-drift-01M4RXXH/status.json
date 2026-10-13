@@ -20,6 +20,7 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
+      "agent": "claude",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
@@ -27,6 +28,9 @@
       "last_event_id": "01M4TNGMHZSWVDTWE5J7M22A7V",
       "last_transition_at": "2026-10-13T12:59:03.103090+00:00",
       "model": "__resolved_model_absent__",
+      "notes": [
+        "Landing review of PR #6113: two-lens adversarial squad (MAJOR folded: ADR 2026-10-04-3 amendment) and independent test vetting (4 STRENGTHEN folded); approval recorded at the operator's request after the PR merged to main as ebf40abb6"
+      ],
       "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "PR#6113",
