@@ -27,8 +27,10 @@ import and would not be re-exported) and so the identity gate can assert
 Growth: the surface grows as consumers are drained onto it (owner: epic #6099,
 the charter extraction). This is the first tranche (the mission-type-key access
 cluster). The enforcing boundary gate that forbids external consumers from
-reaching ``charter.activation.*`` internals lands as the drain completes, per the
-charter's gate discipline (a gate is added empty or in the mission that drains it).
+reaching ``charter.activation.*`` internals
+(``tests/architectural/test_runtime_charter_activation_boundary.py``) ships with
+this seam as a shrink-only baseline ratchet: the pre-existing reaches are frozen
+and drained tranche by tranche, while any *new* reach fails immediately.
 """
 
 from __future__ import annotations

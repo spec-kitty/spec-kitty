@@ -71,4 +71,7 @@ def test_seam_reexports_only_activation_never_offering() -> None:
             "be exported from charter.offering.api / a charter.* offering facade, not the "
             "activation seam (offering/activation are separate extractable units)."
         )
-        assert origin.startswith("charter.activation") or origin.startswith("charter."), f"charter.activation.api.{name} originates from {origin}, outside charter."
+        # A class/function carries a usable ``__module__`` (empty for a plain
+        # constant/value, which is fine); when present it must stay inside charter.
+        if origin:
+            assert origin.startswith("charter."), f"charter.activation.api.{name} originates from {origin}, outside charter."
