@@ -250,13 +250,21 @@ def test_manifest_edit_selects_charter_dossier_and_runtime(router: Router, manif
     """#6125: a mission-manifest diff selects the modules whose tests read it, per-PR.
 
     Before, it matched only the non-module ``corpus`` group and selected zero modules.
-    The fan-out targets must also be real registry modules, or they would drop silently.
     """
-    assert _MANIFESTS, "no mission manifests found: the glob would make this gate vacuous"
-    required = frozenset({"charter", "dossier", "specify_cli_runtime"})
-    assert required <= select_modules([manifest], router=router)
-    assert GROUP_MODULE_FANOUT["mission_manifest"] == required
-    assert required <= _registry_module_names()
+    assert frozenset({"charter", "dossier", "specify_cli_runtime"}) <= select_modules([manifest], router=router)
+
+
+def test_group_module_fanout_is_wired(router: Router) -> None:
+    """The fan-out is non-vacuous and points at real groups and registry modules.
+
+    Kept out of the parametrized test above: an empty manifest glob would turn that
+    test into a single skip, so this is where an empty glob must fail.
+    """
+    assert len(_MANIFESTS) >= 4, "the manifest glob matched too little: the selection gate would be vacuous"
+    assert GROUP_MODULE_FANOUT["mission_manifest"] == frozenset({"charter", "dossier", "specify_cli_runtime"})
+    for group, targets in GROUP_MODULE_FANOUT.items():
+        assert group in router.filters, f"fan-out group {group!r} is not a router filter group"
+        assert targets <= _registry_module_names(), f"fan-out targets of {group!r} are not all registry modules"
 
 
 def test_select_modules_single_src_group_selects_only_that_module(router: Router) -> None:
