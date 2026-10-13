@@ -11,9 +11,9 @@ sections straight off disk (INV-3: no governance/directives DECISION reads
 
 ``sync()`` / ``ensure_charter_bundle_fresh()`` are RETAINED -- signatures and
 ``SyncResult`` contract unchanged -- because other charter-layer modules
-(``context.py``, ``specify_cli.charter_runtime.freshness.computer``, the
-``charter sync`` CLI command and the bundle-migration upgrader) still call
-them for canonical-root resolution and the ``charter.md`` staleness check. ``sync()`` no longer extracts or writes
+(``context.py``, ``specify_cli.charter_runtime.freshness.computer`` and the
+bundle-migration upgrader) still call them for canonical-root resolution and
+the ``charter.md`` staleness check. ``sync()`` no longer extracts or writes
 anything; it always reports ``synced=False`` / ``files_written=[]``.
 """
 
@@ -156,8 +156,7 @@ def sync(
     ``directives`` are hand-authored directly in ``charter.yaml`` now (see
     :func:`load_governance_config` / :func:`load_directives_config`).
 
-    Retained for its callers' contract (``ensure_charter_bundle_fresh``, the
-    ``charter sync`` CLI command): it still performs the staleness check
+    Retained for its callers' contract (``ensure_charter_bundle_fresh``): it still performs the staleness check
     against ``charter.md`` and reports ``stale_before`` accurately, but
     ``synced`` is now always ``False`` and ``files_written`` always empty --
     there is nothing left for this function to produce.
