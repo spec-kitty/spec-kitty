@@ -318,11 +318,13 @@ def test_public_next_completes_real_design_actions(tmp_path: Path) -> None:
 
 
 @pytest.mark.regression
-def test_native_next_enforces_api_authored_stale_refusal(tmp_path: Path) -> None:
+@pytest.mark.parametrize("extra", [(), ("--answer", "approve", "--decision-id", "input:approval")], ids=["plain", "with-answer"])
+def test_native_next_enforces_api_authored_stale_refusal(tmp_path: Path, extra: tuple[str, ...]) -> None:
     """#5879: native ``next --result success`` must refuse stale content for an
-    API-authored Mission, exactly as the orchestrator-api ``next`` verb already
-    does. RED on origin/main (the native path skipped ``validate_stage``), GREEN
-    once the marker-gated check moved into the shared ``next_cmd.next_step`` seam.
+    API-authored Mission, exactly as the orchestrator-api ``next`` verb does, and
+    BEFORE any mutation: a refusal carried with ``--answer``/``--decision-id``
+    persists no answer and starts no run. RED on origin/main (the native path
+    skipped ``validate_stage``).
     """
     root = _project(tmp_path)
     created = _call(root, "specify", "--mission", "native-stale", "--mission-type", "software-dev", "--topology", "single_branch", "--policy", POLICY)["data"]
@@ -334,52 +336,14 @@ def test_native_next_enforces_api_authored_stale_refusal(tmp_path: Path) -> None
     _submit(root, mission, "specify", "research", "# Research\n\nThe README client uses the canonical local API.\n", {})
     assert _advance(root, mission)["step_id"] == "specify"
     before = _runtime_bytes(root)
-    # Native completion of the stale ``specify`` stage must refuse (not advance).
-    exit_code, payload = _native_next(root, mission, "--agent", "planning-client", "--result", "success")
+    exit_code, payload = _native_next(root, mission, "--agent", "planning-client", "--result", "success", *extra)
     assert exit_code != 0, payload
     assert payload.get("kind") == "error", payload
     assert payload.get("reason") == "DESIGN_PREREQUISITES_FAILED", payload
-    # The refusal happens before any runtime mutation.
+    # The refusal happens before any runtime mutation, and the mission is still
+    # at the issued ``specify`` step (native did not advance).
     assert _runtime_bytes(root) == before
-    # And the mission is still at the issued ``specify`` step (native did not advance).
     assert _call(root, "next", "--mission", mission)["data"]["step_id"] == "specify"
-
-
-def test_native_next_accepts_api_authored_valid(tmp_path: Path) -> None:
-    """#5879 gate is not over-eager: once the specify content is validly authored,
-    native ``next --result success`` completes the stage and advances (no false
-    refusal), the direct native-path positive control."""
-    root = _project(tmp_path)
-    created = _call(root, "specify", "--mission", "native-valid", "--mission-type", "software-dev", "--topology", "single_branch", "--policy", POLICY)["data"]
-    mission = created["mission_slug"]
-    assert _advance(root, mission)["step_id"] == "discovery"
-    _interview(root, mission, "specify")
-    assert _advance(root, mission)["step_id"] == "specify"
-    _submit(root, mission, "specify", "specification", SPEC, {})
-    exit_code, payload = _native_next(root, mission, "--agent", "planning-client", "--result", "success")
-    assert exit_code == 0, payload
-    assert payload.get("step_id") == "plan", payload
-
-
-@pytest.mark.regression
-def test_native_next_refusal_with_answer_persists_nothing(tmp_path: Path) -> None:
-    """#5879: the native gate runs BEFORE decision-answer handling, so a refused
-    stale completion carried with ``--answer``/``--decision-id`` persists no
-    answer and starts no run (no side effect on a refusal)."""
-    root = _project(tmp_path)
-    created = _call(root, "specify", "--mission", "native-answer", "--mission-type", "software-dev", "--topology", "single_branch", "--policy", POLICY)["data"]
-    mission = created["mission_slug"]
-    assert _advance(root, mission)["step_id"] == "discovery"
-    _interview(root, mission, "specify")
-    _submit(root, mission, "specify", "research", "# Research\n\nThe README client uses the canonical local API.\n", {})
-    assert _advance(root, mission)["step_id"] == "specify"
-    before = _runtime_bytes(root)
-    # A stale ``specify`` completion is refused at the gate, ahead of answer
-    # handling — so the spurious answer is never persisted and no run is started.
-    exit_code, payload = _native_next(root, mission, "--agent", "planning-client", "--result", "success", "--answer", "approve", "--decision-id", "input:approval")
-    assert exit_code != 0, payload
-    assert payload.get("reason") == "DESIGN_PREREQUISITES_FAILED", payload
-    assert _runtime_bytes(root) == before
 
 
 def _native_finalize(root: Path, mission: str) -> tuple[int, str]:
