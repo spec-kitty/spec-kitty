@@ -7,6 +7,11 @@ The bundle follows ``contracts/evidence.schema.json`` of the
 ``acceptance-scenario-contract`` Mission (schema_version 1). Stdlib only.
 
 ``evidence.json`` is always written. The exit status is 1 unless the gating pass is ``passed`` (no JUnit XML, failures, or nothing executed).
+
+``--gating-step-outcome`` takes the CI outcome of the step that ran the gating pass
+(``steps.<id>.outcome``). Anything but ``success`` turns a ``passed`` gating pass into
+``failed``: a run that died after writing some green JUnit XML must not read as green. A
+pass with no JUnit XML stays ``missing``.
 """
 
 from __future__ import annotations
@@ -24,6 +29,8 @@ GATING_NAME = "gating"
 PASSES = (GATING_NAME, "wip")
 COUNTERS = ("tests", "failures", "errors", "skipped")
 EVIDENCE_FILE = "evidence.json"
+STEP_SUCCESS = "success"
+STEP_OUTCOMES = (STEP_SUCCESS, "failure", "cancelled", "skipped")
 ENVIRONMENT_FILE = "environment.properties"
 
 
@@ -85,10 +92,17 @@ def _outcome(counts: dict[str, int], has_xml: bool, *, gating: bool = False) -> 
     return "passed"
 
 
-def _pass_entry(root: Path, name: str) -> dict[str, Any]:
+def _step_adjusted(outcome: str, step_outcome: str | None) -> str:
+    """A ``passed`` outcome becomes ``failed`` when the step that produced it did not succeed."""
+    if outcome == "passed" and step_outcome not in (None, STEP_SUCCESS):
+        return "failed"
+    return outcome
+
+
+def _pass_entry(root: Path, name: str, step_outcome: str | None = None) -> dict[str, Any]:
     counts, has_xml = _junit_counts(root / name / "junit")
     return {
-        "outcome": _outcome(counts, has_xml, gating=name == GATING_NAME),
+        "outcome": _step_adjusted(_outcome(counts, has_xml, gating=name == GATING_NAME), step_outcome),
         **counts,
         "results": {
             "allure": f"{name}/allure-results",
@@ -166,15 +180,19 @@ def _run_url() -> str | None:
     return None
 
 
-def build_bundle(root: Path, os_name: str) -> dict[str, Any]:
-    """Assemble the evidence bundle for the pass folders under ``root``."""
+def build_bundle(root: Path, os_name: str, gating_step_outcome: str | None = None) -> dict[str, Any]:
+    """Assemble the evidence bundle for the pass folders under ``root``.
+
+    ``gating_step_outcome`` is the CI outcome of the gating step; ``None`` trusts the JUnit XML alone.
+    """
+    step_outcomes = {GATING_NAME: gating_step_outcome}
     return {
         "schema_version": SCHEMA_VERSION,
         "commit_sha": _environment_value(root, "commit.sha"),
         "cli_version": _environment_value(root, "cli.version"),
         "os": os_name,
         "run_url": _run_url(),
-        "passes": {name: _pass_entry(root, name) for name in PASSES},
+        "passes": {name: _pass_entry(root, name, step_outcomes.get(name)) for name in PASSES},
     }
 
 
@@ -182,8 +200,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True, help="acceptance-jvm/build/acceptance")
     parser.add_argument("--os", dest="os_name", required=True, help="matrix OS label")
+    parser.add_argument(
+        "--gating-step-outcome",
+        choices=STEP_OUTCOMES,
+        default=None,
+        help="CI outcome of the gating step (steps.<id>.outcome); anything but success fails the gating pass",
+    )
     args = parser.parse_args(argv)
-    bundle = build_bundle(args.root, args.os_name)
+    bundle = build_bundle(args.root, args.os_name, args.gating_step_outcome)
     args.root.mkdir(parents=True, exist_ok=True)
     target = args.root / EVIDENCE_FILE
     target.write_text(json.dumps(bundle, indent=2, sort_keys=True) + "\n", encoding="utf-8")

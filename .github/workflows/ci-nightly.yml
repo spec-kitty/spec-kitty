@@ -1498,6 +1498,7 @@ jobs:
       # `not @wip and not @manual` and its own build/acceptance/gating/ folder) with
       # NO retry wrapper. A flake here fails the leg -- that IS the signal (NFR-005).
       - name: Run the gating acceptance scenarios (no retries)
+        id: gating
         shell: bash
         run: gradle -p acceptance-jvm test --no-daemon -Pacceptance.pass=gating
 
@@ -1516,10 +1517,12 @@ jobs:
       # a red gating step still produces it; it is written under the uploaded root.
       # The script writes evidence.json first, then exits non-zero unless the gating pass passed (no
       # JUnit XML, failures, or no scenario executed), so a gating pass that never ran is a red leg.
+      # --gating-step-outcome hands it the gating step's outcome: a gating run that died after
+      # writing some green JUnit XML is recorded as failed, never passed.
       - name: Write the acceptance evidence bundle
         if: always()
         shell: bash
-        run: uv run --frozen --no-sync python -m scripts.ci.acceptance_evidence --root acceptance-jvm/build/acceptance --os "${{ matrix.os }}"
+        run: uv run --frozen --no-sync python -m scripts.ci.acceptance_evidence --root acceptance-jvm/build/acceptance --os "${{ matrix.os }}" --gating-step-outcome "${{ steps.gating.outcome }}"
 
       # Hand the per-pass results (allure-results, cucumber.json, junit) and
       # evidence.json to the spec-kitty-qa nightly under an OS-qualified name so

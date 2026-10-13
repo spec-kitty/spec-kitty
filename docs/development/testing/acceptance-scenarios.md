@@ -125,7 +125,8 @@ after `gating` leaves the gating results untouched:
 - Allure results: `acceptance-jvm/build/acceptance/<pass>/allure-results/`
 
 The nightly's evidence script also writes `acceptance-jvm/build/acceptance/evidence.json`,
-counted from the JUnit XML of both passes.
+counted from the JUnit XML of both passes. It is also given the outcome of the gating step,
+so a gating run that stopped after writing some passing JUnit XML is recorded as failed.
 
 A gating run fails if no scenario ran, so a mistyped tag filter or a wrong feature path
 cannot pass as green. Only the `@wip` run may find none.
