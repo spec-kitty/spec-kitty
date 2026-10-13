@@ -288,6 +288,13 @@ def test_public_next_completes_real_design_actions(tmp_path: Path) -> None:
     refused = _call(root, "next", "--mission", mission, "--agent", "planning-client", "--result", "success", "--policy", POLICY, success=False)
     assert refused["error_code"] == "RUNTIME_NEXT_FAILED"
     assert refused["data"]["reason"] == "DESIGN_PREREQUISITES_FAILED"
+    # Envelope shape consumers rely on: the specific refusal text, flat data.
+    assert refused["data"]["mission_slug"] == mission
+    assert refused["data"]["message"] != "Native next refused the request", refused
+    assert refused["data"]["message"] == "The parent artifact must be committed", refused
+    assert refused["data"].get("kind") != "error", refused
+    assert refused["data"]["kind"] == "specification", refused  # spread detail, not the native error kind
+    assert "details" not in refused["data"], refused
     assert _call(root, "next", "--mission", mission)["data"]["step_id"] == "specify"
     spec = _submit(root, mission, "specify", "specification", SPEC, {})
     assert _advance(root, mission)["step_id"] == "plan"
@@ -419,6 +426,20 @@ def test_native_mission_finalize_accepts_api_authored_valid(tmp_path: Path) -> N
     exit_code, payload = _native_next(root, mission, "--agent", "planning-client", "--result", "success")
     assert exit_code == 0, payload
     assert payload.get("step_id") == "analyze", payload
+    # The receipts follow the bytes native finalize rewrote (a dropped re-stamp
+    # would pass the step above, since the completion gate skips the proof once
+    # tasks are finalized).
+    from specify_cli.design.authoring import artifact_path
+    from specify_cli.design.receipts import content_digest, read_receipts
+    from specify_cli.design.validation import validate_stage
+
+    receipts = read_receipts(root, mission)
+    assert receipts is not None
+    wp_receipts = [r for r in receipts.artifacts.values() if r.kind == "work_package"]
+    assert wp_receipts
+    for receipt in wp_receipts:
+        assert receipt.sha256 == content_digest(artifact_path(root, mission, receipt.kind, receipt.artifact_id))
+    validate_stage(root, mission, "tasks")
 
 
 def _configure_required_input(root: Path, step_id: str) -> None:
