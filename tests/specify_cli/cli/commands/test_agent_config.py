@@ -423,11 +423,11 @@ def test_sync_create_missing_restores_lost_vibe_pointer(tmp_path: Path, monkeypa
     assert manifest_path.read_bytes() == manifest_before
     assert skill_file.read_bytes() == skill_before
     first_summary = json.loads(first.output[first.output.index("{") :])
-    assert first_summary == {"changes_made": True, "tracked_mutations": []}
+    assert first_summary == {"changes_made": True, "tracked_mutations": [], "regenerated": []}
 
     assert second.exit_code == 0, second.output
     second_summary = json.loads(second.output[second.output.index("{") :])
-    assert second_summary == {"changes_made": False, "tracked_mutations": []}
+    assert second_summary == {"changes_made": False, "tracked_mutations": [], "regenerated": []}
 
 
 def test_sync_create_missing_leaves_installed_non_vibe_skill_agent_without_vibe_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -475,3 +475,56 @@ def test_sync_create_missing_reports_unrestorable_vibe_pointer(tmp_path: Path, m
     output = " ".join(result.output.split())
     assert "Failed to restore .vibe/config.toml skill_paths pointer" in output
     assert pointer.read_bytes() == corrupt
+
+
+# ---------------------------------------------------------------------------
+# #6155 — `agent config sync` names a regenerated command skill exactly once,
+# counts it as installed, and reports it under --json without a human line.
+# ---------------------------------------------------------------------------
+
+_REGENERATED_PREFIX = "Regenerated a generated command skill that differed from the current version: "
+
+
+def _drifted_shared_projection(tmp_path: Path) -> tuple[str, int]:
+    """codex installed + vibe configured but not installed, with one shared projection drifted.
+
+    ``sync --create-missing`` then installs vibe over the shared root, which regenerates the
+    drifted projection. Returns (drifted relative path, number of command skills).
+    """
+    import subprocess
+
+    from specify_cli.skills import command_installer, manifest_store
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    _write_project(tmp_path, ["codex", "vibe"])
+    command_installer.install(tmp_path, "codex")
+    entries = manifest_store.load(tmp_path).entries
+    skill = tmp_path / ".agents" / "skills" / "spec-kitty.plan" / "SKILL.md"
+    skill.write_bytes(skill.read_bytes() + b"\n<!-- stale output from another checkout -->\n")
+    return skill.relative_to(tmp_path).as_posix(), len(entries)
+
+
+def test_6155_sync_names_regenerated_skill_once_and_counts_it(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    rel, total = _drifted_shared_projection(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["sync", "--create-missing", "--keep-orphaned"])
+
+    assert result.exit_code == 0, result.output
+    flat = " ".join(result.output.split())
+    assert flat.count(f"{_REGENERATED_PREFIX}{rel}") == 1, result.output
+    assert f"Registered vibe ({total} command skills" in flat, result.output
+
+
+def test_6155_sync_json_reports_regenerated_without_human_line(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import json
+
+    rel, _total = _drifted_shared_projection(tmp_path)
+    monkeypatch.chdir(tmp_path)
+
+    result = runner.invoke(app, ["sync", "--create-missing", "--keep-orphaned", "--json"])
+
+    assert result.exit_code == 0, result.output
+    assert _REGENERATED_PREFIX not in result.output, "the human notice must not reach stdout under --json"
+    summary = json.loads(result.output[result.output.index("{") :])
+    assert summary["regenerated"] == [rel], summary

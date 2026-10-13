@@ -178,6 +178,24 @@ class TestApplyClean:
         assert not prompts_dir.exists()
 
 
+    def test_6155_names_regenerated_skill_in_changes(self, tmp_path: Path) -> None:
+        """#6155: a re-run over a drifted, manifest-owned projection regenerates it and names
+        the path once in ``changes_made`` instead of regenerating silently."""
+        from specify_cli.skills import command_installer
+        from specify_cli.tool_surface.repair import REGENERATED_SURFACE_LINE
+
+        project = _copy_fixture("clean", tmp_path)
+        command_installer.install(project, "codex")
+        drifted = _skill_path(project, "plan")
+        drifted.write_bytes(drifted.read_bytes() + b"\n<!-- stale output from another checkout -->\n")
+        rel = drifted.relative_to(project).as_posix()
+
+        result = CodexToSkillsMigration().apply(project)
+
+        assert result.success, f"errors: {result.errors}"
+        assert result.changes_made.count(REGENERATED_SURFACE_LINE.format(path=rel)) == 1, result.changes_made
+
+
 # ---------------------------------------------------------------------------
 # apply() — owned_unedited_only fixture
 # ---------------------------------------------------------------------------

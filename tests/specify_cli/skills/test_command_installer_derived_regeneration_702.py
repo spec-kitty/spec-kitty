@@ -248,8 +248,32 @@ def test_6155_non_derived_class_keeps_drift_as_consent_required(repo: Path, monk
 
     states = {d.state for d in assessment.dispositions if d.path == rel}
     assert "consent_required" in states, f"non-DERIVED class must keep drift pending consent, got {states}"
-    assert "regenerated" not in states
+    kinds = {c.report_kind for c in assessment.prepared.commands if c.path == rel}
+    assert "regenerated" not in kinds, f"the gate is off, so nothing may be reported regenerated, got {kinds}"
     assert drift_path.read_bytes() == drifted_bytes, "drift must be kept, not clobbered, when the class is not DERIVED/IGNORED"
+
+
+def _surfaces_without_shared_skills() -> tuple[object, ...]:
+    """A ``STATE_SURFACES`` copy with no ``shared_skills_projection`` entry at all."""
+    return tuple(surface for surface in state_contract.STATE_SURFACES if surface.name != "shared_skills_projection")
+
+
+def test_6155_missing_surface_fails_closed_to_consent(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail-closed: when ``shared_skills_projection`` is absent from ``STATE_SURFACES`` the gate
+    reads as off, so a drifted projection falls through to ``consent_required`` and is kept."""
+    install(repo, "codex")
+    drift_path, _canonical = _introduce_drift(repo, "review")
+    rel = drift_path.relative_to(repo).as_posix()
+    drifted_bytes = drift_path.read_bytes()
+
+    monkeypatch.setattr(state_contract, "STATE_SURFACES", _surfaces_without_shared_skills())
+    assessment, _result = _reconcile_via_provider_call(repo, ("codex",))
+
+    states = {d.state for d in assessment.dispositions if d.path == rel}
+    assert "consent_required" in states, f"a missing surface must fail closed to consent, got {states}"
+    kinds = {c.report_kind for c in assessment.prepared.commands if c.path == rel}
+    assert "regenerated" not in kinds
+    assert drift_path.read_bytes() == drifted_bytes
 
 
 def test_6155_real_derived_class_regenerates_drift(repo: Path) -> None:
@@ -375,3 +399,42 @@ def test_6155_prune_still_refuses_directory_at_projection_path(repo: Path) -> No
         command_installer.prune_stale(repo)
 
     assert dir_at_path.is_dir(), "a directory at the projection path must be refused, never removed"
+
+
+def test_6155_prune_refuses_retired_drift_when_gate_is_off(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The retired-command prune rides the SAME DERIVED/IGNORED gate: with the surface read as
+    TRACKED the drifted retired projection is refused (``file_mutation_detected``) and survives.
+    Kills the ``not (retired and self._regenerate_derived)`` -> ``not retired`` mutant."""
+    install(repo, "codex")
+    retired = repo / ".agents" / "skills" / "spec-kitty.legacy-opener" / "SKILL.md"
+    retired.parent.mkdir(parents=True, exist_ok=True)
+    stale = b"# stale retired-command output from another checkout\n"
+    retired.write_bytes(stale)
+    _record_retired_entry(repo, _RETIRED_REL)
+
+    monkeypatch.setattr(state_contract, "STATE_SURFACES", _surfaces_with_shared_skills_tracked())
+    with pytest.raises(command_installer.InstallerError, match="file_mutation_detected"):
+        command_installer.prune_stale(repo)
+
+    assert retired.read_bytes() == stale, "the drifted retired projection must survive while the gate is off"
+    assert manifest_store.load(repo).find(_RETIRED_REL) is not None, "its manifest entry must be kept"
+
+
+def test_6155_retired_drift_with_other_owners_keeps_entry_and_file(repo: Path) -> None:
+    """A retired drifted entry still owned by another agent is narrowed, not pruned: the entry is
+    kept with the remaining owner and the file is left byte-unchanged."""
+    install(repo, "codex")
+    retired = repo / ".agents" / "skills" / "spec-kitty.legacy-opener" / "SKILL.md"
+    retired.parent.mkdir(parents=True, exist_ok=True)
+    stale = b"# stale retired-command output from another checkout\n"
+    retired.write_bytes(stale)
+    _record_retired_entry(repo, _RETIRED_REL, agents=("codex", "vibe"))
+
+    assessment, result = _reconcile_via_provider_call(repo, ("codex",))
+
+    kinds = {c.report_kind for c in assessment.prepared.commands if c.path == _RETIRED_REL}
+    assert kinds == {"kept"}, kinds
+    assert result.outcome == "applied"
+    assert retired.read_bytes() == stale, "a retired projection another owner still holds must be left alone"
+    entry = manifest_store.load(repo).find(_RETIRED_REL)
+    assert entry is not None and entry.agents == ("vibe",), entry

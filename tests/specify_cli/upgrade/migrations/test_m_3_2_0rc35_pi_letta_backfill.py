@@ -267,3 +267,20 @@ def test_repairs_manifest_ownership_when_shared_skills_already_exist(
     for entry in manifest.entries:
         assert entry.agents == ("codex", "letta", "pi")
     assert not migration.detect(project)
+
+
+def test_6155_backfill_names_regenerated_shared_skill_in_changes(tmp_path: Path) -> None:
+    """#6155: the Pi/Letta skill backfill reinstalls over the shared root, which regenerates a
+    drifted shared projection; the migration names that path once in ``changes_made``."""
+    from specify_cli.tool_surface.repair import REGENERATED_SURFACE_LINE
+
+    project = _make_project(tmp_path, agents=["pi", "letta"], gitignore_lines=[".pi/", ".letta/"])
+    command_installer.install(project, "codex")
+    drifted = project / ".agents" / "skills" / "spec-kitty.plan" / "SKILL.md"
+    drifted.write_bytes(drifted.read_bytes() + b"\n<!-- stale output from another checkout -->\n")
+    rel = drifted.relative_to(project).as_posix()
+
+    result = PiLettaBackfillMigration().apply(project)
+
+    assert result.success, result.errors
+    assert result.changes_made.count(REGENERATED_SURFACE_LINE.format(path=rel)) == 1, result.changes_made

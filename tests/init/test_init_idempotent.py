@@ -554,3 +554,32 @@ def test_init_repairs_requested_command_skills_in_initialized_clone(
     assert (skills_root / "spec-kitty.plan" / "SKILL.md").is_file()
     assert "command skills installed" in buf2.getvalue().lower()
     assert config_path.read_text(encoding="utf-8") == config_before
+
+
+def test_6155_init_rerun_names_regenerated_skill_once_and_counts_it(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """#6155: an ``init --ai codex`` re-run that restores a missing command skill also
+    regenerates a drifted one; it names that path exactly once and counts it as installed
+    (one restored + one regenerated = 2; the untouched skills are not counted)."""
+    from specify_cli.tool_surface.repair import REGENERATED_SURFACE_LINE
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+    app1, _ = _make_app_with_buf()
+    assert _run(app1, ["init", "--ai", "codex", "--non-interactive"]).exit_code == 0
+    skills_root = tmp_path / ".agents" / "skills"
+    drifted = skills_root / "spec-kitty.plan" / "SKILL.md"
+    drifted.write_bytes(drifted.read_bytes() + b"\n<!-- stale output from another checkout -->\n")
+    (skills_root / "spec-kitty.tasks" / "SKILL.md").unlink()  # a missing skill triggers the repair
+
+    app2, buf2 = _make_app_with_buf()
+    result2 = _run(app2, ["init", "--ai", "codex", "--non-interactive"])
+
+    assert result2.exit_code == 0, result2.output
+    flat = " ".join(buf2.getvalue().split())
+    rel = drifted.relative_to(tmp_path).as_posix()
+    assert flat.count(REGENERATED_SURFACE_LINE.format(path=rel)) == 1, buf2.getvalue()
+    assert "Codex CLI: 2 command skills installed" in flat, buf2.getvalue()
