@@ -16,6 +16,9 @@ requirement_refs:
 planning_base_branch: ccr-002603b2-bip646
 merge_target_branch: ccr-002603b2-bip646
 branch_strategy: Planning artifacts for this mission were generated on ccr-002603b2-bip646. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into ccr-002603b2-bip646 unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-acceptance-scenario-contract-01M4T9GC
+base_commit: cdbed8b0c0170288d3f7dd9547ca98ec773bcf6d
+created_at: '2026-10-13T10:12:25.984412+00:00'
 subtasks:
 - T012
 - T013

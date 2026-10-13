@@ -13,5 +13,7 @@
   "purpose_tldr": "Give CLI acceptance scenarios a checked contract on every pull request and make each nightly result traceable to the exact build, OS and pass.",
   "slug": "acceptance-scenario-contract-01M4T9GC",
   "target_branch": "ccr-002603b2-bip646",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-13T09:37:11.972146+00:00"
 }
