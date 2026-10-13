@@ -25,7 +25,7 @@ _SHIPPED_TREES = ("specify_cli", "runtime")
 _RETIRED_MYPY_PREFIX = _DOTTED.join(("specify_cli", "sync"))
 _DEP_NAME_TERMINATORS = "[=<>!~;@ "
 _EXPECTED_SHARED_RANGES = {
-    "spec-kitty-events": "spec-kitty-events>=10.4.4,<11",
+    "spec-kitty-events": "spec-kitty-events>=10.4.6,<11",
     "spec-kitty-tracker": "spec-kitty-tracker>=0.5.2,<0.6",
 }
 
@@ -209,7 +209,7 @@ def _dependency_config_violations(
         package = _dep_name(entry)
         if package in _RETIRED_CONFIG_PACKAGES:
             failures.append(f"retired dependency in {table}: {entry}")
-        if package == "spec-kitty-events" and not Requirement(entry).specifier.contains("10.4.4"):
+        if package == "spec-kitty-events" and not Requirement(entry).specifier.contains("10.4.6"):
             failures.append(f"retired spec-kitty-events range in {table}: {entry}")
 
     sources = data.get("tool", {}).get("uv", {}).get("sources", {})
