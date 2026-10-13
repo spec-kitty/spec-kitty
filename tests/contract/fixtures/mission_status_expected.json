@@ -114,11 +114,11 @@
     {
       "mission": "079-post-555-release-hardening",
       "kind": "real",
-      "lastActivityAt": "2026-04-09T09:35:08Z",
+      "lastActivityAt": "2026-04-09T07:43:40.905860+00:00",
       "statusLaneCounts": {
-        "planned": 5,
+        "planned": 7,
         "claimed": 0,
-        "in_progress": 2,
+        "in_progress": 0,
         "for_review": 0,
         "in_review": 0,
         "approved": 0,
@@ -128,7 +128,7 @@
       },
       "wpTotal": 7,
       "expected": {
-        "lifecycleStatus": "active",
+        "lifecycleStatus": "planned",
         "nextAction": "Run /spec-kitty.review in your coding agent, then: spec-kitty accept --mission 079-post-555-release-hardening"
       }
     },

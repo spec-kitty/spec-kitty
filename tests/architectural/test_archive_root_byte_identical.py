@@ -235,8 +235,21 @@ _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-d
 #   the reducer's materialization and the issue matrix changes one row's verdict.
 #   Follow-up: once this correction is in main's baseline, these entries are dead
 #   weight and should be removed to restore the byte-freeze on the corrected files.
+# - kitty-specs/079-post-555-release-hardening/status.json
+#   (2026-10-13, operator decision by Ivan-Melck, DM 01M4RW2GYCKEXDHFPZVGMH5Z6T,
+#   #6061): WP03 and WP07 move `in_progress -> planned`, because
+#   spec-kitty-events 10.4.6 stops a rollback-shaped verdict seed from taking a
+#   lane its lifecycle did not continue (neither WP was ever claimed for real;
+#   the `migration:backfill_runtime_state` claim seed was reverted by its
+#   `:compatibility` repair). The correction is a deterministic
+#   `spec-kitty agent status materialize`; the event log is untouched. No
+#   classifier tolerance was added (the audit stays strict).
+#   Follow-up: once this correction is in main's baseline, this entry is dead
+#   weight and should be removed to restore the byte-freeze on the corrected
+#   file (same convention as the entries above).
 _OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset(
     {
+        "kitty-specs/079-post-555-release-hardening/status.json",
         "kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/status.json",
         "kitty-specs/composition-advance-alignment-01M49EKF/status.json",
         "kitty-specs/codex-skills-drift-01M4RXXH/issue-matrix.json",

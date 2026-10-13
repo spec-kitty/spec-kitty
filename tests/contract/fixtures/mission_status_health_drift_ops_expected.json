@@ -20,7 +20,5 @@
     "01M1XSSJ92CX6AX0D54AVM3Z5H",
     "01M1XXTXV3NK7P3WAPRA4T6TZG"
   ],
-  "provenance_only_drift": [
-    {"mission": "080-ci-hardening-and-lint-cleanup", "source_code": "SNAPSHOT_DRIFT_PROVENANCE"}
-  ]
+  "provenance_only_drift": []
 }
