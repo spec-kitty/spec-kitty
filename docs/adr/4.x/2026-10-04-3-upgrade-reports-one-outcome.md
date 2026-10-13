@@ -131,3 +131,15 @@ It has no allowlist. Floor assertions name the real renderers, builders and exit
 - The exit code for unresolved drift, and a way for an operator to accept an edit: [#5745](https://github.com/spec-kitty/spec-kitty/issues/5745).
 - A worktree migration failure that still exits 0, a confirmation prompt under `--json`, and files left behind by a failed auto-commit: [#5746](https://github.com/spec-kitty/spec-kitty/issues/5746).
 - The reason shown for each kept file comes from the tool-surface provider and still uses internal wording such as "requires exact-path consent".
+
+## Amendment 2026-10-13: the shared command-skill projection is regenerated, not kept (#702)
+
+Decision 5 no longer applies to the shared command-skill projection, `.agents/skills/spec-kitty.<command>/SKILL.md` (Codex, Mistral Vibe, Pi, Letta). The state contract declares that surface `DERIVED` and git-`IGNORED` (`shared_skills_projection`, `src/specify_cli/state/contract.py`). Across two checkouts of one project, the command-skill manifest and the ignored bytes legitimately disagree, so the installer cannot tell a hand edit from generated output that another checkout's upgrade left behind. Operator direction (2026-10-05, P1) is to regenerate: `init`, `upgrade` and `spec-kitty agent config sync` rewrite a manifest-owned projection whose bytes match neither the recorded hash nor the current render, without consent and without a `Not updated, your local edit was kept` line.
+
+Consequences:
+
+- A hand edit to a `spec-kitty.*` command skill is replaced on the next reconcile. Customizations belong in a skill of the project's own, which is never touched.
+- The premise depends on `.agents/skills/` being git-ignored, which migration `m_3_2_5_agents_skills_gitignore_backfill` ensures. A project that removes that rule and commits the tree can still recover an overwritten edit from git.
+- Every other managed surface (slash-command files, managed skills, agent profiles, plugin-bundle components) keeps Decision 5 unchanged, and so does removing a retired command's drifted projection, which is still kept as `consent_required`.
+- The exit code for unresolved drift (#5745) is unaffected; this surface simply no longer produces drift.
+

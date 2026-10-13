@@ -62,16 +62,18 @@ The shared command-skill projection `.agents/skills/spec-kitty.<command>/SKILL.m
 by Codex, Mistral Vibe, Pi, and Letta — is **generated, local-only state**. It is declared
 `DERIVED` / git-`IGNORED` by the state contract (`shared_skills_projection`), so it is never
 committed. Do **not** stage or commit the `.agents/skills/` tree as normal project content;
-the tracked record is `.kittify/command-skills-manifest.json`.
+its ownership record is `.kittify/command-skills-manifest.json`, which a project may commit.
 
 Because the projection is derived, `init`, `upgrade`, and `spec-kitty agent config sync`
-regenerate it **idempotently from the manifest**:
+regenerate it **idempotently to the canonical render**:
 
-- A projection that already matches the manifest is left byte-unchanged.
+- A projection that already equals the current render is left byte-unchanged.
 - A **stale or drifted** projection — for example one written by an older build, or one that
   disagrees with a manifest another checkout rewrote — is **regenerated to the canonical
   render**, not treated as a local edit requiring consent (#702). This keeps `.agents/skills/`
   coherent with the manifest after every reconcile and `spec-kitty doctor skills` green.
+- A hand edit to a `spec-kitty.*` command skill is replaced the same way. Put customizations in a
+  skill of your own.
 - Your own, non-`spec-kitty` skills and files under `.agents/skills/` are never touched.
 
 **Fresh clone:** `.agents/skills/` is absent until it is produced by `init`/`upgrade`, or
