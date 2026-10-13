@@ -45,6 +45,7 @@ EXPECTED_ERRORS = {
     "bad_defect.feature": ["BAD_DEFECT"],
     "bad_qa.feature": ["BAD_QA_REF"],
     "unknown_prefixed_tag.feature": ["UNKNOWN_PREFIXED_TAG"],
+    "bad_bare_tag.feature": ["BAD_BARE_TAG"],
     "unbound_step.feature": ["UNBOUND_STEP"],
     "ambiguous_step.feature": ["AMBIGUOUS_STEP"],
     "outline_unbound.feature": ["UNBOUND_STEP"],

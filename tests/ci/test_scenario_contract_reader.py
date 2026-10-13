@@ -640,3 +640,40 @@ def test_examples_tags_are_validated(tmp_path):
     text = "Feature: F\n  Scenario Outline: O\n    Given <x>\n    @foo:bar @wip\n    Examples:\n      | x |\n      | a |\n"
     features, steps = make_tree(tmp_path, text)
     assert codes(sc.check_tree(features, steps)) == ["UNKNOWN_PREFIXED_TAG", "WIP_MISSING_OWNER", "WIP_MISSING_SINCE", "NO_GATING_SCENARIOS"]
+
+
+# ---- landing-review strengthening ------------------------------------------
+
+
+def test_step_must_match_the_whole_expression():
+    s = sc.Scenario("x.feature", 1, "S", "Scenario", (), (sc.Step("Given", "a thing and more", 2), sc.Step("Given", "the a thing", 3)))
+    assert [(p.code, p.line) for p in sc.match_steps(s, defs_for("a thing"))] == [("UNBOUND_STEP", 2), ("UNBOUND_STEP", 3)]
+
+
+def test_crlf_line_endings_are_read_like_lf():
+    text = "@t\r\nFeature: F\r\n  Background:\r\n    Given bg\r\n  Scenario: S\r\n    Given a\r\n      | x |\r\n    Then b\r\n"
+    scenarios, problems = parse(text)
+    assert problems == []
+    assert scenarios[0].tags == ("t",)
+    assert [(s.text, s.line) for s in scenarios[0].steps] == [("bg", 4), ("a", 6), ("b", 8)]
+
+
+def test_unbound_background_step_of_a_gating_scenario_is_an_error(tmp_path):
+    features, steps = make_tree(tmp_path, "Feature: F\n  Background:\n    Given zzz\n  Scenario: S\n    Given a\n")
+    problems = sc.check_tree(features, steps)
+    assert [(p.code, p.severity, p.line) for p in problems] == [("UNBOUND_STEP", "error", 3)]
+
+
+def test_outline_placeholder_inside_a_quoted_string_and_unbound_rows(tmp_path):
+    feature = (
+        'Feature: F\n  Scenario Outline: O\n    Given a named "<name>"\n    When I count <n> things\n'
+        "    Examples:\n      | name      | n    |\n      | bob       | 1    |\n      | two words | many |\n"
+        "      | carol     | lots |\n      | dave      | lots |\n"
+    )
+    java = '@Given("a named {string}")\n@When("I count {int} things")\n'
+    features, steps = make_tree(tmp_path, feature, java=java)
+    problems = sc.check_tree(features, steps)
+    assert [(p.code, p.line, p.message) for p in problems] == [
+        ("UNBOUND_STEP", 4, "no step definition matches 'I count many things'"),
+        ("UNBOUND_STEP", 4, "no step definition matches 'I count lots things'"),
+    ]
