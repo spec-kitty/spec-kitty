@@ -23,9 +23,10 @@ debt drained as consumers move onto ``charter.activation.api``:
 
 * a **new** internal reach (current - baseline) **FAILS** the gate (regression — the
   seam must not be bypassed by new code);
-* a **drained** reach (baseline - current) **WARNS** (informational), per the
-  charter Burn-down Policy (growth fails, shrinkage warns); evict it from the YAML
-  to lower the ``_baselines.yaml`` count.
+* a **drained** reach (baseline - current) is a **stale row and FAILS** too, so the
+  ratchet is shrink-only: evict the row from the YAML and lower the
+  ``_baselines.yaml`` count in the same change. (Stricter than the charter
+  Burn-down Policy's warn-on-shrinkage default, matching the offering seam gate.)
 
 ``if TYPE_CHECKING:`` imports are erased at runtime and are **not** reach-throughs,
 so they are exempt (identical treatment to the offering seam gate).
@@ -180,25 +181,20 @@ def test_boundary_predicate_has_prohibited_and_compliant_controls() -> None:
 
 
 def test_external_consumers_add_no_new_activation_internal_reach() -> None:
-    """A new (file, module) reach into a ``charter.activation`` internal fails the gate.
+    """The baseline is exact: a new reach fails, and so does a stale (drained) row.
 
-    Drained reaches (in the baseline but no longer present) only WARN, so the gate
-    never blocks progress; evict them from ``charter_activation_boundary_baseline.yaml``
-    and lower the ``_baselines.yaml`` count.
+    A new (file, module) reach into a ``charter.activation`` internal fails the gate.
+    A baselined pair that no longer exists also fails, so the ratchet is shrink-only:
+    the drained row must be evicted from ``charter_activation_boundary_baseline.yaml``
+    (and the ``_baselines.yaml`` count lowered) in the same change, which stops that
+    reach being re-added silently. Mirrors
+    ``test_runtime_has_no_new_lazy_offering_imports`` in the offering seam gate.
     """
     current = current_violators()
     baseline = _load_baseline()
 
     new = sorted(current - baseline)
-    drained = sorted(baseline - current)
-
-    if drained:
-        # Shrinkage warns (Burn-down Policy); it never fails the run.
-        print(
-            "charter.activation seam: these baselined internal reaches are drained — "
-            "evict them from charter_activation_boundary_baseline.yaml and lower the "
-            "_baselines.yaml count:\n  - " + "\n  - ".join(f"{f} -> {m}" for f, m in drained)
-        )
+    stale = sorted(baseline - current)
 
     assert not new, (
         "New reach into a charter.activation INTERNAL from an external consumer. Route\n"
@@ -206,6 +202,12 @@ def test_external_consumers_add_no_new_activation_internal_reach() -> None:
         "seam with an identity re-export if the symbol is missing, tabled in\n"
         "tests/architectural/test_charter_activation_api_reexport.py). A lazy import is not\n"
         "exempt. New file/module pairs:\n  - " + "\n  - ".join(f"{f} -> {m}" for f, m in new)
+    )
+    assert not stale, (
+        "Stale baseline rows: these (file, module) reaches no longer exist. Evict them from\n"
+        "tests/architectural/charter_activation_boundary_baseline.yaml and lower\n"
+        "boundary_baseline in tests/architectural/_baselines.yaml, so a drained reach cannot\n"
+        "be re-added silently:\n  - " + "\n  - ".join(f"{f} -> {m}" for f, m in stale)
     )
 
 
