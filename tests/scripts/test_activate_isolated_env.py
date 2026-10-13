@@ -1,5 +1,6 @@
 """Behavior of the sourced Shadow Clone helper."""
 
+import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -11,12 +12,22 @@ pytestmark = pytest.mark.fast
 HELPER = Path(__file__).resolve().parents[2] / "scripts/dev/activate-isolated-env.sh"
 
 
+_SCRUBBED_VARS = frozenset({"SPEC_KITTY_HOME", "SPEC_KITTY_ISOLATED_ENV", "VIRTUAL_ENV"})
+
+
+def _clean_env() -> dict[str, str]:
+    """The caller's environment minus anything that would steer the helper or
+    git: an activated Shadow Clone (or a git hook) running this suite must not
+    change its verdicts or write into the caller's repository."""
+    return {key: value for key, value in os.environ.items() if key not in _SCRUBBED_VARS and not key.startswith("GIT_")}
+
+
 def _run(shell: str, cwd: Path, *, exe: str = "bash") -> subprocess.CompletedProcess[str]:
-    return subprocess.run([exe, "-c", shell], cwd=cwd, text=True, capture_output=True, check=False)
+    return subprocess.run([exe, "-c", shell], cwd=cwd, env=_clean_env(), text=True, capture_output=True, check=False)
 
 
 def _git(*args: str) -> None:
-    subprocess.run(["git", *args], check=True)
+    subprocess.run(["git", *args], env=_clean_env(), check=True)
 
 
 def _parse(stdout: str) -> dict[str, str]:

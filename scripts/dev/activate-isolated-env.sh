@@ -5,13 +5,13 @@
 #     source scripts/dev/activate-isolated-env.sh
 #
 # It rewires the CURRENT shell so that, for the rest of the session, `spec-kitty`
-# resolves to THIS clone's virtualenv and all runtime state (queue.db, sync
-# daemon, event journal, auth, gate-locks, trackers) lands in a clone-local
-# root instead of the shared, machine-global ~/.spec-kitty. Nothing here leaks
+# resolves to THIS clone's virtualenv and all runtime state (auth, config,
+# gate-locks, trackers) lands in a clone-local root instead of the shared, machine-global ~/.spec-kitty. Nothing here leaks
 # into the machine-global installation or into sibling clones.
 #
 # The script binds the current Git checkout, even when sourced from another
-# worktree. Outside Git, it falls back to its own location. Undo with:
+# worktree. Outside Git, it falls back to its own location. Sourcing it in a
+# different checkout while one is active deactivates the old one first. Undo with:
 #     deactivate_spec_kitty
 #
 # See docs/development/getting-started/isolated-dev-environments.md for the full rationale.
@@ -25,7 +25,8 @@ elif [ -n "${ZSH_VERSION:-}" ]; then
 else
   _spk_script="$0"
 fi
-_spk_root="$(git rev-parse --show-toplevel 2>/dev/null)"
+# `|| _spk_root=""` keeps a caller running under `set -e` alive outside Git.
+_spk_root="$(git rev-parse --show-toplevel 2>/dev/null)" || _spk_root=""
 if [ -z "$_spk_root" ]; then
   _spk_root="$(cd "$(dirname "$_spk_script")/../.." && pwd)"
 fi
@@ -50,6 +51,40 @@ if [ ! -f "$_spk_root/.venv/bin/spec-kitty" ] || [ ! -x "$_spk_root/.venv/bin/sp
   echo "  Install this checkout first — see docs/development/getting-started/isolated-dev-environments.md" >&2
   unset _spk_root
   return 1 2>/dev/null || exit 1
+fi
+
+# --- teardown (defined before activation so a checkout switch can use it) ---
+deactivate_spec_kitty() {
+  if [ -z "${SPEC_KITTY_ISOLATED_ENV:-}" ]; then
+    echo "spec-kitty isolated env is not active" >&2
+    return 1
+  fi
+  export PATH="${_SPK_ISO_PREV_PATH:-$PATH}"
+  if [ "${_SPK_ISO_PREV_HOME:-__UNSET__}" = "__UNSET__" ]; then
+    unset SPEC_KITTY_HOME
+  else
+    export SPEC_KITTY_HOME="$_SPK_ISO_PREV_HOME"
+  fi
+  if [ "${_SPK_ISO_PREV_VENV:-__UNSET__}" = "__UNSET__" ]; then
+    unset VIRTUAL_ENV
+  else
+    export VIRTUAL_ENV="$_SPK_ISO_PREV_VENV"
+  fi
+  unset SPEC_KITTY_ISOLATED_ENV _SPK_ISO_PREV_PATH _SPK_ISO_PREV_HOME _SPK_ISO_PREV_VENV
+  # --switch: the helper is re-activating another checkout; keep this function.
+  if [ "${1:-}" = "--switch" ]; then
+    return 0
+  fi
+  echo "spec-kitty isolated env deactivated"
+  unset -f deactivate_spec_kitty 2>/dev/null || true
+}
+
+# --- switching checkouts: restore the original shell before binding this one -
+# Otherwise the other checkout's activated PATH / SPEC_KITTY_HOME would be
+# recorded as the "previous" state and deactivate would leave a half-active shell.
+if [ -n "${SPEC_KITTY_ISOLATED_ENV:-}" ]; then
+  echo "spec-kitty: switching isolated env from $SPEC_KITTY_ISOLATED_ENV"
+  deactivate_spec_kitty --switch
 fi
 
 # --- capture prior shell state so deactivate can restore it exactly ----------
@@ -79,25 +114,3 @@ echo "  cli   : $(command -v spec-kitty)"
 echo "  undo  : deactivate_spec_kitty"
 
 unset _spk_root
-
-# --- teardown ----------------------------------------------------------------
-deactivate_spec_kitty() {
-  if [ -z "${SPEC_KITTY_ISOLATED_ENV:-}" ]; then
-    echo "spec-kitty isolated env is not active" >&2
-    return 1
-  fi
-  export PATH="${_SPK_ISO_PREV_PATH:-$PATH}"
-  if [ "${_SPK_ISO_PREV_HOME:-__UNSET__}" = "__UNSET__" ]; then
-    unset SPEC_KITTY_HOME
-  else
-    export SPEC_KITTY_HOME="$_SPK_ISO_PREV_HOME"
-  fi
-  if [ "${_SPK_ISO_PREV_VENV:-__UNSET__}" = "__UNSET__" ]; then
-    unset VIRTUAL_ENV
-  else
-    export VIRTUAL_ENV="$_SPK_ISO_PREV_VENV"
-  fi
-  unset SPEC_KITTY_ISOLATED_ENV _SPK_ISO_PREV_PATH _SPK_ISO_PREV_HOME _SPK_ISO_PREV_VENV
-  echo "spec-kitty isolated env deactivated"
-  unset -f deactivate_spec_kitty 2>/dev/null || true
-}
