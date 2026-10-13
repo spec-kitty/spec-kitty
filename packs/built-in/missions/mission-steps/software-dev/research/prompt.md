@@ -81,6 +81,7 @@ If this Mission is an **owned single-branch checkout** (created with
 `--owned-checkout`), scaffold into the owned checkout, never the primary:
 
 ```bash
+# Owned single-branch checkouts only; do not run this for a Mission without one.
 spec-kitty research --mission <handle> --owned-checkout <owned-checkout-path>
 ```
 
