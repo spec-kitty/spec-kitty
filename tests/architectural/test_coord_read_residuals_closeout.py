@@ -202,7 +202,27 @@ _RUNTIME_NEXT_IDENTITY_READ_FLOOR = 2
 # mission's boundary contract (IC-01: OwnedCheckout fields are the validated
 # single authority, not a re-derivation site). Pinned here rather than routed.
 _IDENTITY_CALLSHAPE_KNOWN_RESIDUALS: frozenset[str] = frozenset(
-    {"src/runtime/next/runtime_bridge_io.py::_run_mission_id"}
+    {
+        "src/runtime/next/runtime_bridge_io.py::_run_mission_id",
+        # #3546 (native research-planning requirement gate): both reads below
+        # resolve to the PRIMARY planning dir -- the canonical meta.json home --
+        # never the STATUS-only -coord husk this gate guards against. The scan
+        # flags them only because the PRIMARY fold is applied behind a port /
+        # shim it cannot see through; re-deriving via the literal
+        # primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))
+        # fold would duplicate an already-validated primary dir (the
+        # pinned-not-routed precedent above, IC-01).
+        #   * _spec_requirement_id_warnings reads get_mission_type(spec_file.parent);
+        #     spec_file is spec_read_dir/"spec.md" and spec_read_dir =
+        #     mission._planning_read_dir(..., artifact_type="spec") (owned:
+        #     owned.mission_dir), which resolves SPEC (a PRIMARY-partition kind)
+        #     to the primary dir for ALL topologies.
+        #   * _mr_resolve_read_dirs reads get_mission_type(st.primary_dir);
+        #     st.primary_dir = ports.fs.primary_anchor_dir(canonicalized handle),
+        #     i.e. the WP02 primary-anchor fold routed through the sanctioned port.
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py::_spec_requirement_id_warnings",
+        "src/specify_cli/cli/commands/agent/tasks_map_requirements.py::_mr_resolve_read_dirs",
+    }
 )
 #: The files that hold runtime_bridge.py's former ``get_mission_type(feature_dir)``
 #: reads after the #2560 split (FR-003 disposition: clean/routed, never pinned).
