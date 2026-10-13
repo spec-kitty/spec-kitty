@@ -116,6 +116,7 @@ projects:
 | `.kittify/charter/provenance/*` | Do not commit. Synthesis provenance is regenerated with the promoted project layer. | `spec-kitty charter synthesize` |
 | `.kittify/charter/synthesis-manifest.yaml` | Do not commit. Generated synthesis manifest. | `spec-kitty charter synthesize` |
 | `.kittify/charter-packs/graph.yaml` | Do not commit. Project-local DRG overlay synthesized locally when needed. | `spec-kitty charter synthesize` |
+| `.kittify/charter-packs/pack.yaml` | Commit. Project pack descriptor; carries `pack_id` and `pack_level`, so every contributor shares one pack identity. | `spec-kitty upgrade` (writes it once; commit it) |
 | `.kittify/charter-packs/{directive,tactic,procedure,overlays}/` | Commit only when the project intentionally carries a durable project layer. | `spec-kitty charter synthesize` or `spec-kitty charter resynthesize` |
 
 If a project has a public governance document, keep it in that public location and reference it
