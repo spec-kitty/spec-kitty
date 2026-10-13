@@ -22,6 +22,9 @@ Reuse, not re-implementation
 The one and only backfill spine lives in
 :func:`specify_cli.migration.verdict_provenance_backfill.backfill_verdict_provenance`.
 This module adds only the corpus walk; it never touches the write path itself.
+The backfill refreshes an already-existing ``status.json`` after an append
+(#5869); a refresh failure is surfaced here as a ``MigrationResult`` warning
+(the append is committed, so ``success`` stays ``True``).
 The provenance predicate
 (:func:`~specify_cli.migration.verdict_provenance_backfill.stranded_verdict_findings`)
 drives :meth:`detect` / the dry-run preview so the migration is a true no-op
@@ -121,10 +124,8 @@ class VerdictProvenanceBackfillMigration(BaseMigration):
                 success=True,
                 changes_made=self._dry_run_summary(missions),
             )
-        return MigrationResult(
-            success=True,
-            changes_made=self._apply_backfill(missions),
-        )
+        changes, warnings = self._apply_backfill(missions)
+        return MigrationResult(success=True, changes_made=changes, warnings=warnings)
 
     @staticmethod
     def _dry_run_summary(missions: list[Path]) -> list[str]:
@@ -138,17 +139,27 @@ class VerdictProvenanceBackfillMigration(BaseMigration):
         ]
 
     @staticmethod
-    def _apply_backfill(missions: list[Path]) -> list[str]:
-        """Run the idempotent backfill and summarise the seeded count."""
-        seeded = sum(
-            backfill_verdict_provenance(mission).appended_count for mission in missions
-        )
+    def _apply_backfill(missions: list[Path]) -> tuple[list[str], list[str]]:
+        """Run the idempotent backfill; return ``(change lines, warnings)``.
+
+        A snapshot-refresh failure (#5869) becomes one warning per mission.
+        """
+        seeded = 0
+        warnings: list[str] = []
+        for mission in missions:
+            outcome = backfill_verdict_provenance(mission)
+            seeded += outcome.appended_count
+            if outcome.refresh_error is not None:
+                warnings.append(
+                    f"{mission.name}: {outcome.refresh_error}; "
+                    f"heal with `spec-kitty agent status materialize --mission {mission.name}`"
+                )
         if seeded == 0:
-            return []
+            return [], warnings
         return [
             f"Backfilled {seeded} stranded verdict event(s) across "
             f"{len(missions)} mission(s) scanned"
-        ]
+        ], warnings
 
 
 __all__ = ["VerdictProvenanceBackfillMigration"]

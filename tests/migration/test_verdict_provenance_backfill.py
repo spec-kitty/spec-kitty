@@ -38,7 +38,12 @@ from specify_cli.migration.verdict_provenance_backfill import (
 )
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status.models import Lane, ReviewResult, StatusEvent
-from specify_cli.status.reducer import event_sourced_review_result
+from specify_cli.status.reducer import (
+    event_sourced_review_result,
+    materialize,
+    materialize_snapshot,
+    materialize_to_json,
+)
 from specify_cli.status.store import append_events_atomic_verified, read_events
 
 # 2026-08-07 (landing fix, verdict-seam-write-unification #3245): this module
@@ -582,3 +587,113 @@ class TestMissionIdPropagation:
         backfill_verdict_provenance(feature_dir)
         events = read_events(feature_dir)
         assert events[0].mission_id is None
+
+
+# ---------------------------------------------------------------------------
+# #5869 -- the backfill refreshes an existing status.json after appending
+# ---------------------------------------------------------------------------
+
+_LIFECYCLE = (
+    (Lane.PLANNED, Lane.CLAIMED, "01ARZ3NDEKTSV4RRFFQ69G5FC0", "2026-01-01T00:00:01+00:00"),
+    (Lane.CLAIMED, Lane.IN_PROGRESS, "01ARZ3NDEKTSV4RRFFQ69G5FC1", "2026-01-01T00:00:02+00:00"),
+    (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01ARZ3NDEKTSV4RRFFQ69G5FC2", "2026-01-01T00:00:03+00:00"),
+    (Lane.FOR_REVIEW, Lane.IN_REVIEW, "01ARZ3NDEKTSV4RRFFQ69G5FC3", "2026-01-01T00:00:04+00:00"),
+)
+
+
+def make_stranded_mission_with_snapshot(tmp_path: Path, *, snapshot: bool = True) -> Path:
+    """Real claim -> for_review -> in_review lifecycle, a terminal rejected
+    review-cycle ``.md`` with no ``review_result`` in the log, and (optionally)
+    a ``status.json`` materialized BEFORE the backfill."""
+    feature_dir = _make_feature_dir(tmp_path)
+    for from_lane, to_lane, event_id, at in _LIFECYCLE:
+        _append_real_event(
+            feature_dir,
+            wp_id="WP01",
+            from_lane=from_lane,
+            to_lane=to_lane,
+            at=at,
+            review_result=None,
+            event_id=event_id,
+        )
+    _write_review_cycle(
+        feature_dir,
+        "WP01",
+        cycle_number=1,
+        verdict="rejected",
+        reviewed_at=REJECTED_AT,
+        wp_slug="snapshot-refresh",
+    )
+    if snapshot:
+        materialize(feature_dir)
+    return feature_dir
+
+
+def _fresh_json(feature_dir: Path) -> str:
+    return materialize_to_json(materialize_snapshot(feature_dir))
+
+
+def _perturb_snapshot(feature_dir: Path) -> bytes:
+    """Rewrite ``status.json`` as different-but-valid bytes; return them."""
+    path = feature_dir / "status.json"
+    path.write_text(json.dumps(json.loads(path.read_text(encoding="utf-8")), indent=4), encoding="utf-8")
+    perturbed = path.read_bytes()
+    assert perturbed != _fresh_json(feature_dir).encode("utf-8")
+    return perturbed
+
+
+@pytest.mark.regression
+class TestSnapshotRefresh:
+    """Regression guard for #5869: ``backfill_verdict_provenance`` appended to
+    the log but left an existing ``status.json`` stale (``SNAPSHOT_DRIFT``)."""
+
+    def test_existing_snapshot_equals_fresh_materialization_after_append(self, tmp_path: Path) -> None:
+        feature_dir = make_stranded_mission_with_snapshot(tmp_path)
+        stale = (feature_dir / "status.json").read_text(encoding="utf-8")
+
+        outcome = backfill_verdict_provenance(feature_dir)
+
+        assert outcome.appended_wp_ids == ("WP01",)
+        persisted = (feature_dir / "status.json").read_text(encoding="utf-8")
+        assert json.loads(persisted) == json.loads(_fresh_json(feature_dir))
+        assert persisted != stale, "the append changes the reduced state, so the snapshot must move"
+        assert outcome.status_json_refreshed is True
+        assert outcome.refresh_error is None
+
+    def test_no_snapshot_is_created_where_none_existed(self, tmp_path: Path) -> None:
+        feature_dir = make_stranded_mission_with_snapshot(tmp_path, snapshot=False)
+        assert not (feature_dir / "status.json").exists()
+
+        outcome = backfill_verdict_provenance(feature_dir)
+
+        assert outcome.appended_wp_ids == ("WP01",)
+        assert not (feature_dir / "status.json").exists()
+        assert outcome.status_json_refreshed is False
+        assert outcome.refresh_error is None
+
+    def test_converged_rerun_leaves_perturbed_snapshot_byte_unchanged(self, tmp_path: Path) -> None:
+        feature_dir = make_stranded_mission_with_snapshot(tmp_path)
+        assert backfill_verdict_provenance(feature_dir).appended_count == 1
+        perturbed = _perturb_snapshot(feature_dir)
+
+        second = backfill_verdict_provenance(feature_dir)
+
+        assert second.appended_count == 0
+        assert second.status_json_refreshed is False
+        assert (feature_dir / "status.json").read_bytes() == perturbed
+
+    def test_refresh_failure_is_reported_not_raised_and_append_is_committed(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        feature_dir = make_stranded_mission_with_snapshot(tmp_path)
+
+        def _broken(_dir: Path) -> None:
+            raise OSError("disk full")
+
+        monkeypatch.setattr("specify_cli.migration.snapshot_refresh.materialize", _broken)
+
+        outcome = backfill_verdict_provenance(feature_dir)
+
+        assert outcome.appended_wp_ids == ("WP01",)
+        assert outcome.status_json_refreshed is False
+        assert outcome.refresh_error is not None and "disk full" in outcome.refresh_error
+        assert event_sourced_review_result(feature_dir, "WP01").slot_present is True
+        assert any(e.review_result is not None for e in read_events(feature_dir))

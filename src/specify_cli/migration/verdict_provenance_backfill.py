@@ -8,6 +8,8 @@ strictly:
    terminal ``review-cycle-N.md`` verdict into a hand-constructed
    ``review_result`` event, when the event log carries no ``review_result``
    opinion for that WP yet.
+   After an append, an existing ``status.json`` is refreshed in the same lock
+   acquisition (#5869); no snapshot is created and a converged run touches none.
 2. **Provenance predicate** (:func:`stranded_verdict_findings`): a pure
    function — "terminal ``.md`` verdict + no event ``review_result`` slot" —
    that a merge-time gate (owned elsewhere, e.g. WP05's SC-008 interlock)
@@ -65,6 +67,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 
 from specify_cli.migration.mission_state import deterministic_ulid
+from specify_cli.migration.snapshot_refresh import refresh_snapshot_if_present
 from specify_cli.mission_metadata import load_meta
 from specify_cli.review.artifacts import ReviewCycleArtifact
 from specify_cli.status import (
@@ -138,6 +141,11 @@ class BackfillOutcome:
 
     feature_dir: Path
     appended_wp_ids: tuple[str, ...] = ()
+    #: ``True`` iff an existing ``status.json`` was re-materialized after the
+    #: append (#5869). ``False`` when nothing was appended or no snapshot existed.
+    status_json_refreshed: bool = False
+    #: Set when the post-append refresh failed; the append is already committed.
+    refresh_error: str | None = None
 
     @property
     def appended_count(self) -> int:
@@ -401,6 +409,9 @@ def backfill_verdict_provenance(feature_dir: Path) -> BackfillOutcome:
     :func:`~specify_cli.status.store.append_events_atomic_verified`. A
     fully-converged re-run appends nothing (G1): every previously-backfilled
     WP now has ``slot_present=True`` and is skipped.
+
+    After an append, an existing ``status.json`` is re-materialized inside the
+    same lock acquisition (#5869) so the snapshot does not drift from its log.
     """
     mission_id = _resolve_mission_id(feature_dir)
     # fsm-write-path-integrity WP01 (FR-002, writer family 6): the whole
@@ -415,9 +426,19 @@ def backfill_verdict_provenance(feature_dir: Path) -> BackfillOutcome:
     lock_root = resolve_status_lock_root(feature_dir)
     with feature_status_lock(lock_root, mission_lock_key(feature_dir, repo_root=lock_root)):
         events, appended_wp_ids = _collect_backfill_events(feature_dir, mission_id)
+        refreshed, refresh_error = False, None
         if events:
             append_events_atomic_verified(feature_dir, events)
-    return BackfillOutcome(feature_dir=feature_dir, appended_wp_ids=tuple(appended_wp_ids))
+            # #5869: refresh an EXISTING snapshot in the same lock acquisition,
+            # only after an append (never on the converged path, never creating
+            # one). A failure is reported, not raised: the append is committed.
+            refreshed, refresh_error = refresh_snapshot_if_present(feature_dir)
+    return BackfillOutcome(
+        feature_dir=feature_dir,
+        appended_wp_ids=tuple(appended_wp_ids),
+        status_json_refreshed=refreshed,
+        refresh_error=refresh_error,
+    )
 
 
 def _collect_backfill_events(feature_dir: Path, mission_id: str | None) -> tuple[list[StatusEvent], list[str]]:

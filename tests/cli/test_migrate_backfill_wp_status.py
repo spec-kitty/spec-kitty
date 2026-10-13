@@ -644,7 +644,7 @@ def test_status_json_refresh_failure_is_a_counted_warning_and_exit_stays_0(repo:
     def _broken(_dir: Path) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr("specify_cli.migration.backfill_runtime_state.materialize", _broken)
+    monkeypatch.setattr("specify_cli.migration.snapshot_refresh.materialize", _broken)
 
     machine = _invoke(repo, "--json")
 

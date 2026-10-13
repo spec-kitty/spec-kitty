@@ -304,7 +304,7 @@ def test_status_json_refresh_failure_is_a_warning_not_an_error(tmp_path: Path, m
     def _broken(_dir: Path) -> None:
         raise OSError("disk full")
 
-    monkeypatch.setattr(b, "materialize", _broken)
+    monkeypatch.setattr("specify_cli.migration.snapshot_refresh.materialize", _broken)
 
     result = b.apply_wp_status_backfill(feature_dir)
 
@@ -689,7 +689,7 @@ def test_meta_corrupted_after_the_plan_still_reports_a_refresh_warning_not_a_cra
     def _corrupt(_dir: Path) -> None:
         raise MissionMetaReadError(_dir / "meta.json", ValueError("corrupt"))
 
-    monkeypatch.setattr(b, "materialize", _corrupt)
+    monkeypatch.setattr("specify_cli.migration.snapshot_refresh.materialize", _corrupt)
 
     result = b.apply_wp_status_backfill(feature_dir)
 

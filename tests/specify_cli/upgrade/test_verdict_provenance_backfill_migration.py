@@ -30,7 +30,14 @@ from specify_cli.migration.verdict_provenance_backfill import (
     stranded_verdict_findings,
 )
 from specify_cli.review.artifacts import ReviewCycleArtifact
-from specify_cli.status.reducer import event_sourced_review_result
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.reducer import (
+    event_sourced_review_result,
+    materialize,
+    materialize_snapshot,
+    materialize_to_json,
+)
+from specify_cli.status.store import append_events_atomic_verified
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.m_zz_verdict_provenance_backfill import (
     VerdictProvenanceBackfillMigration,
@@ -171,3 +178,100 @@ def test_migration_is_auto_discovered_and_registered() -> None:
     )
     assert migration.target_version == "3.2.6rc1"
     assert migration.runs_on_worktrees is False
+
+
+_LIFECYCLE = (
+    (Lane.PLANNED, Lane.CLAIMED, "01ARZ3NDEKTSV4RRFFQ69G5FC0", "2026-01-01T00:00:01+00:00"),
+    (Lane.CLAIMED, Lane.IN_PROGRESS, "01ARZ3NDEKTSV4RRFFQ69G5FC1", "2026-01-01T00:00:02+00:00"),
+    (Lane.IN_PROGRESS, Lane.FOR_REVIEW, "01ARZ3NDEKTSV4RRFFQ69G5FC2", "2026-01-01T00:00:03+00:00"),
+    (Lane.FOR_REVIEW, Lane.IN_REVIEW, "01ARZ3NDEKTSV4RRFFQ69G5FC4", "2026-01-01T00:00:04+00:00"),
+)
+
+
+def _stranded_mission_with_snapshot(project_path: Path, *, snapshot: bool = True) -> Path:
+    """A stranded-verdict mission with a real lifecycle and (optionally) a
+    ``status.json`` materialized before the backfill runs."""
+    feature_dir = _write_stranded_mission(project_path)
+    append_events_atomic_verified(
+        feature_dir,
+        [
+            StatusEvent(
+                event_id=event_id,
+                mission_slug=feature_dir.name,
+                wp_id="WP01",
+                from_lane=from_lane,
+                to_lane=to_lane,
+                at=at,
+                actor="claude",
+                force=False,
+                execution_mode="worktree",
+            )
+            for from_lane, to_lane, event_id, at in _LIFECYCLE
+        ],
+    )
+    if snapshot:
+        materialize(feature_dir)
+    return feature_dir
+
+
+def _fresh_json(feature_dir: Path) -> str:
+    return materialize_to_json(materialize_snapshot(feature_dir))
+
+
+@pytest.mark.regression
+class TestSnapshotRefreshViaMigration:
+    """Regression guard for #5869 through ``VerdictProvenanceBackfillMigration.apply``."""
+
+    def test_apply_refreshes_existing_snapshot(self, tmp_path: Path) -> None:
+        feature_dir = _stranded_mission_with_snapshot(tmp_path)
+        stale = (feature_dir / "status.json").read_text(encoding="utf-8")
+
+        result = VerdictProvenanceBackfillMigration().apply(tmp_path)
+
+        assert result.success is True and result.changes_made
+        assert result.warnings == []
+        persisted = (feature_dir / "status.json").read_text(encoding="utf-8")
+        assert json.loads(persisted) == json.loads(_fresh_json(feature_dir))
+        assert persisted != stale
+
+    def test_apply_creates_no_snapshot_where_none_existed(self, tmp_path: Path) -> None:
+        feature_dir = _stranded_mission_with_snapshot(tmp_path, snapshot=False)
+
+        result = VerdictProvenanceBackfillMigration().apply(tmp_path)
+
+        assert result.changes_made
+        assert not (feature_dir / "status.json").exists()
+
+    def test_dry_run_leaves_log_and_perturbed_snapshot_byte_identical(self, tmp_path: Path) -> None:
+        feature_dir = _stranded_mission_with_snapshot(tmp_path)
+        snapshot_path = feature_dir / "status.json"
+        snapshot_path.write_text(
+            json.dumps(json.loads(snapshot_path.read_text(encoding="utf-8")), indent=4), encoding="utf-8"
+        )
+        log_before = (feature_dir / "status.events.jsonl").read_bytes()
+        snapshot_before = snapshot_path.read_bytes()
+        assert snapshot_before != _fresh_json(feature_dir).encode("utf-8")
+
+        result = VerdictProvenanceBackfillMigration().apply(tmp_path, dry_run=True)
+
+        assert any("dry-run" in line for line in result.changes_made)
+        assert (feature_dir / "status.events.jsonl").read_bytes() == log_before
+        assert snapshot_path.read_bytes() == snapshot_before
+
+    def test_refresh_failure_surfaces_as_warning_and_stays_successful(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir = _stranded_mission_with_snapshot(tmp_path)
+
+        def _broken(_dir: Path) -> None:
+            raise OSError("disk full")
+
+        monkeypatch.setattr("specify_cli.migration.snapshot_refresh.materialize", _broken)
+
+        result = VerdictProvenanceBackfillMigration().apply(tmp_path)
+
+        assert result.success is True
+        assert result.changes_made, "the append is committed and must still be reported"
+        assert len(result.warnings) == 1
+        assert feature_dir.name in result.warnings[0] and "disk full" in result.warnings[0]
+        assert event_sourced_review_result(feature_dir, "WP01").slot_present is True

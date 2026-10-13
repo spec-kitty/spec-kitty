@@ -91,7 +91,7 @@ from specify_cli.core.checkout_identity import (
     Intent,
     resolve_checkout_identity,
 )
-from specify_cli.core.paths import MissionMetaReadError, assert_safe_path_segment
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.subtask_rows import iter_wp_section_subtask_rows
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.mission_metadata import load_meta
@@ -106,7 +106,6 @@ from specify_cli.status import (
     WPInnerStateDelta,
     annotate,
     feature_status_lock,
-    materialize,
     materialize_snapshot,
     mission_lock_key,
     read_event_stream,
@@ -117,6 +116,7 @@ from specify_cli.workspace import canonicalize_feature_dir
 from specify_cli.workspace.root_resolver import resolve_status_lock_root
 
 from .mission_state import deterministic_ulid
+from .snapshot_refresh import MISSION_STATUS_ERRORS, refresh_snapshot_if_present
 from .wp_status_backfill import COORD_SURFACE_LIVE, WpStatusPlan, coordination_surface_is_live, plan_wp_status_backfill
 
 logger = logging.getLogger(__name__)
@@ -1187,7 +1187,7 @@ def _backfill_runtime_state_locked(
     if seeded_count == 0:
         if not dry_run:
             # Seeds that landed before the snapshot refresh existed leave a stale status.json (#5862).
-            _refreshed, refresh_error = _refresh_snapshot_if_present(feature_dir)
+            _refreshed, refresh_error = refresh_snapshot_if_present(feature_dir)
             if refresh_error is not None:
                 warnings.append(refresh_error)
         return BackfillResult(feature_dir=feature_dir, slug=slug, action="skip", reason="nothing new to seed (idempotent)", warnings=warnings)
@@ -1204,7 +1204,7 @@ def _backfill_runtime_state_locked(
 
     logger.info("Backfilled %d runtime seed event(s) for %s", seeded_count, slug)
     # A persisted status.json must not outlive the seeds it predates (#5862).
-    _refreshed, refresh_error = _refresh_snapshot_if_present(feature_dir)
+    _refreshed, refresh_error = refresh_snapshot_if_present(feature_dir)
     if refresh_error is not None:
         warnings.append(refresh_error)
     return BackfillResult(feature_dir=feature_dir, slug=slug, action="wrote", seeded_count=seeded_count, warnings=warnings)
@@ -1333,7 +1333,7 @@ class WpStatusBackfillResult:
 
 #: Per-Mission read failures the WP-status backfill reports instead of raising: an unreadable
 #: event log, an I/O fault, or a ``meta.json`` that exists but is corrupt (fail-closed read).
-_WP_STATUS_MISSION_ERRORS = (StoreError, OSError, MissionMetaReadError)
+_WP_STATUS_MISSION_ERRORS = MISSION_STATUS_ERRORS
 
 
 def _wp_status_result(plan: WpStatusPlan, feature_dir: Path, **fields: Any) -> WpStatusBackfillResult:
@@ -1444,7 +1444,7 @@ def _apply_wp_status_backfill_locked(
 
     append_event_stream_atomic_verified(feature_dir, list(_combined_events(new_events, [])))
     logger.info("Seeded %d WP-status event(s) for %s", len(new_events), plan.slug)
-    refreshed, refresh_error = _refresh_snapshot_if_present(feature_dir)
+    refreshed, refresh_error = refresh_snapshot_if_present(feature_dir)
     return _wp_status_result(
         plan,
         feature_dir,
@@ -1453,17 +1453,6 @@ def _apply_wp_status_backfill_locked(
         status_json_refreshed=refreshed,
         refresh_error=refresh_error,
     )
-
-
-def _refresh_snapshot_if_present(feature_dir: Path) -> tuple[bool, str | None]:
-    """Regenerate ``status.json`` iff it already exists; return ``(refreshed, error)``."""
-    if not (feature_dir / "status.json").is_file():
-        return False, None
-    try:
-        materialize(feature_dir)
-    except _WP_STATUS_MISSION_ERRORS as exc:
-        return False, f"status.json refresh failed after seeding: {type(exc).__name__}: {exc}"
-    return True, None
 
 
 def apply_wp_status_backfill_repo(
