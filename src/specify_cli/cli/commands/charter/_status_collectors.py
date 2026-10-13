@@ -58,7 +58,7 @@ def _collect_charter_sync_status(repo_root: Path) -> dict[str, Any]:
         from charter.hasher import is_stale
 
         # Read-only root derivation: use repo_root directly (no write side-effect).
-        # The write commands (charter sync / charter generate) legitimately call
+        # The write command (charter generate) legitimately calls
         # ensure_charter_bundle_fresh; the status READ path does not.
         canonical_root = repo_root
         # FR-005: presence keys primarily on charter.yaml (the authoritative

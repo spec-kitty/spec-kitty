@@ -262,7 +262,7 @@ def _charter_path(repo_root: Path) -> tuple[Path | None, Path]:
     # FR-004: Key staleness input on charter.yaml (the canonical resolving
     # authority) when it exists. Landing-fold fix: fall back to charter.md
     # when charter.yaml has not been compiled yet -- a project that authored
-    # a charter but has not run `charter sync`/compile must still get a
+    # a charter but has not run `charter generate` yet must still get a
     # staleness input keyed on its actual charter content, matching the
     # yaml-or-md presence gate in charter.activation.context (C-003). Only when NEITHER file exists is staleness
     # input absent.

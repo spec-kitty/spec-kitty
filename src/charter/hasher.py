@@ -25,7 +25,7 @@ def hash_content(content: str) -> str:
     Normalization (FR-009 / C2-e): a leading BOM is dropped and line endings
     are canonicalised to ``\\n`` before hashing, so the staleness decision is
     BOM- and newline-agnostic. The two charter read surfaces normalise content
-    DIFFERENTLY — ``charter sync`` reads via the encoding chokepoint
+    DIFFERENTLY — the bundle sync (``charter.activation.sync``) reads via the encoding chokepoint
     (``read_bytes().decode()``, which strips the BOM and preserves ``\\r\\n``)
     while ``charter status`` / the freshness computer read via ``read_text``
     (which keeps the BOM as ``\\ufeff`` but collapses ``\\r\\n`` to ``\\n`` via
