@@ -778,8 +778,8 @@ def test_planted_control_flags_the_mint_called_from_the_meta_builder() -> None:
     trees = _family_trees(
         (
             "mission_creation_meta",
-            '    meta.setdefault(FLATTENED_KEY, False)\n',
-            '    meta.setdefault(FLATTENED_KEY, False)\n'
+            "    meta.setdefault(FLATTENED_KEY, False)\n",
+            "    meta.setdefault(FLATTENED_KEY, False)\n"
             "    _mc._mint_protected_branch_for_topology(\n"
             "        resolved_root, mission_slug_formatted, topology=topology, mission_id=mission_id, planning_branch=planning_branch, meta=meta\n"
             "    )\n",
