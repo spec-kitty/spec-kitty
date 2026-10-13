@@ -3312,7 +3312,7 @@ pages:
   - path: "docs/adr/3.x/2026-09-29-1-requirement-id-grammar-single-authority.md"
     title: "ADR: one requirement-ID grammar, one authority"
     divio_type: "none"
-    abstract: "Accepted: every requirement-ID surface reads FR/NFR/C/SC IDs through one shared grammar module, replacing six divergent parsers."
+    abstract: "Accepted: every requirement-ID surface reads mission-scoped kinds through one shared grammar module, replacing six divergent parsers."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
