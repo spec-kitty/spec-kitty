@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-18T10:00:00+00:00",
+  "friendly_name": "Fixture header-branch-over-255-characters",
+  "mission_id": "01J4500000000000000000001D",
+  "mission_number": null,
+  "mission_slug": "header-branch-over-255-characters",
+  "mission_type": "software-dev",
+  "slug": "header-branch-over-255-characters",
+  "target_branch": "main"
+}

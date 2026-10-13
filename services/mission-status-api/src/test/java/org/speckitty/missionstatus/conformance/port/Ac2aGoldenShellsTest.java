@@ -7,8 +7,8 @@ import org.speckitty.missionstatus.testsupport.PortSourceSelector;
 /**
  * AC-2a for the five fixture classes whose outcome path resolution, {@code config.yaml}, {@code HEAD} and symbolic links do not
  * decide. Each method is a shell: it holds no assertion logic and delegates to {@link Ac2aGoldenHook} with its fixture class and the
- * selector's way of obtaining a query. Until the goldens exist the hook skips the test; the later work package implements the hook and
- * runs these shells against both sources, so nothing here changes.
+ * selector's way of obtaining a query. The hook compares the committed goldens by raw bytes, and the shells run against both sources,
+ * so nothing here changes.
  */
 public class Ac2aGoldenShellsTest {
 

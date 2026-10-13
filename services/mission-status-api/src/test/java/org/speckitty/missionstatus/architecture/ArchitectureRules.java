@@ -196,8 +196,8 @@ public final class ArchitectureRules {
             .as("rule 11a: port-level classes depend on no adapter class");
     ArchRule r11b =
         noClasses().that().resideInAnyPackage(p(root, "conformance.port.."), p(root, "conformance.golden.."))
-            .should().dependOnClassesThat().resideInAPackage(filesystem)
-            .as("rule 11b: of the conformance trees, only testsupport imports adapter.out.filesystem");
+            .should().dependOnClassesThat().resideInAPackage(p(root, "adapter.."))
+            .as("rule 11b: of the conformance trees, only testsupport imports an adapter class");
     ArchRule r11c =
         noClasses().that().resideOutsideOfPackages(testsupport, filesystem).should().dependOnClassesThat().resideInAPackage(codec)
             .as("rule 11c: of the test classes, only testsupport and adapter.out.filesystem itself use the codec");

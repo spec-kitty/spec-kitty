@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-20T10:00:00+00:00",
+  "friendly_name": "Fixture header-unborn-branch",
+  "mission_id": "01J4700000000000000000001F",
+  "mission_number": null,
+  "mission_slug": "header-unborn-branch",
+  "mission_type": "software-dev",
+  "slug": "header-unborn-branch",
+  "target_branch": "main"
+}

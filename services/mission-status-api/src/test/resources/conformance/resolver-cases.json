@@ -1,0 +1,334 @@
+[
+  {
+    "coordMissionDirPresent": false,
+    "coordRootPresent": false,
+    "expectedClass": "own",
+    "id": "single-branch-no-coordination",
+    "lanesJson": "absent",
+    "storedTopology": "single_branch"
+  },
+  {
+    "coordMissionDirPresent": true,
+    "coordRootPresent": true,
+    "expectedClass": "own",
+    "id": "single-branch-husk-with-mission-dir",
+    "lanesJson": "absent",
+    "storedTopology": "single_branch"
+  },
+  {
+    "coordMissionDirPresent": false,
+    "coordRootPresent": true,
+    "expectedClass": "own",
+    "id": "single-branch-husk-root-only",
+    "lanesJson": "absent",
+    "storedTopology": "single_branch"
+  },
+  {
+    "coordMissionDirPresent": false,
+    "coordRootPresent": false,
+    "expectedClass": "own",
+    "id": "lanes-no-coordination",
+    "lanesJson": "valid",
+    "storedTopology": "lanes"
+  },
+  {
+    "coordMissionDirPresent": true,
+    "coordRootPresent": true,
+    "expectedClass": "own",
+    "id": "lanes-husk-with-mission-dir",
+    "lanesJson": "valid",
+    "storedTopology": "lanes"
+  },
+  {
+    "coordMissionDirPresent": true,
+    "coordRootPresent": true,
+    "expectedClass": "coord",
+    "id": "coord-materialized",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMissionDirPresent": false,
+    "coordRootPresent": true,
+    "expectedClass": "own",
+    "id": "coord-root-without-mission-dir",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMissionDirPresent": false,
+    "coordRootPresent": false,
+    "expectedClass": "own",
+    "id": "coord-worktree-absent",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMissionDirPresent": true,
+    "coordRootPresent": true,
+    "expectedClass": "coord",
+    "id": "lanes-with-coord-materialized",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  },
+  {
+    "coordMissionDirPresent": false,
+    "coordRootPresent": true,
+    "expectedClass": "own",
+    "id": "lanes-with-coord-root-without-mission-dir",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  },
+  {
+    "coordMissionDirPresent": false,
+    "coordRootPresent": false,
+    "expectedClass": "own",
+    "id": "lanes-with-coord-worktree-absent",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  },
+  {
+    "coordMissionDirPresent": false,
+    "coordRootPresent": false,
+    "expectedClass": "own",
+    "id": "absent-topology-no-lanes",
+    "lanesJson": "absent",
+    "storedTopology": "absent"
+  },
+  {
+    "coordMissionDirPresent": false,
+    "coordRootPresent": false,
+    "expectedClass": "own",
+    "id": "absent-topology-valid-lanes",
+    "lanesJson": "valid",
+    "storedTopology": "absent"
+  },
+  {
+    "coordMissionDirPresent": false,
+    "coordRootPresent": false,
+    "expectedClass": "own",
+    "id": "absent-topology-corrupt-lanes",
+    "lanesJson": "corrupt",
+    "storedTopology": "absent"
+  },
+  {
+    "coordMeta": "present",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "registered",
+    "coordRootPresent": true,
+    "coordinationBranch": "absent",
+    "expectedClass": "coord",
+    "id": "coord-registered-coord-meta-present-branch-absent",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMeta": "present",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "husk",
+    "coordRootPresent": true,
+    "coordinationBranch": "absent",
+    "expectedClass": "coord",
+    "id": "coord-husk-coord-meta-present-branch-absent",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMeta": "present",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "registered",
+    "coordRootPresent": true,
+    "coordinationBranch": "empty",
+    "expectedClass": "coord",
+    "id": "coord-registered-coord-meta-present-branch-empty",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMeta": "present",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "husk",
+    "coordRootPresent": true,
+    "coordinationBranch": "empty",
+    "expectedClass": "coord",
+    "id": "coord-husk-coord-meta-present-branch-empty",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMeta": "absent",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "registered",
+    "coordRootPresent": true,
+    "coordinationBranch": "absent",
+    "expectedClass": "own",
+    "id": "coord-registered-coord-meta-absent-branch-absent",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMeta": "absent",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "husk",
+    "coordRootPresent": true,
+    "coordinationBranch": "absent",
+    "expectedClass": "own",
+    "id": "coord-husk-coord-meta-absent-branch-absent",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMeta": "absent",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "registered",
+    "coordRootPresent": true,
+    "coordinationBranch": "empty",
+    "expectedClass": "own",
+    "id": "coord-registered-coord-meta-absent-branch-empty",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMeta": "absent",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "husk",
+    "coordRootPresent": true,
+    "coordinationBranch": "empty",
+    "expectedClass": "own",
+    "id": "coord-husk-coord-meta-absent-branch-empty",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMeta": "absent",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "registered",
+    "coordRootPresent": true,
+    "coordinationBranch": "present",
+    "expectedClass": "coord",
+    "id": "coord-registered-coord-meta-absent-branch-present",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMeta": "absent",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "husk",
+    "coordRootPresent": true,
+    "coordinationBranch": "present",
+    "expectedClass": "coord",
+    "id": "coord-husk-coord-meta-absent-branch-present",
+    "lanesJson": "absent",
+    "storedTopology": "coord"
+  },
+  {
+    "coordMeta": "present",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "registered",
+    "coordRootPresent": true,
+    "coordinationBranch": "absent",
+    "expectedClass": "coord",
+    "id": "lanes-with-coord-registered-coord-meta-present-branch-absent",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  },
+  {
+    "coordMeta": "present",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "husk",
+    "coordRootPresent": true,
+    "coordinationBranch": "absent",
+    "expectedClass": "coord",
+    "id": "lanes-with-coord-husk-coord-meta-present-branch-absent",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  },
+  {
+    "coordMeta": "present",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "registered",
+    "coordRootPresent": true,
+    "coordinationBranch": "empty",
+    "expectedClass": "coord",
+    "id": "lanes-with-coord-registered-coord-meta-present-branch-empty",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  },
+  {
+    "coordMeta": "present",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "husk",
+    "coordRootPresent": true,
+    "coordinationBranch": "empty",
+    "expectedClass": "coord",
+    "id": "lanes-with-coord-husk-coord-meta-present-branch-empty",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  },
+  {
+    "coordMeta": "absent",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "registered",
+    "coordRootPresent": true,
+    "coordinationBranch": "absent",
+    "expectedClass": "own",
+    "id": "lanes-with-coord-registered-coord-meta-absent-branch-absent",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  },
+  {
+    "coordMeta": "absent",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "husk",
+    "coordRootPresent": true,
+    "coordinationBranch": "absent",
+    "expectedClass": "own",
+    "id": "lanes-with-coord-husk-coord-meta-absent-branch-absent",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  },
+  {
+    "coordMeta": "absent",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "registered",
+    "coordRootPresent": true,
+    "coordinationBranch": "empty",
+    "expectedClass": "own",
+    "id": "lanes-with-coord-registered-coord-meta-absent-branch-empty",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  },
+  {
+    "coordMeta": "absent",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "husk",
+    "coordRootPresent": true,
+    "coordinationBranch": "empty",
+    "expectedClass": "own",
+    "id": "lanes-with-coord-husk-coord-meta-absent-branch-empty",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  },
+  {
+    "coordMeta": "absent",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "registered",
+    "coordRootPresent": true,
+    "coordinationBranch": "present",
+    "expectedClass": "coord",
+    "id": "lanes-with-coord-registered-coord-meta-absent-branch-present",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  },
+  {
+    "coordMeta": "absent",
+    "coordMissionDirPresent": true,
+    "coordRootKind": "husk",
+    "coordRootPresent": true,
+    "coordinationBranch": "present",
+    "expectedClass": "coord",
+    "id": "lanes-with-coord-husk-coord-meta-absent-branch-present",
+    "lanesJson": "valid",
+    "storedTopology": "lanes_with_coord"
+  }
+]

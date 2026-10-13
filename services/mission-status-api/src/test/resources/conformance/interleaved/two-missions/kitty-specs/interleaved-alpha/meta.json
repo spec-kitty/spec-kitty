@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-02T10:00:00+00:00",
+  "friendly_name": "Fixture interleaved-alpha",
+  "mission_id": "01J01000000000000000000001",
+  "mission_number": null,
+  "mission_slug": "interleaved-alpha",
+  "mission_type": "software-dev",
+  "slug": "interleaved-alpha",
+  "target_branch": "main"
+}

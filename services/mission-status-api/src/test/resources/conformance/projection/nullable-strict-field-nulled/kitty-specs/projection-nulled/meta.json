@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-24T10:00:00+00:00",
+  "friendly_name": "Fixture projection-nulled",
+  "mission_id": "01J5100000000000000000001K",
+  "mission_number": null,
+  "mission_slug": "projection-nulled",
+  "mission_type": "/srv/data/mission-type",
+  "slug": "projection-nulled",
+  "target_branch": "main"
+}

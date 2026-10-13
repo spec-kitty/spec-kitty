@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-12T10:00:00+00:00",
+  "friendly_name": "Fixture no-ledger-plain",
+  "mission_id": "01J1100000000000000000000B",
+  "mission_number": null,
+  "mission_slug": "no-ledger-plain",
+  "mission_type": "software-dev",
+  "slug": "no-ledger-plain",
+  "target_branch": "main"
+}

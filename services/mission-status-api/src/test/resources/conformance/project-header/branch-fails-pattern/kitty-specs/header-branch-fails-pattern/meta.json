@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-17T10:00:00+00:00",
+  "friendly_name": "Fixture header-branch-fails-pattern",
+  "mission_id": "01J4400000000000000000001C",
+  "mission_number": null,
+  "mission_slug": "header-branch-fails-pattern",
+  "mission_type": "software-dev",
+  "slug": "header-branch-fails-pattern",
+  "target_branch": "main"
+}

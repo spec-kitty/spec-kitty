@@ -1,0 +1,1 @@
+{"scenarios":{"malformed-blank-line":{"refusal":{"exception":"JSONDecodeError","line":null}}}}

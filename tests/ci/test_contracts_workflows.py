@@ -52,9 +52,14 @@ EXPECTED_PATHS = [
     "src/specify_cli/status/lifecycle_events.py",
 ]
 # Globs the contract_tools router group names although contracts.yml does not trigger on them, as (glob, one-line rationale)
-# pairs: the rationale is mandatory per entry, so the rule is structural rather than a comment. Empty at this commit; the
-# mission-status-read-api-overview Mission (plan.md section 9, WP07) adds the first entry, the conformance goldens glob.
-ROUTER_ONLY_EXTRA_GLOBS: tuple[tuple[str, str], ...] = ()
+# pairs: the rationale is mandatory per entry, so the rule is structural rather than a comment. The
+# mission-status-read-api-overview Mission (WP07) added the first entry, the conformance goldens glob.
+ROUTER_ONLY_EXTRA_GLOBS: tuple[tuple[str, str], ...] = (
+    (
+        "services/mission-status-api/src/test/resources/conformance/**",
+        "the Mission Status API conformance goldens: a golden-only diff must run the golden-honesty test of `tests (contract tools)`",
+    ),
+)
 # The contract tool unit tests run in a router job (a required check through router-gate), not in contracts.yml, which runs no
 # pytest at all. The router's corpus job runs only the modules that read committed Missions, to stay within its time budget.
 ROUTER_PATH = WORKFLOWS_DIR / "ci-router.yml"

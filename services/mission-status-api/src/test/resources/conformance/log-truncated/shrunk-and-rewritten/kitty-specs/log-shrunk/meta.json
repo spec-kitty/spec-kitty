@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-14T10:00:00+00:00",
+  "friendly_name": "Fixture log-shrunk",
+  "mission_id": "01J1300000000000000000000D",
+  "mission_number": null,
+  "mission_slug": "log-shrunk",
+  "mission_type": "software-dev",
+  "slug": "log-shrunk",
+  "target_branch": "main"
+}

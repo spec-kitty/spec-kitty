@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-22T10:00:00+00:00",
+  "friendly_name": "Fixture malformed-blank-line",
+  "mission_id": "01J2100000000000000000000N",
+  "mission_number": null,
+  "mission_slug": "malformed-blank-line",
+  "mission_type": "software-dev",
+  "slug": "malformed-blank-line",
+  "target_branch": "main"
+}

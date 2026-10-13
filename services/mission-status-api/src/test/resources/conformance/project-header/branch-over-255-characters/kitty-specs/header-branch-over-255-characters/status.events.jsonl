@@ -1,0 +1,1 @@
+{"actor": "claude", "at": "2026-09-01T10:01:00Z", "event_id": "000000000000000000000005BX", "evidence": null, "execution_mode": "worktree", "force": false, "from_lane": "planned", "mission_id": "01J4500000000000000000001D", "mission_slug": "header-branch-over-255-characters", "policy_metadata": null, "reason": null, "review_ref": null, "to_lane": "claimed", "wp_id": "WP01"}

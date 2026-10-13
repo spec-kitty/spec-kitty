@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-20T10:00:00+00:00",
+  "friendly_name": "Fixture alpha-listing",
+  "mission_id": "01J3100000000000000000000Z",
+  "mission_number": null,
+  "mission_slug": "alpha-listing",
+  "mission_type": "software-dev",
+  "slug": "alpha-listing",
+  "target_branch": "main"
+}

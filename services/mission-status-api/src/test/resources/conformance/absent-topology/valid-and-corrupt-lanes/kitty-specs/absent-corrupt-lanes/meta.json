@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-09T10:00:00+00:00",
+  "friendly_name": "Fixture absent-corrupt-lanes",
+  "mission_id": "01J08000000000000000000008",
+  "mission_number": null,
+  "mission_slug": "absent-corrupt-lanes",
+  "mission_type": "software-dev",
+  "slug": "absent-corrupt-lanes",
+  "target_branch": "main"
+}

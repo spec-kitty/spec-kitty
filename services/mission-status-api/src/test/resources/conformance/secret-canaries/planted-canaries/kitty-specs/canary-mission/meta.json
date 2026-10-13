@@ -1,0 +1,11 @@
+{
+  "canary": "CANARY-NOT-A-SECRET-META",
+  "created_at": "2026-09-05T10:00:00+00:00",
+  "friendly_name": "Fixture canary-mission",
+  "mission_id": "01J6000000000000000000001W",
+  "mission_number": null,
+  "mission_slug": "canary-mission",
+  "mission_type": "software-dev",
+  "slug": "canary-mission",
+  "target_branch": "main"
+}

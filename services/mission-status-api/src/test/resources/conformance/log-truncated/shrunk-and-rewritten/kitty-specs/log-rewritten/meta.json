@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-15T10:00:00+00:00",
+  "friendly_name": "Fixture log-rewritten",
+  "mission_id": "01J1400000000000000000000E",
+  "mission_number": null,
+  "mission_slug": "log-rewritten",
+  "mission_type": "software-dev",
+  "slug": "log-rewritten",
+  "target_branch": "main"
+}

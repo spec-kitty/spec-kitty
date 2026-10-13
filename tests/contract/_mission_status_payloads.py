@@ -48,7 +48,8 @@ from specify_cli.status.aggregate import CoordAuthorityUnavailable, MissionMetad
 from specify_cli.status.lifecycle_events import LIFECYCLE_EVENT_TYPES
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.status.reducer import materialize_snapshot
-from specify_cli.status.tail_reader import EMPTY_DIGEST, TailCursor, poll_once
+from specify_cli.status.store import read_events_raw
+from specify_cli.status.tail_reader import EMPTY_DIGEST, TailCursor, _content_invariant_for, poll_once
 from specify_cli.status.wp_metadata import WPMetadata, read_authored_wp_frontmatter
 from specify_cli.status.wp_view import reconstruct_wp_view
 from tests.contract._loader import load_tool
@@ -719,6 +720,24 @@ def resolve_read_dir(repo_root: Path, name: str) -> tuple[Path, str | None]:
     return read_dir, None
 
 
+def _has_blank_line(log: Path) -> bool:
+    return b"" in log.read_bytes().split(b"\n")[:-1]
+
+
+def blank_line_cursor(log: Path) -> TailCursor:
+    """The ``streamCursor`` of a ledger with a blank line, which ``poll_once`` refuses but the reduction serves.
+
+    The cursor is the one after the whole file, so its offset is the file size, and its content invariant is the one
+    ``tail_reader`` holds, the digest of the last terminated line of ANY kind, a blank line included (DD-92: the
+    ``validate_resume_cursor`` and ``poll_once`` of ``tail_reader`` accept that digest and reject the non-blank one),
+    computed by ``tail_reader``'s own helper.
+    """
+    raw = log.read_bytes()
+    terminated = raw[: raw.rfind(b"\n") + 1].split(b"\n")[:-1]
+    last = terminated[-1] + b"\n" if terminated else None
+    return TailCursor(offset=len(raw), content_invariant=_content_invariant_for(last, EMPTY_DIGEST))
+
+
 def load_source(repo_root: Path, name: str) -> MissionSource:
     """Read meta, identity, snapshot and the event rows of one Mission through public readers only."""
     own = repo_root / "kitty-specs" / name
@@ -727,7 +746,10 @@ def load_source(repo_root: Path, name: str) -> MissionSource:
     log = read_dir / "status.events.jsonl"
     cursor = TailCursor(offset=0, content_invariant=EMPTY_DIGEST)
     rows: list[dict[str, Any]] = []
-    if log.is_file():
+    if log.is_file() and _has_blank_line(log):
+        # A blank line is stream-only (spec L10): the reduction skips it, only poll_once refuses it.
+        rows, cursor = read_events_raw(read_dir), blank_line_cursor(log)
+    elif log.is_file():
         polled = poll_once(log, cursor)
         cursor, rows = polled.cursor, polled.events
     return MissionSource(

@@ -1,0 +1,12 @@
+{
+  "coordination_branch": "kitty/mission-absent-coord-01J04000",
+  "created_at": "2026-09-05T10:00:00+00:00",
+  "friendly_name": "Fixture absent-coord-01J04000",
+  "mission_id": "01J04000000000000000000004",
+  "mission_number": null,
+  "mission_slug": "absent-coord-01J04000",
+  "mission_type": "software-dev",
+  "slug": "absent-coord-01J04000",
+  "target_branch": "main",
+  "topology": "coord"
+}

@@ -5,8 +5,7 @@
 #   <method>    a public no-arg method of that class carrying @PortLevelTest("<id>").
 # Floor (FR-013): AC-2a for interleaved, lifecycle-only, no-ledger, log-truncated and crlf-and-listing; AC-2b; AC-5a; AC-5c; the port
 # legs of AC-3g and AC-3i; the port legs of AC-4a for L1, L3a, L3b, L4 and L4b. testsupport.PortLevelIds.FR013_GROUPS records the floor.
-# The five AC-2a ids are shells that delegate to testsupport.Ac2aGoldenHook; until the goldens exist they are skipped, and PortLevelIdsTest requires exactly
-# testsupport.PortLevelIds.INTERIM_GOLDEN_DEPENDENT_IDS to be the skipped ids.
+# The five AC-2a ids are shells that delegate to testsupport.Ac2aGoldenHook, which compares the committed goldens; they run on both sources.
 AC-2a/interleaved Ac2aGoldenShellsTest#interleaved
 AC-2a/lifecycle-only Ac2aGoldenShellsTest#lifecycleOnly
 AC-2a/no-ledger Ac2aGoldenShellsTest#noLedger

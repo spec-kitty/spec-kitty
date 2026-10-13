@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-18T10:00:00+00:00",
+  "friendly_name": "Fixture malformed-missing-required-key",
+  "mission_id": "01J1700000000000000000000H",
+  "mission_number": null,
+  "mission_slug": "malformed-missing-required-key",
+  "mission_type": "software-dev",
+  "slug": "malformed-missing-required-key",
+  "target_branch": "main"
+}

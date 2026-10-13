@@ -1,0 +1,12 @@
+{
+  "coordination_branch": "kitty/mission-coordinated-01J03000",
+  "created_at": "2026-09-04T10:00:00+00:00",
+  "friendly_name": "Fixture coordinated-01J03000",
+  "mission_id": "01J03000000000000000000003",
+  "mission_number": null,
+  "mission_slug": "coordinated-01J03000",
+  "mission_type": "software-dev",
+  "slug": "coordinated-01J03000",
+  "target_branch": "main",
+  "topology": "coord"
+}

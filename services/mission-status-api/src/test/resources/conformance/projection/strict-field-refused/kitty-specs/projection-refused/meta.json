@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-25T10:00:00+00:00",
+  "friendly_name": "Fixture projection-refused",
+  "mission_id": "01J5200000000000000000001M",
+  "mission_number": null,
+  "mission_slug": "projection-refused",
+  "mission_type": "software-dev",
+  "slug": "projection-refused",
+  "target_branch": "someone@example.com"
+}

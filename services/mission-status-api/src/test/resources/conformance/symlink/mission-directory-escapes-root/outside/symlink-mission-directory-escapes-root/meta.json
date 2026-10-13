@@ -1,0 +1,1 @@
+{"created_at": "2026-09-08T10:00:00+00:00", "friendly_name": "Fixture symlink-mission-directory-escapes-root", "mission_id": "01J6300000000000000000001Z", "mission_number": null, "mission_slug": "symlink-mission-directory-escapes-root", "mission_type": "software-dev", "slug": "symlink-mission-directory-escapes-root", "target_branch": "main"}

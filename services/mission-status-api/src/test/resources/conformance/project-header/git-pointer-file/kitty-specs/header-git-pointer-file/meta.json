@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-21T10:00:00+00:00",
+  "friendly_name": "Fixture header-git-pointer-file",
+  "mission_id": "01J4800000000000000000001G",
+  "mission_number": null,
+  "mission_slug": "header-git-pointer-file",
+  "mission_type": "software-dev",
+  "slug": "header-git-pointer-file",
+  "target_branch": "main"
+}

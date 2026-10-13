@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-11T10:00:00+00:00",
+  "friendly_name": "Fixture lifecycle-only-mission",
+  "mission_id": "01J1000000000000000000000A",
+  "mission_number": null,
+  "mission_slug": "lifecycle-only-mission",
+  "mission_type": "software-dev",
+  "slug": "lifecycle-only-mission",
+  "target_branch": "main"
+}

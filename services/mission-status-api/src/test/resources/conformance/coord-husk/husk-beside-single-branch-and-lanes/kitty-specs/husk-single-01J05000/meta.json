@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-09-06T10:00:00+00:00",
+  "friendly_name": "Fixture husk-single-01J05000",
+  "mission_id": "01J05000000000000000000005",
+  "mission_number": null,
+  "mission_slug": "husk-single-01J05000",
+  "mission_type": "software-dev",
+  "slug": "husk-single-01J05000",
+  "target_branch": "main",
+  "topology": "single_branch"
+}

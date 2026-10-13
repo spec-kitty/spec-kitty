@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-19T10:00:00+00:00",
+  "friendly_name": "Fixture malformed-unknown-lane",
+  "mission_id": "01J1800000000000000000000J",
+  "mission_number": null,
+  "mission_slug": "malformed-unknown-lane",
+  "mission_type": "software-dev",
+  "slug": "malformed-unknown-lane",
+  "target_branch": "main"
+}

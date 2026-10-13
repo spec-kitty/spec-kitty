@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-02T10:00:00+00:00",
+  "friendly_name": "Fixture stale-approval-after-done",
+  "mission_id": "01J03000000000000000000003",
+  "mission_number": null,
+  "mission_slug": "stale-approval-after-done",
+  "mission_type": "software-dev",
+  "slug": "stale-approval-after-done",
+  "target_branch": "main"
+}

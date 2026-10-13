@@ -47,6 +47,7 @@ import org.speckitty.missionstatus.architecture.fixture.config.G11cUsesCodec;
 import org.speckitty.missionstatus.architecture.fixture.config.G7Files;
 import org.speckitty.missionstatus.architecture.fixture.config.Wiring;
 import org.speckitty.missionstatus.architecture.fixture.conformance.golden.P11bGoldenImportsFs;
+import org.speckitty.missionstatus.architecture.fixture.conformance.golden.P11bGoldenImportsHttp;
 import org.speckitty.missionstatus.architecture.fixture.conformance.port.P11AdapterImport;
 import org.speckitty.missionstatus.architecture.fixture.conformance.port.PortCase;
 import org.speckitty.missionstatus.architecture.fixture.domain.D1aSpring;
@@ -102,6 +103,7 @@ class ArchitectureControlsTest {
           new Control(10, G10Process.class, Set.of(10)),
           new Control(11, P11AdapterImport.class, Set.of(11)),
           new Control(11, P11bGoldenImportsFs.class, Set.of(11)),
+          new Control(11, P11bGoldenImportsHttp.class, Set.of(11)),
           new Control(11, G11cUsesCodec.class, Set.of(11, 12)),
           new Control(12, C12aSafeFiles.class, Set.of(12)),
           new Control(12, C12bFiles.class, Set.of(7, 12)),

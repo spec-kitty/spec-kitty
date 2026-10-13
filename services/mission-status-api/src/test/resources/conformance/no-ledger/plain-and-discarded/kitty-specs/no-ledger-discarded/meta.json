@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-09-13T10:00:00+00:00",
+  "discarded_at": "2026-09-12T12:00:00+00:00",
+  "friendly_name": "Fixture no-ledger-discarded",
+  "mission_id": "01J1200000000000000000000C",
+  "mission_number": null,
+  "mission_slug": "no-ledger-discarded",
+  "mission_type": "software-dev",
+  "slug": "no-ledger-discarded",
+  "target_branch": "main"
+}

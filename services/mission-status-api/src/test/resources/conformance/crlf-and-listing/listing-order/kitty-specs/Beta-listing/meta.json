@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-20T10:00:00+00:00",
+  "friendly_name": "Fixture Beta-listing",
+  "mission_id": "01J32000000000000000000010",
+  "mission_number": null,
+  "mission_slug": "Beta-listing",
+  "mission_type": "software-dev",
+  "slug": "Beta-listing",
+  "target_branch": "main"
+}

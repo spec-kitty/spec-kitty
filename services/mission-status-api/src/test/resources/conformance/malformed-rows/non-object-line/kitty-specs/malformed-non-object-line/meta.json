@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-17T10:00:00+00:00",
+  "friendly_name": "Fixture malformed-non-object-line",
+  "mission_id": "01J1600000000000000000000G",
+  "mission_number": null,
+  "mission_slug": "malformed-non-object-line",
+  "mission_type": "software-dev",
+  "slug": "malformed-non-object-line",
+  "target_branch": "main"
+}

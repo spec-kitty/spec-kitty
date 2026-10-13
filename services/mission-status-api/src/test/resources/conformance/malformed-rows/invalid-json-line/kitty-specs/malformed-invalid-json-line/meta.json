@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-16T10:00:00+00:00",
+  "friendly_name": "Fixture malformed-invalid-json-line",
+  "mission_id": "01J1500000000000000000000F",
+  "mission_number": null,
+  "mission_slug": "malformed-invalid-json-line",
+  "mission_type": "software-dev",
+  "slug": "malformed-invalid-json-line",
+  "target_branch": "main"
+}

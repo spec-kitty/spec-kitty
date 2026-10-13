@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-19T10:00:00+00:00",
+  "friendly_name": "Fixture header-branch-host-path-shaped",
+  "mission_id": "01J4600000000000000000001E",
+  "mission_number": null,
+  "mission_slug": "header-branch-host-path-shaped",
+  "mission_type": "software-dev",
+  "slug": "header-branch-host-path-shaped",
+  "target_branch": "main"
+}

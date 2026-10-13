@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-28T10:00:00+00:00",
+  "friendly_name": "Fixture torn-valid-json",
+  "mission_id": "01J2700000000000000000000V",
+  "mission_number": null,
+  "mission_slug": "torn-valid-json",
+  "mission_type": "software-dev",
+  "slug": "torn-valid-json",
+  "target_branch": "main"
+}

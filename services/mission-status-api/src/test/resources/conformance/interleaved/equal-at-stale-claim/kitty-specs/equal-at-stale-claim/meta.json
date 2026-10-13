@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-02T10:00:00+00:00",
+  "friendly_name": "Fixture equal-at-stale-claim",
+  "mission_id": "01J04000000000000000000004",
+  "mission_number": null,
+  "mission_slug": "equal-at-stale-claim",
+  "mission_type": "software-dev",
+  "slug": "equal-at-stale-claim",
+  "target_branch": "main"
+}

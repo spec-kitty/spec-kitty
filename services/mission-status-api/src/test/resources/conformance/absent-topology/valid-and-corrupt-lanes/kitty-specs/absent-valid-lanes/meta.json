@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-08T10:00:00+00:00",
+  "friendly_name": "Fixture absent-valid-lanes",
+  "mission_id": "01J07000000000000000000007",
+  "mission_number": null,
+  "mission_slug": "absent-valid-lanes",
+  "mission_type": "software-dev",
+  "slug": "absent-valid-lanes",
+  "target_branch": "main"
+}

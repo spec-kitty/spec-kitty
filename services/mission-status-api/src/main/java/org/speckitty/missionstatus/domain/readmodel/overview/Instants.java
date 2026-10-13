@@ -29,4 +29,17 @@ public final class Instants {
       }
     }
   }
+
+  /**
+   * Whether the text is an instant with an explicit offset: the form the contract's {@code format: date-time} (RFC 3339) requires of a
+   * served value. {@link #parse} stays lenient (comparison only); a field that is served must pass this.
+   */
+  public static boolean hasOffset(String text) {
+    try {
+      OffsetDateTime.parse(text);
+      return true;
+    } catch (DateTimeParseException withoutOffset) {
+      return false;
+    }
+  }
 }

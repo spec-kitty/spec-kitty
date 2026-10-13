@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-27T10:00:00+00:00",
+  "friendly_name": "Fixture torn-unparseable",
+  "mission_id": "01J2600000000000000000000T",
+  "mission_number": null,
+  "mission_slug": "torn-unparseable",
+  "mission_type": "software-dev",
+  "slug": "torn-unparseable",
+  "target_branch": "main"
+}

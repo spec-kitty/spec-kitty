@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-09-07T10:00:00+00:00",
+  "friendly_name": "Fixture symlink-symlinked-meta",
+  "mission_id": "01J6200000000000000000001Y",
+  "mission_number": null,
+  "mission_slug": "symlink-symlinked-meta",
+  "mission_type": "software-dev",
+  "slug": "symlink-symlinked-meta",
+  "target_branch": "main"
+}
