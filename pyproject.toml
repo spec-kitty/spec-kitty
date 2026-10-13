@@ -227,6 +227,11 @@ exclude = [
     # distribution (cli-acceptance-bdd-nightly, FR-013 / C-004).
     "acceptance-jvm/**",
     "tests/scenarios/**",
+    # The standalone Mission Status API service and the contract tree are CI-only trees. The bare `README.md` / `CHANGELOG.md`
+    # include entries above are gitignore-style, so without this they matched the nested README.md and CHANGELOG.md of both trees
+    # and shipped them in the sdist. tests/cross_cutting/packaging/test_packaging_safety.py reads the built archive for this.
+    "services/**",
+    "contracts/**",
 ]
 
 # NOTE: pytest configuration (markers, pythonpath, testpaths, addopts) lives in

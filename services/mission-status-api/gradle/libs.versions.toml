@@ -1,0 +1,31 @@
+# Version catalog: exact versions only (no '+', no 'latest', no ranges). Libraries managed by the Spring Boot BOM carry no
+# version of their own; the BOM version is the Boot plugin version below. This file and verification-metadata.xml are changed by
+# the scaffold work package only.
+
+[versions]
+spring-boot = "4.1.1"
+spring-dependency-management = "1.1.7"
+# Equal to contracts/tools/pins.json (pinned by tests/ci/test_mission_status_api_build.py).
+openapi-generator = "7.25.0"
+# The Boot-managed Native Build Tools version (native-build-tools-plugin.version in spring-boot-dependencies 4.1.1).
+graalvm-native = "1.1.8"
+jacoco = "0.8.15"
+networknt-json-schema = "3.0.8"
+archunit = "1.4.2"
+
+[libraries]
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test" }
+jakarta-validation-api = { module = "jakarta.validation:jakarta.validation-api" }
+snakeyaml = { module = "org.yaml:snakeyaml" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+assertj-core = { module = "org.assertj:assertj-core" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+networknt-json-schema = { module = "com.networknt:json-schema-validator", version.ref = "networknt-json-schema" }
+archunit-junit5 = { module = "com.tngtech.archunit:archunit-junit5", version.ref = "archunit" }
+
+[plugins]
+spring-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+openapi-generator = { id = "org.openapi.generator", version.ref = "openapi-generator" }
+graalvm-native = { id = "org.graalvm.buildtools.native", version.ref = "graalvm-native" }

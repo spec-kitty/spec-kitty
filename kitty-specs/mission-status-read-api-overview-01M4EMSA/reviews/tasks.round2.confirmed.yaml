@@ -1,0 +1,214 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: round2-confirmed
+mission: m
+findings:
+- id: TASKS-FRESH-001
+  lens: architecture
+  severity: 4
+  title: LedgerLine is placed in the codec package, but the application port returns it; ArchUnit rules
+    2 and 12 forbid that dependency
+  evidence:
+  - artifact: 'tasks/WP17-projection-and-ledger-codec.md T028 step 2: ''Package adapter.out.filesystem.codec
+      ... LedgerLine records per data-model'''
+  - artifact: tasks/WP06-application-ports-cache-feed.md T029 step 2 (LedgerRead readLedger) and T030
+      step 2 ('Map decoded LedgerLine.Malformed' inside application)
+  - artifact: 'tasks/WP05-domain-core.md T023 step 1: the domain value list has no LedgerLine, LedgerRead
+      tail classification or Malformed reason type'
+  - artifact: plan.md section 13 ArchUnit rule 2 (application depends only on application, domain and
+      JDK), rule 12 (codec depends only on domain and itself, and is used only by adapter.out.filesystem
+      and testsupport); data-model.md line 16 (LedgerLine produced by the codec but consumed by the application)
+  claim: The outbound port (application.port.out) carries decoded LedgerLine records and the application
+    service maps LedgerLine.Malformed to L3a/L3b/L4/L4b. WP17 declares LedgerLine inside adapter.out.filesystem.codec.
+    An application class importing a codec type violates rule 2 (and rule 12's 'used only by adapter.out.filesystem
+    and testsupport'); WP18 would go red on a design the earlier WPs were told to write. No WP says where
+    LedgerLine, its kind/Malformed-reason/tail-classification types live.
+  remediation: Declare LedgerLine, its sealed kind (Status/Lifecycle/Ignored/Blank/Malformed), the malformed-reason
+    enum and the tail classification as domain.model records in WP05 T023 step 3 (framework-free, no JSON),
+    and change WP17 T028 step 2 so the codec only produces those domain types. Keep LedgerRead/LedgerWindow/LedgerStamp
+    in application.port.out (WP06). Add one sentence to WP18 T033 step 1 that rule 12 is satisfied because
+    the codec returns domain types.
+- id: TASKS-FRESH-002
+  lens: traceability
+  severity: 4
+  title: AC-4d HTTP leg (200 GET /api/v1/missions during appends) is owed to WP10/WP20 but neither prompt
+    has it
+  evidence:
+  - artifact: 'spec.md AC-4d: ''a reader issues at least 200 GET /api/v1/missions calls'' and the latch
+      part must observe the L4/L4b refusals'
+  - artifact: 'tasks/WP19-filesystem-event-source-and-readme-stub.md T046 step 4: ''the HTTP legs of AC-4d
+      are WP10'''
+  - artifact: 'tasks-overview.md section 3.2 row AC-4d: ''WP10 and WP20 (HTTP legs)'''
+  - artifact: 'grep AC-4d over tasks/*.md: only WP19 mentions it; WP10 (T053 step 3 covers L1..L11 rows
+      only) and WP20 (T054/T085) never do. The same gap existed in the pre-split WP10 prompt.'
+  claim: The spec defines AC-4d over the HTTP route, with a free-running 200-call reader and a latch phase
+    requiring a 500 Problem at each stage. WP19 tests it only against the port-level API and defers the
+    HTTP leg; the overview credits WP10/WP20; no subtask of either contains the test. The AC has no HTTP-level
+    test task and the overview table is untrue.
+  remediation: Add an explicit step to WP10 T053 (JSON route, server on port 0 over FilesystemFixtureFactory,
+    writer thread appending valid rows, >=200 GETs, every 200 item equals a prefix of the final log, every
+    non-200 is the L4/L4b Problem; latch phase asserting 500 ledger_torn_tail at both stages) with a revert
+    row (serve a half-read prefix) and its validation line; keep the WP19 adapter leg as is.
+- id: TASKS-FRESH-003
+  lens: design
+  severity: 3
+  title: No WP exposes the recording allowlist seam to the HTTP-served flow, yet WP19/WP20 re-run AC-10a
+    and AC-16 over HTTP with it
+  evidence:
+  - artifact: 'tasks/WP08-filesystem-adapter-primitives.md T044 step 2: RecordingAllowlistAccess is substituted
+      ''as a package-visible collaborator of FilesystemMissionEventSource, not a new named port'''
+  - artifact: 'tasks/WP20-sse-events-flow-checks-native-tagged-tests.md T085 step 2: ''AC-16 over HTTP
+      ... reusing WP08''s RecordingAllowlistAccess recorder'' from test package adapter.in.http.flow'
+  - artifact: 'tasks/WP09-golden-suite-on-real-adapter.md T048 step 2 (FilesystemFixtureFactory builds
+      the source) and tasks/WP10 Context (testsupport.http over FilesystemFixtureFactory): neither passes
+      a recorder'
+  claim: A package-private collaborator in adapter.out.filesystem cannot be set from testsupport or from
+    adapter.in.http.flow tests, and ServiceWiring (config) constructs the source with the pass-through.
+    The HTTP-flow half of AC-10a, AC-16a and AC-16c therefore has no way to observe file opens; the implementer
+    will either widen visibility ad hoc or weaken the check.
+  remediation: State in WP08 T044 that FilesystemMissionEventSource has a constructor taking AllowlistAccess
+    reachable from testsupport (public, ArchUnit-allowed because testsupport may import adapter.out.filesystem),
+    make WP09 T048 FilesystemFixtureFactory accept and expose the recorder via FixtureHandles, and have
+    the WP10 testsupport.http harness take it from there; reference this chain in WP20 T085 step 2.
+- id: TASKS-FRESH-004
+  lens: build
+  severity: 3
+  title: check depends on perfTest, which has no tests until WP13; Gradle 9 fails a Test task that discovers
+    none
+  evidence:
+  - artifact: 'tasks/WP03-gradle-scaffold-supply-chain-skeleton.md T012 step 8: ''Until WP13 adds the
+      first perf class, perfTest finds no test and must still pass'''
+  - artifact: 'tasks/WP20-sse-events-flow-checks-native-tagged-tests.md T059 step 1: ''perfTest (no perf
+      classes yet: the task passes with zero tests only if the build allows it ...)'''
+  - artifact: Gradle 9.x Test.failOnNoDiscoveredTests defaults to true (to be re-confirmed in the WP02
+      harness; the toolchain is pinned to Gradle 9.7.1)
+  claim: Every Java WP from WP03 to WP12 has 'check GREEN' as an exit state and check depends on perfTest.
+    If Gradle 9.7.1 fails an empty Test task, check is red at every tip until WP13, contradicting the
+    Definition of Done of WP05..WP12 and T016's pins. WP20 hedges ('only if the build allows it') instead
+    of the build deciding it.
+  remediation: Add to WP02 T004 step 3 a probe that a tag-filtered empty Test task passes or fails under
+    Gradle 9.7.1; in WP03 T012 step 8 set failOnNoDiscoveredTests=false on perfTest (and any other tag-only
+    Test task) and pin it in T016 step 10; delete the hedge in WP20 T059. WP13's pin that at least two
+    perf classes exist keeps the task non-vacuous afterwards.
+- id: TASKS-FRESH-005
+  lens: consistency
+  severity: 2
+  title: Stale WP numbers left in the prompts after the 05/06/08/10 splits
+  evidence:
+  - code: tasks/WP05-domain-core.md:60 'ArchUnit rule 1, WP06 enforces it' (WP18 owns the rule set)
+  - code: tasks/WP06-application-ports-cache-feed.md:91 'AC-7c/7d are adapter-suite tests in WP08' (they
+      are WP19 T046 step 5)
+  - code: tasks/WP06-application-ports-cache-feed.md:61 'The adapter side of MissionEventSource (filesystem)
+      is WP08; the HTTP side is WP10' (event source is WP19, stream side WP20)
+  - code: tasks/WP06-application-ports-cache-feed.md:100 'streamCursor wins over Last-Event-ID at HTTP
+      (WP10)' (the SSE controller is WP20 T054 step 2, AC-3h)
+  - code: tasks/WP07-python-oracle-goldens-ci-routing.md:72 'in parallel with WP02-WP06 and WP08' (tasks-overview.md
+      section 1 says WP02-WP06, WP08, WP17-WP19)
+  claim: Four references point a reader to the wrong WP; the reader following WP06 T031 for the Last-Event-ID
+    rule or WP05 for the ArchUnit owner lands in a WP that neither owns nor tests it.
+  remediation: 'Edit those lines: WP05:60 -> WP18; WP06:91 -> WP19 T046 step 5; WP06:61 -> ''WP08/WP19;
+    the JSON side is WP10, the stream side WP20''; WP06:100 -> WP20; WP07:72 -> add WP17-WP19. Then grep
+    every prompt once for ''WP06 enforces'', ''WP08'' next to FilesystemMissionEventSource and ''WP10''
+    next to SSE.'
+- id: TASKS-FRESH-006
+  lens: consistency
+  severity: 2
+  title: '''contracts/service-contract-notes.md'' is ambiguous: it is under the Mission directory, not
+    the repository''s contracts/ tree'
+  evidence:
+  - code: tasks/WP20-sse-events-flow-checks-native-tagged-tests.md:68 names 'contracts/mission-status/paths/events.yaml'
+      (repository root) and 'contracts/service-contract-notes.md' (Mission directory) in one sentence
+  - artifact: tasks/WP07:71, WP09:59, WP10:72 use the same unqualified path; the file exists only at kitty-specs/mission-status-read-api-overview-01M4EMSA/contracts/service-contract-notes.md
+      and not in the repository-root contracts/ directory
+  claim: An implementer working in a lane worktree resolves the path from the repository root and finds
+    nothing; the Comparison rule and Conformance data formats are the binding source for WP07/WP09/WP10.
+  remediation: Spell it as 'the Mission directory's contracts/service-contract-notes.md' (or kitty-specs/<mission>/contracts/service-contract-notes.md)
+    in WP07, WP09, WP10 and WP20.
+- id: TASKS-FRESH-007
+  lens: traceability
+  severity: 2
+  title: requirement_refs omit the FRs that WP20 and WP12 are credited with testing
+  evidence:
+  - artifact: 'wps.yaml WP20 requirement_refs: FR-003, FR-004, FR-009, NFR-003, SC-003 (no FR-010, FR-016);
+      tasks/WP20 T085 owns AC-10c runtime and AC-16a..16c over HTTP; tasks-overview.md 3.2 rows AC-10c
+      and AC-16a to AC-16d credit WP20'
+  - artifact: wps.yaml WP12 requirement_refs lacks FR-010 although T065 step 5 (tasks/WP12:93) is the
+      AC-10c native sample
+  - artifact: tasks-overview.md 3.2 row NFR-008 credits WP19 (README stub); wps.yaml WP19 requirement_refs
+      has no NFR-008, and 3.1 lists NFR-008 under WP16 only
+  claim: 'The generated tasks.md and the 3.1 table (FR-010: WP02, WP08, WP19; FR-016: WP08, WP19) disagree
+    with the authored 3.2 table, so a status query by requirement hides the HTTP-level and native-leg
+    proofs.'
+  remediation: Add FR-010 and FR-016 to WP20, FR-010 to WP12, NFR-008 to WP19 in wps.yaml (finalize-tasks
+    regenerates tasks.md and the prompt frontmatter), then update 3.1.
+- id: TASKS-FRESH-008
+  lens: traceability
+  severity: 2
+  title: WP18 promises a WP10 pin tying the rule-9 package literals to the recorded generated/hand mode;
+    WP10 has no such step
+  evidence:
+  - artifact: 'tasks/WP18 T033 step 4: ''A separate WP10 build pin ties these literals to the mode recorded
+      by WP03'''
+  - artifact: 'tasks/WP10 T057 step 4 pin list: packaged defaults, no springdoc key, ''generated-package
+      names (or hand mode)'', jar name; no step reads ArchitectureRulesTest or checks adapter.in.http.dto
+      against the mode'
+  claim: If the mode is hand, the literals include adapter.in.http.dto, and if generated, api/model; nothing
+    fails when the ArchUnit literals and the build disagree, so rule 9 can silently scan the wrong packages.
+  remediation: 'Add to WP10 T057 step 4 a pin in test_mission_status_api_build.py that parses ArchitectureRulesTest
+    for the three literals and asserts the populated package(s) match the mode recorded by T016 (revert
+    row: drop the dto literal in a temp copy).'
+- id: TASKS-FRESH-009
+  lens: consistency
+  severity: 1
+  title: 'Open-PR overlap section is out of date (11 open PRs; #6004 also edits docs/changelog/CHANGELOG.md)'
+  evidence:
+  - artifact: 'gh pr list --repo spec-kitty/spec-kitty --state open: 11 PRs; nine edit docs/changelog/CHANGELOG.md
+      (6004, 6002, 5957, 5954, 5953, 5950, 5945, 5944, 5540); no other owned path appears'
+  - artifact: 'tasks-overview.md section 6: ''10 open PRs'', ''EIGHT open PRs''; tasks/WP16:Context lists
+      seven PRs'
+  claim: The count and the list are one to two PRs short; the conclusion (one overlap, CHANGELOG) still
+    holds.
+  remediation: 'Update section 6 and the WP16 context line to nine PRs including #6004, and keep the ''re-run
+    before each claim'' sentence.'
+- id: TASKS-FRESH-010
+  lens: consistency
+  severity: 1
+  title: Overview lane sentence omits that lanes.json also makes lane-planning depend on lane-a and lane-b
+    on lane-planning
+  evidence:
+  - artifact: 'tasks-overview.md section 1: ''lane-b depends on lane-a only through WP09'''
+  - artifact: 'lanes.json: lane-planning depends_on_lanes [lane-a]; lane-b depends_on_lanes [lane-a, lane-planning];
+      src/specify_cli/lanes/models.py docstring: ''Lane IDs that must complete before this lane starts'''
+  claim: Read literally, lane-b (WP03) waits for the whole of lane-a including the 2,500-line WP07, which
+    contradicts the [P] claim for WP07. Claim gating is per WP dependency (dependency_readiness_for_wp),
+    so the claim holds, but the document does not say so.
+  remediation: 'Add one sentence to section 1: lanes.json depends_on_lanes is informational; claims are
+    gated by WP dependencies, so WP03..WP06 do not wait for WP07.'
+- id: TASKS-SEQ-005
+  lens: Write scopes vs open PRs
+  severity: 2
+  title: Open-PR overlap section is already stale and omits an oracle-input collision
+  evidence:
+  - artifact: 'tasks-overview.md section 6 (CHANGELOG edited by seven PRs; ''#6002 touches status/emit.py'';
+      semantic watch names only #5953 and #6002)'
+  - code: 'gh pr list --repo spec-kitty/spec-kitty --state open --json number,files, run at review time:
+      10 open PRs; #6002 now also lists docs/changelog/CHANGELOG.md (eight PRs edit it); #5951 edits src/specify_cli/mission_metadata.py
+      and migration/mission_state.py; #5953 also edits src/specify_cli/core/subtask_rows.py'
+  - code: .github/workflows/ci-router.yml:322 ('**/specify_cli/core/subtask_rows.py') and :325 ('**/specify_cli/mission_metadata.py')
+      are members of the contract_tools group; tests/contract/_mission_status_payloads.py:46 imports mission_metadata
+  claim: 'No owned path other than docs/changelog/CHANGELOG.md overlaps any open PR (verified for every
+    glob in wps.yaml), so the disjointness claim stands. But the CHANGELOG count is now eight, and the
+    semantic watch misses #5951 (mission_metadata.py is an input of the reader the oracle wraps and a
+    contract_tools group member) and #5953''s subtask_rows.py. A landing of #5951 before WP07 merges can
+    shift goldens or the import-derived group pin without any path overlap.
+
+    '
+  remediation: 'Update section 6: eight CHANGELOG PRs including #6002; add #5951 (mission_metadata.py,
+    migration/mission_state.py) and subtask_rows.py to the semantic-watch list with the same instruction
+    (run --check and the honesty test; a golden shift is regenerated only by the Python generator). Keep
+    the ''re-run the query before each claim'' sentence; it is what makes this self-correcting.
+
+    '
+  source: tasks-seq.findings.yaml
+  refuter_reason: Live gh query shows

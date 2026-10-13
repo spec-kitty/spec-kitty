@@ -1,0 +1,202 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: PLAN-ARCH-001
+    lens: hexagonal boundary and port parity
+    severity: 4
+    title: No layer owns ledger-line JSON decoding; the port returns bytes while domain and application may not touch JSON
+    evidence:
+      - artifact: "data-model.md § Ports (LedgerRead = bytes of the resolved read directory + size + mtime + file key) and § Results and invariants I-3 (no domain/application class references java.io, java.nio.file, Spring, HTTP or JSON)"
+      - artifact: "plan.md § 13 package layout (domain/ and application/ 'no JSON'); spec.md FR-012 and rows L3a/L4/L10 (line numbers, unparseable and torn-tail diagnostics, lifecycle-type filtering of 'other well-formed objects')"
+      - code: "src/specify_cli/status/reducer.py:372"
+    claim: >
+      The reduction needs parsed events (event_id, at, wp, lanes, force, cancellation provenance, top-level lifecycle
+      type), per-line failure classification with 1-based line numbers (ledger_unparseable, ledger_torn_tail), blank-line
+      and non-object handling, and SHA-256 over physical lines for the cursor invariant. The outbound port hands the
+      application only bytes, and I-3/FR-012 forbid JSON in domain and application. Either the application parses JSON
+      (violating FR-012 and AC-12 as written) or the adapter parses it (contradicting the LedgerRead signature, and
+      moving Python-parity decoding rules such as duplicate keys, number forms and non-UTF-8 into an untested-by-port
+      layer). The plan does not say which, so the WP that implements the reducer and the WP that implements the
+      filesystem adapter will each assume the other owns it.
+    remediation: >
+      Decide in plan.md section 13 and data-model.md: add an outbound port (for example LedgerLineDecoder, implemented
+      in a JSON-capable adapter package that is not adapter.out.filesystem's file-API surface) or change LedgerRead to
+      return already-decoded LedgerLine records (physical-line index, raw-line SHA-256, decoded StatusEvent or typed
+      Malformed result). State which package holds the decoder, add it to the port-level conformance subset so the
+      in-memory source exercises the same decode path, and restate I-3 accordingly.
+  - id: PLAN-ARCH-002
+    lens: hexagonal boundary and port parity
+    severity: 3
+    title: Streaming (ChangeFeed fan-out, heartbeat, subscribe) is outside the inbound port, so the HTTP adapter must reach past MissionStatusQuery
+    evidence:
+      - artifact: "plan.md § 13 (application/{MissionStatusService,ProjectionCache,ChangeFeed,port/in/MissionStatusQuery,...}; SSE: 'one shared ChangeFeed polls (500 ms tick ...) and fans out'; 'Refusals are decided before the emitter exists')"
+      - artifact: "data-model.md § Ports (MissionStatusQuery has only changesSince(StreamScope, Optional<StreamCursor>) returning ChangeBatch) and § Stream state (per subscriber)"
+      - artifact: "spec.md FR-013 (a second implementation behind MissionStatusQuery runs the same subset); C-003 (inbound port mirrors the read port one to one)"
+    claim: >
+      changesSince is a pull call. The design that serves 100 subscribers (NFR-004c) is a push fan-out in a concrete
+      application class, ChangeFeed, with per-subscriber queues, a 500 ms poller and a 1 s re-list. The SSE controller
+      therefore depends on ChangeFeed (a concrete class), not on the port, so the declared single inbound seam is not
+      the seam the adapter uses, a second port implementation would not be streamable, and who owns the poller thread
+      and its lifecycle (application vs config) is unstated. The port-level subset can only exercise changesSince, never
+      S3-S6 behaviour while open.
+    remediation: >
+      Put subscription on the inbound port (for example Subscription subscribe(StreamScope, Optional<StreamCursor>)
+      whose events and typed closures carry the S1-S6 outcomes), keep ChangeFeed package-private behind it, and have
+      ArchUnit require adapter.in.http to depend only on application.port.in (plus its exception types). State that the
+      poller/scheduler is created in config and injected, so application holds no thread or clock beyond an injected
+      Clock/Scheduler port. Otherwise document explicitly why changesSince alone is the mirror of #5532 and list
+      ChangeFeed as a second inbound port.
+  - id: PLAN-ARCH-003
+    lens: hexagonal boundary and port parity
+    severity: 3
+    title: ArchUnit rule set is under-specified and its non-vacuity checks only count scanned classes
+    evidence:
+      - artifact: "spec.md FR-012, AC-12a, AC-12b; plan.md § 11 test strategy row AC-12/AC-13 ('import Spring in domain: AC-12a red')"
+      - artifact: "plan.md § 13 (config/ holds BindGuard, NativeHints, VirtualThreads; adapter/in/http/dto/**; generated interfaces 'ProjectApi*, MissionsApi*')"
+    claim: >
+      FR-012 names application->domain and adapters->application, but the plan never states: adapter.in.http must not
+      depend on adapter.out.filesystem and vice versa; application must not depend on adapter or config; config is the
+      only layer allowed to see both; the java.nio.file/java.io rule must cover the whole main source set, including
+      generated classes, and must allow only adapter.out.filesystem; java.security (SHA-256) is permitted in domain.
+      The AC-12b sanity check asserts only that each rule scanned more than zero classes, which does not prove a rule can
+      fire; the only positive control (AC-12a) is a Spring import in domain, so a missing or inverted direction rule
+      (for example adapter.in -> adapter.out, or application -> adapter.in) passes unnoticed. The package names of the
+      generated interfaces/models are also not fixed, so 'contract DTOs live only in adapter.in.http' is not checkable
+      before WP01 decides generated-vs-hand mode.
+    remediation: >
+      List the full rule set in plan.md section 13 (domain->nothing but JDK value types; application->domain;
+      adapter.in->application.port.in only; adapter.out->application.port.out and domain; config->any; no adapter->adapter;
+      file APIs only in adapter.out.filesystem; Spring only in adapter.* and config), require one positive-control
+      mutation per rule (a test-branch import that turns that exact rule red), pin openapi-generator apiPackage and
+      modelPackage under adapter.in.http, and import main classes only (ImportOption.DoNotIncludeTests) for production
+      rules while a separate rule covers testsupport/conformance.port per AC-13b.
+  - id: PLAN-ARCH-004
+    lens: hexagonal boundary and port parity
+    severity: 3
+    title: readLedger returns full bytes before the cache key (size/mtime/file key) is known, and the key leaks filesystem concepts into the application
+    evidence:
+      - artifact: "data-model.md § Ports (LedgerRead: bytes + size + mtime + file key + read-directory class) and Invariant I-2 (ProjectionCache key = streamCursor, size, mtime, file key; equal key never re-reduces)"
+      - artifact: "plan.md § 1/§ 11 NFR-001 (warm p95 under 200 ms over 500 Missions) and AC-7"
+    claim: >
+      GET /project and /missions must touch every Mission (lastActivityAt needs every ledger reduced). With the port as
+      specified the application only learns the cache key by calling readLedger, which already read the bytes, so the
+      cache can save the reduction but not the I/O, and AC-7's 'equal key never re-reduces' is satisfied while a warm
+      request still reads about 590 ledgers. Separately, mtime and 'file key' are filesystem notions that an in-memory
+      MissionEventSource (FR-013) must fake, and a stamp compared by the application defines what 'unchanged' means
+      outside the adapter that can know (inode reuse, Windows file ids, CRLF).
+    remediation: >
+      Split the port: LedgerStamp stampLedger(MissionRef) (cheap, adapter-defined and opaque to the application, with
+      equals) and LedgerRead readLedger(MissionRef, LedgerStamp) invoked only on a cache miss; key the ProjectionCache on
+      the opaque stamp plus streamCursor. Keep size/mtime/file key inside the stamp implementation. Add an AC-7 assertion
+      that a warm request performs zero ledger reads through the instrumented port.
+  - id: PLAN-ARCH-005
+    lens: hexagonal boundary and port parity
+    severity: 3
+    title: Diagnostics travel in per-call results, which duplicates them under a shared fan-out and breaks 'exactly one per occurrence'
+    evidence:
+      - artifact: "plan.md § 13 ('Diagnostics travel inside results (MissionPage.diagnostics(), ChangeBatch.diagnostics()), so no third port is needed; adapter.in.http logs them'; 'One shared ChangeFeed polls ... and fans out')"
+      - artifact: "spec.md AC-4c (exactly one diagnostic line per occurrence; S6 per transition into failure) and stream rows S3-S6 (unscoped: Mission dropped, connection kept)"
+      - artifact: "data-model.md § Stream state (per subscriber) and § Diagnostics"
+    claim: >
+      With a shared poller and per-subscriber ChangeBatch values, a Mission that vanishes while 100 unscoped
+      subscribers are open is observed by 100 batches. If each batch carries the diagnostic and the adapter logs batches,
+      100 lines are written for one occurrence, violating AC-4c; if only the feed logs, the port result is no longer the
+      carrier. Likewise the S6 'none again until a listing has succeeded' dedupe is feed-level state, not subscriber
+      state. The plan does not say which level owns occurrence identity.
+    remediation: >
+      State that diagnostics are emitted once per occurrence by the shared feed (an outbound DiagnosticsSink port or an
+      application-level event consumed once by config-wired logging), while per-subscriber closure/drop events carry
+      only the stream consequence. Add an AC-4c test with N>1 subscribers asserting one line per occurrence, and place
+      the S6 transition state in the feed.
+  - id: PLAN-ARCH-006
+    lens: Q-5 and security design
+    severity: 3
+    title: The AC-9b amendment is flagged but not escalated as a blocker, and the amended table is to be generated from observed Tomcat behaviour
+    evidence:
+      - artifact: "plan.md § 8 ('flagged to the orchestrator as a spec-amendment candidate'; 'the AC-9b table is generated from that record'); research.md R-7 (Tomcat table: TBD) and R-11"
+      - artifact: "spec.md AC-9b (refusal constant required for every listed value, including evil.example@127.0.0.1:<port>) and Clarification Q-5 (refused before any read, one constant)"
+    claim: >
+      As written, AC-9b is unsatisfiable for container-rejected rows if embedded Tomcat answers 400 before any filter,
+      so a WP implementing it would fail its own acceptance test; the plan leaves the spec change as a note with no
+      owner, no deadline and no statement that tasks must wait. Generating the expected status per row from what the
+      pinned Tomcat does makes the test tautological: a Tomcat upgrade or a Boot property that flips a row from 403 to
+      400 would silently rewrite the oracle instead of failing it. The same circularity applies to the claim that
+      HTTP/1.0 without Host 'reaches the filter'.
+    remediation: >
+      Escalate to the operator now as a decision, not a candidate: either amend AC-9b into two sets (filter-reachable ->
+      403 request_refused; container-rejected -> 400, with the list of values fixed in the spec before WP01) or require
+      a pre-container rejection. Fix the expected status per row in the spec and make the spike only confirm it; the test
+      must hard-code the expected status and fail on divergence. Record in plan.md that tasks for the Host/Origin WP are
+      blocked until the amendment is merged, and keep both sets under the same assertions (no Mission read, no event
+      stream, canary-free body).
+  - id: PLAN-ARCH-007
+    lens: Q-5 and security design
+    severity: 3
+    title: Host/Origin filter design does not pin which Host source it reads, so absolute-form request targets, forwarded headers and case variants are unspecified
+    evidence:
+      - artifact: "plan.md § 13 Host/Origin filter ('accepted Host exactly 127.0.0.1:<port> / localhost:<port>'); § 8"
+      - artifact: "spec.md FR-009 and AC-9b/AC-9c tables (no absolute-form row, no case row, no port-0 behaviour)"
+    claim: >
+      A request such as 'GET http://evil.example/api/v1/project HTTP/1.1' with 'Host: 127.0.0.1:<port>' is valid HTTP;
+      Tomcat resolves the server name from the request target, so request.getServerName() and the raw Host header can
+      disagree. A filter that reads getServerName(), or one behind a ForwardedHeaderFilter/RemoteIpValve influenced by
+      X-Forwarded-Host, evaluates a different value than the one the container used. The plan also does not state
+      case-folding ('LOCALHOST:8787'), trailing-dot ('localhost.:8787') or how the 'own port' is obtained when the
+      configured port is 0 (it must come from the bound server, not config), so BindGuard-before-start and the filter can
+      disagree.
+    remediation: >
+      Specify that the filter evaluates the raw Host header and, when the request line is absolute-form, the authority of
+      the request target too, refusing on any mismatch or any X-Forwarded-Host/Forwarded header; compare host
+      case-insensitively and reject a trailing dot; take the own port from the WebServerInitializedEvent port. Add rows
+      to AC-9b: absolute-form foreign target with accepted Host, X-Forwarded-Host present, uppercase accepted host
+      (control: accepted), trailing-dot host (refused), and assert server.forward-headers-strategy is none.
+  - id: PLAN-ARCH-008
+    lens: Q-5 and security design
+    severity: 2
+    title: Container-generated 400 responses bypass the Problem mapper and the canary scan assumptions
+    evidence:
+      - artifact: "plan.md § 8 (container 400s 'never reach the filter ... asserts refused, nothing read, no event stream opened'); spec.md AC-9g (every refusal response body and header is scanned)"
+    claim: >
+      A Tomcat-generated 400 uses Tomcat's own error report (possibly an HTML body and a Server/version header) rather
+      than the shared Problem body the rest of the service guarantees. AC-9g requires every refusal to be free of paths
+      and environment values; the plan asserts only 'refused, nothing read' for these rows, leaving the response shape
+      and any server-identifying text unspecified.
+    remediation: >
+      Configure the embedded Tomcat error handling so container-level 400s carry no report body or server banner (or a
+      fixed Problem), and apply the AC-9g scan and a no-Server-version-header assertion to the container-rejected rows as
+      well as the filter-reached rows. Record the chosen property in research.md R-7.
+  - id: PLAN-ARCH-009
+    lens: Q-5 and security design
+    severity: 2
+    title: The one-status-constant rule for service refusals contradicts the contract-fixed statuses
+    evidence:
+      - artifact: "plan.md § 8 final sentence; contracts/service-contract-notes.md § Error statuses (400 invalid_page_cursor, stream 400/409/404, 500 rows)"
+    claim: >
+      The sentence reads as if the Refusal.STATUS constant governs all refusals, but the service also produces 400, 404,
+      409 and 500 refusals fixed by the contract. A reader or a Refusal-constant ArchUnit/lint test could be written too
+      broadly.
+    remediation: >
+      Reword to: one constant (403) for every Host/Origin policy refusal; contract-fixed statuses stay as listed in
+      service-contract-notes.md. Name the constant HostOriginRefusal.STATUS.
+  - id: PLAN-ARCH-010
+    lens: blast radius
+    severity: 2
+    title: The "GitHub itself imposes" rationale for the last workflow slot misstates the constraint that is being consumed
+    evidence:
+      - artifact: "plan.md § Readiness facts (Workflow ceiling) and R-10"
+      - code: "tests/architectural/test_module_shard_registry.py:524"
+      - code: ".github/ci-module-registry.yml:11"
+    claim: >
+      The test counts every *.yml under .github/workflows (19 today, verified) against reusable_workflow_ceiling: 20,
+      which the registry ties to GitHub's limit on reusable workflows called per caller. A standalone, non-reusable
+      workflow does not count against that GitHub limit, so the plan's statement that any later workflow needs 'an
+      architectural limit that GitHub itself imposes' raised is inaccurate. The practical effect is real and shared:
+      this mission permanently leaves zero headroom for every downstream mission, and the file count test would force
+      any later workflow into a job of an existing file.
+    remediation: >
+      Reword the readiness fact to say the ceiling is a repository-owned tripwire derived from GitHub's reusable-workflow
+      limit, state explicitly in the PR that the last slot is consumed, and ask the maintainer to acknowledge this (or to
+      decouple the count test from non-reusable files in a separate change) before WP01 creates the file.

@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 4
+verdicts:
+  - id: SPEC-GOV-009
+    verdict: refuted
+    reason: The entry is itself a verification note stating no defect, with only an optional wording nit.
+  - id: SPEC-GOV-010
+    verdict: refuted
+    reason: The entry states the spec is clean on both lenses; the C-013 remark is an optional nit, not a defect.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: tail_reader.py hashes only the last consumed line, so an equal-length mid-log rewrite leaves offset and digest unchanged while AC-7c claims detection via a cursor content digest.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: AC-4a names no concrete observable, Q-1 and Q-2 stay open, and no AC covers the unreadable-log-under-open-stream behaviour that FR-003 describes.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: AC-8b lists only five classes with none for malformed rows, unknown lanes or schema versions, although the Edge Cases and FR-005 say Python's behaviour on them is recorded in the goldens.
+  - id: SPEC-VERIFY-004
+    verdict: confirmed
+    reason: AC-3a to AC-3f cover no successful resume, no streamCursor-over-Last-Event-ID precedence and no ordering, and AC-3a has no time bound.
+  - id: SPEC-VERIFY-005
+    verdict: confirmed
+    reason: AC-16a to AC-16c rely on permission bits and a content hash, name no drain key and cannot see create-then-delete writes, and AC-10c gives no spawn-detection mechanism.
+  - id: SPEC-VERIFY-006
+    verdict: confirmed
+    reason: AC-9f scans for a fixture token that no AC defines, and no AC plants secret-shaped canary values in config or event payloads.

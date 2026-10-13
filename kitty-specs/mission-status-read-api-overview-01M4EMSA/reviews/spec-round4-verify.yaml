@@ -1,0 +1,41 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-201
+    status: resolved
+    reason: "AC-13b is scoped to the port-level subset package ..conformance.port.., the factory lives in ..testsupport.. as the only adapter importer, and the rule has a positive control and a non-empty-scan check; adapter suites are explicitly exempt."
+  - id: SPEC-FRESH-202
+    status: unresolved
+    remaining_severity: 2
+    reason: "Port observables were defined for the L-rows and AC-3g/3i/2a/8a(2) were fixed, but AC-2c is still in the port-level subset while it asserts HTTP 400 invalid_page_cursor, which the new subset definition (typed value or MissionStatusUnavailable carrying a diagnostic code) cannot express and for which no typed port exception is named; the subset is internally contradictory at that id."
+  - id: SPEC-FRESH-203
+    status: resolved
+    reason: "L7 now matches the verified _parse_meta_text behaviour (OSError and UnicodeDecodeError both become one path-named ValueError, single meta_unparseable code, non-UTF-8 added), and stat/listing failure is split out as L11."
+  - id: SPEC-FRESH-204
+    status: resolved
+    reason: "Stream behaviour is defined once in table S1..S6 per scope, and L2, L6, L10, L11, FR-003, AC-3j/3k/3o and Q-2 refer to it consistently with no residual unscoped-vs-close conflict."
+  - id: SPEC-FRESH-205
+    status: resolved
+    reason: "S1 to S6 give scoped and unscoped observables at connect and while open for unreadable ledger, vanish, bad line and unlistable kitty-specs/, with ACs AC-3n and AC-3o, and a bad line before the start offset is stated not to be a connect condition."
+  - id: SPEC-FRESH-206
+    status: resolved
+    reason: "The start offset is now the offset after the last newline for both scopes and AC-3l has a second leg that connects after a half-written row."
+  - id: SPEC-FRESH-207
+    status: resolved
+    reason: "FR-003 names the once-per-second re-list discovery rule and the meta.json-defines-a-Mission rule, and AC-3m covers meta.json-first, ledger-first and no-meta.json legs."
+  - id: SPEC-FRESH-208
+    status: resolved
+    reason: "FR-015 jobs bullet gives each job its event condition with the fork guard first (consistent with test_fork_guard covering root and always() jobs), AC-15a asserts schedule/workflow_dispatch carry no path filter, and AC-8c gets a script unit test plus a recorded workflow_dispatch run."
+  - id: SPEC-FRESH-209
+    status: resolved
+    reason: "Q-1's interim list now names L7 (and L3b, L11) and the undefined phrase 'or is archived' is gone from L3b."
+  - id: SPEC-FRESH-210
+    status: resolved
+    reason: "AC-4c now defines mid8 as the first 8 characters of mission_id when meta.json was read and the fixed token none otherwise (L7, L9, L11), with the test asserting that token."
+  - id: SPEC-FRESH-211
+    status: resolved
+    reason: "AC-8b names manifest.json and resolver-cases.json as the only non-class files and portlevel-tests.txt moved to src/test/resources outside conformance/, keeping AC-8e routing about goldens."
+  - id: SPEC-FRESH-212
+    status: resolved
+    reason: "FR-014 now says the new workflow, FR-015 says push-, schedule- or workflow_run-triggered, and AC-9g says L3a or L3b by route."

@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 3
+verdicts:
+  - id: PLAN-GOV-003
+    verdict: confirmed
+    reason: The mission-tracer-files procedure mandates traces/ with tooling-friction.md, approach.md, design-decisions.md and dated entries, while plan.md section 10 puts tracer-*.md at the mission root, outside the traces merge driver glob.
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: plan.md section 13 declares MissionStatusQuery (pull-only changesSince) as the sole inbound seam while the SSE fan-out lives in the concrete application ChangeFeed with no port, and poller ownership is unstated.
+  - id: PLAN-ARCH-007
+    verdict: confirmed
+    reason: The plan's Host/Origin filter text and service-contract-notes cover only syntactic Host cases and never address absolute-form targets, forwarded headers, case or trailing-dot, or deriving the own port when port 0 is configured.
+  - id: PLAN-ARCH-JVM-002
+    verdict: confirmed
+    reason: plan.md and data-model.md specify a 30 s queue poll and heartbeat but never set SseEmitter or async request timeout, so the container default of about 30 s applies.
+  - id: PLAN-ARCH-JVM-007
+    verdict: confirmed
+    reason: plan.md says springdoc is build-time only yet pins springdoc-openapi-starter-webmvc-ui and only proposes disabling runtime endpoints by configuration, which keeps the UI webjar in the binary.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: packs.yml has an explicit per-module --deselect list with no entry for test_mission_status_conformance.py and the plan never edits packs.yml, marking packs-gate as No.
+  - id: PLAN-VERIFY-006
+    verdict: confirmed
+    reason: plan.md section 7 says a Q-3 nightly difference is both auto-annotated and fails loudly without defining pass or fail semantics or tying the annotation to a counted ledger.

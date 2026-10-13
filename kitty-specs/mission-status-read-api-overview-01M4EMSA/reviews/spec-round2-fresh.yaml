@@ -1,0 +1,155 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: SPEC-FRESH-101
+    lens: contract-claims
+    severity: 3
+    title: >-
+      Row L3 is labelled "Settled by the contract" for GET /missions, but the contract states the 500 rule only for Project.lastActivityAt
+    evidence:
+      - artifact: "spec.md § FR-004 table row L3 (Status column) and row L9 (one stray link never denies the service)"
+      - code: "contracts/mission-status/schemas/Project.yaml (lastActivityAt description: 'an event log that cannot be decoded or parsed fails the whole read with a 500')"
+      - code: "contracts/mission-status/paths/missions.yaml and schemas/MissionOverviewPage.yaml (no 500 or per-page failure rule)"
+    claim: >-
+      The only contract text that makes an unparseable ledger a 500 is on /project. For /missions the whole-page 500 is the spec's own inference, yet row L3 marks it "Settled by the contract". The inference also contradicts the philosophy stated in Edge Cases and row L9 (one stray symlink must not deny the service for every other Mission): a single corrupt ledger of any Mission, including an archived one, makes the whole overview unavailable for all Missions. A reader will treat this as not open and will not escalate it.
+    remediation: >-
+      Split row L3 into an /project part (settled by the contract) and a /missions part marked INTERIM (inference, blocked on Q-1). Add to Q-1 that the contract is silent on a per-Mission parse failure inside a /missions page. In AC-4a assert the /missions and /project outcomes separately.
+
+  - id: SPEC-FRESH-102
+    lens: fail-loud-coverage
+    severity: 3
+    title: >-
+      FR-004 has no row for an unreadable or absent meta.json or an unreadable Mission directory, and FR-006 rule 3 maps "unreadable" to L7 which covers only unparseable or empty
+    evidence:
+      - artifact: "spec.md § FR-004 table row L7 ('bytes read but not parseable, or empty') vs § FR-006 rule 3 ('A meta.json that is empty or unreadable ... maps to the L7 row')"
+      - artifact: "spec.md § FR-001 last sentence ('an unreadable Mission directory that is not branch absent is a 500 Problem')"
+      - artifact: "spec.md § FR-004 intro ('Each input condition below has a stated observable')"
+    claim: >-
+      Permission denied or I/O error on meta.json, a Mission directory without meta.json, and a Mission directory that cannot be listed or stat-ed are not covered by any row. L2 is ledger-only, L6 is vanished-only, L7 is parse-only, L9 is symlink/containment-only. FR-006 sends "unreadable" to L7, but L7's definition excludes it. FR-001 says 500 for an unreadable Mission directory, while L9 and L6 omit the Mission. The result is three possible behaviours for the same condition and no AC (AC-4a runs one test per row) pins any of them.
+    remediation: >-
+      Add a row (or widen L7) for meta.json absent or unreadable (OS failure) and for a Mission directory that cannot be read, stating one observable (500 as L7, or omit as L6/L9), its diagnostic code and its Q-1 status. Reword FR-006 rule 3 and FR-001 to cite that row, and add the fixture to the malformed-rows class and AC-4a.
+
+  - id: SPEC-FRESH-103
+    lens: stream-semantics
+    severity: 3
+    title: >-
+      Stream-ending rules (L2, L10, AC-3j, AC-3k) are only defined for a Mission-scoped stream; the unscoped stream is unspecified
+    evidence:
+      - artifact: "spec.md § FR-003 'When it cannot do its job' (a stream whose source log becomes unreadable ends; a bad terminated line ends the stream)"
+      - artifact: "spec.md § FR-004 rows L2 and L10, AC-3j, AC-3k (all drive a single Mission's log)"
+      - code: "contracts/mission-status/paths/events.yaml (an unscoped stream carries every Mission, live only)"
+    claim: >-
+      An unscoped stream watches every Mission's log. The spec says "the stream ends" when "the source log" is unreadable or has a bad line, but does not say whether one Mission's bad or unreadable ledger closes the unscoped connection for all Missions or only drops that Mission. The two readings give different implementations and different tests; AC-3j and AC-3k cannot fail on the unscoped case either way. A Mission that appears or vanishes under an open unscoped stream is also not covered.
+    remediation: >-
+      State the unscoped rule explicitly (for example close the whole connection with the same diagnostic, or drop only the faulty Mission) and flag the choice under Q-2. Add an unscoped variant to AC-3j and AC-3k with an unaffected-Mission control.
+
+  - id: SPEC-FRESH-104
+    lens: acceptance-non-vacuity
+    severity: 3
+    title: >-
+      AC-11c has no stated way to fail and is vacuous under the C-007 hand-written-DTO fallback
+    evidence:
+      - artifact: "spec.md § AC-11c ('the build fails if the contract changes and the generated interfaces no longer compile. Fails if drift builds.')"
+      - artifact: "spec.md § C-007 and R-4 (WP01 spike may fall back to hand-written DTOs)"
+    claim: >-
+      AC-11c names no test that changes the contract and observes a red compile, so "fails if drift builds" cannot be executed in a PR. If the spike falls back to hand-written DTOs there are no generated interfaces, and the AC passes with nothing to check. This breaks the spec's own tactic (acceptance-criteria-non-vacuity) and the "no-op passable: no" mark of FR-011.
+    remediation: >-
+      Define the observable: a build-time test that applies a deliberate contract mutation (rename or remove a property in a temp copy of the contract root) and requires the generate/compile step to fail, plus a positive control on the unmutated contract. State the fallback case: if hand-written DTOs are used, AC-11c is replaced by the contract-validator test of AC-11a/11b over every response plus a drift check that fails when a contract property has no DTO member.
+
+  - id: SPEC-FRESH-105
+    lens: acceptance-feasibility
+    severity: 3
+    title: >-
+      AC-13a requires the whole suite to run unskipped against an in-memory MissionEventSource, but many ACs are filesystem-specific
+    evidence:
+      - artifact: "spec.md § AC-13a ('fails if any test is skipped in either') and FR-013 ('so another adapter of the port can run them')"
+      - artifact: "spec.md § AC-10d, AC-7c/7d (size and mtime cache key), AC-4d (byte-level torn tail), AC-16a, AC-10a (instrumented filesystem port)"
+    claim: >-
+      FR-013 speaks of another adapter of the inbound port MissionStatusQuery, while AC-13a substitutes an in-memory MissionEventSource (the outbound port), which is a different seam. The symlink refusals, the mtime/size cache key, torn-tail bytes and the instrumented-read allowlist have no meaning for an in-memory source, so the "no skipped test" clause either forces those tests out of "the suite" (unstated) or cannot be met. Implementers will not know which tests are port-level.
+    remediation: >-
+      Define the suite as the port-level subset (golden equality of overviews and project header, ordering, paging, cursor refusals, reducer behaviour) and list the filesystem-adapter tests as a separate adapter suite exempt from AC-13a. Say which port the second implementation implements, and give AC-13a a count assertion over the declared port-level subset.
+
+  - id: SPEC-FRESH-106
+    lens: false-claim-about-existing-code
+    severity: 3
+    title: >-
+      Reflexivity states "No other pinning test changes", but a new corpus-marked tests/contract module trips the curated corpus-module registry test
+    evidence:
+      - artifact: "spec.md § Reflexivity items 2 and 3 ('No other pinning test changes'; the new module carries the corpus marker)"
+      - code: "tests/architectural/test_ci_corpus_trigger_completeness.py (_CORPUS_MARKED_MODULES registry; test_corpus_marked_modules_match_the_curated_registry fails on a newly marked module)"
+      - code: "tests/ci/test_ci_config_battery_routing.py, tests/ci/test_workflow_script_import_guard.py, tests/architectural/test_module_shard_registry.py (scan the workflow directory or module shards)"
+    claim: >-
+      FR-008 requires a new corpus-marked Python test module. That module must be added to the hand-maintained registry in tests/architectural/test_ci_corpus_trigger_completeness.py or the architectural gate goes red. This pinning edit is neither listed in Reflexivity nor covered by an AC, and the diff check "ci-router.yml diff is the one filter-group addition" would not notice it. AC-15d names only two workflow tests, but other tests also scan every workflow file, so new workflow files may need further checks.
+    remediation: >-
+      List the registry edit under Reflexivity item 2 and add the module path to the AC-8b or a new AC. Replace "No other pinning test changes" with a plan task that greps tests/ci, tests/architectural and tests/release for tests that enumerate workflows or corpus-marked modules and records the result. Extend AC-15d to include those tests.
+
+  - id: SPEC-FRESH-107
+    lens: spec-internal-consistency
+    severity: 2
+    title: >-
+      FR-009 accepts "a configured allowed origin" while Q-5 says the Host and Origin forms are settled but still asks whether any allowed-origin configuration exists
+    evidence:
+      - artifact: "spec.md § FR-009 ('Origin ... or a configured allowed origin')"
+      - artifact: "spec.md § Q-5 ('whether any allowed-origin configuration exists ... The accepted Host and Origin forms are no longer open')"
+      - artifact: "spec.md § AC-9c, AC-9d (no configured-origin case)"
+    claim: >-
+      The requirement presumes a configuration mechanism that Q-5 says may not exist, and no AC covers it (no accepted control with a configured origin, no refusal of an unconfigured one). Q-5 does not state the interim behaviour; the implicit one (no configuration) contradicts the FR-009 text.
+    remediation: >-
+      State the interim in FR-009: no allowed-origin configuration exists in v1, so only the two own-port loopback forms are accepted. Reword Q-5 to ask only for the status code (403 or 421) and whether a configuration should be added later. If configuration is kept, add its key and an AC for it.
+
+  - id: SPEC-FRESH-108
+    lens: terminology-drift
+    severity: 2
+    title: >-
+      "The five classes of decision Q1" does not match the Q1 text, which names four classes (five fixtures)
+    evidence:
+      - artifact: "spec.md § Clarifications Q1 ('two interleaved, one coordination-topology, one lifecycle-only, one log-truncated')"
+      - artifact: "spec.md § FR-008 ('The five classes of decision Q1 are retained') and SC-001 ('the five classes of decision Q1 plus the added ones')"
+    claim: >-
+      Q1 lists five fixtures in four classes (interleaved, coordination, lifecycle-only, log-truncated). The spec repeatedly says "five classes" and never says which five of the thirteen table rows they are. SC-001 and AC-8b define "Python-parity fixture class" over this count, so the gate's scope is not checkable.
+    remediation: >-
+      Replace "five classes" with "the four classes (five fixtures) of decision Q1: interleaved, coordination, lifecycle-only, log-truncated" in FR-008 and SC-001, or mark those rows in the class table with a Q1 column.
+
+  - id: SPEC-FRESH-109
+    lens: stream-semantics
+    severity: 2
+    title: >-
+      Stream behaviour for an unterminated tail is not stated, although the table cites poll_once for it
+    evidence:
+      - artifact: "spec.md § FR-004 rows L4 and L4b (poll_once leaves the tail unconsumed)"
+      - artifact: "spec.md § AC-3i (K rows appended in one write) and FR-003 projection scope"
+      - code: "src/specify_cli/status/tail_reader.py (poll_once: the non-terminated remainder is neither parsed nor signalled)"
+    claim: >-
+      L4 and L4b define the overview's refusal of an unterminated tail but FR-003 never says what the stream does with one. The natural reading (mirror poll_once: leave unconsumed, no event, no close) differs from the overview's 500, and AC-3i can produce a partial last row if the write is observed mid-way. The spec is silent, so the choice is left to the implementer.
+    remediation: >-
+      Add to FR-003 that an unterminated tail under an open stream is left unconsumed and produces no event, no close and no diagnostic until its newline arrives, and add an AC (a half row then its newline yields exactly one event with the cursor after the full row).
+
+  - id: SPEC-FRESH-110
+    lens: cross-references
+    severity: 1
+    title: >-
+      Q-1 and Q-2 interim lists, the wall-clock list and AC-4c miss rows and ACs that depend on them
+    evidence:
+      - artifact: "spec.md § Q-1 ('FR-004 rows L2 and L6') vs rows L9 (INTERIM, blocked on Q-1)"
+      - artifact: "spec.md § Q-2 ('FR-003, AC-3j') vs row L10 and AC-3k (blocked on Q-2)"
+      - artifact: "spec.md § Wall-clock bounds paragraph (lists AC-3a, AC-3j, AC-15b, not AC-3k) and AC-4c (does not say whether the unknown-Mission 404 on /events needs a diagnostic)"
+    claim: >-
+      Rows and ACs that rely on an open question are not named in that question's interim text, AC-3k's 2-second bound is missing from the provisional-bounds list, and AC-4c's "every row except L1, L5 and L8" leaves the L6 404 case ambiguous (row L6 prescribes a diagnostic for /missions only).
+    remediation: >-
+      Add L9 to Q-1 and L10 and AC-3k to Q-2, add AC-3k to the wall-clock list, and state in AC-4c that the L6 /events 404 writes no diagnostic (or which code it writes).
+
+  - id: SPEC-FRESH-111
+    lens: acceptance-strength
+    severity: 1
+    title: >-
+      User Story 2 scenario 2 accepts "out_of_range or content_mismatch", weaker than AC-3c
+    evidence:
+      - artifact: "spec.md § User Story 2 acceptance scenario 2"
+      - artifact: "spec.md § AC-3c (shrink gives out_of_range; same-length last-line rewrite gives content_mismatch)"
+    claim: >-
+      The scenario for a shrunken log allows either 409 code, while AC-3c fixes out_of_range for a shrink. An implementation returning the wrong code would pass the story but fail the AC.
+    remediation: >-
+      Change the scenario to "409 out_of_range" for the shrink case and cite AC-3c for the same-length rewrite.

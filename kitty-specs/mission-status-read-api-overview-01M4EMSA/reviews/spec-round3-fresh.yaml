@@ -1,0 +1,207 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-read-api-overview-01M4EMSA
+# Profile: debugger-debbie. Applied: hypothesis-driven falsification of each changed AC (what input makes it pass vacuously or fail on a correct build), and a divergence matrix of spec text against live code (mission_metadata.py, workflow tests) and against unchanged sections.
+# Verified OK: workflow ceiling claim (19 files, reusable_workflow_ceiling 20, test_reusable_workflow_ceiling_respected counts *.yml); no remaining reference to a separate nightly workflow file; _CORPUS_MARKED_MODULES registry test; fork-guard test covers schedule; no absolute home paths.
+findings:
+  - id: SPEC-FRESH-201
+    lens: ac-observability
+    severity: 3
+    title: AC-13b bans adapter imports from "the suite" but FR-013 now defines adapter suites and a factory that must import adapters
+    evidence:
+      - artifact: "spec.md § FR-013 (Two suites, not one), AC-13a, AC-13b"
+      - artifact: "spec.md § FR-010 AC-10a, AC-16a (instrumented filesystem port), FR-004 L11 (fault injection in the filesystem port)"
+    claim: >-
+      AC-13b says "no test class in the suite imports from adapter.*", enforced by ArchUnit with a positive control.
+      The revision split the suite in two and put symlink, allowlist, write-attempt, fault-injection, HTTP and SSE tests
+      in "adapter suites" that by construction use adapter types (instrumented filesystem port, HTTP client against the
+      adapter, fault injection). AC-13a also requires "one fixture factory" that builds the filesystem-backed
+      MissionEventSource, which lives in adapter.out.filesystem. Read literally, AC-13b is red on the adapter suites and
+      on the factory; read charitably, its scope is undefined, so the rule is either unsatisfiable or gets silently narrowed by the implementer.
+    remediation: >-
+      Scope AC-13b to the port-level subset (the ids in conformance/portlevel-tests.txt) and name where the factory lives
+      (a test-support package allowed to import adapter.out.filesystem, with the subset tests only receiving the
+      MissionEventSource interface). State the ArchUnit rule as a package/class-set rule with its positive control.
+  - id: SPEC-FRESH-202
+    lens: ac-observability
+    severity: 3
+    title: Several ids in the port-level subset assert observables the port cannot produce, so the second-source run is vacuous or impossible
+    evidence:
+      - artifact: "spec.md § FR-013 (id list: AC-2a, AC-3g, AC-3i, AC-8a(2), L1/L3a/L3b/L4/L4b/L7 legs of AC-4a), AC-13a"
+      - artifact: "spec.md § Clarifications (outbound port MissionEventSource reads the ledger and event logs), FR-006, FR-010"
+    claim: >-
+      (1) The AC-4a legs assert "status code, Problem presence, body members, diagnostic code"; a port has none of the
+      first two. (2) AC-3g and AC-3i are written as SSE tests (connect, rows "arrive", appended in one write) yet are
+      listed port-level while AC-3a to AC-3f, AC-3h are adapter-level. (3) AC-2a covers "each curated fixture Mission",
+      including coordination, coord-husk, absent-topology, symlink and project-header fixtures whose outcome is decided
+      by path resolution, config.yaml, metadata.yaml, HEAD and meta.json reads, none of which the described
+      MissionEventSource (ledger and event logs) provides; an in-memory source can only be fed already-resolved ledger
+      bytes, so for those classes the second run proves nothing about resolution and the spec does not say which fixtures are exempt.
+      (4) AC-8a(2) is a perturbation test that requires the suite to fail; running it "against two sources" is circular.
+    remediation: >-
+      Define the port-level observable for each listed id (typed result or exception class mapped to the L-row, plus the
+      diagnostic code) and let the HTTP mapping be an adapter test. Say which outbound port supplies meta.json,
+      .kittify files and HEAD, or restrict AC-2a in the subset to named fixture classes whose input is ledger bytes plus
+      meta fields. Move AC-3g/AC-3i to the adapter list or reword them as "changes since a cursor" calls. Drop AC-8a(2)
+      from the dual-source run or state that it runs once.
+  - id: SPEC-FRESH-203
+    lens: code-claims
+    severity: 3
+    title: Row L11 claims load_meta lets the OSError propagate; it converts it to ValueError, the same exception as a malformed meta.json
+    evidence:
+      - artifact: "spec.md § FR-004 table row L11 (Live Python reference), Edge Cases (Absent or unreadable meta.json), FR-008 malformed-rows row"
+      - code: "src/specify_cli/mission_metadata.py (_parse_meta_text: except (OSError, UnicodeDecodeError) raises ValueError under on_malformed raise)"
+      - code: "tests/contract/_mission_status_payloads.py (enumerate_missions uses Path.is_file; load_source calls load_meta(own, on_malformed='raise'))"
+    claim: >-
+      Row L11 says "Path.is_file and load_meta let the OSError propagate; there is no Python golden". For an
+      unreadable file load_meta does not propagate: _parse_meta_text catches OSError and UnicodeDecodeError and re-raises a
+      path-named ValueError ("Malformed JSON in ..."). Only a stat failure inside Path.is_file/exists (for example an
+      unlistable parent directory) propagates PermissionError. So Python's verified outcome for an unreadable or non-UTF-8
+      meta.json is the same ValueError as L7, and a Python golden (Python raises, the service refuses) is possible, which
+      contradicts "Java only". The L7 condition list also omits non-UTF-8 meta.json, which Python treats as malformed.
+    remediation: >-
+      Correct the L11 reference column: split it into (a) meta.json unreadable or non-UTF-8, where Python raises ValueError
+      exactly as for L7 (decide explicitly whether the service keeps the separate meta_unreadable code as a deliberate
+      Java-side refinement, and whether the malformed-rows class gains a variant), and (b) stat/listing failure, where
+      is_file/iterdir propagate OSError. Add non-UTF-8 to the L7 condition.
+  - id: SPEC-FRESH-204
+    lens: internal-consistency
+    severity: 3
+    title: Rows L2, L10 and the main text of FR-003, AC-3j, AC-3k still say the stream closes, contradicting the new unscoped rule
+    evidence:
+      - artifact: "spec.md § FR-003 (When it cannot do its job: A stream whose source log becomes unreadable ... ends), FR-004 rows L2/L6/L10, AC-3j, AC-3k, Q-2"
+      - artifact: "spec.md § FR-003 (Unscoped stream (provisional, Q-2))"
+    claim: >-
+      The new unscoped bullet says the connection is kept. But the unqualified sentence in "When it cannot do its job"
+      ("ends: the server closes the connection ... A terminated line ... ends the stream the same way"), row L10 ("the stream
+      ends as in L2: the connection closes"), and the base text of AC-3j/AC-3k ("with a fresh stream, the connection
+      closes") are not scoped to Mission-scoped streams, and row L6 states only the 404 and the /missions omission, not
+      the unscoped-stream vanish that the new bullet assigns to L6. The rows are the table an implementer and AC-4a test
+      row-by-row, so they give the wrong answer for an unscoped stream. Edge Cases also has no stream entry.
+    remediation: >-
+      Qualify the observable column of L2, L6 and L10 and the sentences in FR-003, AC-3j and AC-3k with "Mission-scoped
+      stream" and add "unscoped stream: drop that Mission, one diagnostic, connection kept (FR-003)". Mark both halves
+      INTERIM on Q-2 in the status column.
+  - id: SPEC-FRESH-205
+    lens: edge-cases
+    severity: 3
+    title: Stream conditions at connect time and for a vanished or unlistable Mission under a scoped or unscoped stream are undefined
+    evidence:
+      - artifact: "spec.md § FR-003 (reconnect then meets the same condition as a fresh request (FR-004)), FR-004 rows L2, L6, L10, L11"
+    claim: >-
+      FR-003 defers to "the fresh-request behaviour (FR-004)" for a reconnect, but no row gives a fresh GET
+      /api/v1/events observable for an unreadable ledger (cursor validation must read the ledger to answer out_of_range or
+      content_mismatch; a no-cursor stream must find its start offset), nor for a ledger holding a non-JSON line already
+      at connect. A Mission-scoped stream whose Mission directory vanishes while open has no stated outcome (L6 covers
+      only the unknown id at connect). The unscoped stream polls kitty-specs/ for new Missions, yet a listing failure
+      (L11) under an open unscoped stream is unspecified (drop all, close, or ignore).
+    remediation: >-
+      Add a stream sub-column or short list to FR-004 giving, for scoped and unscoped streams, the observable at connect
+      and while open for L2, L6, L10 and L11, marked INTERIM on Q-2 where it is the spec's own choice, with an AC each.
+  - id: SPEC-FRESH-206
+    lens: edge-cases
+    severity: 2
+    title: Unscoped start position "end of its log" collides with the unterminated-tail rule
+    evidence:
+      - artifact: "spec.md § FR-003 (Unscoped stream: a Mission present at connect is watched from the end of its log at that moment), Unterminated tail bullet, AC-3l"
+    claim: >-
+      If a writer sits between a row body and its newline at connect, starting at the file size makes the later
+      remainder a fragment that parses as junk and triggers the row L10 path for that Mission. The tail bullet says the
+      tail is left unconsumed, which implies the start offset is the end of the last terminated line, but the connect-time
+      wording says "end of its log". AC-3l opens the stream before the half-write, so it does not catch this.
+    remediation: >-
+      Define the unscoped start offset as the offset after the last newline (the same position a cursor taken then would
+      carry) and add a connect-with-half-written-row leg to AC-3l.
+  - id: SPEC-FRESH-207
+    lens: ac-observability
+    severity: 3
+    title: AC-3m fixture contradicts the Edge Case that a directory without meta.json is not a Mission, and gives no detection rule
+    evidence:
+      - artifact: "spec.md § AC-3m, Edge Cases (Absent or unreadable meta.json), FR-003 (a Mission whose directory appears ... watched from offset 0)"
+    claim: >-
+      AC-3m creates "a new Mission directory with a ledger holding one status-transition row". By the revised Edge Case and
+      by enumerate_missions a directory without meta.json is not a Mission, so a conforming implementation emits zero
+      events for exactly this fixture and AC-3m fails it. Creation is also not atomic (directory, meta.json, ledger written in
+      sequence), and the spec does not say whether the watcher re-lists kitty-specs/ on a timer, on events, or what happens
+      if the ledger appears after the meta.json (offset 0 is stated, but the ordering of creation steps is not).
+    remediation: >-
+      State that the AC creates meta.json first and the ledger second (and a second leg with the reverse order and a
+      leg with no meta.json requiring zero events), and name the discovery rule (poll of the listing within the 2-second
+      bound) in FR-003.
+  - id: SPEC-FRESH-208
+    lens: ci-structure
+    severity: 3
+    title: Folding the nightly job into the path-filtered workflow leaves job conditions, the aggregate gate and the nightly's own verification unspecified
+    evidence:
+      - artifact: "spec.md § FR-015 (schedule-triggered job of that same file), AC-15a, AC-15c, AC-8c, FR-008 (iv), SC-002"
+      - code: "tests/ci/test_fork_guard.py (AUTOMATED_TRIGGERS includes schedule; a job whose if uses always() needs the guard as first conjunct)"
+    claim: >-
+      The ceiling claim itself is verified (19 workflow files, ceiling 20, one new file reaches 20). But one file now
+      carries push/pull_request jobs (native matrix plus an aggregate job with if: always() that fails unless every leg is
+      success) and a schedule job. The spec states no event conditions: on a scheduled run the legs and aggregate either
+      run a four-OS native build nightly or are skipped, in which case AC-15c fails the aggregate; on a PR the nightly
+      full-corpus job must be skipped. The aggregate job runs even when needs are skipped, so under test_fork_guard it
+      needs its own guard, but FR-015 mentions the guard only for "root job of a push-triggered workflow". AC-8c ("the nightly job
+      exits non-zero on the first differing Mission") cannot be observed from a PR because schedule workflows run only on
+      the default branch, and no verification route (workflow_dispatch trigger or a script-level test) is named.
+    remediation: >-
+      In FR-015 give each job its event condition (matrix and aggregate: push, pull_request; nightly: schedule and
+      workflow_dispatch), say the aggregate gate is exempt or guarded accordingly, say the fork guard covers push, schedule and the
+      always() aggregate, and add to AC-8c a way to fail before merge (comparison as a script with a unit test, plus a
+      workflow_dispatch run recorded in the PR). Extend AC-15a to assert the schedule trigger and that no path filter is applied to it.
+  - id: SPEC-FRESH-209
+    lens: internal-consistency
+    severity: 2
+    title: Q-1 interim list omits the INTERIM half of L7, and L3b uses the undefined term "archived"
+    evidence:
+      - artifact: "spec.md § FR-004 row L7 (the /missions part is INTERIM with L3b (Q-1)), Q-1 (Interim behaviour lists L2, L3b, L6, L9, L11), row L3b (or is archived)"
+    claim: >-
+      Row L7 is declared INTERIM for /missions, but Q-1, which says it enumerates the interim rows, does not name L7, so
+      the escalation to the contract owners would not cover it. Row L3b says the 500 applies whether the Mission "is
+      archived", but no section defines an archived Mission or says how the service would know (no archive flag is in the
+      FR-010 allowlist or the MissionOverview members).
+    remediation: >-
+      Add L7 (malformed meta.json on /missions) to the Q-1 interim list and delete "or is archived" from L3b, or define it and
+      its source.
+  - id: SPEC-FRESH-210
+    lens: ac-observability
+    severity: 2
+    title: AC-4c requires the Mission's mid8 on every diagnostic, but row L11 and the invalid-UTF-8 case of L3a cannot always supply it
+    evidence:
+      - artifact: "spec.md § AC-4c, row L11 (mid8 where one is known, none for kitty-specs/ itself), row L3a (no line number for invalid UTF-8)"
+    claim: >-
+      AC-4c fails "a line without a code" and requires "the Mission's mid8" on each diagnostic for L11 included, while
+      L11 says the mid8 is absent for kitty-specs/ and for a Mission directory that cannot be stat-ed before meta.json
+      is read. The AC as written fails the correct behaviour, or the implementer invents an identifier.
+    remediation: >-
+      Amend AC-4c: mid8 is required where the row says one is known; for the others the line carries the code and a fixed
+      placeholder token, and the test asserts that token.
+  - id: SPEC-FRESH-211
+    lens: ac-observability
+    severity: 2
+    title: AC-8b asserts the conformance file count but the new portlevel-tests.txt (and manifest.json) are not accounted for
+    evidence:
+      - artifact: "spec.md § AC-8b (and resolver-cases.json, a data file, not a class), FR-013 (conformance/portlevel-tests.txt), AC-8e"
+    claim: >-
+      AC-8b has the Python test assert "the file count" of the conformance tree against the class table plus
+      resolver-cases.json. The revision adds conformance/portlevel-tests.txt, which is neither a class nor listed as an
+      accepted data file, so the file-count assertion either fails or is written to ignore it. The file is also consumed by the
+      Java side only, yet lives under the directory whose changes AC-8e routes to the Python contract-tools job.
+    remediation: >-
+      List manifest.json, resolver-cases.json and portlevel-tests.txt as the accepted non-class files in AC-8b, or move
+      portlevel-tests.txt out of conformance/ (for example next to the Java test sources) so AC-8e routing stays about goldens.
+  - id: SPEC-FRESH-212
+    lens: terminology
+    severity: 1
+    title: Stale or loose references left by the revision
+    evidence:
+      - artifact: "spec.md § FR-014 table row Actions pinned by SHA (the new workflows), FR-015 (fork-guard on every root job of a push-triggered workflow), AC-9g (answered 500 like row L3b)"
+    claim: >-
+      The FR-014 table still says "the new workflows" (plural) after the fold to one file. FR-015 describes the fork
+      guard for push-triggered workflows only, while the guard test also covers schedule and workflow_run and Reflexivity
+      item 2 says so. AC-9g cites only row L3b for a ProjectionError, but the same error on /project is row L3a.
+    remediation: >-
+      Change "workflows" to "workflow" in FR-014, say "push-, schedule- or workflow_run-triggered" in FR-015, and cite
+      "L3a or L3b by route" in AC-9g.

@@ -1,0 +1,114 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: PLAN-GOV-001
+    lens: scope
+    severity: 4
+    title: Tag-triggered `publish` job (GitHub Release with write token) is invented; the spec never asks for it
+    evidence:
+      - artifact: "plan.md section 12 'Release' paragraph; section 11 phase 5 and IC-06; research.md R-6 job list; tracer-design-decisions.md DD-7"
+      - artifact: "spec.md FR-015 / AC-15a-f / Scope bullet (line 31) say 'native release matrix' and describe build, smoke, digest and aggregate only. A case-insensitive grep for 'publish' in spec.md finds only NFR-007 and C-008 supply-chain wording, never a release job, tag trigger or GitHub Release."
+      - artifact: "spec.md Out of Scope list does not mention releases either; CLAUDE.md 'PyPI Release' says publication is owner+controller-executed only"
+    claim: >
+      The plan adds a fifth workflow job (`publish`, tag `mission-status-api-v*.*.*`, `contents: write`, creates a GitHub Release with four unsigned
+      binaries and checksums) plus a new version-bearing tag scheme. The spec's "release matrix" is the four-target build matrix; no FR, AC or
+      constraint covers a publish path. It is therefore also untested (the plan's test strategy has no red-first row for the publish job, and AC-15a
+      pins job conditions only for the jobs in FR-015). It widens the security surface of a public repo (a write-scoped job) and sits uneasily with
+      the charter's 'assign no version numbers in scope' (the tag pattern is a version scheme). DD-7 itself says 'maintainer confirms at merge', i.e.
+      an unratified decision.
+    remediation: >
+      Remove the `publish` job, the tag trigger and the Release paragraph from plan.md section 12 / phase 5 / IC-06 / research R-6 / DD-7, keeping
+      the artifacts as workflow artifacts only (30 days). If the operator wants a release path, escalate it as an explicit spec amendment
+      (new FR + ACs: tag trigger form, ancestor-of-main check, permission scoping, a failing check per control) before it enters the plan.
+  - id: PLAN-GOV-002
+    lens: scope
+    severity: 3
+    title: Plan fixes AC-9b outcomes that contradict the binding spec, and the 'escalation list' it points to does not exist
+    evidence:
+      - artifact: "plan.md section 8 ('the plan's test table expects 403 for filter-reachable values and 400 for container-rejected malformed values ... flagged to the orchestrator as a spec-amendment candidate'); risk R-11; research.md R-7"
+      - artifact: "plan.md 'Readiness'/Unverified item 9 says 'escalated in the Unverified/escalation list', and Unverified item 4 says 'dropped by amendment'; the Unverified list (items 1-9) contains no AC-9b entry and there is no escalation section"
+      - artifact: "spec.md AC-9b (line 297) requires 'the refusal constant' for each listed Host value, including `evil.example@127.0.0.1:<port>`, and 'Fails on any 200 ...'"
+    claim: >
+      The plan pre-writes a test table that departs from AC-9b (400 for container-rejected rows) while the amendment is only 'flagged'. The one place
+      that is supposed to record escalations (Unverified/escalation list, research 'Squad dispositions') has no entry for it, nor for the AC-10c JFR
+      amendment or the fleet-verdict gap beyond a one-line item. An amendment decision that lives only in prose paragraphs can be silently
+      implemented, which is the failure the lens asks to catch.
+    remediation: >
+      Add a short 'Spec amendments and escalations' table to plan.md (id, spec element, proposed change, status = proposed/not applied, owner =
+      operator) listing: AC-9b malformed-Host rows, AC-10c JFR event fallback, ci-fleet-verdict coverage, and (if kept) any release path. State
+      that until the operator rules, AC-9b stays as written and the WP01 spike result is what feeds the amendment request. Make section 8's table
+      conditional on that ruling rather than the plan's expectation.
+  - id: PLAN-GOV-003
+    lens: directive
+    severity: 3
+    title: Tracer files are not in the canonical location, name or entry format of the mission-tracer-files procedure
+    evidence:
+      - artifact: "plan.md section 10 and Charter Check row 'Standing order 3' (files at mission root as tracer-approach.md, tracer-design-decisions.md, tracer-tooling-friction.md)"
+      - code: "packs/built-in/procedures/mission-tracer-files.procedure.yaml, 'Seed' step: create `traces/` under the mission's kitty-specs directory with tooling-friction.md, approach.md, design-decisions.md; 'Append' step: entries as `- **[YYYY-MM-DD][phase] Short symptom.** 1-3 sentences`"
+      - code: ".gitattributes:12 `kitty-specs/**/traces/*.md merge=spec-kitty-traces` (the merge driver only covers traces/); recent missions (write-side-seam-matrix-tracer, wp-snapshot-backfill) use traces/"
+      - artifact: "tracer-design-decisions.md is a table with IDs and no dates; tracer-tooling-friction.md entries are numbered and undated"
+    claim: >
+      Charter standing order 6 (canonical sources, never improvise or copy an older mission) and standing order 3 name the procedure as the
+      authority. The plan copied an older root-level `tracer-*.md` convention (189 historical files) instead of the procedure's `traces/` layout
+      and dated-entry format, so the files miss the merge driver and the retrospective/accept steps that look in traces/. Content itself is
+      substantive; only placement, names and format are off.
+    remediation: >
+      Move the three files to `kitty-specs/<mission>/traces/{tooling-friction,approach,design-decisions}.md` (git mv, add-only history is fine
+      since the plan commit is on the issue branch, not main) and rewrite entries as `- **[2026-10-10][plan] symptom.** 1-3 sentences; disposition`.
+      Update plan.md companion-artifact list, section 10, Charter Check row and quickstart references.
+  - id: PLAN-GOV-004
+    lens: terminology
+    severity: 3
+    title: Plan misstates how Contextive glossary files are maintained and over-claims that 'reducer' and 'status event' are canonical terms
+    evidence:
+      - artifact: "plan.md section 2, last row: 'No glossary term is introduced (Mission, Work Package, Lane, status event, reducer already canonical). If a Contextive file edit becomes necessary it is a hand edit validated by the existing CI check.'"
+      - code: "docs/context/contextive-glossaries.md ('Do not edit generated files': files under src/specify_cli/.contextive/ are generated; edit docs/context/<slug>.md then run `python scripts/generate_contextive_glossaries.py generate`; `check` mode in CI)"
+      - code: "`.venv/bin/spec-kitty glossary list` returns no entry for 'reducer' or 'status event' (only 'lane', 'work package', 'accepted work package', ...); grep -rn reducer docs/context/*.md finds nothing"
+      - artifact: "spec.md NFR-008: 'Contextive glossary files are updated if a new term is introduced and the CI check passes'"
+    claim: >
+      A hand edit of a generated `.contextive` file would fail the sync check, and the stated canonical-term basis is partly untrue: 'reducer'
+      has no glossary entry (the service README, docs and Java domain package names will use 'status reducer', 'overview read model',
+      'conformance golden', 'Diagnostic' as domain language). The plan neither decides to add them nor justifies treating them as code-only
+      identifiers, so NFR-008 is not actually planned.
+    remediation: >
+      Replace the sentence with: terms are authored in `docs/context/<slug>.md`, Contextive YAML is regenerated with
+      `.venv/bin/python scripts/generate_contextive_glossaries.py generate` and verified with `... check`. Then either (a) add a concrete task to
+      define 'status reducer' (and any other term used in docs/README) in the right context file, or (b) state that the docs/README avoid
+      them and list the glossary terms they do use (Mission, Work Package, Lane) verified against `glossary list`. Add the `check` command to the
+      section 5 local command list.
+  - id: PLAN-GOV-005
+    lens: ledger
+    severity: 2
+    title: Shared-surface edits missing from section 1 and from the Reflexivity diff check (.gitattributes, ci-gate-mechanics.md, CHANGELOG)
+    evidence:
+      - artifact: "plan.md section 11 phase 2b write scope includes `.gitattributes`; contracts/service-contract-notes.md says '.gitattributes pins the tree to -text'; section 1 'Router/CI edits' and the Docs impact list do not name .gitattributes"
+      - artifact: "spec.md Reflexivity items 1-6 enumerate the shared-surface edits and the review diff check ('only the edits listed'); neither .gitattributes nor docs/development/reference/ci-gate-mechanics.md nor docs/changelog/CHANGELOG.md is listed"
+    claim: >
+      The plan's own diff check ('no src/ or other-Mission kitty-specs path modified; ci-router.yml diff is one filter-group line; two pinning tests
+      edited') will not catch or authorise three shared-file edits that the plan makes elsewhere. Reviewers working from section 1 or the spec list
+      would flag them as drift, or worse, miss an unplanned .gitattributes change affecting every checkout.
+    remediation: >
+      Add .gitattributes (one scoped line for the conformance tree, not a global rule), ci-gate-mechanics.md and CHANGELOG.md to the section 1
+      edit list and to the 'diff check' sentence in section 4; note that the Reflexivity list in spec.md is silent on them and is being extended
+      by the plan (no spec edit needed, just listed).
+  - id: PLAN-GOV-006
+    lens: campsite
+    severity: 2
+    title: Campsite scope does not show the Sonar/god-file survey the directive asks for, and omits two touched surfaces
+    evidence:
+      - artifact: "plan.md section 9: 'Sonar findings on the touched Python files (not read; no Sonar access)'; candidates examined name only gradle_pin_check.py, test_module_shard_registry.py and ci-gate-mechanics.md"
+      - code: "tests/ci/test_contracts_workflows.py is 1500 lines with 70 tests; tests/architectural/test_ci_corpus_trigger_completeness.py (466 lines) and .github/workflows/ci-router.yml (1157 lines) are also edited functionally by this mission"
+      - code: "scripts/ci/sonarcloud_branch_review.sh is the repository's token-free, read-only Sonar helper (CLAUDE.md 'Sonar Expectations')"
+      - artifact: "charter standing order 2 (DIRECTIVE_025): resolve Sonar findings and decompose over-long files on the surfaces about to change, via a campsite scout on god-surfaces"
+    claim: >
+      The single campsite item (an empty `ROUTER_ONLY_EXTRA_GLOBS` constant) is a legitimate, behaviour-preserving, domain-matched enabler and
+      is correctly one distinct commit, so the 'not a grab-bag' bar is met. The gap is the evidence of looking: Sonar was skipped although a
+      token-free reader exists, and the 1500-line test file and the second edited test are neither cleaned nor explicitly declined with a reason.
+    remediation: >
+      Before WP01, run `scripts/ci/sonarcloud_branch_review.sh` (or record that it cannot reach the service) for the three Python files the mission
+      edits, and add one line each to section 9 for test_contracts_workflows.py (decline: size is not touched by this change, or fold a specific
+      domain-matched finding) and test_ci_corpus_trigger_completeness.py. Keep the first commit behaviour-preserving with a green targeted run
+      before the functional commit, and keep the empty-constant rationale in the commit message.

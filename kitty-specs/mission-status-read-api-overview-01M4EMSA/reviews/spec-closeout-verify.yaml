@@ -1,0 +1,30 @@
+schema: review-verify/v1
+complete: true
+phase: spec-closeout
+results:
+  - id: SPEC-CLOSEOUT-FRESH-001
+    status: resolved
+    reason: "Q-1 no longer says 'stays in scope'; FR-001, Q-1, Known drift item 3 and Out of Scope all say contracts/ is not edited and the lastActivityAt wording error is only recorded, consistent with AC-14d and the operator ruling."
+  - id: SPEC-CLOSEOUT-FRESH-002
+    status: resolved
+    reason: "Summary now names the shared (at, event_id) reduction versus reduce_status_events ordered by (lamport_clock, timestamp, event_id), matching the FR-005 naming note."
+  - id: SPEC-CLOSEOUT-FRESH-003
+    status: resolved
+    reason: "Known drift item 4 and an Out of Scope bullet now record the stale Lamport wording in CLAUDE.md and the ADR, with no edit made."
+  - id: SPEC-CLOSEOUT-FRESH-004
+    status: resolved
+    reason: "INTERIM and 'needs the owners answer' are gone, the section is retitled 'Questions and their resolutions', and 'Interim' is defined once as decided and revisited only by amendment; the orphaned 'silent deviation' sentence was dropped rather than moved, which is harmless."
+  - id: SPEC-CLOSEOUT-FRESH-005
+    status: resolved
+    reason: "Decisions are renamed D-Q1 to D-Q3 and every citation (FR-008, FR-014, C-006, SC-001) is updated; no bare Q1/Q2/Q3 remains outside the disambiguation sentence."
+  - id: SPEC-CLOSEOUT-FRESH-006
+    status: resolved
+    reason: "Operator answers is now a ### under Clarifications, before Known drift, and Q-7 says the Architecture bullet and FR-005 title originally read Lamport and were reworded."
+  - id: SPEC-CLOSEOUT-NEW-001
+    status: unresolved
+    remaining_severity: 1
+    reason: "The new D-Q disambiguation sentence says 'The 2026-10-08 decisions above' but sits before the Stack to D-Q3 bullets it describes, so 'above' points the wrong way; say 'below'."
+  - id: SPEC-CLOSEOUT-NEW-002
+    status: unresolved
+    remaining_severity: 1
+    reason: "Section intro defines 'Interim' as 'decided' yet Q-3 (still open) keeps 'Interim behaviour' and the intro itself says 'stated interim' for Q-3; also the missing-directory bullet now reads 'The decided behaviour ... is decided', a redundant phrasing."

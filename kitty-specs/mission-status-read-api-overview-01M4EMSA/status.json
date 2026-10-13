@@ -1,0 +1,713 @@
+{
+  "event_count": 292,
+  "last_event_id": "01M4T8FKMF5ZW5F4KQ8VR8HB8E",
+  "materialized_at": "2026-10-13T09:11:17.903896+00:00",
+  "mission_number": "226",
+  "mission_slug": "mission-status-read-api-overview-01M4EMSA",
+  "mission_type": "software-dev",
+  "schema_version": 2,
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 20,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8EXSMQT6V3QN90QATG95T",
+      "last_transition_at": "2026-10-13T09:10:55.540799+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Pre-review gate rerun by orchestrator: first run timed out at 300s under machine load (load avg 16, other sessions' test runs)",
+        "Review passed: independent reviewer-renata (sonnet); revert test red on both mutations; 277 targeted tests green; no findings above sev 1"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20261010",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 3900728,
+      "shell_pid_created_at": "1791635822.39",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": null,
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8EZYC8DRD8PKK2FP5BW7T",
+      "last_transition_at": "2026-10-13T09:10:57.740522+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Rejected cycle 1: F1 sev4 native test wiring, F2-F3 sev3 evidence, F4-F5",
+        "Review cycle 2 passed: F1-F5 resolved; S1 (decision 9 should list the per-mutation compile references) carried into WP03 brief"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP02:20261011",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8F0YVXWNCJQPZNEMCYRNP",
+      "last_transition_at": "2026-10-13T09:10:58.779408+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP03 scaffold, supply chain and skeleton ready for review",
+        "Cycle-1 fixes F1-F3 at a982e50bf",
+        "Cycle 2 approved at a982e50bf: F1 per-class JaCoCo element pinned, F2 contract root tracked as generate input, F3 metadata sha256-only/no-classifier pinned; one-build counts 16 JVM / 3 native, tamper test and both AC-11c drift mutations verified in cycle 1.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP03:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 604892,
+      "shell_pid_created_at": "1791880543.2",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done"
+      }
+    },
+    "WP04": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8F22X58GKB2YD9MFPEP8V",
+      "last_transition_at": "2026-10-13T09:10:59.933909+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review; see report: fleet_verdict PR_WORKFLOWS conflict (E-3) and owed-to-CI list",
+        "Approved at e507c8c8e: workflow, gate helper, pins and fleet registration (DD-77) verified; SHAs 6/6; sweep 2070 passed. Carried to slice-1 wrap-up: F1 Windows gradlew CRLF risk (fork, operator), F2 stale header comment, F3 provisional timeout labels.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP04:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done"
+      }
+    },
+    "WP05": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8F34Y6J4BNGHCPXJ5R868",
+      "last_transition_at": "2026-10-13T09:11:01.022631+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Cycle 2 approved at a3c4652ee: LineKind.Annotation per ruling; fold dedup-then-sort, projections sort-then-dedup per oracle (DD-81), both re-run against materialize_snapshot; per-class JaCoCo 47 classes; OracleGoldenTest green.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP05:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
+    },
+    "WP06": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8F655BHBGBS7BSZCYRP3A",
+      "last_transition_at": "2026-10-13T09:11:04.101307+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review cycle 1 fixes: R1 R2 R3 R4 R5 R8 R9 R11",
+        "Review cycle 2: C2-1 sentinels",
+        "Cycle 3 approved at 4b0c3a155: UNUSABLE_ROW stream skip, per-subscriber floors (lost-row fixed), blank-line cursor per tail_reader, Actor with projector sentinels (63 cases from real Projector.actor); per-class JaCoCo domain=55 application=44; 1012 tests green.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP06:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T031": "done",
+        "T032": "done"
+      }
+    },
+    "WP07": {
+      "actor": "merge",
+      "agent": null,
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8EYVRJ8H2818TNA0K1N9H",
+      "last_transition_at": "2026-10-13T09:10:56.632655+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Rejected cycle 1: F1 sev4 blank-line overview golden refuses where spec serves",
+        "Rework cycle 2 (3ec5ed82b); orchestrator committed the pending review-cycle artifacts the gate required",
+        "Review cycle 2 passed: F1 resolved (served overview, ruled cursor re-derived), no fix damage, F2 accepted",
+        "Cycle 3 approved at bb4ac6d23: 20 resolver rows pin DD-105 (re-run on 24 independent trees), manifest divergence + blank-line wording, blank-line-final fixture; generator --check 0 differences; 200 tests green."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP07:20261012",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
+      "subtasks": {
+        "T036": "done",
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done"
+      }
+    },
+    "WP08": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8F8BKVDECX2N4TY61CMS3",
+      "last_transition_at": "2026-10-13T09:11:06.355721+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review cycle 1 fixes F1 F3 F4 F5",
+        "Cycle 2 approved at 6995dc230: coordination_branch required for coord routing (operator), mid8 stringified per oracle, unsafe names refused, in-root .git HEAD reads forbidden; 64 layouts x2 match oracle; 1215 tests green.",
+        "Review cycle 3: full oracle routing rule (DD-105)",
+        "Cycle 3 approved at 959ba87dd: DD-105 routing, COORD_META stat-only, 34 resolver rows green, 26 oracle trees agree except H1 (non-string truthy branch with meta present, carried to wrap-up) and H3 (recorded); 1480 tests green.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP08:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T042": "done",
+        "T043": "done",
+        "T044": "done",
+        "T045": "done"
+      }
+    },
+    "WP09": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8FAK9DE90JGV76YPND88R",
+      "last_transition_at": "2026-10-13T09:11:08.649593+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Approved at dfe0511bb: raw-byte golden suite (36 fixtures/72 docs), port subset both legs 20/20, 34 resolver rows, 12 leak probes, interim deleted, rule 11b tightened; F1 per spec (DD-107), F2/F3 fixture folds and F4 stream goldens carried to slice-3 wrap-up / WP20.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP09:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T048": "done",
+        "T049": "done",
+        "T050": "done",
+        "T051": "done",
+        "T052": "done"
+      }
+    },
+    "WP10": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8FBPYYQGNFBCPXWXTCBAV",
+      "last_transition_at": "2026-10-13T09:11:09.790284+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "WP10 ready: HTTP adapter, Problem mapping, contract document, contract validation, wiring and bind guard; check and native legs green",
+        "Review cycle 1 fixes F1 F2 F4 F5 F6 F7 done",
+        "Cycle 2 approved at 38474a131: lenient pageSize per operator ruling (JVM+native), per-Mission dir row, CI-strict AC-11d, AC-9e 30s; R1 (AOT-flag ms window serving on non-loopback) folded at slice-4 wrap-up.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP10:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T053": "done",
+        "T055": "done",
+        "T056": "done",
+        "T057": "done"
+      }
+    },
+    "WP11": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8FDY16SCN5GGTWW6QS31B",
+      "last_transition_at": "2026-10-13T09:11:12.065088+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Cycle 1 fixes F1-F5",
+        "Cycle 2 approved at 6b140bb22: REQUEST+ERROR dispatch guard (TRACE foreign Host 403 on JVM+native), springdoc rows, two-Origin raw-socket rows, container-owned OPTIONS*/CONNECT, stream control both Host forms; 2209 tests green.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP11:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T060": "done",
+        "T061": "done",
+        "T062": "done",
+        "T063": "done"
+      }
+    },
+    "WP12": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8FF2C56TEYNTY6E2VZ6WD",
+      "last_transition_at": "2026-10-13T09:11:13.228650+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Approved at ada3ed678: raw-byte native replay 37 req/14 groups, JVM=native digest 36ee19a6, canary goldens equal the Python oracle, floors and digest gate wired; F1 pin hardening and F3 child-count tightening folded at slice-5 wrap-up.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP12:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T064": "done",
+        "T065": "done",
+        "T066": "done",
+        "T067": "done",
+        "T068": "done"
+      }
+    },
+    "WP13": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8FG6WDMCGB9XEES0KZ3VM",
+      "last_transition_at": "2026-10-13T09:11:14.396587+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review cycle 1 fixes F1-F6",
+        "Cycle 2 approved at febec38ee: NFR-001 limits 40/70 catch a 50 ms sleep, !cancelled() guards safe under gate success check, native carriers asserted, floor pins; G1 heap +79 MiB once under load 14 (classified runner noise, re-measure on CI).",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP13:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T069": "done",
+        "T070": "done",
+        "T071": "done",
+        "T072": "done"
+      }
+    },
+    "WP14": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8FHBQYRYD7Z5AT1ANYMQS",
+      "last_transition_at": "2026-10-13T09:11:15.575444+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Approved at b7c2e0c1e: raw-byte full-corpus compare, no exemptions, non-vacuity floor+git count; 596/596 + /project equal on lane and main trees; nightly job schedule/dispatch only. F1 ruff in shared build test (WP12/13 origin) fixed as a mechanical commit in WP15; F2 canonical_json dedupe at wrap-up.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP14:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T073": "done",
+        "T074": "done",
+        "T075": "done",
+        "T076": "done"
+      }
+    },
+    "WP15": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 3,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8FJG2SNP8ZS8XGZZJ28X9",
+      "last_transition_at": "2026-10-13T09:11:16.738436+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review cycle 1 fixes: F1-F4, F6",
+        "Review cycle 2 fix: G1",
+        "Cycle 3 approved at 3beb77202: release job and all six step mappings pinned by exact shape; G1 continue-on-error and further evasions red as real edits; unrelated job edits stay green; 149 build tests + sweep green.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP15:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T077": "done",
+        "T078": "done",
+        "T079": "done"
+      }
+    },
+    "WP16": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8FKMF5ZW5F4KQ8VR8HB8E",
+      "last_transition_at": "2026-10-13T09:11:17.903896+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review cycle 1 README fixes",
+        "Cycle 2 approved at 60b295202: hostOrigin smoke stage (49 requests, JVM=native digest 7007f777), README accurate against code and DD-55..116, ci-gate-mechanics and changelog; T084 scans clean.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP16:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T080": "done",
+        "T081": "done",
+        "T082": "done",
+        "T083": "done",
+        "T084": "done"
+      }
+    },
+    "WP17": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8F49F2877X406PYQ8D43H",
+      "last_transition_at": "2026-10-13T09:11:02.191925+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Cycle 2 approved at dc7688f13: Python re classes in LeakClasses.compile (DD-86/87, full code-point scan), 21 reviewer probes identical in Python and Java, D6/D7 parity pinned; per-class JaCoCo domain=54.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP17:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T027": "done",
+        "T028": "done"
+      }
+    },
+    "WP18": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8F78AKB640K4E6WEKH7VY",
+      "last_transition_at": "2026-10-13T09:11:05.226892+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Cycle 1 fixes F1-F5",
+        "Cycle 2 approved at 458a21850: AC-2b instant-vs-text fixture, AC-3g/3i cursors from raw bytes, AOT exclusion anchored, sub-package class-set scan; reviewer mutations all red; 1081 tests green; floor domain=55 application=44.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP18:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T033": "done",
+        "T034": "done",
+        "T035": "done"
+      }
+    },
+    "WP19": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8F9EM7357FE4TRPV1KGC5",
+      "last_transition_at": "2026-10-13T09:11:07.476179+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review cycle 1 folds F2-doc, F4-F9",
+        "Cycle 2 approved at 1c353dd2c (+349384425 out-of-map REALPATH): FileApi ArchUnit rule catches 3 bypasses, F4/F5 match reference builder, F9 realpath containment, meta cap L7, bounded wait; check green.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP19:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T046": "done",
+        "T047": "done"
+      }
+    },
+    "WP20": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 2,
+      "implementer_of_record": "claude",
+      "lane": "done",
+      "last_event_id": "01M4T8FCTMQEA9HW39NPH2S0S3",
+      "last_transition_at": "2026-10-13T09:11:10.932337+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "Review cycle 1 fixes F2-F5",
+        "Cycle 2 approved at 02802b7e4: lastEventId strict projection (nullable -> null) per operator ruling, canary scan covers JSON event_id, real sort-order assertion, no /home literal, @TempDir; check+native green.",
+        "Re-submitted at lane tip 4dc35c7d5 for re-review of the pre-merge folds",
+        "Re-review passed: pre-merge folds on lane-b verified independently (reviews/pre-merge-fold-verification.md), stamp at 4dc35c7d5"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "auto-approval:WP20:20261013",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 606178,
+      "shell_pid_created_at": "1791880586.11",
+      "subtasks": {
+        "T054": "done",
+        "T058": "done",
+        "T059": "done",
+        "T085": "done"
+      }
+    }
+  }
+}

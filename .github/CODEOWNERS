@@ -30,3 +30,6 @@
 /src/specify_cli/tracker/saas_client.py @elefnik @LynnColeArt
 /src/specify_cli/tracker/saas_readiness.py @elefnik @LynnColeArt
 /src/specify_cli/tracker/egress_verdict.py @elefnik @LynnColeArt
+
+# The Mission Status API service tree (a standalone Gradle build; see services/mission-status-api/).
+/services/mission-status-api/ @stijn-dejongh @MOES-Media

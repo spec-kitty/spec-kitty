@@ -1,0 +1,150 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: round3-confirmed
+mission: m
+findings:
+- id: TASKS-FRESH2-001
+  lens: acceptance
+  severity: 3
+  title: WP10 T053 step 9 (AC-4d HTTP leg) asserts less than AC-4d requires, so the new test can pass
+    on a mixed-prefix item
+  evidence:
+  - artifact: 'kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP10-http-controllers-contract-wiring.md:95
+      (step 9 (a): ''event count and lastEventId equal to a prefix''; (b): 500 at both stages and ''a
+      200 again once the newline lands'')'
+  - artifact: 'kitty-specs/mission-status-read-api-overview-01M4EMSA/spec.md:238 (AC-4d: every 200 item''s
+      eventCount, statusLaneCounts, lastEventId AND streamCursor are exactly those of one prefix; after
+      the newline the read ''requires the item of the new prefix'')'
+  - artifact: 'kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP19-filesystem-event-source-and-readme-stub.md:74
+      (step 4 adapter leg: ''every observed prefix matches a prefix of complete lines'', no field list)'
+  claim: Fix round 2 moved the HTTP leg of AC-4d into WP10 and wrote it with two of the four fields the
+    spec names. A response whose statusLaneCounts or streamCursor came from a different prefix than its
+    eventCount (the exact 'mixture' the Concurrent writer edge case forbids) passes step 9. The latch
+    part also stops at 'a 200 again' instead of requiring the item of the new prefix, which is the spec's
+    third latch stage. The revert row (serve the prefix before a half-written row) would not catch a counts-versus-cursor
+    mixture.
+  remediation: 'In WP10 T053 step 9 (a) require, for every 200 item of the observed Mission, that eventCount,
+    statusLaneCounts, lastEventId and streamCursor all equal those of one single prefix of complete lines
+    of the final log (compute the expected tuple per prefix from the final log in the test). In (b) after
+    the newline lands require the 200 item to equal the tuple of the new prefix, and require the L4 stage
+    and the L4b stage to be observed as separate reads (assert both occurred, so the latch phase cannot
+    be vacuous). Add a second revert row: take statusLaneCounts from the previous cache entry while the
+    cursor advances => red. Mirror the four-field wording in WP19 T046 step 4.'
+- id: TASKS-FRESH2-002
+  lens: traceability
+  severity: 2
+  title: WP02 tells its implementer the next design-decision id is DD-19, but DD-19 to DD-39 are already
+    taken
+  evidence:
+  - artifact: kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP02-spike-and-decision-record.md:64
+      ('next DD id is DD-19') and :154 (T010 step 3 'DD-19 onward')
+  - artifact: kitty-specs/mission-status-read-api-overview-01M4EMSA/traces/design-decisions.md (DD-19
+      to DD-25 tasks-stage, DD-26 to DD-34 fix round 1, DD-35 to DD-39 fix round 2, all present once)
+  claim: WP02 is the first WP to append to design-decisions.md. Following its brief it writes DD-19 (generated-versus-hand,
+    bundling mechanism) and onward, duplicating ids already used by tasks-stage entries; later cross-references
+    such as 'DD-35' or 'DD-37' in WP prompts and the overview would then be ambiguous.
+  remediation: 'Change WP02 line 64 and T010 step 3 to ''the next free DD id: read the last DD id in traces/design-decisions.md
+    (DD-39 at fix round 2) and continue from it'', and state the same rule in any other WP that appends
+    DD entries. Also update tasks-overview.md section 8, which still lists only ''DD-19 to DD-25'' and
+    ''DD-26 onward: fix round 1'', to include the fix round 2 range DD-35 to DD-39.'
+- id: TASKS-FRESH2-003
+  lens: ownership
+  severity: 2
+  title: RecordingAllowlistAccess is declared a public class of adapter.out.filesystem without saying
+    which source set; its name does not match WP08's Allowlist* glob
+  evidence:
+  - artifact: kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP08-filesystem-adapter-primitives.md:99
+      ('AllowlistAccess ... and RecordingAllowlistAccess are PUBLIC classes of adapter.out.filesystem';
+      'AllowlistAccess' was named so it matches the Allowlist* ownership glob)
+  - artifact: 'kitty-specs/mission-status-read-api-overview-01M4EMSA/wps.yaml (WP08 owned_files: main
+      .../adapter/out/filesystem/Allowlist* and test .../adapter/out/filesystem/**)'
+  - artifact: kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP08-filesystem-adapter-primitives.md:105
+      (Validation filters 'RecordingAllowlist*' as a test pattern)
+  claim: File RecordingAllowlistAccess.java does not match the main-source glob Allowlist*. If the implementer
+    puts it beside AllowlistAccess in src/main (the natural reading of 'public classes of adapter.out.filesystem'),
+    it is an unowned file, and a test-only recording class ships in the production and native image. If
+    it goes to src/test it is owned, but the prompt never says so, and rule 11 wording ('only testsupport
+    may import adapter.out.filesystem') leaves open whether a test class in that package counts.
+  remediation: State in WP08 T044 step 2 that AllowlistAccess (interface plus pass-through) lives in src/main
+    under Allowlist* and RecordingAllowlistAccess lives in src/test, package org.speckitty.missionstatus.adapter.out.filesystem,
+    public, covered by the owned test glob; add one sentence to WP18 T033 step 1 that rule 11 treats test
+    classes in the adapter.out.filesystem package itself as in-package. Keep the DD-37 and overview section
+    9 item 13 wording in step.
+- id: TASKS-FRESH2-004
+  lens: traceability
+  severity: 2
+  title: WP19 owns AC-7c/7d and WP17 owns the AC-9g projection, but neither lists the parent requirement
+    in requirement_refs
+  evidence:
+  - artifact: kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks-overview.md section 3.2 (AC-7c,
+      AC-7d -> WP19; AC-9g -> WP17 (projection))
+  - artifact: 'kitty-specs/mission-status-read-api-overview-01M4EMSA/wps.yaml (WP19 requirement_refs:
+      FR-004, FR-010, FR-016, C-005, NFR-008, NFR-003, SC-006; WP17 requirement_refs: FR-004, FR-012,
+      NFR-003, NFR-005, NFR-006)'
+  - artifact: kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP19-filesystem-event-source-and-readme-stub.md:56
+      (Context cites 'FR-007 (AC-7c/7d)')
+  - artifact: kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks-overview.md section 3.1 (FR-007
+      -> WP06 only; FR-009 row has no WP17)
+  claim: The fix-round-2 split moved AC-7c/7d out of WP06 into WP19 (WP06 T031 validation now says they
+    are 'adapter-suite tests in WP19') and the projection out of WP05 into WP17. FR-007's adapter-level
+    acceptance now lives only in a WP whose requirement_refs omit FR-007, so a review or accept pass keyed
+    on requirement_refs will not find where AC-7c/7d are proven; the same holds for FR-009 (AC-9g) and
+    WP17.
+  remediation: Add FR-007 to WP19 and FR-009 to WP17 in wps.yaml and, because finalize-tasks leaves existing
+    prompt frontmatter untouched (the DD entry on requirement_refs), in the two prompt frontmatters; refresh
+    tasks.md by finalize-tasks and add WP19 to the FR-007 row and WP17 to the FR-009 row of tasks-overview.md
+    section 3.1.
+- id: TASKS-FRESH2-005
+  lens: lanes
+  severity: 2
+  title: Overview says the lane-b base is checked at the first claim, but the allocator merges the lane-a
+    tip into lane-b on every re-entry
+  evidence:
+  - artifact: kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks-overview.md:50 ('the orchestrator
+      checks at the first lane-b claim that the allocated base already contains the WP01 and WP02 results')
+  - code: src/specify_cli/lanes/worktree_allocator.py:979-987 and :1095-1099 (REUSE path calls _merge_dependency_lane_tips
+      on every re-entry; the tip of every depends_on_lanes branch is merged, idempotently)
+  - artifact: 'kitty-specs/mission-status-read-api-overview-01M4EMSA/lanes.json (lane-b depends_on_lanes:
+      lane-a, lane-planning)'
+  claim: Because lane-b lists lane-a in depends_on_lanes, each later WP claim in lane-b merges whatever
+    commits lane-a (WP07) has on its branch at that moment, including in-flight, unreviewed ones (ci-router.yml,
+    packs.yml, .gitattributes, test_contracts_workflows.py, conformance trees). The overview presents
+    the lane-level edge as a one-time base question. Gates run in lane-b between WP03 and WP09 (WP04 T022
+    AC-15d workflow sweep, the architectural file checks) can therefore see a half-finished WP07, and
+    a merge conflict aborts the claim.
+  remediation: 'Extend tasks-overview.md section 1 (and the matching tooling-friction note) to say that
+    every lane-b claim re-merges the current lane-a tip, and add an orchestrator rule: before claiming
+    a lane-b WP while WP07 is not yet approved, either claim WP07 to completion first or confirm the merge
+    is clean and re-run the workflow-enumerating sweep in WP04 T022 after any such merge. State the failure
+    path (DependencyLaneMergeConflictError) so the claim is not mistaken for a WP defect.'
+- id: TASKS-FRESH2-006
+  lens: ownership
+  severity: 1
+  title: WP18 T035 amends jacoco-class-floor.properties, which is not in WP18's owned_files
+  evidence:
+  - artifact: 'kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP18-archunit-portlevel-suite-and-2a-gate.md:95
+      (T035 step 1: ''raise it here as a one-line amendment in its own commit; the file is owned by WP05/WP17/WP06'')'
+  - artifact: kitty-specs/mission-status-read-api-overview-01M4EMSA/wps.yaml (WP18 owned_files lists conformance/port,
+      testsupport, architecture, portlevel-tests.txt only)
+  - artifact: kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks-overview.md section 5 (an edit
+      of a file in NO owned_files of that WP is out-of-map and needs a one-line rationale)
+  claim: A planned, expected edit is classified as out-of-map by the overview's own rule, on a file three
+    earlier WPs share. It is minor (same lane, serial) but it means the exit-gate WP is planned to violate
+    its ownership list.
+  remediation: Add services/mission-status-api/src/test/resources/jacoco-class-floor.properties to WP18
+    owned_files in wps.yaml and the prompt frontmatter (serial hand-off, same lane, no overlap error),
+    and list WP18 as the fourth step of the chokepoint row in tasks-overview.md section 7.
+- id: TASKS-FRESH-009
+  lens: consistency
+  severity: 1
+  title: 'Open-PR overlap section is out of date (11 open PRs; #6004 also edits docs/changelog/CHANGELOG.md)'
+  evidence:
+  - artifact: 'gh pr list --repo spec-kitty/spec-kitty --state open: 11 PRs; nine edit docs/changelog/CHANGELOG.md
+      (6004, 6002, 5957, 5954, 5953, 5950, 5945, 5944, 5540); no other owned path appears'
+  - artifact: 'tasks-overview.md section 6: ''10 open PRs'', ''EIGHT open PRs''; tasks/WP16:Context lists
+      seven PRs'
+  claim: The count and the list are one to two PRs short; the conclusion (one overlap, CHANGELOG) still
+    holds.
+  remediation: 'Update section 6 and the WP16 context line to nine PRs including #6004, and keep the ''re-run
+    before each claim'' sentence.'

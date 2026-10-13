@@ -1,0 +1,58 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: Summary, section 13 Ports, data-model, DD-13 and the AC-13b fixture factory now agree on exactly two seams with diagnostics as Consumer<Diagnostic> and scheduling as an injected ScheduledExecutorService plus Clock; the E-10 reading-question row is gone.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: Section 7 now has no exemption, the report cannot change the exit code, a Q-3-shaped difference is a unit case that must still exit non-zero, and E-10 asks the operator for any exemption with interim "none"; no ledger file remains in plan, research, contract notes or data-model.
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: Filter now takes adapter.in.http.OwnPortSource implemented by config.OwnPortHolder, so ArchUnit rules 3 and 6 need no exception; layout, rule 3 text with a second positive control, phase 4a/4b scopes and section 8 all say the same.
+  - id: PLAN-FRESH-004
+    status: resolved
+    reason: adapter/out/codec and portlevel-tests.txt are now in phase 2a scope with tests, and 2a's gate reads no golden or manifest (the second leg and the manifest equality moved to phase 3), so the parallel claim for 2a and 2b now holds.
+  - id: PLAN-FRESH-005
+    status: resolved
+    reason: Section 8, section 11 (AC-9 row and closing paragraph), E-1 and E-7 now say one thing (no filter code or Host-policy test before E-1; E-7 rows land provisionally with 4b, behaviour and test together), with row 8 literals fixed per option.
+  - id: PLAN-FRESH-006
+    status: resolved
+    reason: Phase 4 is split into 4a (routes, SSE, bind guard, config minus OwnPortHolder, tests with no filter and an accepted Host) and the blocked 4b with AC-9b/9c/9d, and AC-9b/9c/9d are outside 4a's exit gate.
+  - id: PLAN-FRESH-007
+    status: resolved
+    reason: springdoc is back to an implementation dependency with endpoints disabled and 404 proved, a classpath test bars swagger-ui resources, and E-11 records the FR-009 reading for operator awareness with a concrete one-line interim.
+  - id: PLAN-FRESH-008
+    status: resolved
+    reason: Section 13 Bind pins server.address=127.0.0.1 in packaged defaults, fails an absent or blank value, adds a post-start connector-address check, and the AC-9 row tests unset, blank, wildcard, LAN, hostname and default with a revert row.
+  - id: PLAN-FRESH-009
+    status: resolved
+    reason: tests/ci/test_contracts_workflows.py is in phase 2b's write scope and the 2b content names the functional ROUTER_ONLY_EXTRA_GLOBS edit, with phase 0 only introducing the empty constant.
+  - id: PLAN-FRESH-010
+    status: resolved
+    reason: Phase 5, IC-06, section 12 interim, E-4, R-6 and DD-16 all say no release job and artifact upload only until E-4, and the dead fork-guard disjuncts are explained as kept for the AC-15a guard-first shape.
+  - id: PLAN-FRESH-011
+    status: resolved
+    reason: Plan section 13, data-model Ports and the new connect-time rows paragraph declare StreamRefused and MissionStatusUnavailable from subscribe, with MissionStatusService emitting the connect-time diagnostic once and the feed never repeating it, plus a revert row in the AC-4 test strategy.
+  - id: PLAN-FRESH-012
+    status: resolved
+    reason: ArchUnit rules 1 and 2 now list explicit JDK packages including java.util.concurrent with atomic and locks, forbid java.io/nio/net and thread creation, and the slow-consumer overflow policy is stated, tested and escalated as E-12 with a concrete interim because the spec has no S-row for it.
+  - id: PLAN-FRESH-013
+    status: resolved
+    reason: FR-003 row points at spec.md S1-S6, the C-009 row is named by its AC/NFR, and plan risks are PR-n while research sections are always written "research.md R-n"; no stale reference remains in the plan, research.md or the traces.
+  - id: PLAN-FRESH-014
+    status: resolved
+    reason: The 80% branch floor is recorded in E-6 and the NFR-006 traceability row, and the Gradle 9.7.1 date and checksum are Unverified item 18 with a WP01 re-fetch step recorded in research.md R-4.
+  - id: PLAN-NEW-001
+    status: unresolved
+    remaining_severity: 2
+    reason: Write scopes of the phases still leave gaps. Phase 1 builds "a minimal controller" and a hello route, and the packaged application.properties (server.address, springdoc flags, port) is needed from 4a, yet no phase scope names src/main/java application or controller files or src/main/resources. Phase 5 adds the nightly job and its pins to tests/ci/test_mission_status_api_build.py, which only phase 1 owns. Phase 3's port-subset second leg against the real adapter has no named test location, since conformance/port is 2a and rule 11 forbids adapter imports there (it must sit in testsupport, which is 2a's).
+  - id: PLAN-NEW-002
+    status: unresolved
+    remaining_severity: 2
+    reason: Section 8 and E-1 say no filter code and no Host-policy test is written before the E-1 ruling, but research.md R-7 and plan phase 1 and Unverified 2 have the WP01 spike run the nine-row Host table against the Tomcat jar and record a "filter entered" flag through a test-profile counter, which needs a filter or equivalent; the plan must say the spike is throwaway, uncommitted exploration (or reword).
+  - id: PLAN-NEW-003
+    status: unresolved
+    remaining_severity: 1
+    reason: Nits in the trace and numbering. DD-13 says "E-10 withdrawn" while E-10 now names the nightly-exemption row; DD-7 still reads "dry-run asset upload" (corrected only by the later DD-16); the plan Unverified list runs 16, 18, 19, 17 out of order.

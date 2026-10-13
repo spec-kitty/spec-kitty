@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-202
+    status: resolved
+    reason: AC-2c is named an adapter-suite test in its own text, in FR-013 and not in the FR-013 id list, AC-13a or AC-13b; every remaining member (AC-2a, AC-2b, AC-5a, AC-5c, port legs of AC-3g, AC-3i, AC-4a L1/L3a/L3b/L4/L4b) has a typed-value or MissionStatusUnavailable observable, and no minimum-count conflicts since AC-13a floors on the FR-013 ids.

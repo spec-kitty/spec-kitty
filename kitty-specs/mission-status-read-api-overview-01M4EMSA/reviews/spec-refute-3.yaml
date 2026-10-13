@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 3
+verdicts:
+  - id: SPEC-ARCH-007
+    verdict: refuted
+    reason: The contract (settled, C-012) explicitly chooses a HEAD-file read and defines an unreadable or unparseable HEAD as currentBranch null, so a gitfile case is already covered by the contract text.
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: MissionHead.yaml lifecycleStatus says wpTotal 0 including an unreadable event log reads draft, which contradicts FR-004 AC-4a (fails on healthy zero counts) while Q-1 presents the question as unsettled without citing it.
+  - id: SPEC-GOV-002
+    verdict: refuted
+    reason: The contract states health uses the range of the serving build, so Java having its own range is by design, and AC-1a uses schema 3 only as one fixture example.
+  - id: SPEC-GOV-003
+    verdict: refuted
+    reason: AC-8b says the set "contains" the five classes (a minimum, not a cap), AC-6a reuses the coordination fixture, and AC-6c's Python divergence is already acknowledged in FR-006 and Q-3.
+  - id: SPEC-GOV-004
+    verdict: refuted
+    reason: FR-013 has a falsifiable AC (a second in-test adapter runs the same suite) and R-8 already states the re-check against the contract today and when #5532 lands.
+  - id: SPEC-GOV-005
+    verdict: refuted
+    reason: The charter standing orders (campsite, red-first, ruff/mypy) bind on their own and are plan and tasks concerns; the spec need not restate them, and no spec requirement contradicts them.
+  - id: SPEC-GOV-006
+    verdict: refuted
+    reason: The term variation is minor (ledger and event log are used with the file named explicitly) and the claim that the glossary lacks entries is not evidenced against the actual glossary files.
+  - id: SPEC-GOV-007
+    verdict: refuted
+    reason: The finding itself says every stated state is correct today and R-2 already instructs re-verification before plan acceptance, so it is a wording nit (and its title is truncated).

@@ -1,0 +1,70 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: TASKS-DECOMP-001
+    lens: PR shape - split seams truthful (each slice independently green)
+    severity: 4
+    title: WP10 deletes the hello route the four native legs still smoke-test until WP12, so slice S4 / "PR 1" is not green
+    evidence:
+      - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md § T014 step 3 (skeleton nativesmoke.NativeSmokeTest asserts the binary answers the hello route)"
+      - artifact: "tasks/WP04-workflow-native-hello-legs-gate-helper.md § T019 step 1 (every native leg runs nativeSmoke against the hello route; gate needs [jvm, native])"
+      - artifact: "tasks/WP10-http-routes-sse-contract-wiring.md § T055 step 1 and § Definition of Done (deletes adapter/in/http/skeleton/** and src/test/.../skeleton/**; owned_files has no nativesmoke/**)"
+      - artifact: "tasks/WP12-native-smoke-replay-and-digests.md § Objective (first WP to replace the skeleton NativeSmokeTest)"
+      - artifact: "tasks-overview.md § 4 recommendations 1 and 2 (PR 1 = WP01-WP11 and S4 = WP10-WP11 'each independently green'); plan.md § 11 'One PR, readability' (justifies the seam as 'phase 1-4 has ... a native hello-route leg')"
+    claim: "The skeleton hello controller lives in adapter/in/http/skeleton/** (WP03) and is deleted by WP10. The skeleton NativeSmokeTest (WP03, in nativesmoke/**, which WP10 does not own) and the WP04 native legs still require that route, and the only WP that rewrites that test is WP12, two WPs later. Between WP10 and WP12 every native leg and therefore the terminal Mission Status API gate goes red. The plan's premise for the split seam ('phase 1-4 has a native hello-route leg') is false after phase 4a, so PR 1 (WP01-WP11) and slice S4 are not independently green, and the plan's own rule 'every phase leaves the branch green' is broken for 4a and 4b."
+    remediation: "Pick one and state it in WP10 and tasks-overview section 4: (a) WP10 keeps the hello route until WP12 (delete only the skeleton contract-document route and test), WP12 deletes hello together with the skeleton smoke test, adding adapter/in/http/skeleton/** removal to WP12's scope (needs ownership of that path in wps.yaml); or (b) add nativesmoke/NativeSmokeTest* to WP10's owned_files and have WP10 retarget the skeleton smoke assertion to a real route (for example GET /api/v1/project against a copied fixture tree) so the legs stay green, then WP12 replaces the body as planned. Either way add a WP10 DoD line 'native legs green at this tip'."
+  - id: TASKS-DECOMP-002
+    lens: Work packages single-concern, reviewable in one sitting; testable acceptance
+    severity: 3
+    title: WP05 exit gate 'check green or shortfall reported' is unsatisfiable by construction and is an escape hatch
+    evidence:
+      - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md § T012 step 6 (jacocoScopeCheck fails on an absent jacoco-class-floor.properties once any class exists under domain.* or application.*)"
+      - artifact: "tasks/WP05-domain-core-and-ledger-codec.md § Context (floor file is WP06's) and § Definition of Done bullet 2 ('check is green ... or the exact shortfall is reported')"
+      - artifact: "wps.yaml WP06 owned_files (src/test/resources/jacoco-class-floor.properties); WP05 owned_files does not include it"
+    claim: "WP05 creates the first domain classes. Per WP03's rule, jacocoScopeCheck then fails because the floor file is absent, and WP05 cannot create it (WP06 owns it). So './gradlew check' is red at WP05's tip by design, and the DoD papers over it with an 'or report the shortfall' alternative. The reviewer has no pass/fail criterion for the WP's main gate, and the lane-b chain has a known-red tip between WP05 and WP06."
+    remediation: "Remove the escape clause and make the gate satisfiable: either (a) WP05 owns jacoco-class-floor.properties and writes the domain.* line, WP06 appends the application.* line (sequential hand-off, record in tasks-overview section 5 and 7), or (b) amend WP03 T012 step 6 so jacocoScopeCheck tolerates an absent/zero floor per pattern while no class exists under THAT pattern (domain present, application absent) and keeps failing once a class exists for it without a floor, with WP05 writing no floor and WP06 still the writer; then WP05's DoD reads 'check green' without alternative."
+  - id: TASKS-DECOMP-003
+    lens: Work packages reviewable in one sitting; WPs not oversized (WP05, WP06, WP08, WP10)
+    severity: 3
+    title: The four Java WPs carry 3,400 to 4,900 hand-written lines each, contradicting the overview's own sitting rule and the WPs' own seam notes
+    evidence:
+      - artifact: "tasks-overview.md § 1 ('~7,000 lines with tests would not fit one sitting' used to split 2a, yet WP05 ~4,000 and WP06 ~4,500 each remain over half of that) and § 4 table (WP05 4,000; WP06 4,500; WP08 3,400; WP10 4,900)"
+      - artifact: "tasks/WP10-http-routes-sse-contract-wiring.md § T053-T059 (per-subtask file sizes sum to about 4,500: REST controllers ~1,300, SSE controller+stream suites ~1,150, contract document ~280, contract validation ~500, config wiring ~1,050, native tests ~250)"
+      - artifact: "tasks/WP05-domain-core-and-ledger-codec.md § Risks (author names the seam T023-T026 vs T027-T028 and defers it to the implementer)"
+      - artifact: "tasks/WP06-application-ports-feed-archunit-portlevel.md § T029-T035 (7 subtasks: ports, cache, ChangeFeed ~900 test lines, in-memory source, 12 ArchUnit rules, port-level suite, JaCoCo floor)"
+      - artifact: "tasks/WP08-filesystem-outbound-adapter.md § T042-T047 (resolver, SafeFiles, allowlist, listing, source with ~700 test lines, README)"
+    claim: "Several WPs mix distinct review concerns and are each larger than the unit the overview itself says is not reviewable in one sitting: WP10 bundles REST mapping, hand-written SSE, contract-document/validation and Spring wiring/bind guard; WP06 bundles the feed (concurrency) with ports/cache and the ArchUnit/port-level test infrastructure; WP05 bundles the domain core with the projection and the ledger codec; WP08 bundles the path-safety primitives with the event source. WP05 and WP07 put the split decision on the implementer ('report rather than cutting scope'), which is exactly the rework risk a tasks stage should remove. This is not padding: no subtask is vacuous; the issue is size and concern mixing."
+    remediation: "Split along the seams the prompts already name, each a sequential WP in lane-b with disjoint owned paths: WP05 -> domain core (T023-T026) and projection+codec (T027-T028); WP06 -> ports/cache/feed (T029-T032) and ArchUnit/port-level/floor (T033-T035); WP10 -> controllers+Problem+contract (T053,T055,T056) and SSE controller+wiring+bind guard+native tests (T054,T057-T059); WP08 -> resolver/SafeFiles/Allowlist/Listing (T042-T045) and FilesystemMissionEventSource+README (T046-T047). If the operator prefers not to re-run finalize-tasks, record in tasks-overview section 1 that these four are knowingly oversize, name the split seam per WP, and make each WP DoD checkpoint at the seam (a mid-WP review commit)."
+  - id: TASKS-DECOMP-004
+    lens: PR shape - estimate challenged against WP prompts
+    severity: 2
+    title: The 28,000-line estimate holds in total, but two table rows are not derivable from the prompts and the stated basis is over-claimed
+    evidence:
+      - artifact: "tasks-overview.md § 4 ('estimates taken from the sizes stated in the WP prompts, not measured'; WP07 2,500; WP09 1,500)"
+      - artifact: "tasks/WP07-python-oracle-goldens-ci-routing.md § T036 (generator ~450 + test module ~600 = ~1,050 stated) and § T038-T039 (~35 fixture trees, no size stated)"
+      - artifact: "tasks/WP09-golden-suite-on-real-adapter.md § T048-T051 (350+250+600+350+250 = 1,800 stated)"
+    claim: "Summing the per-subtask sizes stated in the prompts reproduces the overview totals within about 10% for WP03, WP05, WP06, WP08, WP10, WP11, WP12-WP15. WP07 (2,500) rests on an unstated size for roughly 35 hand-authored fixture trees (inputs, not goldens, so they count as hand-written but are data), and WP09 is 1,800 by its prompt, not 1,500. The total (about 28,000) and the seven-times-threshold conclusion are supported, so the recommendation to split is not undermined; only the stated provenance is inaccurate."
+    remediation: "In tasks-overview section 4 say that WP07's figure includes about 1,450 lines of estimated fixture data not stated in the prompt, show it as a separate 'fixture data' column, and correct WP09 to about 1,800. State that recommendation 2's slice totals (S3 7,400, S5 4,000) shift by that amount. No change to the split recommendation is needed."
+  - id: TASKS-DECOMP-005
+    lens: Hexagonal layer per-WP ownership; plan 11 write-scope completeness
+    severity: 2
+    title: ProjectRootCheck ownership deviates from plan section 11 and is missing from the deviations list; adapter.out.filesystem is split across three WPs
+    evidence:
+      - artifact: "plan.md § 11 'Write-scope completeness' ('adapter.out.filesystem.ProjectRootCheck is created by phase 1 and then belongs to phase 3')"
+      - artifact: "wps.yaml WP03 owned_files (adapter/out/filesystem/ProjectRootCheck*), WP05 (adapter/out/filesystem/codec/**), WP08 (named files only; ProjectRootCheck excluded)"
+      - artifact: "tasks/WP08-filesystem-outbound-adapter.md § Context ('ProjectRootCheck* ... is not edited here unless a defect is found (then an out-of-map edit)')"
+      - artifact: "tasks-overview.md § 5 item 3 and § 9 (deviations list has six items; ProjectRootCheck is not one)"
+    claim: "Every path of the section 13 tree has an owner (checked path by path against wps.yaml: build files, gradle/**, README, .gitignore, domain, codec, application, ports, testsupport, architecture, conformance/port and golden, adapter.in.http, config incl. OwnPortHolder, resources, nativesmoke, perf, nativeTest, skeleton), and no WP is forced to edit another's package. The one gap: the plan hands ProjectRootCheck to phase 3, the tasks keep it with WP03 and make any later fix an 'out-of-map edit', a deviation not recorded in section 9. The outbound adapter therefore has three owners (WP03, WP05 codec, WP08), which the overview does not call out."
+    remediation: "Either add ProjectRootCheck* to WP08's owned_files (WP08 is a transitive dependent of WP03, so the validator accepts the sequential overlap) and drop the 'out-of-map edit' wording, or add it as deviation 7 in tasks-overview section 9 with the reason, and add one sentence in section 5 listing the three owners of adapter.out.filesystem and why that is safe."
+  - id: TASKS-DECOMP-006
+    lens: Work packages single-concern; descriptions concrete
+    severity: 2
+    title: WP16 is a close-out bag and its prompt mislabels its own workflow edit as out-of-map
+    evidence:
+      - artifact: "wps.yaml WP16 owned_files (workflow, nativesmoke tests/resources, README, ci-gate-mechanics.md, CHANGELOG.md)"
+      - artifact: "tasks/WP16-host-origin-smoke-stage-readme-docs-changelog.md § T080 step 2 ('record it as a justified out-of-map edit' for the workflow) and § T084"
+    claim: "WP16 combines a CI smoke stage (Java/JSON plus workflow floor), three documentation edits, and the mission-wide close-out checks, with reviewers of different expertise. It is small (about 700 lines), so this is a nit on single-concern rather than a size problem. Separately, wps.yaml lists the workflow file in WP16's owned_files, so calling the edit 'out-of-map' in T080 contradicts the ownership map and invites a wrong tracer entry."
+    remediation: "In WP16 T080 replace 'justified out-of-map edit' with 'in-map edit, minimal, own commit'. Optionally move T081-T083 (README, ci-gate-mechanics, changelog) to a docs WP so the hostOrigin smoke stage and the documentation can be reviewed separately; if kept as one WP, state in the Objective that T084 is the only cross-WP check."

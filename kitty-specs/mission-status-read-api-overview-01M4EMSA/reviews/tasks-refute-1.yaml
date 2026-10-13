@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: WP10 deletes the skeleton hello route and never mentions nativesmoke, while WP03 T014 step 3 and WP04 T019 make the native legs' nativeSmoke assert that route until WP12 replaces it, so the native legs and gate are red at the WP10/WP11 tip.
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: WP03 T012 step 6 makes jacocoScopeCheck fail once a domain class exists without the floor file, WP06 owns that file, and WP05 DoD bullet 2 carries the "or the exact shortfall is reported" escape.
+  - id: TASKS-DECOMP-003
+    verdict: confirmed
+    reason: The overview table lists WP05 4,000, WP06 4,500, WP08 3,400 and WP10 4,900 against its own 7,000-lines-not-one-sitting rule, and WP05 and WP07 name a seam but leave the split to the implementer.
+  - id: TASKS-DECOMP-004
+    verdict: confirmed
+    reason: WP09 prompt sizes sum to 350+250+600+350+250 = 1,800 against the table's 1,500, and the "taken from the sizes stated in the WP prompts" basis is over-claimed for WP07's fixture trees (a nit, split recommendation unaffected).
+  - id: TASKS-DECOMP-005
+    verdict: refuted
+    reason: The plan-to-WP03 retention of ProjectRootCheck is disclosed with its rationale in tasks-overview section 5 item 3 and WP08 Context, and nothing is implemented wrongly; only the section 9 list omits it, which is a nit with no consequence.
+  - id: TASKS-DECOMP-006
+    verdict: confirmed
+    reason: wps.yaml lists the workflow file in WP16 owned_files yet WP16 T080 step 2 calls its edit a "justified out-of-map edit", a real contradiction with the ownership map (minor).
+  - id: TASKS-JVM-001
+    verdict: confirmed
+    reason: WP03 T012 specifies no exclusion of NativeSmokeTest/NativePerfTest from the default test/check, while T014 step 3 asserts -PnativeBinary is set (red under check), and T012 step 9 keys the perf decision on a WP02 timing record that WP02 has no step to produce.

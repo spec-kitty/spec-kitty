@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 2
+verdicts:
+  - id: SPEC-ARCH-JVM-009
+    verdict: refuted
+    reason: Package names and denied prefixes are plan-level detail, FR-012 already limits the ban to java.nio.file and java.io filesystem packages (not all of java.io), and the remaining points are speculative.
+  - id: SPEC-ARCH-JVM-010
+    verdict: refuted
+    reason: The spike with hand-written DTO fallback is settled Q2/C-007/R-4, and Gradle 9.x and Java 25 toolchain verification is explicitly deferred to plan time (R-3), so this relitigates a settled decision.
+  - id: SPEC-ARCH-JVM-011
+    verdict: confirmed
+    reason: store.py really refuses symlinked event logs and contains slugs, while spec.md has no symlink or containment requirement or AC for a loopback service that must leak no paths.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: _resolve_existing_for_slug is driven by stored topology and ignores a stale coord husk for coord-less topologies, whereas FR-006 says coordination worktree first when it exists, and no husk-beside-primary fixture is listed.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: The resolver reads lanes.json on the absent-topology arm and probe_coord_state runs git rev-parse for DELETED, neither is in the FR-010 allowlist, and FR-010 AC-10c forbids spawning processes.
+  - id: SPEC-ARCH-004
+    verdict: confirmed
+    reason: poll_once leaves an unterminated tail unconsumed and silent while read_events_raw raises StoreError, the oracle uses both, and AC-4b demands a torn-tail report that Python never emits.
+  - id: SPEC-ARCH-005
+    verdict: confirmed
+    reason: The oracle loads meta.json from the Mission's own primary dir and the ledger from the resolved read dir, while FR-010 items 1-2 both say mission dir without distinguishing them.
+  - id: SPEC-ARCH-006
+    verdict: confirmed
+    reason: Goldens under services/ match no ci-router filter group, so a golden-only diff would skip the Python equality test, and Reflexivity omits that router edit and the possible ci-nightly.yml edit from its single shared-surface claim.

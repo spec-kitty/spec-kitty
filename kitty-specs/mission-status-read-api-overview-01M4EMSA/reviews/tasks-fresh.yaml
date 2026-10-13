@@ -1,0 +1,46 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: TASKS-FRESH3-001
+    lens: decomposition
+    severity: 3
+    title: "WP19 adapter tests (AC-4d four-field, AC-7c/7d, flow-level AC-10a/AC-16) need a MissionStatusQuery over the real adapter, but the only factory that builds one is created later in WP09, and WP19 owns no testsupport path"
+    evidence:
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP19-filesystem-event-source-and-readme-stub.md:75 (step 4: tested 'at the adapter against the port-level API here' on the four fields eventCount, statusLaneCounts, lastEventId, streamCursor); :77 (step 5 AC-7c/7d 'served fresh/stale'); :79 (step 8 'all three routes through the port-level API here')"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP19-filesystem-event-source-and-readme-stub.md:28-31 (owned_files: FilesystemMissionEventSource*, src/test .../adapter/out/filesystem/**, README.md; no testsupport glob)"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP09-golden-suite-on-real-adapter.md:74 (T048 step 2 creates FilesystemFixtureFactory, the only class that builds the real MissionStatusService over FilesystemMissionEventSource); wps.yaml WP09 depends on WP19"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP06-application-ports-cache-feed.md:115 (WP06 FixtureFactory builds the service over the in-memory source only)"
+    claim: "Round 3 widened the WP19 AC-4d adapter leg to four overview fields per prefix, which only exist on a MissionStatusQuery result (the application derives counts and streamCursor), as do AC-7c/7d freshness and the AC-16 route flow. WP19 runs before WP09, so FilesystemFixtureFactory does not exist, and WP19 cannot edit testsupport/**. The WP gives no way to obtain the service, so the implementer must invent a hand-wired MissionStatusService (clock, executor, diagnostics) in the adapter test package, duplicating WP06/WP09 wiring, or silently reduce the test to raw port output (which has no four-field tuple)."
+    remediation: "In WP19 T046 add a step naming a package-local test helper in WP19's owned test glob (for example adapter.out.filesystem.AdapterServiceHarness) that builds the real MissionStatusService over FilesystemMissionEventSource with fixed Clock, recording Consumer<Diagnostic> and the deterministic executor, reusing WP06 testsupport types (FixtureHandles) rather than re-implementing them; state that WP09 FilesystemFixtureFactory later replaces it for the golden and HTTP legs. Alternatively move FilesystemFixtureFactory creation from WP09 T048 into WP19 and add the testsupport glob to WP19 owned_files (wps.yaml, frontmatter, tasks.md in step)."
+  - id: TASKS-FRESH3-002
+    lens: acceptance
+    severity: 2
+    title: "WP19 T046 tests for AC-4d, AC-7c/7d and AC-10a/AC-16 are not named, so the WP19 Validation filter FilesystemMissionEventSource* may select none of them"
+    evidence:
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP19-filesystem-event-source-and-readme-stub.md:82 (Validation: --tests '...adapter.out.filesystem.FilesystemMissionEventSource*' then ./gradlew check)"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP19-filesystem-event-source-and-readme-stub.md:75-79 (steps 4, 5, 8 describe the tests but give no class names; contrast WP10 step 9 which names TornTailConcurrencyHttpTest and lists it in Validation)"
+    claim: "The first Validation command only runs classes whose name starts with FilesystemMissionEventSource. The new four-field AC-4d adapter test, the AC-7c/7d tests and the recorder flow tests carry no required names, so an implementer may name them otherwise and the targeted command passes while running none of them; only the trailing check would run them, and a reviewer cannot tell from the Validation line which class proves AC-4d."
+    remediation: "In WP19 T046 name the classes (for example FilesystemMissionEventSourceTornTailTest, FilesystemMissionEventSourceStampTest, FilesystemMissionEventSourceAllowlistFlowTest) in steps 4, 5 and 8, and state that every T046 test class name starts with FilesystemMissionEventSource so the Validation filter selects them."
+  - id: TASKS-FRESH3-003
+    lens: consistency
+    severity: 2
+    title: "Round 3 changes plan section 13 rule 11 handling (in-package test carve-out) and the recorder source set, but WP18 still claims to implement rules 1-12 'exactly' and overview section 9 (deviations) omits both"
+    evidence:
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP18-archunit-portlevel-suite-and-2a-gate.md:68 (implement plan.md section 13 rules 1-12 exactly; rule 11 treats test classes in adapter.out.filesystem itself as in-package)"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/plan.md:462 (rule 11: only ..testsupport.. may import adapter.out.filesystem..; no in-package carve-out)"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks-overview.md:308-324 (section 9 'all recorded as design decisions' lists 14 items; item 13 still describes the recorder seam only as public in adapter.out.filesystem; nothing for DD-42 src/test recorder, the rule 11 reading, or DD-43 WP18 floor ownership)"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/traces/design-decisions.md (DD-42, DD-43 exist; section 9 does not reference them)"
+    claim: "Read literally, plan rule 11 would flag the adapter-package suites that WP08, WP17 and WP19 own (they import adapter.out.filesystem types from outside testsupport); WP18 resolves this with an unlisted carve-out while saying 'exactly'. The overview section 9, the stated registry of stage deviations from the plan, does not list it, nor the recorder's move to src/test, so a reviewer comparing WP18 against plan section 13 sees an unexplained difference."
+    remediation: "Append to tasks-overview.md section 9 an item 15 (fix round 3): RecordingAllowlistAccess is a src/test class (DD-42, supersedes the 'public class' wording of item 13), rule 11 is applied with in-package test classes of adapter.out.filesystem treated as in-package (DD-42), and WP18 owns jacoco-class-floor.properties for its one-line raise (DD-43). In WP18 T033 step 1 replace 'exactly' by 'as written, with the one rule 11 reading recorded in tasks-overview.md section 9 item 15'."
+  - id: TASKS-FRESH3-004
+    lens: consistency
+    severity: 1
+    title: "WP18 T035 step 1 still says the floor file is owned by WP05/WP17/WP06 although round 3 added it to WP18 owned_files"
+    evidence:
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP18-archunit-portlevel-suite-and-2a-gate.md:97 ('the file is owned by WP05/WP17/WP06 and never lowered')"
+      - artifact: "kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/WP18-archunit-portlevel-suite-and-2a-gate.md:23 and :31 (owned_files and create_intent now list jacoco-class-floor.properties)"
+    claim: "The step text contradicts the frontmatter written in the same round: an implementer reading step 1 believes the raise edits a file WP18 does not own."
+    remediation: "In WP18 T035 step 1 change to 'the file is created by WP05, raised by WP17 and WP06, and this WP owns it for this one-line raise; it is never lowered'."

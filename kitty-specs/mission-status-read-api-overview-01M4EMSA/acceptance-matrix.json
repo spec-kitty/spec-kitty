@@ -1,0 +1,169 @@
+{
+  "mission_slug": "mission-status-read-api-overview-01M4EMSA",
+  "mission_number": "226",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP05,WP07,WP09,WP10 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:56:38.878009+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP05,WP09,WP10 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:56:40.747831+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP06,WP20 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:56:42.608247+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP06,WP10,WP17,WP19,WP20 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:56:44.482789+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP05,WP07,WP09 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:56:46.342808+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP07,WP08,WP09 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:56:48.222894+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP06,WP19 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:56:50.092126+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP01,WP07,WP09,WP12,WP14 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:56:51.941763+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP02,WP10,WP11,WP16,WP17,WP20 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:56:53.817296+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP02,WP08,WP12,WP19,WP20 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:56:55.705145+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP02,WP03,WP10,WP20 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:56:57.560170+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP03,WP05,WP17,WP18 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:56:59.420156+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP09,WP18 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:57:01.292663+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP02,WP03,WP04 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:57:03.165717+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP04,WP12,WP14,WP15,WP16 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:57:05.078041+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Verify FR-016 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Owning work packages WP08,WP19,WP20 approved with per-WP review records (kitty-specs/mission-status-read-api-overview-01M4EMSA/tasks/*/review-cycle-*.md); pre-merge squad R1-R3 folds verified",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T06:57:06.978128+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

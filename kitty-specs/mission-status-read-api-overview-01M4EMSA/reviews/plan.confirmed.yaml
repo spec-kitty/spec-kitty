@@ -1,0 +1,723 @@
+schema: review-confirmed/v1
+phase: plan
+findings:
+- id: PLAN-GOV-002
+  lens: scope
+  severity: 3
+  title: Plan fixes AC-9b outcomes that contradict the binding spec, and the 'escalation list' it points to does not exist
+  evidence:
+  - artifact: plan.md section 8 ('the plan's test table expects 403 for filter-reachable values and 400 for container-rejected
+      malformed values ... flagged to the orchestrator as a spec-amendment candidate'); risk R-11; research.md R-7
+  - artifact: plan.md 'Readiness'/Unverified item 9 says 'escalated in the Unverified/escalation list', and Unverified item
+      4 says 'dropped by amendment'; the Unverified list (items 1-9) contains no AC-9b entry and there is no escalation section
+  - artifact: spec.md AC-9b (line 297) requires 'the refusal constant' for each listed Host value, including `evil.example@127.0.0.1:<port>`,
+      and 'Fails on any 200 ...'
+  claim: 'The plan pre-writes a test table that departs from AC-9b (400 for container-rejected rows) while the amendment is
+    only ''flagged''. The one place that is supposed to record escalations (Unverified/escalation list, research ''Squad dispositions'')
+    has no entry for it, nor for the AC-10c JFR amendment or the fleet-verdict gap beyond a one-line item. An amendment decision
+    that lives only in prose paragraphs can be silently implemented, which is the failure the lens asks to catch.
+
+    '
+  remediation: 'Add a short ''Spec amendments and escalations'' table to plan.md (id, spec element, proposed change, status
+    = proposed/not applied, owner = operator) listing: AC-9b malformed-Host rows, AC-10c JFR event fallback, ci-fleet-verdict
+    coverage, and (if kept) any release path. State that until the operator rules, AC-9b stays as written and the WP01 spike
+    result is what feeds the amendment request. Make section 8''s table conditional on that ruling rather than the plan''s
+    expectation.
+
+    '
+  refuter_reason: Plan section 8 pre-writes a 400/403 split that departs from AC-9b while the Unverified list (items 1-9)
+    and risk R-11 carry no AC-9b amendment or escalation entry, and the "Unverified/escalation list" it points to is only
+    that numbered list.
+- id: PLAN-GOV-003
+  lens: directive
+  severity: 3
+  title: Tracer files are not in the canonical location, name or entry format of the mission-tracer-files procedure
+  evidence:
+  - artifact: plan.md section 10 and Charter Check row 'Standing order 3' (files at mission root as tracer-approach.md, tracer-design-decisions.md,
+      tracer-tooling-friction.md)
+  - code: 'packs/built-in/procedures/mission-tracer-files.procedure.yaml, ''Seed'' step: create `traces/` under the mission''s
+      kitty-specs directory with tooling-friction.md, approach.md, design-decisions.md; ''Append'' step: entries as `- **[YYYY-MM-DD][phase]
+      Short symptom.** 1-3 sentences`'
+  - code: .gitattributes:12 `kitty-specs/**/traces/*.md merge=spec-kitty-traces` (the merge driver only covers traces/); recent
+      missions (write-side-seam-matrix-tracer, wp-snapshot-backfill) use traces/
+  - artifact: tracer-design-decisions.md is a table with IDs and no dates; tracer-tooling-friction.md entries are numbered
+      and undated
+  claim: 'Charter standing order 6 (canonical sources, never improvise or copy an older mission) and standing order 3 name
+    the procedure as the authority. The plan copied an older root-level `tracer-*.md` convention (189 historical files) instead
+    of the procedure''s `traces/` layout and dated-entry format, so the files miss the merge driver and the retrospective/accept
+    steps that look in traces/. Content itself is substantive; only placement, names and format are off.
+
+    '
+  remediation: 'Move the three files to `kitty-specs/<mission>/traces/{tooling-friction,approach,design-decisions}.md` (git
+    mv, add-only history is fine since the plan commit is on the issue branch, not main) and rewrite entries as `- **[2026-10-10][plan]
+    symptom.** 1-3 sentences; disposition`. Update plan.md companion-artifact list, section 10, Charter Check row and quickstart
+    references.
+
+    '
+  refuter_reason: The mission-tracer-files procedure mandates traces/ with tooling-friction.md, approach.md, design-decisions.md
+    and dated entries, while plan.md section 10 puts tracer-*.md at the mission root, outside the traces merge driver glob.
+- id: PLAN-GOV-004
+  lens: terminology
+  severity: 3
+  title: Plan misstates how Contextive glossary files are maintained and over-claims that 'reducer' and 'status event' are
+    canonical terms
+  evidence:
+  - artifact: 'plan.md section 2, last row: ''No glossary term is introduced (Mission, Work Package, Lane, status event, reducer
+      already canonical). If a Contextive file edit becomes necessary it is a hand edit validated by the existing CI check.'''
+  - code: 'docs/context/contextive-glossaries.md (''Do not edit generated files'': files under src/specify_cli/.contextive/
+      are generated; edit docs/context/<slug>.md then run `python scripts/generate_contextive_glossaries.py generate`; `check`
+      mode in CI)'
+  - code: '`.venv/bin/spec-kitty glossary list` returns no entry for ''reducer'' or ''status event'' (only ''lane'', ''work
+      package'', ''accepted work package'', ...); grep -rn reducer docs/context/*.md finds nothing'
+  - artifact: 'spec.md NFR-008: ''Contextive glossary files are updated if a new term is introduced and the CI check passes'''
+  claim: 'A hand edit of a generated `.contextive` file would fail the sync check, and the stated canonical-term basis is
+    partly untrue: ''reducer'' has no glossary entry (the service README, docs and Java domain package names will use ''status
+    reducer'', ''overview read model'', ''conformance golden'', ''Diagnostic'' as domain language). The plan neither decides
+    to add them nor justifies treating them as code-only identifiers, so NFR-008 is not actually planned.
+
+    '
+  remediation: 'Replace the sentence with: terms are authored in `docs/context/<slug>.md`, Contextive YAML is regenerated
+    with `.venv/bin/python scripts/generate_contextive_glossaries.py generate` and verified with `... check`. Then either
+    (a) add a concrete task to define ''status reducer'' (and any other term used in docs/README) in the right context file,
+    or (b) state that the docs/README avoid them and list the glossary terms they do use (Mission, Work Package, Lane) verified
+    against `glossary list`. Add the `check` command to the section 5 local command list.
+
+    '
+  refuter_reason: docs/context/contextive-glossaries.md says generated files are not hand-edited, and no docs/context file
+    defines 'reducer', so plan.md section 2 misstates both the edit path and the canonical-term basis.
+- id: PLAN-GOV-005
+  lens: ledger
+  severity: 2
+  title: Shared-surface edits missing from section 1 and from the Reflexivity diff check (.gitattributes, ci-gate-mechanics.md,
+    CHANGELOG)
+  evidence:
+  - artifact: plan.md section 11 phase 2b write scope includes `.gitattributes`; contracts/service-contract-notes.md says
+      '.gitattributes pins the tree to -text'; section 1 'Router/CI edits' and the Docs impact list do not name .gitattributes
+  - artifact: spec.md Reflexivity items 1-6 enumerate the shared-surface edits and the review diff check ('only the edits
+      listed'); neither .gitattributes nor docs/development/reference/ci-gate-mechanics.md nor docs/changelog/CHANGELOG.md
+      is listed
+  claim: 'The plan''s own diff check (''no src/ or other-Mission kitty-specs path modified; ci-router.yml diff is one filter-group
+    line; two pinning tests edited'') will not catch or authorise three shared-file edits that the plan makes elsewhere. Reviewers
+    working from section 1 or the spec list would flag them as drift, or worse, miss an unplanned .gitattributes change affecting
+    every checkout.
+
+    '
+  remediation: 'Add .gitattributes (one scoped line for the conformance tree, not a global rule), ci-gate-mechanics.md and
+    CHANGELOG.md to the section 1 edit list and to the ''diff check'' sentence in section 4; note that the Reflexivity list
+    in spec.md is silent on them and is being extended by the plan (no spec edit needed, just listed).
+
+    '
+  refuter_reason: .gitattributes appears in plan section 11 phase 2b but not in section 1 or the section 4 diff-check sentence
+    (docs and changelog are named in section 1, so that part is overstated, but the .gitattributes omission stands).
+- id: PLAN-GOV-006
+  lens: campsite
+  severity: 2
+  title: Campsite scope does not show the Sonar/god-file survey the directive asks for, and omits two touched surfaces
+  evidence:
+  - artifact: 'plan.md section 9: ''Sonar findings on the touched Python files (not read; no Sonar access)''; candidates examined
+      name only gradle_pin_check.py, test_module_shard_registry.py and ci-gate-mechanics.md'
+  - code: tests/ci/test_contracts_workflows.py is 1500 lines with 70 tests; tests/architectural/test_ci_corpus_trigger_completeness.py
+      (466 lines) and .github/workflows/ci-router.yml (1157 lines) are also edited functionally by this mission
+  - code: scripts/ci/sonarcloud_branch_review.sh is the repository's token-free, read-only Sonar helper (CLAUDE.md 'Sonar
+      Expectations')
+  - artifact: 'charter standing order 2 (DIRECTIVE_025): resolve Sonar findings and decompose over-long files on the surfaces
+      about to change, via a campsite scout on god-surfaces'
+  claim: 'The single campsite item (an empty `ROUTER_ONLY_EXTRA_GLOBS` constant) is a legitimate, behaviour-preserving, domain-matched
+    enabler and is correctly one distinct commit, so the ''not a grab-bag'' bar is met. The gap is the evidence of looking:
+    Sonar was skipped although a token-free reader exists, and the 1500-line test file and the second edited test are neither
+    cleaned nor explicitly declined with a reason.
+
+    '
+  remediation: 'Before WP01, run `scripts/ci/sonarcloud_branch_review.sh` (or record that it cannot reach the service) for
+    the three Python files the mission edits, and add one line each to section 9 for test_contracts_workflows.py (decline:
+    size is not touched by this change, or fold a specific domain-matched finding) and test_ci_corpus_trigger_completeness.py.
+    Keep the first commit behaviour-preserving with a green targeted run before the functional commit, and keep the empty-constant
+    rationale in the commit message.
+
+    '
+  refuter_reason: plan section 9 says Sonar was "not read; no Sonar access" although scripts/ci/sonarcloud_branch_review.sh
+    is a token-free public-REST reader, and the 1500-line test_contracts_workflows.py and the edited test_ci_corpus_trigger_completeness.py
+    are neither surveyed nor declined with a reason.
+- id: PLAN-ARCH-001
+  lens: hexagonal boundary and port parity
+  severity: 4
+  title: No layer owns ledger-line JSON decoding; the port returns bytes while domain and application may not touch JSON
+  evidence:
+  - artifact: "data-model.md \xA7 Ports (LedgerRead = bytes of the resolved read directory + size + mtime + file key) and\
+      \ \xA7 Results and invariants I-3 (no domain/application class references java.io, java.nio.file, Spring, HTTP or JSON)"
+  - artifact: "plan.md \xA7 13 package layout (domain/ and application/ 'no JSON'); spec.md FR-012 and rows L3a/L4/L10 (line\
+      \ numbers, unparseable and torn-tail diagnostics, lifecycle-type filtering of 'other well-formed objects')"
+  - code: src/specify_cli/status/reducer.py:372
+  claim: 'The reduction needs parsed events (event_id, at, wp, lanes, force, cancellation provenance, top-level lifecycle
+    type), per-line failure classification with 1-based line numbers (ledger_unparseable, ledger_torn_tail), blank-line and
+    non-object handling, and SHA-256 over physical lines for the cursor invariant. The outbound port hands the application
+    only bytes, and I-3/FR-012 forbid JSON in domain and application. Either the application parses JSON (violating FR-012
+    and AC-12 as written) or the adapter parses it (contradicting the LedgerRead signature, and moving Python-parity decoding
+    rules such as duplicate keys, number forms and non-UTF-8 into an untested-by-port layer). The plan does not say which,
+    so the WP that implements the reducer and the WP that implements the filesystem adapter will each assume the other owns
+    it.
+
+    '
+  remediation: 'Decide in plan.md section 13 and data-model.md: add an outbound port (for example LedgerLineDecoder, implemented
+    in a JSON-capable adapter package that is not adapter.out.filesystem''s file-API surface) or change LedgerRead to return
+    already-decoded LedgerLine records (physical-line index, raw-line SHA-256, decoded StatusEvent or typed Malformed result).
+    State which package holds the decoder, add it to the port-level conformance subset so the in-memory source exercises the
+    same decode path, and restate I-3 accordingly.
+
+    '
+  refuter_reason: data-model.md LedgerRead is bytes only and I-3 and the plan.md package layout forbid JSON in domain and
+    application, yet no layer or port is assigned to decode ledger lines into StatusEvent or classify ledger_unparseable and
+    ledger_torn_tail per line.
+- id: PLAN-ARCH-002
+  lens: hexagonal boundary and port parity
+  severity: 3
+  title: Streaming (ChangeFeed fan-out, heartbeat, subscribe) is outside the inbound port, so the HTTP adapter must reach
+    past MissionStatusQuery
+  evidence:
+  - artifact: "plan.md \xA7 13 (application/{MissionStatusService,ProjectionCache,ChangeFeed,port/in/MissionStatusQuery,...};\
+      \ SSE: 'one shared ChangeFeed polls (500 ms tick ...) and fans out'; 'Refusals are decided before the emitter exists')"
+  - artifact: "data-model.md \xA7 Ports (MissionStatusQuery has only changesSince(StreamScope, Optional<StreamCursor>) returning\
+      \ ChangeBatch) and \xA7 Stream state (per subscriber)"
+  - artifact: spec.md FR-013 (a second implementation behind MissionStatusQuery runs the same subset); C-003 (inbound port
+      mirrors the read port one to one)
+  claim: 'changesSince is a pull call. The design that serves 100 subscribers (NFR-004c) is a push fan-out in a concrete application
+    class, ChangeFeed, with per-subscriber queues, a 500 ms poller and a 1 s re-list. The SSE controller therefore depends
+    on ChangeFeed (a concrete class), not on the port, so the declared single inbound seam is not the seam the adapter uses,
+    a second port implementation would not be streamable, and who owns the poller thread and its lifecycle (application vs
+    config) is unstated. The port-level subset can only exercise changesSince, never S3-S6 behaviour while open.
+
+    '
+  remediation: 'Put subscription on the inbound port (for example Subscription subscribe(StreamScope, Optional<StreamCursor>)
+    whose events and typed closures carry the S1-S6 outcomes), keep ChangeFeed package-private behind it, and have ArchUnit
+    require adapter.in.http to depend only on application.port.in (plus its exception types). State that the poller/scheduler
+    is created in config and injected, so application holds no thread or clock beyond an injected Clock/Scheduler port. Otherwise
+    document explicitly why changesSince alone is the mirror of #5532 and list ChangeFeed as a second inbound port.
+
+    '
+  refuter_reason: plan.md section 13 declares MissionStatusQuery (pull-only changesSince) as the sole inbound seam while the
+    SSE fan-out lives in the concrete application ChangeFeed with no port, and poller ownership is unstated.
+- id: PLAN-ARCH-003
+  lens: hexagonal boundary and port parity
+  severity: 3
+  title: ArchUnit rule set is under-specified and its non-vacuity checks only count scanned classes
+  evidence:
+  - artifact: "spec.md FR-012, AC-12a, AC-12b; plan.md \xA7 11 test strategy row AC-12/AC-13 ('import Spring in domain: AC-12a\
+      \ red')"
+  - artifact: "plan.md \xA7 13 (config/ holds BindGuard, NativeHints, VirtualThreads; adapter/in/http/dto/**; generated interfaces\
+      \ 'ProjectApi*, MissionsApi*')"
+  claim: 'FR-012 names application->domain and adapters->application, but the plan never states: adapter.in.http must not
+    depend on adapter.out.filesystem and vice versa; application must not depend on adapter or config; config is the only
+    layer allowed to see both; the java.nio.file/java.io rule must cover the whole main source set, including generated classes,
+    and must allow only adapter.out.filesystem; java.security (SHA-256) is permitted in domain. The AC-12b sanity check asserts
+    only that each rule scanned more than zero classes, which does not prove a rule can fire; the only positive control (AC-12a)
+    is a Spring import in domain, so a missing or inverted direction rule (for example adapter.in -> adapter.out, or application
+    -> adapter.in) passes unnoticed. The package names of the generated interfaces/models are also not fixed, so ''contract
+    DTOs live only in adapter.in.http'' is not checkable before WP01 decides generated-vs-hand mode.
+
+    '
+  remediation: 'List the full rule set in plan.md section 13 (domain->nothing but JDK value types; application->domain; adapter.in->application.port.in
+    only; adapter.out->application.port.out and domain; config->any; no adapter->adapter; file APIs only in adapter.out.filesystem;
+    Spring only in adapter.* and config), require one positive-control mutation per rule (a test-branch import that turns
+    that exact rule red), pin openapi-generator apiPackage and modelPackage under adapter.in.http, and import main classes
+    only (ImportOption.DoNotIncludeTests) for production rules while a separate rule covers testsupport/conformance.port per
+    AC-13b.
+
+    '
+  refuter_reason: plan.md names no rule set beyond FR-012 and AC-12b only asserts scanned class count above zero, with AC-12a
+    the single positive control, so adapter-to-adapter or application-to-adapter rules are unspecified and untested.
+- id: PLAN-ARCH-004
+  lens: hexagonal boundary and port parity
+  severity: 3
+  title: readLedger returns full bytes before the cache key (size/mtime/file key) is known, and the key leaks filesystem concepts
+    into the application
+  evidence:
+  - artifact: "data-model.md \xA7 Ports (LedgerRead: bytes + size + mtime + file key + read-directory class) and Invariant\
+      \ I-2 (ProjectionCache key = streamCursor, size, mtime, file key; equal key never re-reduces)"
+  - artifact: "plan.md \xA7 1/\xA7 11 NFR-001 (warm p95 under 200 ms over 500 Missions) and AC-7"
+  claim: 'GET /project and /missions must touch every Mission (lastActivityAt needs every ledger reduced). With the port as
+    specified the application only learns the cache key by calling readLedger, which already read the bytes, so the cache
+    can save the reduction but not the I/O, and AC-7''s ''equal key never re-reduces'' is satisfied while a warm request still
+    reads about 590 ledgers. Separately, mtime and ''file key'' are filesystem notions that an in-memory MissionEventSource
+    (FR-013) must fake, and a stamp compared by the application defines what ''unchanged'' means outside the adapter that
+    can know (inode reuse, Windows file ids, CRLF).
+
+    '
+  remediation: 'Split the port: LedgerStamp stampLedger(MissionRef) (cheap, adapter-defined and opaque to the application,
+    with equals) and LedgerRead readLedger(MissionRef, LedgerStamp) invoked only on a cache miss; key the ProjectionCache
+    on the opaque stamp plus streamCursor. Keep size/mtime/file key inside the stamp implementation. Add an AC-7 assertion
+    that a warm request performs zero ledger reads through the instrumented port.
+
+    '
+  refuter_reason: data-model.md Ports and I-2 make the cache key (streamCursor, size, mtime, file key) available only from
+    readLedger, which already returns the bytes, so a warm request still performs every ledger read and the port leaks filesystem
+    notions.
+- id: PLAN-ARCH-005
+  lens: hexagonal boundary and port parity
+  severity: 3
+  title: Diagnostics travel in per-call results, which duplicates them under a shared fan-out and breaks 'exactly one per
+    occurrence'
+  evidence:
+  - artifact: "plan.md \xA7 13 ('Diagnostics travel inside results (MissionPage.diagnostics(), ChangeBatch.diagnostics()),\
+      \ so no third port is needed; adapter.in.http logs them'; 'One shared ChangeFeed polls ... and fans out')"
+  - artifact: 'spec.md AC-4c (exactly one diagnostic line per occurrence; S6 per transition into failure) and stream rows
+      S3-S6 (unscoped: Mission dropped, connection kept)'
+  - artifact: "data-model.md \xA7 Stream state (per subscriber) and \xA7 Diagnostics"
+  claim: 'With a shared poller and per-subscriber ChangeBatch values, a Mission that vanishes while 100 unscoped subscribers
+    are open is observed by 100 batches. If each batch carries the diagnostic and the adapter logs batches, 100 lines are
+    written for one occurrence, violating AC-4c; if only the feed logs, the port result is no longer the carrier. Likewise
+    the S6 ''none again until a listing has succeeded'' dedupe is feed-level state, not subscriber state. The plan does not
+    say which level owns occurrence identity.
+
+    '
+  remediation: 'State that diagnostics are emitted once per occurrence by the shared feed (an outbound DiagnosticsSink port
+    or an application-level event consumed once by config-wired logging), while per-subscriber closure/drop events carry only
+    the stream consequence. Add an AC-4c test with N>1 subscribers asserting one line per occurrence, and place the S6 transition
+    state in the feed.
+
+    '
+  refuter_reason: plan section 13 says diagnostics ride in per-call ChangeBatch results logged by adapter.in.http while one
+    shared ChangeFeed fans out, and nothing says which level owns occurrence identity or the S6 dedupe state, so AC-4c "one
+    line per occurrence" is underdetermined for N>1 unscoped subscribers.
+- id: PLAN-ARCH-006
+  lens: Q-5 and security design
+  severity: 3
+  title: The AC-9b amendment is flagged but not escalated as a blocker, and the amended table is to be generated from observed
+    Tomcat behaviour
+  evidence:
+  - artifact: "plan.md \xA7 8 ('flagged to the orchestrator as a spec-amendment candidate'; 'the AC-9b table is generated\
+      \ from that record'); research.md R-7 (Tomcat table: TBD) and R-11"
+  - artifact: spec.md AC-9b (refusal constant required for every listed value, including evil.example@127.0.0.1:<port>) and
+      Clarification Q-5 (refused before any read, one constant)
+  claim: 'As written, AC-9b is unsatisfiable for container-rejected rows if embedded Tomcat answers 400 before any filter,
+    so a WP implementing it would fail its own acceptance test; the plan leaves the spec change as a note with no owner, no
+    deadline and no statement that tasks must wait. Generating the expected status per row from what the pinned Tomcat does
+    makes the test tautological: a Tomcat upgrade or a Boot property that flips a row from 403 to 400 would silently rewrite
+    the oracle instead of failing it. The same circularity applies to the claim that HTTP/1.0 without Host ''reaches the filter''.
+
+    '
+  remediation: 'Escalate to the operator now as a decision, not a candidate: either amend AC-9b into two sets (filter-reachable
+    -> 403 request_refused; container-rejected -> 400, with the list of values fixed in the spec before WP01) or require a
+    pre-container rejection. Fix the expected status per row in the spec and make the spike only confirm it; the test must
+    hard-code the expected status and fail on divergence. Record in plan.md that tasks for the Host/Origin WP are blocked
+    until the amendment is merged, and keep both sets under the same assertions (no Mission read, no event stream, canary-free
+    body).
+
+    '
+  refuter_reason: Plan section 8 says the AC-9b table is generated from the WP01 Tomcat record (so the oracle follows observed
+    behaviour) and only flags the amendment as a candidate with no owner or tasks-blocking statement, leaving AC-9b unsatisfiable
+    as written for container-rejected rows.
+- id: PLAN-ARCH-007
+  lens: Q-5 and security design
+  severity: 3
+  title: Host/Origin filter design does not pin which Host source it reads, so absolute-form request targets, forwarded headers
+    and case variants are unspecified
+  evidence:
+  - artifact: "plan.md \xA7 13 Host/Origin filter ('accepted Host exactly 127.0.0.1:<port> / localhost:<port>'); \xA7 8"
+  - artifact: spec.md FR-009 and AC-9b/AC-9c tables (no absolute-form row, no case row, no port-0 behaviour)
+  claim: 'A request such as ''GET http://evil.example/api/v1/project HTTP/1.1'' with ''Host: 127.0.0.1:<port>'' is valid HTTP;
+    Tomcat resolves the server name from the request target, so request.getServerName() and the raw Host header can disagree.
+    A filter that reads getServerName(), or one behind a ForwardedHeaderFilter/RemoteIpValve influenced by X-Forwarded-Host,
+    evaluates a different value than the one the container used. The plan also does not state case-folding (''LOCALHOST:8787''),
+    trailing-dot (''localhost.:8787'') or how the ''own port'' is obtained when the configured port is 0 (it must come from
+    the bound server, not config), so BindGuard-before-start and the filter can disagree.
+
+    '
+  remediation: 'Specify that the filter evaluates the raw Host header and, when the request line is absolute-form, the authority
+    of the request target too, refusing on any mismatch or any X-Forwarded-Host/Forwarded header; compare host case-insensitively
+    and reject a trailing dot; take the own port from the WebServerInitializedEvent port. Add rows to AC-9b: absolute-form
+    foreign target with accepted Host, X-Forwarded-Host present, uppercase accepted host (control: accepted), trailing-dot
+    host (refused), and assert server.forward-headers-strategy is none.
+
+    '
+  refuter_reason: The plan's Host/Origin filter text and service-contract-notes cover only syntactic Host cases and never
+    address absolute-form targets, forwarded headers, case or trailing-dot, or deriving the own port when port 0 is configured.
+- id: PLAN-ARCH-009
+  lens: Q-5 and security design
+  severity: 2
+  title: The one-status-constant rule for service refusals contradicts the contract-fixed statuses
+  evidence:
+  - artifact: "plan.md \xA7 8 final sentence; contracts/service-contract-notes.md \xA7 Error statuses (400 invalid_page_cursor,\
+      \ stream 400/409/404, 500 rows)"
+  claim: 'The sentence reads as if the Refusal.STATUS constant governs all refusals, but the service also produces 400, 404,
+    409 and 500 refusals fixed by the contract. A reader or a Refusal-constant ArchUnit/lint test could be written too broadly.
+
+    '
+  remediation: 'Reword to: one constant (403) for every Host/Origin policy refusal; contract-fixed statuses stay as listed
+    in service-contract-notes.md. Name the constant HostOriginRefusal.STATUS.
+
+    '
+  refuter_reason: plan.md section 8 ends 'One status constant remains the rule for every refusal the service itself makes'
+    while service-contract-notes.md fixes 400/404/409/500 refusals, so the sentence is over-broad as quoted.
+- id: PLAN-ARCH-JVM-001
+  lens: Native-image feasibility / test scope
+  severity: 4
+  title: '`nativeTest` is planned as a whole-suite run, but ArchUnit, networknt contract validation and JaCoCo cannot run
+    in a native test image'
+  evidence:
+  - artifact: "plan.md \xA7 5 exact local commands (`./gradlew nativeCompile nativeTest`) and \xA7 12 (per leg: `nativeCompile\
+      \ nativeTest`, then `nativeSmoke`)"
+  - artifact: "plan.md \xA7 11 test strategy lists ArchUnit, networknt contract validation and goldens as JVM-layer suites;\
+      \ spec.md AC-9h requires the virtual-thread probe in the `nativeTest` run"
+  claim: 'The plan says each native leg runs `nativeCompile nativeTest`. Native Build Tools'' `nativeTest` compiles the ENTIRE
+    test source set into a second native image. ArchUnit scans class files from the classpath, networknt builds schemas by
+    reflection and resource loading, and the JaCoCo agent does not exist in native mode (the plan itself says JaCoCo cannot
+    measure native). None of this is partitioned: no JUnit tag or source-set split says which tests run native. The first
+    native leg will fail (or silently skip) on the architecture and contract suites, and it doubles the native build cost
+    on four runners. Only AC-9h genuinely needs `nativeTest`.'
+  remediation: 'Add a plan decision: a JUnit 5 tag (for example `native`) or a separate `nativeSmokeTest` source set holding
+    only the tests that must run in native mode (AC-9h probe, a Jackson/SSE round trip, resource-loading checks); configure
+    `graalvmNative.testSupport` and the `nativeTest` filter to that tag; ArchUnit, contract validation, goldens and JaCoCo
+    stay on the JVM leg. State the doubled native compile in the leg timeout budget.'
+  refuter_reason: Plan sections 5 and 12 run `nativeCompile nativeTest` per leg with no tag, source-set split or nativeTest
+    filter, while section 11 puts ArchUnit, networknt contract validation and goldens in the same test tree and JaCoCo is
+    JVM-only.
+- id: PLAN-ARCH-JVM-002
+  lens: SSE / virtual threads
+  severity: 3
+  title: SseEmitter timeout is not specified; the container default (about 30 s) coincides with the 30 s heartbeat and would
+    end every idle stream
+  evidence:
+  - artifact: "plan.md \xA7 13 SSE ('SseEmitter fed by one virtual thread per connection that blocks on a subscriber queue\
+      \ (30 s timeout, then `: heartbeat`)')"
+  - artifact: "data-model.md \xA7 Stream state ('Heartbeat comment every 30 s')"
+  claim: 'Spring MVC''s async request timeout defaults to the servlet container''s value (Tomcat: 30 s) unless `new SseEmitter(timeout)`
+    or `spring.mvc.async.request-timeout` sets it. The plan names a 30 s queue poll that emits a heartbeat but never sets
+    the emitter''s own lifetime, so an idle subscriber is completed by the container at about the same instant the first heartbeat
+    is due, and the S1-S6 close semantics become indistinguishable from a timeout. Disconnect detection is also only as fast
+    as the next write (up to one heartbeat), which the plan does not state against the 2 s close bounds of the spec.'
+  remediation: Specify `new SseEmitter(0L)` (no timeout) plus `spring.mvc.async.request-timeout=-1` in the plan, register
+    `onCompletion`/`onError`/`onTimeout` callbacks that unsubscribe from the shared `ChangeFeed`, and add a test that holds
+    an idle stream open past 35 s (provisional bound per ADR 2026-10-05-2). State that disconnects are noticed on the next
+    write and which spec bound that satisfies.
+  refuter_reason: plan.md and data-model.md specify a 30 s queue poll and heartbeat but never set SseEmitter or async request
+    timeout, so the container default of about 30 s applies.
+- id: PLAN-ARCH-JVM-003
+  lens: Dependency compatibility (Jackson major / generator)
+  severity: 3
+  title: Spring Boot 4 defaults to Jackson 3; the plan never names the Jackson major version nor how generated 7.25.0 models
+    serialise required-nullable members
+  evidence:
+  - artifact: "plan.md Technical Context (Spring Boot 4.1.1, openapi-generator 7.25.0, networknt 3.0.8) and \xA7 2 first row"
+  - artifact: plan.md Unverified item 3 (only 'Jackson null members' under native)
+  - artifact: research.md R-2 (spike criteria cover only 'which mode the build is in')
+  claim: 'Boot 4''s default JSON mapper is Jackson 3 (`tools.jackson.databind`), while the openapi-generator `spring` generator
+    emits Jackson 2 style models (`com.fasterxml` annotations, `JsonNullable` from jackson-databind-nullable). The contract
+    uses OpenAPI 3.1 `type: [string, ''null'']` members that must appear as explicit `null`, and NFR-005 and AC-15b demand
+    byte-exact bodies. The plan treats Jackson only as a native-image hint question. A generated-models decision taken without
+    testing explicit-null emission, member order and number formatting against the Python goldens will fail late.'
+  remediation: 'Make the WP01 spike criteria explicit in research.md R-2: record the Jackson major pulled by Boot 4.1.1, a
+    test that a required-nullable member serialises as `null` (not omitted) and that member order equals the golden, and a
+    go/no-go rule for falling back to hand DTOs. Add ''Jackson 3 versus generator output'' to the Unverified list.'
+  refuter_reason: plan.md and research.md R-2 name no Jackson major and treat Jackson only as a native-hint question, with
+    no spike criterion for explicit-null or member-order emission before the generated-versus-hand decision.
+- id: PLAN-ARCH-JVM-004
+  lens: Byte-exactness / canonical serialisation
+  severity: 3
+  title: Spec compares 'canonical serialisation' (suites) but AC-15b demands raw body byte equality; the plan never says how
+    the server output is made canonical
+  evidence:
+  - artifact: "plan.md \xA7 12 (nativeSmoke 'replays the curated request set, writes the digest') and contracts/service-contract-notes.md\
+      \ \xA7 Comparison rule"
+  - artifact: spec.md line 267 (canonical serialisation of the entire response document) versus AC-15b (byte equality of every
+      response body with its golden)
+  claim: 'If goldens are Python-canonical (key order, separators, escaping, number repr) the Spring mapper must either emit
+    the same bytes or every comparison must canonicalise first. The plan fixes neither: no mapper settings (property ordering,
+    map key ordering, escape of non-ASCII, `Double` rendering) and no statement of where canonicalisation happens in the smoke
+    harness versus the JVM golden suite. The two paths can therefore disagree, and a native-only formatting difference would
+    be misread as a reflection problem.'
+  remediation: 'Add one plan decision: the canonicalisation function is a single test-support class used by both the JVM golden
+    suite and `nativeSmoke`, and the production mapper is configured explicitly (property ordering from the contract, no pretty-print,
+    `ensure ASCII` choice matching the golden writer, double rendering). Add a unit test pinning one non-ASCII string and
+    one fractional `progress` value against the Python-written golden.'
+  refuter_reason: Spec compares canonical serialisation yet AC-15b requires raw byte equality, and a grep of plan, research,
+    data-model and contract notes finds no mapper configuration or single shared canonicalisation decision.
+- id: PLAN-ARCH-JVM-005
+  lens: Gradle strict verification / supply chain
+  severity: 3
+  title: Regeneration recipe for verification-metadata.xml is under-specified and cannot cover the test, native and per-OS
+    configurations
+  evidence:
+  - artifact: "plan.md \xA7 2 row 2 (`./gradlew --write-verification-metadata sha256 help` then refresh 'on each OS leg's\
+      \ resolved set')"
+  - code: contracts/gradle/verification-metadata.xml:3-6 (verify-metadata true, verify-signatures false; the precedent file
+      was generated for a plugin-only build)
+  claim: '`--write-verification-metadata sha256 help` only resolves the configurations the `help` task touches (plugin and
+    buildscript classpath). Compile, test, runtime, AOT, native-image support and JaCoCo configurations resolve only when
+    a task such as `check`, `nativeCompile` and `nativeTest` runs. The recipe also says to regenerate ''on each OS leg'',
+    which a Linux workstation cannot do, and does not say whether any dependency is OS-specific (JNA, native-image support
+    jars, JUnit launchers) or how the four partial results are merged. A strict file generated from `help` would fail the
+    first real build with missing entries, repeatedly.'
+  remediation: 'Replace the recipe with: run `./gradlew --write-verification-metadata sha256 check nativeCompile nativeTest
+    jacocoTestReport --refresh-dependencies` once on Linux; then use a CI-only dry-run job on the other legs that only verifies
+    (strict, no write) and report any missing OS-specific entry as a failure with the exact command to add it. Also record
+    in research.md R-4 whether any resolved artifact has an OS classifier.'
+  refuter_reason: plan.md line 80 prescribes `--write-verification-metadata sha256 help`, which only resolves the plugin/buildscript
+    configurations, and "on each OS leg's resolved set" is unspecified for a Linux workstation, so a strict file from that
+    recipe would miss compile/test/native entries.
+- id: PLAN-ARCH-JVM-006
+  lens: Gradle toolchain / GraalVM
+  severity: 3
+  title: 'No JDK toolchain resolution policy: Gradle 9.7.1 on JDK 25 plus GraalVM CE needs an explicit, offline-safe toolchain
+    decision'
+  evidence:
+  - artifact: "plan.md \xA7 12 (setup-graalvm per leg) and \xA7 5 ('JDK 25 on PATH')"
+  - artifact: plan.md Phase 1 scope (wrapper, catalog, metadata) names no `java.toolchain` or foojay decision
+  claim: 'With a `java { toolchain { languageVersion = 25 } }` block Gradle will, absent a stated policy, try to auto-provision
+    a JDK through a resolver plugin (a new, unverified supply-chain element absent from `verification-metadata.xml` scope).
+    Native Build Tools additionally needs the GraalVM (not Temurin) toolchain, selected via `graalvmNative.toolchainDetection`
+    or JAVA_HOME from `graalvm/setup-graalvm`. The JVM leg''s JDK vendor (`check`, JaCoCo, JFR `jdk.ProcessStart`) is also
+    never named: contracts.yml uses Temurin 21 (workflows lines 124-127), the service needs 25.'
+  remediation: 'Add a decision: no toolchain auto-download (`org.gradle.java.installations.auto-download=false` in gradle.properties,
+    no foojay plugin), JAVA_HOME from `graalvm/setup-graalvm` on every leg including the JVM leg (one JDK distribution, so
+    JaCoCo/JFR/native share a runtime), `java.toolchain` pinned to 25 with `vendor` unconstrained, and a catalog or workflow
+    test asserting both.'
+  refuter_reason: plan.md names no java.toolchain, auto-download or JAVA_HOME policy (grep finds none) and its own evidence
+    shows the repo workflows use Temurin 21, so the JDK 25 and GraalVM provisioning decision for Gradle is genuinely unstated.
+- id: PLAN-ARCH-JVM-007
+  lens: springdoc / native
+  severity: 3
+  title: springdoc is called 'build-time only' but the pinned artifact is the UI starter, which puts swagger-ui and runtime
+    endpoints in the shipped binary
+  evidence:
+  - artifact: "plan.md Technical Context ('springdoc-openapi 3.1.1 (build-time only)') versus \xA7 12 ('springdoc-openapi-starter-webmvc-ui\
+      \ 3.1.1')"
+  - artifact: "plan.md \xA7 13 Host/Origin filter ('Springdoc runtime endpoints disabled by configuration'); spec.md C-004"
+  claim: '`starter-webmvc-ui` brings the swagger-ui webjar and `/swagger-ui`, `/v3/api-docs` endpoints into the runtime classpath,
+    which the native image then has to include (large resource set, AOT/resource-hint exposure) and which C-004 wants disabled.
+    ''Disabled by configuration'' keeps the code and webjar in the binary. Generating the document at build time also needs
+    the service started inside the build (springdoc Gradle plugin or a test), an extra plugin absent from the version list
+    and the strict metadata plan.'
+  remediation: Put `springdoc-openapi-starter-webmvc-api` (no UI) on a dedicated source set or `testImplementation` only,
+    generate the document in a test that boots the app on an ephemeral loopback port, and keep springdoc off `runtimeClasspath`
+    so it is absent from AOT and the binary; add an ArchUnit/classpath test asserting no `org.springdoc` or swagger-ui resource
+    reaches the native image. If the Gradle springdoc plugin is chosen instead, add it to the version list and to the Unverified
+    list with its Boot 4 compatibility.
+  refuter_reason: plan.md says springdoc is build-time only yet pins springdoc-openapi-starter-webmvc-ui and only proposes
+    disabling runtime endpoints by configuration, which keeps the UI webjar in the binary.
+- id: PLAN-ARCH-JVM-008
+  lens: Workflow design (triggers and publish job)
+  severity: 3
+  title: Tag-triggered publish job is not reconciled with the spec's trigger and `if:` model (AC-15a) or the per-change classifier
+  evidence:
+  - artifact: "plan.md \xA7 5 'The new workflow itself' and \xA7 12 Release (publish on pushed tag `mission-status-api-v*.*.*`)"
+  - artifact: 'spec.md line 354 (triggers: push branch main, pull_request, schedule, workflow_dispatch) and AC-15a(i)-(iii)'
+  - code: 'tests/architectural/_workflow_jobs.py:70-86 (push_is_per_change: a push block with branches/paths is per-change,
+      only a tags-only push is exempt)'
+  - code: .github/workflows/contracts-release.yml:1-30 (tag publish lives in its own file with tags-only push)
+  claim: 'contracts-release.yml keeps the publish path in a SEPARATE tags-only workflow. The plan puts `publish` in the same
+    file as the path-filtered push/PR workflow, which needs `push.tags` beside `push.branches`+`paths`. GitHub ignores `paths`
+    for tag pushes, but AC-15a(i) pins the push filters exactly and AC-15a(iii) pins every job''s `if:` shape, neither of
+    which mentions a tag event; the publish job needs a `startsWith(github.ref,''refs/tags/'')` conjunct, a different concurrency
+    group (the contracts.yml per-SHA group does not fit tag runs), and a fork guard that differs from native legs. The ancestor-of-main
+    plus ''gate run passed'' check needs `actions: read`, which the plan does not list.'
+  remediation: 'Amend plan section 12 and the AC-15a authority to list the tag trigger explicitly, the publish job''s `if:`
+    form, its `permissions` (contents: write on that job, actions: read for the gate lookup), and its concurrency group. Say
+    that the tags filter and path filter coexist in one `push` block, and extend the pinning test to assert the tag pattern
+    is disjoint from `v*.*.*` and `contract-*-v*.*.*`.'
+  refuter_reason: spec.md line 354 lists only push branch main, pull_request, schedule and workflow_dispatch triggers while
+    plan.md adds a tag-triggered publish job in the same file with no stated trigger, if-form, concurrency group or actions
+    permission.
+- id: PLAN-ARCH-JVM-012
+  lens: Version choices and labelling
+  severity: 2
+  title: Several pinned versions are listed as 'verified' without being in the Unverified list (JaCoCo 0.8.15, networknt 3.0.8,
+    Native Build Tools coupling)
+  evidence:
+  - artifact: "plan.md \xA7 12 'Versions pinned and how verified' versus 'Unverified' items 5-6"
+  claim: The Unverified list carries Boot/Gradle/NBT compatibility and ArchUnit class-file reading, but not JaCoCo 0.8.15
+    reading Java 25 and Spring AOT generated classes, networknt 3.0.8's 2020-12 `unevaluatedProperties` support under OpenAPI
+    3.1 schemas extracted from the bundle, or that the `org.openapi.generator` plugin 7.25.0 runs on Gradle 9.7.1 (the repo
+    pin was validated only on Gradle 8.14.5, contracts/tools/pins.json). A mismatch costs a WP01 respin.
+  remediation: Add these three to the Unverified list with a WP01 acceptance check each (JaCoCo report on a Java 25 test run;
+    a networknt negative case on `unevaluatedProperties`; `openApiGenerate` green on Gradle 9.7.1), and decide up front that
+    the plugin version stays equal to pins.json even if the Gradle 9 run needs a documented patch.
+  refuter_reason: Unverified items 5-6 cover Boot/Gradle/NBT and ArchUnit/SHAs only, while JaCoCo 0.8.15 on Java 25, networknt
+    2020-12 support and the openapi-generator 7.25.0 plugin on Gradle 9.7.1 (pin validated on 8.14.5) are listed as pinned
+    with no unverified entry or WP01 check.
+- id: PLAN-VERIFY-001
+  lens: conformance-golden pipeline (router glob / corpus marker placement)
+  severity: 3
+  title: New corpus-marked tool-test module also runs in the Packs advisory lane; plan never edits packs.yml
+  evidence:
+  - artifact: "plan.md \xA7 1 (Python additions, Router/CI edits) and \xA7 5 (packs-gate row); research.md R-8 ('the router\
+      \ glob suffices')"
+  - code: .github/workflows/packs.yml:284 (hand-written --deselect list names every tests/contract tool module, e.g. test_gradle_pin_check.py,
+      test_verify_pins.py, test_mission_status_*.py)
+  - code: .github/workflows/ci-router.yml:1048-1052 (tests-contract-tools selects all of tests/contract under -m 'corpus and
+      not windows_ci')
+  - code: tests/ci/test_contracts_workflows.py:1356-1380 (home check pins only the router corpus job and the tool-test job;
+      nothing pins the Packs deselect list)
+  claim: 'The plan marks test_mission_status_conformance.py with the corpus marker so that tests (contract tools) picks it
+    up. Packs runs the same marker with an explicit per-module --deselect list, and the existing comment promises nothing
+    runs twice. The new module is not on that list, and no test checks the list for tool modules, so the golden-honesty test
+    would run a second time (advisory) in Packs with no failing gate to catch it. The plan''s claim that the module ''has
+    exactly one home'' and that packs-gate is ''No'' is therefore incomplete, and the ''ci-router.yml diff is one filter-group
+    line'' review check does not cover the missing packs.yml edit.
+
+    '
+  remediation: 'Add packs.yml to the phase 2b write scope and section 1 edit list: add --deselect tests/contract/test_mission_status_conformance.py
+    to the Packs corpus command. Add a pinning assertion (in test_mission_status_routing.py) that the Packs corpus command
+    deselects the module, with a count guard, and a revert note (drop the deselect, the test goes red). Update the section
+    5 packs-gate row and the review diff-check wording.
+
+    '
+  refuter_reason: packs.yml has an explicit per-module --deselect list with no entry for test_mission_status_conformance.py
+    and the plan never edits packs.yml, marking packs-gate as No.
+- id: PLAN-VERIFY-002
+  lens: Gates (baseline / test policy)
+  severity: 3
+  title: Plan excludes make test-fast citing a directive that actually prescribes it
+  evidence:
+  - artifact: "plan.md \xA7 6 step 1 ('make test-fast is NOT run (charter NO_FULL_HEAVY_SUITES_IN_MISSION)') and the \xA7\
+      \ 5 command list (no make test-fast)"
+  - code: packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml:36-38 (targeted surface includes 'the owning
+      module's fast tier (make test-fast plus the module's own test directory)')
+  - code: CLAUDE.md 'Test policy' (make test-fast is the shared baseline for ordinary changes; PR records commands and counts)
+  claim: 'The directive forbids whole heavy suites (tests/architectural/ as a bare directory, e2e, make test-full), not make
+    test-fast. The plan misreads it, so the baseline procedure and the ''Before pushing'' list omit the repository''s stated
+    baseline, and the PR ''Tests run'' section would lack it. The baseline comparison (branch vs merge-base) therefore never
+    covers the fast tier.
+
+    '
+  remediation: 'Replace the sentence in section 6 step 1 with: run make test-fast plus the targeted files listed in section
+    5; make test-full, bare tests/architectural/ and tests/e2e are the excluded surfaces. Add make test-fast to the section
+    5 command list and to quickstart ''Before pushing''; record its counts in baseline-red.md on both merge-base and branch.
+
+    '
+  refuter_reason: the directive's procedures explicitly list make test-fast within the targeted surface and forbid only whole
+    heavy suites, yet plan section 6 step 1 says make test-fast is not run citing that directive.
+- id: PLAN-VERIFY-003
+  lens: Gates (Java coverage mechanism) / revert discipline
+  severity: 3
+  title: JaCoCo rule is named but its wiring into CI and its revert test are not specified or pinned
+  evidence:
+  - artifact: "plan.md \xA7 5 'Java coverage' paragraph; traceability row 'NFR-006 | JaCoCo rule, section 5'; \xA7 11 test-strategy\
+      \ table (no NFR-006 row)"
+  - artifact: quickstart.md Java side ('./gradlew check ... JaCoCo rule')
+  - code: scripts/ci/aggregate_source.py:19-27 (CRITICAL_PATHS are Python src globs; only .py scored), so diff-cover cannot
+      back-stop Java
+  claim: 'The plan states thresholds (line >= 90% domain+application, branch >= 80% domain) but not how the verification task
+    is bound to ''check'' and to the workflow step, how the package patterns map from ArchUnit-style ''..domain..'' to JaCoCo
+    class-path patterns, or what pins it. Nothing in the tests/ci pinning list (AC-14/15) asserts the thresholds, and the
+    test-strategy table has no row proving the rule can go red. Since diff-cover is blind to Java, a silently unwired or emptied
+    rule (a pattern matching zero classes passes vacuously) leaves NFR-006 unenforced.
+
+    '
+  remediation: 'State in section 5: the task name, that check dependsOn it (and that the CI step runs check, not test), the
+    include patterns, and that the JVM leg uploads the report. Add to test_mission_status_api_build.py a pin on the minimums
+    and on the wiring. Add an NFR-006 row to the test-strategy table: raise the minimum above actual, or delete a domain test,
+    and the verification task fails; and a guard that the rule''s pattern matches a non-zero number of classes.
+
+    '
+  refuter_reason: plan.md section 5 names the JaCoCo thresholds but no task name, include patterns or non-zero-match guard,
+    and the NFR-006 traceability row has no revert-fails entry in the test-strategy table.
+- id: PLAN-VERIFY-005
+  lens: Silent-success (nightly full-corpus compare)
+  severity: 3
+  title: Nightly comparison has no non-vacuity floor and its zero-compared / failed-start paths are unspecified
+  evidence:
+  - artifact: "plan.md \xA7 1 (scripts/ci/mission_status_corpus_compare.py), \xA7 12 / R-6 ('nightly script does not use pytest');\
+      \ spec.md AC-8c (exits non-zero on the first differing Mission)"
+  - artifact: "plan.md \xA7 7 ('auto-annotated with the class and fails loudly')"
+  claim: 'AC-8c and the plan define failure only as ''a Mission differs''. They do not say the script fails when it enumerated
+    or compared zero Missions (shallow checkout, wrong root, corpus listing error), when the Java service did not start or
+    returned refusals for every Mission, or when both sides refused (compare error class and diagnostic, not ''both failed,
+    equal''). A job that compares nothing exits zero and the nightly reports green. The unit test in the plan uses a two-Mission
+    input only.
+
+    '
+  remediation: 'Specify in plan.md: the script prints and asserts the number of Missions compared against a floor (for example
+    at least 500 of the roughly 590, or the git ls-files count), exits non-zero on zero compared, on a service start failure,
+    and on any Mission present on one side only; refusal-vs-refusal compares the refusal code. Add unit cases for empty corpus,
+    unreachable service and one-sided Mission. The checkout step must not be shallow in a way that drops kitty-specs.
+
+    '
+  refuter_reason: AC-8c and plan.md define the corpus-compare script's failure only as a differing Mission and nothing specifies
+    a compared-count floor, service-start failure, one-sided Mission or refusal-vs-refusal handling, so a zero-compared run
+    could exit zero.
+- id: PLAN-VERIFY-006
+  lens: Silent-success / conformance (Q-3 divergence)
+  severity: 3
+  title: Outcome of a nightly difference that is annotated as a known Q-3 class is undefined (permanent red or silent pass)
+  evidence:
+  - artifact: "plan.md \xA7 7 ('a nightly difference on a Mission whose topology is coord-routing is auto-annotated with the\
+      \ class and fails loudly rather than being skipped'); research.md R-9"
+  claim: '''Annotated'' and ''fails loudly'' pull in opposite directions. If a known divergence (class differs) fails the
+    nightly, the job is red indefinitely until #5631 resolves and teaches maintainers to ignore it; if the annotation turns
+    it into a pass, a Python-says-X, Java-says-Y answer ships as success with only a ledger line as evidence. The plan does
+    not say which, nor how the ledger row is tied to an expiring or counted exception.
+
+    '
+  remediation: 'Decide and write it: a differing Mission with a ledger row of class differs is reported separately and the
+    job passes only while the exact set of slugs equals the committed ledger set (a new or vanished slug fails); a difference
+    without a row, or class unknown, fails. Pin the ledger as a machine-readable file read by the script, with a unit test
+    for each of the three outcomes, and record the owner issue (#5631) on each row.
+
+    '
+  refuter_reason: plan.md section 7 says a Q-3 nightly difference is both auto-annotated and fails loudly without defining
+    pass or fail semantics or tying the annotation to a counted ledger.
+- id: PLAN-VERIFY-007
+  lens: Test strategy (revert discipline)
+  severity: 3
+  title: Test-strategy table has no revert-fails row for the router glob, the nightly script, class properties, or the resolver
+    table
+  evidence:
+  - artifact: "plan.md \xA7 11 test-strategy table (rows AC-1..AC-16 only; the AC-5/AC-8 row lists the reducer perturbation\
+      \ and 'editing one golden value')"
+  - artifact: spec.md AC-8b, AC-8c, AC-8d, AC-8e, AC-8f, AC-6e
+  claim: 'Every changed behaviour needs a test that fails when reverted. The plan gives none for: removing the services conformance
+    glob (AC-8e), a trivial golden carrying the right class tag (AC-8b non-vacuity of the golden-honesty test), a non-deterministic
+    generator (AC-8d), dropping the _CORPUS_MARKED_MODULES entry (AC-8f), the nightly script''s exit code (AC-8c), and a resolver-cases
+    row removed from one language. The honesty test''s only stated perturbation is one edited golden value, which does not
+    prove that the per-class distinguishing properties are read from content.
+
+    '
+  remediation: 'Add rows: AC-8e remove the glob from a temp copy of the router, test red; AC-8b replace a golden with a same-tag
+    trivial one, red; AC-8d run generator twice with a planted unordered dict, red; AC-8f drop registry entry, red; AC-8c
+    planted difference exits non-zero with slug and field; AC-6e drop one row on one side, red. State which are run empirically
+    in a scratch copy before the PR.
+
+    '
+  refuter_reason: the plan section 11 table has no revert-fails rows for AC-8b, 8c, 8d, 8e, 8f or 6e, and the AC-5/AC-8 row
+    names only the AC-8a perturbation and a golden edit.
+- id: PLAN-VERIFY-008
+  lens: Baseline honesty (Q-4)
+  severity: 2
+  title: Baseline procedure covers local runs only; CI-level reds (cancelled, at-budget
+  evidence:
+  - artifact: "plan.md \xA7 6 steps 1-5; \xA7 5 row 'tests (corpus-blocking) ... YES by this mission's kitty-specs/**/{spec,plan}.md'"
+  - code: '.github/workflows/ci-router.yml:994-1000 (corpus-blocking at its 20-minute budget, #5838)'
+  claim: 'This mission''s own kitty-specs edits select the at-budget corpus-blocking job, so a red or cancelled check on the
+    PR is likely, yet the procedure only compares local targeted runs. It does not say how to classify a CI job that was cancelled
+    or timed out (not an assertion failure), that PR CI tests head plus current main, or that #5838 is the existing issue
+    to cite instead of opening a new one.
+
+    '
+  remediation: 'Add step 6 to section 6: for any red PR check, read the real conclusion (cancelled and timed_out are not failures
+    of the change), compare the same job on the latest main run, cite the existing issue (#5838 for corpus-blocking budget)
+    rather than opening a duplicate, allow one diagnosed rerun, and record the run ids in baseline-red.md.
+
+    '
+  refuter_reason: Section 6 steps 1-5 only compare local targeted runs, while the plan itself notes corpus-blocking is at
+    budget (#5838, 20-minute cap in ci-router.yml) and selected by this mission's kitty-specs edits, with no step classifying
+    cancelled or timed-out CI jobs.
+- id: PLAN-VERIFY-009
+  lens: Gates (statement precision)
+  severity: 1
+  title: Hedged gate statement for the Windows-filename guard
+  evidence:
+  - artifact: "plan.md \xA7 5 architectural-fast row ('Includes tracked-path hygiene gates such as test_no_invalid_windows_filenames.py-style\
+      \ checks only if on the roster')"
+  - code: .github/workflows/ci-router.yml:720-744 (architectural-fast runs tests/architectural with --battery-part fast; the
+      file tests/architectural/test_no_invalid_windows_filenames.py exists)
+  claim: 'The row says ''only if on the roster'' instead of stating whether the guard runs for a services-only diff. The gate
+    set is meant to be stated, not conditional, and NFR-009 depends on that guard biting Java fixture paths.
+
+    '
+  remediation: 'Resolve which battery part holds test_no_invalid_windows_filenames.py (battery_partition_plugin) and state
+    it as a fact in the row; keep the fixture-path rule only if the guard is always-on.
+
+    '
+  refuter_reason: plan.md line 118 does hedge the architectural-fast row with "only if on the roster" although the CI step
+    runs tests/architectural with --battery-part fast and the guard file exists, so the gate statement is conditional where
+    it should be stated (low severity).

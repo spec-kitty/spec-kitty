@@ -1,0 +1,283 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: jvm
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: TASKS-JVM-001
+    lens: Gradle task ownership / WP feasibility
+    severity: 4
+    title: "Test partition is unspecified, so the JVM `check` runs binary-dependent smoke/perf classes (or never runs the NFR-004 JVM proof)"
+    evidence:
+      - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md § T012 step 8-9, § T014 step 3"
+      - artifact: "tasks/WP12-native-smoke-replay-and-digests.md § T066 Validation (`./gradlew test --tests 'org.speckitty.missionstatus.nativesmoke.*'`)"
+      - artifact: "tasks/WP13-performance-ratio-tests.md § T070 step 4, § T069 Validation, § T072 step 2"
+      - artifact: "tasks/WP16-host-origin-smoke-stage-readme-docs-changelog.md § T080 Validation"
+      - artifact: "plan.md § 11 phase 1 row (nativeSmoke registration pointing at a skeleton nativesmoke.NativeSmokeTest)"
+    claim: >-
+      NativeSmokeTest, NativePerfTest and the perf-tagged classes are ordinary JUnit classes in
+      src/test/java (packages nativesmoke and perf, owned by WP03/WP12/WP13). WP03 never says that the
+      default `test` task (and so `check`, which the jvm job and WP03 T017 run) excludes them, nor how the
+      `nativeSmoke` and `nativePerf` tasks are built (Test tasks with a class filter? how `-PnativeBinary`
+      reaches the test JVM, since a Gradle -P property is not a system property?). The skeleton
+      NativeSmokeTest (T014 step 3) asserts that `-PnativeBinary` is set, which is false under `check`, so
+      the WP03 exit gate `./gradlew check` is red as specified. Conversely WP12/WP13/WP16 validate with
+      `./gradlew test --tests '...nativesmoke.*'` and `perf.*` and WP12 T066 puts pure-JVM digest unit
+      tests in the same package, which contradicts any package-level exclusion. T012 step 9 makes the
+      perf-tag decision conditional on "the WP02 timing record", but WP02 has no step that measures the
+      60 s NFR-004 hold (T009 measures only stampLedger), so the input does not exist. If the implementer
+      excludes `perf` from `test` and registers no other task, the NFR-004 JVM proof (WP13 T070) is run by
+      nothing in CI and the pin of T072 step 2 ("check still covers the perf classes unless tagged out")
+      passes vacuously. No later WP may edit build.gradle.kts, so this must be settled in WP03.
+    remediation: >-
+      In WP03 T012 specify the partition outright: (a) tag NativeSmokeTest and NativePerfTest with a
+      dedicated JUnit tag (for example `native-binary`) and exclude that tag from the default `test` task;
+      untagged JVM-only tests in the nativesmoke package (digest, requests.json parse, WP12 T066) keep
+      running in `check`; (b) register `nativeSmoke` and `nativePerf` as Test tasks that include only
+      their tag/class and forward the binary with `systemProperty("nativeBinary", ...)` after a
+      require-property check; (c) decide the perf question now (the 60 s hold is fixed by the spec):
+      register `perfTest` for the `perf` tag, exclude `perf` from `test`, and make `check` depend on
+      `perfTest`; delete the conditional of step 9 or add the missing WP02 measurement; (d) add a pin in
+      T016 that parses build.gradle.kts for these registrations and the `check` dependencies; (e) correct
+      the WP12/WP13/WP16 validation commands to the tasks that actually run the classes.
+
+  - id: TASKS-JVM-002
+    lens: Gradle task ownership
+    severity: 3
+    title: "WP05 adds domain classes before the floor file exists, so `jacocoScopeCheck` (hence `check`) is red at the WP05 exit"
+    evidence:
+      - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md § T012 step 6 (fails on an absent floor file once a class exists under either package)"
+      - artifact: "tasks/WP05-domain-core-and-ledger-codec.md § Context (jacocoScopeCheck requires the floor file, WP06 writes it) and § Definition of Done (`check` green 'or the exact shortfall is reported')"
+      - artifact: "tasks/WP06-application-ports-feed-archunit-portlevel.md § Context and § T035 step 1 (WP06 creates jacoco-class-floor.properties)"
+      - artifact: "plan.md § 11 (every phase leaves the branch green)"
+    claim: >-
+      WP05 is the first WP with classes under org.speckitty.missionstatus.domain, so from WP05 on
+      `jacocoScopeCheck` fails on the absent floor file by WP03's own rule. WP06 owns and first writes the
+      file. WP05 therefore cannot reach a green `./gradlew check`; its prompt papers over this with "or the
+      shortfall is reported". The slice WP05 ends on is red on the mission branch, against the plan's
+      every-phase-green rule, and a reviewer cannot tell a real failure from the designed one.
+    remediation: >-
+      Move first creation of jacoco-class-floor.properties to WP05 (add it to WP05 owned_files and
+      create_intent) with the `domain` line recorded from the real report, and have WP06 append the
+      `application` line; specify in WP03 T012 step 6 that a pattern line may be absent while no class
+      matches that pattern. Alternatively make the absent-file tolerance per pattern. Update WP05 Definition
+      of Done to require a green `check`.
+
+  - id: TASKS-JVM-003
+    lens: Java/Gradle WP feasibility; spike matches plan (bundling)
+    severity: 3
+    title: "`bundleContract` as written (output under `build/`) is refused by the bundler it is meant to call"
+    evidence:
+      - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md § T012 step 3"
+      - artifact: "tasks/WP02-spike-and-decision-record.md § T006 steps 1-2"
+      - artifact: "tasks/WP04-workflow-native-hello-legs-gate-helper.md § T018 step 4 (jvm job: no Python/PyYAML step, only 'bundling per mechanism A or B')"
+      - code: "contracts/tools/bundle.py:143"
+      - code: "contracts/tools/bundle.py:144"
+      - code: "contracts/tools/bundle.py:173"
+    claim: >-
+      bundle.py returns OUT_INSIDE_REPOSITORY (exit 2) when --out lies inside the git working tree
+      (bundle.py:143-144), and `services/mission-status-api/build/...` is inside it. WP02 T006 step 1
+      notices the clash and asks for a finding, but WP03 T012 step 3 still says the task "writes
+      build/.../contract/openapi.yaml", with no mention of a temp output directory, a copy step, the
+      tool's real output path (`<out>/bundle/mission-status/openapi.yaml`, bundle.py:173), `--module
+      mission-status`, Gradle input/output declarations (the Python resolver reads contracts/_shared and
+      contracts/mission-status, so the task is never up to date-correct without declared inputs), or the
+      Python plus PyYAML prerequisites on the jvm job and on the Windows/macOS legs (the tool imports
+      PyYAML and contract_resolver). An implementer following WP03/WP04 literally gets exit 2 on the
+      first `processResources`.
+    remediation: >-
+      Amend WP03 T012 step 3 (mechanism A): the task runs `python contracts/tools/bundle.py --root
+      contracts --module mission-status --bundle-only --out <fresh dir under java.io.tmpdir>`, copies the
+      single file `bundle/mission-status/openapi.yaml` into the generated resources dir, declares
+      contracts/mission-status/**, contracts/_shared/** and contracts/tools/bundle.py plus
+      contract_resolver.py as inputs, and fails with a message on a non-zero exit. Add to WP04 T018/T019 an
+      explicit Python plus `pip install pyyaml` (or setup-uv) step on every leg that runs Gradle, or state
+      that mechanism B replaces it. Have WP02 T006 record the exact command line, not just a decision.
+
+  - id: TASKS-JVM-004
+    lens: Spike fallback does not invalidate downstream scopes
+    severity: 3
+    title: "Bundling fallback B has no local/dev story and silently changes the gate, nightly and AC-11d procedure"
+    evidence:
+      - artifact: "tasks/WP02-spike-and-decision-record.md § T006 step 3-4"
+      - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md § T012 step 3 (mechanism B: downloaded file accepted after SHA-256 check) and § T017 step 1 (`./gradlew check` green on the workstation)"
+      - artifact: "tasks/WP10-http-routes-sse-contract-wiring.md § T055 step 2 (AC-11d: run the bundler into a temp dir and compare)"
+      - artifact: "tasks/WP14-nightly-corpus-comparison.md § T074 step 2 (bundling step 'per the WP02 mechanism')"
+      - artifact: "tasks/WP04-workflow-native-hello-legs-gate-helper.md § T019 step 3 (gate needs: [jvm, native])"
+    claim: >-
+      If the three-leg proof fails and B is adopted: (1) `bundleContract` only accepts a downloaded file, so
+      a plain local `./gradlew check` (WP03 T017, quickstart, every WP validation) has no input and fails;
+      (2) the AC-11d test as written in WP10 runs the bundler, which is exactly what B avoids on the legs,
+      so the equality procedure is different per mechanism but only one is written; (3) a new
+      `contract-bundle` job changes the pinned `needs` sets of the jvm/native/gate jobs (WP04 pins) and the
+      nightly job, which runs on `schedule` where the legs are skipped, has no artifact to download. None
+      of this is assigned to a WP, so a fallback flip is not a drop-in.
+    remediation: >-
+      Specify B so that `bundleContract` runs bundle.py itself whenever the CI-supplied property
+      (-PcontractBundleFile plus -PcontractBundleSha256) is absent, and verifies the file otherwise; state
+      in WP10 T055 that under B the AC-11d test compares the served bytes with the verified artifact hash,
+      plus a local bundler run when python is present; state in WP04 that B adds `contract-bundle` to the
+      needs of jvm, native and gate and to the pins, and in WP14 that the nightly runs bundle.py itself
+      (it already installs uv and PyYAML).
+
+  - id: TASKS-JVM-005
+    lens: Java/Gradle WP feasibility (native test wiring)
+    severity: 3
+    title: "Native test wiring spike omits Spring AOT test processing, and the tag-filter fallback has no owned location"
+    evidence:
+      - artifact: "tasks/WP02-spike-and-decision-record.md § T008 step 5"
+      - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md § T012 step 7, § T014 step 2, frontmatter owned_files"
+      - artifact: "tasks/WP10-http-routes-sse-contract-wiring.md § T058 step 1 ('src/nativeTest/** (or the tag-filtered package per the WP02 wiring)')"
+    claim: >-
+      The three skeleton native tests (virtual-thread probe, Jackson+SSE round trip) need a running Spring
+      context in the native test image. To my knowledge Spring Boot's AOT test processing
+      (`processTestAot`) is registered for the `test` source set, so a custom `nativeTest` source set needs
+      its own AOT task and classpath wiring; T008 step 5 spikes only "how to point nativeTest at a dedicated
+      source set" and the tag filter, not a @SpringBootTest-style test through either wiring. Separately,
+      if the fallback (tag filter on `test`) wins, the skeleton and the real native tests have no
+      defined home: WP03 owns only `skeleton/**`, `nativesmoke/**` and `src/nativeTest/**`, and WP10
+      deletes `skeleton/**`, so the tests that must survive (nativeTagFloor 3, then WP10's real set) would
+      sit in a package that is deleted or unowned.
+    remediation: >-
+      Extend T008 step 5: for BOTH wirings run a @SpringBootTest-based @Tag("native") test through
+      `nativeCompile nativeTest`, name the AOT task(s) and the executed-count in JUnit XML, and record the
+      exact build.gradle.kts snippet. Add a fixed fallback package (for example
+      src/test/java/org/speckitty/missionstatus/nativetagged/**) to the owned_files of WP03 (creation) and
+      WP10 (replacement) now, so the choice does not need a frontmatter change later.
+
+  - id: TASKS-JVM-006
+    lens: Gradle task ownership (WP03 completeness)
+    severity: 3
+    title: "Dependencies/tooling later WPs need are deferred to a WP02 decision that WP02 does not make"
+    evidence:
+      - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md § T011 step 4 ('the WP02 record fixes them')"
+      - artifact: "tasks/WP08-filesystem-outbound-adapter.md § T046 step 1 ('YAML parsing: use the library the WP02 record fixed')"
+      - artifact: "tasks/WP10-http-routes-sse-contract-wiring.md § T056 step 2 (AC-11c: copy the contract, run generate-and-compile on the copy), § T055 step 2 (AC-11d)"
+      - artifact: "tasks/WP02-spike-and-decision-record.md § T004-T010 (no step selects a YAML parser or Gradle TestKit)"
+    claim: >-
+      WP03 is the only owner of libs.versions.toml, build.gradle.kts and verification-metadata.xml and must
+      declare "EVERY dependency any later WP needs". WP03 and WP08 both point at the WP02 record for the
+      YAML parser, but WP02 never selects one. WP10's AC-11c (generated mode) needs a nested Gradle build
+      of a mutated contract copy (Gradle TestKit/GradleRunner, `gradleTestKit()` in build.gradle.kts, a
+      copy of the wrapper, verification metadata and offline resolution) and AC-11d needs a Python
+      subprocess; neither is declared or spiked. The result is the exact amendment-to-WP03 path that plan
+      section 11 wants to avoid, discovered at WP08/WP10 time, with a verification-metadata regeneration
+      each time.
+    remediation: >-
+      Add to WP02 T004 a step that fixes the YAML library (snakeyaml version managed by the Boot BOM, or a
+      stated alternative, with the ArchUnit rule 8 consequence and a native hint) and proves a nested
+      GradleRunner build of a copied project under strict verification works (or names the alternative for
+      AC-11c, for example the generator invoked as a library). List both in WP03 T011 step 4 as mandatory
+      declarations and in T015's resolve-everything command.
+
+  - id: TASKS-JVM-007
+    lens: Spike matches plan (R-2 go/no-go)
+    severity: 3
+    title: "'Only /project and /missions' generation has no mechanism, and the `Missions` tag also carries five out-of-scope operations"
+    evidence:
+      - artifact: "tasks/WP02-spike-and-decision-record.md § T005 step 1"
+      - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md § T012 step 2"
+      - code: "contracts/mission-status/openapi.yaml:36"
+      - code: "contracts/mission-status/paths/missions_missionId.yaml:7"
+      - code: "contracts/mission-status/paths/missions_missionId_artifacts.yaml:11"
+      - code: "contracts/mission-status/paths/missions_missionId_work-packages_wpId_detail.yaml:14"
+    claim: >-
+      The contract has ten paths; six carry the tag `Missions` (/missions, /missions/{id}, the two
+      work-package paths and the two artifact paths). A spring `interfaceOnly` run restricted by tag or by
+      the `apis` global property therefore generates a MissionsApi with six operations and models for
+      detail, work-package, artifact content and so on. The WPs say "only /project and /missions" without
+      a mechanism. With the generator's default interface methods, the five out-of-scope operations come
+      back as live routes answering 501, not as 404, once a controller implements MissionsApi; they also
+      enlarge the model package that the JaCoCo exclusions, ArchUnit rule 9 and the AC-11c mutation
+      target. The spike is where this is decided and the criteria table of T005 does not ask.
+    remediation: >-
+      Add criterion 8 to T005: record the mechanism that limits generation to the three in-scope
+      operations (a trimmed input produced at build time, an openapi-normalizer filter, or
+      `defaultInterfaces=false` plus overriding only the three methods), show what the five other
+      operations become at runtime, and require a WP10 HTTP test that they answer 404 (same as any unknown
+      path). Put the chosen settings into WP03 T012 step 2.
+
+  - id: TASKS-JVM-008
+    lens: Spike fallback does not invalidate downstream scopes
+    severity: 2
+    title: "Hand-DTO fallback leaves steps that name generator tasks and generator-only pins"
+    evidence:
+      - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md § T015 step 1 (command includes openApiGenerate), § T016 steps 2 and 6"
+      - artifact: "tasks/WP06-application-ports-feed-archunit-portlevel.md § T033 step 4 (api/model packages 'read from build.gradle.kts'; rule 9)"
+      - artifact: "plan.md § 13 ArchUnit rule 9 ('generated and hand contract DTO packages')"
+    claim: >-
+      In hand mode there is no openApiGenerate task, so the T015 metadata command fails as written; the
+      AC-14e pin (plugin version equals pins.json) has no plugin to read (T016 step 2 does not say whether
+      the plugin stays for the drift test); and WP06 reads `apiPackage`/`modelPackage` from
+      build.gradle.kts, which hand mode does not contain, and does not list adapter.in.http.dto in rule 9.
+      The downstream WP scopes themselves survive (WP10 owns adapter/in/http/**), but three steps need a
+      branch that is not written.
+    remediation: >-
+      Give T015 and T016 an explicit hand-mode branch (omit the task, the pin reads the mode recorded in
+      the build test), have WP06 pin the two generated packages and `adapter.in.http.dto` as literals in the
+      ArchUnit test instead of reading the build script, and state whether the generator plugin remains
+      declared for the AC-11c drift test.
+
+  - id: TASKS-JVM-009
+    lens: Spike matches plan (Tomcat table)
+    severity: 2
+    title: "Tomcat Host table harness is plain embedded Tomcat, not the Boot-configured connector the service ships"
+    evidence:
+      - artifact: "tasks/WP02-spike-and-decision-record.md § T007 step 1"
+      - artifact: "plan.md § 8 (Boot 4.1.1 pins Tomcat 11.0.24; table to be CONFIRMED against the jar)"
+    claim: >-
+      T007 boots "Tomcat 11.0.24" with a counting servlet filter. The table is only a confirmation if the
+      connector settings match production (Boot's connector customisers, forward-headers strategy none,
+      server.address, HTTP/1.0 handling, max header size). A bare embedded Tomcat can confirm rows that the
+      shipped service would answer differently.
+    remediation: >-
+      Boot the scratch harness as a Spring Boot 4.1.1 web application with the packaged defaults of plan
+      section 13, add the counting filter as a registered filter, and record that in the spike table.
+
+  - id: TASKS-JVM-010
+    lens: Gradle task ownership / package layout
+    severity: 2
+    title: "The recording read seam of WP08 has no name, so its file may fall outside every owned glob"
+    evidence:
+      - artifact: "tasks/WP08-filesystem-outbound-adapter.md § T044 step 2 and frontmatter owned_files"
+      - artifact: "plan.md § 13 layout (adapter/out/filesystem file list)"
+    claim: >-
+      T044 introduces "a small internal seam that records (path class, open mode)" as a package-visible
+      collaborator, but WP08 owns only FilesystemMissionEventSource*, ReadDirResolver*, SafeFiles*,
+      Allowlist* and Listing* in main. A class named, say, FileAccess would be an unowned main file under
+      adapter/out/filesystem (the plan layout does not list it either).
+    remediation: >-
+      Name the seam in T044 (for example `AllowlistedReads` or `SafeFilesPort`, matching an owned glob) and
+      add it to the plan-13 layout note in the WP, so the file is inside WP08's write scope.
+
+  - id: TASKS-JVM-011
+    lens: Gradle task ownership
+    severity: 2
+    title: "'nativePerf registered in WP03' is true in prose but nothing pins it, nor nativeSmoke/jacocoScopeCheck registration"
+    evidence:
+      - artifact: "tasks-overview.md § 7 (build.gradle.kts row), § 9 item 2"
+      - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md § T012 step 8, § T016 steps 1-9, § T012 Validation"
+      - artifact: "tasks/WP13-performance-ratio-tests.md § Context (NO build-script edit)"
+    claim: >-
+      Verified: WP03 T012 step 8 registers both nativeSmoke and nativePerf and T014 step 3 creates the
+      NativePerfTest skeleton; WP12/WP13 only consume them and the workflow pins reference them. But the
+      T016 pin list covers `bundleContract`, bootJar name, the three JaCoCo minimums and `check`
+      dependencies, and the only check that the tasks exist is a manual `gradlew tasks --all` in T012
+      Validation. If the registration regresses or is renamed, WP12/WP13 find out on the first CI leg.
+    remediation: >-
+      Add a T016 pin that parses build.gradle.kts for the registrations of nativeSmoke, nativePerf and
+      jacocoScopeCheck (and the fully qualified test class names they run), with a revert row.
+
+  - id: TASKS-JVM-012
+    lens: Gradle task ownership (frontmatter hygiene)
+    severity: 1
+    title: "Later WPs list files created by earlier WPs in create_intent, and WP16 calls an owned edit 'out-of-map'"
+    evidence:
+      - artifact: "tasks/WP10-http-routes-sse-contract-wiring.md, WP12, WP13, WP14, WP15 frontmatter create_intent (workflow and tests/ci/test_mission_status_api_build.py already created by WP03/WP04)"
+      - artifact: "tasks/WP16-host-origin-smoke-stage-readme-docs-changelog.md § T080 step 2 vs frontmatter owned_files (workflow is owned)"
+    claim: >-
+      create_intent should name only files the WP itself creates; naming existing files can mislead the
+      implement-time preflight and a reader about who creates what. WP16 treats the workflow edit as out of
+      map though the file is in its owned_files.
+    remediation: >-
+      Trim create_intent to the files each WP creates; reword WP16 T080 step 2 to an ordinary owned edit.

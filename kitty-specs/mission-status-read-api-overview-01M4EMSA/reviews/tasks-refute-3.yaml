@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 3
+verdicts:
+  - id: TASKS-JVM-009
+    verdict: refuted
+    reason: T007 is a throwaway confirmation of container Host handling, T006 already boots a Boot hello app, and WP11 T061 re-tests the same 9-row table over real sockets against the shipped service, so the claimed false confirmation is caught downstream.
+  - id: TASKS-JVM-010
+    verdict: refuted
+    reason: WP08 T044 lists "Allowlist* + recording seam" together and describes it as a package-visible collaborator (it can be nested or Allowlist*-named), so an unowned file is speculative rather than demonstrated.
+  - id: TASKS-JVM-011
+    verdict: refuted
+    reason: The finding itself verifies that WP03 T012 registers nativeSmoke, nativePerf and jacocoScopeCheck and validates them with gradlew tasks --all; a missing extra pin is a hardening wish, not a defect.
+  - id: TASKS-JVM-012
+    verdict: confirmed
+    reason: WP10 create_intent lists tests/ci/test_mission_status_api_build.py (created earlier) and WP16 T080 step 2 calls the workflow edit "out-of-map" although the workflow is in WP16 owned_files; frontmatter nit as claimed.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: WP06 T034 step 3 creates AC-2a shells in conformance/port and the interim check/guard location is unnamed, while WP09 T051 must make those classes run on FilesystemFixtureFactory and delete the interim logic yet owns only conformance/golden and testsupport and says "no edit outside the two owned trees"; no mechanism for source selection is specified.
+  - id: TASKS-SEQ-002
+    verdict: refuted
+    reason: Overview section 5 explicitly documents that WP11 and WP12 share lane-b and execute in order, and lane-b is one serial worktree by design; the write scopes are disjoint, so no wrong implementation results.
+  - id: TASKS-SEQ-003
+    verdict: refuted
+    reason: The allocator merges only already-approved dependency-lane tips, so lane-b claims do not block on lane-a and the overview statement that the dependency bites at WP09 is functionally accurate; the finding only requests extra prose.

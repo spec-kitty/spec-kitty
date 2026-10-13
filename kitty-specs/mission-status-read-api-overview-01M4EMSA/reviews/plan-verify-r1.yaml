@@ -1,0 +1,94 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+- id: PLAN-GOV-002
+  status: resolved
+  reason: Plan section 14 now holds the escalation table (E-1 AC-9b, E-2 JFR, E-3 fleet verdict, E-4 release) with owner, blocking flag and concrete interim behaviour, and states AC-9b stays as written with the Host/Origin WP untasked until ruled.
+- id: PLAN-GOV-003
+  status: resolved
+  reason: Tracer files live at traces/{approach,design-decisions,tooling-friction}.md in the dated procedure entry format, the root tracer-* files are gone, and plan/quickstart references (and the traces merge rule in .gitattributes) match the checkout.
+- id: PLAN-GOV-004
+  status: resolved
+  reason: Plan section 2 now states terms are authored in docs/context, generated and verified with generate_contextive_glossaries.py (check mode exists and is in the section 5 list), withdraws the false reducer-is-canonical claim and decides code-identifier treatment with a README terms list.
+- id: PLAN-GOV-005
+  status: resolved
+  reason: Section 1, section 4 and escalation E-6 list .gitattributes, packs.yml, ci-gate-mechanics.md and CHANGELOG as extensions of the Reflexivity list and the diff check names each; the referenced files exist.
+- id: PLAN-GOV-006
+  status: resolved
+  reason: Section 9 records the Sonar survey result for both edited test files, declines each larger surface with a reason, and keeps the single behaviour-preserving first commit; the cited script and test names exist.
+- id: PLAN-ARCH-001
+  status: resolved
+  reason: Decoding is owned by the new adapter.out.codec.LedgerLineDecoder, LedgerRead returns typed LedgerLine records, both the filesystem and in-memory sources use it, and I-3 is restated in data-model.md and plan section 13 with matching ArchUnit rule 4.
+- id: PLAN-ARCH-002
+  status: resolved
+  reason: A second inbound port MissionStatusStream (subscribe/Subscription/StreamSignal) fronts a package-private ChangeFeed, the poller is created in config and injected through FeedScheduler, and ArchUnit rule 3 restricts adapter.in.http to port.in.
+- id: PLAN-ARCH-003
+  status: resolved
+  reason: Section 13 lists an 11-rule ArchUnit set with one positive-control mutation per rule, main-only import for production rules, pinned generated apiPackage/modelPackage, and a rule-count guard in addition to the scan-count check.
+- id: PLAN-ARCH-004
+  status: resolved
+  reason: The port is split into stampLedger (opaque LedgerStamp) and readLedger(ref, stamp) called only on a miss, the cache keys on the stamp, and the AC-7 row asserts zero readLedger calls on a warm request through the instrumented port.
+- id: PLAN-ARCH-005
+  status: resolved
+  reason: DiagnosticsSink is called once per occurrence by MissionStatusService or the shared ChangeFeed, S6 state lives in the feed, per-subscriber signals carry no diagnostic, and an N=100 subscriber AC-4c test with a revert row is specified.
+- id: PLAN-ARCH-006
+  status: resolved
+  reason: AC-9b is escalated as blocking E-1 (Host/Origin WP not tasked), the per-row expected status and reachesFilter flag are literals fixed in plan section 8 and the spike only confirms them, and divergence fails rather than rewrites the oracle.
+- id: PLAN-ARCH-007
+  status: resolved
+  reason: Section 8 pins the raw Host header, own port from the bound server (WebServerInitializedEvent), forwarded headers refused with a config pin of forward-headers-strategy none, and absolute-form handling per Tomcat; case-insensitivity is escalated as a spec widening (E-7) with a concrete interim (exact match, upper case and trailing dot refused).
+- id: PLAN-ARCH-009
+  status: resolved
+  reason: Section 8 and contract notes now scope HostOriginRefusal.STATUS (403) to the filter own Host/Origin refusals and list the contract-fixed 400/404/409/500 statuses separately.
+- id: PLAN-ARCH-JVM-001
+  status: resolved
+  reason: nativeTest is limited to a JUnit native-tagged subset (AC-9h probe, Jackson/SSE round trip, resource check) with ArchUnit, networknt, goldens and JaCoCo kept on the JVM leg, and the doubled native compile is stated in the leg budget; plan, quickstart and risks agree.
+- id: PLAN-ARCH-JVM-002
+  status: resolved
+  reason: Section 13 specifies SseEmitter(0L) with async request-timeout -1, completion/error/timeout callbacks closing the subscription, disconnect detected on next write, and section 11 adds the idle-past-35-s test with a revert row.
+- id: PLAN-ARCH-JVM-003
+  status: resolved
+  reason: research.md R-2 now has six explicit spike criteria (Jackson major, explicit null, member order, number/non-ASCII bytes, plugin on Gradle 9.7.1, compile) with a go/no-go fallback to hand DTOs, and the Unverified list carries Jackson 3 versus generator output.
+- id: PLAN-ARCH-JVM-004
+  status: resolved
+  reason: Section 13 fixes the canonical form, requires explicit mapper configuration, one shared CanonicalJson class used by both the JVM golden suite and nativeSmoke, a pinned non-ASCII/fractional-progress unit test, and escalates the weakening contingency as E-8.
+- id: PLAN-ARCH-JVM-005
+  status: resolved
+  reason: The verification-metadata recipe is replaced by one Linux run resolving check/nativeCompile/nativeTest/nativeSmoke/jacocoTestReport/openApiGenerate with --refresh-dependencies, verify-only on the other legs with the exact add command printed, and R-4/Unverified 14 record the OS-classifier question.
+- id: PLAN-ARCH-JVM-006
+  status: resolved
+  reason: Section 12 and research R-4 decide no auto-download, no foojay, java.toolchain 25 with unconstrained vendor, JAVA_HOME from setup-graalvm on every leg including the JVM leg, and a build test pinning it; the Temurin 21 facts about contracts workflows match the checkout.
+- id: PLAN-ARCH-JVM-007
+  status: resolved
+  reason: springdoc is now the no-UI starter-webmvc-api on test scope only, the document is generated by a test on an ephemeral loopback port, and a classpath test forbids org.springdoc or swagger-ui on runtimeClasspath; Technical Context, section 12 and section 13 agree.
+- id: PLAN-ARCH-JVM-008
+  status: resolved
+  reason: 'The release job (tag trigger, if: form, per-job contents:write, tag-aware concurrency, disjointness test) is fully specified in section 12 and the AC-15a amendment is escalated as E-4 (which the finding remedy allows), with the concrete interim of exactly the four spec triggers and no release job.'
+- id: PLAN-ARCH-JVM-012
+  status: resolved
+  reason: Unverified items 11-13 add JaCoCo on Java 25/AOT, networknt unevaluatedProperties and the generator plugin on Gradle 9.7.1, each with a WP01 acceptance check, and state the plugin stays equal to pins.json.
+- id: PLAN-VERIFY-001
+  status: resolved
+  reason: packs.yml is added to section 1, section 5 and the phase 2b write scope with the single --deselect token, pinned by test_mission_status_routing.py with a count guard; the checkout confirms the 35 existing deselect entries and none for the new module.
+- id: PLAN-VERIFY-002
+  status: resolved
+  reason: Section 6 step 1 and the section 5 command list now run make test-fast (target exists in the Makefile; charter excludes only full/heavy suites) and record counts in baseline-red.md on both merge-base and branch; quickstart agrees.
+- id: PLAN-VERIFY-003
+  status: resolved
+  reason: Section 5 names jacocoTestCoverageVerification, check dependsOn, CI running check, the class patterns, a non-vacuity floor from the XML report, the pinned minimums in the build test, and section 11 has an NFR-006 revert-fails row.
+- id: PLAN-VERIFY-005
+  status: resolved
+  reason: Section 7 Nightly comparison contract adds a compared-count floor (500) plus an independent git ls-files count, failed-start and one-sided failures, refusal-versus-refusal class comparison, non-shallow checkout, and the matching unit cases.
+- id: PLAN-VERIFY-006
+  status: resolved
+  reason: 'Section 7 defines the outcome: differs rows are reported separately and pass only while the slug set equals the machine-readable ledger exactly, other differences fail, with owner #5631 on each row and unit cases for each outcome; R-9 holds no second copy.'
+- id: PLAN-VERIFY-007
+  status: resolved
+  reason: The section 11 test table now has revert-fails rows for AC-8b, 8c, 8d, 8e, 8f, the Packs deselect and AC-6e with the scratch-copy empirical-run rule.
+- id: PLAN-VERIFY-008
+  status: resolved
+  reason: 'Section 6 step 6 adds CI-level red handling (real conclusion, cancelled/timed_out, head-plus-main, compare to latest main, cite #5838, one diagnosed rerun, run ids in baseline-red.md).'
+- id: PLAN-VERIFY-009
+  status: resolved
+  reason: Section 5 states as fact that test_no_invalid_windows_filenames.py is not on the fast roster (confirmed absent from the registry) and enforces NFR-009 through the build test importing the guard constants (which exist) with a count guard and planted-path control.

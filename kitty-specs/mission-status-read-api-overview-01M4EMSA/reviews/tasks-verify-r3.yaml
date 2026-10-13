@@ -1,0 +1,27 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+profile_applied: reviewer-renata (restating a finding is unresolved; fixes judged on substance, defect class swept, regressions checked)
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: WP10 T053 step 9 now requires eventCount, statusLaneCounts, lastEventId and streamCursor to equal one prefix tuple computed from the final log, asserts the L4 and L4b stages as separate reads, requires the new-prefix item after the newline, adds the statusLaneCounts-from-previous-entry revert row, and WP19 T046 step 4 mirrors the four-field wording; this matches spec AC-4d.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: WP02 line 64 and T010 step 3 now say read the last DD id (DD-39) and continue, tasks-overview section 8 lists DD-19..39 with the never-reuse rule, and no other WP prompt carries a hardcoded next-DD id.
+  - id: TASKS-FRESH2-003
+    status: resolved
+    reason: WP08 T044 step 2 places AllowlistAccess in src/main under Allowlist* and RecordingAllowlistAccess in src/test inside the owned test glob, and WP18 T033 step 1 states rule 11 treats test classes in the adapter.out.filesystem package as in-package.
+  - id: TASKS-FRESH2-004
+    status: resolved
+    reason: FR-007 is in WP19 and FR-009 in WP17 in wps.yaml and in both prompt frontmatters (programmatic compare of requirement_refs and owned_files for all 20 WPs against wps.yaml shows zero differences), tasks.md carries them, and overview section 3.1 rows list WP19 and WP17.
+  - id: TASKS-FRESH2-005
+    status: resolved
+    reason: tasks-overview section 1 now states that every lane-b claim re-merges the current lane-a and lane-planning tips, adds the claim-WP07-first or re-run-T022-sweep rule, and names DependencyLaneMergeConflictError as a lane-graph collision, not a WP defect; the tooling-friction note matches.
+  - id: TASKS-FRESH2-006
+    status: resolved
+    reason: jacoco-class-floor.properties is in WP18 owned_files (wps.yaml and frontmatter) and overview section 7 describes the WP18 edit as in-map; only a nit remains, WP18 T035 step 1 still says the file is 'owned by WP05/WP17/WP06' without adding WP18, which is harmless.
+  - id: TASKS-FRESH-009
+    status: resolved
+    reason: Overview section 6 and WP16 now say nine of eleven open PRs edit the CHANGELOG including #6004 with a re-run-before-claim sentence, and no stale 'seven/eight/10 open' count survives outside historical remarks.
+validate_only: finalize-tasks --validate-only returned validation_passed, 20 WPs, tasks_md_stale false, nothing would be modified

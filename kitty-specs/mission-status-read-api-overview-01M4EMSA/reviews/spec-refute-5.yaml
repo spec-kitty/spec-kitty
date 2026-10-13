@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 5
+verdicts:
+  - id: SPEC-VERIFY-007
+    verdict: confirmed
+    reason: FR-009 says "One test each" and AC-9b/9c use only evil.example, AC-9a names no observable, and Q-5 only defers the status code, so suffix-match, port and null-Origin variants are genuinely unspecified.
+  - id: SPEC-VERIFY-008
+    verdict: confirmed
+    reason: AC-8a names no perturbation mechanism, no AC states full-document exact comparison, and build_overview in the test helper is the generator source so the Python golden test is circular for derivations.
+  - id: SPEC-VERIFY-009
+    verdict: refuted
+    reason: The nightly runs against a CI checkout, not a live appended-to tree, so the race is speculative, and FR-008 (iv) plus AC-8c already require failing on the first differing Mission with its slug.
+  - id: SPEC-VERIFY-010
+    verdict: confirmed
+    reason: AC-15b only checks that routes respond and the SSE Content-Type while NFR-005 demands byte-identical responses on four OS targets, and no AC compares native output to goldens.
+  - id: SPEC-VERIFY-011
+    verdict: confirmed
+    reason: The Concurrent writer edge case (line 106) claims a torn line never yields a wrong overview but AC-4b only covers a static half line, and no AC appends during a read.
+  - id: SPEC-VERIFY-012
+    verdict: refuted
+    reason: FR-004 only escalates a contract gap to the contract owners as a plan-time question, which does not itself edit contracts/, and the Baseline section already names tests/contract and tests/ci and requires capturing the red set.
+  - id: SPEC-VERIFY-013
+    verdict: confirmed
+    reason: NFR-004 states no heap bound or thread-count threshold and AC-8b only checks class tags and file count, so a trivial golden carrying the tag passes.

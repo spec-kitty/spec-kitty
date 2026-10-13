@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 4
+verdicts:
+  - id: TASKS-SEQ-004
+    verdict: refuted
+    reason: WP07 oracle goldens come from the Python generator, which no WP02 Java outcome (R-2, E-8, JFR) can change, and WP07 explicitly justifies dropping the edge (lane-graph cycle); the claimed shape shift is speculative.
+  - id: TASKS-SEQ-005
+    verdict: confirmed
+    reason: Live gh query shows #6002 and #5953 edit CHANGELOG.md beyond the listed seven, #5951 edits mission_metadata.py (imported by tests/contract/_mission_status_payloads.py) and #5953 edits subtask_rows.py, none named in tasks-overview section 6.
+  - id: TASKS-SEQ-006
+    verdict: refuted
+    reason: The need for a WP11 native hint is hypothetical ("if any"), and WP10 T-step already states that a missing hint found at WP12/WP04 legs returns as a fix, so the hand-off is not unhandled.
+  - id: TASKS-SEQ-007
+    verdict: confirmed
+    reason: wps.yaml lists the workflow as WP16-owned and overview section 7 ends the order at WP16, yet WP16 T080 step 2 calls the edit WP15's last edit and an out-of-map edit.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: WP02 fetches the toolchain only into a session scratchpad and no artifact provisions or records JAVA_HOME/Gradle for WP03 onward, while WP03 T011/T017 require a green build on JDK 25 (later WPs hedge with "otherwise CI", so severity 3 is closer than 4).
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: WP02 T004 step 1 only fetches the .sha256 and says to generate a wrapper, and WP03 T011 step 3 assumes a locally installed Gradle 9.7.1, while no step downloads or unpacks the distribution.
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: WP03 T014 treats native execution as optional ("if GraalVM is present") but T015 step 1 mandates a local nativeCompile/nativeTest/nativeSmoke resolution run with no precondition gate or fallback.

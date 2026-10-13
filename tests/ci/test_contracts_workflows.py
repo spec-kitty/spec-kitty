@@ -51,6 +51,10 @@ EXPECTED_PATHS = [
     "tests/conftest.py",
     "src/specify_cli/status/lifecycle_events.py",
 ]
+# Globs the contract_tools router group names although contracts.yml does not trigger on them, as (glob, one-line rationale)
+# pairs: the rationale is mandatory per entry, so the rule is structural rather than a comment. Empty at this commit; the
+# mission-status-read-api-overview Mission (plan.md section 9, WP07) adds the first entry, the conformance goldens glob.
+ROUTER_ONLY_EXTRA_GLOBS: tuple[tuple[str, str], ...] = ()
 # The contract tool unit tests run in a router job (a required check through router-gate), not in contracts.yml, which runs no
 # pytest at all. The router's corpus job runs only the modules that read committed Missions, to stay within its time budget.
 ROUTER_PATH = WORKFLOWS_DIR / "ci-router.yml"
@@ -1226,6 +1230,11 @@ def test_the_contract_tools_filter_group_names_the_paths_the_contracts_workflow_
     # The lifecycle source is spelled without its src/ prefix so the group stays non-src (a src glob would make it a code-shard gate).
     spelled = ["**/status/lifecycle_events.py" if path == "src/specify_cli/status/lifecycle_events.py" else path for path in beyond_contracts]
     spelled += [glob for glob in group if glob.startswith("**/") and glob != "**/status/lifecycle_events.py"]  # the reader's src imports: their own test pins them
+    assert isinstance(ROUTER_ONLY_EXTRA_GLOBS, tuple), "ROUTER_ONLY_EXTRA_GLOBS must be a tuple of (glob, rationale) pairs"
+    well_formed = all(isinstance(e, tuple) and len(e) == 2 and all(isinstance(part, str) and part.strip() for part in e) for e in ROUTER_ONLY_EXTRA_GLOBS)
+    assert well_formed, "every router-only extra needs a glob and a non-empty rationale"
+    assert len({glob for glob, _why in ROUTER_ONLY_EXTRA_GLOBS}) == len(ROUTER_ONLY_EXTRA_GLOBS), "router-only extra globs must be unique"
+    spelled += [glob for glob, _why in ROUTER_ONLY_EXTRA_GLOBS]  # router-only extras: documented, each with a rationale
     assert sorted(group) == sorted(spelled), "the router group and the Contracts workflow trigger list must not drift"
     assert not any(glob.startswith("src/") for glob in group), "a src glob would make the group a code-shard gate"
     assert "contracts/**" in filters["corpus"], "contracts/** stays owned by the corpus group"

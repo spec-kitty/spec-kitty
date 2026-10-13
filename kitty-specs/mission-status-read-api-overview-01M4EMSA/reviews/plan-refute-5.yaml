@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 5
+verdicts:
+  - id: PLAN-GOV-005
+    verdict: confirmed
+    reason: ".gitattributes appears in plan section 11 phase 2b but not in section 1 or the section 4 diff-check sentence (docs and changelog are named in section 1, so that part is overstated, but the .gitattributes omission stands)."
+  - id: PLAN-ARCH-004
+    verdict: confirmed
+    reason: "data-model.md Ports and I-2 make the cache key (streamCursor, size, mtime, file key) available only from readLedger, which already returns the bytes, so a warm request still performs every ledger read and the port leaks filesystem notions."
+  - id: PLAN-ARCH-009
+    verdict: confirmed
+    reason: "plan.md section 8 ends 'One status constant remains the rule for every refusal the service itself makes' while service-contract-notes.md fixes 400/404/409/500 refusals, so the sentence is over-broad as quoted."
+  - id: PLAN-ARCH-JVM-004
+    verdict: confirmed
+    reason: "Spec compares canonical serialisation yet AC-15b requires raw byte equality, and a grep of plan, research, data-model and contract notes finds no mapper configuration or single shared canonicalisation decision."
+  - id: PLAN-ARCH-JVM-010
+    verdict: refuted
+    reason: "Unverified item 8 and tracer-tooling-friction item 4 already direct AC-15d to run all workflow-enumerating tests (including test_gate_os_tier, test_dual_mode_contract) on the first workflow commit, and the plan never proposes a NON_CHANGE exclusion, so the remaining gap is only an incomplete section 5 command list."
+  - id: PLAN-VERIFY-003
+    verdict: confirmed
+    reason: "plan.md section 5 names the JaCoCo thresholds but no task name, include patterns or non-zero-match guard, and the NFR-006 traceability row has no revert-fails entry in the test-strategy table."
+  - id: PLAN-VERIFY-008
+    verdict: confirmed
+    reason: "Section 6 steps 1-5 only compare local targeted runs, while the plan itself notes corpus-blocking is at budget (#5838, 20-minute cap in ci-router.yml) and selected by this mission's kitty-specs edits, with no step classifying cancelled or timed-out CI jobs."

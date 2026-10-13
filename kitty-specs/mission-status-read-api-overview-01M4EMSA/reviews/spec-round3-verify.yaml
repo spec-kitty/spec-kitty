@@ -1,0 +1,37 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-101
+    status: resolved
+    reason: Row L3 is split into L3a (/project, settled by Project.lastActivityAt) and L3b (/missions, INTERIM inference blocked on Q-1), Q-1 now says the contract is silent for /missions, and AC-4a asserts the two outcomes separately.
+  - id: SPEC-FRESH-102
+    status: resolved
+    reason: New row L11 covers unreadable meta.json and unreadable Mission directories (500, codes meta_unreadable/mission_dir_unreadable, Q-1 status), a directory without meta.json is explicitly not a Mission, and FR-001, FR-006 rule 3, the malformed-rows class and AC-4a/4c all cite it.
+  - id: SPEC-FRESH-103
+    status: resolved
+    reason: FR-003 now states a distinct unscoped rule (drop only the faulty Mission, keep the connection), flags it under Q-2, and AC-3j/AC-3k carry unscoped variants with an unaffected-Mission control; AC-3m covers an appearing Mission (row L10 text still says "ends as in L2" without a scope qualifier, a nit that FR-003 disambiguates).
+  - id: SPEC-FRESH-104
+    status: resolved
+    reason: AC-11c now defines a mutate-the-contract-copy build test with a positive control, and states the C-007 hand-written-DTO fallback with a drift test and a mode assertion so it cannot pass vacuously.
+  - id: SPEC-FRESH-105
+    status: resolved
+    reason: FR-013 now separates the port-level subset (committed id list with a floor) from filesystem/HTTP adapter suites exempt from AC-13a, names MissionEventSource as the replaced seam, and AC-13a asserts the executed id set equals the file.
+  - id: SPEC-FRESH-106
+    status: resolved
+    reason: Reflexivity item 2 now lists the _CORPUS_MARKED_MODULES registry edit (AC-8f), drops "No other pinning test changes" in favour of a plan grep task, and AC-15d adds the registry and further tests; I confirmed the registry test, the 19-file count and the ceiling of 20 exist in the checkout.
+  - id: SPEC-FRESH-107
+    status: resolved
+    reason: FR-009 states that v1 has no allowed-origin configuration so only the two own-port loopback forms are accepted, and Q-5 is reduced to the 403/421 status code.
+  - id: SPEC-FRESH-108
+    status: resolved
+    reason: FR-008 and SC-001 now say "the four classes (five fixtures) of decision Q1" and name the classes, matching the Q1 text.
+  - id: SPEC-FRESH-109
+    status: resolved
+    reason: FR-003 adds an unterminated-tail rule (left unconsumed, no event, close or diagnostic until the newline) for both scopes, with AC-3l asserting exactly one event with the full-row cursor.
+  - id: SPEC-FRESH-110
+    status: resolved
+    reason: Q-1 now lists L9 and L11, Q-2 lists L10 and AC-3k, the wall-clock list includes AC-3k, and AC-4c states the L6 /events 404 writes no diagnostic and asserts so.
+  - id: SPEC-FRESH-111
+    status: resolved
+    reason: User Story 2 scenario 2 now fixes 409 out_of_range for the shrink and cites AC-3c for the same-length rewrite as content_mismatch.

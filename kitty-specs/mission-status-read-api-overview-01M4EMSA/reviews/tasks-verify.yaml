@@ -1,0 +1,16 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH3-001
+    status: resolved
+    reason: WP19 T046 step 00 creates package-local AdapterServiceHarness in WP19's owned test glob (no testsupport edit), WP19 transitively depends on WP06 (FixtureHandles, executor, recorder) and WP17 via WP08->WP18, and WP09 FilesystemFixtureFactory is stated as the later replacement; DD-45 and overview item 15 record it.
+  - id: TASKS-FRESH3-002
+    status: resolved
+    reason: Steps 4, 5, 8 name FilesystemMissionEventSource{TornTail,Stamp,AllowlistFlow}Test, the Files line states every T046 test class starts with FilesystemMissionEventSource, and the class was swept to WP08 T042-T045 and WP10 T053 Validation lines.
+  - id: TASKS-FRESH3-003
+    status: resolved
+    reason: Overview section 9 item 15 added (rule 11 in-package reading, src/test recorder, WP18 floor ownership; item 13 marked superseded) and WP18 T033 step 1 now says "as written" with the item 15 pointer.
+  - id: TASKS-FRESH3-004
+    status: resolved
+    reason: WP18 T035 step 1 now reads created by WP05, raised by WP17 and WP06, owned by WP18 for its one raise, matching the frontmatter.

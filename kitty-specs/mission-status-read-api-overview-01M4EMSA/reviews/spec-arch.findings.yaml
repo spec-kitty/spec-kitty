@@ -1,0 +1,156 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: SPEC-ARCH-001
+    lens: "M-B Read allowlist and path-resolver parity"
+    severity: 4
+    title: FR-006 describes the resolver as "coordination worktree if it exists, else primary"; the real resolver decides by stored topology
+    evidence:
+      - artifact: "spec.md § FR-006, Edge Cases (coordination-topology), R-1"
+      - code: "src/specify_cli/missions/_read_path_resolver.py:340-420 (_resolve_existing_for_slug: a stored coord-less topology resolves PRIMARY regardless of a coord husk; only coord-routing topologies consult the coord worktree; topology None falls back to a probe plus fail-closed StatusReadPathNotFound)"
+      - code: "src/specify_cli/missions/_read_path_resolver.py:164-215 (classify_from_meta reads meta.json topology / coordination_branch and lanes.json)"
+      - code: "tests/contract/_mission_status_payloads.py:700-717 (the reference oracle falls back to the Mission's own directory on CoordinationBranchDeleted, CoordAuthorityUnavailable, MissionMetadataUnavailable, or a read dir outside the checkout)"
+    claim: >-
+      FR-006 and AC-6a/6b state the rule as existence-driven. The Python resolver is driven by the topology stored in
+      meta.json (a stale coord husk beside a single_branch or lanes Mission must NOT be read, which is the #2062 close), and
+      has typed fail-closed outcomes. A Java port written to the spec text would read the husk for such Missions and diverge
+      from the golden oracle. The coordination fixture set (one coord Mission with a stale primary copy) does not include
+      the husk-beside-primary-topology case, so the gate would not catch it.
+    remediation: >-
+      Rewrite FR-006 as: the topology stored in the primary meta.json decides (coord and lanes_with_coord consult the coord
+      mission dir if present; lanes, single_branch and absent-topology classification follow classify_from_meta), and list the
+      typed fallbacks the oracle maps to "read the own directory". Add a curated fixture class for "stale coord husk beside a
+      single_branch Mission" (AC-6 variant) and require the Java resolver to be table-driven from the same cases as the Python resolver tests.
+  - id: SPEC-ARCH-002
+    lens: "M-B Read allowlist and path-resolver parity"
+    severity: 4
+    title: FR-010 allowlist omits files and git state the reference derivation and resolver read, and the Java side cannot mirror the git probes
+    evidence:
+      - artifact: "spec.md § FR-010 (items 1-5), AC-10a, FR-006, Q-3"
+      - code: "src/specify_cli/missions/_read_path_resolver.py:208-215 (classify_from_meta reads lanes.json on the absent-topology arm)"
+      - code: "src/specify_cli/coordination/surface_resolver.py:623-675,691-780 (is_registered_coord_worktree and _coord_branch_exists run git subprocesses: worktree list, rev-parse, refs/remotes scan, remote probe)"
+      - code: "src/specify_cli/missions/_read_path_resolver.py:288-310 (probe_coord_state: DELETED verdict needs a git rev-parse of the declared coordination_branch)"
+      - code: "src/specify_cli/status/reducer.py:387 and 300-310 (materialize_snapshot reads status.json via _target_schema_version to pick the snapshot generation)"
+    claim: >-
+      The allowlist names meta.json, config.yaml, metadata.yaml, HEAD and two directory listings. It does not name
+      lanes.json (read by the resolver on the un-backfilled arm), nor any git registry or ref state (.git/worktrees, packed-refs,
+      refs/heads, refs/remotes) that decides DELETED versus UNMATERIALIZED and registered-coord versus husk. FR-016/AC-10c
+      forbid spawning a process, so the Java service cannot reproduce those verdicts, yet FR-005/FR-006 promise "behaviour equals
+      Python's" and AC-6c pins a "declared but missing coordination worktree" golden generated from live Python (which spawns git).
+      Either the allowlist test will miss a needed read, or the golden will encode behaviour Java structurally cannot produce.
+      Separately, status.json is read by materialize_snapshot (schema generation only; no overview field depends on it), which
+      should be stated so "never status.json" is not read as "the oracle never reads it".
+    remediation: >-
+      Enumerate the resolver's real inputs and decide each: add lanes.json (and its tolerance rule: corrupt means no lanes) to the
+      allowlist or declare the absent-topology arm unsupported with an explicit failure; for the git-dependent verdicts, either
+      add named ref files to the allowlist with a file-based reimplementation, or exclude declared-but-absent coordination from
+      the curated goldens and record the divergence in FR-006 (not only in Q-3). Add one sentence that the oracle's status.json read
+      affects only snapshot generation fields absent from the overview.
+  - id: SPEC-ARCH-003
+    lens: "Contracts"
+    severity: 4
+    title: FR-004 and Edge Cases invent a per-Mission failure state and call Q-1 open, but the contract already fixes the unreadable and unparseable log outcomes
+    evidence:
+      - artifact: "spec.md § Edge Cases (unreadable event log, malformed event), FR-004, Open Questions Q-1"
+      - code: "contracts/mission-status/schemas/MissionHead.yaml:139-141 (lifecycleStatus: wpTotal 0 'including an unreadable event log' reads draft)"
+      - code: "contracts/mission-status/schemas/Project.yaml (lastActivityAt: an event log that cannot be decoded or parsed fails the whole read with a 500; a Mission whose status.json cannot be read leaves its activity out)"
+      - code: "src/specify_cli/status/store.py:566-576 (read_events_raw raises StoreError on invalid JSON or non-object line)"
+    claim: >-
+      The contract defines: an unreadable log yields wpTotal 0 and lifecycleStatus draft; an undecodable or unparseable log fails the
+      whole read with a 500 Problem. The spec instead requires that an unreadable log never be reported as an empty healthy
+      Mission and that the service report a per-Mission state, and parks this as Q-1. As written, AC-4a ("fails if the response is a
+      healthy overview with zero counts") contradicts the contract's own draft rule, and a Java port that follows Python's
+      StoreError (whole-request failure) contradicts the "report per Mission" text. The Project description also names status.json
+      as a lastActivityAt input, which contradicts FR-010's exclusion of status.json (the Python helper takes it from the snapshot,
+      tests/contract/_mission_status_payloads.py:882).
+    remediation: >-
+      Replace Q-1 with a resolution drawn from the contract text: unreadable (I/O) log gives the contract's draft overview plus a
+      path-free diagnostic (FR-004 AC-4c); unparseable log gives 500 Problem on the page and on /project. Make AC-4a assert those exact
+      observables. If the operator wants a stronger per-Mission signal, state it as a contract change request owned by contracts/
+      (versioned, not silently exceeded). Add to FR-010 a note that the Project.lastActivityAt wording citing status.json is
+      stale text, and that the service derives it from the reduced ledger.
+  - id: SPEC-ARCH-004
+    lens: "M-B Read allowlist and path-resolver parity"
+    severity: 3
+    title: Torn-final-line behaviour has no single Python reference, and AC-4b requires a report the oracle never emits
+    evidence:
+      - artifact: "spec.md § FR-004, AC-4b, Edge Cases (truncated or torn final line, concurrent writer), FR-005 last sentence"
+      - code: "src/specify_cli/status/tail_reader.py:247-250 (poll_once: an unterminated trailing remainder is left unconsumed, not parsed, not signaled)"
+      - code: "src/specify_cli/status/store.py:553-576 (read_events_raw, used by materialize_snapshot, raises StoreError on a non-JSON line, torn tail included)"
+      - code: "tests/contract/_mission_status_payloads.py:727-741 (load_source uses poll_once for rows and cursor, but materialize_snapshot for the snapshot)"
+    claim: >-
+      The Python oracle composes two readers with different torn-tail semantics: the cursor and rows tolerate a tail without newline,
+      while the snapshot reduction raises on it. The overview needs both (eventCount, lane counts from the reducer; streamCursor from the
+      tail reader). The spec says the Java reducer must match Python "where Python skips or refuses" and also that the torn tail is
+      "reported", but Python reports nothing and may refuse the whole read. The five fixture classes include "log-truncated" but not
+      "torn final line", so the case is untested by the golden gate.
+    remediation: >-
+      Add a sixth curated class (torn final line) and state in FR-004 what the oracle does (record it from live Python), then say whether
+      the Java service mirrors the refusal or the tolerated-tail reading. Reword AC-4b to assert the golden outcome and the
+      path-free diagnostic, dropping "torn tail is reported" unless a contract surface for it is named.
+  - id: SPEC-ARCH-005
+    lens: "M-B Read allowlist and path-resolver parity"
+    severity: 3
+    title: FR-010 does not say which directory each file is read from; the oracle reads meta.json from the Mission's own directory and the ledger from the resolved read dir
+    evidence:
+      - artifact: "spec.md § FR-010 items 1-2 ('<mission dir>'), FR-006"
+      - code: "tests/contract/_mission_status_payloads.py:722-741 (load_meta and resolve_mission_identity on the own primary dir; status.events.jsonl from read_dir)"
+      - code: "src/specify_cli/status/reducer.py:399 (materialize_snapshot additionally calls resolve_mission_identity on the read dir, so a second meta.json is read)"
+    claim: >-
+      The allowlist says "<mission dir>/meta.json" and "<mission dir>/status.events.jsonl" as if one directory. In a coord Mission the
+      ledger lives under .worktrees/<slug>-<mid8>-coord/kitty-specs/..., while identity and dates come from the primary checkout. An
+      allowlist test written per "mission dir" will either reject the legitimate coord ledger path or accept a read of the coord
+      meta.json that the overview does not need (and which may be absent: sparse checkout).
+    remediation: >-
+      Split item 1 and 2: ledger from the resolved read dir (primary or coord), meta.json from the primary Mission directory only. State
+      that the coord copy of meta.json is not read for the overview, and that identity fields never depend on it.
+  - id: SPEC-ARCH-006
+    lens: "Reflexivity"
+    severity: 3
+    title: Reflexivity understates the shared-surface edits; the router and its pinning tests also change, and golden edits under services/ would not trigger the Python gate
+    evidence:
+      - artifact: "spec.md § Reflexivity ('The one shared-surface edit is the Python goldens test joining the contract_tools/corpus routing'), FR-008 (ii), SC-007"
+      - code: ".github/workflows/ci-router.yml:284-310 (contract_tools filter: tests/contract/**, contracts workflows, specific src files; no services/** path)"
+      - code: ".github/workflows/ci-router.yml:1005-1030 (corpus-blocking and contract-tools jobs name tests/contract modules explicitly; tests/ci/test_contracts_workflows.py and tests/ci/test_corpus_blocking_home.py pin that every tests/contract module has exactly one home)"
+    claim: >-
+      A new Python golden test under tests/contract/ must be given a home in ci-router.yml (and the pinning tests updated), and the goldens
+      live under services/mission-status-api/src/test/resources/conformance/, a path in no router filter group. A PR that edits only a golden
+      or only Java would therefore not run the Python test that asserts goldens equal live Python, which defeats FR-008(ii). The reflexivity
+      section also says nothing of ci-router.yml edits, so "no behaviour change" is only partly verified, and SC-007 ("a services/**-only PR
+      triggers the new workflow and no Python shard") conflicts with adding services/** conformance paths to the contract_tools group.
+    remediation: >-
+      Add to Reflexivity and FR-008 an explicit list: ci-router.yml filter edit (add the conformance goldens path to contract_tools only), the
+      tests/ci pinning tests touched, and the home of the new tests/contract module. Reword SC-007 to "no src-backed Python shard" and add an
+      AC that a golden-only diff selects the contract-tools job.
+  - id: SPEC-ARCH-007
+    lens: "M-B Read allowlist and path-resolver parity"
+    severity: 2
+    title: Java reads the HEAD file where the oracle runs git; the allowlist entry ".git/HEAD" is wrong for worktree checkouts
+    evidence:
+      - artifact: "spec.md § FR-001 (HEAD file), FR-010 item 5 ('.git/HEAD')"
+      - code: "src/specify_cli/core/git_ops.py:144-165 (get_current_branch runs git via subprocess; None for detached HEAD)"
+      - code: "contracts/mission-status/schemas/Project.yaml (currentBranch: read from the HEAD file with no process started; x-source cites get_current_branch)"
+    claim: >-
+      The contract and spec choose a file read, but the Python oracle (get_current_branch) uses git, so unborn branches, a gitfile
+      (.git is a file in a linked worktree, which a service started in one would meet), and symbolic-ref forms can differ. The allowlist
+      names a fixed path ".git/HEAD" that does not exist in that case.
+    remediation: >-
+      State in FR-001/FR-010 that .git may be a gitfile and give the rule (follow the gitdir pointer, read HEAD there) or declare linked
+      worktrees unsupported with a failure; add a project-header golden for unborn and detached HEAD generated by the same script.
+  - id: SPEC-ARCH-008
+    lens: "Layering"
+    severity: 2
+    title: "Inbound port mirrors the Python read port 'one to one' but the Python port does not exist; the contract operations are the only anchor"
+    evidence:
+      - artifact: "spec.md § Clarifications (Architecture), C-003, FR-013, R-8"
+    claim: >-
+      The mirror requirement is stated as a constraint while FR-013 admits the target is absent. The spec is internally honest about
+      this, but C-003 says Active with no acceptance check, so "one to one" cannot fail. Layering is otherwise correct: no src/ change, Python
+      reducer reached only through the oracle (FR-008), and C-009 keeps services/ out of the wheel.
+    remediation: >-
+      Restate C-003 as "mirrors the three contract operations today", with the re-check against #5532 as an item owned by that mission; keep
+      the explicit no-src-change line in Out of Scope as the layering gate.

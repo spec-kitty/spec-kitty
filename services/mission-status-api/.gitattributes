@@ -1,0 +1,11 @@
+# Every byte-compared or sha-pinned file keeps LF in every checkout (leak-patterns.json, README.md, the nativesmoke goldens and
+# requests.json, the wrapper properties): a Windows autocrlf checkout would otherwise change their bytes and break the sha256 and
+# golden comparisons. `text=auto` leaves binary files (the wrapper jar) alone.
+* text=auto eol=lf
+*.jar binary
+# gradlew must keep LF in every checkout (a CRLF script fails under bash); the batch file keeps CRLF, as Gradle ships it.
+/gradlew text eol=lf
+*.bat text eol=crlf
+# The conformance corpus is byte-exact by design (it holds CRLF and non-UTF-8 fixtures): no conversion at all. Repeated here because
+# this file is deeper than the repository root's own `-text` rule for the same tree and would otherwise override it.
+/src/test/resources/conformance/** -text

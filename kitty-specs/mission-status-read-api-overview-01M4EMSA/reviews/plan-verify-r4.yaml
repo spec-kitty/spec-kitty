@@ -1,0 +1,133 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+- id: PLAN-FRESH3-001
+  status: resolved
+  reason: plan.md section 13 Projection bullet, package tree (domain.projection), data-model.md type row,
+    diagnostics list now carries projection_refused, section 11 AC-9g row has the goldens, revert rows
+    and per-pattern Java probe test; leak-patterns.json generated from leak_patterns.py with manifest
+    SHA-256; phase 2a/2b/4a scopes assigned.
+- id: PLAN-FRESH3-002
+  status: resolved
+  reason: Section 1 now registers CoordinationWorkspace.worktree_path (worktree root), checks COORD_WORKTREE/UNREGISTERED
+    via classify_worktree_topology, adds the planted control that registers coord_feature_dir, and states
+    which fixture classes need git.
+- id: PLAN-FRESH3-003
+  status: resolved
+  reason: Section 1 specifies HEAD / GITDIR_POINTER / gitdir-target fixture layout, one shared materialisation
+    step (generator, honesty test, Java factory), no git init for these, and the honesty assertion on
+    read_head; manifest records headText; service-contract-notes updated.
+- id: PLAN-FRESH3-004
+  status: resolved
+  reason: 4a gate and Parallelism paragraph now say 4a real-socket/canary/wiring tests and phase 5 follow
+    phase 3; config.ServiceWiring added to the tree and owned by 4a.
+- id: PLAN-FRESH3-005
+  status: resolved
+  reason: jacocoScopeCheck is a Gradle task in phase 1; scripts/ci/mission_status_gate_checks.py (digests,
+    native-tag-floor) with tests/ci test, owners and scopes named; the 'only ones' sentence lists them.
+- id: PLAN-FRESH3-006
+  status: resolved
+  reason: adapter.out.filesystem.ProjectRootCheck created in phase 1 and called from config; section 13
+    Bind bullet and phase 1 row say so.
+- id: PLAN-FRESH3-007
+  status: resolved
+  reason: Section 7 Refusal bullet reduces the contract to what HTTP shows (any 500 or oracle refusal
+    fails and names the side); per-Mission refusal comparison kept as a library function with unit cases
+    only.
+- id: PLAN-FRESH3-008
+  status: resolved
+  reason: Husk is 'same by code reading' / 'unknown until the first oracle run' with the cited functions;
+    'differs' only if the run shows it.
+- id: PLAN-FRESH3-009
+  status: resolved
+  reason: 4a scope now has src/test/java/**/skeleton/** (deletion only) and owns the accepted-Host 404
+    assertions; 4b keeps only the foreign-Host 403 variants. (A residual ownership hole for the contractdoc
+    test directory is a new finding, PLAN-NEW4-001.)
+- id: PLAN-FRESH3-010
+  status: resolved
+  reason: 'Section 1 script bullet: repo root bootstrapped onto sys.path for scripts.* and tests.*, ContractTools
+    built inside pytest.MonkeyPatch.context(), unit test covers both.'
+- id: PLAN-FRESH3-011
+  status: resolved
+  reason: jvm job carries guard then != 'schedule', is a gate need (section 5, section 12 table row, research.md
+    R-6) and AC-15a(iii) pins its if:.
+- id: PLAN-NEW3-001
+  status: resolved
+  reason: Phase 1 owns the jacocoScopeCheck task (tolerant of an absent floor file only while no domain/application
+    class exists), 2a owns the floor file; revert evidence and build pin test named (section 5, section
+    11 NFR-006 row).
+- id: PLAN-NEW3-002
+  status: resolved
+  reason: Phase 3 creates the README stub with the allowlist fenced list so AC-10b runs in phase 3; phase
+    5 extends it; write-scope paragraph and chokepoint list agree.
+- id: PLAN-NEW3-003
+  status: resolved
+  reason: Phase 1 owns the native test source set and three skeleton @Tag(native) tests so nativeTagFloor
+    is 3 from the first leg; 4a replaces them (native test source set in 4a scope).
+- id: PLAN-NEW3-004
+  status: resolved
+  reason: 4a scope includes src/test/java/**/skeleton/** (deletion only).
+- id: PLAN-NEW3-005
+  status: resolved
+  reason: 2a row adds a guard test that every INTERIM_GOLDEN_DEPENDENT_IDS member is an AC-2a id (with
+    a revert), and phase 3 adds a reflection test that the constant no longer exists.
+- id: SPEC-CLOSEOUT-NEW-001
+  status: resolved
+  reason: spec.md line 26 now says 'The 2026-10-08 decisions below'.
+- id: SPEC-CLOSEOUT-NEW-002
+  status: resolved
+  reason: Q-section intro rewritten so 'Interim' applies only to Q-3 and the missing-directory bullet
+    no longer reads 'is decided' redundantly.
+new_findings:
+- id: PLAN-NEW4-001
+  severity: 2
+  title: The phase 1 contractdoc test directory has no owner after phase 4a deletes the skeleton route
+    it tests, and 4a has no scope for the AC-11d tests
+  evidence:
+  - 'plan.md section 11 phase 1 row: write scope includes src/test/java/**/{skeleton,contractdoc,nativesmoke}/**
+    and the ''contractdoc test that the served bytes equal the bundled document'' against the skeleton
+    route in adapter.in.http.skeleton (deleted by 4a)'
+  - 'plan.md phase 4a row: test scope is src/test/java/**/{adapter/in/http,config}/**, skeleton/** (deletion
+    only) and the native test source set; contractdoc is not listed, yet the row assigns ''the contract-document
+    tests (AC-11d)'' to 4a'
+  - plan.md 'Write-scope completeness' claims every path of the section 13 tree (which lists contractdoc)
+    is owned by exactly one phase; contractdoc is phase 1 alone, so the test either breaks at 4a (its
+    target route is deleted) or is edited out of scope
+  remediation: Add src/test/java/**/contractdoc/** to 4a's write scope (4a replaces the skeleton test
+    with the real AC-11d test against ContractDocumentController), or state that 4a places the AC-11d
+    tests under adapter/in/http and deletes contractdoc together with skeleton; amend the 'Write-scope
+    completeness' sentence to match.
+- id: PLAN-NEW4-002
+  severity: 1
+  title: Spec E-10 and AC-8c say the nightly names the Mission for any difference; plan section 7 cannot
+    do so for a whole-read 500
+  evidence:
+  - 'spec.md E-10: ''The nightly fails on any Java/Python difference and names the Mission and the class'''
+  - 'plan.md section 7 ''No exemption'' bullet and section 14 E-10 row: for a whole-read 500 the Mission
+    is not observable over HTTP, so the line names the side, the route and the Problem code'
+  remediation: Add one clause to spec E-10 or AC-8c (or a line in plan.ruling.md) that a whole-read refusal
+    is named by side, route and Problem code because it is not attributable to a Mission over HTTP, so
+    spec and plan state the same contract.
+decisions:
+- id: E-1
+  applied: true
+  note: Consistent in spec (AC-9b two sets, FR-009, Q-5), plan sections 8, 11, 14, research.md, service-contract-notes
+    (stale 'row 8, escalated as E-1' text replaced); no valve text remains; 8 filter rows and 1 container
+    row agree across spec and plan.
+- id: E-4
+  applied: true
+  note: Spec FR-015/AC-15a(iv-vii), plan section 12 release job (pattern, if:, contents:write on that
+    job only, tag-aware concurrency, disjointness test), phase 5 scope, section 11 AC-15 row, research.md
+    workflow note ('no release job until E-4' removed). Spec and plan expressions are identical. Residual
+    only PLAN-NEW4-001 unrelated.
+- id: E-10
+  applied: true
+  note: No exemption mechanism in spec, plan section 7, research.md R-9, section 14; only the minor wording
+    gap PLAN-NEW4-002.
+- id: E-11
+  applied: true
+  note: No springdoc dependency or property anywhere except explicit 'no springdoc' statements and the
+    404 rows; spec FR-009/FR-011 (AC-11d)/C-001/C-004, plan 1/11/13/14, research.md, quickstart and service-contract-notes
+    agree; the superseded round-2 research note is marked superseded. Only the contractdoc ownership gap
+    (PLAN-NEW4-001) touches this route.

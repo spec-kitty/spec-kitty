@@ -1,0 +1,39 @@
+{
+  "accept_commit": "a47ec769b1bde027b25990ec2d2dc0e4f72013a5",
+  "acceptance_history": [
+    {
+      "accept_commit": "d6268407c3cef3ac4395c4d3edd7947a7a4f2282",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-13T06:57:09.791049+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "f1bcf7b2de56c4850b4e8f1c5f6a66bdc8114636"
+    },
+    {
+      "accept_commit": "a47ec769b1bde027b25990ec2d2dc0e4f72013a5",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-13T10:04:03.443481+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "cc054eb1c486a2e0661d1c863b35e3c1ecef8a88"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-13T10:04:03.443481+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "cc054eb1c486a2e0661d1c863b35e3c1ecef8a88",
+  "created_at": "2026-10-08T20:55:26.264798+00:00",
+  "flattened": false,
+  "friendly_name": "Mission Status Read API: overview from the ledger and events",
+  "mid8": "01M4EMSA",
+  "mission_id": "01M4EMSAR6HTV5FK2KTHMBTCF8",
+  "mission_number": 226,
+  "mission_slug": "mission-status-read-api-overview-01M4EMSA",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Mission Status Read API: overview from the ledger and events on issue-5529-mission-status-read-api-overview so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Mission Status Read API: overview from the ledger and events",
+  "slug": "mission-status-read-api-overview-01M4EMSA",
+  "status_phase": "1",
+  "target_branch": "issue-5529-mission-status-read-api-overview",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-10T12:37:04.601663+00:00"
+}

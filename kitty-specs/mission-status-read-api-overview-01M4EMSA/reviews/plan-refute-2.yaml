@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 2
+verdicts:
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: Plan section 8 pre-writes a 400/403 split that departs from AC-9b while the Unverified list (items 1-9) and risk R-11 carry no AC-9b amendment or escalation entry, and the "Unverified/escalation list" it points to is only that numbered list.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: data-model.md LedgerRead is bytes only and I-3 and the plan.md package layout forbid JSON in domain and application, yet no layer or port is assigned to decode ledger lines into StatusEvent or classify ledger_unparseable and ledger_torn_tail per line.
+  - id: PLAN-ARCH-006
+    verdict: confirmed
+    reason: Plan section 8 says the AC-9b table is generated from the WP01 Tomcat record (so the oracle follows observed behaviour) and only flags the amendment as a candidate with no owner or tasks-blocking statement, leaving AC-9b unsatisfiable as written for container-rejected rows.
+  - id: PLAN-ARCH-JVM-001
+    verdict: confirmed
+    reason: Plan sections 5 and 12 run `nativeCompile nativeTest` per leg with no tag, source-set split or nativeTest filter, while section 11 puts ArchUnit, networknt contract validation and goldens in the same test tree and JaCoCo is JVM-only.
+  - id: PLAN-ARCH-JVM-006
+    verdict: confirmed
+    reason: plan.md names no java.toolchain, auto-download or JAVA_HOME policy (grep finds none) and its own evidence shows the repo workflows use Temurin 21, so the JDK 25 and GraalVM provisioning decision for Gradle is genuinely unstated.
+  - id: PLAN-ARCH-JVM-012
+    verdict: confirmed
+    reason: Unverified items 5-6 cover Boot/Gradle/NBT and ArchUnit/SHAs only, while JaCoCo 0.8.15 on Java 25, networknt 2020-12 support and the openapi-generator 7.25.0 plugin on Gradle 9.7.1 (pin validated on 8.14.5) are listed as pinned with no unverified entry or WP01 check.
+  - id: PLAN-VERIFY-005
+    verdict: confirmed
+    reason: AC-8c and plan.md define the corpus-compare script's failure only as a differing Mission and nothing specifies a compared-count floor, service-start failure, one-sided Mission or refusal-vs-refusal handling, so a zero-compared run could exit zero.

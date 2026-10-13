@@ -1,0 +1,531 @@
+work_packages:
+- id: WP01
+  title: 'Phase 0: campsite-clean the contract-tools filter-group test'
+  dependencies: []
+  owned_files:
+  - tests/ci/test_contracts_workflows.py
+  requirement_refs:
+  - FR-008
+  cross_cutting: true
+  subtasks:
+  - T001
+  - T002
+  - T003
+  prompt_file: tasks/WP01-campsite-filter-group-test.md
+- id: WP02
+  title: 'Phase 1a: spike and decision record (R-2, R-7 items, each with a fallback)'
+  dependencies:
+  - WP01
+  owned_files:
+  - kitty-specs/mission-status-read-api-overview-01M4EMSA/research.md
+  requirement_refs:
+  - FR-009
+  - FR-010
+  - FR-011
+  - FR-014
+  - C-001
+  - C-007
+  - NFR-001
+  - NFR-005
+  plan_concern_refs:
+  - IC-01
+  subtasks:
+  - T004
+  - T005
+  - T006
+  - T007
+  - T008
+  - T009
+  - T010
+  prompt_file: tasks/WP02-spike-and-decision-record.md
+- id: WP03
+  title: 'Phase 1b: Gradle scaffold, supply chain and skeleton service'
+  dependencies:
+  - WP02
+  owned_files:
+  - services/mission-status-api/build.gradle.kts
+  - services/mission-status-api/settings.gradle.kts
+  - services/mission-status-api/gradle.properties
+  - services/mission-status-api/gradlew
+  - services/mission-status-api/gradlew.bat
+  - services/mission-status-api/.gitignore
+  - services/mission-status-api/gradle/**
+  - services/mission-status-api/src/main/resources/application.properties
+  - services/mission-status-api/src/main/resources/META-INF/native-image/**
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/MissionStatusApplication*
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/skeleton/**
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/ProjectRootCheck*
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/build/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/skeleton/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/nativesmoke/**
+  - services/mission-status-api/src/nativeTest/**
+  - tests/ci/test_mission_status_api_build.py
+  requirement_refs:
+  - FR-014
+  - FR-011
+  - FR-012
+  - C-001
+  - C-002
+  - C-004
+  - C-007
+  - C-008
+  - C-009
+  - NFR-006
+  - NFR-007
+  - NFR-009
+  plan_concern_refs:
+  - IC-01
+  subtasks:
+  - T011
+  - T012
+  - T013
+  - T014
+  - T015
+  - T016
+  - T017
+  prompt_file: tasks/WP03-gradle-scaffold-supply-chain-skeleton.md
+- id: WP04
+  title: 'Phase 1c: path-filtered workflow, four native hello-route legs, gate helper'
+  dependencies:
+  - WP03
+  owned_files:
+  - .github/workflows/mission-status-api.yml
+  - .github/CODEOWNERS
+  - scripts/ci/mission_status_gate_checks.py
+  - tests/ci/test_mission_status_gate_checks.py
+  - tests/ci/test_mission_status_api_build.py
+  - scripts/ci/fleet_verdict.py
+  - .github/workflows/ci-fleet-verdict.yml
+  - tests/ci/test_fleet_verdict.py
+  - tests/ci/test_fleet_main.py
+  requirement_refs:
+  - FR-015
+  - FR-014
+  - C-008
+  - C-009
+  - SC-007
+  plan_concern_refs:
+  - IC-01
+  subtasks:
+  - T018
+  - T019
+  - T020
+  - T021
+  - T022
+  prompt_file: tasks/WP04-workflow-native-hello-legs-gate-helper.md
+- id: WP05
+  title: 'Phase 2a-1: domain core (reducer, derivations, cursors, paging)'
+  dependencies:
+  - WP04
+  owned_files:
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/**
+  - services/mission-status-api/src/test/resources/jacoco-class-floor.properties
+  requirement_refs:
+  - FR-001
+  - FR-002
+  - FR-005
+  - FR-012
+  - NFR-003
+  - NFR-005
+  - NFR-006
+  plan_concern_refs:
+  - IC-02
+  subtasks:
+  - T023
+  - T024
+  - T025
+  - T026
+  prompt_file: tasks/WP05-domain-core.md
+- id: WP17
+  title: 'Phase 2a-2: projection component and ledger line codec'
+  dependencies:
+  - WP05
+  owned_files:
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/projection/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/projection/**
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/**
+  - services/mission-status-api/src/test/resources/jacoco-class-floor.properties
+  requirement_refs:
+  - FR-004
+  - FR-009
+  - FR-012
+  - NFR-003
+  - NFR-005
+  - NFR-006
+  plan_concern_refs:
+  - IC-02
+  subtasks:
+  - T027
+  - T028
+  prompt_file: tasks/WP17-projection-and-ledger-codec.md
+- id: WP06
+  title: 'Phase 2a-3: application layer, ports, cache, change feed, in-memory source'
+  dependencies:
+  - WP17
+  owned_files:
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/application/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/application/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/**
+  - services/mission-status-api/src/test/resources/jacoco-class-floor.properties
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/domain/model/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/model/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/domain/oracle/**
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/codec/**
+  requirement_refs:
+  - FR-003
+  - FR-004
+  - FR-007
+  - C-003
+  - NFR-004
+  - NFR-006
+  plan_concern_refs:
+  - IC-02
+  subtasks:
+  - T029
+  - T030
+  - T031
+  - T032
+  prompt_file: tasks/WP06-application-ports-cache-feed.md
+- id: WP18
+  title: 'Phase 2a-4: ArchUnit rule set, port-level conformance suite, interim id check and 2a exit gate'
+  dependencies:
+  - WP06
+  owned_files:
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/port/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/architecture/**
+  - services/mission-status-api/src/test/resources/portlevel-tests.txt
+  - services/mission-status-api/src/test/resources/jacoco-class-floor.properties
+  requirement_refs:
+  - FR-012
+  - FR-013
+  - C-003
+  - NFR-006
+  plan_concern_refs:
+  - IC-02
+  subtasks:
+  - T033
+  - T034
+  - T035
+  prompt_file: tasks/WP18-archunit-portlevel-suite-and-2a-gate.md
+- id: WP07
+  title: 'Phase 2b: Python oracle, fixtures, goldens, golden-honesty test and CI routing'
+  dependencies:
+  - WP01
+  owned_files:
+  - tests/contract/_mission_status_conformance.py
+  - tests/contract/test_mission_status_conformance.py
+  - services/mission-status-api/src/test/resources/conformance/**
+  - services/mission-status-api/src/main/resources/leak-patterns.json
+  - .github/workflows/ci-router.yml
+  - .github/workflows/packs.yml
+  - tests/ci/test_mission_status_routing.py
+  - tests/ci/test_contracts_workflows.py
+  - tests/architectural/test_ci_corpus_trigger_completeness.py
+  - .gitattributes
+  - tests/contract/_mission_status_payloads.py
+  requirement_refs:
+  - FR-008
+  - FR-006
+  - FR-001
+  - FR-005
+  - C-006
+  - NFR-005
+  - SC-001
+  - SC-007
+  plan_concern_refs:
+  - IC-03
+  subtasks:
+  - T036
+  - T037
+  - T038
+  - T039
+  - T040
+  - T041
+  prompt_file: tasks/WP07-python-oracle-goldens-ci-routing.md
+- id: WP08
+  title: 'Phase 3a-1: filesystem adapter primitives (resolver, containment, allowlist, listing)'
+  dependencies:
+  - WP18
+  owned_files:
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/ReadDirResolver*
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/SafeFiles*
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Allowlist*
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/Listing*
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/**
+  requirement_refs:
+  - FR-006
+  - FR-010
+  - FR-016
+  - C-005
+  - NFR-003
+  plan_concern_refs:
+  - IC-04
+  subtasks:
+  - T042
+  - T043
+  - T044
+  - T045
+  prompt_file: tasks/WP08-filesystem-adapter-primitives.md
+- id: WP19
+  title: 'Phase 3a-2: FilesystemMissionEventSource, flow-level allowlist checks and README stub'
+  dependencies:
+  - WP08
+  owned_files:
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/out/filesystem/FilesystemMissionEventSource*
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/out/filesystem/**
+  - services/mission-status-api/README.md
+  requirement_refs:
+  - FR-004
+  - FR-007
+  - FR-010
+  - FR-016
+  - C-005
+  - NFR-008
+  - NFR-003
+  - SC-006
+  plan_concern_refs:
+  - IC-04
+  subtasks:
+  - T046
+  - T047
+  prompt_file: tasks/WP19-filesystem-event-source-and-readme-stub.md
+- id: WP09
+  title: 'Phase 3b: golden suite on the real adapter, second leg of the port-level subset, FR-013 floor'
+  dependencies:
+  - WP07
+  - WP19
+  owned_files:
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/conformance/golden/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/**
+  requirement_refs:
+  - FR-008
+  - FR-013
+  - FR-001
+  - FR-002
+  - FR-005
+  - FR-006
+  - NFR-005
+  - SC-001
+  plan_concern_refs:
+  - IC-02
+  - IC-04
+  subtasks:
+  - T048
+  - T049
+  - T050
+  - T051
+  - T052
+  prompt_file: tasks/WP09-golden-suite-on-real-adapter.md
+- id: WP10
+  title: 'Phase 4a-1: HTTP controllers, Problem mapping, contract document, contract validation, wiring and bind guard'
+  dependencies:
+  - WP09
+  owned_files:
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/**
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/**
+  - services/mission-status-api/src/main/resources/application.properties
+  - services/mission-status-api/src/main/resources/META-INF/native-image/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/config/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/skeleton/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/http/**
+  - services/mission-status-api/src/test/resources/application-test.properties
+  - tests/ci/test_mission_status_api_build.py
+  requirement_refs:
+  - FR-001
+  - FR-002
+  - FR-004
+  - FR-009
+  - FR-011
+  - C-001
+  - C-004
+  - NFR-003
+  - SC-003
+  plan_concern_refs:
+  - IC-05
+  subtasks:
+  - T053
+  - T055
+  - T056
+  - T057
+  prompt_file: tasks/WP10-http-controllers-contract-wiring.md
+- id: WP20
+  title: 'Phase 4a-2: SSE events controller, cross-route flow checks and real native-tagged tests'
+  dependencies:
+  - WP10
+  owned_files:
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/**
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/**
+  - services/mission-status-api/src/main/resources/application.properties
+  - services/mission-status-api/src/main/resources/META-INF/native-image/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/config/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/testsupport/http/**
+  - services/mission-status-api/src/test/resources/application-test.properties
+  - services/mission-status-api/src/nativeTest/**
+  - tests/ci/test_mission_status_api_build.py
+  requirement_refs:
+  - FR-003
+  - FR-004
+  - FR-009
+  - FR-010
+  - FR-011
+  - FR-016
+  - NFR-003
+  - SC-003
+  plan_concern_refs:
+  - IC-05
+  subtasks:
+  - T054
+  - T085
+  - T058
+  - T059
+  prompt_file: tasks/WP20-sse-events-flow-checks-native-tagged-tests.md
+- id: WP11
+  title: 'Phase 4b: Host and Origin filter (403 set, closed 400 set, provisional E-7 rows)'
+  dependencies:
+  - WP20
+  owned_files:
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/HostOriginFilter*
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/OwnPortSource*
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/OwnPortHolder*
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/adapter/in/http/hostorigin/**
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/HostOriginRefusal*
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/config/HostOriginRegistration*
+  requirement_refs:
+  - FR-009
+  - C-005
+  - NFR-003
+  - SC-005
+  plan_concern_refs:
+  - IC-05
+  subtasks:
+  - T060
+  - T061
+  - T062
+  - T063
+  prompt_file: tasks/WP11-host-origin-filter.md
+- id: WP12
+  title: 'Phase 5a: native smoke replay (stage base), per-leg digests, gate digest comparison'
+  dependencies:
+  - WP20
+  owned_files:
+  - .github/workflows/mission-status-api.yml
+  - tests/ci/test_mission_status_api_build.py
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/nativesmoke/**
+  - services/mission-status-api/src/test/resources/nativesmoke/**
+  - services/mission-status-api/src/main/java/org/speckitty/missionstatus/adapter/in/http/skeleton/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/skeleton/**
+  requirement_refs:
+  - FR-015
+  - FR-010
+  - FR-008
+  - NFR-005
+  - SC-004
+  plan_concern_refs:
+  - IC-06
+  subtasks:
+  - T064
+  - T065
+  - T066
+  - T067
+  - T068
+  prompt_file: tasks/WP12-native-smoke-replay-and-digests.md
+- id: WP13
+  title: 'Phase 5b: performance ratio tests (NFR-001, NFR-002, NFR-004)'
+  dependencies:
+  - WP12
+  owned_files:
+  - .github/workflows/mission-status-api.yml
+  - tests/ci/test_mission_status_api_build.py
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/perf/**
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/nativesmoke/**
+  requirement_refs:
+  - NFR-001
+  - NFR-002
+  - NFR-004
+  - NFR-005
+  plan_concern_refs:
+  - IC-06
+  subtasks:
+  - T069
+  - T070
+  - T071
+  - T072
+  prompt_file: tasks/WP13-performance-ratio-tests.md
+- id: WP14
+  title: 'Phase 5c: nightly full-corpus comparison job and script'
+  dependencies:
+  - WP13
+  owned_files:
+  - .github/workflows/mission-status-api.yml
+  - tests/ci/test_mission_status_api_build.py
+  - scripts/ci/mission_status_corpus_compare.py
+  - tests/ci/test_mission_status_corpus_compare.py
+  requirement_refs:
+  - FR-008
+  - FR-015
+  - C-006
+  - SC-002
+  plan_concern_refs:
+  - IC-06
+  subtasks:
+  - T073
+  - T074
+  - T075
+  - T076
+  prompt_file: tasks/WP14-nightly-corpus-comparison.md
+- id: WP15
+  title: 'Phase 5d: tag-triggered release job (operator decision E-4)'
+  dependencies:
+  - WP14
+  owned_files:
+  - .github/workflows/mission-status-api.yml
+  - tests/ci/test_mission_status_api_build.py
+  requirement_refs:
+  - FR-015
+  - SC-004
+  plan_concern_refs:
+  - IC-06
+  subtasks:
+  - T077
+  - T078
+  - T079
+  prompt_file: tasks/WP15-tag-triggered-release-job.md
+- id: WP16
+  title: 'Phase 5e: Host/Origin smoke stage, README, docs and changelog close-out'
+  dependencies:
+  - WP11
+  - WP15
+  owned_files:
+  - .github/workflows/mission-status-api.yml
+  - services/mission-status-api/src/test/java/org/speckitty/missionstatus/nativesmoke/**
+  - services/mission-status-api/src/test/resources/nativesmoke/**
+  - services/mission-status-api/README.md
+  - docs/development/reference/ci-gate-mechanics.md
+  - docs/changelog/CHANGELOG.md
+  requirement_refs:
+  - FR-015
+  - FR-009
+  - NFR-008
+  - C-010
+  - C-011
+  - C-012
+  - C-013
+  - SC-004
+  - SC-005
+  - SC-007
+  - SC-008
+  plan_concern_refs:
+  - IC-06
+  subtasks:
+  - T080
+  - T081
+  - T082
+  - T083
+  - T084
+  prompt_file: tasks/WP16-host-origin-smoke-stage-readme-docs-changelog.md

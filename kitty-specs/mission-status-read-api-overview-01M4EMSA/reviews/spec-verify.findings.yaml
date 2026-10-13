@@ -1,0 +1,156 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: mission-status-read-api-overview-01M4EMSA
+# Severity rubric: 1 nit | 2 minor | 3 moderate (rework inside one WP) | 4 high (wrong implementation: untestable/vacuous AC, FR without coverage, contradicts code) | 5 critical (charter/scope violation, stability contract, security hazard)
+findings:
+  - id: SPEC-VERIFY-001
+    lens: Falsifiability / MISSION LENS M-D (cache and cursor)
+    severity: 4
+    title: >-
+      AC-7c claims a same-length rewrite is detected by the cursor digest, but the digest covers only the last line
+    evidence:
+      - artifact: "spec.md § FR-007 AC-7c; § Key Entities (Stream cursor)"
+      - code: "src/specify_cli/status/tail_reader.py:71"
+      - code: "src/specify_cli/status/tail_reader.py:108"
+    claim: >-
+      The TailCursor content invariant is the SHA-256 of the single most recently consumed line, not of the log. An equal-length rewrite that alters an earlier line and keeps the final line leaves offset and digest unchanged, so a cache keyed by the cursor serves stale counts and the stream sends no log-truncated. AC-7c as written is either unsatisfiable or satisfied only by a fixture that happens to change the last line (vacuous). The same blind spot applies to AC-3c content_mismatch.
+    remediation: >-
+      State in FR-007 what the cache key is (cursor plus file size plus mtime, or a full-content digest) and reword AC-7c with two fixtures, one changing the last line and one changing only a middle line of equal length, naming which must be detected. If a mid-log rewrite is out of the detection model, say so as a known limit with a Python-parity golden.
+  - id: SPEC-VERIFY-002
+    lens: Silent-success (unreadable log, malformed event, schema, missing dir)
+    severity: 4
+    title: >-
+      AC-4a names no observable and FR-004 depends on unresolved Q-1 and Q-2
+    evidence:
+      - artifact: "spec.md § FR-004 AC-4a; § Open Questions Q-1, Q-2; § FR-003 'When it cannot do its job'"
+    claim: >-
+      AC-4a says each condition asserts 'the specific observable (named code or field)' but names none, and the contract may not express a per-Mission failure in a 200 page (Q-1). Until resolved, no test can fail on a wrong observable, and a null/zero-count overview could be argued compliant. The unreadable-log-under-open-stream behaviour (FR-003) has no AC at all.
+    remediation: >-
+      Add a table (condition, observable, status) to FR-004, or make Q-1 and Q-2 a blocking decision before tasks are cut with a contract-change WP. Add an AC for the stream that goes unreadable (stream ends distinguishably, no further heartbeats).
+  - id: SPEC-VERIFY-003
+    lens: MISSION LENS M-D (goldens coverage)
+    severity: 4
+    title: >-
+      Curated golden set has no malformed-event or unknown-lane fixture although FR-005 says Python's behaviour is recorded in the goldens
+    evidence:
+      - artifact: "spec.md § FR-005 ('recorded in the golden set'); § FR-008 AC-8b (five classes); § Edge Cases (Malformed event)"
+    claim: >-
+      The five curated classes are two interleaved, coord, lifecycle-only, log-truncated. Malformed JSON, missing required keys and unknown lanes (where Python skips or refuses) are in no class, so Java parity on exactly the silent-success paths is unverified, and AC-4a is checked only against Java behaviour, not Python goldens. AC-8b asserts the five tags only, so its class list cannot catch the omission.
+    remediation: >-
+      Add a sixth class (malformed rows: bad JSON, missing keys, unknown lane, unknown schema version) to FR-008 and AC-8b, with goldens recording Python's skip or refuse outcome and its diagnostic.
+  - id: SPEC-VERIFY-004
+    lens: MISSION LENS M-D (SSE contract ACs)
+    severity: 4
+    title: >-
+      No AC exercises successful resume, streamCursor-over-Last-Event-ID precedence, or ordering and latency
+    evidence:
+      - artifact: "spec.md § FR-003 (resume rules named); AC-3a to AC-3f"
+      - code: "contracts/mission-status/paths/events.yaml:44"
+    claim: >-
+      FR-003 lists resume rules (streamCursor wins over Last-Event-ID) but every AC covers live append, drops, truncation, refusals, unscoped and heartbeat. Nothing proves a valid cursor replays exactly the events after it, that the precedence rule holds, or that multiple appended rows arrive in log order each with its own id. AC-3a gives no time bound, so a polling-versus-watch implementation cannot be told apart and tests will either hang or flake.
+    remediation: >-
+      Add ACs: (a) connect with cursor C after N appended rows, receive exactly the later forwarded rows in order with ids; (b) send both streamCursor=C1 and Last-Event-ID=C2, assert C1 wins; (c) append K rows in one write, assert K events in order; (d) state a latency bound for AC-3a measured by the test with a failing timeout.
+  - id: SPEC-VERIFY-005
+    lens: MISSION LENS M-D (read-only and drain-independence)
+    severity: 4
+    title: >-
+      Read-only ACs cannot notice a write, a lock, or a swallowed write failure; the drain toggle is unnamed
+    evidence:
+      - artifact: "spec.md § FR-016 AC-16a, AC-16b, AC-16c; § FR-010 AC-10a, AC-10c"
+      - code: "src/specify_cli/cli/commands/_teamspace_mission_state_gate.py:153"
+    claim: >-
+      AC-16a passes if the service tries a write, catches the failure and continues; it is also meaningless when CI runs as root and on Windows where directory permission bits do not block creation. AC-16b (content hash before and after) misses create-then-delete lock files, mtime and listing changes. 'Takes no lock' has no AC. AC-10a instruments the filesystem port only, so reads or writes that bypass the port (springdoc, Spring config, direct java.nio use) are invisible, and AC-10c does not say how a spawn is observed. AC-16c toggles 'the drain setting' without naming the key; the Python posture is read via hosted_posture.drain_posture, so a toggle of a key the service never reads is vacuous.
+    remediation: >-
+      Require the filesystem port to record open modes and fail on any non-read open (with a positive control that adds a write); add a read-only mount or non-root path and a before/after fingerprint including directory listing and mtimes; name the exact drain config keys and assert the service does not read them (allowlist already covers this) plus a byte-equal test with drain on/off; state the spawn-detection mechanism (security manager substitute, ProcessBuilder ArchUnit ban, or strace-free wrapper).
+  - id: SPEC-VERIFY-006
+    lens: MISSION LENS M-D (security negative cases)
+    severity: 4
+    title: >-
+      No secret-shaped planted content test; AC-9f references an undefined 'fixture token'
+    evidence:
+      - artifact: "spec.md § FR-009 AC-9f; § FR-001 AC-1d; § NFR-003"
+    claim: >-
+      'No secrets in responses' is tested only by scanning for a 'fixture token' that no AC defines, plus HOME and the fixture root. No AC plants secret-shaped values in .kittify/config.yaml, meta.json, or event payloads (token-looking strings, path-like text, email) and asserts they never appear, so a service that echoes config verbatim could pass. Note the contract's own redaction classes (path, email) in the Python helpers are not mirrored by any Java AC.
+    remediation: >-
+      Add an AC: fixture config.yaml, metadata.yaml and meta.json contain planted canary strings (a token-shaped value, an absolute-path-shaped value, an email); every response, SSE frame and log line is scanned for each canary and none appears. Define the redaction behaviour for free-text fields the Python builders redact, with a golden.
+  - id: SPEC-VERIFY-007
+    lens: MISSION LENS M-D (Host and Origin negative cases)
+    severity: 3
+    title: >-
+      Host and Origin ACs test one foreign value each; rebinding-class variants and observability of AC-9a are missing
+    evidence:
+      - artifact: "spec.md § FR-009 AC-9a, AC-9b, AC-9c, AC-9d"
+    claim: >-
+      Only evil.example is tried. Untested: Host with a wrong port, missing Host, 127.0.0.1.evil.example and localhost.evil.example (suffix match bug), 'null' Origin, Origin with right host but wrong port, and the localhost versus 127.0.0.1 versus [::1] acceptance question. AC-9a says 'no listening socket' without saying how the test observes it. Refusal must also hold for /events (no stream opened) and for the error path.
+    remediation: >-
+      Expand AC-9b/9c into a parameterised table of foreign values, each with expected status (also on /events), name the observable for AC-9a (connect attempt refused plus exit code), and decide localhost and IPv6 acceptance in the spec rather than leaving it to Q-5.
+  - id: SPEC-VERIFY-008
+    lens: MISSION LENS M-D (conformance, vacuity)
+    severity: 3
+    title: >-
+      Perturbation test (AC-8a) has no named mechanism, and the comparison scope is not stated as full-document
+    evidence:
+      - artifact: "spec.md § FR-008 AC-8a, AC-8b, AC-8d; § User Story 3"
+      - code: "tests/contract/_mission_status_payloads.py:839"
+    claim: >-
+      'Changes one Java derivation' needs either mutation testing or a test-only injectable reducer; the spec names neither, so the AC reads as a manual experiment. Neither side states that the golden comparison covers the entire serialized overview with no ignored or normalised fields (timestamps, ordering), so a comparator that skips lastActivityAt would pass. Goldens come from build_overview in the test-side helpers, which the module says are a copy of contract-description rules; the spec says this is 'not a second oracle', but then the Python golden test (live helper output versus golden made by the same helper) is tautological for the derivations and gates only reducer or helper change, not helper correctness.
+    remediation: >-
+      Name the mechanism (PIT mutation on the Java reducer scoped to the conformance suite, or a comparator unit test fed a mutated actual per field). State that comparison is exact on canonical JSON with an explicit, empty ignore-list. Record in the spec that the derivation oracle is the helpers and that their correctness is anchored by mission_status_expected.json, and keep that fixture in the gate.
+  - id: SPEC-VERIFY-009
+    lens: MISSION LENS M-D (nightly corpus gate)
+    severity: 3
+    title: >-
+      Nightly corpus comparison is undefined on race, inputs and the Java runner
+    evidence:
+      - artifact: "spec.md § FR-008 (iv), AC-8c; § SC-002"
+    claim: >-
+      'Both ways' is not defined. The corpus is the live checkout, where active Missions (including this one) are appended to while Python and Java run at different moments, producing false differences or masking real ones. The nightly Java run (JVM versus native, which Gradle task) and the Python reference for Missions with no helper support are unspecified.
+    remediation: >-
+      Specify that the nightly copies the corpus to a snapshot directory and both sides read that snapshot, name the Java entry point (JVM test task against the inbound port), and state the artifact listing every Mission compared so a skipped Mission fails the job.
+  - id: SPEC-VERIFY-010
+    lens: MISSION LENS M-D (native conformance)
+    severity: 3
+    title: >-
+      Native smoke test (AC-15b) does not run conformance, so NFR-005 cross-OS determinism is untested
+    evidence:
+      - artifact: "spec.md § FR-015 AC-15b; § NFR-005; § SC-004"
+    claim: >-
+      AC-15b only checks routes respond and the SSE Content-Type. NFR-005 demands byte-identical responses across four OS targets, but only the JVM suite compares against goldens. Native-only divergence (reflection-dropped serializer fields, time zone or locale formatting, CRLF in logs on Windows) would pass.
+    remediation: >-
+      Add an AC that on each native leg the binary's /project and /missions bodies for the curated fixtures are byte-compared to the goldens (HTTP-level), and that a CRLF-containing log yields the same overview as LF.
+  - id: SPEC-VERIFY-011
+    lens: Silent-success (concurrent writer, torn tail)
+    severity: 3
+    title: >-
+      Torn-tail reporting field is unspecified and concurrency is tested only with a static half line
+    evidence:
+      - artifact: "spec.md § Edge Cases (Concurrent writer); § FR-004 AC-4b"
+    claim: >-
+      AC-4b requires the torn tail to be 'reported' without naming where in the response, and the concurrent-append edge case ("must never produce a wrong overview") has no AC that appends during a read, so streamCursor consistency with the counted rows is untested.
+    remediation: >-
+      Name the report field or status, and add an AC with a writer appending in a loop while the service reads: every returned overview's eventCount, counts and streamCursor must be mutually consistent for some prefix of the log.
+  - id: SPEC-VERIFY-012
+    lens: Baseline honesty
+    severity: 3
+    title: >-
+      AC-14d forbids any contracts/ edit while FR-004 and Q-1/Q-2 may require a contract change
+    evidence:
+      - artifact: "spec.md § FR-014 AC-14d; § FR-004; § Open Questions Q-1, Q-2; § C-012"
+    claim: >-
+      Internal inconsistency: if the contract cannot express per-Mission failure or stream-unreadable, the spec says escalate a contract change, yet AC-14d fails the mission on any edit to contracts/ files. Baseline section also treats red-set capture as a plan step without saying which test packages (tests/contract, tests/ci) are measured and where the baseline is recorded for comparison.
+    remediation: >-
+      Scope AC-14d to 'no edit except a contract change approved under Q-1/Q-2 with its own review', or move such change to a separate mission. In the Baseline section name the targeted packages, the artifact holding the pre-change red set, and require the final report to diff against it.
+  - id: SPEC-VERIFY-013
+    lens: Falsifiability
+    severity: 2
+    title: >-
+      NFR-004 and AC-8b have soft observables
+    evidence:
+      - artifact: "spec.md § NFR-004; § FR-008 AC-8b"
+    claim: >-
+      NFR-004 ('without platform-thread exhaustion or an unbounded heap') names no threshold or measurement. AC-8b checks class tags on files, which a trivial golden carrying the right tag satisfies.
+    remediation: >-
+      Give NFR-004 a measured bound (heap growth under N MB over the run, carrier-thread count) with a failing assertion; make AC-8b also assert each class's golden has the distinguishing property (non-empty events, interleaved clock ties, coord stale-copy differs, truncation present).

@@ -1,0 +1,71 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: WP10 now deletes only the skeleton contract-document route, the hello route and skeleton NativeSmokeTest survive until WP12 (which owns the skeleton paths for that deletion), and WP10/WP20/WP11 DoD carry the native-legs-green line.
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: WP05 owns and creates jacoco-class-floor.properties with the domain line, WP03 T012 step 6 makes jacocoScopeCheck tolerant per pattern, and the 'or shortfall' escape is gone from WP05/WP17/WP06/WP18 DoD.
+  - id: TASKS-DECOMP-003
+    status: resolved
+    reason: The four WPs were split into WP05+WP17, WP06+WP18, WP08+WP19, WP10+WP20 along the named seams; per-subtask Files sums reproduce the new overview rows (e.g. WP05 800+800+750+550=2900), and wps.yaml, WP frontmatter dependencies and lanes.json agree.
+  - id: TASKS-DECOMP-004
+    status: resolved
+    reason: WP09 corrected to 1,800 and WP07's 1,450 estimated fixture-data lines shown separately with the basis statement qualified, as the finding asked.
+  - id: TASKS-DECOMP-006
+    status: resolved
+    reason: WP16 T080 step 2 now calls the workflow edit an in-map edit (owned, last in the section 7 order) and overview section 5 states the in-map versus out-of-map rule; the optional docs split was not required.
+  - id: TASKS-JVM-001
+    status: resolved
+    reason: WP03 T012 step 8 fixes the partition (native-binary and perf tags excluded from test, nativeSmoke/nativePerf/perfTest/nativeTagJvmTest registered with -PnativeBinary forwarded via systemProperty, check depends on perfTest) with T016 step 10 pins, and WP12/WP13/WP16/WP20 validation commands now name the tasks that actually run the classes.
+  - id: TASKS-JVM-002
+    status: resolved
+    reason: 'Same fix as DECOMP-002: WP05 creates the floor file with the domain line so check is green at WP05''s tip, WP17 raises, WP06 adds the application line, WP18 verifies.'
+  - id: TASKS-JVM-006
+    status: resolved
+    reason: WP02 T004 steps 9 (YAML library, ArchUnit and native consequences) and 10 (AC-11c nested build via TestKit or generator-as-library) now decide both, WP03 T011 step 4 declares them mandatorily, and WP19/WP10 T056 consume those decisions.
+  - id: TASKS-JVM-007
+    status: resolved
+    reason: WP02 T005 criterion 8 records the restriction mechanism and what the five other Missions-tag operations become, WP03 T012 step 2 applies it, and WP10 T053 step 8 tests that they answer 404 with a revert row.
+  - id: TASKS-JVM-008
+    status: resolved
+    reason: WP03 T012/T015/T016 carry explicit hand-mode branches (no openApiGenerate, plugin not declared, drift test parses the contract YAML) and WP18 T033 step 4 pins the three api/model/dto packages as literals.
+  - id: TASKS-JVM-012
+    status: resolved
+    reason: 'Acceptable: the validator (validate_glob_matches, wired in finalize and lane compute) hard-errors on any literal owned_files path with zero repo matches unless it is in that WP''s create_intent, so the entries are required, and --validate-only passes now; each prompt carries a create_intent note stating what it only amends versus creates, and WP16 T080 no longer says out-of-map.'
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: WP06 T032 adds the single PortSourceSelector, WP18 T034 keeps shells assertion-free via the Ac2aGoldenHook stub and puts the interim constant, check and guard under testsupport/**, and WP09 T051 flips the selector and deletes the machinery editing only testsupport and conformance/golden.
+  - id: TASKS-SEQ-005
+    status: unresolved
+    remaining_severity: 1
+    reason: 'Overview section 6 now lists eight CHANGELOG PRs and the #5951 and subtask_rows.py semantic watches, but WP16 Risks still says ''the seven open PRs'', a stale instance of the same defect class.'
+  - id: TASKS-SEQ-007
+    status: resolved
+    reason: WP16 T080 step 2 is reworded to an in-map edit of the WP16-owned workflow, last in the section 7 serialisation order, committed separately with the WP12 request-floor pin kept green.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: Overview section 10 makes the orchestrator install GraalVM CE 25.0.2 and Gradle 9.7.1 once under a persistent prefix with JAVA_HOME/PATH in every Java WP brief, WP02 records versions and checksums, and every Java WP prompt (WP02-03, 05-06, 08-13, 16-20) starts with a java/gradlew precondition that ends in BLOCKED with a named owner; the operator approval remains an explicit open question.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: WP02 T004 step 1 and WP03 T011 step 3 now use the provisioned, checksum-verified Gradle 9.7.1 distribution solely to run gradle wrapper, which breaks the chicken-and-egg.
+  - id: TASKS-VERIFY-003
+    status: resolved
+    reason: WP02 T008 step 6 records the native toolchain gate as PASS/FAIL, WP03 T015 step 0 makes it a BLOCKED precondition with no CI-only path, and T014 now requires local native execution.
+  - id: TASKS-VERIFY-004
+    status: resolved
+    reason: Overview 3.2 maps AC-14b to WP04 and AC-14c to WP03 plus WP04, and WP04 T022 step 3 schedules the scratch-branch modified-jar negative run and the four-leg strict-resolution exit statuses with a do-not-claim-until-recorded rule.
+  - id: TASKS-VERIFY-005
+    status: resolved
+    reason: WP10 T053 steps 6 and 7 are named AC-1b and AC-1c tests with revert-fails rows, and the traceability table splits the rows for 1b and 1c.
+  - id: TASKS-VERIFY-007
+    status: resolved
+    reason: Every Java subtask Validation line now names a concrete gradlew task with a --tests package or class filter (WP05, WP17, WP08, WP19, WP11, WP10, WP20, WP13), and no 'targeted tests' or '*native*' phrase remains.
+  - id: TASKS-VERIFY-009
+    status: resolved
+    reason: WP16 T084 step 6 no longer runs make test-fast (moved to the orchestrator section 10), guards whole-repo ruff with a rev-parse --show-toplevel check, and lists explicit router/pin test files.
+  - id: TASKS-VERIFY-010
+    status: resolved
+    reason: Overview 3.2 now has an AC-9f row stating it is withdrawn and replaced by AC-9g with nothing owed.

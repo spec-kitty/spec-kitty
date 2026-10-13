@@ -1,0 +1,73 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-ARCH-JVM-001
+    status: resolved
+    reason: FR-005 now names spec_kitty_events (10.4.0 in uv.lock, verified), states the real (at, event_id) key, dedup and skip/refuse rules (verified against installed diary.reduce_parsed), and AC-5d records/compares specKittyEventsVersion.
+  - id: SPEC-ARCH-JVM-002
+    status: resolved
+    reason: FR-014 table and C-008 now separate inherited controls (verification metadata, SHA pins) from introduced ones (wrapper hash, validation action, catalog, tamper check as model), each with its own AC-14a-g; claims match contracts/.
+  - id: SPEC-ARCH-JVM-004
+    status: resolved
+    reason: AC-14e adds a pins-equality test beside tests/ci, FR-015 constrains workflow names away from contracts*.yml (glob verified in both tools) and AC-15f checks it.
+  - id: SPEC-ARCH-JVM-006
+    status: resolved
+    reason: AC-15b now runs the golden set byte-equal over HTTP on each native binary with one request per refusal code and an SSE round trip, AC-15e compares cross-OS digests, and CRLF/listing fixtures are added.
+  - id: SPEC-ARCH-JVM-007
+    status: resolved
+    reason: AC-9h asserts isVirtual on JVM and native, NFR-004 gives numeric thread/heap/rescan bounds, and FR-009 disables springdoc endpoints, puts the guard in a pre-MVC filter and fixes accepted Host forms and bind.
+  - id: SPEC-ARCH-JVM-011
+    status: resolved
+    reason: FR-010 now requires NOFOLLOW_LINKS reads and real-path containment (incl. .worktrees), with AC-10d symlink fixtures, a positive control, and a stated Windows leg handling; the Python store.py basis was verified.
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: FR-006 is rewritten as stored-topology-driven with typed fallbacks, AC-6d adds the stale-husk fixture class, and AC-6e requires table-driven parity with the Python resolver tests.
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: FR-010 adds lanes.json (with corrupt-means-no-lanes), FR-006 records that git verdicts are not reproduced with the divergence surface and per-fixture read-dir class, and the status.json oracle read is explained as irrelevant to the overview.
+  - id: SPEC-ARCH-004
+    status: resolved
+    reason: Edge Cases, FR-004 row L4 and AC-4b now state the dual Python behaviour, choose the snapshot refusal with Q-6 for tolerance, add a torn-final-line golden class, and drop the unspecified 'reported' wording for a named diagnostic code.
+  - id: SPEC-ARCH-005
+    status: resolved
+    reason: FR-010 items 1-2 now distinguish the ledger from the resolved read dir and meta.json from the own primary dir only, state the coord meta.json is never read, and AC-10a has a positive control for that.
+  - id: SPEC-ARCH-006
+    status: resolved
+    reason: Reflexivity now lists the ci-router.yml contract_tools filter addition, the pinning-test amendment, the new module's home and the unedited ci-nightly.yml, SC-007 is reworded, and AC-8e checks golden-only routing.
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: Q-1, Edge Cases and FR-004 now cite the MissionHead.yaml rule 2 and Project.yaml text (verified in contracts/), mark L2/L6 as INTERIM blocked on Q-1 with a diagnostic observable, and keep the contract change as an escalation.
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: FR-007 defines the cache key as cursor plus size, mtime and file key, states the last-line-only digest limit (verified), and AC-7c/7d use last-line and middle-line fixtures with the known limit pinned.
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: FR-004 now has an observable table L1-L8, AC-4a asserts each row exactly, AC-4c checks diagnostics, and AC-3j covers the stream that becomes unreadable (Q-2 interim).
+  - id: SPEC-VERIFY-003
+    status: resolved
+    reason: FR-008 table adds malformed-rows (per-variant refusal incl. unknown lane/kind and malformed meta.json) and torn-final-line classes, and AC-8b checks the class list and per-class properties.
+  - id: SPEC-VERIFY-004
+    status: resolved
+    reason: AC-3g (successful resume, live-only without cursor), AC-3h (streamCursor precedence), AC-3i (batch order) and a 2-second latency bound with a failing timeout in AC-3a are added.
+  - id: SPEC-VERIFY-005
+    status: resolved
+    reason: AC-16a records open modes via the port with a positive control, AC-16b fingerprints listing and mtimes, AC-16c names the two real drain keys (verified in hosted_posture.py) and asserts no read, AC-10c/10e name the spawn and bypass mechanisms.
+  - id: SPEC-VERIFY-006
+    status: resolved
+    reason: AC-9g plants token, path and email canaries in config, metadata, meta.json and event payloads and scans all responses, headers, SSE frames and logs; AC-9f is withdrawn and redaction behaviour is tied to Projector with a golden.
+  - id: SPEC-VERIFY-007
+    status: resolved
+    reason: AC-9b/9c are now explicit parameterised Host and Origin tables (wrong port, missing Host, suffix, null, scheme) across all routes and unknown paths, AC-9a names its observables, and accepted forms are fixed in FR-009.
+  - id: SPEC-VERIFY-008
+    status: resolved
+    reason: AC-8a names two concrete mechanisms (per-member comparator mutation and an injectable wrong ordering), the comparison is exact over the whole document with an asserted-empty ignore list, and the helper-anchored oracle limit is recorded.
+  - id: SPEC-VERIFY-010
+    status: resolved
+    reason: AC-15b now byte-compares native HTTP responses to the goldens including a CRLF fixture, and AC-15e adds the cross-leg digest check for NFR-005.
+  - id: SPEC-VERIFY-011
+    status: resolved
+    reason: The report is now a named diagnostic/500 observable (L4) and AC-4d adds latch-controlled and free-running concurrent-writer tests requiring every returned item to match some complete-line prefix.
+  - id: SPEC-VERIFY-013
+    status: resolved
+    reason: NFR-004 now has numeric thread, heap/RSS and reducer-count assertions, and AC-8b asserts each class's distinguishing property from golden content, not the tag.

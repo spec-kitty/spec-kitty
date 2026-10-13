@@ -1,0 +1,104 @@
+schema: review-findings/v1
+complete: true
+phase: spec-closeout
+lens_group: fresh
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: SPEC-CLOSEOUT-FRESH-001
+    lens: scope-and-contract-consistency
+    severity: 3
+    title: "Q-1 says the contract text correction stays in scope; FR-001 and AC-14d say no contract change is made"
+    evidence:
+      - artifact: "spec.md Operator answers (Q-1): 'The contract text correction (Project.lastActivityAt wrongly names status.json as an input) stays in scope only as far as this spec already scoped it'"
+      - artifact: "spec.md FR-001 last sentence: 'the text drift is a contract text correction recorded under Q-1 (no contract change is made here)'"
+      - artifact: "spec.md AC-14d: 'Fails if any contracts/ file or pin is edited'; Open Questions Q-1 Decision repeats 'stays in scope'"
+      - code: "contracts/mission-status/schemas/Project.yaml (lastActivityAt description: 'A Mission whose status.json cannot be read leaves its activity out')"
+    claim: >-
+      The spec calls the contract text correction both 'in scope' (Q-1, operator answers and Q-1 decision) and 'not made here' (FR-001). No FR, AC,
+      Reflexivity item or Out of Scope bullet says what the deliverable is. AC-14d fails the build if any contracts/ file is edited, so a work
+      package that reads Q-1 as 'in scope' and edits Project.yaml turns AC-14d red. A work package that reads FR-001 literally delivers nothing,
+      and nothing records the drift anywhere durable. The operator said do not widen, and the phrase 'in scope' reads as a widening.
+    remediation: >-
+      Reword Q-1 (both places) to say the drift is recorded in this spec only and the contract text is not edited by this mission; list it under
+      Out of Scope as 'correcting Project.lastActivityAt text, left to the contract owners'. If a durable record is wanted, name the carrier (a
+      comment on #5558 or #5528), not a contracts/ edit. Remove 'stays in scope'.
+  - id: SPEC-CLOSEOUT-FRESH-002
+    lens: factual-accuracy
+    severity: 2
+    title: "Summary still says two Python reducers exist, but its two named entry points are one reduction with one ordering"
+    evidence:
+      - artifact: "spec.md Summary, 'Why it matters': 'two Python reducers ... (reduce_parsed, which sorts by wall-clock at, and the reduce_shared_state name, which materialize_snapshot calls and which orders by (at, event_id), Q-7 ...)'"
+      - artifact: "spec.md FR-005 Reference algorithm: spec_kitty_events.status.reduce is a re-export of diary.reduce, which is parse_diary followed by reduce_parsed"
+      - code: "src/specify_cli/status/reducer.py:17-18 (imports reduce_parsed and 'reduce as reduce_shared_state'); :180 (reduce_parsed called directly); :376 (reduce_shared_state called)"
+      - code: ".venv/lib/python3.11/site-packages/spec_kitty_events/status.py:169 (reduce imported from spec_kitty_events.diary); diary.py:1579 (sort key (e.at, e.event_id))"
+    claim: >-
+      After the Lamport wording was removed, the sentence compares reduce_parsed with reduce_shared_state as if they were two reducers with different
+      behaviour. Both sort by (at, event_id), and reduce_shared_state is parse_diary plus reduce_parsed. The only genuinely different reducer is the
+      in-package reduce_status_events (sort key (lamport_clock, timestamp, event_id), status.py:683-688), which the Naming note in FR-005 mentions. The
+      motivating claim of the Summary is therefore internally contradicted by FR-005.
+    remediation: >-
+      Rewrite as: 'two Python reduction orderings ship: the wall-clock (at, event_id) reduction that materialize_snapshot and reduce_parsed share,
+      and the in-package reduce_status_events ordered by (lamport_clock, timestamp, event_id), which the overview does not use (Q-7)'. Keep the
+      third-board and Kitty Desktop clauses.
+  - id: SPEC-CLOSEOUT-FRESH-003
+    lens: charter-drift-recording
+    severity: 2
+    title: "Stale 'Lamport' wording in ADR and CLAUDE.md is relied on in five places but not recorded under Known drift"
+    evidence:
+      - artifact: "spec.md Known drift lists only two items (Languages, Dashboard scale)"
+      - artifact: "spec.md Operator answers Q-7, FR-005 Naming note, Key Entities (Status reducer), Q-7: each says 'the ADR and CLAUDE.md Lamport wording is stale'"
+      - code: "CLAUDE.md 'Reducer duality' note and Status Model Patterns table (reduce / reduce_shared_state described as the Lamport wrapper) versus src/specify_cli/status/reducer.py:376 and diary.py:1579"
+    claim: >-
+      The spec asserts that governance text (CLAUDE.md, the ADR) is wrong about the reducer's ordering, which is exactly the charter-vs-work drift
+      the Known drift section exists to record. It never says whether this mission edits or leaves those documents (C-011 covers only the charter, and
+      Out of Scope forbids only src/specify_cli production edits), so a work package could edit CLAUDE.md or leave it silently stale.
+    remediation: >-
+      Add a third Known drift item: 'Reducer ordering wording. CLAUDE.md and the ADR call reduce_shared_state Lamport; at spec-kitty-events 10.4.0 it
+      sorts by (at, event_id) (Q-7). This mission does not edit CLAUDE.md or the ADR; correction is a follow-up for their owners'. Add the same bullet
+      to Out of Scope.
+  - id: SPEC-CLOSEOUT-FRESH-004
+    lens: stale-reference
+    severity: 2
+    title: "Leftover 'INTERIM', 'needs the owners' answer' and 'Open Questions' wording after Q-1, Q-2, Q-6, Q-7 were resolved"
+    evidence:
+      - artifact: "spec.md FR-004 intro: 'rows marked INTERIM are the contract rule plus a diagnostic' (no row in the FR-004 table is marked INTERIM; Status column now reads 'Decided (operator, ...)' or 'Settled by the contract')"
+      - artifact: "spec.md FR-004 intro ends with a dangling sentence: 'They are not a silent deviation and not a contract change made here.' (no antecedent after the unterminated-line definition)"
+      - artifact: "spec.md Q-1 body: 'row L3b ... is this spec's inference and needs the owners' answer too', before the RESOLVED decision"
+      - artifact: "spec.md heading 'Open Questions (not settled from the repo)' still holds Q-1, Q-2, Q-6, Q-7, now RESOLVED; R-9 and L7 still say 'interim rows' / 'INTERIM with L3b'"
+    claim: >-
+      The recorded operator answers settle these behaviours, but the surrounding text still describes them as marked, interim or awaiting an owner,
+      so a reader cannot tell whether a row can still change. The one rule the intro states for 'rows marked INTERIM' matches no row, so it cannot be
+      applied.
+    remediation: >-
+      Replace 'rows marked INTERIM' with 'rows whose Status is Decided (operator, Q-1 / Q-2)'. Move the 'They are not a silent deviation' sentence next
+      to the C-012 sentence it belongs to. Delete 'and needs the owners' answer too' from Q-1. Retitle the section 'Questions and their resolutions',
+      and say once that 'interim' in the text means 'decided, revisited only by amending the spec' (R-9, L7).
+  - id: SPEC-CLOSEOUT-FRESH-005
+    lens: terminology-drift
+    severity: 2
+    title: "Two Q-numbering schemes collide: decision Q1/Q2/Q3 versus open question Q-1/Q-2/Q-3"
+    evidence:
+      - artifact: "spec.md Clarifications: 'Q1 conformance', 'Q2 contract consumption', 'Q3 supply chain'"
+      - artifact: "spec.md FR-003: 'hand-written (decision Q2)' in the same paragraph as 'Decided (operator, Q-2)' (stream faults)"
+      - artifact: "spec.md FR-014 and C-008 cite 'decision Q3'; FR-006 and Open Questions cite Q-3 for git verdicts"
+    claim: >-
+      Q2 (hand-written SSE controller) and Q-2 (stream-fault behaviour) are different decisions with a one-character difference, and likewise Q3 and
+      Q-3. With the operator answers now keyed by Q-n, a reader who searches 'Q2' or 'Q-2' reaches the wrong decision. This is the dangling Q-number
+      hazard the closeout is meant to remove.
+    remediation: >-
+      Rename the 2026-10-08 decisions to a distinct prefix (for example D-Q1, D-Q2, D-Q3 or 'decision C1 to C3') and update every citation (FR-003,
+      FR-008, FR-014, C-006 to C-008, Summary), leaving Q-n for the Open Questions only.
+  - id: SPEC-CLOSEOUT-FRESH-006
+    lens: structure-and-cross-reference
+    severity: 1
+    title: "Operator answers heading sits under Known drift, and Q-7 cites Architecture-bullet wording that the same revision removed"
+    evidence:
+      - artifact: "spec.md '### Operator answers (2026-10-10)' follows directly after Known drift item 2, with no blank line, so it nests under '## Known drift (recorded, not resolved here)'"
+      - artifact: "spec.md Q-7 operator answer: 'supersedes the Lamport reducer wording of the 2026-10-08 Architecture bullet'; the Architecture bullet now reads 'status reducer' with no Lamport text (the original, at 9f33c6e77, contained 'Lamport reducer')"
+    claim: >-
+      The operator answers are placed in the wrong section, and the Clarifications section is headed 'Operator decisions (2026-10-08)' and described
+      as settled and unchanged. Q-7 supersedes wording that revision 6f58eff23 already edited out of a section presented as the settled record, so the
+      supersession note points at nothing and the 2026-10-08 record was altered without saying so.
+    remediation: >-
+      Move 'Operator answers (2026-10-10)' into the Clarifications section (blank line before the heading). In Q-7 say 'the 2026-10-08 Architecture
+      bullet and the FR-005 title originally read Lamport reducer; both were reworded to match this answer'.

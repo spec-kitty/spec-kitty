@@ -1,0 +1,69 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved
+    reason: "Phase 2a now runs only the non-golden port-level ids, lists the AC-2a members in a named INTERIM_GOLDEN_DEPENDENT_IDS constant with an interim id-set check, and claims the FR-013 floor and full AC-13a only at the phase 3 exit where the constant is deleted; the parallelism paragraph states the dependency honestly."
+  - id: PLAN-FRESH2-002
+    status: resolved
+    reason: "Phase 1 now owns the complete build.gradle.kts, src/main/resources, the skeleton application and controller, the native test source set directory and the nativeSmoke registration; the chokepoint list names test_mission_status_api_build.py (phases 1, 4a, 5), application.properties and the workflow; residual gaps are recorded as PLAN-NEW3 entries."
+  - id: PLAN-FRESH2-003
+    status: resolved
+    reason: "Section 1 specifies a per-fixture temporary git repository with a registered coord worktree (and an unregistered husk), deterministic env and two 2b tests; I verified the cited symbols (read_worktree_registry, classify_worktree_topology, _is_coord_dir, coord_branch_name, coord_feature_dir, probe_coord_state) and that a path without a .worktrees ancestor needs no registry read; section 7 now states which git calls remain."
+  - id: PLAN-FRESH2-004
+    status: resolved
+    reason: "Section 7 gives a complete nightly-corpus recipe (fetch-depth 0, SHA pins that match ci-router.yml, uv sync --frozen --all-extras as the router uses, graalvm JDK 25, bootJar with a pinned name, project-root property, readiness polling, timeout, artifacts) and admits the oracle module needs pytest installed."
+  - id: PLAN-FRESH2-005
+    status: resolved
+    reason: "Floors now exist for replayed requests, exactly four digests with names and requestCount, and nativeTagFloor from the JUnit XML, each with a revert or planted-empty row in the AC-15 test row; the floor ownership for the native-tagged tests is a separate new finding."
+  - id: PLAN-FRESH2-006
+    status: resolved
+    reason: "The codec moved inside adapter.out.filesystem (two named adapters stand), and E-13 (plus DD-17, data-model, contract notes) records the port-carries-decoded-lines reading of FR-013 with a concrete testable interim (in-memory source takes raw lines only, reflection test that no public constructor accepts LedgerLine, ArchUnit rule 12); the interim is concrete."
+  - id: PLAN-FRESH2-007
+    status: resolved
+    reason: "ArchUnit rules 1-4 are restated as FR-012 prohibitions plus positive allowlists in package-identifier form (java.util.., java.nio.charset.., java.security..) and rules 3-4 are scoped to project packages; rule 12 is consistent with the package tree and with LedgerLine living in domain."
+  - id: PLAN-FRESH2-008
+    status: resolved
+    reason: "Section 13 names mission-status.project-root and mission-status.port, writes the command with --name=value, pins bootJar archiveFileName to mission-status-api.jar, and requires WP01 to run the command once on the skeleton jar; quickstart, nightly recipe and nativeSmoke use the same form."
+  - id: PLAN-FRESH2-009
+    status: resolved
+    reason: "Gate and aggregate are one job (mission-status-api-gate) named consistently in section 5, section 12 and research R-6, with the full if expression (guard, != schedule, always()) matching spec FR-015 (b), and an AC-15a(iii) revert row."
+  - id: PLAN-FRESH2-010
+    status: resolved
+    reason: "Phase 5 now stages the smoke request set (base needs 4a only, hostOrigin added when 4b lands) with per-stage request-count floors and states AC-15b/15e are not met until hostOrigin is in."
+  - id: PLAN-FRESH2-011
+    status: resolved
+    reason: "AC-8g renamed to the AC-8 (g) row with an explicit note that the spec defines AC-8a to 8f, DD-13 now explains the E-10 renumbering, and the Unverified list is in order 1 to 19."
+  - id: PLAN-FRESH2-012
+    status: resolved
+    reason: "Unverified 6 and 18 are rewritten as closed or partly closed with a verification record in section 12 and a retained WP01 re-fetch."
+  - id: PLAN-NEW-001
+    status: resolved
+    reason: "Phase scopes now name skeleton Java, resources, the build test chokepoint, and a concrete home for the port-subset second leg (testsupport.FilesystemFixtureFactory plus conformance.golden.PortSubsetSecondLegTest, rule 11 kept true); new residual gaps are listed as PLAN-NEW3-001 to 004."
+  - id: PLAN-NEW-002
+    status: resolved
+    reason: "Section 8, the phase 1 row, research R-7 and Unverified 2 now say the Tomcat table confirmation runs in a throwaway, uncommitted harness outside the tree, so E-1's no-filter-code rule holds for everything committed."
+  - id: PLAN-NEW-003
+    status: resolved
+    reason: "DD-13 explains the E-10 renumbering, DD-7 carries the pointer to DD-16, and the Unverified list is in numeric order."
+  - id: PLAN-NEW3-001
+    status: unresolved
+    remaining_severity: 3
+    reason: "The JaCoCo scope/class-floor guard has no implementable home: it must read the XML report that is produced after the test task, so it cannot be a JUnit test, and a Gradle verification task would have to live in build.gradle.kts (phase 1 only, \"no later phase edits the build script\") while the floor file jacoco-class-floor.properties and the \"scope test\" are assigned to phase 2a; state the task in phase 1 (tolerating an absent or zero file until 2a) or move the guard, and name where its revert-fails test lives."
+  - id: PLAN-NEW3-002
+    status: unresolved
+    remaining_severity: 3
+    reason: "AC-10b (allowlist constant equals the README fenced list) belongs to phase 3 (IC-04), but README.md is owned only by phase 5, so the phase 3 test either fails at its exit gate or is deferred and skipped, contradicting \"every phase leaves the branch green\" and the discovered-count guards; give phase 3 a README stub with the allowlist fence or move AC-10b to phase 5."
+  - id: PLAN-NEW3-003
+    status: unresolved
+    remaining_severity: 2
+    reason: "The three tagged native tests (AC-9h probe, Jackson/SSE round trip, resource check) have no owning phase or path (phase 1 owns only the source-set directory, 4a does not list it), yet nativeTagFloor is said to start at 3 while phase 1's exit gate is all four native legs green on a skeleton hello route; either phase 1 writes three skeleton native-tagged tests and a later phase owns their replacement, or the floor starts lower and is raised per phase."
+  - id: PLAN-NEW3-004
+    status: unresolved
+    remaining_severity: 2
+    reason: "Phase 4a deletes the phase 1 main package adapter.in.http.skeleton but its test scope omits src/test/java/**/skeleton/**, which only phase 1 owns, so the skeleton test would fail to compile after the deletion or be left orphaned; add that test directory to 4a's scope (or state that phase 1 puts it elsewhere)."
+  - id: PLAN-NEW3-005
+    status: unresolved
+    remaining_severity: 2
+    reason: "INTERIM_GOLDEN_DEPENDENT_IDS is a standing skip list with no stated guard that every member is an AC-2a id and that it is empty after phase 3 (only \"phase 3 deletes the constant\" is said), so a wrongly added id would be silently unexecuted until then; add a test that its members are a subset of the AC-2a ids and that the constant's absence is asserted at phase 3."

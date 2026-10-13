@@ -1,0 +1,231 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-r2
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: PLAN-FRESH2-001
+    lens: phasing-correctness
+    severity: 4
+    title: Phase 2a exit gate and portlevel-tests.txt need goldens that only phase 2b produces
+    evidence:
+      - artifact: "plan.md § 11 Phasing row 2a (exit gate 'port-level subset running against the in-memory source over hand-built fixtures'; '2a reads no golden')"
+      - artifact: "plan.md § 11 Parallelism ('neither exit gate reads the other's output')"
+      - artifact: "spec.md FR-013 (the subset list: AC-2a restricted to interleaved, lifecycle-only, no-ledger, log-truncated, crlf-and-listing; AC-5a; AC-3g/3i port legs; AC-4a rows) and AC-13a (executed id set must equal the file's ids)"
+      - artifact: "spec.md AC-2a ('for each curated fixture Mission the item equals its golden')"
+    claim: >
+      FR-013 fixes the content of portlevel-tests.txt, and the first id (AC-2a on five fixture classes) is a golden-equality test
+      whose input is the conformance fixture trees and goldens that phase 2b writes. Phase 2a owns portlevel-tests.txt but is
+      declared to read no golden and to run the subset over hand-built line fixtures. Either the ids that need fixtures/goldens
+      are not runnable at the 2a exit (AC-13a "executed ids equal the file's ids" and the FR-013 floor then fail), or 2a does read
+      2b output and the two phases are not independent. The "parallel after phase 1" claim and the 2a exit gate cannot both hold.
+    remediation: >
+      Either (a) move portlevel-tests.txt and the golden-reading subset tests to phase 3 (2a keeps only hand-built-fixture unit
+      tests and a smaller interim id list that is explicitly not the FR-013 file), or (b) make 2b a hard predecessor of the subset
+      work and drop the parallelism claim. State which ids are runnable at each exit gate and add a gate that the FR-013 id floor
+      is met only from phase 3.
+
+  - id: PLAN-FRESH2-002
+    lens: write-scope
+    severity: 3
+    title: Phase write scopes omit files the phases must write (build script, resources, skeleton sources, build test)
+    evidence:
+      - artifact: "plan.md § 11 Phasing: row 2a content 'JaCoCo rule', 'ArchUnit rules'; row 1 write scope lists only build.gradle.kts, settings, gradle.properties, gradle/**, gradlew*, .gitignore, the workflow, CODEOWNERS and tests/ci/test_mission_status_api_build.py"
+      - artifact: "plan.md § 13 (packaged application.properties: server.address, springdoc.* disabled, forward-headers none, mission-status.stream.queue-capacity) and § 11 'Native test partition' (dedicated native source set, nativeSmoke task)"
+      - artifact: "plan.md § 11 row 5 write scope (workflow, compare script, its test, README, docs) and row 1 ('JaCoCo-wiring tests', 'workflow structure AC-15a/f' pinned in test_mission_status_api_build.py)"
+    claim: >
+      (1) The JaCoCo verification rule, ArchUnit/test dependencies and the test-task wiring live in build.gradle.kts, which only
+      phase 1 may write, yet row 2a lists the JaCoCo rule as its deliverable. (2) src/main/resources (application.properties and
+      native-image hints) is in no phase's scope although 4a/4b/1 depend on it. (3) Phase 1 builds a skeleton controller and a
+      hello route and a springdoc document test, but its scope names no src/main/java or src/test/java path (phase 4a later owns
+      adapter/in/http and config). (4) The nativeTest source set and the nativeSmoke task are build.gradle.kts content, owned by
+      phase 1 though specified in phase 5. (5) The nightly/aggregate job forms (phase 5) must be pinned in
+      tests/ci/test_mission_status_api_build.py, a phase 1 file that phase 5 does not list. A write-scope table that is the basis
+      for parallel dispatch and disjointness checks is therefore incomplete.
+    remediation: >
+      Add the missing paths to the owning phase (src/main/resources/** and the skeleton Java to phase 1; build.gradle.kts edits to
+      2a/5 with explicit serialisation, or move the JaCoCo/ArchUnit/nativeSmoke wiring into phase 1), and list
+      tests/ci/test_mission_status_api_build.py as a serialised chokepoint edited by phases 1, 4a and 5.
+
+  - id: PLAN-FRESH2-003
+    lens: oracle-feasibility
+    severity: 3
+    title: Python oracle for the coordination and coord-husk fixtures needs a real git worktree registry; the plan describes static trees only
+    evidence:
+      - artifact: "plan.md § 7 ('Curated goldens contain no case whose Python answer depends on a git verdict ... is_registered_coord_worktree'); § 1 (generator reuses resolve_read_dir/build_overview); contracts/service-contract-notes.md (conformance/<class>/<fixture>/ 'static trees ... HEAD text')"
+      - code: "src/specify_cli/status/aggregate.py:261-288 (MissionStatus.load calls _is_coord_dir -> is_registered_coord_worktree for every Mission)"
+      - code: "tests/contract/_mission_status_payloads.py:700-719 (resolve_read_dir catches CoordinationBranchDeleted, CoordAuthorityUnavailable, MissionMetadataUnavailable only)"
+      - code: "src/specify_cli/coordination/surface_resolver.py:623-641 (registered-worktree predicate reads git worktree list --porcelain, fails closed)"
+    claim: >
+      The claim that curated goldens avoid every git verdict is not true of the Python side: build_overview obtains its read
+      directory through MissionStatus.load, which consults the git worktree registry for every Mission, and an unreadable registry
+      raises WorktreeRegistryUnavailable, which resolve_read_dir does not catch. A committed static tree has no .git and no
+      registered *-coord worktree, so the generator and the golden-honesty test (which run both in tests (contract tools) and
+      locally) cannot produce or re-derive the coordination, coord-husk and absent-topology goldens unless they build a temporary
+      git repository with a registered worktree at run time. The plan never says so, nor how the repo-root argument is chosen,
+      nor how this interacts with AC-8d byte determinism (worktree paths, SHAs).
+    remediation: >
+      Specify in section 1 / the contract notes that the generator and the honesty test materialise each fixture into a temporary
+      git repository (git init, a registered coord worktree for the coordination fixtures, none for the husk), keep that
+      provisioning out of any golden byte, and add a WP01/2b check that the Python run on a copy of the static trees is
+      deterministic. Correct the section 7 sentence to say which git calls still occur on the Python side.
+
+  - id: PLAN-FRESH2-004
+    lens: ci-feasibility
+    severity: 3
+    title: Nightly job environment is unspecified, and the comparison script is not pytest-free in practice
+    evidence:
+      - artifact: "plan.md § 1 (scripts/ci/mission_status_corpus_compare.py reuses the Python overview); § 7 'Nightly comparison contract'; research.md R-6 (jobs: jvm, native, gate, nightly-corpus)"
+      - code: "tests/contract/_mission_status_payloads.py:38-54 (module-level import pytest, yaml, jsonschema and ten src packages; imports tests.contract._loader)"
+      - artifact: "plan.md § 5 / spec FR-015 jobs bullet (nightly job runs on schedule and workflow_dispatch)"
+    claim: >
+      The only Python oracle that can compute the overview (build_overview, Projector, resolve_read_dir) lives in a module that
+      imports pytest, jsonschema and most of specify_cli at import time. The nightly script therefore needs a synced Python
+      environment (uv sync with the test extras), JDK 25, a built service (jar or native binary, which one is not said), a way to
+      start it against a project root (the config key is never named), and a full-depth checkout. None of these steps is
+      specified for the nightly-corpus job, and the statement that the script keeps pytest out of the workflow is only true of the
+      invocation, not of the dependency. A WP author would have to invent the job.
+    remediation: >
+      Add to section 7 or 12 the nightly job recipe: checkout fetch-depth 0, setup-uv plus the repository sync command (as in
+      contracts.yml or ci-router.yml), JDK 25 via the pinned graalvm action, which artifact the job builds and starts, the property
+      that points it at the project root, readiness polling, and timeout. State that the helper module needs pytest installed and
+      check tests/architectural/test_no_duplicate_suite_execution.py discovery against it.
+
+  - id: PLAN-FRESH2-005
+    lens: silent-success
+    severity: 3
+    title: Native smoke, digest comparison and the native test subset can pass vacuously, and AC-15b/15e have no revert-fails row
+    evidence:
+      - artifact: "plan.md § 12 ('The aggregate job downloads the four digests and fails on any inequality'; nativeSmoke 'replays the curated request set'; nativeTest runs 'the tagged native subset only')"
+      - artifact: "plan.md § 11 'Discovered-count guards' list (no entry for nativeSmoke request count, digest count/presence, or the @Tag(\"native\") test count) and Test strategy table (AC-15 row covers only AC-15a/15d/release job)"
+      - artifact: "spec.md AC-15b, AC-15e ('fails when the four digests are not all equal'; byte equality over the curated request set)"
+    claim: >
+      Three vacuous paths remain. (1) If a leg uploads no digest, or only some, 'all downloaded digests equal' still passes; nothing
+      requires exactly four. (2) If nativeSmoke iterates a request set that is empty or shorter than the recorded one (a glob or
+      fixture directory that matches nothing), every leg writes the same empty digest and the comparison is green. (3) If the
+      @Tag("native") filter or the dedicated source set selects no tests, nativeTest passes with zero tests. The discovered-count
+      guards paragraph claims every iterated set has a floor but omits these three, and there is no revert-fails row proving that a
+      byte difference or a wrong refusal status turns the native smoke red.
+    remediation: >
+      Add: aggregate asserts exactly four digests with the expected os/arch names and that each digest input count equals a recorded
+      floor; nativeSmoke fails when it replays fewer than the recorded number of requests or compares zero bodies; nativeTest fails
+      when fewer than the recorded number of native-tagged tests ran. Add AC-15b/15e revert-fails rows (perturb one body byte, one
+      status, one digest; planted-empty request set).
+
+  - id: PLAN-FRESH2-006
+    lens: operator-decision-conformance
+    severity: 3
+    title: A third outbound adapter package and a port that returns decoded lines depart from the Architecture decision and FR-013 without an escalation row
+    evidence:
+      - artifact: "spec.md Clarifications, Architecture bullet ('Adapters are adapter.in.http (REST and SSE) and adapter.out.filesystem')"
+      - artifact: "spec.md FR-013 ('the ledger bytes of the resolved read directory'; 'a second in-test in-memory MissionEventSource')"
+      - artifact: "plan.md § 13 'Who decodes ledger lines (decision)' and ArchUnit rules 4/5; data-model.md Ports (readLedger returns decoded LedgerLine records); plan.md § 14 (E-1..E-12 contain no row for it)"
+    claim: >
+      The plan adds adapter.out.codec as a JSON-capable adapter with its own ArchUnit carve-out, and makes MissionEventSource
+      return decoded LedgerLine records instead of ledger bytes. Both are reasoned plan decisions, but the operator named exactly
+      two adapters, and FR-013 describes the outbound port as supplying bytes. Section 14 escalates smaller deviations (E-6 for a
+      coverage floor, E-11 for a springdoc scope reading) yet not this one, so the departure is neither amended in the spec nor
+      listed for the operator's awareness.
+    remediation: >
+      Add an escalation row (operator, awareness or amendment): state that decoding is lifted into adapter.out.codec and that the
+      outbound port carries decoded lines, with the alternative of byte-returning port plus a decoder inside the application-visible
+      boundary rejected because FR-012 bars JSON there. Mirror it in traces/design-decisions.md.
+
+  - id: PLAN-FRESH2-007
+    lens: archunit-rule-set
+    severity: 2
+    title: ArchUnit JDK allowlists are stricter than FR-012 and exclude packages the domain needs; "depends only on" rules are unscoped
+    evidence:
+      - artifact: "plan.md § 13 ArchUnit table rows 1-4"
+      - artifact: "spec.md FR-012 (domain/application import no Spring, HTTP, JSON or java.nio.file/java.io filesystem packages)"
+      - artifact: "data-model.md Cursors (PageCursor: URL-safe base64 of UTF-8 text; SHA-256 hex in domain)"
+    claim: >
+      Row 1 permits only java.lang, java.util, java.util.function, java.time and java.security for the domain; row 2 forbids all of
+      java.nio. FR-012 forbids only java.nio.file and java.io file classes. PageCursor and the SHA-256 hex digests need
+      java.nio.charset.StandardCharsets (or a checked-exception charset-name API that drags in java.io), and the reducer will use
+      java.util.stream. Whether "java.util" means exactly that package or its subpackages is unstated, so the rule is either too
+      strict to implement or silently wider than written. Rows 3 and 4 say "depends only on" project packages without scoping to
+      project packages, which read literally forbids Spring in adapters.
+    remediation: >
+      Restate rules 1-2 as the FR-012 prohibitions plus a positive list written with ArchUnit package identifiers (java.util..,
+      java.nio.charset..), and scope rules 3-4 to "within org.speckitty.missionstatus".
+
+  - id: PLAN-FRESH2-008
+    lens: quickstart-runnability
+    severity: 2
+    title: Quickstart run command uses undefined flags and a jar name the build will not produce; project-root input is never specified
+    evidence:
+      - artifact: "quickstart.md Java side ('java -jar build/libs/mission-status-api.jar --project-root <project root> --port 8787')"
+      - artifact: "plan.md § 13 Bind ('configuration key mission-status.port, default 8787'); plan.md § 12 ('the build version stays 0.0.0-dev'); no occurrence of project-root in plan.md, research.md or data-model.md"
+    claim: >
+      The plan defines the key mission-status.port but no key or flag for the project root, nor a --port alias; Spring Boot reads
+      command-line properties as --name=value, so the space-separated form does not bind. With version 0.0.0-dev the bootJar is
+      named mission-status-api-0.0.0-dev.jar unless archiveVersion is cleared, and nothing says it is. The nativeSmoke task, the
+      nightly job and AC-9 real-socket tests all need the same undeclared input.
+    remediation: >
+      Name the project-root property (for example mission-status.project-root), fix the jar name or pin archiveFileName, write the
+      command as --mission-status.project-root=<project root> --mission-status.port=8787, and run it once in WP01.
+
+  - id: PLAN-FRESH2-009
+    lens: workflow-topology
+    severity: 2
+    title: Workflow job inventory disagrees across sections (aggregate job vs gate), and the gate's schedule conjunct is not stated
+    evidence:
+      - artifact: "research.md R-6 (jobs: jvm, native, mission-status-api-gate, nightly-corpus; no aggregate job)"
+      - artifact: "plan.md § 12 ('The aggregate job downloads the four digests'), § 5 (terminal job mission-status-api-gate, 'if: always() after the canonical fork guard')"
+      - artifact: "spec.md FR-015 jobs bullet (b): the aggregate job carries the same added '&& github.event_name != schedule' conjunct"
+    claim: >
+      Spec FR-015 has one aggregate job with the schedule conjunct. The plan sometimes calls the digest comparer an aggregate job,
+      sometimes folds it into the terminal gate, and lists no aggregate in R-6. Section 5 describes the gate's if: without the
+      '!= schedule' conjunct, only a later aside in section 12 implies it. As written, a gate with always() and no such conjunct
+      runs on every scheduled run with its legs skipped and fails it. AC-15a(iii) pins each job's if: form, so the ambiguity
+      reaches the pinning test.
+    remediation: >
+      Decide whether gate and aggregate are one job, name it once, list it in R-6 and section 5, and write its full if: expression
+      including the schedule conjunct; add it to the AC-15a pin.
+
+  - id: PLAN-FRESH2-010
+    lens: phase-dependency
+    severity: 2
+    title: Phase 5 native smoke must include Host and Origin refusals (AC-15b) but depends on the blocked phase 4b without saying so
+    evidence:
+      - artifact: "spec.md AC-15b ('one request per refusal code ... the Host and Origin refusals')"
+      - artifact: "plan.md § 11 row 5 (no 4b prerequisite) and row 4b (BLOCKED on E-1); § 14 E-1"
+    claim: >
+      AC-15b and the cross-OS digest (AC-15e) include the Host and Origin refusal requests. Phase 5's exit gate ('all four legs +
+      gate green on the PR') is stated without that dependency, and the plan does not say whether the first native smoke omits
+      those requests until 4b lands (which changes the recorded digest set and the curated request floor) or phase 5 waits for E-1.
+    remediation: >
+      State in row 5 that the Host/Origin refusal requests join the request set when 4b lands, with the request-count floor (see
+      PLAN-FRESH2-005) recorded per stage, or make phase 5's exit gate depend on 4b.
+
+  - id: PLAN-FRESH2-011
+    lens: reference-hygiene
+    severity: 1
+    title: Dangling or contradictory identifiers in plan and tracer files
+    evidence:
+      - artifact: "plan.md § 11 Revert-fails discipline ('the rows for AC-8b to 8g'); spec.md defines AC-8a to AC-8f only"
+      - artifact: "traces/design-decisions.md DD-13 ('E-10 withdrawn') versus plan.md § 14 E-10 (nightly exemption row, current)"
+      - artifact: "plan.md Unverified list order (19 appears before 17)"
+    claim: >
+      '(g)' in the AC-8 test row is a plan sub-item, not an AC id; DD-13 says E-10 was withdrawn while the plan has a live E-10 with
+      a different subject (the research squad-disposition note explains the renumbering, the tracer does not); the Unverified list
+      numbering is out of order.
+    remediation: >
+      Rename 'AC-8g' to 'AC-8 (g)' or 'Packs deselect pin'; append a tracer line clarifying the E-10 renumbering; reorder the
+      Unverified list.
+
+  - id: PLAN-FRESH2-012
+    lens: verification-currency
+    severity: 1
+    title: Unverified items 6 and 18 can now be closed; version and hash claims checked out
+    evidence:
+      - artifact: "plan.md Unverified 6 and 18; § 12 'Versions pinned and how verified'"
+    claim: >
+      Independently re-checked on 2026-10-10 from Maven Central, services.gradle.org and the GitHub API: spring-boot-dependencies
+      4.1.1 pins tomcat 11.0.24, jackson-bom 3.1.5, jackson-2-bom 2.21.5; springdoc starter 3.1.1, JaCoCo 0.8.15, networknt 3.0.8,
+      ArchUnit 1.4.2 and NBT 1.1.14 exist; Gradle 9.7.1 buildTime 2026-08-19 and sha256 acd53f1e... match; graalvm/setup-graalvm
+      v1.6.7 is 27b360db..., gradle/actions v6.4.0 dereferences to 3f5f9ada..., GraalVM CE jdk-25.0.2 has all four target assets.
+      No invented version or hash found. The plan still lists two of these as unverified.
+    remediation: >
+      Optionally move items 6 and 18 to verified with the gh api and curl commands; WP01 re-fetch remains as written.

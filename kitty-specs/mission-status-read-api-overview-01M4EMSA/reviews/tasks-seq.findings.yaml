@@ -1,0 +1,142 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: TASKS-SEQ-001
+    lens: Golden pipeline ordering / write scopes
+    severity: 3
+    title: WP09 cannot finish the interim-constant hand-off inside its owned trees (AC-2a shells and second-leg factory seam are WP06-owned)
+    evidence:
+      - artifact: "tasks/WP06 § Subtask T034 step 3 (AC-2a members get class shells in conformance/port, skipped by the constant) and § T032 step 3 (guard test and interim check, location not named)"
+      - artifact: "tasks/WP09 § Subtask T051 steps 1-2 (launch the conformance.port classes through FilesystemFixtureFactory; remove the interim minus-constant logic and its guard test (WP06)) and § Definition of Done 'no edit outside the two owned trees'"
+      - artifact: "wps.yaml WP06 owned_files include test/java/.../conformance/port/** and architecture/**; WP09 owns only conformance/golden/** and testsupport/**"
+    claim: >
+      Plan section 11 row 3 makes WP09 run the AC-2a members on both sources and delete the interim
+      constant. The AC-2a class shells and the port-level classes live in conformance/port/**, which only
+      WP06 owns, and nothing says how a port class receives its source (in-memory versus filesystem)
+      without editing it. The shell bodies cannot be completed by WP06 (no goldens or fixture trees exist),
+      and WP09 may not edit them. The location of the interim 'executed ids = file ids minus constant'
+      logic and its guard test is also unspecified, so the WP09 deletion step may fall outside its map.
+      Result: either an out-of-map edit of WP06 files by WP09, in contradiction with its Definition of
+      Done, or a vacuous shell that is never filled.
+    remediation: >
+      In WP06 (T032/T034) pin that (a) every conformance.port class obtains its MissionStatusQuery from a
+      single testsupport selector (e.g. a factory supplier that WP09 flips to FilesystemFixtureFactory), so
+      WP09 changes only testsupport and conformance/golden; (b) the AC-2a shells delegate to a testsupport
+      hook (a stub declared in WP06, implemented by WP09 over the committed fixture trees) and contain no
+      assertion logic of their own; (c) the interim id check, the INTERIM_GOLDEN_DEPENDENT_IDS constant and
+      its guard test all live under testsupport/** (WP09-owned). Alternatively add conformance/port/** to
+      WP09 as a named hand-off in tasks-overview section 5 and fix the WP09 'no edit outside' sentence.
+  - id: TASKS-SEQ-002
+    lens: Phasing / write scopes
+    severity: 3
+    title: WP11 and WP12 are dependency-unordered but share the single lane-b worktree, and nothing enforces serial execution
+    evidence:
+      - artifact: "wps.yaml: WP11 dependencies [WP10]; WP12 dependencies [WP10]; no path between them"
+      - artifact: "lanes.json lane-b wp_ids lists WP03..WP06, WP08..WP16 in one lane"
+      - artifact: "tasks-overview.md section 1 Parallel column for WP11 ('same lane: runs in order') and section 5 ('a statement about write scope, not a scheduling promise')"
+    claim: >
+      The overview concedes the order is only 'in practice'. After WP10 is approved the status machinery
+      reports both WP11 and WP12 ready; two agents dispatched at once land in one lane worktree and the
+      disjoint write scopes do not prevent index races or interleaved commits in that single checkout.
+      WP12 edits the workflow and test_mission_status_api_build.py while WP11 runs real-socket Tomcat
+      tests; the review of either WP then also sees the other's half-finished tree. The same applies to
+      WP08, but WP08 is protected because WP09 and WP06 order it relative to everything else in the lane.
+    remediation: >
+      Add WP11 to WP12 dependencies (WP12 -> WP11) in wps.yaml and the WP12 frontmatter (WP16 already
+      needs both, so no schedule loss because the lane is serial), or state in WP11 and WP12 prompts
+      and tasks-overview section 1 an explicit dispatch rule: WP12 is claimed only after WP11 is approved.
+      If the edge is added, restate plan section 11's 'phase 5 may start after 4a' as lane-order, not a
+      dependency, in the deviations list (section 9).
+  - id: TASKS-SEQ-003
+    lens: Phasing
+    severity: 2
+    title: Overview claims lane-b depends on lane-a only through WP09, but lanes.json encodes a lane-wide edge that merges lane-a tips into lane-b
+    evidence:
+      - artifact: "tasks-overview.md section 1 last paragraph ('Lane lane-b depends on lane-a only through WP09')"
+      - artifact: "lanes.json lane-b depends_on_lanes [lane-a, lane-planning], parallel_group 2; lane-a parallel_group 0; lane-planning depends_on_lanes [lane-a]"
+      - code: "src/specify_cli/lanes/worktree_allocator.py:1281-1284 and :1095-1099 (_merge_dependency_lane_tips merges approved dependency-lane tips at allocation and again on reuse)"
+    claim: >
+      The lane graph is acyclic (lane-a has no dependencies; lane-planning -> lane-a; lane-b -> lane-a,
+      lane-planning), so the acyclicity claim holds. But the edge is lane-wide: every lane-b WP
+      allocation merges the then-approved lane-a tip, so WP07 lands in lane-b as a mid-chain merge commit
+      whenever it is approved, and the 'parallel_group' numbers (0, 1, 2) read as a schedule that would
+      serialise WP07 before the spike and the scaffold. The overview states neither effect, so an
+      orchestrator may either wait for all of lane-a before WP02/WP03 (losing the parallelism and delaying
+      the risk-first spike behind a 2,500-line Python WP) or be surprised by a dependency-lane merge.
+    remediation: >
+      Add two sentences to tasks-overview section 1: parallel_group is advisory, WP-level dependencies
+      gate readiness; WP02 and WP03 must not wait for WP07; WP07's approved tip merges into lane-b at the
+      next claim (write scopes are disjoint, so the merge is clean), and WP09's claim is the first point
+      that requires it. Optionally name the mid-chain merge in the PR-shape/collapse notes.
+  - id: TASKS-SEQ-004
+    lens: Phasing (risk front-loading)
+    severity: 2
+    title: WP07 (largest Python WP) may start before the spike record exists, with no soft ordering stated
+    evidence:
+      - artifact: "tasks-overview.md section 1 (WP07 depends on WP01 only; '[P] with WP02-WP06, WP08') and section 9 deviation 3"
+      - artifact: "plan.md section 11 row 2b ('run in parallel after phase 1')"
+      - artifact: "tasks/WP07 § Context: 'nothing technical needs phase 1'"
+    claim: >
+      Dropping the plan's 'after phase 1' lets the ~2,500-line oracle and fixture authoring run before the
+      WP02 decision record (R-2 canonical bytes / required-nullable emission, E-8, JFR, Jackson null
+      behaviour) exists. WP09 T048 makes CanonicalJson independent of the production mapper, which bounds
+      the damage, but a spike outcome that changes the response or fixture shape (R-2 no-go, E-8) would
+      be discovered after the goldens are written. The risk-first ordering the plan wanted is therefore
+      only enforced for the Java chain.
+    remediation: >
+      Keep the dependency edge as is, but add a soft rule to WP07 and tasks-overview section 1: claim WP07
+      T038-T039 (bulk fixture authoring) only after the WP02 record is merged or its R-2 and E-8 verdict
+      is read; T036-T037 (machinery, leak patterns) may start earlier.
+  - id: TASKS-SEQ-005
+    lens: Write scopes vs open PRs
+    severity: 2
+    title: Open-PR overlap section is already stale and omits an oracle-input collision
+    evidence:
+      - artifact: "tasks-overview.md section 6 (CHANGELOG edited by seven PRs; '#6002 touches status/emit.py'; semantic watch names only #5953 and #6002)"
+      - code: "gh pr list --repo spec-kitty/spec-kitty --state open --json number,files, run at review time: 10 open PRs; #6002 now also lists docs/changelog/CHANGELOG.md (eight PRs edit it); #5951 edits src/specify_cli/mission_metadata.py and migration/mission_state.py; #5953 also edits src/specify_cli/core/subtask_rows.py"
+      - code: ".github/workflows/ci-router.yml:322 ('**/specify_cli/core/subtask_rows.py') and :325 ('**/specify_cli/mission_metadata.py') are members of the contract_tools group; tests/contract/_mission_status_payloads.py:46 imports mission_metadata"
+    claim: >
+      No owned path other than docs/changelog/CHANGELOG.md overlaps any open PR (verified for every glob in
+      wps.yaml), so the disjointness claim stands. But the CHANGELOG count is now eight, and the semantic
+      watch misses #5951 (mission_metadata.py is an input of the reader the oracle wraps and a contract_tools
+      group member) and #5953's subtask_rows.py. A landing of #5951 before WP07 merges can shift goldens or
+      the import-derived group pin without any path overlap.
+    remediation: >
+      Update section 6: eight CHANGELOG PRs including #6002; add #5951 (mission_metadata.py,
+      migration/mission_state.py) and subtask_rows.py to the semantic-watch list with the same instruction
+      (run --check and the honesty test; a golden shift is regenerated only by the Python generator).
+      Keep the 're-run the query before each claim' sentence; it is what makes this self-correcting.
+  - id: TASKS-SEQ-006
+    lens: Write scopes / chokepoints
+    severity: 2
+    title: WP11 adds native-image runtime classes but owns no native hint path, and WP10 owns META-INF/native-image/** and src/nativeTest/**
+    evidence:
+      - artifact: "tasks/WP11 § T060 (filter, OwnPortSource, OwnPortHolder listening for WebServerInitializedEvent, HostOriginRegistration) and § Risks; no mention of native hints"
+      - artifact: "wps.yaml WP11 owned_files (no resources, no META-INF/native-image/**); WP03 and WP10 own META-INF/native-image/**"
+      - artifact: "tasks-overview.md section 7 lists META-INF/native-image/** as WP03 -> WP10 only"
+    claim: >
+      WP11 introduces a servlet filter, an application-event listener and a filter registration into a
+      GraalVM native image. If any needs a reflection or resource hint, WP11 has no owned location for it
+      and the first native evidence is WP12 (stage base) or WP16 (stage hostOrigin), far from the author.
+      The chokepoint table gives no hand-off for the hint file after WP10.
+    remediation: >
+      Add to WP11 a Must-check line: run the native-tagged tests (or nativeCompile on the Linux leg locally)
+      after T060, and if a hint is required make a minimal out-of-map edit to META-INF/native-image/** in its
+      own commit; add WP11 as a third writer to the section 7 row (WP03 -> WP10 -> WP11).
+  - id: TASKS-SEQ-007
+    lens: Chokepoints
+    severity: 1
+    title: WP16 labels its own owned workflow edit as an out-of-map edit and calls it WP15's last edit
+    evidence:
+      - artifact: "tasks/WP16 § T080 step 2 ('record it as a justified out-of-map edit, own commit')"
+      - artifact: "wps.yaml WP16 owned_files include .github/workflows/mission-status-api.yml; tasks-overview.md section 7 serialisation row ends '-> WP16'"
+    claim: >
+      The workflow is a WP16-owned chokepoint, so editing the digests --request-floor argument is in-map.
+      The out-of-map wording contradicts the section 7 order and invites a reviewer to treat a planned edit
+      as scope creep (or an implementer to skip the pin-tie check). No effect on the resulting code.
+    remediation: >
+      Reword T080 step 2: 'in-map edit of the workflow (owned by WP16, last in the serialisation order of
+      overview section 7); commit separately and keep the WP12 request-floor tie pin green'.

@@ -1,0 +1,583 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+- id: TASKS-DECOMP-001
+  lens: PR shape - split seams truthful (each slice independently green)
+  severity: 4
+  title: WP10 deletes the hello route the four native legs still smoke-test until WP12, so slice S4 /
+    "PR 1" is not green
+  evidence:
+  - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md \xA7 T014 step 3 (skeleton nativesmoke.NativeSmokeTest\
+      \ asserts the binary answers the hello route)"
+  - artifact: "tasks/WP04-workflow-native-hello-legs-gate-helper.md \xA7 T019 step 1 (every native leg\
+      \ runs nativeSmoke against the hello route; gate needs [jvm, native])"
+  - artifact: "tasks/WP10-http-routes-sse-contract-wiring.md \xA7 T055 step 1 and \xA7 Definition of Done\
+      \ (deletes adapter/in/http/skeleton/** and src/test/.../skeleton/**; owned_files has no nativesmoke/**)"
+  - artifact: "tasks/WP12-native-smoke-replay-and-digests.md \xA7 Objective (first WP to replace the skeleton\
+      \ NativeSmokeTest)"
+  - artifact: "tasks-overview.md \xA7 4 recommendations 1 and 2 (PR 1 = WP01-WP11 and S4 = WP10-WP11 'each\
+      \ independently green'); plan.md \xA7 11 'One PR, readability' (justifies the seam as 'phase 1-4\
+      \ has ... a native hello-route leg')"
+  claim: The skeleton hello controller lives in adapter/in/http/skeleton/** (WP03) and is deleted by WP10.
+    The skeleton NativeSmokeTest (WP03, in nativesmoke/**, which WP10 does not own) and the WP04 native
+    legs still require that route, and the only WP that rewrites that test is WP12, two WPs later. Between
+    WP10 and WP12 every native leg and therefore the terminal Mission Status API gate goes red. The plan's
+    premise for the split seam ('phase 1-4 has a native hello-route leg') is false after phase 4a, so
+    PR 1 (WP01-WP11) and slice S4 are not independently green, and the plan's own rule 'every phase leaves
+    the branch green' is broken for 4a and 4b.
+  remediation: 'Pick one and state it in WP10 and tasks-overview section 4: (a) WP10 keeps the hello route
+    until WP12 (delete only the skeleton contract-document route and test), WP12 deletes hello together
+    with the skeleton smoke test, adding adapter/in/http/skeleton/** removal to WP12''s scope (needs ownership
+    of that path in wps.yaml); or (b) add nativesmoke/NativeSmokeTest* to WP10''s owned_files and have
+    WP10 retarget the skeleton smoke assertion to a real route (for example GET /api/v1/project against
+    a copied fixture tree) so the legs stay green, then WP12 replaces the body as planned. Either way
+    add a WP10 DoD line ''native legs green at this tip''.'
+  source: tasks-decomp.findings.yaml
+  refuter_reason: WP10 deletes the skeleton hello route and never mentions nativesmoke, while WP03 T014
+    step 3 and WP04 T019 make the native legs' nativeSmoke assert that route until WP12 replaces it, so
+    the native legs and gate are red at the WP10/WP11 tip.
+- id: TASKS-DECOMP-002
+  lens: Work packages single-concern, reviewable in one sitting; testable acceptance
+  severity: 3
+  title: WP05 exit gate 'check green or shortfall reported' is unsatisfiable by construction and is an
+    escape hatch
+  evidence:
+  - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md \xA7 T012 step 6 (jacocoScopeCheck\
+      \ fails on an absent jacoco-class-floor.properties once any class exists under domain.* or application.*)"
+  - artifact: "tasks/WP05-domain-core-and-ledger-codec.md \xA7 Context (floor file is WP06's) and \xA7\
+      \ Definition of Done bullet 2 ('check is green ... or the exact shortfall is reported')"
+  - artifact: wps.yaml WP06 owned_files (src/test/resources/jacoco-class-floor.properties); WP05 owned_files
+      does not include it
+  claim: WP05 creates the first domain classes. Per WP03's rule, jacocoScopeCheck then fails because the
+    floor file is absent, and WP05 cannot create it (WP06 owns it). So './gradlew check' is red at WP05's
+    tip by design, and the DoD papers over it with an 'or report the shortfall' alternative. The reviewer
+    has no pass/fail criterion for the WP's main gate, and the lane-b chain has a known-red tip between
+    WP05 and WP06.
+  remediation: 'Remove the escape clause and make the gate satisfiable: either (a) WP05 owns jacoco-class-floor.properties
+    and writes the domain.* line, WP06 appends the application.* line (sequential hand-off, record in
+    tasks-overview section 5 and 7), or (b) amend WP03 T012 step 6 so jacocoScopeCheck tolerates an absent/zero
+    floor per pattern while no class exists under THAT pattern (domain present, application absent) and
+    keeps failing once a class exists for it without a floor, with WP05 writing no floor and WP06 still
+    the writer; then WP05''s DoD reads ''check green'' without alternative.'
+  source: tasks-decomp.findings.yaml
+  refuter_reason: WP03 T012 step 6 makes jacocoScopeCheck fail once a domain class exists without the
+    floor file, WP06 owns that file, and WP05 DoD bullet 2 carries the "or the exact shortfall is reported"
+    escape.
+- id: TASKS-DECOMP-003
+  lens: Work packages reviewable in one sitting; WPs not oversized (WP05, WP06, WP08, WP10)
+  severity: 3
+  title: The four Java WPs carry 3,400 to 4,900 hand-written lines each, contradicting the overview's
+    own sitting rule and the WPs' own seam notes
+  evidence:
+  - artifact: "tasks-overview.md \xA7 1 ('~7,000 lines with tests would not fit one sitting' used to split\
+      \ 2a, yet WP05 ~4,000 and WP06 ~4,500 each remain over half of that) and \xA7 4 table (WP05 4,000;\
+      \ WP06 4,500; WP08 3,400; WP10 4,900)"
+  - artifact: "tasks/WP10-http-routes-sse-contract-wiring.md \xA7 T053-T059 (per-subtask file sizes sum\
+      \ to about 4,500: REST controllers ~1,300, SSE controller+stream suites ~1,150, contract document\
+      \ ~280, contract validation ~500, config wiring ~1,050, native tests ~250)"
+  - artifact: "tasks/WP05-domain-core-and-ledger-codec.md \xA7 Risks (author names the seam T023-T026\
+      \ vs T027-T028 and defers it to the implementer)"
+  - artifact: "tasks/WP06-application-ports-feed-archunit-portlevel.md \xA7 T029-T035 (7 subtasks: ports,\
+      \ cache, ChangeFeed ~900 test lines, in-memory source, 12 ArchUnit rules, port-level suite, JaCoCo\
+      \ floor)"
+  - artifact: "tasks/WP08-filesystem-outbound-adapter.md \xA7 T042-T047 (resolver, SafeFiles, allowlist,\
+      \ listing, source with ~700 test lines, README)"
+  claim: 'Several WPs mix distinct review concerns and are each larger than the unit the overview itself
+    says is not reviewable in one sitting: WP10 bundles REST mapping, hand-written SSE, contract-document/validation
+    and Spring wiring/bind guard; WP06 bundles the feed (concurrency) with ports/cache and the ArchUnit/port-level
+    test infrastructure; WP05 bundles the domain core with the projection and the ledger codec; WP08 bundles
+    the path-safety primitives with the event source. WP05 and WP07 put the split decision on the implementer
+    (''report rather than cutting scope''), which is exactly the rework risk a tasks stage should remove.
+    This is not padding: no subtask is vacuous; the issue is size and concern mixing.'
+  remediation: 'Split along the seams the prompts already name, each a sequential WP in lane-b with disjoint
+    owned paths: WP05 -> domain core (T023-T026) and projection+codec (T027-T028); WP06 -> ports/cache/feed
+    (T029-T032) and ArchUnit/port-level/floor (T033-T035); WP10 -> controllers+Problem+contract (T053,T055,T056)
+    and SSE controller+wiring+bind guard+native tests (T054,T057-T059); WP08 -> resolver/SafeFiles/Allowlist/Listing
+    (T042-T045) and FilesystemMissionEventSource+README (T046-T047). If the operator prefers not to re-run
+    finalize-tasks, record in tasks-overview section 1 that these four are knowingly oversize, name the
+    split seam per WP, and make each WP DoD checkpoint at the seam (a mid-WP review commit).'
+  source: tasks-decomp.findings.yaml
+  refuter_reason: The overview table lists WP05 4,000, WP06 4,500, WP08 3,400 and WP10 4,900 against its
+    own 7,000-lines-not-one-sitting rule, and WP05 and WP07 name a seam but leave the split to the implementer.
+- id: TASKS-DECOMP-004
+  lens: PR shape - estimate challenged against WP prompts
+  severity: 2
+  title: The 28,000-line estimate holds in total, but two table rows are not derivable from the prompts
+    and the stated basis is over-claimed
+  evidence:
+  - artifact: "tasks-overview.md \xA7 4 ('estimates taken from the sizes stated in the WP prompts, not\
+      \ measured'; WP07 2,500; WP09 1,500)"
+  - artifact: "tasks/WP07-python-oracle-goldens-ci-routing.md \xA7 T036 (generator ~450 + test module\
+      \ ~600 = ~1,050 stated) and \xA7 T038-T039 (~35 fixture trees, no size stated)"
+  - artifact: "tasks/WP09-golden-suite-on-real-adapter.md \xA7 T048-T051 (350+250+600+350+250 = 1,800\
+      \ stated)"
+  claim: Summing the per-subtask sizes stated in the prompts reproduces the overview totals within about
+    10% for WP03, WP05, WP06, WP08, WP10, WP11, WP12-WP15. WP07 (2,500) rests on an unstated size for
+    roughly 35 hand-authored fixture trees (inputs, not goldens, so they count as hand-written but are
+    data), and WP09 is 1,800 by its prompt, not 1,500. The total (about 28,000) and the seven-times-threshold
+    conclusion are supported, so the recommendation to split is not undermined; only the stated provenance
+    is inaccurate.
+  remediation: In tasks-overview section 4 say that WP07's figure includes about 1,450 lines of estimated
+    fixture data not stated in the prompt, show it as a separate 'fixture data' column, and correct WP09
+    to about 1,800. State that recommendation 2's slice totals (S3 7,400, S5 4,000) shift by that amount.
+    No change to the split recommendation is needed.
+  source: tasks-decomp.findings.yaml
+  refuter_reason: WP09 prompt sizes sum to 350+250+600+350+250 = 1,800 against the table's 1,500, and
+    the "taken from the sizes stated in the WP prompts" basis is over-claimed for WP07's fixture trees
+    (a nit, split recommendation unaffected).
+- id: TASKS-DECOMP-006
+  lens: Work packages single-concern; descriptions concrete
+  severity: 2
+  title: WP16 is a close-out bag and its prompt mislabels its own workflow edit as out-of-map
+  evidence:
+  - artifact: wps.yaml WP16 owned_files (workflow, nativesmoke tests/resources, README, ci-gate-mechanics.md,
+      CHANGELOG.md)
+  - artifact: "tasks/WP16-host-origin-smoke-stage-readme-docs-changelog.md \xA7 T080 step 2 ('record it\
+      \ as a justified out-of-map edit' for the workflow) and \xA7 T084"
+  claim: WP16 combines a CI smoke stage (Java/JSON plus workflow floor), three documentation edits, and
+    the mission-wide close-out checks, with reviewers of different expertise. It is small (about 700 lines),
+    so this is a nit on single-concern rather than a size problem. Separately, wps.yaml lists the workflow
+    file in WP16's owned_files, so calling the edit 'out-of-map' in T080 contradicts the ownership map
+    and invites a wrong tracer entry.
+  remediation: In WP16 T080 replace 'justified out-of-map edit' with 'in-map edit, minimal, own commit'.
+    Optionally move T081-T083 (README, ci-gate-mechanics, changelog) to a docs WP so the hostOrigin smoke
+    stage and the documentation can be reviewed separately; if kept as one WP, state in the Objective
+    that T084 is the only cross-WP check.
+  source: tasks-decomp.findings.yaml
+  refuter_reason: wps.yaml lists the workflow file in WP16 owned_files yet WP16 T080 step 2 calls its
+    edit a "justified out-of-map edit", a real contradiction with the ownership map (minor).
+- id: TASKS-JVM-001
+  lens: Gradle task ownership / WP feasibility
+  severity: 4
+  title: Test partition is unspecified, so the JVM `check` runs binary-dependent smoke/perf classes (or
+    never runs the NFR-004 JVM proof)
+  evidence:
+  - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md \xA7 T012 step 8-9, \xA7 T014 step\
+      \ 3"
+  - artifact: "tasks/WP12-native-smoke-replay-and-digests.md \xA7 T066 Validation (`./gradlew test --tests\
+      \ 'org.speckitty.missionstatus.nativesmoke.*'`)"
+  - artifact: "tasks/WP13-performance-ratio-tests.md \xA7 T070 step 4, \xA7 T069 Validation, \xA7 T072\
+      \ step 2"
+  - artifact: "tasks/WP16-host-origin-smoke-stage-readme-docs-changelog.md \xA7 T080 Validation"
+  - artifact: "plan.md \xA7 11 phase 1 row (nativeSmoke registration pointing at a skeleton nativesmoke.NativeSmokeTest)"
+  claim: NativeSmokeTest, NativePerfTest and the perf-tagged classes are ordinary JUnit classes in src/test/java
+    (packages nativesmoke and perf, owned by WP03/WP12/WP13). WP03 never says that the default `test`
+    task (and so `check`, which the jvm job and WP03 T017 run) excludes them, nor how the `nativeSmoke`
+    and `nativePerf` tasks are built (Test tasks with a class filter? how `-PnativeBinary` reaches the
+    test JVM, since a Gradle -P property is not a system property?). The skeleton NativeSmokeTest (T014
+    step 3) asserts that `-PnativeBinary` is set, which is false under `check`, so the WP03 exit gate
+    `./gradlew check` is red as specified. Conversely WP12/WP13/WP16 validate with `./gradlew test --tests
+    '...nativesmoke.*'` and `perf.*` and WP12 T066 puts pure-JVM digest unit tests in the same package,
+    which contradicts any package-level exclusion. T012 step 9 makes the perf-tag decision conditional
+    on "the WP02 timing record", but WP02 has no step that measures the 60 s NFR-004 hold (T009 measures
+    only stampLedger), so the input does not exist. If the implementer excludes `perf` from `test` and
+    registers no other task, the NFR-004 JVM proof (WP13 T070) is run by nothing in CI and the pin of
+    T072 step 2 ("check still covers the perf classes unless tagged out") passes vacuously. No later WP
+    may edit build.gradle.kts, so this must be settled in WP03.
+  remediation: 'In WP03 T012 specify the partition outright: (a) tag NativeSmokeTest and NativePerfTest
+    with a dedicated JUnit tag (for example `native-binary`) and exclude that tag from the default `test`
+    task; untagged JVM-only tests in the nativesmoke package (digest, requests.json parse, WP12 T066)
+    keep running in `check`; (b) register `nativeSmoke` and `nativePerf` as Test tasks that include only
+    their tag/class and forward the binary with `systemProperty("nativeBinary", ...)` after a require-property
+    check; (c) decide the perf question now (the 60 s hold is fixed by the spec): register `perfTest`
+    for the `perf` tag, exclude `perf` from `test`, and make `check` depend on `perfTest`; delete the
+    conditional of step 9 or add the missing WP02 measurement; (d) add a pin in T016 that parses build.gradle.kts
+    for these registrations and the `check` dependencies; (e) correct the WP12/WP13/WP16 validation commands
+    to the tasks that actually run the classes.'
+  source: tasks-jvm.findings.yaml
+  refuter_reason: WP03 T012 specifies no exclusion of NativeSmokeTest/NativePerfTest from the default
+    test/check, while T014 step 3 asserts -PnativeBinary is set (red under check), and T012 step 9 keys
+    the perf decision on a WP02 timing record that WP02 has no step to produce.
+- id: TASKS-JVM-002
+  lens: Gradle task ownership
+  severity: 3
+  title: WP05 adds domain classes before the floor file exists, so `jacocoScopeCheck` (hence `check`)
+    is red at the WP05 exit
+  evidence:
+  - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md \xA7 T012 step 6 (fails on an absent\
+      \ floor file once a class exists under either package)"
+  - artifact: "tasks/WP05-domain-core-and-ledger-codec.md \xA7 Context (jacocoScopeCheck requires the\
+      \ floor file, WP06 writes it) and \xA7 Definition of Done (`check` green 'or the exact shortfall\
+      \ is reported')"
+  - artifact: "tasks/WP06-application-ports-feed-archunit-portlevel.md \xA7 Context and \xA7 T035 step\
+      \ 1 (WP06 creates jacoco-class-floor.properties)"
+  - artifact: "plan.md \xA7 11 (every phase leaves the branch green)"
+  claim: WP05 is the first WP with classes under org.speckitty.missionstatus.domain, so from WP05 on `jacocoScopeCheck`
+    fails on the absent floor file by WP03's own rule. WP06 owns and first writes the file. WP05 therefore
+    cannot reach a green `./gradlew check`; its prompt papers over this with "or the shortfall is reported".
+    The slice WP05 ends on is red on the mission branch, against the plan's every-phase-green rule, and
+    a reviewer cannot tell a real failure from the designed one.
+  remediation: Move first creation of jacoco-class-floor.properties to WP05 (add it to WP05 owned_files
+    and create_intent) with the `domain` line recorded from the real report, and have WP06 append the
+    `application` line; specify in WP03 T012 step 6 that a pattern line may be absent while no class matches
+    that pattern. Alternatively make the absent-file tolerance per pattern. Update WP05 Definition of
+    Done to require a green `check`.
+  source: tasks-jvm.findings.yaml
+  refuter_reason: WP03 T012 step 6 fails on an absent floor file once a class exists, WP06 alone writes
+    it, and WP05 (first domain classes) only requires check green "or the exact shortfall is reported",
+    so WP05 cannot end green.
+- id: TASKS-JVM-006
+  lens: Gradle task ownership (WP03 completeness)
+  severity: 3
+  title: Dependencies/tooling later WPs need are deferred to a WP02 decision that WP02 does not make
+  evidence:
+  - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md \xA7 T011 step 4 ('the WP02 record\
+      \ fixes them')"
+  - artifact: "tasks/WP08-filesystem-outbound-adapter.md \xA7 T046 step 1 ('YAML parsing: use the library\
+      \ the WP02 record fixed')"
+  - artifact: "tasks/WP10-http-routes-sse-contract-wiring.md \xA7 T056 step 2 (AC-11c: copy the contract,\
+      \ run generate-and-compile on the copy), \xA7 T055 step 2 (AC-11d)"
+  - artifact: "tasks/WP02-spike-and-decision-record.md \xA7 T004-T010 (no step selects a YAML parser or\
+      \ Gradle TestKit)"
+  claim: WP03 is the only owner of libs.versions.toml, build.gradle.kts and verification-metadata.xml
+    and must declare "EVERY dependency any later WP needs". WP03 and WP08 both point at the WP02 record
+    for the YAML parser, but WP02 never selects one. WP10's AC-11c (generated mode) needs a nested Gradle
+    build of a mutated contract copy (Gradle TestKit/GradleRunner, `gradleTestKit()` in build.gradle.kts,
+    a copy of the wrapper, verification metadata and offline resolution) and AC-11d needs a Python subprocess;
+    neither is declared or spiked. The result is the exact amendment-to-WP03 path that plan section 11
+    wants to avoid, discovered at WP08/WP10 time, with a verification-metadata regeneration each time.
+  remediation: Add to WP02 T004 a step that fixes the YAML library (snakeyaml version managed by the Boot
+    BOM, or a stated alternative, with the ArchUnit rule 8 consequence and a native hint) and proves a
+    nested GradleRunner build of a copied project under strict verification works (or names the alternative
+    for AC-11c, for example the generator invoked as a library). List both in WP03 T011 step 4 as mandatory
+    declarations and in T015's resolve-everything command.
+  source: tasks-jvm.findings.yaml
+  refuter_reason: WP03 T011 step 4 and WP08 T046 both defer the YAML parser to "the WP02 record", but
+    no WP02 subtask selects one, and AC-11c in WP10 T056 needs a nested generate-and-compile build that
+    no WP declares or spikes.
+- id: TASKS-JVM-007
+  lens: Spike matches plan (R-2 go/no-go)
+  severity: 3
+  title: '''Only /project and /missions'' generation has no mechanism, and the `Missions` tag also carries
+    five out-of-scope operations'
+  evidence:
+  - artifact: "tasks/WP02-spike-and-decision-record.md \xA7 T005 step 1"
+  - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md \xA7 T012 step 2"
+  - code: contracts/mission-status/openapi.yaml:36
+  - code: contracts/mission-status/paths/missions_missionId.yaml:7
+  - code: contracts/mission-status/paths/missions_missionId_artifacts.yaml:11
+  - code: contracts/mission-status/paths/missions_missionId_work-packages_wpId_detail.yaml:14
+  claim: The contract has ten paths; six carry the tag `Missions` (/missions, /missions/{id}, the two
+    work-package paths and the two artifact paths). A spring `interfaceOnly` run restricted by tag or
+    by the `apis` global property therefore generates a MissionsApi with six operations and models for
+    detail, work-package, artifact content and so on. The WPs say "only /project and /missions" without
+    a mechanism. With the generator's default interface methods, the five out-of-scope operations come
+    back as live routes answering 501, not as 404, once a controller implements MissionsApi; they also
+    enlarge the model package that the JaCoCo exclusions, ArchUnit rule 9 and the AC-11c mutation target.
+    The spike is where this is decided and the criteria table of T005 does not ask.
+  remediation: 'Add criterion 8 to T005: record the mechanism that limits generation to the three in-scope
+    operations (a trimmed input produced at build time, an openapi-normalizer filter, or `defaultInterfaces=false`
+    plus overriding only the three methods), show what the five other operations become at runtime, and
+    require a WP10 HTTP test that they answer 404 (same as any unknown path). Put the chosen settings
+    into WP03 T012 step 2.'
+  source: tasks-jvm.findings.yaml
+  refuter_reason: Six of the ten contract paths carry the tag Missions (verified in contracts/mission-status/paths),
+    WP02 T005 step 1 and WP03 T012 step 2 say "only /project and /missions" with no restriction mechanism,
+    and no criterion or test covers the out-of-scope operations.
+- id: TASKS-JVM-008
+  lens: Spike fallback does not invalidate downstream scopes
+  severity: 2
+  title: Hand-DTO fallback leaves steps that name generator tasks and generator-only pins
+  evidence:
+  - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md \xA7 T015 step 1 (command includes\
+      \ openApiGenerate), \xA7 T016 steps 2 and 6"
+  - artifact: "tasks/WP06-application-ports-feed-archunit-portlevel.md \xA7 T033 step 4 (api/model packages\
+      \ 'read from build.gradle.kts'; rule 9)"
+  - artifact: "plan.md \xA7 13 ArchUnit rule 9 ('generated and hand contract DTO packages')"
+  claim: In hand mode there is no openApiGenerate task, so the T015 metadata command fails as written;
+    the AC-14e pin (plugin version equals pins.json) has no plugin to read (T016 step 2 does not say whether
+    the plugin stays for the drift test); and WP06 reads `apiPackage`/`modelPackage` from build.gradle.kts,
+    which hand mode does not contain, and does not list adapter.in.http.dto in rule 9. The downstream
+    WP scopes themselves survive (WP10 owns adapter/in/http/**), but three steps need a branch that is
+    not written.
+  remediation: Give T015 and T016 an explicit hand-mode branch (omit the task, the pin reads the mode
+    recorded in the build test), have WP06 pin the two generated packages and `adapter.in.http.dto` as
+    literals in the ArchUnit test instead of reading the build script, and state whether the generator
+    plugin remains declared for the AC-11c drift test.
+  source: tasks-jvm.findings.yaml
+  refuter_reason: WP03 T015's metadata command names openApiGenerate unconditionally although hand mode
+    has no such task, and no hand-mode branch is written for it.
+- id: TASKS-JVM-012
+  lens: Gradle task ownership (frontmatter hygiene)
+  severity: 1
+  title: Later WPs list files created by earlier WPs in create_intent, and WP16 calls an owned edit 'out-of-map'
+  evidence:
+  - artifact: tasks/WP10-http-routes-sse-contract-wiring.md, WP12, WP13, WP14, WP15 frontmatter create_intent
+      (workflow and tests/ci/test_mission_status_api_build.py already created by WP03/WP04)
+  - artifact: "tasks/WP16-host-origin-smoke-stage-readme-docs-changelog.md \xA7 T080 step 2 vs frontmatter\
+      \ owned_files (workflow is owned)"
+  claim: create_intent should name only files the WP itself creates; naming existing files can mislead
+    the implement-time preflight and a reader about who creates what. WP16 treats the workflow edit as
+    out of map though the file is in its owned_files.
+  remediation: Trim create_intent to the files each WP creates; reword WP16 T080 step 2 to an ordinary
+    owned edit.
+  source: tasks-jvm.findings.yaml
+  refuter_reason: WP10 create_intent lists tests/ci/test_mission_status_api_build.py (created earlier)
+    and WP16 T080 step 2 calls the workflow edit "out-of-map" although the workflow is in WP16 owned_files;
+    frontmatter nit as claimed.
+- id: TASKS-SEQ-001
+  lens: Golden pipeline ordering / write scopes
+  severity: 3
+  title: WP09 cannot finish the interim-constant hand-off inside its owned trees (AC-2a shells and second-leg
+    factory seam are WP06-owned)
+  evidence:
+  - artifact: "tasks/WP06 \xA7 Subtask T034 step 3 (AC-2a members get class shells in conformance/port,\
+      \ skipped by the constant) and \xA7 T032 step 3 (guard test and interim check, location not named)"
+  - artifact: "tasks/WP09 \xA7 Subtask T051 steps 1-2 (launch the conformance.port classes through FilesystemFixtureFactory;\
+      \ remove the interim minus-constant logic and its guard test (WP06)) and \xA7 Definition of Done\
+      \ 'no edit outside the two owned trees'"
+  - artifact: wps.yaml WP06 owned_files include test/java/.../conformance/port/** and architecture/**;
+      WP09 owns only conformance/golden/** and testsupport/**
+  claim: 'Plan section 11 row 3 makes WP09 run the AC-2a members on both sources and delete the interim
+    constant. The AC-2a class shells and the port-level classes live in conformance/port/**, which only
+    WP06 owns, and nothing says how a port class receives its source (in-memory versus filesystem) without
+    editing it. The shell bodies cannot be completed by WP06 (no goldens or fixture trees exist), and
+    WP09 may not edit them. The location of the interim ''executed ids = file ids minus constant'' logic
+    and its guard test is also unspecified, so the WP09 deletion step may fall outside its map. Result:
+    either an out-of-map edit of WP06 files by WP09, in contradiction with its Definition of Done, or
+    a vacuous shell that is never filled.
+
+    '
+  remediation: 'In WP06 (T032/T034) pin that (a) every conformance.port class obtains its MissionStatusQuery
+    from a single testsupport selector (e.g. a factory supplier that WP09 flips to FilesystemFixtureFactory),
+    so WP09 changes only testsupport and conformance/golden; (b) the AC-2a shells delegate to a testsupport
+    hook (a stub declared in WP06, implemented by WP09 over the committed fixture trees) and contain no
+    assertion logic of their own; (c) the interim id check, the INTERIM_GOLDEN_DEPENDENT_IDS constant
+    and its guard test all live under testsupport/** (WP09-owned). Alternatively add conformance/port/**
+    to WP09 as a named hand-off in tasks-overview section 5 and fix the WP09 ''no edit outside'' sentence.
+
+    '
+  source: tasks-seq.findings.yaml
+  refuter_reason: WP06 T034 step 3 creates AC-2a shells in conformance/port and the interim check/guard
+    location is unnamed, while WP09 T051 must make those classes run on FilesystemFixtureFactory and delete
+    the interim logic yet owns only conformance/golden and testsupport and says "no edit outside the two
+    owned trees"; no mechanism for source selection is specified.
+- id: TASKS-SEQ-005
+  lens: Write scopes vs open PRs
+  severity: 2
+  title: Open-PR overlap section is already stale and omits an oracle-input collision
+  evidence:
+  - artifact: 'tasks-overview.md section 6 (CHANGELOG edited by seven PRs; ''#6002 touches status/emit.py'';
+      semantic watch names only #5953 and #6002)'
+  - code: 'gh pr list --repo spec-kitty/spec-kitty --state open --json number,files, run at review time:
+      10 open PRs; #6002 now also lists docs/changelog/CHANGELOG.md (eight PRs edit it); #5951 edits src/specify_cli/mission_metadata.py
+      and migration/mission_state.py; #5953 also edits src/specify_cli/core/subtask_rows.py'
+  - code: .github/workflows/ci-router.yml:322 ('**/specify_cli/core/subtask_rows.py') and :325 ('**/specify_cli/mission_metadata.py')
+      are members of the contract_tools group; tests/contract/_mission_status_payloads.py:46 imports mission_metadata
+  claim: 'No owned path other than docs/changelog/CHANGELOG.md overlaps any open PR (verified for every
+    glob in wps.yaml), so the disjointness claim stands. But the CHANGELOG count is now eight, and the
+    semantic watch misses #5951 (mission_metadata.py is an input of the reader the oracle wraps and a
+    contract_tools group member) and #5953''s subtask_rows.py. A landing of #5951 before WP07 merges can
+    shift goldens or the import-derived group pin without any path overlap.
+
+    '
+  remediation: 'Update section 6: eight CHANGELOG PRs including #6002; add #5951 (mission_metadata.py,
+    migration/mission_state.py) and subtask_rows.py to the semantic-watch list with the same instruction
+    (run --check and the honesty test; a golden shift is regenerated only by the Python generator). Keep
+    the ''re-run the query before each claim'' sentence; it is what makes this self-correcting.
+
+    '
+  source: tasks-seq.findings.yaml
+  refuter_reason: Live gh query shows
+- id: TASKS-SEQ-007
+  lens: Chokepoints
+  severity: 1
+  title: WP16 labels its own owned workflow edit as an out-of-map edit and calls it WP15's last edit
+  evidence:
+  - artifact: "tasks/WP16 \xA7 T080 step 2 ('record it as a justified out-of-map edit, own commit')"
+  - artifact: wps.yaml WP16 owned_files include .github/workflows/mission-status-api.yml; tasks-overview.md
+      section 7 serialisation row ends '-> WP16'
+  claim: 'The workflow is a WP16-owned chokepoint, so editing the digests --request-floor argument is
+    in-map. The out-of-map wording contradicts the section 7 order and invites a reviewer to treat a planned
+    edit as scope creep (or an implementer to skip the pin-tie check). No effect on the resulting code.
+
+    '
+  remediation: 'Reword T080 step 2: ''in-map edit of the workflow (owned by WP16, last in the serialisation
+    order of overview section 7); commit separately and keep the WP12 request-floor tie pin green''.
+
+    '
+  source: tasks-seq.findings.yaml
+  refuter_reason: wps.yaml lists the workflow as WP16-owned and overview section 7 ends the order at WP16,
+    yet WP16 T080 step 2 calls the edit WP15's last edit and an out-of-map edit.
+- id: TASKS-VERIFY-001
+  lens: environment baseline (no JDK/Gradle/GraalVM)
+  severity: 4
+  title: Toolchain is fetched into a throwaway scratch dir by WP02 but WP03-WP16 assume it persistently
+    on PATH/JAVA_HOME
+  evidence:
+  - artifact: "tasks/WP02-spike-and-decision-record.md \xA7 Context (Prerequisite) and T004 step 1"
+  - artifact: "tasks/WP02-spike-and-decision-record.md \xA7 Objective (harness is THROWAWAY, outside the\
+      \ repository, session scratchpad)"
+  - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md \xA7 T011 Validation, T017 step 1 ('green\
+      \ on JDK 25'), T014 Validation ('if GraalVM is present')"
+  - artifact: tasks/WP05..WP13 Validation lines (./gradlew ... with no provisioning step)
+  - code: 'workstation probe: java, gradle and native-image are all absent from PATH; gcc and zlib headers
+      are present; GraalVM CE jdk-25.0.2 linux-x64 tarball and its .sha256 asset exist upstream'
+  claim: 'WP02 is the only WP that obtains a JDK/GraalVM and Gradle, and it puts them in a session-scoped
+    scratch directory (untrusted-download rule, throwaway harness). Every later WP, run by a different
+    agent session in a lane worktree, runs ./gradlew and needs JAVA_HOME with GraalVM CE 25 (graalvmNative
+    toolchainDetection is off, so the image comes from JAVA_HOME). Nothing installs the toolchain persistently,
+    records where it lives, or tells later WPs to use it. The BLOCKED path covers only "cannot obtain
+    JDK 25" in WP02; it names no owner who unblocks and does not say what WP03+ do when the toolchain
+    is absent in their own session. Result: either every Java WP re-derives its own install (inconsistent
+    versions) or silently skips local verification ("CI is the proof") for work packages whose red-first
+    and revert-fails evidence is local.'
+  remediation: Add an orchestrator-owned prerequisite (tasks-overview section 10 and WP02 T004 step 1)
+    that installs, once, GraalVM CE 25.0.2 and Gradle 9.7.1 under a persistent prefix outside the repository
+    (checksum verified against the vendor .sha256, extracted from an empty directory, placeholder path
+    in all committed text), exports JAVA_HOME and PATH in every Java WP brief, and records versions and
+    checksums (no paths) in the research.md environment section. Add to WP03..WP16 a first-step precondition
+    "java -version and ./gradlew --version report the recorded versions, else stop and report BLOCKED
+    (do not substitute another JDK or skip local gates)". State in WP02 BLOCKED who acts (orchestrator/operator)
+    and that WP03 onward stay unclaimed.
+  source: tasks-verify.findings.yaml
+  refuter_reason: WP02 fetches the toolchain only into a session scratchpad and no artifact provisions
+    or records JAVA_HOME/Gradle for WP03 onward, while WP03 T011/T017 require a green build on JDK 25
+    (later WPs hedge with "otherwise CI", so severity 3 is closer than 4).
+- id: TASKS-VERIFY-002
+  lens: environment baseline (no JDK/Gradle/GraalVM)
+  severity: 3
+  title: Wrapper generation needs an installed Gradle, which nothing provides (chicken and egg)
+  evidence:
+  - artifact: "tasks/WP02-spike-and-decision-record.md \xA7 T004 step 1 ('Generate a wrapper in the scratch\
+      \ project')"
+  - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md \xA7 T011 step 3 ('bootstrap with a\
+      \ locally installed Gradle 9.7.1 if no wrapper exists yet')"
+  - code: 'workstation probe: no gradle on PATH'
+  claim: Both WPs create the wrapper with `gradle wrapper` / `./gradlew wrapper`, which requires a Gradle
+    already installed; T004 only fetches the .sha256 file, and WP03 conditionally assumes a local Gradle
+    9.7.1. No step downloads gradle-9.7.1-bin.zip, verifies it against the recorded sha256, and unpacks
+    it to run `wrapper`.
+  remediation: 'In WP02 T004 step 1 add: download gradle-9.7.1-bin.zip into an empty directory, verify
+    against the recorded sha256, unpack, and use that bin/gradle only to run `wrapper --gradle-version
+    9.7.1 --gradle-distribution-sha256-sum <sha>`; in WP03 T011 step 3 point at that same provisioned
+    install (finding 001) instead of "a locally installed Gradle".'
+  source: tasks-verify.findings.yaml
+  refuter_reason: WP02 T004 step 1 only fetches the .sha256 and says to generate a wrapper, and WP03 T011
+    step 3 assumes a locally installed Gradle 9.7.1, while no step downloads or unpacks the distribution.
+- id: TASKS-VERIFY-003
+  lens: environment baseline / per-AC test strategy
+  severity: 3
+  title: Verification-metadata generation needs a local nativeCompile/nativeTest/nativeSmoke run with
+    no precondition check or fallback
+  evidence:
+  - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md \xA7 T015 step 1 (command resolves\
+      \ 'check nativeCompile nativeTest nativeSmoke ... --refresh-dependencies')"
+  - artifact: "tasks/WP03-gradle-scaffold-supply-chain-skeleton.md \xA7 T014 Validation ('if GraalVM is\
+      \ present, otherwise on the CI leg')"
+  - artifact: "tasks/WP02-spike-and-decision-record.md \xA7 T008 step 6 (native build of the hello app)"
+  claim: AC-14a/14c depend on a metadata file generated by one Linux x64 run that resolves every configuration,
+    including the native ones. That needs the GraalVM native toolchain locally (native-image, C compiler,
+    zlib headers). T014 treats native as optional ("if present"), T015 treats it as mandatory; the two
+    disagree. If native-image is missing at T015, there is no stated fallback (CI never commits, so a
+    CI-only generation is excluded by the same WP). The preconditions are not verified anywhere (WP02
+    T008 builds a hello native image but does not record gcc/zlib/native-image availability as a gate
+    for WP03).
+  remediation: In WP02 T008 record explicitly "native-image + C toolchain present and nativeCompile of
+    the hello app succeeded" as a PASS/FAIL gate; in WP03 T015 make that gate a stated precondition (stop
+    and report BLOCKED if it failed) and align T014 (native-tagged tests are executed locally, not optionally).
+    If a workflow_dispatch generation path is acceptable, say so and who commits its output.
+  source: tasks-verify.findings.yaml
+  refuter_reason: WP03 T014 treats native execution as optional ("if GraalVM is present") but T015 step
+    1 mandates a local nativeCompile/nativeTest/nativeSmoke resolution run with no precondition gate or
+    fallback.
+- id: TASKS-VERIFY-004
+  lens: per-AC test strategy
+  severity: 3
+  title: AC-14b (recorded modified-wrapper-jar CI run) and AC-14c (strict resolution exits 0 on all four
+    legs) have no owning evidence step
+  evidence:
+  - artifact: "tasks-overview.md \xA7 3.2 (AC-14a-14c, 14e, 14g -> WP03 only)"
+  - artifact: 'spec.md:357-358 (AC-14b observable: validation step exit status on a branch with a modified
+      jar, recorded once in the PR; AC-14c: strict-mode resolution exits 0 on each of the four legs)'
+  - artifact: "tasks/WP04-workflow-native-hello-legs-gate-helper.md \xA7 T019 step 2 (verify-only step),\
+      \ \xA7 T021 (pins), \xA7 T022 step 3 (list of answers to record)"
+  claim: The table assigns AC-14b and AC-14c to WP03, but WP03 has no CI and cannot observe either. WP04
+    builds the verify-only step but its T022 recording list (runner labels, setup-graalvm, compile wall-clock,
+    bundling, classifier outcomes) does not include the one-time modified-jar negative run of AC-14b nor
+    the four-leg strict-resolution exit statuses of AC-14c. WP04 pins only prove the step exists and is
+    SHA-pinned, which spec AC-14b says is not the whole observable. No WP carries the negative run.
+  remediation: 'Correct the table (AC-14b: WP04; AC-14c: WP03 for the Linux write plus WP04 for the three
+    verify-only legs). Add to WP04 T022 step 3 and the orchestrator hand-off: a one-time CI run on a scratch
+    branch with a modified gradle-wrapper.jar (job red at wrapper-validation) and the four legs'' strict-resolution
+    exit statuses, both recorded in the spike record and the PR notes.'
+  source: tasks-verify.findings.yaml
+  refuter_reason: tasks-overview maps AC-14b/14c to WP03 only, and neither WP03 nor WP04 T022 schedules
+    the one-time modified-jar CI run that spec AC-14b requires recorded in the PR (WP03 only has a local
+    wrapper-byte revert row).
+- id: TASKS-VERIFY-005
+  lens: per-AC test strategy
+  severity: 3
+  title: AC-1b and AC-1c are covered only by an umbrella range, with no concrete test named
+  evidence:
+  - artifact: "tasks/WP10-http-routes-sse-contract-wiring.md \xA7 T053 ('acceptance test first: AC-1a..1e';\
+      \ steps 3-5 name only L-rows, cursors, AC-1d scan)"
+  - artifact: "tasks-overview.md \xA7 3.2 row 'AC-1a to AC-1e' -> WP10, WP09, WP05"
+  - artifact: 'spec.md:166-167 (AC-1b: metadata.yaml deleted -> 200, schemaVersion null, health not healthy;
+      AC-1c: missionCount equals count of /missions items)'
+  claim: No WP prompt contains the strings AC-1b or AC-1c as a test with a stated failure condition. AC-1b
+    needs an HTTP-level assertion of status 200 plus schemaVersion null plus health other than healthy
+    for the metadata-absent fixture (goldens in WP09 compare the header but not the "status is 200" clause).
+    AC-1c (count over the same fixture equals the number of /missions items across pages) is nowhere asserted;
+    a header count that disagrees with paging would pass every golden individually.
+  remediation: 'In WP10 T053 add two named steps with revert-fails: (AC-1b) request /project over the
+    project-header fixture with .kittify/metadata.yaml absent, assert 200, schemaVersion null, health
+    != healthy (revert: return 500 or healthy); (AC-1c) request /project and drain /missions across all
+    pages for a multi-page fixture, assert missionCount equals the item total (revert: count only the
+    first page). Split the 3.2 row so 1b and 1c are listed.'
+  source: tasks-verify.findings.yaml
+  refuter_reason: WP10 T053 only cites the umbrella AC-1a..1e and no WP names an HTTP-level AC-1b (200,
+    null schemaVersion, non-healthy) or AC-1c (missionCount equals paged item total) test with a revert
+    condition.
+- id: TASKS-VERIFY-007
+  lens: targeted validation commands
+  severity: 2
+  title: Many Java validations are just "targeted tests" with no Gradle task or --tests filter
+  evidence:
+  - artifact: 'tasks/WP08 T043-T046 Validation, WP10 T054-T057 Validation, WP11 T062 Validation, WP05
+      T026-T028 Validation (text: ''targeted tests'')'
+  - artifact: "tasks/WP10-http-routes-sse-contract-wiring.md \xA7 T058 Validation (`./gradlew test --tests\
+      \ '*native*'` 'if tag-run is supported')"
+  claim: The lens requires specific Gradle tasks. These subtasks name no class or package filter, so the
+    implementer chooses between a narrow filter and bare `./gradlew test`; the JVM `check` includes the
+    100-connection and 500-Mission perf tests (WP13), making a bare run slow and unrepresentative. The
+    T058 filter `*native*` is unverified wiring (WP02 T008 step 5 decides it).
+  remediation: Replace each "targeted tests" with the concrete `./gradlew test --tests '<package or class>'`
+    the subtask's tests live in (the packages are already named in the Files lines); for T058 cite the
+    wiring chosen by WP02.
+  source: tasks-verify.findings.yaml
+  refuter_reason: WP08 T043-T046 (and WP11 T062) Validation lines read only "targeted tests" with no Gradle
+    task or --tests filter.
+- id: TASKS-VERIFY-009
+  lens: targeted validation commands
+  severity: 2
+  title: WP16 close-out runs make test-fast and whole-repo ruff inside a WP
+  evidence:
+  - artifact: "tasks/WP16-host-origin-smoke-stage-readme-docs-changelog.md \xA7 T084 step 6"
+  - artifact: plan.md section 6 (make test-fast is the orchestrator's baseline command)
+  claim: Every other WP uses named pytest files; T084 step 6 tells the WP agent to run the repository-wide
+    make test-fast and ruff check/format over '.', and "the router/pin tests of section 5" without listing
+    the files. This is the one place the targeted-only rule is relaxed and it lacks a time bound or an
+    owner distinction (agent vs orchestrator).
+  remediation: Move the make test-fast comparison to the orchestrator-owned section 10 (pre-PR baseline
+    re-run), keep ruff whole-repo only if guarded by `git rev-parse --show-toplevel`, and replace "the
+    router/pin tests of section 5" with the explicit file list used in WP07 T041 step 6 and WP04 T022
+    step 1.
+  source: tasks-verify.findings.yaml
+  refuter_reason: WP16 T084 step 6 runs whole-repo ruff and make test-fast inside the WP and refers to
+    "the router/pin tests of section 5" without listing files.
+- id: TASKS-VERIFY-010
+  lens: per-AC test strategy
+  severity: 1
+  title: Withdrawn AC-9f is absent from the traceability table without a note
+  evidence:
+  - artifact: "tasks-overview.md \xA7 3.2 (AC-9a..9h rows skip 9f)"
+  - artifact: spec.md:311 (AC-9f withdrawn, id kept)
+  claim: A reader checking the table against spec.md sees an uncovered AC-9f.
+  remediation: Add a row "AC-9f | withdrawn, replaced by AC-9g (spec.md Clarifications)".
+  source: tasks-verify.findings.yaml
+  refuter_reason: tasks-overview traceability rows for AC-9 skip AC-9f, which spec.md keeps as a withdrawn
+    id, with no note (nit).

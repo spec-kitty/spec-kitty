@@ -1,0 +1,52 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: "Wall-clock note makes every absolute bound provisional, adds same-run floor ratios and no-retry classification; NFR-001/002/004 and the 2s/10s bounds all marked initial."
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: "AC-10c now names ArchUnit (all legs), JFR jdk.ProcessStart (JVM only, with drop-and-amend clause if the event is absent) and an OS child-count sample for native legs, and states the SecurityManager/ProcessBuilder-wrap route is not a mechanism."
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: "Row L4b, torn-final-line variant (b), AC-4b and AC-4d latch phases define one rule (refuse any unterminated non-whitespace tail) and record Python's mixed-prefix outcome as a knownDivergence golden with a Java-only refusal assertion."
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: "Row L3, the Edge Cases text and the malformed-rows class now say invalid UTF-8 raises UnicodeDecodeError (verified: store.py catches only JSONDecodeError) and add an invalid-UTF-8 variant recording the real exception class."
+  - id: SPEC-FRESH-005
+    status: resolved
+    reason: "FR-005 now states the reducer compares at as code-point text and lastActivityAt compares instants (matches _latest_instant), and AC-5a/AC-8b/interleaved class require fixtures where text and instant order differ."
+  - id: SPEC-FRESH-006
+    status: resolved
+    reason: "FR-001 names SupportedSchemaRange as the single constant, records supportedSchemaMin/Max in the manifest, couples Python and Java tests to it via AC-1f; constants verified at 3/3 in schema_version.py."
+  - id: SPEC-FRESH-007
+    status: resolved
+    reason: "FR-006 replaces the delegated derivation with one committed conformance/resolver-cases.json consumed by both runners, each asserting it ran exactly the file's ids (AC-6e), so one-sided drift fails."
+  - id: SPEC-FRESH-008
+    status: resolved
+    reason: "FR-002 defines a stateless deterministic v1.-prefixed base64 cursor, defines forged/expired precisely (expired cannot occur, same 400), and AC-2c lists exact forged inputs plus a control."
+  - id: SPEC-FRESH-009
+    status: resolved
+    reason: "New row L10 and AC-3k end the stream with ledger_unparseable on an unparseable terminated line, and AC-3b/FR-003 distinguish unknown top-level type from unknown kind, removing the collision with L3."
+  - id: SPEC-FRESH-010
+    status: resolved
+    reason: "Key Entities now says events are ordered by at then event_id with no Lamport clock field, and FR-005's title carries the Q-7 pointer; remaining Lamport mentions are quoted operator-decision text."
+  - id: SPEC-FRESH-011
+    status: resolved
+    reason: "Symlinked meta.json or Mission directory is now row L9 (omit with path_refused diagnostic, others still served, asserted in AC-10d), and FR-010's fallback is scoped to the coordination read directory only."
+  - id: SPEC-FRESH-012
+    status: resolved
+    reason: "Rows L1 and L2 now give draft unless discardedAt is set (rule 1 first), no-ledger class gains a discarded fixture, and AC-4a runs both rows with discardedAt."
+  - id: SPEC-FRESH-013
+    status: resolved
+    reason: "FR-009 drops [::1] from accepted Host forms with the reachable-set rationale and README note on localhost resolution; AC-9b now treats [::1] as a refused forged header."
+  - id: SPEC-FRESH-014
+    status: resolved
+    reason: "FR-001/FR-010 item 6 follow a .git gitdir pointer file (matches head_file in _mission_status_project.py, verified) as a narrow stated exception, and FR-001/AC-1e/project-header class add pattern, over-length, host-path, unborn and pointer-file fixtures."
+  - id: SPEC-FRESH-015
+    status: resolved
+    reason: "FR-008 and Reflexivity items 1 and 3 now name the tests (contract tools) job, explain ROUTER_CONTRACT_MODULES, and state the mission_status file-name import-pin proviso."
+  - id: SPEC-FRESH-016
+    status: resolved
+    reason: "C-013 is reworded to the suggested generic text and a grep finds no remaining private tooling directory names or home paths in spec.md."

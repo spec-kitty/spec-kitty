@@ -1,0 +1,20 @@
+# Build output and tool state (anchored, so a source package named `build` or `out` is NOT ignored).
+/build/
+/.gradle/
+/out/
+*.class
+*.log
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# The repository-wide .gitignore ignores every directory named `build`; the build-input tests live in a package of that name.
+!/src/test/java/org/speckitty/missionstatus/build/
+# ... and every directory named `out`; the outbound adapter package is named that.
+!/src/main/java/org/speckitty/missionstatus/adapter/out/
+!/src/test/java/org/speckitty/missionstatus/adapter/out/
+# ... and the same for the outbound port packages (application/query/port/out), the test trees and the architecture fixtures: any `out` package under src/.
+!/src/**/out/

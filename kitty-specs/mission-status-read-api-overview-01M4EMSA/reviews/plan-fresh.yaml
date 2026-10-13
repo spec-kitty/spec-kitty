@@ -1,0 +1,262 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: PLAN-FRESH-001
+    lens: scope-and-escalation-honesty
+    severity: 4
+    title: Plan Summary still says two seams while section 13 builds five ports; E-10 is non-blocking and framed as a reading question
+    evidence:
+      - artifact: "plan.md Summary: 'the inbound port MissionStatusQuery and the outbound port MissionEventSource are the only seams'"
+      - artifact: "plan.md section 13 Ports: MissionStatusStream (inbound), DiagnosticsSink and FeedScheduler (outbound); section 14 E-10 'Blocking: No ... Built as planned'"
+      - artifact: "spec.md line 30 (operator Architecture decision names one inbound and one outbound port); spec.md line 410 'the two seams of the hexagon'; spec.md FR-013 / AC-13b (factory returns only MissionStatusQuery and MissionEventSource)"
+    claim: >
+      The Summary, the first thing a reader of the plan sees, states the spec's two-port design as the plan's
+      design. Section 13 and data-model.md then add three ports. E-10 files this as an ambiguity in C-003 and
+      the "two ports wording", but C-003 only requires the inbound port to mirror #5532 one to one; the
+      two-seam statement is the operator's binding Architecture decision (spec line 30) and the Key Entities
+      list (spec line 410). The escalation is therefore a change to a binding decision presented as a
+      reading question, marked non-blocking, with the interim "built as planned". FeedScheduler in
+      particular is an executor/clock injection that does not need to be a hexagonal port (a constructor
+      parameter would do), so part of the extra surface is not justified by anything the spec requires.
+      The Charter Check row "Architectural alignment: Pass" also hides the open question.
+    remediation: >
+      Fix the Summary to list all ports and point at E-10. Reword E-10 as a deviation from the operator's
+      Architecture decision (not a reading of C-003), name MissionStatusQuery as unchanged, and make it
+      blocking for the first work package that writes ports/ArchUnit rules (phase 2a), or drop FeedScheduler
+      as a port (inject a ScheduledExecutorService and Clock) and keep only the ports with an observable
+      the spec cannot get otherwise (stream, diagnostics). Say how the AC-13b fixture factory supplies the
+      extra collaborators while still returning only the two named interfaces.
+
+  - id: PLAN-FRESH-002
+    lens: acceptance-criteria-fidelity
+    severity: 4
+    title: Nightly comparison lets the job pass on real Python/Java differences through a ledger; not an escalation
+    evidence:
+      - artifact: "plan.md section 7 'Known divergence ledger' (a differing Mission with a differs row is reported separately and the job passes while the slug set equals the ledger's)"
+      - artifact: "spec.md D-Q1 line 32 'The gate fails on any difference'; AC-8c 'exits non-zero on the first differing Mission'; AC-8c 'Fails if the script only prints a summary and exits zero'"
+      - artifact: "plan.md section 14 (no E-row for this); plan.md R-1 'nightly annotation'"
+    claim: >
+      The plan states in section 7 that AC-8c fixes only the first-difference exit, and that "everything
+      below is the plan's addition". The addition is a pass-through for known differences: the script exits
+      zero while real differences exist, as long as their slugs sit in a committed JSON file hand-edited in a
+      PR. The operator decision D-Q1 and AC-8c both say the gate fails on any difference. Spec Q-3 asks the
+      plan to classify non-curated cases, not to exempt them from the gate. This is an unescalated
+      weakening of the mission's central conformance guarantee (SC-002), and the file sits under
+      src/test/resources so it can be edited in a change that also changes Java behaviour. Intent (a counted
+      expiring exception) is reasonable but it is a spec decision.
+    remediation: >
+      Either keep the script strictly failing on any difference (the ledger only annotates output and never
+      changes the exit code) or add an E-row asking the operator to amend AC-8c/D-Q1 to allow a counted,
+      owner-tagged exception set, and until then ship the strict behaviour. Make the interim in section 7
+      match whichever is chosen.
+
+  - id: PLAN-FRESH-003
+    lens: architecture-consistency
+    severity: 3
+    title: Host/Origin filter must read OwnPortHolder from config, which ArchUnit rules 3 and 6 forbid
+    evidence:
+      - artifact: "plan.md section 8: own port 'held in a port holder the filter reads'; section 13 layout: config/{... OwnPortHolder}; HostOriginFilter under adapter/in/http"
+      - artifact: "plan.md section 13 ArchUnit rule 3 (adapter.in.http depends only on application.port.in, not on config) and rule 6 (nothing depends on config)"
+    claim: >
+      HostOriginFilter lives in adapter.in.http and needs the bound port. The holder is placed in config.
+      Rule 3 forbids adapter.in.http from depending on config; rule 6 forbids anything depending on config.
+      Implemented as written, either the filter breaks rules 3/6 or the rules need an exception that the
+      plan does not state (and that the positive controls for rules 3 and 6 would then have to avoid).
+    remediation: >
+      Move the holder behind a small interface owned by adapter.in.http (config implements and registers it),
+      or place OwnPortHolder in adapter.in.http and have config feed it from WebServerInitializedEvent. Update
+      the section 13 tree and say which package depends on which.
+
+  - id: PLAN-FRESH-004
+    lens: work-package-implementability
+    severity: 3
+    title: adapter.out.codec and several resource files have no phase or write scope; phase 2a needs the codec and 2b goldens yet is called parallel
+    evidence:
+      - artifact: "plan.md section 11 Phasing table: phase 2a scope lists domain/application/testsupport; phase 3 scope is adapter/out/filesystem/** only; no row names adapter/out/codec/**"
+      - artifact: "plan.md section 13: the in-test in-memory MissionEventSource (testsupport, phase 2a) 'BOTH call the same decoder' adapter.out.codec.LedgerLineDecoder"
+      - artifact: "plan.md section 11: 'portlevel-tests.txt' and 'q3-divergence-ledger.json' under src/test/resources are named in no write scope except q3 in phase 5; section 11 'Parallelism': 2a and 2b write-disjoint and parallel after phase 1"
+    claim: >
+      The codec package is the single place ledger lines are decoded and is needed by the phase-2a
+      in-memory source and the port-level subset, but no phase owns it, and its tests (duplicate keys, number
+      forms, non-UTF-8) have no home. portlevel-tests.txt is also unowned. Phase 2a's exit gate (JVM check,
+      including the dual-source port subset and the SupportedSchemaRange-versus-manifest equality) reads
+      goldens and manifest.json that phase 2b writes, so 2a cannot go green without 2b; the claim that
+      they run in parallel is false for the gate. A task writer following this table cannot place the codec.
+    remediation: >
+      Add adapter/out/codec/** and its tests to phase 2a (it is JSON-capable, no file API) and say 2a's
+      port-subset leg lands after 2b's goldens or give 2a a hand-built fixture set until 2b lands. Assign
+      portlevel-tests.txt and the other resource files to a phase and update the write-disjointness claim.
+
+  - id: PLAN-FRESH-005
+    lens: acceptance-criteria-fidelity
+    severity: 3
+    title: Plan contradicts itself on whether the E-1/E-7 Host rows are tested before the operator rules
+    evidence:
+      - artifact: "plan.md section 11 AC-9 row: 'forwarded-header config pins ... and a planted X-Forwarded-Host row' and 'Per-row literal expected status and reachesFilter flag'"
+      - artifact: "plan.md section 11 closing paragraph: 'The additional rows of section 8 are listed under E-7 and are likewise not scheduled before a ruling'; section 14 E-7 'rows of section 8 are not scheduled until ruled'"
+      - artifact: "plan.md section 14 E-1 interim: 'the test hard-codes it' versus section 11 'no test that tolerates a different status for it is written before the ruling' and section 8 'no task for the Host/Origin filter work package is written or started'"
+      - artifact: "plan.md section 8: filter 'refuses (403) any request carrying Forwarded or X-Forwarded-Host'"
+    claim: >
+      Section 8 and section 13 specify filter behaviour (refusing Forwarded and X-Forwarded-Host, exact case
+      match, trailing dot) that FR-009 does not ask for, and E-7 says the tests for it are unscheduled until a
+      ruling, while the AC-9 test-strategy row schedules a planted X-Forwarded-Host row. Either the behaviour
+      ships untested or the test is scheduled before the ruling. E-1's interim says the test hard-codes the
+      row-8 literal; section 11 says no such test is written. A work package writer cannot tell which holds.
+    remediation: >
+      Pick one: schedule the E-7 rows with the filter work package and mark them provisional pending the
+      ruling (behaviour and test land together), or remove the forwarded-header refusal from the filter until
+      ruled. Rewrite the E-1 interim and the section 11 paragraph so they say the same thing about row 8.
+
+  - id: PLAN-FRESH-006
+    lens: work-package-implementability
+    severity: 3
+    title: Phase 4 mixes blocked and unblocked work but carries one exit gate that includes AC-9
+    evidence:
+      - artifact: "plan.md section 11 Phasing, phase 4: adapter.in.http (controllers, SSE, Host/Origin filter, Problem mapping) and config; exit gate 'JVM check green incl. AC-9, AC-11, AC-3'"
+      - artifact: "plan.md section 11 Parallelism: 'The Host/Origin filter work package (phase 4) is BLOCKED on escalation E-1'; IC-05 lists FR-009 together with FR-001..003"
+    claim: >
+      Phase 4 is one row, one scope, one exit gate. The filter is blocked, but every route test of AC-3 and
+      AC-11 runs through the HTTP stack where the filter sits at highest precedence, and AC-9 is in the gate.
+      Phase 4 can therefore neither finish nor be split cleanly: a tasks stage must invent the split and decide
+      what a controller test sends as Host before the filter exists.
+    remediation: >
+      Split phase 4 into 4a (routes, SSE, Problem mapping, config minus the filter) and 4b (Host/Origin filter,
+      bind guard tests, AC-9 rows), state that 4a tests run without the filter (or with a stub accepting
+      the own-port forms), and move AC-9 out of 4a's exit gate.
+
+  - id: PLAN-FRESH-007
+    lens: stack-decision-fidelity
+    severity: 3
+    title: springdoc excluded from the production artifact without an escalation, against C-001 and the C-004 wording
+    evidence:
+      - artifact: "plan.md section 13 'springdoc (build-time only, really)': testImplementation only; classpath test fails if org.springdoc is on runtimeClasspath"
+      - artifact: "spec.md C-001 (stack includes springdoc-openapi), C-004 'springdoc's runtime endpoints are disabled (FR-009)', R-5 'reflection hints for Jackson, springdoc and SSE'"
+      - artifact: "plan.md section 14 (no E-row)"
+    claim: >
+      The spec and the operator's stack decision treat springdoc as part of the shipped service whose runtime
+      endpoints are disabled. The plan removes it from the runtime entirely and uses it only to emit a
+      document in a test. That is defensible and arguably safer, but it changes a binding stack decision and
+      the meaning of C-004 and R-5, and nothing in section 14 records it. The AC-9 behaviour (404 for
+      /v3/api-docs) then holds trivially, not because endpoints were disabled.
+    remediation: >
+      Add an E-row (operator awareness) stating springdoc is test-scope only and why, or put the starter on
+      the runtime classpath with its endpoints disabled and test that. Adjust the AC-9 /v3/api-docs
+      assertion to say which of the two is being proved.
+
+  - id: PLAN-FRESH-008
+    lens: security
+    severity: 2
+    title: BindGuard text covers a configured server.address only; the Spring Boot default is a wildcard bind
+    evidence:
+      - artifact: "plan.md section 13 Bind: 'any server.address other than 127.0.0.1 exits non-zero naming the address'"
+      - artifact: "spec.md AC-9a (non-loopback bind makes the process exit, connect to that address refused)"
+    claim: >
+      When server.address is unset, Boot's embedded server binds all interfaces. The plan does not say the
+      default is pinned to 127.0.0.1 or that an unset value is treated as a violation. A guard that only
+      inspects a configured value passes the unset case, which is the most likely misconfiguration.
+    remediation: >
+      State that application defaults set server.address=127.0.0.1, that an unset or blank value fails the
+      guard, and add the unset case to the AC-9a table of tests; also assert the actual bound address from
+      the started web server, not only the property.
+
+  - id: PLAN-FRESH-009
+    lens: work-package-implementability
+    severity: 2
+    title: The functional edit of tests/ci/test_contracts_workflows.py has no owning phase
+    evidence:
+      - artifact: "plan.md section 1 and section 9: the goldens glob is added as the first entry of ROUTER_ONLY_EXTRA_GLOBS in the functional commit"
+      - artifact: "plan.md section 11 Phasing: phase 0 touches test_contracts_workflows.py (behaviour-preserving); phase 2b write scope lists test_ci_corpus_trigger_completeness.py, test_mission_status_routing.py, ci-router.yml, packs.yml but not test_contracts_workflows.py"
+    claim: >
+      Adding the router glob in phase 2b without the matching entry in the constant makes the existing
+      contract-tools group test red, but the test file is outside 2b's declared write scope. Under the
+      disjointness rule a work package would be forbidden from the one edit that keeps its own gate green.
+    remediation: >
+      Add tests/ci/test_contracts_workflows.py to phase 2b's write scope (with the note that phase 0 only
+      introduces the empty constant).
+
+  - id: PLAN-FRESH-010
+    lens: plan-internal-consistency
+    severity: 2
+    title: Release job described as both absent and as a dry-run job
+    evidence:
+      - artifact: "plan.md section 11 phase 5: 'release job (form pending E-4; dry-run asset upload until ruled)'; IC-06 'release job (form pending E-4)'; traces/design-decisions.md DD-7 'interim behaviour is a dry-run asset upload'"
+      - artifact: "plan.md section 12 'Interim behaviour until E-4 is ruled: the workflow carries exactly the four spec triggers and no release job'; section 14 E-4 interim; research.md R-6 'not built until ruled'"
+    claim: >
+      Phase 5 and DD-7 imply a release job exists in dry-run form; section 12, E-4 and R-6 say no release job
+      ships. A task for phase 5 and the AC-15a test would differ depending on which is followed. Also, the
+      section 12 if: form includes 'pull_request' and 'workflow_dispatch' disjuncts that the following
+      'event_name == push' conjunct makes dead; AC-15a(iii) pins the shape, so the redundancy should be
+      deliberate and explained.
+    remediation: >
+      Make phase 5, IC-06 and DD-7 say "no release job until E-4; artifacts upload only". Note why the
+      dead disjuncts are kept (to match the AC-15a guard-first shape) or simplify the expression.
+
+  - id: PLAN-FRESH-011
+    lens: port-design
+    severity: 2
+    title: subscribe() is typed to throw only StreamRefused, but connect-time 500 rows and their diagnostics have no declared path
+    evidence:
+      - artifact: "plan.md section 13 / data-model.md Ports: 'subscribe ... throws the typed StreamRefused BEFORE a subscription exists'; MissionStatusQuery lists MissionStatusUnavailable separately"
+      - artifact: "spec.md stream table rows S1 (path_refused diagnostic), S2 (500 Problem with the row's diagnostic code at connect; scoped, or unlistable kitty-specs/)"
+      - artifact: "plan.md section 13 Diagnostics: whole-read failures by MissionStatusService, stream faults by ChangeFeed"
+    claim: >
+      Rows S1/S2 are decided before a subscription exists, as a 500 Problem with a diagnostic code. The plan
+      names no typed exception for that on the stream port and does not say whether the service or the feed
+      emits the connect-time diagnostic. Without it two implementers can emit it twice (once in each) or not
+      at all, which AC-4c ("exactly one line per occurrence") would catch late.
+    remediation: >
+      Declare that subscribe may throw MissionStatusUnavailable (or fold it into StreamRefused with a status
+      class), state that the component performing the connect-time resolution emits the diagnostic once, and
+      add the S1/S2 connect rows to the data-model stream state description.
+
+  - id: PLAN-FRESH-012
+    lens: architecture-consistency
+    severity: 2
+    title: ArchUnit rules 1 and 2 allow only a JDK subset that excludes java.util.concurrent, which ChangeFeed needs
+    evidence:
+      - artifact: "plan.md section 13 rule 1 (domain: java.lang, java.util, java.time, java.security) and rule 2 (application: domain and 'JDK value types')"
+      - artifact: "plan.md section 13 SSE: bounded per-subscriber queues, blocking next(Duration), shared poller in ChangeFeed (application)"
+    claim: >
+      A bounded queue with a blocking wait and a shared fan-out needs java.util.concurrent (queues, locks,
+      atomics), a different package from java.util. "JDK value types" is not a checkable ArchUnit
+      predicate. The rule as written either rejects ChangeFeed or is loosened ad hoc by the implementer, and
+      the per-subscriber overflow policy (slow client) is not stated at all.
+    remediation: >
+      List the allowed packages for application explicitly (including java.util.concurrent and its atomic
+      and locks subpackages) and keep java.io/java.nio.file and thread-creating APIs forbidden; state what
+      a full bounded queue does (drop the Mission, close the stream) and which S-row it maps to.
+
+  - id: PLAN-FRESH-013
+    lens: cross-references
+    severity: 1
+    title: Broken or ambiguous cross-references (data-model S1-S6, "section 4 of the test strategy", R-n ids)
+    evidence:
+      - artifact: "plan.md traceability FR-003 row: 'stream table S1-S6 in data-model.md' (data-model.md has a Stream state paragraph and cites the spec's table; no S1-S6 table)"
+      - artifact: "plan.md section 1: 'C-009 is held by a new packaging test, section 4 of the test strategy' (the test strategy has no numbered section 4)"
+      - artifact: "plan.md IC-01 'R-3, R-4, R-5, R-7' (plan risk ids) versus plan Technical Context 'research.md R-4' (supply chain) and traceability 'R-1..R-9 | risks table below' (plan risks go to R-16; research.md R-1..R-9 are different items)"
+    claim: >
+      Three references point at nothing or at two different things: the S1-S6 table lives only in spec.md;
+      the test strategy section number does not exist; R-n is used for plan risks, spec risks and research
+      sections in the same paragraphs.
+    remediation: >
+      Point the FR-003 row at spec.md stream table, name the C-009 test row by its AC/NFR, and prefix the
+      namespaces (PR-n for plan risks, RS-n for research.md sections) or always write "research.md R-n".
+
+  - id: PLAN-FRESH-014
+    lens: governance
+    severity: 1
+    title: Added build-failing and verification claims not recorded as plan additions (branch 80% gate; Gradle 9.7.1 checksum and date)
+    evidence:
+      - artifact: "plan.md section 5 'BRANCH coverage >= 80% on domain only'; spec.md NFR-006 (line coverage of at least 90% on domain and application only)"
+      - artifact: "plan.md section 2 and section 12: Gradle 9.7.1 'released 2026-08-19', checksum acd53f1e... 'from the official .sha256 file'; traces/tooling-friction.md: no JDK or Gradle on the workstation; Unverified list (no entry for the Gradle checksum or date)"
+    claim: >
+      The branch-coverage floor makes the build fail on something NFR-006 does not require and is not listed
+      among the plan's additions (compare E-6). The Gradle checksum and release date are given as read from
+      the official source, while the Unverified list, which exists to list such items, omits them; a wrong hash
+      would only surface when the wrapper is generated.
+    remediation: >
+      Record the branch gate as a plan addition (one line in section 14 or the traceability NFR-006 row) and
+      add the Gradle date and checksum to the Unverified list with the WP01 re-fetch step.

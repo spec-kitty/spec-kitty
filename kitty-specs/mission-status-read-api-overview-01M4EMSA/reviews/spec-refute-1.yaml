@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-ARCH-JVM-001
+    verdict: confirmed
+    reason: reducer.py line 18 imports reduce_shared_state from the external spec_kitty_events.status, so FR-005 cites a file that holds only the wrapper, and AC-5a never names the tie-break keys.
+  - id: SPEC-ARCH-JVM-002
+    verdict: confirmed
+    reason: contracts/ has no wrapper directory, no wrapper-validation step and no version catalog (only verification-metadata.xml), so "the controls match" in FR-014/C-008 overstates the precedent.
+  - id: SPEC-ARCH-JVM-003
+    verdict: refuted
+    reason: Strict mode is a plan-level definition, and AC-14a (tamper test), AC-14c (any matrix leg missing a checksum fails) already give observable failing conditions.
+  - id: SPEC-ARCH-JVM-004
+    verdict: confirmed
+    reason: FR-014 requires the 7.25.0 pin equality but AC-14a-d has no check for it, and gradle_pin_check.py/verify_pins.py glob contracts*.yml while FR-015 leaves the workflow name unconstrained.
+  - id: SPEC-ARCH-JVM-005
+    verdict: refuted
+    reason: R-3 explicitly defers Spring Boot/NBT/GraalVM version verification to plan time, and the foojay and MSVC concerns are speculative plan details rather than a spec defect.
+  - id: SPEC-ARCH-JVM-006
+    verdict: confirmed
+    reason: AC-15b checks only that each route answers plus the SSE Content-Type, and NFR-005 demands byte-identical responses across four OSes with no AC or step that compares them.
+  - id: SPEC-ARCH-JVM-007
+    verdict: confirmed
+    reason: NFR-004 has no numeric bound or virtual-thread assertion, and C-004 limits the service to three routes while springdoc-openapi is in the stack with nothing saying its default endpoints are disabled or guarded.
+  - id: SPEC-ARCH-JVM-008
+    verdict: refuted
+    reason: Port operation signatures and change-detection mechanism are plan/design detail; the spec already fixes the port names, FR-004 torn-tail reporting and AC-13a in-memory adapter, so no spec defect is shown.

@@ -1,0 +1,38 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: "WP05 T023 step 3 now declares LedgerLine, its sealed kind, MalformedReason and the tail classification in domain.model; WP17 T028 and WP06 T029 only produce/carry them, WP18 T033 explains rule 12, and the WP17->WP05 and WP06->WP17 edges plus plan rule 12 (codec depends only on domain) hold."
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: "WP10 T053 step 9 adds TornTailConcurrencyHttpTest (at least 200 GETs during appends, prefix check, both latch stages with 500 ledger_torn_tail, revert row), named in the Validation line and DoD, and the overview AC-4d row points at it."
+  - id: TASKS-FRESH-003
+    status: resolved
+    reason: "The recorder chain WP08 T044 (public AllowlistAccess/RecordingAllowlistAccess) -> WP19 T046 step 0 (public constructor) -> WP09 T048 (FilesystemFixtureFactory/FixtureHandles) -> WP10 testsupport.http -> WP20 T085 is stated consistently in all five prompts and is ArchUnit-legal (testsupport may import adapter.out.filesystem)."
+  - id: TASKS-FRESH-004
+    status: resolved
+    reason: "WP02 T004 step 3 probes empty tag-filtered Test task behaviour, WP03 T012 step 8 applies the recorded switch to perfTest and other empty tag-only tasks, T016 step 10 pins it with a revert row, and the WP20 T059 hedge is replaced by a reference to that record."
+  - id: TASKS-FRESH-005
+    status: resolved
+    reason: "WP05:60, WP06:61/91/100 and WP07:72 now name WP18, WP08/WP19/WP10/WP20, WP19 T046 step 5, WP20 T054 step 2 and WP17-WP19 respectively, and a sweep of 'enforces' and event-source/SSE WP references found no further stale number."
+  - id: TASKS-FRESH-006
+    status: resolved
+    reason: "WP07, WP09, WP10 and WP20 all spell the path as the Mission directory's contracts/service-contract-notes.md with the full kitty-specs path, and no unqualified occurrence remains (remaining bare contracts/ mentions are the real repository contracts/tools tree)."
+  - id: TASKS-FRESH-007
+    status: resolved
+    reason: "wps.yaml, tasks.md and the frontmatter of WP12/WP19/WP20 all carry the added FR-010, FR-016 and NFR-008 refs (programmatic check: requirement_refs and dependencies match wps.yaml for all 20 WPs, finalize-tasks --validate-only reports tasks_md_stale false and nothing to modify), and overview 3.1 is updated."
+  - id: TASKS-FRESH-008
+    status: resolved
+    reason: "WP10 T057 step 4 now adds the pin that parses ArchitectureRulesTest for the three rule-9 package literals and checks them against the mode recorded by T016, with a revert row, matching WP18 T033 step 4's promise."
+  - id: TASKS-FRESH-009
+    status: unresolved
+    remaining_severity: 1
+    reason: "Overview section 6 and WP16:148 now correctly say nine of eleven PRs (#6004 included), but WP16 Context line 69 still lists only seven PRs (#5953 #5957 #5954 #5950 #5945 #5944 #5540), so the exact line the finding named is stale and contradicts WP16:148."
+  - id: TASKS-FRESH-010
+    status: resolved
+    reason: "Overview section 1 now states that depends_on_lanes is not a claim gate (claims are per-WP via dependency_readiness_for_wp) and only drives the base of a newly allocated lane worktree, which matches lanes.json and worktree_allocator behaviour."
+  - id: TASKS-SEQ-005
+    status: resolved
+    reason: "Section 6 now counts nine CHANGELOG PRs including #6002 and #6004 and adds #5951 (mission_metadata.py, migration/mission_state.py) and subtask_rows.py to the semantic-watch list with the --check/honesty-test instruction; I re-ran the gh query and the facts match."

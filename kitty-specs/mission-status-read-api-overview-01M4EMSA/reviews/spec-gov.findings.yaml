@@ -1,0 +1,168 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: SPEC-GOV-001
+    lens: "Mission lens M-A open-question honesty / Scope (C-012 contract is the vocabulary)"
+    severity: 4
+    title: Q-1 is presented as unsettled, but the contract already answers it and contradicts FR-004's unreadable-log AC
+    evidence:
+      - artifact: "spec.md § Edge Cases (Unreadable event log), § FR-004 and AC-4a, § Open Questions Q-1, § C-012"
+      - code: "contracts/mission-status/schemas/MissionHead.yaml:139-140"
+    claim: >-
+      The contract's lifecycleStatus rule reads "wpTotal is 0 (including an unreadable event log), so draft".
+      So the contract already maps an unreadable log to a 200 overview with zero counts and lifecycle draft, and has no
+      per-Mission failure field. FR-004/AC-4a say the opposite ("Fails if the response is a healthy overview with zero
+      counts") and Q-1 says the question is "not settled from the repo". An implementer following C-012 (serve the
+      contract as written) fails AC-4a, and one satisfying AC-4a breaks both the contract and the "same overview as
+      Python on every Mission" gate. The FR is written as a requirement while its premise is parked, so the unreadable-log
+      leg of AC-4a is untestable until Q-1 is decided.
+    remediation: >-
+      Rewrite Q-1 to cite MissionHead.yaml:139-140 as the current contract answer (unreadable log reads as draft with zero
+      counts). Mark the unreadable-log and missing-directory legs of FR-004/AC-4a as blocked on Q-1, and state the
+      interim behaviour (contract rule plus the FR-004 AC-4c diagnostic) so the plan has a falsifiable AC either way.
+      Keep the contract change an explicit escalation to the contract owners, not a silent deviation.
+  - id: SPEC-GOV-002
+    lens: "Directive: canonical sources (single canonical authority)"
+    severity: 3
+    title: Java health range duplicates Python's MIN/MAX_SUPPORTED_SCHEMA with no parity AC
+    evidence:
+      - artifact: "spec.md § FR-001 (When it cannot do its job; AC-1a)"
+      - code: "src/specify_cli/migration/schema_version.py:22-23"
+      - code: "contracts/mission-status/schemas/Project.yaml:64-84"
+    claim: >-
+      The contract derives health from MIN/MAX_SUPPORTED_SCHEMA of "the serving build" (both are 3 today). The spec says
+      only "outside the supported range yields drift" and hard-codes schema 3 in AC-1a. The Java service therefore
+      carries a second copy of a canonical constant (charter standing order 6, single canonical authority), and nothing
+      detects it drifting when Python bumps the range. The range is not part of the golden set either.
+    remediation: >-
+      Add an AC that pins the Java range to the Python constants (the generator emits the bounds into a committed
+      golden or fixture, and the Python golden test asserts them equal to schema_version.py), or state that the service
+      reads the range from one build-time resource generated from Python. Replace the literal "schema 3" in AC-1a with
+      "the lower and upper bound, plus bound-1 and bound+1".
+  - id: SPEC-GOV-003
+    lens: "Scope / Mission lens M-A (acceptance falsifiability)"
+    severity: 3
+    title: Coordination ACs need more fixtures than the five-class curated set, and AC-6c depends on Python network behaviour parked in Q-3
+    evidence:
+      - artifact: "spec.md § FR-006 AC-6a/6b/6c, § FR-008 AC-8b, § Open Questions Q-3, § Clarifications Q1 (curated set)"
+      - code: "contracts/mission-status/paths/project.yaml:8-10"
+      - code: "contracts/mission-status/schemas/Project.yaml:9-12"
+    claim: >-
+      AC-8b fixes the set at five classes with one coordination-topology Mission, but AC-6a (stale primary copy), AC-6b
+      (no coordination worktree) and AC-6c (declared but missing worktree) each need their own fixture, and AC-1b/1c need
+      project-level fixtures. The contract says Python's resolver can run network probes for an absent coordination
+      branch, so a golden for AC-6c generated from live Python can be non-deterministic (it clashes with AC-8d) and Java
+      cannot match it by design (Q-3). AC-6c is thus unfalsifiable as written, while Q-3 parks the very question it needs.
+    remediation: >-
+      State the exact fixture list (at least coordination-current-with-stale-primary, no-coordination and
+      declared-but-absent) and amend the "five classes" count to a minimum. For AC-6c, require the fixture repo to have
+      no remote so Python never probes, and move the remote-unreachable case into Q-3 / #5631 as explicitly not golden-pinned.
+  - id: SPEC-GOV-004
+    lens: "Scope (claims about the Python read port)"
+    severity: 2
+    title: 'Mirror the Python read port (#5532) one to one has no acceptance criterion and no re-check trigger'
+    evidence:
+      - artifact: "spec.md § C-003, § FR-013, § R-8, § Assumptions"
+      - code: "src/specify_cli/status (no read-port module exists; spec itself says so in FR-008 and FR-013)"
+    claim: >-
+      C-003 makes the inbound port a one-to-one mirror of a port that does not exist (#5532 is OPEN, verified). FR-013 and
+      R-8 say the mirror is "re-checked when #5532 lands" but no AC, owner or trigger exists, so the constraint cannot fail.
+      It also leans on a future artifact owned by another issue, which edges into #5532 territory.
+    remediation: >-
+      Reword C-003 to "mirrors the contract operations; alignment with #5532 is checked by #5532, not this mission", and
+      drop or move the re-check to the #5532 hand-off note. If kept, give it an owner and a concrete AC.
+  - id: SPEC-GOV-005
+    lens: "Directive: charter standing orders (campsite cleaning, red-first) and CLAUDE.md Code Style"
+    severity: 2
+    title: Spec is silent on campsite-cleaning the shared Python surfaces it touches and on ruff/mypy/diff-cover for the new Python code
+    evidence:
+      - artifact: "spec.md § NFR-006, § Baseline and verification honesty, § FR-008, § Reflexivity"
+      - artifact: ".kittify/charter/charter.md Quality & Tech-Debt Standing Order 2 (campsite cleaning) and the red-first ATDD paragraph near the end"
+      - code: "tests/contract/_mission_status_payloads.py (1401 lines per the readiness report), tests/ci/test_contracts_routing.py"
+    claim: >-
+      The mission edits existing shared Python surfaces (tests/contract helpers reused by the generator, tests/ci routing
+      pins, possibly ci-nightly.yml) but never names the campsite-clean step the charter requires first. NFR-006 says Python
+      rules "do not apply to the Java tree" without saying they DO apply to the new Python generator and golden test
+      (CLAUDE.md: new code passes ruff and mypy; ci-aggregate diff-cover at 90 percent). "Red-then-green" is stated for
+      gates but not as the charter's red-first-on-planning_base ATDD for each WP.
+    remediation: >-
+      Add one line to Baseline and verification honesty: WP01 opens with a behaviour-preserving campsite scout of the
+      touched Python files, the new Python generator/test meet ruff, mypy and diff-cover 90 percent, and each WP
+      starts from a failing-first test. Keep the charter edit out of scope (C-011).
+  - id: SPEC-GOV-006
+    lens: "Terminology"
+    severity: 2
+    title: Undefined and mixed terms for status.events.jsonl ("ledger", "event log", "journal", "log") and for new concepts, with no named glossary home
+    evidence:
+      - artifact: "spec.md § Summary, § Edge Cases, § Key Entities, § NFR-008"
+      - artifact: "docs/context/contextive-glossaries.md (generator reads docs/context/*.md)"
+    claim: >-
+      The glossary (spec-kitty glossary list) has no entry for ledger, mission overview, stream cursor, or golden; the spec
+      uses ledger, event log, journal and log interchangeably for one file. NFR-008 says Contextive files are updated "if a
+      new term is introduced", but never says which terms are new nor which docs/context page owns them, and service
+      README prose under services/ is not an input to the Contextive generator, so the CI sync gate cannot catch it.
+    remediation: >-
+      Pick one canonical term for the file (use the term docs/architecture/status-model.md already uses) and use it
+      throughout. List the new terms (Mission overview, stream cursor, page cursor, golden) in NFR-008 with their target
+      docs/context file, and state that definitions land there so the Contextive regeneration gate stays green.
+  - id: SPEC-GOV-007
+    lens: "Mission lens M-A (PR and issue state claims)"
+    severity: 1
+    title: R-2 says both PRs were closed "at the time of writing", but #5326 closed after the spec's Created date
+    evidence:
+      - artifact: "spec.md § header (Created 2026-10-08), § Edge Cases, § R-2"
+    claim: >-
+      Verified with gh: #5902 closed 2026-10-08, #5326 closed 2026-10-09 (both unmerged); #3284 closed 2026-09-08, #5532 and
+      #5631 open, #5558/#5625/#5776 closed. All stated states are correct today, but #5326 was still open on the
+      Created date, so "closed ... at the time of writing" is not true for the draft date, and #5326 touches
+      status/reducer.py and store.py (verified), so it may be reopened.
+    remediation: >-
+      Reword R-2 to give the verification date ("as of 2026-10-09 both are closed unmerged") and keep the instruction
+      to re-verify before plan acceptance.
+  - id: SPEC-GOV-008
+    lens: "Scope (shared-surface edits) / Reflexivity"
+    severity: 2
+    title: FR-008 leaves the nightly job location open although Reflexivity lists the shared-surface edits as closed
+    evidence:
+      - artifact: "spec.md § FR-008 (iv), § Reflexivity"
+      - code: ".github/workflows/ci-nightly.yml:61"
+    claim: >-
+      FR-008(iv) allows editing the existing ci-nightly.yml "or a workflow of this mission's own"; Reflexivity claims the only
+      shared-surface edit is the Python goldens test joining the routing, and lists a workflow plus a CODEOWNERS line.
+      Editing ci-nightly.yml would add an unlisted shared-surface edit (and router/arch-gate pins) that the verification
+      diff check would then fail to anticipate.
+    remediation: >-
+      Decide it in the spec: a separate nightly workflow owned by this mission (keeps ci-nightly.yml untouched, matches
+      FR-015's path-filter isolation), and remove the "or" from FR-008(iv).
+  - id: SPEC-GOV-009
+    lens: "Directive: known drift accuracy (verification, no defect)"
+    severity: 1
+    title: Known-drift section checked against charter wording and found accurate
+    evidence:
+      - artifact: "spec.md § Known drift"
+      - artifact: ".kittify/charter/charter.md Technical Standards, Performance and Scale, Deployment and Constraints; header Version 1.5.0 / Updated 2026-10-06"
+      - artifact: "docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md Open questions item 3 and Amendment 2026-10-03"
+    claim: >-
+      The quoted sentences ("Python 3.11+ is required for all CLI and library code.", "Dashboard must support 100+ work
+      packages without lag", "PyPI distribution"), the dependency list, version and date, and the ADR open-question and
+      amendment citations all match. Not a defect; recorded so the squad knows it was verified. One small gap: the drift
+      text says CLAUDE.md and AGENTS.md "say nothing about Java", but CLAUDE.md Code Style says "Python 3.11+" and imposes
+      ruff and mypy on new code, which matters for the Python generator (see SPEC-GOV-005).
+    remediation: >-
+      None required. Optionally replace "say nothing about Java" with "are Python-scoped and name no Java stack".
+  - id: SPEC-GOV-010
+    lens: "Public-repo / Ledger"
+    severity: 1
+    title: No private detail, absolute home path or credential in spec.md; no ledger entry on this behaviour
+    evidence:
+      - artifact: "spec.md (grep for home-directory paths and user names returned no match; C-013 names ~/.local, ~/.hermes, ~/.claude as installed-artefact locations only)"
+      - artifact: "SPEC-KITTY-LEDGER.md (entries on status.events.jsonl concern merge and dirty-tree defects in the CLI, none on a read service or the reducer's read behaviour)"
+    claim: >-
+      Clean on both lenses. Note C-013 names ~/.hermes and ~/.claude, which are operator-environment tool locations
+      rather than a leak, but they are not a repository concept either.
+    remediation: >-
+      Optional: drop the ~/.hermes and ~/.claude names from C-013, leaving "installed artefacts outside the checkout".

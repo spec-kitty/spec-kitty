@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 5
+verdicts:
+  - id: TASKS-VERIFY-004
+    verdict: confirmed
+    reason: tasks-overview maps AC-14b/14c to WP03 only, and neither WP03 nor WP04 T022 schedules the one-time modified-jar CI run that spec AC-14b requires recorded in the PR (WP03 only has a local wrapper-byte revert row).
+  - id: TASKS-VERIFY-005
+    verdict: confirmed
+    reason: WP10 T053 only cites the umbrella AC-1a..1e and no WP names an HTTP-level AC-1b (200, null schemaVersion, non-healthy) or AC-1c (missionCount equals paged item total) test with a revert condition.
+  - id: TASKS-VERIFY-006
+    verdict: refuted
+    reason: WP07 holds an independent floor check, WP09 also pins the port-subset floor and class tags, and WP11 rows carry literal oracles in test source with counts recorded, so the claimed vacuous-pass scenario is speculative.
+  - id: TASKS-VERIFY-007
+    verdict: confirmed
+    reason: WP08 T043-T046 (and WP11 T062) Validation lines read only "targeted tests" with no Gradle task or --tests filter.
+  - id: TASKS-VERIFY-008
+    verdict: refuted
+    reason: tasks-overview section 10 and plan section 6 already require the baseline before WP01 and WP01 stops if it is absent, so the ordering is gated; the remaining complaint is a documentation preference.
+  - id: TASKS-VERIFY-009
+    verdict: confirmed
+    reason: WP16 T084 step 6 runs whole-repo ruff and make test-fast inside the WP and refers to "the router/pin tests of section 5" without listing files.
+  - id: TASKS-VERIFY-010
+    verdict: confirmed
+    reason: tasks-overview traceability rows for AC-9 skip AC-9f, which spec.md keeps as a withdrawn id, with no note (nit).

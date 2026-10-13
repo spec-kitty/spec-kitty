@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 2
+verdicts:
+  - id: TASKS-JVM-002
+    verdict: confirmed
+    reason: WP03 T012 step 6 fails on an absent floor file once a class exists, WP06 alone writes it, and WP05 (first domain classes) only requires check green "or the exact shortfall is reported", so WP05 cannot end green.
+  - id: TASKS-JVM-003
+    verdict: refuted
+    reason: WP02 T006 step 1 already flags the OUT_INSIDE_REPOSITORY clash for the build directory and WP03/WP04 explicitly defer the mechanism and leg tooling to that recorded WP02 decision, so literal exit 2 is not what the artifacts prescribe.
+  - id: TASKS-JVM-004
+    verdict: refuted
+    reason: WP02 T006 step 3 already states fallback B (pre-job artifact, SHA check) and WP04 consumes the A/B decision; the local-dev and needs-set consequences are speculative detail of a contingent fallback, not a defect in the written WPs.
+  - id: TASKS-JVM-005
+    verdict: refuted
+    reason: The Spring AOT test claim is hedged "to my knowledge" and not evidenced, and WP02 T008 step 5 already spikes both wirings with the tag-filter fallback while WP10 T058 explicitly allows the tag-filtered package per the WP02 wiring.
+  - id: TASKS-JVM-006
+    verdict: confirmed
+    reason: WP03 T011 step 4 and WP08 T046 both defer the YAML parser to "the WP02 record", but no WP02 subtask selects one, and AC-11c in WP10 T056 needs a nested generate-and-compile build that no WP declares or spikes.
+  - id: TASKS-JVM-007
+    verdict: confirmed
+    reason: Six of the ten contract paths carry the tag Missions (verified in contracts/mission-status/paths), WP02 T005 step 1 and WP03 T012 step 2 say "only /project and /missions" with no restriction mechanism, and no criterion or test covers the out-of-scope operations.
+  - id: TASKS-JVM-008
+    verdict: confirmed
+    reason: WP03 T015's metadata command names openApiGenerate unconditionally although hand mode has no such task, and no hand-mode branch is written for it.

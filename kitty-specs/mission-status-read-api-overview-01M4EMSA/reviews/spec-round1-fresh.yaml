@@ -1,0 +1,266 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-status-read-api-overview-01M4EMSA
+reviewer_profile: debugger-debbie (squad-delegate mode; directives 001, 003, 032; tactics review-intent-and-risk-first and code-review-incremental; every claim about code checked against the checkout and falsified or kept)
+findings:
+  - id: SPEC-FRESH-001
+    lens: invented-numbers
+    severity: 3
+    title: NFR-001 and NFR-002 assert absolute wall-clock budgets while citing the runner-relative ADR that rejects them
+    evidence:
+      - artifact: "spec.md § NFR-001 (p95 under 200 ms, cold under 5 s), § NFR-002 (2 s start-up), § FR-003 latency bound (2 seconds), AC-3a, AC-3j, AC-15b"
+      - code: "docs/adr/4.x/2026-10-05-2-runner-relative-performance-budgets.md (Status of the figures; shared-runner wall clock is not accepted as evidence; limits provisional)"
+    claim: >-
+      NFR-001 says it is "measured with the runner-relative budget method of ADR 2026-10-05-2" but then fixes absolute
+      millisecond and second limits. The ADR asserts ratios against a same-run floor and calls even those provisional;
+      it names absolute budgets on shared runners as the cause of flaky nightlies. NFR-001 and NFR-002 carry no
+      provisional marker and no measurement (unlike NFR-004, which says "initial budgets"). The 2-second delivery bound
+      of AC-3a and AC-15b and the 2-second connection-close bound of AC-3j are also invented absolutes. A gate built on
+      them is flaky on exactly the runners the spec names, and a flaky gate invites a retry-to-green.
+    remediation: >-
+      Restate NFR-001, NFR-002 and the 2-second bounds as a ratio to a floor sampled in the same run (name the floor,
+      for example a no-op request or a fixed in-process workload), or keep the absolute numbers but mark them
+      "initial, provisional, amended with a measurement" exactly as NFR-004 does, and state that a miss is classified
+      against the ADR method rather than retried.
+  - id: SPEC-FRESH-002
+    lens: untestable-ac
+    severity: 3
+    title: AC-10c runtime process-spawn check names no mechanism that works on Java 25 or in the native leg
+    evidence:
+      - artifact: "spec.md § AC-10c ('a runtime check in the test run that wraps process creation in the test classpath and fails on any call')"
+      - artifact: "spec.md § FR-015 (native jobs), § C-001 (Java 25, GraalVM native)"
+    claim: >-
+      Java cannot wrap ProcessBuilder (final) from the test classpath; the SecurityManager route that used to do it is
+      permanently disabled from JDK 24, and neither a Java agent nor JFR exists in a native image. The AC therefore has
+      one real half (the ArchUnit rule over the main source set, which does not see framework or library code) and one
+      half with no implementable observable. The phrase "fails on any call" gives the appearance of a second control.
+    remediation: >-
+      Name the mechanism and the legs it runs on (for example a Java agent or a JFR process-start event on the JVM
+      test run only) and say plainly that the native leg is covered by the ArchUnit rule plus a no-fork assertion
+      from the OS (a process-count or /proc child check on Linux), or drop the runtime half and keep the ArchUnit
+      rule with its positive control.
+  - id: SPEC-FRESH-003
+    lens: python-java-divergence
+    severity: 3
+    title: Unterminated but parseable final line is unspecified and breaks the same-prefix guarantee of AC-4d
+    evidence:
+      - artifact: "spec.md § FR-004 table row L4 ('an unterminated last line that does not parse'), § Edge Cases 'Concurrent writer', § AC-4d"
+      - code: "src/specify_cli/status/tail_reader.py poll_once (a non-newline-terminated remainder is left unconsumed, never parsed)"
+      - code: "src/specify_cli/status/store.py read_event_stream (path.read_text, parses every line including an unterminated one that is valid JSON)"
+    claim: >-
+      Row L4 and the torn-final-line golden cover only an unterminated line that does NOT parse. An unterminated line
+      that IS valid JSON is counted as an event by materialize_snapshot but is excluded by poll_once, so streamCursor
+      (taken from poll_once semantics, offset after the last newline) and eventCount, statusLaneCounts and lastEventId
+      (taken from the snapshot) would describe different prefixes. That is the "mixture" the spec forbids. No row, golden
+      class or AC says which prefix wins.
+    remediation: >-
+      Add a row L4b (unterminated, parseable) and a torn-final-line variant for it. Decide one rule, for example the
+      service reduces only newline-terminated lines so every member describes the same prefix, record that it is
+      stricter than materialize_snapshot, and add the Python outcome to the golden manifest as a known divergence
+      with its own Java-only assertion (as the symlink class does).
+  - id: SPEC-FRESH-004
+    lens: false-code-claim
+    severity: 3
+    title: Row L3 lists invalid UTF-8 under StoreError, but live Python raises UnicodeDecodeError, and no golden variant covers it
+    evidence:
+      - artifact: "spec.md § FR-004 row L3 (invalid UTF-8 ... read_events_raw and read_event_stream raise StoreError), § FR-008 malformed-rows variants"
+      - code: "src/specify_cli/status/store.py read_events_raw (path.open encoding utf-8, only json.JSONDecodeError is wrapped in StoreError) and read_event_stream (path.read_text encoding utf-8)"
+    claim: >-
+      Decoding errors in both readers are not caught and not translated: the exception is UnicodeDecodeError, not
+      StoreError. The malformed-rows class lists six variants and none is invalid UTF-8, so row L3's claim "verified
+      against live Python" is false for that condition and there is no Python golden of its outcome. The spec
+      requires Java behaviour on malformed input to equal Python, "recorded in the golden set, not assumed".
+    remediation: >-
+      Either add an invalid-UTF-8 variant to malformed-rows and record the exception class Python actually raises
+      (and that the oracle refuses), or remove invalid UTF-8 from the "verified" list and state it as a Java-only
+      assertion with the contract's "cannot be decoded" rule as its source. Correct the L3 reference column.
+  - id: SPEC-FRESH-005
+    lens: reducer-fidelity
+    severity: 3
+    title: The ordering key compares `at` as text in the reducer but as an instant in lastActivityAt; the spec states neither and no fixture separates them
+    evidence:
+      - artifact: "spec.md § FR-005 Reference algorithm (sort by the key (at, event_id)), § FR-001 (lastActivityAt), § AC-5a fixtures"
+      - code: ".venv site-packages spec_kitty_events/diary.py reduce_parsed (sorted(unique_events, key=lambda e: (e.at, e.event_id)), `at: str  # ISO 8601 UTC`)"
+      - code: "tests/contract/_mission_status_payloads.py build_overview (lastActivityAt via _latest_instant)"
+    claim: >-
+      `at` is a string in the reducer, so the sort is lexicographic text order. The overview's lastActivityAt uses
+      instant comparison (and the contract says "compared as instants"). A Java port that parses `at` to an Instant
+      for the sort, the natural choice, orders rows with a different offset or fractional precision differently from
+      Python. AC-5a lists equal `at`, file order differing and duplicated event_id, but no row with a non-UTC offset
+      or mixed fractional digits, so the divergence passes the gate.
+    remediation: >-
+      State in FR-005 that the reducer compares `at` as code-point text and lastActivityAt compares instants, and add
+      to the `interleaved` class (and its distinguishing property in AC-8b) rows whose text order differs from
+      instant order.
+  - id: SPEC-FRESH-006
+    lens: unowned-constant
+    severity: 3
+    title: The supported schema range behind `health` has no named source in the Java service and no parity gate
+    evidence:
+      - artifact: "spec.md § FR-001 (A schema version outside the supported range yields the contract's drift health value), AC-1a (schema 3), AC-1e"
+      - code: "contracts/mission-status/schemas/Project.yaml health (range is that of the serving build, MIN/MAX_SUPPORTED_SCHEMA)"
+      - code: "src/specify_cli/migration/schema_version.py (MIN_SUPPORTED_SCHEMA = 3, MAX_SUPPORTED_SCHEMA = 3)"
+    claim: >-
+      The contract defines health against the serving build's range, which the Java service must therefore hard-code
+      or configure. The spec never says where it comes from, and the golden generated from live Python embeds Python's
+      range. When Python bumps its range the Java constant silently disagrees: the healthy fixture stays green on
+      both sides and the "unknown schema version" fixture's expected value goes stale only on the Python side.
+    remediation: >-
+      Name one source (a single constant in the domain) and record MIN and MAX in the goldens manifest. The Python
+      test asserts they equal the live constants, and a Java test asserts its constant equals the manifest, so a
+      range change is a deliberate, coupled edit.
+  - id: SPEC-FRESH-007
+    lens: vacuous-parity
+    severity: 3
+    title: FR-006 table-driven parity has no mechanical Python source, so "a case in one table and not the other fails" cannot fail
+    evidence:
+      - artifact: "spec.md § FR-006 'Table-driven parity' ('The Python side derives the same table from the resolver's own tests ... the plan names the files'), AC-6e"
+    claim: >-
+      Pytest modules are not a table that can be derived and diffed; the sentence delegates the one thing that makes
+      the control real to the plan. AC-6e only checks that every Java table row has a Java test and a matching
+      read-directory class, never that the Java table equals anything Python-side. A drift (a case added in Python
+      tests, absent in Java) has no failing check.
+    remediation: >-
+      Commit the case table once, as data under the conformance directory, consumed by both languages. The Python
+      test runs the real resolver (in a materialised repository) once per row and asserts the row's expected class,
+      and a Java test does the same against the same file. AC-6e then fails on a row present in one runner and not
+      the other.
+  - id: SPEC-FRESH-008
+    lens: contract-gap
+    severity: 3
+    title: Page cursor is undefined, so "forged or expired" (AC-2c) and byte-equal paged goldens (AC-15b, AC-15e) cannot be implemented as written
+    evidence:
+      - artifact: "spec.md § FR-002 ('shared opaque page cursor'), AC-2c, AC-15b, AC-15e, NFR-005"
+      - code: "contracts/mission-status/paths/missions.yaml (a pageCursor that is malformed, forged or no longer valid is answered 400 invalid_page_cursor)"
+    claim: >-
+      Byte equality of every body across four OSes requires nextPageCursor to be a deterministic function of the
+      position, yet "forged" requires some integrity check, and "expired" requires state or time. A per-process
+      random key would make the digests of AC-15e differ on every run. The spec defines neither what the cursor
+      encodes, how forgery is detected without a secret, nor whether "expired" can occur (the service keeps no
+      state). AC-2c ("a forged pageCursor") therefore has no stated forgery.
+    remediation: >-
+      Specify the cursor as a stateless, deterministic encoding of the last returned (createdAt, missionId) with a
+      versioned prefix, define forged as undecodable, wrong version or a position that is not a listed Mission key,
+      state that "expired" cannot occur and maps to the same 400, and list the exact forged inputs AC-2c sends.
+  - id: SPEC-FRESH-009
+    lens: stream-gap
+    severity: 3
+    title: No stream-side behaviour for a malformed line, and AC-3b's "unknown-type row" collides with row L3's refusal of an unknown `kind`
+    evidence:
+      - artifact: "spec.md § FR-003 projection rules and 'When it cannot do its job', AC-3b ('an annotation row and an unknown-type row: no event arrives'), § FR-004 row L3 (unknown kind refuses the whole read)"
+      - code: "src/specify_cli/status/tail_reader.py poll_once (an interior terminated line that fails to parse raises json.JSONDecodeError; a non-object raises StoreError)"
+    claim: >-
+      FR-003 defines the stream end only for an unreadable log (row L2) and for shrink. A terminated line that does
+      not parse, appended under an open stream, is neither case: live Python raises. The spec leaves the Java stream's
+      reaction undefined, so a client could see silence, a crash or a close. Separately, "unknown-type row" in AC-3b
+      is ambiguous: an unknown `kind` makes /missions answer 500 (L3) yet must be silently dropped by the stream, and
+      the ACs do not say which unknown the stream drops.
+    remediation: >-
+      Add a stream row to FR-004: an unparseable terminated line under an open stream ends the connection like L2
+      (code `ledger_unparseable`), and define "unknown-type" in AC-3b as a well-formed row whose top-level `type` is
+      outside the seven lifecycle types, distinct from an unknown `kind` (a refusal).
+  - id: SPEC-FRESH-010
+    lens: internal-consistency
+    severity: 2
+    title: Key Entities say status events carry a Lamport clock used by the reducer, contradicting FR-005 and Q-7
+    evidence:
+      - artifact: "spec.md § Key Entities 'Status event ... with a Lamport clock used by the reducer'"
+      - artifact: "spec.md § FR-005 Naming note, § Q-7 (the ported key is (at, event_id), reduce_status_events with lamport_clock is not called)"
+    claim: >-
+      The entity list tells a domain modeller to give the Java status event a Lamport clock field that the ported
+      reduction never reads. Same drift in the FR-005 title "Lamport reducer port" and the "Lamport reducer" entity
+      label, which names a reduction the spec itself shows is wall-clock.
+    remediation: >-
+      Rewrite the Key Entities row to "ordered by `at` then `event_id` (Q-7)" and keep "Lamport" only in quoted
+      operator-decision text, with one parenthetical at FR-005's title pointing at Q-7.
+  - id: SPEC-FRESH-011
+    lens: internal-consistency
+    severity: 2
+    title: A symlinked meta.json is mapped to row L7 and so fails the whole page and the project header
+    evidence:
+      - artifact: "spec.md § AC-10d ('the ledger case is row L2, the others are the L7 and L6 rows'), § FR-004 row L7, § FR-010 'A path outside the root ... the Mission's own primary directory is read instead'"
+    claim: >-
+      Row L7 means a malformed meta.json that fails every /missions and /project request with 500, so one planted or
+      stray symlink in one Mission denies the service for all Missions, which row L2 deliberately avoids for the ledger.
+      FR-010 also says an escaping path falls back to the Mission's own directory, while AC-10d says an escaping Mission
+      directory is refused and omitted (L6). Both cannot hold for the same input.
+    remediation: >-
+      Decide per artefact: either map a refused meta.json to a new row (omit with a diagnostic, like L6) or state
+      explicitly that whole-page failure is intended and why. Reword FR-010's fallback sentence to cover only the
+      coordination read directory, not the Mission directory itself.
+  - id: SPEC-FRESH-012
+    lens: internal-consistency
+    severity: 2
+    title: Rows L1 and L2 fix `draft` without applying the contract's rule 1 (discardedAt set gives discarded)
+    evidence:
+      - artifact: "spec.md § FR-004 rows L1 and L2 (lifecycleStatus draft)"
+      - code: "contracts/mission-status/schemas/MissionHead.yaml lifecycleStatus (rule 1 discardedAt set gives discarded, evaluated before rule 2 wpTotal 0 gives draft)"
+    claim: >-
+      A discarded Mission whose ledger is absent or unreadable has discardedAt in meta.json and, by the contract's
+      ordered rule, reads `discarded`, not `draft`. The two rows, and AC-4a asserting them "exactly", pin the wrong
+      value for that input.
+    remediation: >-
+      Write "`draft` unless discardedAt is set (contract rule 1)" in both rows and add the discarded-with-no-ledger
+      case to the no-ledger fixture class.
+  - id: SPEC-FRESH-013
+    lens: internal-consistency
+    severity: 2
+    title: Host form `[::1]` is accepted although the service never listens on IPv6 loopback, so its AC-9d control is a forged header
+    evidence:
+      - artifact: "spec.md § FR-009 (binds 127.0.0.1 only, not [::1]; accepted Host forms include [::1]:<own port>), AC-9d"
+    claim: >-
+      No client can reach the service through http://[::1]:port, so the accepted form can only be exercised by a raw
+      client that connects over IPv4 and lies in the Host header. The spec also does not address a client resolving
+      `localhost` to ::1 first. The control passes while proving nothing about real use, and the accepted set is wider
+      than the reachable set.
+    remediation: >-
+      Either drop `[::1]` from the accepted forms or state why it is kept (a proxy-free client sending that Host
+      over IPv4) and add the real `localhost` resolution behaviour to the plan as an explicit note.
+  - id: SPEC-FRESH-014
+    lens: false-code-claim
+    severity: 2
+    title: HEAD handling assumes `.git/HEAD` is a file and drops the contract's other null conditions
+    evidence:
+      - artifact: "spec.md § FR-001 (detached or unreadable HEAD yields null), § FR-010 item 6 (.git/HEAD), AC-1e"
+      - code: "contracts/mission-status/schemas/Project.yaml currentBranch (null also for a name failing the pattern, too long, or a host path; an unborn branch is served by name)"
+    claim: >-
+      In a linked worktree or a submodule `.git` is a file pointing to the git directory, so `.git/HEAD` does not exist
+      and the service returns null for a project Python reports a branch for; the allowlist forbids reading the
+      `.git` file that would resolve it. FR-001 also lists only unreadable and detached HEAD, omitting the pattern,
+      length, host-path and unborn cases that the contract fixes, and the project-header fixtures have none of them.
+    remediation: >-
+      State the project-root-is-a-worktree behaviour (allow the `.git` gitdir pointer file in the allowlist, or accept
+      null and record it as a divergence) and add fixtures for a pattern-failing name, an over-long name and an unborn
+      branch to the project-header class.
+  - id: SPEC-FRESH-015
+    lens: internal-consistency
+    severity: 2
+    title: Golden test home is called the "router corpus job" but the repository runs it in `tests (contract tools)`; Reflexivity understates the router edit
+    evidence:
+      - artifact: "spec.md § Clarifications Q1, § FR-008 (ii), § Reflexivity items 1 and 3, § R-6"
+      - code: "tests/ci/test_contracts_workflows.py ROUTER_CONTRACT_MODULES (three modules are the router corpus job's; every other corpus-marked tests/contract module is the tool job's)"
+      - code: "tests/ci/test_contracts_workflows.py test_the_contract_tools_filter_group_names_every_src_file_the_mission_status_reader_its_tests_import_and_the_contract_cites (scans tests/contract/*mission_status*.py)"
+    claim: >-
+      A new module lands in the `tests (contract tools)` job, not the corpus job named in Q1 and FR-008, which the
+      spec itself concedes in Reflexivity item 3. Item 1 also says the goldens path is "the only router filter edit",
+      but the pin test above derives required group entries from the imports of every tests/contract file with
+      `mission_status` in its name: a golden test or generator so named, importing any src file not already listed,
+      forces further filter entries.
+    remediation: >-
+      Say "the contract-tools test job (`tests (contract tools)`)" wherever Q1/FR-008 say "router corpus job", and add
+      to Reflexivity item 1 that the new module's imports must already be in the contract_tools group (or the extra
+      entries are listed), noting the naming consequence of `mission_status` in the file name.
+  - id: SPEC-FRESH-016
+    lens: hygiene
+    severity: 1
+    title: C-013 names private tooling directories in a public spec
+    evidence:
+      - artifact: "spec.md § C-013 ('~/.local, ~/.hermes, ~/.claude')"
+    claim: >-
+      The constraint names the maintainer's private agent-tooling directories. They are home-relative, not absolute
+      paths, so C-010 is not broken, but they reveal tooling that has no place in a public mission artefact.
+    remediation: >-
+      Reword to "No step edits installed artefacts outside the checkout; spec-kitty is run from the checkout's own
+      virtual environment."

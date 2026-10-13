@@ -1,0 +1,37 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+- id: PLAN-NEW4-001
+  status: resolved
+  reason: 'grep for contractdoc outside reviews/ finds nothing in the mission dir. Phase 1 row now has
+    the skeleton route test in the skeleton test package, deleted together with the skeleton route
+    by 4a, which replaces it with the AC-11d test against ContractDocumentController under adapter/in/http.
+    4a test scope (adapter/in/http, config, skeleton deletion only, native test source set) covers
+    the AC-11d tests. Section 13 tree lost contractdoc. Enumerated every tree path against the phase
+    rows: root build files and gradle/** phase 1; README 3 then 5; domain, application, codec, testsupport,
+    architecture, portlevel-tests.txt, jacoco-class-floor 2a; conformance/**, leak-patterns.json 2b;
+    conformance/golden, adapter/out/filesystem 3; adapter/in/http, config, application-test.properties
+    4a; HostOriginFilter, OwnPortSource, OwnPortHolder 4b; nativesmoke tests and requests.json 5.
+    No path is ownerless. The claim "exactly one phase" is slightly loose for two serialised hand-offs;
+    see PLAN-NEW5-001.'
+- id: PLAN-NEW4-002
+  status: resolved
+  reason: spec.md E-10 (line 51) and AC-8c (line 299) now say a whole-read 500 names the side, the
+    route and the Problem code instead of a Mission. Plan section 7 No-exemption bullet and section
+    14 E-10 row say the same, and the section 14 row cites section 7. Spec and plan agree.
+new_findings:
+- id: PLAN-NEW5-001
+  severity: 1
+  title: 'Write-scope completeness says every tree path has exactly one owner, but two paths are in
+    two phases'' scopes and are not named chokepoints'
+  evidence:
+  - 'plan.md phase 1 scope has src/main/java/**/config/MissionStatusApplication*; phase 4a scope has
+    src/main/java/**/config/** except OwnPortHolder*, which contains it. The Write-scope completeness
+    paragraph names ProjectRootCheck (1 then 3) and ServiceWiring as hand-offs but not MissionStatusApplication.'
+  - 'Same for the nativesmoke test package: phase 1 owns the skeleton nativesmoke test, phase 5 owns
+    src/test/java/**/nativesmoke/**; the paragraph does not name that hand-off.'
+  remediation: Add one clause each to the Write-scope completeness paragraph (MissionStatusApplication
+    is created by phase 1 and then belongs to 4a; the nativesmoke skeleton is created by phase 1 and
+    replaced by phase 5), or carve the exception into the 4a and 5 scopes. Wording only; no path is
+    ownerless.

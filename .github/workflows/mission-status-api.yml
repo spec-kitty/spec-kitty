@@ -1,0 +1,247 @@
+# Mission Status API: the standalone Java service under services/mission-status-api/. Path-filtered on push to main and on pull
+# requests; `schedule` and `workflow_dispatch` carry no filter. Jobs: `contract-bundle` (the contract document, built once by the
+# Python resolver), `jvm` (./gradlew check), `native` (four targets, binary smoke) and the terminal `mission-status-api-gate`.
+# It is NOT a router dependency and is not listed in ci-fleet-verdict.yml: a path-filtered workflow posts no check when skipped.
+# No pytest runs here: the Python tests of the helper script run in the router's module shards (tests/ci).
+name: Mission Status API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'services/mission-status-api/**'
+      - 'contracts/mission-status/**'
+      - '.github/workflows/mission-status-api.yml'
+  pull_request:
+    paths:
+      - 'services/mission-status-api/**'
+      - 'contracts/mission-status/**'
+      - '.github/workflows/mission-status-api.yml'
+  schedule:
+    - cron: '37 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Tag-aware per-SHA concurrency (plan.md section 12): a tag run and a main push run each get their own group, so a merge burst never
+# cancels the run a release or a landed tip depends on. Pull requests keep per-ref coalescing.
+concurrency:
+  group: mission-status-api-${{ startsWith(github.ref, 'refs/tags/') && github.ref || (github.event_name == 'push' && github.sha || github.ref) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  SERVICE_DIR: services/mission-status-api
+
+jobs:
+  # Mechanism B (research.md WP02 record, DD-56): the contract document is built ONCE, outside the checkout, so every leg serves
+  # the same bytes by construction. bundle.py refuses an output directory inside the repository.
+  contract-bundle:
+    # A root job: it carries the canonical fork guard as the first conjunct, then the schedule conjunct.
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          python-version: '3.12'
+      - name: Install the locked Python environment
+        run: uv sync --frozen --no-install-project
+      - name: Write the mission-status contract document and its SHA-256
+        run: |
+          set -eu
+          uv run --frozen --no-sync python contracts/tools/bundle.py --root contracts --out "$RUNNER_TEMP/bundle-out" --module mission-status --bundle-only
+          mkdir -p "$RUNNER_TEMP/contract-bundle"
+          cp "$RUNNER_TEMP/bundle-out/bundle/mission-status/openapi.yaml" "$RUNNER_TEMP/contract-bundle/openapi.yaml"
+          sha256sum "$RUNNER_TEMP/contract-bundle/openapi.yaml" | cut -d' ' -f1 > "$RUNNER_TEMP/contract-bundle/openapi.yaml.sha256"
+          echo "contract bundle sha256: $(cat "$RUNNER_TEMP/contract-bundle/openapi.yaml.sha256")"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: contract-bundle
+          path: ${{ runner.temp }}/contract-bundle
+          if-no-files-found: error
+          overwrite: true
+
+  jvm:
+    needs: contract-bundle
+    # A root-equivalent job: the canonical fork guard first, then the schedule conjunct (a scheduled run skips it and the gate together).
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule'
+    runs-on: ubuntu-24.04
+    # Provisional (research.md budgets); final value from the first CI run's per-step times.
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      # JAVA_HOME from this action is the only JDK source on every leg, so JaCoCo, JFR and native share one distribution.
+      - uses: graalvm/setup-graalvm@27b360dbb857524eaf0b4c4cef364d38e5b4f173 # v1.6.7
+        with:
+          java-version: '25.0.2'
+          distribution: 'graalvm-community'
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: contract-bundle
+          path: ${{ runner.temp }}/contract-bundle
+      - name: Point the build at the downloaded contract bundle
+        run: |
+          echo "CONTRACT_BUNDLE=$RUNNER_TEMP/contract-bundle/openapi.yaml" >> "$GITHUB_ENV"
+          echo "CONTRACT_BUNDLE_SHA256=$(tr -d '[:space:]' < "$RUNNER_TEMP/contract-bundle/openapi.yaml.sha256")" >> "$GITHUB_ENV"
+      # `check`, never `test` alone (it would skip the JaCoCo rule). It also runs the standing tamper test, whose nested --offline build
+      # reads the Gradle user home this outer build just filled: no step before it clears or bypasses that cache.
+      - name: Run the JVM gates
+        working-directory: ${{ env.SERVICE_DIR }}
+        run: ./gradlew --no-daemon check
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: jacoco-report
+          path: ${{ env.SERVICE_DIR }}/build/reports/jacoco
+          if-no-files-found: warn
+          overwrite: true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: junit-jvm
+          path: ${{ env.SERVICE_DIR }}/build/test-results
+          if-no-files-found: warn
+          overwrite: true
+
+  native:
+    needs: contract-bundle
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule'
+    name: native (${{ matrix.target }})
+    runs-on: ${{ matrix.runner }}
+    # Provisional: the doubled native compile (nativeCompile plus the test image) on a 4-core runner; the first CI run sets it.
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: linux-x64
+            exe: ''
+            sha256: sha256sum
+          - runner: ubuntu-24.04-arm
+            target: linux-arm64
+            exe: ''
+            sha256: sha256sum
+          - runner: macos-15
+            target: macos-arm64
+            exe: ''
+            sha256: shasum -a 256
+          - runner: windows-2025
+            target: windows-x64
+            exe: '.exe'
+            sha256: sha256sum
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+      - uses: gradle/actions/wrapper-validation@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
+      - uses: graalvm/setup-graalvm@27b360dbb857524eaf0b4c4cef364d38e5b4f173 # v1.6.7
+        with:
+          java-version: '25.0.2'
+          distribution: 'graalvm-community'
+          github-token: ${{ github.token }}
+      # ContractDocumentTest (AC-11d) shells out to `python3 contracts/tools/bundle.py`, which imports PyYAML; the macOS and Windows
+      # images carry neither a `python3` with PyYAML nor, on Windows, a `python3` name at all. PyYAML is pinned to the locked version.
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          python-version: '3.12'
+      - name: Install PyYAML for the contract-document test
+        run: python -m pip install "PyYAML==6.0.3"
+      - name: Give Windows a python3 name
+        if: runner.os == 'Windows'
+        run: |
+          if ! command -v python3 >/dev/null 2>&1; then
+            python_exe="$(command -v python)"
+            cp "$python_exe" "$(dirname "$python_exe")/python3.exe"
+          fi
+      - uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: contract-bundle
+          path: ${{ runner.temp }}/contract-bundle
+      - name: Point the build at the downloaded contract bundle
+        run: |
+          echo "CONTRACT_BUNDLE=$RUNNER_TEMP/contract-bundle/openapi.yaml" >> "$GITHUB_ENV"
+          echo "CONTRACT_BUNDLE_SHA256=$(tr -d '[:space:]' < "$RUNNER_TEMP/contract-bundle/openapi.yaml.sha256")" >> "$GITHUB_ENV"
+      # Strict dependency verification, verify-only: CI never writes or commits the metadata. A failure on an OS-classified artifact
+      # missing from gradle/verification-metadata.xml prints the exact command to run on that OS (research.md R-4).
+      - name: Verify dependencies strictly (verify-only, never writes)
+        working-directory: ${{ env.SERVICE_DIR }}
+        run: |
+          if ! ./gradlew --no-daemon --dependency-verification strict bootJar testClasses; then
+            echo "::error::strict dependency verification failed on ${{ matrix.target }}"
+            echo "Run on this OS, review the diff and commit it: ./gradlew --write-verification-metadata sha256 check nativeCompile nativeTest nativeSmoke jacocoTestReport openApiGenerate bootJar --refresh-dependencies"
+            exit 1
+          fi
+      - name: Compile the native image and run the tagged native tests
+        working-directory: ${{ env.SERVICE_DIR }}
+        run: ./gradlew --no-daemon nativeCompile nativeTest
+      - name: Start the built binary and ask it an unmapped route
+        working-directory: ${{ env.SERVICE_DIR }}
+        env:
+          WORKSPACE: ${{ github.workspace }}
+        run: ./gradlew --no-daemon nativeSmoke "-PnativeBinary=$WORKSPACE/services/mission-status-api/build/native/nativeCompile/mission-status-api${{ matrix.exe }}"
+      # The native binary must have executed at least the committed number of tagged tests: zero selected must not read as green.
+      # Two literal interpreter names (no run-time command word, tests/architectural/test_no_duplicate_suite_execution.py): the Windows
+      # image has `python`, the Linux and macOS images have `python3`.
+      - name: Require the native test floor
+        if: runner.os != 'Windows'
+        run: python3 scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor 1
+      - name: Require the native test floor (Windows)
+        if: runner.os == 'Windows'
+        run: python scripts/ci/mission_status_gate_checks.py native-tag-floor --junit-dir services/mission-status-api/build/test-results/test-native --floor 1
+      - name: Stage the binary and its checksum
+        run: |
+          set -eu
+          mkdir -p dist
+          binary="mission-status-api-${{ matrix.target }}${{ matrix.exe }}"
+          cp "services/mission-status-api/build/native/nativeCompile/mission-status-api${{ matrix.exe }}" "dist/$binary"
+          (cd dist && ${{ matrix.sha256 }} "$binary" > "$binary.sha256")
+          cat "dist/$binary.sha256"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mission-status-api-${{ matrix.target }}${{ matrix.exe }}
+          path: dist/*
+          retention-days: 30
+          if-no-files-found: error
+          overwrite: true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: junit-native-${{ matrix.target }}
+          path: ${{ env.SERVICE_DIR }}/build/test-results
+          if-no-files-found: warn
+          overwrite: true
+
+  mission-status-api-gate:
+    needs: [jvm, native]
+    # always() makes the job self-starting, so the canonical fork guard is first; the schedule conjunct keeps a scheduled run from
+    # meeting the rule (it skips the legs and this gate together); always() is last.
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule' && always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Fail unless every needed job succeeded
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "needed job results: $RESULTS"
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "::error::a needed job did not succeed: $RESULTS"
+              exit 1
+            fi
+          done

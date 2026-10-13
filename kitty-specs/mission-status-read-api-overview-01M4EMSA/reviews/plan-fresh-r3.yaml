@@ -1,0 +1,127 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-r3
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: PLAN-FRESH3-001
+    lens: spec-fidelity
+    severity: 4
+    title: "The redaction and projection behaviour (Projector.strict, Projector.human, leak classes, ProjectionError to 500) has no component, test row or diagnostic in the plan"
+    evidence:
+      - artifact: "spec.md AC-9g: free-text fields 'are served with the same redaction' (path, email; Projector.human), a strict field 'is nulled when nullable and otherwise refused ... a ProjectionError, answered 500 like row L3a or L3b'; 'the secret-canaries golden records the redacted output'"
+      - artifact: "plan.md section 13 package tree: domain/{model,reducer,overview,cursor,paging}; data-model.md 'Domain values' and 'Diagnostics'; neither names a redaction, leak-pattern or projection type"
+      - artifact: "plan.md section 13 Diagnostics model: codes ledger_unreadable, ledger_unparseable, ledger_torn_tail, meta_unparseable, mission_vanished, path_refused, mission_dir_unreadable; no code for a projection error"
+      - code: "tests/contract/_mission_status_payloads.py:462-520 (Projector.strict raises ProjectionError, Projector.human applies leak.HUMAN_HOST_PATH_PATTERNS, redact_emails, leak.STRICT/HUMAN from contracts/tools/leak_patterns.py)"
+      - code: "tests/contract/_mission_status_payloads.py:839-870 (build_overview routes missionId, slug, friendlyName, targetBranch, missionType through the Projector)"
+    claim: "Every golden and every nightly comparison is produced by build_overview through a Projector, so the oracle output already carries path/email replacement ([path], [email]), nulling of non-representable strict fields and ProjectionError refusals. The plan ports the reducer and derivations but names no Java counterpart for this layer, no source of truth for the leak patterns (Python re versus Java regex semantics is itself a drift risk), no diagnostic or Problem code for a ProjectionError 500, and no test row except the canary scan. A Java service built exactly as planned diverges from the oracle on any Mission whose friendly name or branch matches a leak class, and AC-9g cannot be met. The nightly (which fails on any difference) would then be red on a real-corpus Mission."
+    remediation: "Add a domain-level projection component (strict/human field rules, the path and email classes, ProjectionError mapped to the same 500 Problem shape as L3a/L3b) to section 13, data-model.md and the phase 2a scope. Fix one source of truth for the patterns (for example a pattern data file written by the Python generator from contracts/tools/leak_patterns.py into the conformance resources and consumed by Java, with the manifest recording it), add its diagnostic/Problem code to the diagnostics list, and add golden classes plus a revert-fails row (a friendly name with a path and an email; a strict field with a token-shaped value) to the section 11 table."
+
+  - id: PLAN-FRESH3-002
+    lens: oracle-recipe
+    severity: 3
+    title: "The oracle recipe registers the coordination worktree at the wrong path (the mission directory, not the worktree root), and the registration check would pass vacuously on it"
+    evidence:
+      - artifact: "plan.md section 1 'Git provisioning': 'a worktree registered with git worktree add at the path coord_feature_dir (src/specify_cli/missions/_read_path_resolver.py) composes'"
+      - code: "src/specify_cli/missions/_read_path_resolver.py:218-250 (coord_feature_dir returns coord_root / kitty-specs / <slug-mid8>, the MISSION directory inside the worktree)"
+      - code: "src/specify_cli/missions/_read_path_resolver.py:307-309 (probe_coord_state: coord_root = feature_dir.parent.parent)"
+      - code: "src/specify_cli/coordination/workspace.py:279-288 (CoordinationWorkspace.worktree_path = repo_root/.worktrees/<slug>-<mid8>-coord)"
+      - code: "src/specify_cli/coordination/surface_resolver.py:558-620 (_enclosing_worktree_root returns the .worktrees/<name> directory; it must be in the registry and its name must end in -coord)"
+    claim: "classify_worktree_topology looks up the .worktrees/<name> directory in the porcelain registry. Following the plan literally, git worktree add would be run on <coord root>/kitty-specs/<mission dir>, a path whose parent is kitty-specs, not .worktrees, so the enclosing .worktrees/<name> directory is never registered and the fixture classifies as UNREGISTERED (a husk), the opposite of the intended coord class. The planned 'registered-worktree check' (git worktree list lists the coordination path) is satisfied by the wrong path, so the planted control and the check do not prove what Python consults. Separately the plan says git is needed for every fixture, but it is only consulted when the resolved read directory has a .worktrees ancestor (coord class, husk), and probe_coord_state is called without a coordination branch on the existing-dir path, so its git rev-parse arm only fires for an absent coord root with a declared branch."
+    remediation: "Say the worktree is added at CoordinationWorkspace.worktree_path(repo_root, slug, mid8) (the .worktrees/<slug>-<mid8>-coord root) on the coordination branch named by coord_branch_name, with the mission directory below it at coord_feature_dir. Make the registration check compare the registry entry with worktree_path, assert that it is classified COORD_WORKTREE by classify_worktree_topology, and add the planted control that registers the mission directory instead. Restate which fixture classes actually need git (coord, husk, and any stored-coord topology with an absent coord root and a declared branch)."
+
+  - id: PLAN-FRESH3-003
+    lens: oracle-recipe
+    severity: 3
+    title: "The project-header fixtures (HEAD text, unborn branch, detached HEAD, .git pointer file) cannot be produced by a real git init plus one commit, and no step installs the fixture HEAD"
+    evidence:
+      - artifact: "plan.md section 1: 'git init and one commit of the fixture's primary tree'; contracts/service-contract-notes.md: static trees hold 'HEAD text' and carry no .git"
+      - artifact: "spec.md FR-008 class table row project-header: healthy; metadata absent; unknown schema; detached HEAD; invalid and over-long and host-path-shaped branch names; an unborn branch; a .git pointer file with a relative gitdir:"
+      - code: "tests/contract/_mission_status_project.py:108-136 (head_file prefers .git as a directory; otherwise reads the gitdir: pointer; read_head parses the ref: line of that HEAD file)"
+    claim: "The oracle reads currentBranch from the HEAD file of the temporary repository. A fresh git init writes its own HEAD (init.defaultBranch, and the plan blanks the global config), a committed tree can never carry a .git/HEAD path, and an unborn branch is impossible after 'one commit'. A .git pointer-file fixture needs the .git directory replaced by a file, which also breaks later git calls on that root. The plan does not say how the fixture HEAD text is written over .git/HEAD in the generator, in the honesty test, or (for the Java side, which reads the committed tree in place) at test time, nor how the pointer fixture and its target git directory are laid out. As written the nine project-header goldens are not reproducible, and the generator and the Java suite may disagree about the branch."
+    remediation: "Specify the fixture layout (for example a HEAD file at the tree root and, for the pointer case, a gitdir-target directory) and the materialisation step that both the Python generator/honesty test and the Java fixture factory run: for project-header fixtures write the fixture HEAD over the temporary repository's .git/HEAD after provisioning (or provision no repository where no .worktrees ancestor exists, since git is only consulted for coord/husk), skip the commit for the unborn case, and replace .git by the pointer file for the pointer case. Add an honesty-test assertion that the branch the oracle read equals the fixture's HEAD text."
+
+  - id: PLAN-FRESH3-004
+    lens: phasing
+    severity: 3
+    title: "Phase 4a and phase 5 depend on the phase 3 filesystem adapter and on a bean-wiring class that no phase owns, but the dependency text says they follow 2a/4a only"
+    evidence:
+      - artifact: "plan.md section 11 'Parallelism': 'Phase 4a follows 2a (it can start against the in-memory source; end-to-end tests need 3)'; 'Phase 5 follows 4a'; phase 5 'stage base needs 4a only' with golden-backed requests, the pageCursor and stream refusals, L3a/L3b/L4b 500s and the SSE round trip"
+      - artifact: "plan.md section 11 phase 4a exit gate: JVM check green incl. AC-3, AC-9a, AC-9e, AC-9g, AC-9h, AC-11 (no mention of phase 3)"
+      - artifact: "plan.md section 13 config contents: {MissionStatusApplication,BindGuard,Properties,VirtualThreads,NativeHints,FeedExecutorConfig,LoggingDiagnostics,OwnPortHolder}; no class constructs FilesystemMissionEventSource, ProjectionCache or MissionStatusService"
+    claim: "The production application cannot be assembled or started without FilesystemMissionEventSource (phase 3), yet phase 4a's gate includes real-socket bind tests, the canary scan (path, HOME and file-content canaries only mean something against the real adapter) and contract validation, and phase 5 stage base needs a native binary that serves golden-backed requests from a fixture tree. Nothing says 4a and 5 follow phase 3, so the table invites running 3 and 4a in parallel with an unowned seam: the config class that wires the adapter into MissionStatusService is in no tree listing and in no write scope (config is 4a 'except OwnPortHolder', the adapter is 3)."
+    remediation: "State that 4a's real-socket, canary and wiring tests and all of phase 5 follow phase 3 (or give 4a an in-memory profile and say so in its gate), add the wiring class (for example config.ServiceWiring) to the section 13 tree and name its owner, and amend the 'Parallelism' paragraph and the phase 5 'needs 4a only' sentence accordingly."
+
+  - id: PLAN-FRESH3-005
+    lens: verification
+    severity: 3
+    title: "Several mandated guards have no executable home (JaCoCo class-count scope check, digest comparison, native tag floor) and the plan says the Python additions are 'the only ones'"
+    evidence:
+      - artifact: "plan.md section 5 'Non-vacuity': 'a build test reads the XML report and fails unless each pattern matched at least the recorded number of classes'; phase 2a: 'the JaCoCo class-count floor file and its scope test (the rule itself is phase 1's)'"
+      - artifact: "plan.md section 12 and section 11 AC-15e row: the gate 'downloads the digest-* artifacts and fails unless there are exactly four ...'; tests 'run the gate's comparison step on four planted digest files'"
+      - artifact: "plan.md section 11 'Native test partition': 'the leg counts the executed tests from the nativeTest JUnit XML and fails when fewer than nativeTagFloor ran'"
+      - artifact: "plan.md section 1: 'Python additions (the only ones), all test-side'; phase 1: 'no later phase edits the build script'"
+    claim: "A JUnit test inside the same Gradle build cannot read the XML report that jacocoTestReport produces after test, and a Python test under tests/ci runs in the CI Modules shard where no Gradle build or report exists, so the JaCoCo scope guard has no place to run unless it is a Gradle verification task in build.gradle.kts, which phase 1 owns and 2a may not edit. The digest comparison and the native tag-floor count are described as steps but have no script path, so the AC-15e planted-file tests ('four files, one altered, one missing, wrong names, low requestCount') cannot execute the logic they claim to test unless it is extracted into a file the plan does not list. These are the guards the plan itself calls the defence against silent success."
+    remediation: "Name each as a concrete artifact with an owner: a Gradle task (jacocoScopeCheck, wired into check, floor read from jacoco-class-floor.properties) in phase 1's build script, and a small script (for example scripts/ci/mission_status_digest_gate.py and a tag-floor helper) invoked by the workflow and unit-tested from tests/ci with the planted files; add the paths to section 1, to the write scopes and to the 'only ones' sentence, or state that the tests extract and execute the workflow run block."
+
+  - id: PLAN-FRESH3-006
+    lens: architecture
+    severity: 2
+    title: "ArchUnit rule 7 forbids file APIs in config, but the plan puts the mission-status.project-root directory check in config"
+    evidence:
+      - artifact: "plan.md section 13 Bind: a value that is not a directory 'exits non-zero naming the key'; the phase 1 skeleton 'already reads and validates mission-status.project-root'"
+      - artifact: "plan.md section 13 rule 7: file APIs (java.io file classes, java.nio.file) only in adapter.out.filesystem excluding codec; positive control 'use Files.readString in config'"
+    claim: "Checking that a path is a directory needs Files.isDirectory or File.isDirectory. The plan names no class that does so outside config (BindGuard, Properties) and rule 7 turns any such call in config red; the skeleton in phase 1 would carry the violation from the first commit."
+    remediation: "Put the project-root validation in the filesystem adapter (for example a ProjectRootCheck in adapter.out.filesystem that config calls) or have FilesystemMissionEventSource fail at construction, and say so in section 13 and in the phase 1 skeleton description."
+
+  - id: PLAN-FRESH3-007
+    lens: nightly
+    severity: 2
+    title: "The nightly's per-Mission 'refusal versus refusal' comparison cannot be observed over HTTP, because a bad ledger refuses the whole /missions and /project route"
+    evidence:
+      - artifact: "plan.md section 7 'Nightly comparison contract': 'When both sides refuse a Mission, the refusal class and diagnostic code are compared'; the script takes only --base-url, --repo-root, --report"
+      - artifact: "spec.md rows L3a/L3b/L4/L4b: one bad ledger makes the whole GET /api/v1/missions answer 500 'whichever Mission holds the bad ledger'"
+    claim: "The service gives the script no per-Mission refusal: a single bad ledger yields one 500 for the entire list and the Problem body is path-free with the Mission's mid8 only in the service log, which the script is not given. The script therefore cannot attribute a refusal to a Mission, compare a diagnostic code per Mission, or still compare the other 587. The 'refusal versus refusal' and 'one-sided Mission' semantics are only unit-testable against a fake, never exercised by the workflow."
+    remediation: "State how a refusal is attributed (for example the script bisects by running one service per Mission-subset root copy, or reads the service log path and compares the mid8/diagnostic code), or reduce the contract to what HTTP can show: any 500 from either side fails the job and names the side, and drop the per-Mission refusal-class comparison from the workflow while keeping the unit cases for the library function."
+
+  - id: PLAN-FRESH3-008
+    lens: oracle-recipe
+    severity: 2
+    title: "Section 7 classifies the coordination husk as a Python/Java 'differs' case, but the Python read-directory decision does not consult the worktree registry"
+    evidence:
+      - artifact: "plan.md section 7: class 'differs' (a coordination directory that exists but is not a registered worktree, the husk under a coord-routing topology)"
+      - code: "src/specify_cli/missions/_read_path_resolver.py:287-322 and 337-420 (probe_coord_state and _resolve_existing_for_slug decide MATERIALIZED/EMPTY by Path.exists(); the docstrings say pure-path, no git)"
+      - code: "src/specify_cli/status/aggregate.py:269-288 (is_registered_coord_worktree only sets MissionStatus.topology, 'legacy' versus 'coordination'; the read_dir is already resolved)"
+    claim: "For a coord-routing stored topology, Python picks the coord directory by existence, so a husk that exists is read by Python exactly as the Java directory-existence rule reads it; the registry only changes the topology label, which build_overview does not use (it derives topology from meta). The pre-classification as 'differs' is unsupported by the cited code and, kept as written, steers R-9 and the first nightly triage toward a divergence that may not exist (and E-10 toward an exemption that is not needed)."
+    remediation: "Reword the husk class as 'unknown until the first oracle run' or 'same by code reading' with the cited functions, and let the AC-6d husk golden decide; keep 'differs' for a case the oracle run actually shows."
+
+  - id: PLAN-FRESH3-009
+    lens: write-scope
+    severity: 2
+    title: "Two ownership holes in the phase table, deletion of the skeleton tests and the springdoc disabled-by-configuration assertion parked in a phase blocked on E-1"
+    evidence:
+      - artifact: "plan.md section 11 phase 4a: 'the phase 1 skeleton package is deleted' (main tree); phase 1 owns src/test/java/**/{skeleton,springdoc,nativesmoke}; 4a test scope is {adapter/in/http,config} 'except the filter tests'"
+      - artifact: "plan.md section 11 phase 4b scope: 'the springdoc 404-after-filter assertions'; section 8 and the AC-9 test row: /v3/api-docs and /swagger-ui* answer 404 with an accepted Host"
+    claim: "Deleting the skeleton controller leaves the skeleton tests (owned by phase 1, outside 4a's test scope) failing to compile or run, with no phase assigned to remove them. The springdoc 404 rows with an accepted Host need no filter at all, yet are scheduled with 4b, so C-004 (springdoc's runtime endpoints disabled) is unproven through all of phases 4a and 5 and, if E-1 stays open, for the whole PR."
+    remediation: "Add src/test/java/**/skeleton/** to 4a's write scope for deletion, and move the accepted-Host 404 assertions (and the pinned properties) to phase 4a; leave only the foreign-Host 403 variants in 4b."
+
+  - id: PLAN-FRESH3-010
+    lens: nightly
+    severity: 2
+    title: "The nightly script's imports are under-specified: it imports tests.contract.* (needs the repo root on sys.path) and the Projector needs a pytest MonkeyPatch to load the contract tools"
+    evidence:
+      - artifact: "plan.md section 1: 'It adds sys.path bootstrap per tests/ci/test_workflow_script_import_guard.py if it imports scripts.*'; section 7 step 6: uv run --frozen --no-sync python scripts/ci/mission_status_corpus_compare.py"
+      - code: "tests/contract/_mission_status_payloads.py:545-560 (load_contract_tools(mp: pytest.MonkeyPatch, repo_root) loads leak_patterns, schema_formats and the resolver through tests.contract._loader.load_tool)"
+      - code: "tests/contract/_mission_status_payloads.py:60 (from tests.contract._loader import load_tool)"
+    claim: "Running a script by path puts scripts/ci, not the repository root, first on sys.path, so 'from tests.contract...' fails unless the bootstrap also covers tests (the plan mentions only scripts.*). The oracle's Projector cannot be built without a ContractTools value, which takes a pytest.MonkeyPatch; the plan does not say the script creates one (pytest.MonkeyPatch.context()), so a first implementation will either fail at import/call or fork a second copy of the oracle."
+    remediation: "State in section 1 that the script bootstraps the repository root on sys.path for tests.* as well, builds ContractTools inside pytest.MonkeyPatch.context(), and that the unit test covers that path; keep it consistent with the import guard test."
+
+  - id: PLAN-FRESH3-011
+    lens: workflow
+    severity: 1
+    title: "The JVM leg's job condition and its relation to the Linux x64 native leg are not stated consistently"
+    evidence:
+      - artifact: "plan.md section 12 table: Linux x64 'also the JVM leg'; research.md R-6: separate jobs 'jvm' (ubuntu-24.04) and 'native' (4-leg matrix)"
+      - artifact: "spec.md FR-015 jobs bullet: if: forms are given for native legs, aggregate and nightly only"
+    claim: "The plan adds a jvm job that the spec's one-authority jobs bullet does not describe. Its if: is not given, so AC-15a(iii) cannot pin it, and without the != 'schedule' conjunct a scheduled run would execute the JVM job (gradle check) while the legs and gate are skipped. The section 12 table wording ('also the JVM leg') contradicts R-6's separate job."
+    remediation: "Give the jvm job's if: (guard first, then != 'schedule'), say it is one of the gate's needs, and reword the section 12 table row to match R-6."

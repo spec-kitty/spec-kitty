@@ -1,0 +1,524 @@
+schema: review-findings/v1
+phase: spec
+mission: mission-status-read-api-overview-01M4EMSA
+merged: true
+findings:
+- id: SPEC-ARCH-JVM-001
+  lens: M-C JVM build, native and supply-chain feasibility / hexagonal design
+  severity: 4
+  title: The Lamport algorithm FR-005 tells the Java port to mirror is not in this repository
+  evidence:
+  - artifact: "spec.md \xA7 FR-005, AC-5a, User Story 3 scenario 2"
+  - code: src/specify_cli/status/reducer.py:17-18 (imports reduce_shared_state from spec_kitty_events.status)
+  - code: src/specify_cli/status/reducer.py:372-377 (materialize_snapshot delegates the reduction to reduce_shared_state)
+  - code: pyproject.toml:80 (spec-kitty-events>=10.4.0,<11)
+  claim: FR-005 says the domain reducer is "equivalent to materialize_snapshot over reduce_shared_state in src/specify_cli/status/reducer.py". That file holds only the wrapper and the cancellation and implementer
+    projections. The Lamport ordering itself (clock, then "the Python tie-break keys", AC-5a) is implemented in the external spec_kitty_events package, which is not under src/ and is a floating range. A
+    Java implementer has no in-repo source to port, AC-5a leaves the tie-break keys unnamed, and a spec_kitty_events bump inside the range can change the algorithm with no Java signal beyond the goldens.
+  remediation: Name the external algorithm as the reference (package, the exact version in uv.lock at spec time, the function spec_kitty_events.status.reduce). Spell the tie-break key order and the malformed/unknown-lane
+    rules out in the spec or plan from that source. Add an AC that the Python golden test records the installed spec_kitty_events version in the goldens, so a bump that changes output forces regeneration
+    and a Java follow-up.
+- id: SPEC-ARCH-JVM-002
+  lens: M-C supply-chain feasibility
+  severity: 3
+  title: Match contracts/ is presented as precedent, but contracts/ has no wrapper, no wrapper-validation action and no version catalog
+  evidence:
+  - artifact: "spec.md \xA7 Clarifications Q3, FR-014, C-008"
+  - code: contracts/tools/gradle_pin_check.py:11-12 (the repository commits no wrapper)
+  - code: contracts/settings.gradle:3-4 (there is no committed wrapper jar; Gradle comes from tools/pins.json)
+  - code: contracts/tools/pins.json (Gradle is a sha256-pinned archive installed by install_tools.py)
+  - code: contracts/gradle/verification-metadata.xml:4-5 (verify-metadata true, verify-signatures false)
+  claim: Of the four Q3 controls, only strict verification metadata exists in contracts/. The committed wrapper with distributionSha256Sum, the wrapper-validation action and the version catalog appear nowhere
+    in contracts/ or .github/workflows (a repo-wide search for wrapper-validation, setup-gradle and libs.versions finds nothing outside a comment in gradle_pin_check.py). The sentence "controls match, version
+    does not" therefore hides that three of the four controls are new, with no existing check, tamper tool or workflow step to copy. The tamper tool is also hard-wired to the contracts tree (it copies it
+    and runs its tools/bundle.py), so it cannot be reused as is.
+  remediation: 'Reword FR-014/C-008 to say which controls are inherited (strict verification metadata, SHA-pinned actions) and which are introduced here, and give each introduced control its own failing
+    check in the plan: a wrapper-properties test that distributionSha256Sum is present and 64 hex chars, a pinned wrapper-validation step, a catalog-only rule (no literal versions in build.kts, enforceable
+    by a grep test). State that tamper_check.py is a model, not a reuse.'
+- id: SPEC-ARCH-JVM-003
+  lens: M-C supply-chain feasibility
+  severity: 3
+  title: Strict dependency verification and the wrapper-validation control are not stated so that a check can fail
+  evidence:
+  - artifact: "spec.md \xA7 FR-014 AC-14a, AC-14b, AC-14c, R-7"
+  - code: contracts/gradle/verification-metadata.xml:4-5 (verify-signatures false; no trusted-artifacts or ignored-keys blocks)
+  - code: contracts/tools/tamper_check.py:4-9 (plant detected only if the build stops with DEPENDENCY_VERIFICATION_FAILED)
+  claim: '"Strict mode" is not defined: nothing says no <trusted-artifacts> or <ignored-keys> wildcard may be added, that buildscript and plugin classpaths (including the Spring Boot, GraalVM Native Build
+    Tools and openapi-generator plugins) are covered, or that CI runs without --write-verification-metadata. AC-14b ("fails if it passes with a modified jar") describes behaviour of a third-party action
+    and has no named positive control in this repo. AC-14c ("covers every platform-specific artifact of the four-OS matrix") has no mechanism: metadata written on one OS misses OS-classified artifacts,
+    and the spec does not say the metadata is regenerated on or merged from all four OSes. The JDK/GraalVM distribution is outside Gradle verification entirely (see SPEC-ARCH-JVM-005).'
+  remediation: 'Define strict as: verify-metadata true, a test that fails on any trusted-artifacts or ignored-keys entry and on any <sha256> origin other than "Generated by Gradle", CI invoking Gradle with
+    dependency verification mode strict. Make AC-14c the matrix itself (every leg builds under strict, no leg writes metadata) and name the explicit multi-OS regeneration step. For AC-14b, plant a modified
+    jar in a scratch copy in a workflow job that expects the validation step to go red (fixture job, continue-on-error inverted).'
+- id: SPEC-ARCH-JVM-004
+  lens: M-C supply-chain feasibility
+  severity: 3
+  title: The 7.25.0 pin equality has no acceptance criterion, and a new contracts*.yml name would be swept into the existing pin gates
+  evidence:
+  - artifact: "spec.md \xA7 FR-014 (openapi-generator version equals contracts/tools/pins.json), AC-14a-d, FR-015"
+  - code: contracts/tools/gradle_pin_check.py:50-53 (defaults read contracts/build.gradle and contracts/gradle/ only)
+  - code: contracts/tools/gradle_pin_check.py:55-56 and contracts/tools/verify_pins.py:57 (workflow glob contracts*.yml)
+  - code: contracts/tools/pins.json (gradle 8.14.5, openapi-generator-gradle-plugin 7.25.0)
+  claim: FR-014 requires the service's generator plugin to equal the pins.json pin, but no AC checks it, and the existing gradle_pin_check only reads contracts/build.gradle, so a drifted service version
+    passes every gate (FR without coverage). Separately, both gradle_pin_check and verify_pins glob .github/workflows/contracts*.yml and compare any gradle-version input to 8.14.5; a service workflow named
+    contracts-*.yml would be read and fail or confuse them. The spec names the workflow only as "a new workflow".
+  remediation: 'Add AC-14e: a test (extend gradle_pin_check with --build for the service build, or a Python test beside tests/ci) that fails when the plugin version in the service build or catalog differs
+    from pins.json. Constrain the workflow file name to one that does not match contracts*.yml (for example mission-status-api.yml) and say so in FR-015.'
+- id: SPEC-ARCH-JVM-005
+  lens: M-C toolchain provisioning and native matrix
+  severity: 3
+  title: JDK 25 / GraalVM toolchain provisioning in CI is deferred to "verified at plan time"
+  evidence:
+  - artifact: "spec.md \xA7 R-3, FR-015, Assumptions (no setup-java 25 exists), C-001"
+  - code: .github/workflows/contracts.yml:124-127 and 327-330 (setup-java, temurin, java-version 21; the only JDK provisioning in the repo)
+  claim: The spec requires a GraalVM native image on four targets yet names no JDK distribution, no GraalVM provisioning action, no JDK version pin, and no rule against Gradle toolchain auto-download (the
+    foojay resolver fetches a JDK outside dependency verification). FR-015 pins "every action by SHA" but a SHA-pinned action that downloads an unpinned "latest" JDK defeats the pin doctrine. Windows x64
+    native-image also needs the MSVC toolchain, and ubuntu-24.04-arm / macOS arm64 runner labels are asserted without a precedent in this repo's workflows.
+  remediation: Add to FR-014/FR-015 an AC that the workflow names one GraalVM-for-JDK-25 provisioning action by SHA with an explicit java-version and distribution, disables toolchain auto-provisioning (org.gradle.java.installations.auto-download=false,
+    no foojay plugin), and records the JDK/Gradle/Spring Boot/NBT versions in a manifest that a pin test compares to the build. List the exact runner labels per leg and the Windows MSVC step.
+- id: SPEC-ARCH-JVM-006
+  lens: M-C native release acceptance
+  severity: 3
+  title: Native smoke (AC-15b) proves "route answers" but not that AOT hints cover the filesystem adapter, SSE delivery or error bodies; cross-OS determinism (NFR-005) has no test
+  evidence:
+  - artifact: "spec.md \xA7 FR-015 AC-15b, NFR-005, SC-004, R-5"
+  claim: 'AC-15b requires a request to each route and a Content-Type check. A missing reflection or resource hint most often shows in the paths a trivial request skips: Jackson serialisation of the full
+    MissionOverview with null members, the RFC 9457 Problem body of a 400/404/409, reading real ledger bytes through the filesystem adapter, and an actual SSE event after an append. The prose of FR-015
+    says "the contract tests" run against each native binary, but no AC does. NFR-005 demands byte-identical responses across the four OS targets, yet no step compares outputs between OSes (CRLF in ledgers,
+    path separators, directory listing order and case-folding on macOS/Windows, Windows has no O_NOFOLLOW) and no AC covers it.'
+  remediation: 'Make AC-15b: against each native binary run the curated golden set over HTTP and require byte equality with the goldens, one request per refusal code, and an append-while-open SSE round
+    trip receiving a status-transition event. Add AC for NFR-005: each OS leg uploads a digest of its golden responses and a final job fails if the four digests differ. Add a CRLF and a sorted-listing fixture.'
+- id: SPEC-ARCH-JVM-007
+  lens: M-C virtual-thread / SSE / loopback testability
+  severity: 3
+  title: Virtual-thread behaviour and the 100-connection budget are stated without measurable thresholds; springdoc adds routes the guard and scope do not cover
+  evidence:
+  - artifact: "spec.md \xA7 NFR-004, C-001, FR-009, C-004, AC-9a-f"
+  claim: NFR-004 ("without platform-thread exhaustion or an unbounded heap") has no number and no mechanism, and nothing asserts virtual threads are actually enabled (a misconfigured spring.threads.virtual.enabled
+    silently runs on platform threads and still passes every functional AC; native-image behaviour of the setting is also untested). Springdoc-openapi is in the stack with a contract-first build, but its
+    default endpoints (/v3/api-docs, /swagger-ui*) would be extra routes outside the three in C-004, and the spec does not say whether they are disabled or Host/Origin-guarded. The guard ACs do not say
+    the check runs as a servlet filter ahead of MVC dispatch, so error and 404 paths and springdoc routes are covered, nor how IPv6 loopback and `localhost` are treated.
+  remediation: 'Add ACs: the request-handling thread of /missions and of an SSE handler reports Thread.isVirtual() true (JVM and native); NFR-004 gets a numeric bound (peak platform-thread count delta and
+    heap ceiling under 100 streams). State that springdoc UI/api-docs endpoints are disabled (or explicitly served and guarded) and that a request to any path outside the three returns 404 only after the
+    Host/Origin filter. Specify accepted Host forms (127.0.0.1, localhost, [::1]) and the bind address ([127.0.0.1] only).'
+- id: SPEC-ARCH-JVM-008
+  lens: Java hexagonal design as constrained by the spec
+  severity: 3
+  title: Port contracts are too thin to keep Spring and JSON out of the domain while meeting FR-004/FR-005 and SSE
+  evidence:
+  - artifact: "spec.md \xA7 Clarifications (Architecture), FR-004, FR-005, FR-012, FR-013 AC-13a, FR-003"
+  - code: src/specify_cli/status/reducer.py:374-375 (reads raw events and a typed stream, then reduces)
+  claim: The outbound port MissionEventSource is named but its operations are not. FR-012 bans JSON and java.io/java.nio.file from domain and application, so line parsing, malformed-row classification and
+    torn-tail detection must happen in adapter.out.filesystem; yet FR-004/FR-005 require the reducer to match Python's skip/refuse decisions exactly. Unless the port returns a typed outcome (parsed event,
+    malformed line with reason, torn tail, unreadable), parity of malformed handling cannot be written framework-free or tested through the in-memory adapter (AC-13a). Likewise MissionStatusQuery "changes
+    since a cursor" needs a framework-free way to block or subscribe for new events (an SseEmitter must not appear in the port); FR-003 gives no latency bound for AC-3a, and filesystem change detection
+    differs per OS (WatchService is polling-based on macOS).
+  remediation: 'Add to FR-013/FR-012 the required shape of both ports: MissionEventSource returns an events-plus-diagnostics value (including malformed and torn-tail records and a log fingerprint for the
+    cursor) and offers a blocking awaitChange(cursor, timeout) (virtual-thread friendly) or a java.util.concurrent.Flow.Publisher; the SSE adapter maps it to SseEmitter. Give AC-3a a bound (event within
+    N seconds on each OS) and name the change-detection mechanism (poll interval) so it is testable. Let the in-memory test adapter implement append and truncate.'
+- id: SPEC-ARCH-JVM-009
+  lens: M-C ArchUnit precision / non-vacuity
+  severity: 3
+  title: ArchUnit rules are stated loosely enough to be vacuous or over-broad
+  evidence:
+  - artifact: "spec.md \xA7 FR-012, AC-12a, AC-12b, FR-013 AC-13b, FR-005 AC-5b"
+  claim: AC-12b only requires each rule's scanned class count "above zero", so a rule that scans one class passes. Base package, layer package names and the allowed `config` composition root are not named,
+    so adapter.in versus adapter.out isolation and domain-to-application direction are unspecified. Banning all of java.io in domain and application also forbids java.io.Serializable and exceptions such
+    as UncheckedIOException that records and ports may reasonably use; the denied set is not enumerated (Jackson, jakarta, slf4j, Spring, java.net.http). Logging for AC-4c has no stated home (a domain-level
+    slf4j call violates the rule; a port is unspecified). ArchUnit must also read Java 25 class files; a version that cannot would scan nothing.
+  remediation: Enumerate the layer packages and the exact denied package prefixes per layer. Strengthen AC-12b with named anchor classes (assert MissionStatusQuery and MissionEventSource are in the scanned
+    set, plus a minimum class count per layer) and keep ArchUnit's fail-on-empty behaviour. Require the plan to verify the ArchUnit version reads Java 25 bytecode. State where diagnostics are emitted (an
+    outbound DiagnosticsSink port or adapter-side logging).
+- id: SPEC-ARCH-JVM-010
+  lens: M-C openapi-generator pin and Q2 fallback spike
+  severity: 3
+  title: The WP01 spike has no exit criteria, and generating from a 3.1 split root conflicts with the contracts build's own note on lossy 3.1 handling
+  evidence:
+  - artifact: "spec.md \xA7 Clarifications Q2, C-007, R-4, FR-011 AC-11c"
+  - code: contracts/mission-status/openapi.yaml:1 (openapi 3.1.0)
+  - code: contracts/mission-status/schemas/MissionOverview.yaml:10 (unevaluatedProperties false)
+  - code: 'contracts/build.gradle:41-43 (javaView is NOT an artefact: the openapi-yaml generator drops 3.1 constructs)'
+  claim: '"Falls back to hand-written DTOs if unusable" does not define unusable, so the spike cannot be pass/fail. Contract is OpenAPI 3.1 with unevaluatedProperties and type arrays; the contracts build
+    itself records that the Java generator path drops 3.1 constructs, and the spec generates from the split root rather than the bundle. Gradle 9.x compatibility of the 7.25.0 plugin (pinned only against
+    8.14.5) is also unstated, and springdoc''s role beside a contract-first generated interface is unexplained (two sources for the served description).'
+  remediation: 'Give the spike measurable exit criteria: plugin 7.25.0 runs on the chosen Gradle 9.x under strict verification; generated models compile, preserve nullability (type: [string, ''null''])
+    and serialise each golden response byte-identically with deterministic member order; otherwise hand-written DTOs. Say which input the generator reads (split root versus the Python-written bundle) and
+    what springdoc contributes.'
+- id: SPEC-ARCH-JVM-011
+  lens: Java hexagonal design / security of the filesystem adapter
+  severity: 3
+  title: Python's symlink and slug-containment refusals on ledger reads are not carried into the Java filesystem adapter requirements
+  evidence:
+  - artifact: "spec.md \xA7 FR-004, FR-010, FR-006, C-005"
+  - code: src/specify_cli/status/store.py:440-454 (_read_text_without_following_symlinks refuses a symlinked event log, O_NOFOLLOW)
+  - code: src/specify_cli/status/store.py:157-206 (_is_safe_slug and _is_contained keep slug resolution inside the specs root)
+  claim: The Python reference refuses to read a symlinked ledger and contains slug resolution within the specs root. The Java service reads attacker-influenceable directory names under a loopback HTTP surface
+    and must serve "no secrets in responses", yet no FR or AC requires NOFOLLOW reads, containment of resolved paths (including coordination worktree paths under .worktrees), or a fixture with a symlinked
+    status.events.jsonl. Windows has no O_NOFOLLOW; the Java equivalent (LinkOption.NOFOLLOW_LINKS, real-path containment) is not named.
+  remediation: 'Add to FR-004/FR-010 an AC: a symlinked ledger or meta.json is reported as a per-Mission failure, never read, and a resolved path outside the project root is refused; add the positive control
+    fixture and run it on all four OSes.'
+- id: SPEC-ARCH-001
+  lens: M-B Read allowlist and path-resolver parity
+  severity: 4
+  title: FR-006 describes the resolver as "coordination worktree if it exists, else primary"; the real resolver decides by stored topology
+  evidence:
+  - artifact: "spec.md \xA7 FR-006, Edge Cases (coordination-topology), R-1"
+  - code: 'src/specify_cli/missions/_read_path_resolver.py:340-420 (_resolve_existing_for_slug: a stored coord-less topology resolves PRIMARY regardless of a coord husk; only coord-routing topologies consult
+      the coord worktree; topology None falls back to a probe plus fail-closed StatusReadPathNotFound)'
+  - code: src/specify_cli/missions/_read_path_resolver.py:164-215 (classify_from_meta reads meta.json topology / coordination_branch and lanes.json)
+  - code: tests/contract/_mission_status_payloads.py:700-717 (the reference oracle falls back to the Mission's own directory on CoordinationBranchDeleted, CoordAuthorityUnavailable, MissionMetadataUnavailable,
+      or a read dir outside the checkout)
+  claim: 'FR-006 and AC-6a/6b state the rule as existence-driven. The Python resolver is driven by the topology stored in meta.json (a stale coord husk beside a single_branch or lanes Mission must NOT be
+    read, which is the #2062 close), and has typed fail-closed outcomes. A Java port written to the spec text would read the husk for such Missions and diverge from the golden oracle. The coordination fixture
+    set (one coord Mission with a stale primary copy) does not include the husk-beside-primary-topology case, so the gate would not catch it.'
+  remediation: 'Rewrite FR-006 as: the topology stored in the primary meta.json decides (coord and lanes_with_coord consult the coord mission dir if present; lanes, single_branch and absent-topology classification
+    follow classify_from_meta), and list the typed fallbacks the oracle maps to "read the own directory". Add a curated fixture class for "stale coord husk beside a single_branch Mission" (AC-6 variant)
+    and require the Java resolver to be table-driven from the same cases as the Python resolver tests.'
+- id: SPEC-ARCH-002
+  lens: M-B Read allowlist and path-resolver parity
+  severity: 4
+  title: FR-010 allowlist omits files and git state the reference derivation and resolver read, and the Java side cannot mirror the git probes
+  evidence:
+  - artifact: "spec.md \xA7 FR-010 (items 1-5), AC-10a, FR-006, Q-3"
+  - code: src/specify_cli/missions/_read_path_resolver.py:208-215 (classify_from_meta reads lanes.json on the absent-topology arm)
+  - code: 'src/specify_cli/coordination/surface_resolver.py:623-675,691-780 (is_registered_coord_worktree and _coord_branch_exists run git subprocesses: worktree list, rev-parse, refs/remotes scan, remote
+      probe)'
+  - code: 'src/specify_cli/missions/_read_path_resolver.py:288-310 (probe_coord_state: DELETED verdict needs a git rev-parse of the declared coordination_branch)'
+  - code: src/specify_cli/status/reducer.py:387 and 300-310 (materialize_snapshot reads status.json via _target_schema_version to pick the snapshot generation)
+  claim: The allowlist names meta.json, config.yaml, metadata.yaml, HEAD and two directory listings. It does not name lanes.json (read by the resolver on the un-backfilled arm), nor any git registry or
+    ref state (.git/worktrees, packed-refs, refs/heads, refs/remotes) that decides DELETED versus UNMATERIALIZED and registered-coord versus husk. FR-016/AC-10c forbid spawning a process, so the Java service
+    cannot reproduce those verdicts, yet FR-005/FR-006 promise "behaviour equals Python's" and AC-6c pins a "declared but missing coordination worktree" golden generated from live Python (which spawns git).
+    Either the allowlist test will miss a needed read, or the golden will encode behaviour Java structurally cannot produce. Separately, status.json is read by materialize_snapshot (schema generation only;
+    no overview field depends on it), which should be stated so "never status.json" is not read as "the oracle never reads it".
+  remediation: 'Enumerate the resolver''s real inputs and decide each: add lanes.json (and its tolerance rule: corrupt means no lanes) to the allowlist or declare the absent-topology arm unsupported with
+    an explicit failure; for the git-dependent verdicts, either add named ref files to the allowlist with a file-based reimplementation, or exclude declared-but-absent coordination from the curated goldens
+    and record the divergence in FR-006 (not only in Q-3). Add one sentence that the oracle''s status.json read affects only snapshot generation fields absent from the overview.'
+- id: SPEC-ARCH-004
+  lens: M-B Read allowlist and path-resolver parity
+  severity: 3
+  title: Torn-final-line behaviour has no single Python reference, and AC-4b requires a report the oracle never emits
+  evidence:
+  - artifact: "spec.md \xA7 FR-004, AC-4b, Edge Cases (truncated or torn final line, concurrent writer), FR-005 last sentence"
+  - code: 'src/specify_cli/status/tail_reader.py:247-250 (poll_once: an unterminated trailing remainder is left unconsumed, not parsed, not signaled)'
+  - code: src/specify_cli/status/store.py:553-576 (read_events_raw, used by materialize_snapshot, raises StoreError on a non-JSON line, torn tail included)
+  - code: tests/contract/_mission_status_payloads.py:727-741 (load_source uses poll_once for rows and cursor, but materialize_snapshot for the snapshot)
+  claim: 'The Python oracle composes two readers with different torn-tail semantics: the cursor and rows tolerate a tail without newline, while the snapshot reduction raises on it. The overview needs both
+    (eventCount, lane counts from the reducer; streamCursor from the tail reader). The spec says the Java reducer must match Python "where Python skips or refuses" and also that the torn tail is "reported",
+    but Python reports nothing and may refuse the whole read. The five fixture classes include "log-truncated" but not "torn final line", so the case is untested by the golden gate.'
+  remediation: Add a sixth curated class (torn final line) and state in FR-004 what the oracle does (record it from live Python), then say whether the Java service mirrors the refusal or the tolerated-tail
+    reading. Reword AC-4b to assert the golden outcome and the path-free diagnostic, dropping "torn tail is reported" unless a contract surface for it is named.
+- id: SPEC-ARCH-005
+  lens: M-B Read allowlist and path-resolver parity
+  severity: 3
+  title: FR-010 does not say which directory each file is read from; the oracle reads meta.json from the Mission's own directory and the ledger from the resolved read dir
+  evidence:
+  - artifact: "spec.md \xA7 FR-010 items 1-2 ('<mission dir>'), FR-006"
+  - code: tests/contract/_mission_status_payloads.py:722-741 (load_meta and resolve_mission_identity on the own primary dir; status.events.jsonl from read_dir)
+  - code: src/specify_cli/status/reducer.py:399 (materialize_snapshot additionally calls resolve_mission_identity on the read dir, so a second meta.json is read)
+  claim: 'The allowlist says "<mission dir>/meta.json" and "<mission dir>/status.events.jsonl" as if one directory. In a coord Mission the ledger lives under .worktrees/<slug>-<mid8>-coord/kitty-specs/...,
+    while identity and dates come from the primary checkout. An allowlist test written per "mission dir" will either reject the legitimate coord ledger path or accept a read of the coord meta.json that
+    the overview does not need (and which may be absent: sparse checkout).'
+  remediation: 'Split item 1 and 2: ledger from the resolved read dir (primary or coord), meta.json from the primary Mission directory only. State that the coord copy of meta.json is not read for the overview,
+    and that identity fields never depend on it.'
+- id: SPEC-ARCH-006
+  lens: Reflexivity
+  severity: 3
+  title: Reflexivity understates the shared-surface edits; the router and its pinning tests also change, and golden edits under services/ would not trigger the Python gate
+  evidence:
+  - artifact: "spec.md \xA7 Reflexivity ('The one shared-surface edit is the Python goldens test joining the contract_tools/corpus routing'), FR-008 (ii), SC-007"
+  - code: '.github/workflows/ci-router.yml:284-310 (contract_tools filter: tests/contract/**, contracts workflows, specific src files; no services/** path)'
+  - code: .github/workflows/ci-router.yml:1005-1030 (corpus-blocking and contract-tools jobs name tests/contract modules explicitly; tests/ci/test_contracts_workflows.py and tests/ci/test_corpus_blocking_home.py
+      pin that every tests/contract module has exactly one home)
+  - artifact: "spec.md \xA7 FR-008 (iv), \xA7 Reflexivity"
+  - code: .github/workflows/ci-nightly.yml:61
+  claim: 'A new Python golden test under tests/contract/ must be given a home in ci-router.yml (and the pinning tests updated), and the goldens live under services/mission-status-api/src/test/resources/conformance/,
+    a path in no router filter group. A PR that edits only a golden or only Java would therefore not run the Python test that asserts goldens equal live Python, which defeats FR-008(ii). The reflexivity
+    section also says nothing of ci-router.yml edits, so "no behaviour change" is only partly verified, and SC-007 ("a services/**-only PR triggers the new workflow and no Python shard") conflicts with
+    adding services/** conformance paths to the contract_tools group.
+
+    [merged duplicate SPEC-GOV-008]: FR-008(iv) allows editing the existing ci-nightly.yml "or a workflow of this mission''s own"; Reflexivity claims the only shared-surface edit is the Python goldens test
+    joining the routing, and lists a workflow plus a CODEOWNERS line. Editing ci-nightly.yml would add an unlisted shared-surface edit (and router/arch-gate pins) that the verification diff check would
+    then fail to anticipate.'
+  remediation: 'Add to Reflexivity and FR-008 an explicit list: ci-router.yml filter edit (add the conformance goldens path to contract_tools only), the tests/ci pinning tests touched, and the home of the
+    new tests/contract module. Reword SC-007 to "no src-backed Python shard" and add an AC that a golden-only diff selects the contract-tools job.'
+  merged_from:
+  - SPEC-GOV-008
+- id: SPEC-ARCH-007
+  lens: M-B Read allowlist and path-resolver parity
+  severity: 2
+  title: Java reads the HEAD file where the oracle runs git; the allowlist entry ".git/HEAD" is wrong for worktree checkouts
+  evidence:
+  - artifact: "spec.md \xA7 FR-001 (HEAD file), FR-010 item 5 ('.git/HEAD')"
+  - code: src/specify_cli/core/git_ops.py:144-165 (get_current_branch runs git via subprocess; None for detached HEAD)
+  - code: 'contracts/mission-status/schemas/Project.yaml (currentBranch: read from the HEAD file with no process started; x-source cites get_current_branch)'
+  claim: The contract and spec choose a file read, but the Python oracle (get_current_branch) uses git, so unborn branches, a gitfile (.git is a file in a linked worktree, which a service started in one
+    would meet), and symbolic-ref forms can differ. The allowlist names a fixed path ".git/HEAD" that does not exist in that case.
+  remediation: State in FR-001/FR-010 that .git may be a gitfile and give the rule (follow the gitdir pointer, read HEAD there) or declare linked worktrees unsupported with a failure; add a project-header
+    golden for unborn and detached HEAD generated by the same script.
+- id: SPEC-GOV-001
+  lens: Mission lens M-A open-question honesty / Scope (C-012 contract is the vocabulary)
+  severity: 4
+  title: Q-1 is presented as unsettled, but the contract already answers it and contradicts FR-004's unreadable-log AC
+  evidence:
+  - artifact: "spec.md \xA7 Edge Cases (Unreadable event log), \xA7 FR-004 and AC-4a, \xA7 Open Questions Q-1, \xA7 C-012"
+  - code: contracts/mission-status/schemas/MissionHead.yaml:139-140
+  - artifact: "spec.md \xA7 Edge Cases (unreadable event log, malformed event), FR-004, Open Questions Q-1"
+  - code: 'contracts/mission-status/schemas/MissionHead.yaml:139-141 (lifecycleStatus: wpTotal 0 ''including an unreadable event log'' reads draft)'
+  - code: 'contracts/mission-status/schemas/Project.yaml (lastActivityAt: an event log that cannot be decoded or parsed fails the whole read with a 500; a Mission whose status.json cannot be read leaves
+      its activity out)'
+  - code: src/specify_cli/status/store.py:566-576 (read_events_raw raises StoreError on invalid JSON or non-object line)
+  claim: 'The contract''s lifecycleStatus rule reads "wpTotal is 0 (including an unreadable event log), so draft". So the contract already maps an unreadable log to a 200 overview with zero counts and lifecycle
+    draft, and has no per-Mission failure field. FR-004/AC-4a say the opposite ("Fails if the response is a healthy overview with zero counts") and Q-1 says the question is "not settled from the repo".
+    An implementer following C-012 (serve the contract as written) fails AC-4a, and one satisfying AC-4a breaks both the contract and the "same overview as Python on every Mission" gate. The FR is written
+    as a requirement while its premise is parked, so the unreadable-log leg of AC-4a is untestable until Q-1 is decided.
+
+    [merged duplicate SPEC-ARCH-003]: The contract defines: an unreadable log yields wpTotal 0 and lifecycleStatus draft; an undecodable or unparseable log fails the whole read with a 500 Problem. The spec
+    instead requires that an unreadable log never be reported as an empty healthy Mission and that the service report a per-Mission state, and parks this as Q-1. As written, AC-4a ("fails if the response
+    is a healthy overview with zero counts") contradicts the contract''s own draft rule, and a Java port that follows Python''s StoreError (whole-request failure) contradicts the "report per Mission" text.
+    The Project description also names status.json as a lastActivityAt input, which contradicts FR-010''s exclusion of status.json (the Python helper takes it from the snapshot, tests/contract/_mission_status_payloads.py:882).'
+  remediation: Rewrite Q-1 to cite MissionHead.yaml:139-140 as the current contract answer (unreadable log reads as draft with zero counts). Mark the unreadable-log and missing-directory legs of FR-004/AC-4a
+    as blocked on Q-1, and state the interim behaviour (contract rule plus the FR-004 AC-4c diagnostic) so the plan has a falsifiable AC either way. Keep the contract change an explicit escalation to the
+    contract owners, not a silent deviation.
+  merged_from:
+  - SPEC-ARCH-003
+- id: SPEC-GOV-002
+  lens: 'Directive: canonical sources (single canonical authority)'
+  severity: 3
+  title: Java health range duplicates Python's MIN/MAX_SUPPORTED_SCHEMA with no parity AC
+  evidence:
+  - artifact: "spec.md \xA7 FR-001 (When it cannot do its job; AC-1a)"
+  - code: src/specify_cli/migration/schema_version.py:22-23
+  - code: contracts/mission-status/schemas/Project.yaml:64-84
+  claim: The contract derives health from MIN/MAX_SUPPORTED_SCHEMA of "the serving build" (both are 3 today). The spec says only "outside the supported range yields drift" and hard-codes schema 3 in AC-1a.
+    The Java service therefore carries a second copy of a canonical constant (charter standing order 6, single canonical authority), and nothing detects it drifting when Python bumps the range. The range
+    is not part of the golden set either.
+  remediation: Add an AC that pins the Java range to the Python constants (the generator emits the bounds into a committed golden or fixture, and the Python golden test asserts them equal to schema_version.py),
+    or state that the service reads the range from one build-time resource generated from Python. Replace the literal "schema 3" in AC-1a with "the lower and upper bound, plus bound-1 and bound+1".
+- id: SPEC-GOV-003
+  lens: Scope / Mission lens M-A (acceptance falsifiability)
+  severity: 3
+  title: Coordination ACs need more fixtures than the five-class curated set, and AC-6c depends on Python network behaviour parked in Q-3
+  evidence:
+  - artifact: "spec.md \xA7 FR-006 AC-6a/6b/6c, \xA7 FR-008 AC-8b, \xA7 Open Questions Q-3, \xA7 Clarifications Q1 (curated set)"
+  - code: contracts/mission-status/paths/project.yaml:8-10
+  - code: contracts/mission-status/schemas/Project.yaml:9-12
+  claim: AC-8b fixes the set at five classes with one coordination-topology Mission, but AC-6a (stale primary copy), AC-6b (no coordination worktree) and AC-6c (declared but missing worktree) each need
+    their own fixture, and AC-1b/1c need project-level fixtures. The contract says Python's resolver can run network probes for an absent coordination branch, so a golden for AC-6c generated from live Python
+    can be non-deterministic (it clashes with AC-8d) and Java cannot match it by design (Q-3). AC-6c is thus unfalsifiable as written, while Q-3 parks the very question it needs.
+  remediation: 'State the exact fixture list (at least coordination-current-with-stale-primary, no-coordination and declared-but-absent) and amend the "five classes" count to a minimum. For AC-6c, require
+    the fixture repo to have no remote so Python never probes, and move the remote-unreachable case into Q-3 / #5631 as explicitly not golden-pinned.'
+- id: SPEC-GOV-004
+  lens: Scope (claims about the Python read port)
+  severity: 2
+  title: Mirror the Python read port (#5532) one to one has no acceptance criterion and no re-check trigger
+  evidence:
+  - artifact: "spec.md \xA7 C-003, \xA7 FR-013, \xA7 R-8, \xA7 Assumptions"
+  - code: src/specify_cli/status (no read-port module exists; spec itself says so in FR-008 and FR-013)
+  - artifact: "spec.md \xA7 Clarifications (Architecture), C-003, FR-013, R-8"
+  claim: 'C-003 makes the inbound port a one-to-one mirror of a port that does not exist (#5532 is OPEN, verified). FR-013 and R-8 say the mirror is "re-checked when #5532 lands" but no AC, owner or trigger
+    exists, so the constraint cannot fail. It also leans on a future artifact owned by another issue, which edges into #5532 territory.
+
+    [merged duplicate SPEC-ARCH-008]: The mirror requirement is stated as a constraint while FR-013 admits the target is absent. The spec is internally honest about this, but C-003 says Active with no acceptance
+    check, so "one to one" cannot fail. Layering is otherwise correct: no src/ change, Python reducer reached only through the oracle (FR-008), and C-009 keeps services/ out of the wheel.'
+  remediation: 'Reword C-003 to "mirrors the contract operations; alignment with #5532 is checked by #5532, not this mission", and drop or move the re-check to the #5532 hand-off note. If kept, give it
+    an owner and a concrete AC.'
+  merged_from:
+  - SPEC-ARCH-008
+- id: SPEC-GOV-005
+  lens: 'Directive: charter standing orders (campsite cleaning, red-first) and CLAUDE.md Code Style'
+  severity: 2
+  title: Spec is silent on campsite-cleaning the shared Python surfaces it touches and on ruff/mypy/diff-cover for the new Python code
+  evidence:
+  - artifact: "spec.md \xA7 NFR-006, \xA7 Baseline and verification honesty, \xA7 FR-008, \xA7 Reflexivity"
+  - artifact: .kittify/charter/charter.md Quality & Tech-Debt Standing Order 2 (campsite cleaning) and the red-first ATDD paragraph near the end
+  - code: tests/contract/_mission_status_payloads.py (1401 lines per the readiness report), tests/ci/test_contracts_routing.py
+  claim: 'The mission edits existing shared Python surfaces (tests/contract helpers reused by the generator, tests/ci routing pins, possibly ci-nightly.yml) but never names the campsite-clean step the charter
+    requires first. NFR-006 says Python rules "do not apply to the Java tree" without saying they DO apply to the new Python generator and golden test (CLAUDE.md: new code passes ruff and mypy; ci-aggregate
+    diff-cover at 90 percent). "Red-then-green" is stated for gates but not as the charter''s red-first-on-planning_base ATDD for each WP.'
+  remediation: 'Add one line to Baseline and verification honesty: WP01 opens with a behaviour-preserving campsite scout of the touched Python files, the new Python generator/test meet ruff, mypy and diff-cover
+    90 percent, and each WP starts from a failing-first test. Keep the charter edit out of scope (C-011).'
+- id: SPEC-GOV-006
+  lens: Terminology
+  severity: 2
+  title: Undefined and mixed terms for status.events.jsonl ("ledger", "event log", "journal", "log") and for new concepts, with no named glossary home
+  evidence:
+  - artifact: "spec.md \xA7 Summary, \xA7 Edge Cases, \xA7 Key Entities, \xA7 NFR-008"
+  - artifact: docs/context/contextive-glossaries.md (generator reads docs/context/*.md)
+  claim: The glossary (spec-kitty glossary list) has no entry for ledger, mission overview, stream cursor, or golden; the spec uses ledger, event log, journal and log interchangeably for one file. NFR-008
+    says Contextive files are updated "if a new term is introduced", but never says which terms are new nor which docs/context page owns them, and service README prose under services/ is not an input to
+    the Contextive generator, so the CI sync gate cannot catch it.
+  remediation: Pick one canonical term for the file (use the term docs/architecture/status-model.md already uses) and use it throughout. List the new terms (Mission overview, stream cursor, page cursor,
+    golden) in NFR-008 with their target docs/context file, and state that definitions land there so the Contextive regeneration gate stays green.
+- id: SPEC-GOV-007
+  lens: Mission lens M-A (PR and issue state claims)
+  severity: 1
+  title: R-2 says both PRs were closed "at the time of writing", but
+  evidence:
+  - artifact: "spec.md \xA7 header (Created 2026-10-08), \xA7 Edge Cases, \xA7 R-2"
+  claim: 'Verified with gh: #5902 closed 2026-10-08, #5326 closed 2026-10-09 (both unmerged); #3284 closed 2026-09-08, #5532 and #5631 open, #5558/#5625/#5776 closed. All stated states are correct today,
+    but #5326 was still open on the Created date, so "closed ... at the time of writing" is not true for the draft date, and #5326 touches status/reducer.py and store.py (verified), so it may be reopened.'
+  remediation: Reword R-2 to give the verification date ("as of 2026-10-09 both are closed unmerged") and keep the instruction to re-verify before plan acceptance.
+- id: SPEC-GOV-009
+  lens: 'Directive: known drift accuracy (verification, no defect)'
+  severity: 1
+  title: Known-drift section checked against charter wording and found accurate
+  evidence:
+  - artifact: "spec.md \xA7 Known drift"
+  - artifact: .kittify/charter/charter.md Technical Standards, Performance and Scale, Deployment and Constraints; header Version 1.5.0 / Updated 2026-10-06
+  - artifact: docs/adr/4.x/2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md Open questions item 3 and Amendment 2026-10-03
+  claim: 'The quoted sentences ("Python 3.11+ is required for all CLI and library code.", "Dashboard must support 100+ work packages without lag", "PyPI distribution"), the dependency list, version and
+    date, and the ADR open-question and amendment citations all match. Not a defect; recorded so the squad knows it was verified. One small gap: the drift text says CLAUDE.md and AGENTS.md "say nothing
+    about Java", but CLAUDE.md Code Style says "Python 3.11+" and imposes ruff and mypy on new code, which matters for the Python generator (see SPEC-GOV-005).'
+  remediation: None required. Optionally replace "say nothing about Java" with "are Python-scoped and name no Java stack".
+- id: SPEC-GOV-010
+  lens: Public-repo / Ledger
+  severity: 1
+  title: No private detail, absolute home path or credential in spec.md; no ledger entry on this behaviour
+  evidence:
+  - artifact: spec.md (grep for home-directory paths and user names returned no match; C-013 names ~/.local, ~/.hermes, ~/.claude as installed-artefact locations only)
+  - artifact: SPEC-KITTY-LEDGER.md (entries on status.events.jsonl concern merge and dirty-tree defects in the CLI, none on a read service or the reducer's read behaviour)
+  claim: Clean on both lenses. Note C-013 names ~/.hermes and ~/.claude, which are operator-environment tool locations rather than a leak, but they are not a repository concept either.
+  remediation: 'Optional: drop the ~/.hermes and ~/.claude names from C-013, leaving "installed artefacts outside the checkout".'
+- id: SPEC-VERIFY-001
+  lens: Falsifiability / MISSION LENS M-D (cache and cursor)
+  severity: 4
+  title: AC-7c claims a same-length rewrite is detected by the cursor digest, but the digest covers only the last line
+  evidence:
+  - artifact: "spec.md \xA7 FR-007 AC-7c; \xA7 Key Entities (Stream cursor)"
+  - code: src/specify_cli/status/tail_reader.py:71
+  - code: src/specify_cli/status/tail_reader.py:108
+  claim: The TailCursor content invariant is the SHA-256 of the single most recently consumed line, not of the log. An equal-length rewrite that alters an earlier line and keeps the final line leaves offset
+    and digest unchanged, so a cache keyed by the cursor serves stale counts and the stream sends no log-truncated. AC-7c as written is either unsatisfiable or satisfied only by a fixture that happens to
+    change the last line (vacuous). The same blind spot applies to AC-3c content_mismatch.
+  remediation: State in FR-007 what the cache key is (cursor plus file size plus mtime, or a full-content digest) and reword AC-7c with two fixtures, one changing the last line and one changing only a middle
+    line of equal length, naming which must be detected. If a mid-log rewrite is out of the detection model, say so as a known limit with a Python-parity golden.
+- id: SPEC-VERIFY-002
+  lens: Silent-success (unreadable log, malformed event, schema, missing dir)
+  severity: 4
+  title: AC-4a names no observable and FR-004 depends on unresolved Q-1 and Q-2
+  evidence:
+  - artifact: "spec.md \xA7 FR-004 AC-4a; \xA7 Open Questions Q-1, Q-2; \xA7 FR-003 'When it cannot do its job'"
+  claim: AC-4a says each condition asserts 'the specific observable (named code or field)' but names none, and the contract may not express a per-Mission failure in a 200 page (Q-1). Until resolved, no
+    test can fail on a wrong observable, and a null/zero-count overview could be argued compliant. The unreadable-log-under-open-stream behaviour (FR-003) has no AC at all.
+  remediation: Add a table (condition, observable, status) to FR-004, or make Q-1 and Q-2 a blocking decision before tasks are cut with a contract-change WP. Add an AC for the stream that goes unreadable
+    (stream ends distinguishably, no further heartbeats).
+- id: SPEC-VERIFY-003
+  lens: MISSION LENS M-D (goldens coverage)
+  severity: 4
+  title: Curated golden set has no malformed-event or unknown-lane fixture although FR-005 says Python's behaviour is recorded in the goldens
+  evidence:
+  - artifact: "spec.md \xA7 FR-005 ('recorded in the golden set'); \xA7 FR-008 AC-8b (five classes); \xA7 Edge Cases (Malformed event)"
+  claim: The five curated classes are two interleaved, coord, lifecycle-only, log-truncated. Malformed JSON, missing required keys and unknown lanes (where Python skips or refuses) are in no class, so Java
+    parity on exactly the silent-success paths is unverified, and AC-4a is checked only against Java behaviour, not Python goldens. AC-8b asserts the five tags only, so its class list cannot catch the omission.
+  remediation: 'Add a sixth class (malformed rows: bad JSON, missing keys, unknown lane, unknown schema version) to FR-008 and AC-8b, with goldens recording Python''s skip or refuse outcome and its diagnostic.'
+- id: SPEC-VERIFY-004
+  lens: MISSION LENS M-D (SSE contract ACs)
+  severity: 4
+  title: No AC exercises successful resume, streamCursor-over-Last-Event-ID precedence, or ordering and latency
+  evidence:
+  - artifact: "spec.md \xA7 FR-003 (resume rules named); AC-3a to AC-3f"
+  - code: contracts/mission-status/paths/events.yaml:44
+  claim: FR-003 lists resume rules (streamCursor wins over Last-Event-ID) but every AC covers live append, drops, truncation, refusals, unscoped and heartbeat. Nothing proves a valid cursor replays exactly
+    the events after it, that the precedence rule holds, or that multiple appended rows arrive in log order each with its own id. AC-3a gives no time bound, so a polling-versus-watch implementation cannot
+    be told apart and tests will either hang or flake.
+  remediation: 'Add ACs: (a) connect with cursor C after N appended rows, receive exactly the later forwarded rows in order with ids; (b) send both streamCursor=C1 and Last-Event-ID=C2, assert C1 wins;
+    (c) append K rows in one write, assert K events in order; (d) state a latency bound for AC-3a measured by the test with a failing timeout.'
+- id: SPEC-VERIFY-005
+  lens: MISSION LENS M-D (read-only and drain-independence)
+  severity: 4
+  title: Read-only ACs cannot notice a write, a lock, or a swallowed write failure; the drain toggle is unnamed
+  evidence:
+  - artifact: "spec.md \xA7 FR-016 AC-16a, AC-16b, AC-16c; \xA7 FR-010 AC-10a, AC-10c"
+  - code: src/specify_cli/cli/commands/_teamspace_mission_state_gate.py:153
+  claim: AC-16a passes if the service tries a write, catches the failure and continues; it is also meaningless when CI runs as root and on Windows where directory permission bits do not block creation.
+    AC-16b (content hash before and after) misses create-then-delete lock files, mtime and listing changes. 'Takes no lock' has no AC. AC-10a instruments the filesystem port only, so reads or writes that
+    bypass the port (springdoc, Spring config, direct java.nio use) are invisible, and AC-10c does not say how a spawn is observed. AC-16c toggles 'the drain setting' without naming the key; the Python
+    posture is read via hosted_posture.drain_posture, so a toggle of a key the service never reads is vacuous.
+  remediation: Require the filesystem port to record open modes and fail on any non-read open (with a positive control that adds a write); add a read-only mount or non-root path and a before/after fingerprint
+    including directory listing and mtimes; name the exact drain config keys and assert the service does not read them (allowlist already covers this) plus a byte-equal test with drain on/off; state the
+    spawn-detection mechanism (security manager substitute, ProcessBuilder ArchUnit ban, or strace-free wrapper).
+- id: SPEC-VERIFY-006
+  lens: MISSION LENS M-D (security negative cases)
+  severity: 4
+  title: No secret-shaped planted content test; AC-9f references an undefined 'fixture token'
+  evidence:
+  - artifact: "spec.md \xA7 FR-009 AC-9f; \xA7 FR-001 AC-1d; \xA7 NFR-003"
+  claim: '''No secrets in responses'' is tested only by scanning for a ''fixture token'' that no AC defines, plus HOME and the fixture root. No AC plants secret-shaped values in .kittify/config.yaml, meta.json,
+    or event payloads (token-looking strings, path-like text, email) and asserts they never appear, so a service that echoes config verbatim could pass. Note the contract''s own redaction classes (path,
+    email) in the Python helpers are not mirrored by any Java AC.'
+  remediation: 'Add an AC: fixture config.yaml, metadata.yaml and meta.json contain planted canary strings (a token-shaped value, an absolute-path-shaped value, an email); every response, SSE frame and
+    log line is scanned for each canary and none appears. Define the redaction behaviour for free-text fields the Python builders redact, with a golden.'
+- id: SPEC-VERIFY-007
+  lens: MISSION LENS M-D (Host and Origin negative cases)
+  severity: 3
+  title: Host and Origin ACs test one foreign value each; rebinding-class variants and observability of AC-9a are missing
+  evidence:
+  - artifact: "spec.md \xA7 FR-009 AC-9a, AC-9b, AC-9c, AC-9d"
+  claim: 'Only evil.example is tried. Untested: Host with a wrong port, missing Host, 127.0.0.1.evil.example and localhost.evil.example (suffix match bug), ''null'' Origin, Origin with right host but wrong
+    port, and the localhost versus 127.0.0.1 versus [::1] acceptance question. AC-9a says ''no listening socket'' without saying how the test observes it. Refusal must also hold for /events (no stream opened)
+    and for the error path.'
+  remediation: Expand AC-9b/9c into a parameterised table of foreign values, each with expected status (also on /events), name the observable for AC-9a (connect attempt refused plus exit code), and decide
+    localhost and IPv6 acceptance in the spec rather than leaving it to Q-5.
+- id: SPEC-VERIFY-008
+  lens: MISSION LENS M-D (conformance, vacuity)
+  severity: 3
+  title: Perturbation test (AC-8a) has no named mechanism, and the comparison scope is not stated as full-document
+  evidence:
+  - artifact: "spec.md \xA7 FR-008 AC-8a, AC-8b, AC-8d; \xA7 User Story 3"
+  - code: tests/contract/_mission_status_payloads.py:839
+  claim: '''Changes one Java derivation'' needs either mutation testing or a test-only injectable reducer; the spec names neither, so the AC reads as a manual experiment. Neither side states that the golden
+    comparison covers the entire serialized overview with no ignored or normalised fields (timestamps, ordering), so a comparator that skips lastActivityAt would pass. Goldens come from build_overview in
+    the test-side helpers, which the module says are a copy of contract-description rules; the spec says this is ''not a second oracle'', but then the Python golden test (live helper output versus golden
+    made by the same helper) is tautological for the derivations and gates only reducer or helper change, not helper correctness.'
+  remediation: Name the mechanism (PIT mutation on the Java reducer scoped to the conformance suite, or a comparator unit test fed a mutated actual per field). State that comparison is exact on canonical
+    JSON with an explicit, empty ignore-list. Record in the spec that the derivation oracle is the helpers and that their correctness is anchored by mission_status_expected.json, and keep that fixture in
+    the gate.
+- id: SPEC-VERIFY-009
+  lens: MISSION LENS M-D (nightly corpus gate)
+  severity: 3
+  title: Nightly corpus comparison is undefined on race, inputs and the Java runner
+  evidence:
+  - artifact: "spec.md \xA7 FR-008 (iv), AC-8c; \xA7 SC-002"
+  claim: '''Both ways'' is not defined. The corpus is the live checkout, where active Missions (including this one) are appended to while Python and Java run at different moments, producing false differences
+    or masking real ones. The nightly Java run (JVM versus native, which Gradle task) and the Python reference for Missions with no helper support are unspecified.'
+  remediation: Specify that the nightly copies the corpus to a snapshot directory and both sides read that snapshot, name the Java entry point (JVM test task against the inbound port), and state the artifact
+    listing every Mission compared so a skipped Mission fails the job.
+- id: SPEC-VERIFY-010
+  lens: MISSION LENS M-D (native conformance)
+  severity: 3
+  title: Native smoke test (AC-15b) does not run conformance, so NFR-005 cross-OS determinism is untested
+  evidence:
+  - artifact: "spec.md \xA7 FR-015 AC-15b; \xA7 NFR-005; \xA7 SC-004"
+  claim: AC-15b only checks routes respond and the SSE Content-Type. NFR-005 demands byte-identical responses across four OS targets, but only the JVM suite compares against goldens. Native-only divergence
+    (reflection-dropped serializer fields, time zone or locale formatting, CRLF in logs on Windows) would pass.
+  remediation: Add an AC that on each native leg the binary's /project and /missions bodies for the curated fixtures are byte-compared to the goldens (HTTP-level), and that a CRLF-containing log yields
+    the same overview as LF.
+- id: SPEC-VERIFY-011
+  lens: Silent-success (concurrent writer, torn tail)
+  severity: 3
+  title: Torn-tail reporting field is unspecified and concurrency is tested only with a static half line
+  evidence:
+  - artifact: "spec.md \xA7 Edge Cases (Concurrent writer); \xA7 FR-004 AC-4b"
+  claim: AC-4b requires the torn tail to be 'reported' without naming where in the response, and the concurrent-append edge case ("must never produce a wrong overview") has no AC that appends during a read,
+    so streamCursor consistency with the counted rows is untested.
+  remediation: 'Name the report field or status, and add an AC with a writer appending in a loop while the service reads: every returned overview''s eventCount, counts and streamCursor must be mutually
+    consistent for some prefix of the log.'
+- id: SPEC-VERIFY-012
+  lens: Baseline honesty
+  severity: 3
+  title: AC-14d forbids any contracts/ edit while FR-004 and Q-1/Q-2 may require a contract change
+  evidence:
+  - artifact: "spec.md \xA7 FR-014 AC-14d; \xA7 FR-004; \xA7 Open Questions Q-1, Q-2; \xA7 C-012"
+  claim: 'Internal inconsistency: if the contract cannot express per-Mission failure or stream-unreadable, the spec says escalate a contract change, yet AC-14d fails the mission on any edit to contracts/
+    files. Baseline section also treats red-set capture as a plan step without saying which test packages (tests/contract, tests/ci) are measured and where the baseline is recorded for comparison.'
+  remediation: Scope AC-14d to 'no edit except a contract change approved under Q-1/Q-2 with its own review', or move such change to a separate mission. In the Baseline section name the targeted packages,
+    the artifact holding the pre-change red set, and require the final report to diff against it.
+- id: SPEC-VERIFY-013
+  lens: Falsifiability
+  severity: 2
+  title: NFR-004 and AC-8b have soft observables
+  evidence:
+  - artifact: "spec.md \xA7 NFR-004; \xA7 FR-008 AC-8b"
+  claim: NFR-004 ('without platform-thread exhaustion or an unbounded heap') names no threshold or measurement. AC-8b checks class tags on files, which a trivial golden carrying the right tag satisfies.
+  remediation: Give NFR-004 a measured bound (heap growth under N MB over the run, carrier-thread count) with a failing assertion; make AC-8b also assert each class's golden has the distinguishing property
+    (non-empty events, interleaved clock ties, coord stale-copy differs, truncation present).

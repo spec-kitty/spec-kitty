@@ -1,0 +1,228 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch-jvm
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: PLAN-ARCH-JVM-001
+    lens: Native-image feasibility / test scope
+    severity: 4
+    title: "`nativeTest` is planned as a whole-suite run, but ArchUnit, networknt contract validation and JaCoCo cannot run in a native test image"
+    evidence:
+      - artifact: "plan.md § 5 exact local commands (`./gradlew nativeCompile nativeTest`) and § 12 (per leg: `nativeCompile nativeTest`, then `nativeSmoke`)"
+      - artifact: "plan.md § 11 test strategy lists ArchUnit, networknt contract validation and goldens as JVM-layer suites; spec.md AC-9h requires the virtual-thread probe in the `nativeTest` run"
+    claim: >-
+      The plan says each native leg runs `nativeCompile nativeTest`. Native Build Tools' `nativeTest` compiles the ENTIRE
+      test source set into a second native image. ArchUnit scans class files from the classpath, networknt builds schemas
+      by reflection and resource loading, and the JaCoCo agent does not exist in native mode (the plan itself says JaCoCo
+      cannot measure native). None of this is partitioned: no JUnit tag or source-set split says which tests run native.
+      The first native leg will fail (or silently skip) on the architecture and contract suites, and it doubles the native
+      build cost on four runners. Only AC-9h genuinely needs `nativeTest`.
+    remediation: >-
+      Add a plan decision: a JUnit 5 tag (for example `native`) or a separate `nativeSmokeTest` source set holding only
+      the tests that must run in native mode (AC-9h probe, a Jackson/SSE round trip, resource-loading checks);
+      configure `graalvmNative.testSupport` and the `nativeTest` filter to that tag; ArchUnit, contract validation, goldens
+      and JaCoCo stay on the JVM leg. State the doubled native compile in the leg timeout budget.
+  - id: PLAN-ARCH-JVM-002
+    lens: SSE / virtual threads
+    severity: 3
+    title: "SseEmitter timeout is not specified; the container default (about 30 s) coincides with the 30 s heartbeat and would end every idle stream"
+    evidence:
+      - artifact: "plan.md § 13 SSE ('SseEmitter fed by one virtual thread per connection that blocks on a subscriber queue (30 s timeout, then `: heartbeat`)')"
+      - artifact: "data-model.md § Stream state ('Heartbeat comment every 30 s')"
+    claim: >-
+      Spring MVC's async request timeout defaults to the servlet container's value (Tomcat: 30 s) unless
+      `new SseEmitter(timeout)` or `spring.mvc.async.request-timeout` sets it. The plan names a 30 s queue poll that emits a
+      heartbeat but never sets the emitter's own lifetime, so an idle subscriber is completed by the container at about
+      the same instant the first heartbeat is due, and the S1-S6 close semantics become indistinguishable from a timeout.
+      Disconnect detection is also only as fast as the next write (up to one heartbeat), which the plan does not state
+      against the 2 s close bounds of the spec.
+    remediation: >-
+      Specify `new SseEmitter(0L)` (no timeout) plus `spring.mvc.async.request-timeout=-1` in the plan, register
+      `onCompletion`/`onError`/`onTimeout` callbacks that unsubscribe from the shared `ChangeFeed`, and add a test that holds
+      an idle stream open past 35 s (provisional bound per ADR 2026-10-05-2). State that disconnects are noticed on the next
+      write and which spec bound that satisfies.
+  - id: PLAN-ARCH-JVM-003
+    lens: Dependency compatibility (Jackson major / generator)
+    severity: 3
+    title: "Spring Boot 4 defaults to Jackson 3; the plan never names the Jackson major version nor how generated 7.25.0 models serialise required-nullable members"
+    evidence:
+      - artifact: "plan.md Technical Context (Spring Boot 4.1.1, openapi-generator 7.25.0, networknt 3.0.8) and § 2 first row"
+      - artifact: "plan.md Unverified item 3 (only 'Jackson null members' under native)"
+      - artifact: "research.md R-2 (spike criteria cover only 'which mode the build is in')"
+    claim: >-
+      Boot 4's default JSON mapper is Jackson 3 (`tools.jackson.databind`), while the openapi-generator `spring` generator
+      emits Jackson 2 style models (`com.fasterxml` annotations, `JsonNullable` from jackson-databind-nullable). The contract
+      uses OpenAPI 3.1 `type: [string, 'null']` members that must appear as explicit `null`, and NFR-005 and AC-15b demand
+      byte-exact bodies. The plan treats Jackson only as a native-image hint question. A generated-models decision taken
+      without testing explicit-null emission, member order and number formatting against the Python goldens will fail late.
+    remediation: >-
+      Make the WP01 spike criteria explicit in research.md R-2: record the Jackson major pulled by Boot 4.1.1, a test that
+      a required-nullable member serialises as `null` (not omitted) and that member order equals the golden, and a
+      go/no-go rule for falling back to hand DTOs. Add 'Jackson 3 versus generator output' to the Unverified list.
+  - id: PLAN-ARCH-JVM-004
+    lens: Byte-exactness / canonical serialisation
+    severity: 3
+    title: "Spec compares 'canonical serialisation' (suites) but AC-15b demands raw body byte equality; the plan never says how the server output is made canonical"
+    evidence:
+      - artifact: "plan.md § 12 (nativeSmoke 'replays the curated request set, writes the digest') and contracts/service-contract-notes.md § Comparison rule"
+      - artifact: "spec.md line 267 (canonical serialisation of the entire response document) versus AC-15b (byte equality of every response body with its golden)"
+    claim: >-
+      If goldens are Python-canonical (key order, separators, escaping, number repr) the Spring mapper must either emit the same
+      bytes or every comparison must canonicalise first. The plan fixes neither: no mapper settings (property ordering, map
+      key ordering, escape of non-ASCII, `Double` rendering) and no statement of where canonicalisation happens in the smoke
+      harness versus the JVM golden suite. The two paths can therefore disagree, and a native-only formatting difference
+      would be misread as a reflection problem.
+    remediation: >-
+      Add one plan decision: the canonicalisation function is a single test-support class used by both the JVM golden suite
+      and `nativeSmoke`, and the production mapper is configured explicitly (property ordering from the contract, no
+      pretty-print, `ensure ASCII` choice matching the golden writer, double rendering). Add a unit test pinning one
+      non-ASCII string and one fractional `progress` value against the Python-written golden.
+  - id: PLAN-ARCH-JVM-005
+    lens: Gradle strict verification / supply chain
+    severity: 3
+    title: "Regeneration recipe for verification-metadata.xml is under-specified and cannot cover the test, native and per-OS configurations"
+    evidence:
+      - artifact: "plan.md § 2 row 2 (`./gradlew --write-verification-metadata sha256 help` then refresh 'on each OS leg's resolved set')"
+      - code: "contracts/gradle/verification-metadata.xml:3-6 (verify-metadata true, verify-signatures false; the precedent file was generated for a plugin-only build)"
+    claim: >-
+      `--write-verification-metadata sha256 help` only resolves the configurations the `help` task touches (plugin and
+      buildscript classpath). Compile, test, runtime, AOT, native-image support and JaCoCo configurations resolve only when
+      a task such as `check`, `nativeCompile` and `nativeTest` runs. The recipe also says to regenerate 'on each OS leg',
+      which a Linux workstation cannot do, and does not say whether any dependency is OS-specific (JNA, native-image
+      support jars, JUnit launchers) or how the four partial results are merged. A strict file generated from `help` would
+      fail the first real build with missing entries, repeatedly.
+    remediation: >-
+      Replace the recipe with: run `./gradlew --write-verification-metadata sha256 check nativeCompile nativeTest
+      jacocoTestReport --refresh-dependencies` once on Linux; then use a CI-only dry-run job on the other legs that only
+      verifies (strict, no write) and report any missing OS-specific entry as a failure with the exact command to add it.
+      Also record in research.md R-4 whether any resolved artifact has an OS classifier.
+  - id: PLAN-ARCH-JVM-006
+    lens: Gradle toolchain / GraalVM
+    severity: 3
+    title: "No JDK toolchain resolution policy: Gradle 9.7.1 on JDK 25 plus GraalVM CE needs an explicit, offline-safe toolchain decision"
+    evidence:
+      - artifact: "plan.md § 12 (setup-graalvm per leg) and § 5 ('JDK 25 on PATH')"
+      - artifact: "plan.md Phase 1 scope (wrapper, catalog, metadata) names no `java.toolchain` or foojay decision"
+    claim: >-
+      With a `java { toolchain { languageVersion = 25 } }` block Gradle will, absent a stated policy, try to auto-provision a JDK
+      through a resolver plugin (a new, unverified supply-chain element absent from `verification-metadata.xml` scope).
+      Native Build Tools additionally needs the GraalVM (not Temurin) toolchain, selected via `graalvmNative.toolchainDetection`
+      or JAVA_HOME from `graalvm/setup-graalvm`. The JVM leg's JDK vendor (`check`, JaCoCo, JFR `jdk.ProcessStart`) is also never
+      named: contracts.yml uses Temurin 21 (workflows lines 124-127), the service needs 25.
+    remediation: >-
+      Add a decision: no toolchain auto-download (`org.gradle.java.installations.auto-download=false` in gradle.properties,
+      no foojay plugin), JAVA_HOME from `graalvm/setup-graalvm` on every leg including the JVM leg (one JDK distribution, so
+      JaCoCo/JFR/native share a runtime), `java.toolchain` pinned to 25 with `vendor` unconstrained, and a catalog or
+      workflow test asserting both.
+  - id: PLAN-ARCH-JVM-007
+    lens: springdoc / native
+    severity: 3
+    title: "springdoc is called 'build-time only' but the pinned artifact is the UI starter, which puts swagger-ui and runtime endpoints in the shipped binary"
+    evidence:
+      - artifact: "plan.md Technical Context ('springdoc-openapi 3.1.1 (build-time only)') versus § 12 ('springdoc-openapi-starter-webmvc-ui 3.1.1')"
+      - artifact: "plan.md § 13 Host/Origin filter ('Springdoc runtime endpoints disabled by configuration'); spec.md C-004"
+    claim: >-
+      `starter-webmvc-ui` brings the swagger-ui webjar and `/swagger-ui`, `/v3/api-docs` endpoints into the runtime classpath,
+      which the native image then has to include (large resource set, AOT/resource-hint exposure) and which C-004 wants
+      disabled. 'Disabled by configuration' keeps the code and webjar in the binary. Generating the document at build time
+      also needs the service started inside the build (springdoc Gradle plugin or a test), an extra plugin absent from the
+      version list and the strict metadata plan.
+    remediation: >-
+      Put `springdoc-openapi-starter-webmvc-api` (no UI) on a dedicated source set or `testImplementation` only, generate
+      the document in a test that boots the app on an ephemeral loopback port, and keep springdoc off `runtimeClasspath` so
+      it is absent from AOT and the binary; add an ArchUnit/classpath test asserting no `org.springdoc` or swagger-ui
+      resource reaches the native image. If the Gradle springdoc plugin is chosen instead, add it to the version list and
+      to the Unverified list with its Boot 4 compatibility.
+  - id: PLAN-ARCH-JVM-008
+    lens: Workflow design (triggers and publish job)
+    severity: 3
+    title: "Tag-triggered publish job is not reconciled with the spec's trigger and `if:` model (AC-15a) or the per-change classifier"
+    evidence:
+      - artifact: "plan.md § 5 'The new workflow itself' and § 12 Release (publish on pushed tag `mission-status-api-v*.*.*`)"
+      - artifact: "spec.md line 354 (triggers: push branch main, pull_request, schedule, workflow_dispatch) and AC-15a(i)-(iii)"
+      - code: "tests/architectural/_workflow_jobs.py:70-86 (push_is_per_change: a push block with branches/paths is per-change, only a tags-only push is exempt)"
+      - code: ".github/workflows/contracts-release.yml:1-30 (tag publish lives in its own file with tags-only push)"
+    claim: >-
+      contracts-release.yml keeps the publish path in a SEPARATE tags-only workflow. The plan puts `publish` in the same file as
+      the path-filtered push/PR workflow, which needs `push.tags` beside `push.branches`+`paths`. GitHub ignores `paths` for tag
+      pushes, but AC-15a(i) pins the push filters exactly and AC-15a(iii) pins every job's `if:` shape, neither of which
+      mentions a tag event; the publish job needs a `startsWith(github.ref,'refs/tags/')` conjunct, a different concurrency
+      group (the contracts.yml per-SHA group does not fit tag runs), and a fork guard that differs from native legs. The
+      ancestor-of-main plus 'gate run passed' check needs `actions: read`, which the plan does not list.
+    remediation: >-
+      Amend plan section 12 and the AC-15a authority to list the tag trigger explicitly, the publish job's `if:` form, its
+      `permissions` (contents: write on that job, actions: read for the gate lookup), and its concurrency group. Say that the
+      tags filter and path filter coexist in one `push` block, and extend the pinning test to assert the tag pattern is
+      disjoint from `v*.*.*` and `contract-*-v*.*.*`.
+  - id: PLAN-ARCH-JVM-009
+    lens: Workflow ceiling
+    severity: 2
+    title: "The plan presents the 20-file workflow ceiling as a GitHub limit; GitHub's limit is on reusable workflows per caller, the file count is only this repo's test"
+    evidence:
+      - artifact: "plan.md § Readiness facts 'Workflow ceiling' and Risk R-10"
+      - code: "tests/architectural/test_module_shard_registry.py:524-533 (counts *.yml files against reusable_workflow_ceiling)"
+      - code: ".github/ci-module-registry.yml:1-11 (ceiling comment: 20-reusable-workflows-per-caller)"
+    claim: >-
+      Verified true: 19 workflow files exist and the test counts files against 20. But the plan says no later mission may add a
+      workflow 'without first raising an architectural limit that GitHub itself imposes'. GitHub's 20 applies to unique
+      reusable workflows called from one workflow file; this repository's file count test is a self-imposed proxy. The
+      wording will mislead the next mission and the maintainer reading the PR into thinking a 21st file is impossible.
+    remediation: >-
+      Reword to state that the file-count ceiling is a repository test whose premise (reusable-workflow limit) does not
+      strictly bound standalone workflows, and record in the PR that taking the last slot is a decision the maintainer may
+      relax by editing that test, rather than a platform wall.
+  - id: PLAN-ARCH-JVM-010
+    lens: Workflow-enumerating pinning tests
+    severity: 3
+    title: "Plan leaves open whether the new workflow is excluded from the per-change duplicate-suite scan, but its trigger shape makes it per-change and it also hosts a nightly and a tag job"
+    evidence:
+      - artifact: "plan.md Unverified item 8; § 5 test list; Risk table R-10"
+      - code: "tests/architectural/test_no_duplicate_suite_execution.py:174-198 (NON_CHANGE_TRIGGERED_WORKFLOWS ledger, shrink-only in spirit)"
+      - code: "tests/architectural/_workflow_jobs.py:98-111 (change_triggered: any per-change push/PR event puts the whole file in scope)"
+    claim: >-
+      The new file has `push` with branches and paths plus `pull_request`, so it is change-triggered and visible to every
+      per-change assertion; it cannot be added to the NON_CHANGE ledger, and the nightly `nightly-corpus` and `publish` jobs
+      sit in the scanned file. The plan only says AC-15d runs the tests, and lists the module-shard and coherence tests but
+      not `test_gate_os_tier.py` (windows/macos runners), `test_dual_mode_contract.py` or the `_ci_integrity_oracle`
+      consumers in its section 5 command, although tracer-tooling-friction.md item 4 counts about 50 enumerating files.
+    remediation: >-
+      Replace the open grep with a concrete list in section 5: run every file that globs `.github/workflows` (compute it with
+      `grep -rl "workflows" tests/architectural tests/ci tests/release`), including `test_gate_os_tier.py`,
+      `test_dual_mode_contract.py` and `test_ci_router_transcription_guards.py`, on the first workflow commit; state that the
+      new file is per-change and must never invoke pytest; record the expected result of each in research.md.
+  - id: PLAN-ARCH-JVM-011
+    lens: File reading semantics (ledger)
+    severity: 3
+    title: "Ledger read does not fix the order of size/mtime capture versus byte read, nor handle a null fileKey on Windows"
+    evidence:
+      - artifact: "data-model.md § Ports (`LedgerRead`: bytes + size + mtime + file key) and Invariant I-2 (ProjectionCache key = cursor, size, mtime, file key)"
+      - artifact: "plan.md § 13 `SafeFiles`; spec.md AC-4d (concurrent writer), AC-7c/7d"
+    claim: >-
+      Two JVM-level hazards. (1) The cache key is built from attributes read separately from the bytes; if size/mtime are read
+      AFTER the bytes, a concurrent append makes the key newer than the reduced content and the cache serves stale data until the
+      next append; the key must derive from the byte count actually read, with attributes taken before the read. (2)
+      `BasicFileAttributes.fileKey()` is optional and may be null on some platforms (documented as such; commonly null on
+      Windows), so including it in a record key can throw or silently equate different files on the Windows leg, which
+      NFR-005 requires to behave identically. Neither is addressed, and symlink refusal via `NOFOLLOW_LINKS` should also state
+      how a Windows junction (reparse point, not a symbolic link) is treated.
+    remediation: >-
+      Specify in plan section 13: open one `SeekableByteChannel` with `NOFOLLOW_LINKS`, read attributes first, read to
+      EOF, key = (bytes read, mtime-before, optional fileKey treated as absent when null); truncate the usable prefix at the
+      last newline for L4/L4b. Add a Windows-leg test that the cache still invalidates when fileKey is null and a junction
+      fixture (or a stated skip) for the containment check.
+  - id: PLAN-ARCH-JVM-012
+    lens: Version choices and labelling
+    severity: 2
+    title: "Several pinned versions are listed as 'verified' without being in the Unverified list (JaCoCo 0.8.15, networknt 3.0.8, Native Build Tools coupling)"
+    evidence:
+      - artifact: "plan.md § 12 'Versions pinned and how verified' versus 'Unverified' items 5-6"
+    claim: >-
+      The Unverified list carries Boot/Gradle/NBT compatibility and ArchUnit class-file reading, but not JaCoCo 0.8.15 reading
+      Java 25 and Spring AOT generated classes, networknt 3.0.8's 2020-12 `unevaluatedProperties` support under OpenAPI 3.1
+      schemas extracted from the bundle, or that the `org.openapi.generator` plugin 7.25.0 runs on Gradle 9.7.1 (the repo pin was
+      validated only on Gradle 8.14.5, contracts/tools/pins.json). A mismatch costs a WP01 respin.
+    remediation: >-
+      Add these three to the Unverified list with a WP01 acceptance check each (JaCoCo report on a Java 25 test run;
+      a networknt negative case on `unevaluatedProperties`; `openApiGenerate` green on Gradle 9.7.1), and decide up front
+      that the plugin version stays equal to pins.json even if the Gradle 9 run needs a documented patch.

@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 4
+verdicts:
+  - id: PLAN-GOV-004
+    verdict: confirmed
+    reason: docs/context/contextive-glossaries.md says generated files are not hand-edited, and no docs/context file defines 'reducer', so plan.md section 2 misstates both the edit path and the canonical-term basis.
+  - id: PLAN-ARCH-003
+    verdict: confirmed
+    reason: plan.md names no rule set beyond FR-012 and AC-12b only asserts scanned class count above zero, with AC-12a the single positive control, so adapter-to-adapter or application-to-adapter rules are unspecified and untested.
+  - id: PLAN-ARCH-008
+    verdict: refuted
+    reason: AC-9g already requires every refusal response body and header to be scanned and plan section 8 has the WP01 spike record the real per-row Tomcat status, so the claim is a hardening preference, not an unplanned requirement.
+  - id: PLAN-ARCH-JVM-003
+    verdict: confirmed
+    reason: plan.md and research.md R-2 name no Jackson major and treat Jackson only as a native-hint question, with no spike criterion for explicit-null or member-order emission before the generated-versus-hand decision.
+  - id: PLAN-ARCH-JVM-008
+    verdict: confirmed
+    reason: spec.md line 354 lists only push branch main, pull_request, schedule and workflow_dispatch triggers while plan.md adds a tag-triggered publish job in the same file with no stated trigger, if-form, concurrency group or actions permission.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: the directive's procedures explicitly list make test-fast within the targeted surface and forbid only whole heavy suites, yet plan section 6 step 1 says make test-fast is not run citing that directive.
+  - id: PLAN-VERIFY-007
+    verdict: confirmed
+    reason: the plan section 11 table has no revert-fails rows for AC-8b, 8c, 8d, 8e, 8f or 6e, and the AC-5/AC-8 row names only the AC-8a perturbation and a golden edit.

@@ -194,3 +194,26 @@ def test_sdist_excludes_acceptance_runner_and_scenarios(build_artifacts: dict[st
     # so the absence assertions above cannot pass against an empty archive.
     present_src_pkg = [f for f in all_files if "src/specify_cli/" in f]
     assert present_src_pkg, "Source dist is missing the specify_cli package (positive control failed)"
+
+
+@pytest.mark.slow
+def test_sdist_excludes_the_mission_status_service_and_the_contract_tree(build_artifacts: dict[str, Path]) -> None:
+    """The standalone Mission Status API service and its contract tree must not ship in the sdist (C-009).
+
+    ``services/`` and ``contracts/`` sit at the repository root and are CI-only trees. The config-level guard in
+    ``tests/ci/test_mission_status_api_build.py`` reads ``pyproject.toml``; this test reads the BUILT archive, so a future
+    ``only-include``, ``shared-data`` or ``artifacts`` entry that pulls them in turns it red. The same-fixture positive control
+    (a known ``src/`` package IS present, and the root has a project file) keeps the absence assertions non-vacuous.
+    """
+    sdist_path = build_artifacts["sdist"]
+
+    with tarfile.open(sdist_path, "r:gz") as tar:
+        all_files = tar.getnames()
+
+    # Members are ``<name>-<version>/<path>``; anchor at the archive root so a nested ``src/**/contracts/`` package is not caught.
+    rooted = [name.split("/", 1)[1] for name in all_files if "/" in name]
+    leaked = [path for path in rooted if path.startswith(("services/", "contracts/")) or path in {"services", "contracts"}]
+
+    assert not leaked, f"Source dist contains the service or contract tree: {leaked[:10]}"
+    assert any(path.startswith("src/specify_cli/") for path in rooted), "Source dist is missing the specify_cli package (positive control failed)"
+    assert "pyproject.toml" in rooted, "Source dist root has no pyproject.toml (the anchoring assumption failed)"

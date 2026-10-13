@@ -1,0 +1,158 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: mission-status-read-api-overview-01M4EMSA
+findings:
+  - id: PLAN-VERIFY-001
+    lens: conformance-golden pipeline (router glob / corpus marker placement)
+    severity: 3
+    title: New corpus-marked tool-test module also runs in the Packs advisory lane; plan never edits packs.yml
+    evidence:
+      - artifact: "plan.md § 1 (Python additions, Router/CI edits) and § 5 (packs-gate row); research.md R-8 ('the router glob suffices')"
+      - code: ".github/workflows/packs.yml:284 (hand-written --deselect list names every tests/contract tool module, e.g. test_gradle_pin_check.py, test_verify_pins.py, test_mission_status_*.py)"
+      - code: ".github/workflows/ci-router.yml:1048-1052 (tests-contract-tools selects all of tests/contract under -m 'corpus and not windows_ci')"
+      - code: "tests/ci/test_contracts_workflows.py:1356-1380 (home check pins only the router corpus job and the tool-test job; nothing pins the Packs deselect list)"
+    claim: >
+      The plan marks test_mission_status_conformance.py with the corpus marker so that tests (contract tools) picks it up.
+      Packs runs the same marker with an explicit per-module --deselect list, and the existing comment promises nothing runs
+      twice. The new module is not on that list, and no test checks the list for tool modules, so the golden-honesty test would
+      run a second time (advisory) in Packs with no failing gate to catch it. The plan's claim that the module 'has exactly one home'
+      and that packs-gate is 'No' is therefore incomplete, and the 'ci-router.yml diff is one filter-group line' review check
+      does not cover the missing packs.yml edit.
+    remediation: >
+      Add packs.yml to the phase 2b write scope and section 1 edit list: add --deselect tests/contract/test_mission_status_conformance.py
+      to the Packs corpus command. Add a pinning assertion (in test_mission_status_routing.py) that the Packs corpus command deselects
+      the module, with a count guard, and a revert note (drop the deselect, the test goes red). Update the section 5 packs-gate row and the
+      review diff-check wording.
+  - id: PLAN-VERIFY-002
+    lens: Gates (baseline / test policy)
+    severity: 3
+    title: Plan excludes make test-fast citing a directive that actually prescribes it
+    evidence:
+      - artifact: "plan.md § 6 step 1 ('make test-fast is NOT run (charter NO_FULL_HEAVY_SUITES_IN_MISSION)') and the § 5 command list (no make test-fast)"
+      - code: "packs/internal/directives/no-full-heavy-suites-in-mission.directive.yaml:36-38 (targeted surface includes 'the owning module's fast tier (make test-fast plus the module's own test directory)')"
+      - code: "CLAUDE.md 'Test policy' (make test-fast is the shared baseline for ordinary changes; PR records commands and counts)"
+    claim: >
+      The directive forbids whole heavy suites (tests/architectural/ as a bare directory, e2e, make test-full), not make test-fast.
+      The plan misreads it, so the baseline procedure and the 'Before pushing' list omit the repository's stated baseline, and the PR
+      'Tests run' section would lack it. The baseline comparison (branch vs merge-base) therefore never covers the fast tier.
+    remediation: >
+      Replace the sentence in section 6 step 1 with: run make test-fast plus the targeted files listed in section 5; make test-full,
+      bare tests/architectural/ and tests/e2e are the excluded surfaces. Add make test-fast to the section 5 command list and to
+      quickstart 'Before pushing'; record its counts in baseline-red.md on both merge-base and branch.
+  - id: PLAN-VERIFY-003
+    lens: Gates (Java coverage mechanism) / revert discipline
+    severity: 3
+    title: JaCoCo rule is named but its wiring into CI and its revert test are not specified or pinned
+    evidence:
+      - artifact: "plan.md § 5 'Java coverage' paragraph; traceability row 'NFR-006 | JaCoCo rule, section 5'; § 11 test-strategy table (no NFR-006 row)"
+      - artifact: "quickstart.md Java side ('./gradlew check ... JaCoCo rule')"
+      - code: "scripts/ci/aggregate_source.py:19-27 (CRITICAL_PATHS are Python src globs; only .py scored), so diff-cover cannot back-stop Java"
+    claim: >
+      The plan states thresholds (line >= 90% domain+application, branch >= 80% domain) but not how the verification task is bound to
+      'check' and to the workflow step, how the package patterns map from ArchUnit-style '..domain..' to JaCoCo class-path patterns, or what
+      pins it. Nothing in the tests/ci pinning list (AC-14/15) asserts the thresholds, and the test-strategy table has no row proving the
+      rule can go red. Since diff-cover is blind to Java, a silently unwired or emptied rule (a pattern matching zero classes passes
+      vacuously) leaves NFR-006 unenforced.
+    remediation: >
+      State in section 5: the task name, that check dependsOn it (and that the CI step runs check, not test), the include patterns, and that
+      the JVM leg uploads the report. Add to test_mission_status_api_build.py a pin on the minimums and on the wiring. Add an NFR-006 row
+      to the test-strategy table: raise the minimum above actual, or delete a domain test, and the verification task fails; and a guard that
+      the rule's pattern matches a non-zero number of classes.
+  - id: PLAN-VERIFY-004
+    lens: Test strategy (vacuity by empty set)
+    severity: 3
+    title: Fixture-iterating suites have no discovered-count guard in the plan
+    evidence:
+      - artifact: "plan.md § 11 test strategy ('ArchUnit ... with non-empty scan checks' is the only count guard stated); § 5 command list; contracts/service-contract-notes.md 'Conformance data formats'"
+      - artifact: "spec.md AC-8b (Python file-set check), AC-6e and AC-13a (executed ids equal file rows) cover only three of the iterating suites"
+    claim: >
+      The Java golden suite, the adapter golden run, and the per-leg native HTTP golden loop (AC-15b) all discover fixtures by listing
+      conformance/<class>/<fixture>/ at run time. The plan does not require them to assert that the executed fixture set equals the manifest
+      set (or a recorded floor). A wrong resource path, a directory-name filter, or a stale manifest then yields zero parameterised cases
+      and a green build. AC-8b guards only the Python test; it says nothing about the Java or native iteration, and the plan's traceability
+      does not close the gap.
+    remediation: >
+      Add to section 11 a rule for every glob/iteration test: record the discovered fixture count, assert it equals the manifest's fixture
+      list and a floor of at least the FR-008 curated fixture count, and make the Java suite, the adapter suite and the native smoke each
+      fail when zero or fewer than the manifest's fixtures ran. Add the revert step (delete one fixture directory from a temp copy; each
+      suite goes red).
+  - id: PLAN-VERIFY-005
+    lens: Silent-success (nightly full-corpus compare)
+    severity: 3
+    title: Nightly comparison has no non-vacuity floor and its zero-compared / failed-start paths are unspecified
+    evidence:
+      - artifact: "plan.md § 1 (scripts/ci/mission_status_corpus_compare.py), § 12 / R-6 ('nightly script does not use pytest'); spec.md AC-8c (exits non-zero on the first differing Mission)"
+      - artifact: "plan.md § 7 ('auto-annotated with the class and fails loudly')"
+    claim: >
+      AC-8c and the plan define failure only as 'a Mission differs'. They do not say the script fails when it enumerated or compared zero
+      Missions (shallow checkout, wrong root, corpus listing error), when the Java service did not start or returned refusals for every
+      Mission, or when both sides refused (compare error class and diagnostic, not 'both failed, equal'). A job that compares nothing
+      exits zero and the nightly reports green. The unit test in the plan uses a two-Mission input only.
+    remediation: >
+      Specify in plan.md: the script prints and asserts the number of Missions compared against a floor (for example at least 500 of the
+      roughly 590, or the git ls-files count), exits non-zero on zero compared, on a service start failure, and on any Mission present on
+      one side only; refusal-vs-refusal compares the refusal code. Add unit cases for empty corpus, unreachable service and one-sided
+      Mission. The checkout step must not be shallow in a way that drops kitty-specs.
+  - id: PLAN-VERIFY-006
+    lens: Silent-success / conformance (Q-3 divergence)
+    severity: 3
+    title: Outcome of a nightly difference that is annotated as a known Q-3 class is undefined (permanent red or silent pass)
+    evidence:
+      - artifact: "plan.md § 7 ('a nightly difference on a Mission whose topology is coord-routing is auto-annotated with the class and fails loudly rather than being skipped'); research.md R-9"
+    claim: >
+      'Annotated' and 'fails loudly' pull in opposite directions. If a known divergence (class differs) fails the nightly, the job is
+      red indefinitely until #5631 resolves and teaches maintainers to ignore it; if the annotation turns it into a pass, a Python-says-X,
+      Java-says-Y answer ships as success with only a ledger line as evidence. The plan does not say which, nor how the ledger row is tied
+      to an expiring or counted exception.
+    remediation: >
+      Decide and write it: a differing Mission with a ledger row of class differs is reported separately and the job passes only while the
+      exact set of slugs equals the committed ledger set (a new or vanished slug fails); a difference without a row, or class unknown, fails.
+      Pin the ledger as a machine-readable file read by the script, with a unit test for each of the three outcomes, and record the owner
+      issue (#5631) on each row.
+  - id: PLAN-VERIFY-007
+    lens: Test strategy (revert discipline)
+    severity: 3
+    title: Test-strategy table has no revert-fails row for the router glob, the nightly script, class properties, or the resolver table
+    evidence:
+      - artifact: "plan.md § 11 test-strategy table (rows AC-1..AC-16 only; the AC-5/AC-8 row lists the reducer perturbation and 'editing one golden value')"
+      - artifact: "spec.md AC-8b, AC-8c, AC-8d, AC-8e, AC-8f, AC-6e"
+    claim: >
+      Every changed behaviour needs a test that fails when reverted. The plan gives none for: removing the services conformance glob
+      (AC-8e), a trivial golden carrying the right class tag (AC-8b non-vacuity of the golden-honesty test), a non-deterministic generator
+      (AC-8d), dropping the _CORPUS_MARKED_MODULES entry (AC-8f), the nightly script's exit code (AC-8c), and a resolver-cases row removed
+      from one language. The honesty test's only stated perturbation is one edited golden value, which does not prove that the per-class
+      distinguishing properties are read from content.
+    remediation: >
+      Add rows: AC-8e remove the glob from a temp copy of the router, test red; AC-8b replace a golden with a same-tag trivial one, red;
+      AC-8d run generator twice with a planted unordered dict, red; AC-8f drop registry entry, red; AC-8c planted difference exits non-zero with
+      slug and field; AC-6e drop one row on one side, red. State which are run empirically in a scratch copy before the PR.
+  - id: PLAN-VERIFY-008
+    lens: Baseline honesty (Q-4)
+    severity: 2
+    title: Baseline procedure covers local runs only; CI-level reds (cancelled, at-budget #5838) are not classified
+    evidence:
+      - artifact: "plan.md § 6 steps 1-5; § 5 row 'tests (corpus-blocking) ... YES by this mission's kitty-specs/**/{spec,plan}.md'"
+      - code: ".github/workflows/ci-router.yml:994-1000 (corpus-blocking at its 20-minute budget, #5838)"
+    claim: >
+      This mission's own kitty-specs edits select the at-budget corpus-blocking job, so a red or cancelled check on the PR is likely, yet
+      the procedure only compares local targeted runs. It does not say how to classify a CI job that was cancelled or timed out (not an
+      assertion failure), that PR CI tests head plus current main, or that #5838 is the existing issue to cite instead of opening a new one.
+    remediation: >
+      Add step 6 to section 6: for any red PR check, read the real conclusion (cancelled and timed_out are not failures of the change), compare
+      the same job on the latest main run, cite the existing issue (#5838 for corpus-blocking budget) rather than opening a duplicate, allow one
+      diagnosed rerun, and record the run ids in baseline-red.md.
+  - id: PLAN-VERIFY-009
+    lens: Gates (statement precision)
+    severity: 1
+    title: Hedged gate statement for the Windows-filename guard
+    evidence:
+      - artifact: "plan.md § 5 architectural-fast row ('Includes tracked-path hygiene gates such as test_no_invalid_windows_filenames.py-style checks only if on the roster')"
+      - code: ".github/workflows/ci-router.yml:720-744 (architectural-fast runs tests/architectural with --battery-part fast; the file tests/architectural/test_no_invalid_windows_filenames.py exists)"
+    claim: >
+      The row says 'only if on the roster' instead of stating whether the guard runs for a services-only diff. The gate set is meant to be
+      stated, not conditional, and NFR-009 depends on that guard biting Java fixture paths.
+    remediation: >
+      Resolve which battery part holds test_no_invalid_windows_filenames.py (battery_partition_plugin) and state it as a fact in the row; keep the
+      fixture-path rule only if the guard is always-on.
