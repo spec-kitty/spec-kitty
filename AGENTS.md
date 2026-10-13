@@ -768,7 +768,7 @@ When user's request matches a skill, invoke via Skill tool. When in doubt, invok
 - Save/resume context → `/context-save` / `/context-restore`
 
 <!-- spec-kitty:orientation -->
-**Spec Kitty v3.2.7rc1** — project: spec-kitty (healthy)
+**Spec Kitty 4.x cycle** — project: spec-kitty (healthy)
 
 Two usage patterns:
 - **Full mission** (spec → plan → tasks → implement → review → consolidate):
