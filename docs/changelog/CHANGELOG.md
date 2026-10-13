@@ -113,6 +113,7 @@ this section at publish._
 - **Two dead `charter` modules were removed (`CharterParser`, `CharterSection` and `CharterTemplateResolver` leave the public names; nothing imported them), a credential-redaction test now drives the real clone path, and the acceptance-test harness was split into smaller pieces** (#6009, #5987, #6097).
 - **A mission-manifest edit now runs the `charter`, `dossier` and `specify_cli_runtime` tests per pull request, for maintainers** (#6125). `tests/dossier` used to run only nightly; a `dossier` CI module now runs it when dossier code or a manifest changes.
 - **Maintainers gain an internal-only `kitty-semi-auto` command; `packs/internal/` never ships to consumers** (#6055, #6057).
+- **The PyPI sdist no longer ships the `services/` and `contracts/` trees, and the Mission Status Read API service scaffold lands in the repository without shipping** (#5529). The sdist had picked up the nested `README.md` and `CHANGELOG.md` files of both trees. The Java service under `services/mission-status-api/` and its path-filtered `Mission Status API` CI workflow are repository-only: neither the wheel nor the sdist carries them.
 - **`spec-kitty next --answer --json` reports a decision-log commit refusal** (#3930). The decision response now includes a `warnings` entry when the Git commit fails (for example, a rejecting pre-commit hook). Any event already written remains on disk for recovery; the command's commit behavior is unchanged.
 
 ## [4.0.0rc6] - 2026-10-08
