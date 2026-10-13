@@ -4422,6 +4422,7 @@ pages:
     - {slug: "refusal-envelope", text: "Refusal envelope", level: 3}
     - {slug: "reasons-and-remedies", text: "Reasons and remedies", level: 3}
     - {slug: "not-the-planning-pin-probe", text: "Not the planning-pin probe", level: 3}
+    - {slug: "6-stale-api-authored-content-is-refused", text: "6. Stale API-authored content is refused", level: 2}
     - {slug: "module-map", text: "Module map", level: 2}
   - path: "docs/api/index.md"
     title: "Reference"

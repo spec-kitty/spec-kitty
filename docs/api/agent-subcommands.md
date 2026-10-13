@@ -42,6 +42,9 @@ record: the 2026-10-01 amendment of
 - **`agent mission finalize-tasks`** refreshes the recorded planning-commit pin automatically
   and reports it in the additive `planning_commit_refresh` JSON field. See
   [`finalize-tasks-internals.md`](finalize-tasks-internals.md#4-automatic-planning-pin-refresh-and-planning_commit_refresh).
+  For a Mission authored through `orchestrator-api` it also refuses stale or unfinished content
+  with a `DESIGN_*` code, as does native `spec-kitty next --result success`
+  ([details](finalize-tasks-internals.md#6-stale-api-authored-content-is-refused)).
 - **`agent decision verify`** reports a forked decision log as a `DECISION_LOG_FORKED` finding
   and **exits 1 on a fork regardless of `--fail-on-stale`**. A ledger that exists only on the
   coordination branch is not a fork; repair it with `doctor decisions --repair`. Coordination

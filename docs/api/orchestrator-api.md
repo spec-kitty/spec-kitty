@@ -118,8 +118,9 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   Existing commands and envelope fields remain. For API-authored Missions,
   successful design completion/finalization through orchestrator-api now checks
   accepted provenance and canonical prerequisites; stale or unfinished inputs
-  refuse. Native `spec-kitty next --result success` and the agent lifecycle
-  commands do not run that check. New `error_code` values: `DESIGN_ARTIFACT_UNSUPPORTED`,
+  refuse. Native `spec-kitty next --result success` and `agent mission
+  finalize-tasks` run the same check (#5879) and refuse with the same `DESIGN_*`
+  code; `agent tasks finalize-tasks` does not. New `error_code` values: `DESIGN_ARTIFACT_UNSUPPORTED`,
   `DESIGN_BOUNDS_EXCEEDED`, `DESIGN_COMMIT_FAILED`, `DESIGN_CONTEXT_FAILED`,
   `DESIGN_CONTEXT_STALE`, `DESIGN_FINALIZED`, `DESIGN_INTERVIEW_FAILED`,
   `DESIGN_INTERVIEW_INCOMPLETE`, `DESIGN_INTERVIEW_INVALID`, `DESIGN_IO_FAILED`,

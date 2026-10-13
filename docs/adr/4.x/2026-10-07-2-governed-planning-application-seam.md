@@ -52,4 +52,6 @@ Completion validation reads the native persisted `issued_step_id` through the qu
 ## Residuals
 
 - The stale and unfinished-content refusal runs only on the orchestrator-api `next` and finalize path. Native `spec-kitty next --result success` and the agent lifecycle commands do not run `validate_stage` for an API-authored Mission. Enforcing it natively is follow-up work.
+  - Amendment 2026-10-13 (#5879): native `spec-kitty next --result success` and `agent mission finalize-tasks` now run the same refusal. Native `next` holds `authoring_lock` across the proof and the completion; native finalize runs inside `finalization_scope`. `agent tasks finalize-tasks` is not wrapped.
 - `authoring_lock` is cooperative. Native status writes and native finalize-tasks do not take it, so `require_unfinalized` can race a native finalize.
+  - Amendment 2026-10-13 (#5879): native finalize-tasks and native `next` completion now take the lock for an API-authored Mission. Native status writes (`move-task`) still do not.

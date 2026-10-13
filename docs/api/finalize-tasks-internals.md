@@ -2,11 +2,11 @@
 title: finalize-tasks internals reference
 description: 'finalize-tasks internals: empty owned_files, lane-depth cycle safety, the planning-pin refresh (override and automatic), and the LANE_MEMBERSHIP_FROZEN refusal.'
 doc_status: active
-updated: '2026-10-05'
+updated: '2026-10-13'
 ---
 # `finalize-tasks` internals reference
 
-Five non-obvious behaviours an operator may encounter when running
+Six non-obvious behaviours an operator may encounter when running
 `spec-kitty agent mission finalize-tasks`. All have regression tests
 under `tests/specify_cli/cli/commands/` and `tests/specify_cli/lanes/`.
 
@@ -282,6 +282,19 @@ Locked by tests in:
 - `tests/specify_cli/cli/commands/agent/test_finalize_frozen_lane_preflight.py`
 - `tests/integration/test_refinalize_keeps_started_lanes.py` and
   `tests/integration/test_refinalize_frozen_lane_refusals.py`
+
+## 6. Stale API-authored content is refused
+
+A Mission authored through `spec-kitty orchestrator-api` carries an API-authoring
+marker. For such a Mission, `agent mission finalize-tasks` first checks that the
+specification, plan and work-package content is current and complete, exactly as
+the orchestrator-api `tasks` verb does. Stale or unfinished content refuses with a
+`DESIGN_*` code (for example `DESIGN_PARENT_STALE` or `DESIGN_PREREQUISITES_FAILED`)
+before anything is written, and a successful finalize records the generated
+work-package files as current, so native `spec-kitty next --result success` at
+`tasks` then advances. `--validate-only` and `--refresh-planning-commit` skip the
+check, an already-finalized Mission is not re-checked, and a Mission without the
+marker behaves as before. `agent tasks finalize-tasks` does not run the check.
 
 ## Module map
 
