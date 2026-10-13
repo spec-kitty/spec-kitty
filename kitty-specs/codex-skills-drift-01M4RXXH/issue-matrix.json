@@ -1,7 +1,7 @@
 {
   "rows": {
     "#702": {
-      "evidence_ref": "Reproduced on main @ 4.0.0rc7 (research/diagnosis-702.md); fix regenerates drifted DERIVED command-skill projections in command_installer.preserve(); red-first regression RED on base / GREEN on fix; revert proof RED.",
+      "evidence_ref": "PR #6113 merged to main as ebf40abb6; follow-ups in #6155",
       "fr": "FR-001,FR-002,FR-003",
       "nfr": "NFR-001,NFR-002,NFR-003",
       "repo": "spec-kitty/spec-kitty",
@@ -9,7 +9,7 @@
       "scope": "Codex (and shared-root vibe/pi/letta) .agents/skills command-skill projection idempotency; shared command-skill generator path only.",
       "source_file": "spec.md",
       "title": "Generated .agents/skills state drifts from the command-skills manifest after init/upgrade/sync",
-      "verdict": "in-mission",
+      "verdict": "fixed",
       "wp": "WP01"
     }
   },
