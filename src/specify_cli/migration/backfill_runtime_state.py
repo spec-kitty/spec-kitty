@@ -1331,11 +1331,6 @@ class WpStatusBackfillResult:
     error: str | None = None
 
 
-#: Per-Mission read failures the WP-status backfill reports instead of raising: an unreadable
-#: event log, an I/O fault, or a ``meta.json`` that exists but is corrupt (fail-closed read).
-_WP_STATUS_MISSION_ERRORS = MISSION_STATUS_ERRORS
-
-
 def _wp_status_result(plan: WpStatusPlan, feature_dir: Path, **fields: Any) -> WpStatusBackfillResult:
     """Build a result carrying the plan's gap and evidence plus per-outcome *fields*."""
     return WpStatusBackfillResult(
@@ -1392,7 +1387,7 @@ def apply_wp_status_backfill(
     try:
         with feature_status_lock(lock_root, mission_lock_key(feature_dir, repo_root=lock_root)):
             return _apply_wp_status_backfill_locked(feature_dir, dry_run=dry_run, evidence=evidence, coord_probed=probed)
-    except _WP_STATUS_MISSION_ERRORS as exc:
+    except MISSION_STATUS_ERRORS as exc:
         return WpStatusBackfillResult(feature_dir=feature_dir, slug=slug, error=f"{type(exc).__name__}: {exc}")
 
 
@@ -1409,7 +1404,7 @@ def _refused_for_live_coordination(feature_dir: Path) -> tuple[bool, bool]:
     """
     try:
         needs_seeding = bool(plan_wp_status_backfill(feature_dir).gap.files_only)
-    except _WP_STATUS_MISSION_ERRORS:
+    except MISSION_STATUS_ERRORS:
         return False, False
     if not needs_seeding:
         return False, False

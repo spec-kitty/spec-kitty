@@ -16,10 +16,15 @@ from pathlib import Path
 from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.status import StoreError, materialize
 
-#: Per-mission read failures a backfill reports instead of raising: an unreadable
+#: Per-Mission read failures a backfill reports instead of raising: an unreadable
 #: event log, an I/O fault, or a ``meta.json`` that exists but is corrupt
 #: (fail-closed read).
 MISSION_STATUS_ERRORS = (StoreError, OSError, MissionMetaReadError)
+
+#: The refresh also reads the existing ``status.json``; one that is not UTF-8
+#: raises ``UnicodeDecodeError`` (a ``ValueError``), which must not abort the
+#: caller after its append is committed.
+_REFRESH_ERRORS = (*MISSION_STATUS_ERRORS, UnicodeDecodeError)
 
 
 def refresh_snapshot_if_present(feature_dir: Path) -> tuple[bool, str | None]:
@@ -28,6 +33,6 @@ def refresh_snapshot_if_present(feature_dir: Path) -> tuple[bool, str | None]:
         return False, None
     try:
         materialize(feature_dir)
-    except MISSION_STATUS_ERRORS as exc:
-        return False, f"status.json refresh failed after seeding: {type(exc).__name__}: {exc}"
+    except _REFRESH_ERRORS as exc:
+        return False, f"status.json refresh failed after the backfill appended events: {type(exc).__name__}: {exc}"
     return True, None
