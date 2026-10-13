@@ -1,4 +1,4 @@
-"""Per-PR contract check for the CLI acceptance scenarios (stdlib only, no JDK).
+"""Per-PR contract check for the CLI acceptance scenarios (no third-party dependency, no JDK).
 
 Reads the Gherkin files under ``tests/scenarios`` with a small line-based reader and checks,
 without running anything:
@@ -33,8 +33,9 @@ import re
 import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from datetime import date
 from pathlib import Path
+
+from kernel.clock import parse_stamp
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_FEATURES = REPO_ROOT / "tests" / "scenarios"
@@ -435,7 +436,7 @@ def _valid_date(value: str) -> bool:
     if not _DATE_RE.fullmatch(value):
         return False
     try:
-        date.fromisoformat(value)
+        parse_stamp(value, "%Y-%m-%d")
     except ValueError:
         return False
     return True
