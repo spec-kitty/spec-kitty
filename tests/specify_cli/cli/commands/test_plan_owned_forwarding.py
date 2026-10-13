@@ -55,6 +55,10 @@ def test_plan_forwards_owned_checkout_to_setup_plan(monkeypatch, tmp_path: Path)
     assert captured["feature"] == "demo-01ABCDEF"
     assert str(captured["owned_checkout"]) == owned_path
 
+    result = CliRunner().invoke(_plan_app(), ["--mission", "demo-01ABCDEF", "--json"], catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+    assert captured["owned_checkout"] is None
+
 
 def test_plan_with_owned_checkout_does_not_run_repository_root_interview(monkeypatch, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
     """Interactive ``plan --owned-checkout P`` never opens Decision Moments in the repository root checkout.
@@ -83,3 +87,9 @@ def test_plan_with_owned_checkout_does_not_run_repository_root_interview(monkeyp
 
     assert result.exit_code == 0, result.output
     assert interview_calls == []
+
+    # Positive control: the same patches reach the interview without --owned-checkout.
+    result = CliRunner().invoke(_plan_app(), ["--mission", "demo-01ABCDEF"], catch_exceptions=False)
+    assert result.exit_code == 0, result.output
+    assert len(interview_calls) == 1
+    assert interview_calls[0]["mission_slug"] == "demo-01ABCDEF"

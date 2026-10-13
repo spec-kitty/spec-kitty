@@ -109,6 +109,7 @@ def test_research_accepts_owned_checkout_and_scaffolds_into_owned(
     owned_mission_dir = p_root / "kitty-specs" / owned_checkouts.mission_slug
     for rel in _RESEARCH_ASSETS:
         assert (owned_mission_dir / rel).exists(), f"{rel} not scaffolded into the owned checkout"
+    assert (owned_mission_dir / "research.md").read_text(encoding="utf-8") == "# Research\n\nSeeded.\n"
     # R must be byte-for-byte unchanged: no research artifacts, no stray mission dir.
     r_snapshot.assert_unchanged(before, r_snapshot.take())
 
@@ -162,7 +163,64 @@ def test_research_owned_checkout_without_mission_reports_missing_mission(
         home=home,
     )
 
-    assert result.exit_code != 0
+    assert result.exit_code == 1
     assert "requires an explicit --mission" in result.output, result.output
-    assert not (p_root / "kitty-specs" / owned_checkouts.mission_slug / "research.md").exists()
+    for rel in _RESEARCH_ASSETS:
+        assert not (p_root / "kitty-specs" / owned_checkouts.mission_slug / rel).exists()
     r_snapshot.assert_unchanged(before, r_snapshot.take())
+
+
+def test_research_explicit_owned_checkout_wins_over_stale_root_copy(
+    owned_checkouts: OwnedCheckouts,
+    stale_root_copy: Callable[..., Path],
+    r_snapshot,  # type: ignore[no-untyped-def]
+    tmp_path: Path,
+) -> None:
+    """Run from R with ``--owned-checkout P`` while R holds a stale copy: only P is written."""
+    r_root = owned_checkouts.repository_root
+    p_root = owned_checkouts.owned_root
+    stale_root_copy()
+    _seed_research_templates(r_root)
+    _seed_research_templates(p_root)
+    home = tmp_path / "home"
+    home.mkdir(exist_ok=True)
+
+    before = r_snapshot.take()
+    result = _invoke_research(
+        ["--mission", owned_checkouts.mission_slug, "--owned-checkout", str(p_root)],
+        cwd=r_root,
+        home=home,
+    )
+
+    assert result.exit_code == 0, result.output
+    owned_mission_dir = p_root / "kitty-specs" / owned_checkouts.mission_slug
+    for rel in _RESEARCH_ASSETS:
+        assert (owned_mission_dir / rel).exists(), f"{rel} not scaffolded into the owned checkout"
+    r_snapshot.assert_unchanged(before, r_snapshot.take())
+
+
+def test_research_refuses_repository_root_as_owned_checkout_without_writing(
+    owned_checkouts: OwnedCheckouts,
+    r_snapshot,  # type: ignore[no-untyped-def]
+    tmp_path: Path,
+) -> None:
+    """``--owned-checkout R`` is refused before any write in R or P."""
+    r_root = owned_checkouts.repository_root
+    p_root = owned_checkouts.owned_root
+    _seed_research_templates(r_root)
+    home = tmp_path / "home"
+    home.mkdir(exist_ok=True)
+    p_files_before = sorted(path.relative_to(p_root).as_posix() for path in p_root.rglob("*") if ".git" not in path.parts)
+
+    before = r_snapshot.take()
+    result = _invoke_research(
+        ["--mission", owned_checkouts.mission_slug, "--owned-checkout", str(r_root)],
+        cwd=r_root,
+        home=home,
+    )
+
+    assert result.exit_code != 0
+    for rel in _RESEARCH_ASSETS:
+        assert not (r_root / "kitty-specs" / owned_checkouts.mission_slug / rel).exists()
+    r_snapshot.assert_unchanged(before, r_snapshot.take())
+    assert sorted(path.relative_to(p_root).as_posix() for path in p_root.rglob("*") if ".git" not in path.parts) == p_files_before
