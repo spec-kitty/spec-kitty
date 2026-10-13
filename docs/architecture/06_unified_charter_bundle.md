@@ -133,10 +133,9 @@ The bundle's freshness signal is content-hash driven, not sync-driven:
    no self-referential hash; `metadata.bundle_schema_version` is the only
    field `versioning.py` reads from it.
 
-`charter sync` / `ensure_charter_bundle_fresh()` are retained for
-canonical-root resolution and back-compat call sites (the
-bundle-migration upgrader, `charter context`), but no longer perform
-extraction — every call is a no-op (`synced=False`, `files_written=[]`).
+`ensure_charter_bundle_fresh()` is retained for canonical-root resolution and
+back-compat call sites (the bundle-migration upgrader, `charter context`), but no
+longer performs extraction. The `charter sync` CLI command was removed (#5828).
 
 ## Gitignore policy: MUST-INCLUDE, not exclusive
 

@@ -90,15 +90,10 @@ Current Spec Kitty does not support a configured external charter path that repl
 `.kittify/charter/charter.yaml` itself — the `.kittify/config.yaml` `charter:` pointer is the one
 supported redirection mechanism, and it points at a `charter.yaml` file, not at `charter.md`.
 
-### Sync Behavior
+### Editing `charter.yaml`
 
-`spec-kitty charter sync` is retained for its canonical-root resolution and the internal
-`ensure_charter_bundle_fresh()` staleness check that other charter-layer modules still call — the
-`charter sync` CLI command itself and the bundle-migration upgrader both depend on
-its signature. It performs **no extraction** any more: it always reports `synced=False` and
-`files_written=[]`, because there is nothing left to derive from `charter.md`. Running
-`spec-kitty charter sync` after a hand edit to `charter.yaml` is a harmless no-op, not a required
-step.
+The `spec-kitty charter sync` command was removed (#5828). Edits to `charter.yaml` are read live,
+so no post-edit step is needed: the next `charter context` call reads the file as-is.
 
 ---
 
@@ -223,7 +218,6 @@ These two operations are different:
 | Command | What it does |
 |---|---|
 | `charter generate` | Refreshes `charter.yaml`'s `catalog` and `metadata` sections from interview answers + doctrine references. Bootstraps `governance`/`directives` from a legacy triad only on first creation of `charter.yaml`; on every later run it leaves them untouched. Never writes `charter.md`. |
-| `charter sync` | Retained for canonical-root resolution and back-compat call sites. Performs no extraction — always a no-op (`synced=False`, `files_written=[]`). |
 | `charter synthesize` | Validates and promotes agent-generated project-local doctrine artifacts from `.kittify/charter/generated/` to `.kittify/charter-packs/`. |
 
 Edit `charter.yaml`'s `governance`/`directives` sections directly for policy changes; run

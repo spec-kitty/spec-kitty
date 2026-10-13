@@ -123,7 +123,7 @@ orchestrator-injects contract closes the failure **class**.
 
 Activate the two doctrine lenses everywhere the allowlist is authored:
 - This project: `spec-kitty charter activate agent-profile doctrine-daphne randy-reducer`
-  (or edit `charter.yaml` + `charter sync`).
+  (or edit `charter.yaml`; edits are read live).
 - Upstream default preset: none needed now. The registry file `src/charter/activation/packs/default.yaml`
   was retired by #3732; its successor `packs/built-in/presets/default.yaml` carries no agent-profile
   allowlist.
@@ -252,7 +252,7 @@ free-text positional is the wrong shape. **§4.3 is amended:**
   freeze, restores squads, and (with the guard) discharges directive 043 for these two
   instances. Apply at **both** authoring sites (`charter.yaml` + `default.yaml:187`).
 - **§4.2 is the actual *class* close** — data alone leaves the fail-open fallback and the
-  two-list drift intact; the class recurs on the next `charter sync`/de-activation.
+  two-list drift intact; the class recurs on the next de-activation.
 - **Critical guard-design refinement (both delegates):** the §4.1 regression guard **must
   derive its lens list from a single canonical "squad-eligible profiles" query**, not a
   hand-copied list — otherwise it becomes a *third* drift-prone copy. That query is the

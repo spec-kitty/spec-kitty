@@ -23,10 +23,9 @@ start at [How to Set Up Project Governance](setup-governance.md) instead.
 ## 1. Stale bundle
 
 > **Model change**: this failure mode used to be described as `charter.md` drifting from a
-> derived bundle, with `charter sync` as the fix. That model is retired. `.kittify/charter/charter.yaml`
+> derived bundle, with `charter sync` as the fix. That model is retired, and the command was removed (#5828). `.kittify/charter/charter.yaml`
 > is the authoritative, resolving source; `charter.md` is a non-authoritative prose companion the
-> runtime never parses, so it cannot cause drift. `charter sync` is now a confirmed no-op — it
-> always reports `synced: False` and writes nothing. If you have this page bookmarked from an
+> runtime never parses, so it cannot cause drift. If you have this page bookmarked from an
 > older run, use the symptoms and fix below instead. See [How Charter Works](../../../context/charter-overview.md)
 > for the full authoritative-source model.
 
@@ -59,8 +58,7 @@ uv run spec-kitty charter bundle validate
 uv run spec-kitty charter status
 ```
 
-There is no separate re-sync step: `charter sync` no longer extracts anything from `charter.md`,
-so it is not part of this fix.
+There is no separate re-sync step: edits to `charter.yaml` are read live.
 
 ---
 

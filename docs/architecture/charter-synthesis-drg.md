@@ -138,7 +138,7 @@ Charter governance is built on a strict read/write boundary:
   validated by `charter synthesize`.
 
 If you edit a derived file (for example, add a directive to `governance.yaml` directly), the edit
-can be lost on the next `charter sync` or `charter generate` run because those files are
+can be lost on the next `charter generate` run because those files are
 re-derived from `charter.md`. There is no merge step for derived config.
 
 `charter status` detects drift between `charter.md` and the bundle hash. `charter lint` detects

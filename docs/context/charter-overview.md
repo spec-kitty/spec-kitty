@@ -78,8 +78,7 @@ uv run spec-kitty charter context --action implement --json
 
 To change runtime policy by hand, edit `charter.yaml`'s `governance:` or `directives:` sections
 directly. There is no separate sync step: the next `charter context` call reads the file as-is.
-`charter sync` still exists for canonical-root resolution and back-compat call sites, but it no
-longer extracts anything from `charter.md` — running it is always a no-op.
+The `charter sync` command was removed (#5828); nothing replaces it.
 
 A directive you add under the `directives:` section is **additive**: it is unioned onto the
 directive set the project already resolves (the built-in catalog default, charter-activated
