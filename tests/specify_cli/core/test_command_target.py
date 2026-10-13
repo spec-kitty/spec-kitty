@@ -180,9 +180,15 @@ def test_cornerstone_less_repo_follows_the_placement_authority(tmp_path: Path) -
 
 
 def test_explicit_repo_root_nongit_does_not_raise(tmp_path: Path) -> None:
-    """The explicit repo_root path collapses via get_main_repo_root, which returns the
-    resolved path for a non-repo input rather than raising (mirrors the resolver the routed
-    call sites relied on) — so WorkspaceRootNotFound is scoped to the cwd path only."""
+    """An explicit ``repo_root`` that is not a git checkout is collapsed, not refused.
+
+    Kept deliberately: the explicit path collapses via ``get_main_repo_root``, the same
+    collapse ``get_feature_target_branch`` (the authority the entry delegates to, and the
+    call record-analysis made before routing) applies, and that collapse returns the
+    resolved path for a non-repo input. Refusing here would add a refusal the replaced
+    call did not have. ``WorkspaceRootNotFound`` stays scoped to the ``cwd`` path, where
+    the entry itself discovers the root.
+    """
     bare = tmp_path / "plain_dir"
     bare.mkdir()
     result = resolve_command_repo_target(_SLUG, repo_root=bare)
