@@ -54,14 +54,6 @@ categories:
       the return type of the already-wired ``resolve_status_surface_with_anchor``; callers consume the
       value, not the name. No follow-up tracker -- lone remaining transitive-consumption entry.
     requires_issue: false
-  category_c_command_target_6142:
-    rationale: 'C. #6142 declaration-first command-entry resolution entry. ``CommandRepoTarget`` is the
-      return type of the already-wired ``resolve_command_repo_target`` (consumed by ``record-analysis``
-      through its ``.target_branch`` attribute) and ``TargetProvenance`` is that value''s provenance enum;
-      callers consume the VALUE, not the name -- the same transitive-consumption shape as the
-      ``ResolvedStatusSurface`` entry above. By-name consumption arrives as more mutating commands adopt the
-      entry (Increment 1 routing follow-up #6152). Burns down when a cross-module by-name caller lands.'
-    requires_issue: false
   category_c_wp_in_flight_unified_mission_step:
     rationale: 'C. WP-in-flight unified MissionStep model (mission 01KSWJVX). Public surface for the unified
       ``MissionStep``/mission-type model, shipped ahead of production callers landing in later WPs of
@@ -954,12 +946,6 @@ entries:
 - module: specify_cli.coordination.surface_resolver
   name: ResolvedStatusSurface
   category: category_c_wp_in_flight_topology_authority
-- module: specify_cli.core.command_target
-  name: CommandRepoTarget
-  category: category_c_command_target_6142
-- module: specify_cli.core.command_target
-  name: TargetProvenance
-  category: category_c_command_target_6142
 - module: charter.offering.missions.mission_step_repository
   name: StepKey
   category: category_c_wp_in_flight_unified_mission_step

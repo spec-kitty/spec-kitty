@@ -55,11 +55,7 @@ from specify_cli.core.paths import (
     resolve_canonical_root,
 )
 
-__all__ = [
-    "CommandRepoTarget",
-    "TargetProvenance",
-    "resolve_command_repo_target",
-]
+__all__ = ["resolve_command_repo_target"]
 
 
 class TargetProvenance(Enum):
