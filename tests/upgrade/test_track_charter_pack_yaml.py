@@ -137,3 +137,14 @@ def test_dry_run_reports_without_writing(tmp_path: Path) -> None:
     assert result.success is True
     assert result.changes_made
     assert (tmp_path / ".gitignore").read_text(encoding="utf-8") == before
+
+
+def test_warns_when_a_later_rule_still_ignores_pack_yaml(tmp_path: Path) -> None:
+    """The allow-rule is added, but a later blanket rule still hides pack.yaml: say so."""
+    _make_cutover_consumer(tmp_path, gitignore=_BUG_GITIGNORE + ".kittify/\n")
+
+    result = TrackCharterPackYamlMigration().apply(tmp_path)
+
+    assert result.success is True
+    assert is_gitignore_path_ignored(tmp_path, _PACK_YAML) is True
+    assert any(_PACK_YAML in warning for warning in result.warnings)

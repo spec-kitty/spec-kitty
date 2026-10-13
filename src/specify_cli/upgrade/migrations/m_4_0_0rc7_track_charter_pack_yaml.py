@@ -34,8 +34,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from kernel.charter_pack_paths import PROJECT_PACK_ROOT_POSIX
 from specify_cli.gitignore_manager import (
     GitignorePathError,
+    is_gitignore_path_ignored,
     read_gitignore_text,
     write_gitignore_text,
 )
@@ -51,6 +53,7 @@ from .base import BaseMigration, MigrationResult
 __all__ = ["TrackCharterPackYamlMigration"]
 
 _GITIGNORE = ".gitignore"
+_PACK_YAML = f"{PROJECT_PACK_ROOT_POSIX}/pack.yaml"
 
 
 @MigrationRegistry.register
@@ -74,7 +77,12 @@ class TrackCharterPackYamlMigration(BaseMigration):
         # population, which reaches ``apply()`` without consulting ``detect()``;
         # ``apply()`` then surfaces the non-fatal "add it by hand" warning for
         # both, instead of silently skipping the rc7 case.
-        text = read_gitignore_text(self._gitignore(project_path))
+        try:
+            text = read_gitignore_text(self._gitignore(project_path))
+        except OSError:
+            # An unreadable .gitignore (e.g. a directory) fails closed like the
+            # symlink case: select the migration so apply() surfaces the warning.
+            return True
         return text is not None and needs_pack_yaml_allow_rule(text)
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
@@ -86,7 +94,7 @@ class TrackCharterPackYamlMigration(BaseMigration):
         path = self._gitignore(project_path)
         try:
             text = read_gitignore_text(path)
-        except GitignorePathError as exc:
+        except (GitignorePathError, OSError) as exc:
             # Non-fatal: leave the unsafe .gitignore untouched and tell the
             # operator, rather than failing the whole upgrade over a cosmetic
             # allow-rule backfill they can add by hand.
@@ -112,4 +120,8 @@ class TrackCharterPackYamlMigration(BaseMigration):
             # failure (mirrors the cutover's own gitignore-write handling).
             return MigrationResult(success=False, errors=[f"{_GITIGNORE} could not be written ({exc}); make it writable, then run `spec-kitty upgrade` again"])
 
-        return MigrationResult(success=True, changes_made=[f"Added {CHARTER_PACK_YAML_ALLOW_RULE} to {_GITIGNORE}"])
+        result = MigrationResult(success=True, changes_made=[f"Added {CHARTER_PACK_YAML_ALLOW_RULE} to {_GITIGNORE}"])
+        if is_gitignore_path_ignored(project_path, _PACK_YAML) is True:
+            # A later rule (e.g. a `.kittify/` line) still ignores the file.
+            result.warnings.append(f"{_PACK_YAML} is still ignored by another {_GITIGNORE} rule; check your {_GITIGNORE} so it can be committed")
+        return result
