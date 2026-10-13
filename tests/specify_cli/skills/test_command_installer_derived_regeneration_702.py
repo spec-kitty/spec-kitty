@@ -25,6 +25,7 @@ RED before the fix (drift is kept / ``install`` raises); GREEN after
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -73,18 +74,37 @@ def _introduce_drift(repo_root: Path, command: str) -> tuple[Path, bytes]:
     return path, canonical
 
 
-def _reconcile_via_provider_call(repo_root: Path, agents: tuple[str, ...]) -> tuple[object, object]:
+def _reconcile_via_provider_call(
+    repo_root: Path,
+    agents: tuple[str, ...],
+    *,
+    overwrite_paths: tuple[str, ...] = (),
+) -> tuple[object, object]:
     """Drive the EXACT installer call the command_skills tool-surface provider makes for
-    ``upgrade`` — ``prepare_commands(..., prune=True)`` under automatic (non-overwrite)
-    consent — then apply it. Returns (assessment, apply_result).
+    ``upgrade`` — ``prepare_commands(..., prune=True)`` under automatic consent — then apply
+    it. ``overwrite_paths`` supplies explicit exact-path operator consent (the fall-through
+    path revived by #6155). Returns (assessment, apply_result).
     """
     inputs = AssessmentInputs(
         OperationRoot("project", "project", repo_root.absolute()),
-        consent=ApplyConsent(automatic=True),
+        consent=ApplyConsent(automatic=True, overwrite_paths=overwrite_paths),
     )
     assessment = command_installer.prepare_commands(inputs, agents, prune=True)
     result = command_installer.apply_commands(assessment, inputs.consent)
     return assessment, result
+
+
+def _surfaces_with_shared_skills_tracked() -> tuple[object, ...]:
+    """A ``STATE_SURFACES`` copy where ``shared_skills_projection`` is TRACKED, not git-IGNORED.
+
+    Monkeypatching this onto ``state_contract.STATE_SURFACES`` makes the runtime
+    DERIVED/IGNORED gate (#6155, item 2) read the surface as *not* regenerable, so the
+    installer must fall through to the consent branch instead of clobbering drift.
+    """
+    return tuple(
+        dataclasses.replace(surface, git_class=state_contract.GitClass.TRACKED) if surface.name == "shared_skills_projection" else surface
+        for surface in state_contract.STATE_SURFACES
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -206,3 +226,152 @@ def test_702_in_sync_projection_is_not_rewritten(repo: Path) -> None:
     assert result.outcome in {"applied", "skipped"}
     assert path.stat().st_mtime_ns == mtime_before
     assert verify(repo).drift == []
+
+
+# ===========================================================================
+# #6155 item 2 — the regenerate reads the DERIVED/IGNORED class at runtime.
+# ===========================================================================
+
+
+def test_6155_non_derived_class_keeps_drift_as_consent_required(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """RED on the merged-#6113 base: the regenerate was unconditional, so a monkeypatched
+    non-git-IGNORED class still clobbered drift. After #6155 the installer reads
+    ``shared_skills_projection`` from the state contract and, when it is not DERIVED/IGNORED,
+    falls through to the pre-#6113 ``consent_required`` behaviour (the drift is kept)."""
+    install(repo, "codex")
+    drift_path, _canonical = _introduce_drift(repo, "review")
+    rel = drift_path.relative_to(repo).as_posix()
+    drifted_bytes = drift_path.read_bytes()
+
+    monkeypatch.setattr(state_contract, "STATE_SURFACES", _surfaces_with_shared_skills_tracked())
+    assessment, _result = _reconcile_via_provider_call(repo, ("codex",))
+
+    states = {d.state for d in assessment.dispositions if d.path == rel}
+    assert "consent_required" in states, f"non-DERIVED class must keep drift pending consent, got {states}"
+    assert "regenerated" not in states
+    assert drift_path.read_bytes() == drifted_bytes, "drift must be kept, not clobbered, when the class is not DERIVED/IGNORED"
+
+
+def test_6155_real_derived_class_regenerates_drift(repo: Path) -> None:
+    """Under the REAL DERIVED/IGNORED class the drifted projection is still regenerated and the
+    per-path ``regenerated`` report_kind is recorded on its PreparedCommand (US2 scenario 1;
+    US1 signal origin)."""
+    install(repo, "codex")
+    drift_path, canonical = _introduce_drift(repo, "review")
+    rel = drift_path.relative_to(repo).as_posix()
+
+    assessment, result = _reconcile_via_provider_call(repo, ("codex",))
+
+    kinds = {c.report_kind for c in assessment.prepared.commands if c.path == rel}
+    assert "regenerated" in kinds, f"the real DERIVED/IGNORED class must regenerate drift, got {kinds}"
+    states = {d.state for d in assessment.dispositions if d.path == rel}
+    assert "consent_required" not in states
+    assert result.outcome == "applied"
+    assert drift_path.read_bytes() == canonical
+    assert verify(repo).drift == []
+
+
+def test_6155_overwrite_consent_overwrites_on_non_derived_fall_through(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-003: on the non-DERIVED fall-through the revived ``overwrite_paths`` check is live —
+    explicit exact-path operator consent overwrites the drift rather than keeping it."""
+    install(repo, "codex")
+    drift_path, canonical = _introduce_drift(repo, "plan")
+    rel = drift_path.relative_to(repo).as_posix()
+
+    monkeypatch.setattr(state_contract, "STATE_SURFACES", _surfaces_with_shared_skills_tracked())
+    assessment, result = _reconcile_via_provider_call(repo, ("codex",), overwrite_paths=(rel,))
+
+    states = {d.state for d in assessment.dispositions if d.path == rel}
+    assert "consent_required" not in states, "explicit overwrite consent must be honoured on the fall-through path"
+    assert result.outcome == "applied"
+    assert drift_path.read_bytes() == canonical
+
+
+# ===========================================================================
+# #6155 item 1 — install()-leg report names each regenerated path.
+# ===========================================================================
+
+
+@pytest.mark.parametrize("agent", _SHARED_ROOT_AGENTS)
+def test_6155_install_report_names_regenerated_path(repo: Path, agent: str) -> None:
+    """RED on the base (``InstallReport`` has no ``regenerated`` field / the regenerate was
+    silently counted as ``added``). After #6155 a drifted projection regenerated by ``install``
+    (the init / ``agent config sync`` leg) is named under ``report.regenerated`` exactly once
+    and is NOT double-counted in ``report.added``."""
+    install(repo, agent)
+    drift_path, canonical = _introduce_drift(repo, "plan")
+    rel = drift_path.relative_to(repo).as_posix()
+
+    report = install(repo, agent)
+
+    assert report.regenerated == [rel], f"regenerated path named once, got {report.regenerated}"
+    assert rel not in report.added, "a regenerated path must not also be counted as added"
+    assert drift_path.read_bytes() == canonical
+
+
+# ===========================================================================
+# #6155 item 3 — prune a retired command's drifted projection.
+# ===========================================================================
+
+_RETIRED_REL = ".agents/skills/spec-kitty.legacy-opener/SKILL.md"
+_RETIRED_HASH = "a" * 64
+
+
+def _record_retired_entry(repo_root: Path, rel: str, *, agents: tuple[str, ...] = ("codex",)) -> None:
+    manifest = manifest_store.load(repo_root)
+    manifest.upsert(
+        manifest_store.ManifestEntry(
+            path=rel,
+            content_hash=_RETIRED_HASH,
+            agents=agents,
+            installed_at="2024-01-01T00:00:00+00:00",
+            spec_kitty_version="3.2.0a4",
+        )
+    )
+    manifest_store.save(repo_root, manifest)
+
+
+def test_6155_retired_command_drifted_projection_is_pruned(repo: Path) -> None:
+    """RED on the base: ``remove_entry`` reported a drifted manifest-owned projection as
+    ``consent_required``, so ``prune_stale`` raised ``file_mutation_detected`` and kept the
+    stale file. After #6155 the same DERIVED/IGNORED gate prunes the file AND its manifest
+    entry (US3 scenario 1)."""
+    install(repo, "codex")
+    retired = repo / ".agents" / "skills" / "spec-kitty.legacy-opener" / "SKILL.md"
+    retired.parent.mkdir(parents=True, exist_ok=True)
+    retired.write_bytes(b"# stale retired-command output from another checkout\n")
+    assert manifest_store.fingerprint_file(retired) != _RETIRED_HASH  # drifted vs recorded hash
+    _record_retired_entry(repo, _RETIRED_REL)
+
+    pruned = command_installer.prune_stale(repo)
+
+    assert _RETIRED_REL in pruned
+    assert not retired.exists(), "the drifted retired projection must be removed"
+    assert manifest_store.load(repo).find(_RETIRED_REL) is None, "its manifest entry must be dropped"
+
+
+def test_6155_prune_preserves_unowned_spec_kitty_path(repo: Path) -> None:
+    """US3 scenario 2 / NFR-002: an unowned (non-manifest) file at a ``spec-kitty.*`` path is
+    structurally never reached by ``remove_entry`` and is preserved by the prune."""
+    install(repo, "codex")
+    unowned = repo / ".agents" / "skills" / "spec-kitty.my-custom" / "SKILL.md"
+    unowned.parent.mkdir(parents=True, exist_ok=True)
+    unowned.write_bytes(b"mine\n")
+
+    command_installer.prune_stale(repo)
+
+    assert unowned.read_bytes() == b"mine\n"
+
+
+def test_6155_prune_still_refuses_directory_at_projection_path(repo: Path) -> None:
+    """US3 scenario 3: a DIRECTORY at the projection path is still refused (unchanged); only a
+    drifted regular FILE is pruned under the gate."""
+    install(repo, "codex")
+    dir_at_path = repo / ".agents" / "skills" / "spec-kitty.legacy-dir" / "SKILL.md"
+    dir_at_path.mkdir(parents=True, exist_ok=True)
+    _record_retired_entry(repo, ".agents/skills/spec-kitty.legacy-dir/SKILL.md")
+
+    with pytest.raises(command_installer.InstallerError, match="file_mutation_detected"):
+        command_installer.prune_stale(repo)
+
+    assert dir_at_path.is_dir(), "a directory at the projection path must be refused, never removed"
