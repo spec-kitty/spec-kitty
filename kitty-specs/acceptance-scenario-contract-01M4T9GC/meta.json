@@ -26,6 +26,7 @@
   "purpose_context": "Acceptance scenarios under tests/scenarios run only in a nightly Cucumber-JVM job. This Mission documents the scenario tag contract, adds a JDK-free per-PR check, fixes the nightly evidence (the wip pass overwrites gating results) with a versioned evidence bundle, and adds black-box fixture builders for Mission states, per ADR 2026-10-13-1.",
   "purpose_tldr": "Give CLI acceptance scenarios a checked contract on every pull request and make each nightly result traceable to the exact build, OS and pass.",
   "slug": "acceptance-scenario-contract-01M4T9GC",
+  "status_phase": "1",
   "target_branch": "ccr-002603b2-bip646",
   "topology": "coord",
   "vcs": "git",
