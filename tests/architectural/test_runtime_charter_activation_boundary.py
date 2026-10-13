@@ -71,17 +71,47 @@ def _is_activation_internal(name: str | None) -> bool:
     return name == _ACTIVATION or name.startswith(_ACTIVATION + ".")
 
 
+def _root_facade_activation_modules() -> dict[str, str]:
+    """``charter.<name>`` root-facade names that resolve into ``charter.activation.*``.
+
+    ``src/charter/__init__.py`` lazily re-exports activation names (``from charter
+    import compile_charter``), a back door around the seam. Read the table
+    programmatically so the predicate cannot drift from it.
+    """
+    from charter import _LAZY_IMPORTS
+
+    return {name: module for name, (module, _attr) in _LAZY_IMPORTS.items() if _is_activation_internal(module)}
+
+
+_ROOT_FACADE_ACTIVATION: dict[str, str] = _root_facade_activation_modules()
+
+
+def _from_import_paths(node: ast.ImportFrom) -> set[str]:
+    module = node.module or ""
+    if module == "charter":
+        out: set[str] = set()
+        for alias in node.names:
+            if alias.name == "activation":
+                out.add(_ACTIVATION)
+            elif alias.name in _ROOT_FACADE_ACTIVATION:
+                out.add(_ROOT_FACADE_ACTIVATION[alias.name])
+        return out
+    if module == _ACTIVATION:
+        # ``from charter.activation import <sub>`` binds the submodule (or a name the
+        # package exposes): key it as ``charter.activation.<sub>``; the seam is exempt.
+        return {f"{_ACTIVATION}.{alias.name}" for alias in node.names if alias.name != "api"}
+    if _is_activation_internal(module):
+        return {module}
+    return set()
+
+
 def _internal_paths(node: ast.AST) -> set[str]:
     """Imported ``charter.activation`` internal module paths bound by *node* (seam excluded)."""
-    out: set[str] = set()
     if isinstance(node, ast.ImportFrom):
-        if node.level == 0 and _is_activation_internal(node.module):
-            out.add(node.module or "")
-    elif isinstance(node, ast.Import):
-        for alias in node.names:
-            if _is_activation_internal(alias.name):
-                out.add(alias.name)
-    return out
+        return _from_import_paths(node) if node.level == 0 else set()
+    if isinstance(node, ast.Import):
+        return {alias.name for alias in node.names if _is_activation_internal(alias.name)}
+    return set()
 
 
 def _is_type_checking_guard(test: ast.expr) -> bool:
@@ -175,9 +205,23 @@ def test_boundary_predicate_has_prohibited_and_compliant_controls() -> None:
     v.visit(ast.parse("if TYPE_CHECKING:\n    from charter.activation.compiler import compile_charter\n"))
     assert v.paths == set()
 
-    v = _ActivationVisitor()
-    v.visit(ast.parse("from charter.activation.api import read_mission_type\n"))
-    assert v.paths == set()
+    def paths(source: str) -> set[str]:
+        v = _ActivationVisitor()
+        v.visit(ast.parse(source))
+        return v.paths
+
+    # Prohibited forms: package-from-root, submodule-from-package, root-facade back door.
+    assert paths("from charter import activation\n") == {"charter.activation"}
+    assert paths("from charter import activation as a\n") == {"charter.activation"}
+    assert paths("from charter.activation import compiler\n") == {"charter.activation.compiler"}
+    assert paths("from charter import compile_charter\n") == {"charter.activation.compiler"}
+    assert paths("import charter.activation.compiler\n") == {"charter.activation.compiler"}
+
+    # Compliant forms: the seam, however it is spelled, and non-activation charter names.
+    assert paths("from charter.activation.api import read_mission_type\n") == set()
+    assert paths("from charter.activation import api\n") == set()
+    assert paths("import charter.activation.api\n") == set()
+    assert paths("from charter import offering\n") == set()
 
 
 def test_external_consumers_add_no_new_activation_internal_reach() -> None:
