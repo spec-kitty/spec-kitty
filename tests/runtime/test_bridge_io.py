@@ -1001,6 +1001,10 @@ def test_gather_artifact_presence_reads_file_presence(tmp_path: Path, monkeypatc
         tmp_path, mission_family="software-dev", step_id="tasks_outline"
     )
     assert "wps.yaml" in overridden.present_artifacts
+    # ...and the same holds for the finalize side's generated tasks.md.
+    (tmp_path / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+    finalize = io_seam.gather_artifact_presence(tmp_path, mission_family="software-dev", step_id="tasks_finalize")
+    assert {"wps.yaml", "tasks.md"} <= finalize.present_artifacts
 
 
 def test_gather_artifact_presence_reads_research_md_presence(
