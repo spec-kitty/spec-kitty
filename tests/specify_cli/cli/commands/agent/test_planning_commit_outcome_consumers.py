@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -321,7 +322,14 @@ def _patch_record_analysis_resolution(monkeypatch: pytest.MonkeyPatch, repo_root
     monkeypatch.setattr(seam, "locate_project_root", lambda: repo_root)
     monkeypatch.setattr(seam, "get_main_repo_root", lambda path: path)
     monkeypatch.setattr(seam, "_find_feature_directory", lambda *_args, **_kwargs: feature_dir)
-    monkeypatch.setattr(seam, "get_feature_target_branch", lambda *_args, **_kwargs: _TARGET_BRANCH)
+    # #6142: record-analysis now resolves its target branch through the
+    # declaration-first command-entry producer; stub it to the controlled branch
+    # (was: the ambient-biased get_feature_target_branch, now rerouted).
+    monkeypatch.setattr(
+        seam,
+        "resolve_command_repo_target",
+        lambda *_args, **_kwargs: SimpleNamespace(target_branch=_TARGET_BRANCH),
+    )
 
 
 def test_commit_analysis_report_carries_router_surfaces_through(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
