@@ -35,6 +35,7 @@ def _codes(problems, severity="error"):
 EXPECTED_ERRORS = {
     "parse_error.feature": ["PARSE_ERROR"],
     "no_steps.feature": ["NO_STEPS"],
+    "no_scenarios.feature": ["NO_SCENARIOS"],
     "bad_promise.feature": ["BAD_PROMISE_ID"],
     "duplicate_promise.feature": ["DUPLICATE_PROMISE"],
     "wip_missing_owner.feature": ["WIP_MISSING_OWNER"],

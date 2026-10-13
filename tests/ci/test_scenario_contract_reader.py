@@ -598,3 +598,15 @@ def test_strip_java_comments(source, expected):
     stripped = sc.strip_java_comments(source)
     assert stripped == expected
     assert stripped.count("\n") == source.count("\n")
+
+
+def test_feature_without_scenarios_is_an_error():
+    scenarios, problems = parse("Feature: F\n  Scenaro: typo\n    Given a\n")
+    assert scenarios == []
+    assert [(p.code, p.line) for p in problems] == [("NO_SCENARIOS", 1)]
+    _, problems = parse("@t\n# c\nFeature: F\n  Background:\n    Given a\n")
+    assert [(p.code, p.line) for p in problems] == [("NO_SCENARIOS", 3)]
+
+
+def test_file_without_feature_line_reports_only_the_parse_error():
+    assert set(codes(parse("Scenaro: typo\n")[1])) == {"PARSE_ERROR"}
