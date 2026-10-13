@@ -697,3 +697,19 @@ class TestSnapshotRefresh:
         assert outcome.refresh_error is not None and "disk full" in outcome.refresh_error
         assert event_sourced_review_result(feature_dir, "WP01").slot_present is True
         assert any(e.review_result is not None for e in read_events(feature_dir))
+
+    def test_undecodable_snapshot_is_reported_not_raised_and_append_is_committed(self, tmp_path: Path) -> None:
+        """A ``status.json`` that is not UTF-8 makes ``materialize`` raise ``UnicodeDecodeError``.
+
+        The append is already committed, so the refresh must report it instead of
+        aborting ``spec-kitty upgrade`` before later missions are backfilled.
+        """
+        feature_dir = make_stranded_mission_with_snapshot(tmp_path)
+        (feature_dir / "status.json").write_bytes(b"\xff\xfe not utf-8 \x80")
+
+        outcome = backfill_verdict_provenance(feature_dir)
+
+        assert outcome.appended_wp_ids == ("WP01",)
+        assert outcome.status_json_refreshed is False
+        assert outcome.refresh_error is not None and "UnicodeDecodeError" in outcome.refresh_error
+        assert any(e.review_result is not None for e in read_events(feature_dir))

@@ -240,7 +240,22 @@ class TestSnapshotRefreshViaMigration:
         result = VerdictProvenanceBackfillMigration().apply(tmp_path)
 
         assert result.changes_made
+        assert result.warnings == []
         assert not (feature_dir / "status.json").exists()
+
+    def test_converged_rerun_leaves_perturbed_snapshot_byte_unchanged(self, tmp_path: Path) -> None:
+        feature_dir = _stranded_mission_with_snapshot(tmp_path)
+        assert VerdictProvenanceBackfillMigration().apply(tmp_path).changes_made
+        snapshot_path = feature_dir / "status.json"
+        snapshot_path.write_text(
+            json.dumps(json.loads(snapshot_path.read_text(encoding="utf-8")), indent=4), encoding="utf-8"
+        )
+        perturbed = snapshot_path.read_bytes()
+
+        result = VerdictProvenanceBackfillMigration().apply(tmp_path)
+
+        assert result.warnings == []
+        assert snapshot_path.read_bytes() == perturbed
 
     def test_dry_run_leaves_log_and_perturbed_snapshot_byte_identical(self, tmp_path: Path) -> None:
         feature_dir = _stranded_mission_with_snapshot(tmp_path)
@@ -274,4 +289,5 @@ class TestSnapshotRefreshViaMigration:
         assert result.changes_made, "the append is committed and must still be reported"
         assert len(result.warnings) == 1
         assert feature_dir.name in result.warnings[0] and "disk full" in result.warnings[0]
+        assert f"agent status materialize --mission {feature_dir.name}" in result.warnings[0]
         assert event_sourced_review_result(feature_dir, "WP01").slot_present is True
