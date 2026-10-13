@@ -29,6 +29,9 @@ _ALLOWED_IMPORTS: dict[str, frozenset[str] | None] = {
     "enum": None,
     "typing": None,
     "mission_runtime": frozenset({"MissionTopology"}),
+    # #3461: meta_keys is a pure, zero-import constants module (persisted
+    # meta.json key names); the decisions builder imports PR_BOUND_KEY from it.
+    "specify_cli.meta_keys": frozenset({"PR_BOUND_KEY"}),
 }
 #: ``pathlib.Path`` I/O and filesystem-probe methods, plus ``Path.open``.
 _BANNED_ATTRIBUTES = frozenset(
