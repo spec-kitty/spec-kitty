@@ -177,8 +177,9 @@ Verify the clone-local CLI and dev tools run the clone's code:
 
 ### 2. Activate the isolated environment for your session
 
-A committed, path-agnostic helper does both axes at once — prepends the clone's
-`.venv/bin` to `PATH` and points `SPEC_KITTY_HOME` at a clone-local state root.
+A committed helper does both axes at once for the Git checkout you are in —
+prepends that checkout's `.venv/bin` to `PATH` and points `SPEC_KITTY_HOME` at a
+clone-local state root.
 **Source** it (do not execute it); it works from both `bash` and `zsh`:
 
 ```bash
@@ -201,6 +202,12 @@ The helper derives the root from the current Git checkout, falling back to its
 own location outside Git. The clone-local state root
 (`.spec-kitty-home/`) is git-ignored.
 
+If an isolated environment for another checkout is already active (for example
+you activated in worktree A, then `cd` into worktree B and source the helper
+again), the helper first deactivates A, then binds B. A single
+`deactivate_spec_kitty` afterwards restores the shell as it was before A.
+Sourcing it again in the checkout that is already active changes nothing.
+
 To restore the shell to the machine-global CLI and unset the overrides:
 
 ```bash
@@ -220,9 +227,9 @@ ls .spec-kitty-home            # clone-local runtime state (auth/, gate-locks/, 
 
 Confirm the machine-global root is untouched — nothing new should appear under
 `~/.spec-kitty` as a result of commands run inside the Shadow Clone.
-The isolated state root starts without a login session. Before a hosted sync or
-tracker call that needs authentication, run `spec-kitty auth login` inside the
-activated Shadow Clone.
+The isolated state root starts without a login session, so a tracker or hosted
+call that needs authentication finds no credentials until you authenticate
+inside the activated Shadow Clone.
 
 ## Optional: auto-activate with direnv
 
@@ -264,7 +271,7 @@ works in any clone.
 | `spec-kitty` still resolves to `~/.local/bin/...` after activating | The helper was executed, not sourced, so the exports never reached your shell. | `source scripts/dev/activate-isolated-env.sh` (note the leading `source`). |
 | `no .venv found at <root>` | The clone-local virtualenv was not created yet. | Run step 1 (create `.venv` + `pip install -e .`). |
 | `no executable spec-kitty CLI found at <root>/.venv/bin/spec-kitty` | The checkout's `.venv` does not contain the Spec Kitty CLI. | Install this checkout with step 1, then activate again. |
-| A hosted sync or tracker call says `Not authenticated` | This Shadow Clone has its own empty auth store. | Run `spec-kitty auth login` inside the activated Shadow Clone. |
+| A tracker or hosted call that needs authentication says `Not authenticated` | This Shadow Clone has its own empty auth store. | Authenticate again inside the activated Shadow Clone. |
 | Edits to the clone's `src/` have no effect | The active CLI is the machine-global one, or the `.venv` install is not editable. | Activate the env; reinstall with `pip install -e .`. |
 | A gate lock, tracker binding, or login seems to come from another clone | `SPEC_KITTY_HOME` was unset, so the shared `~/.spec-kitty` was in play. | Activate the env; confirm `echo "$SPEC_KITTY_HOME"` points inside the clone. |
 | State appeared under `~/.spec-kitty` while working in a clone | A command ran before activation. | Deactivate/reactivate; run clone commands only inside an activated session. |
