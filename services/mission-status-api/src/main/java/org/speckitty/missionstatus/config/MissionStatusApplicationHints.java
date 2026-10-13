@@ -12,5 +12,6 @@ class MissionStatusApplicationHints implements RuntimeHintsRegistrar {
   @Override
   public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
     hints.resources().registerPattern("contract/openapi.yaml");
+    hints.resources().registerPattern("leak-patterns.json");
   }
 }

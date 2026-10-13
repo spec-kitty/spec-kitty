@@ -38,18 +38,31 @@ public final class FilesystemMissionEventSource implements MissionEventSource {
 
   /** The recording seam is settable so that a test can observe every access; production wiring uses {@link #FilesystemMissionEventSource(Path)}. */
   public FilesystemMissionEventSource(Path root, AllowlistAccess access) {
+    this(root, access, FilesystemMissionEventSourceLedger.MAX_BYTES);
+  }
+
+  /** As above with the ledger cap given, so a test can show the over-cap row without writing 64 MiB. */
+  FilesystemMissionEventSource(Path root, AllowlistAccess access, long ledgerMaxBytes) {
     Objects.requireNonNull(root, "root");
     Objects.requireNonNull(access, "access");
     this.files = new SafeFiles(root, access);
     this.listing = new Listing(files, access);
     this.resolver = new ReadDirResolver(files);
     this.project = new FilesystemMissionEventSourceProject(files, access);
-    this.ledger = new FilesystemMissionEventSourceLedger(access);
+    this.ledger = new FilesystemMissionEventSourceLedger(access, ledgerMaxBytes);
   }
 
   /** The production source: every file operation passes straight through. */
   public FilesystemMissionEventSource(Path root) {
     this(root, AllowlistAccess.passThrough());
+  }
+
+  /**
+   * The production source over a project root given as text, so that {@code config} (which may not name a file API, ArchUnit rule 7)
+   * can construct it from the configured {@code mission-status.project-root}.
+   */
+  public static FilesystemMissionEventSource forRoot(String root) {
+    return new FilesystemMissionEventSource(Path.of(root));
   }
 
   @Override

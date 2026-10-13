@@ -1100,7 +1100,7 @@ def step_content_violations(text: str) -> list[str]:
     if "--offline" in jvm_runs or re.search(r"rm\s+-\S*\s+\S*\.gradle", jvm_runs):
         found.append("the jvm job must not clear the Gradle cache or run offline before check (NEWA-001)")
     native_runs = "\n".join(_runs(jobs.get("native", {})))
-    for needle in ("nativeCompile nativeTest", "nativeSmoke", "-PnativeBinary=", "native-tag-floor", "--floor 1", "test-results/test-native"):
+    for needle in ("nativeCompile nativeTest", "nativeSmoke", "-PnativeBinary=", "native-tag-floor", "--floor 3", "test-results/test-native"):
         if needle not in native_runs:
             found.append(f"the native job must contain {needle!r}")
     for name, job in jobs.items():
@@ -1458,3 +1458,256 @@ def test_architecture_rule_nine_names_the_generator_packages() -> None:
     rules = _text(SERVICE / "src/test/java/org/speckitty/missionstatus/architecture/ArchitectureRules.java")
     for package in (API_PACKAGE, MODEL_PACKAGE, "org.speckitty.missionstatus.adapter.in.http.dto"):
         assert f'"{package}"' in rules
+
+
+# --- WP10 ---------------------------------------------------------------------------------------------------------------------------
+# Packaged defaults, the contract-mode package names, the date-time mapping, the drift probe's home and the bind-guard registration.
+
+MAIN_RESOURCES = SERVICE / "src" / "main" / "resources"
+HTTP_MAIN = SERVICE / "src" / "main" / "java" / "org" / "speckitty" / "missionstatus" / "adapter" / "in" / "http"
+ARCH_RULES_TEST = SERVICE / "src" / "test" / "java" / "org" / "speckitty" / "missionstatus" / "architecture" / "ArchitectureRulesTest.java"
+RULE_9_LITERALS = {
+    "api": "org.speckitty.missionstatus.adapter.in.http.api",
+    "model": "org.speckitty.missionstatus.adapter.in.http.model",
+    "dto": "org.speckitty.missionstatus.adapter.in.http.dto",
+}
+PACKAGED_DEFAULTS = {
+    "server.address": "127.0.0.1",
+    "server.port": "${mission-status.port:8787}",
+    "server.forward-headers-strategy": "none",
+    "spring.threads.virtual.enabled": "true",
+    "spring.mvc.async.request-timeout": "-1",
+    "mission-status.stream.queue-capacity": "1024",
+    "mission-status.stream.heartbeat-interval": "PT30S",
+}
+
+
+def _properties(text: str) -> dict[str, str]:
+    props: dict[str, str] = {}
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#") and "=" in stripped:
+            key, value = stripped.split("=", 1)
+            props[key.strip()] = value.strip()
+    return props
+
+
+def packaged_default_violations(properties_text: str) -> list[str]:
+    props = _properties(properties_text)
+    found = [f"{key} is {props.get(key)!r}, expected {want!r}" for key, want in PACKAGED_DEFAULTS.items() if props.get(key) != want]
+    found += [f"{key}: no springdoc key may exist" for key in props if key.startswith("springdoc") or "swagger" in key]
+    found += [f"{key}: no proxy trust (remoteip) may be configured" for key in props if key.startswith("server.tomcat.remoteip")]
+    servlet_keys = {"spring.mvc.servlet.path", "server.servlet.context-path"}
+    found += [f"{key}: the /api/v1 prefix must not be a servlet path or context path" for key in props if key in servlet_keys]
+    if "mission-status.project-root" in props:
+        found.append("mission-status.project-root must have no packaged default")
+    return found
+
+
+def test_the_packaged_application_properties_hold_the_pinned_defaults() -> None:
+    assert packaged_default_violations(_text(MAIN_RESOURCES / "application.properties")) == []
+
+
+def test_the_packaged_defaults_pin_turns_red_for_each_drift() -> None:
+    good = _text(MAIN_RESOURCES / "application.properties")
+    drifted = [
+        good.replace("server.address=127.0.0.1", "server.address=0.0.0.0"),
+        good.replace("server.address=127.0.0.1\n", ""),
+        good.replace("server.forward-headers-strategy=none", "server.forward-headers-strategy=framework"),
+        good + "\nserver.tomcat.remoteip.remote-ip-header=X-Forwarded-For\n",
+        good + "\nspringdoc.api-docs.path=/v3/api-docs\n",
+        good + "\nspring.mvc.servlet.path=/api/v1\n",
+        good + "\nmission-status.project-root=/somewhere\n",
+        good.replace("mission-status.stream.heartbeat-interval=PT30S", ""),
+        good.replace("spring.threads.virtual.enabled=true", "spring.threads.virtual.enabled=false"),
+    ]
+    for text in drifted:
+        assert text != good
+        assert packaged_default_violations(text), text
+
+
+def contract_package_violations(build_text: str, rules_test_text: str, http_dirs: set[str]) -> list[str]:
+    found: list[str] = []
+    if CONTRACT_MODE == "generated":
+        if f'apiPackage.set("{API_PACKAGE}")' not in build_text or f'modelPackage.set("{MODEL_PACKAGE}")' not in build_text:
+            found.append("the build does not set the generated api and model packages")
+        if "dto" in http_dirs:
+            found.append("generated mode: the hand-mode dto package must not be populated")
+    for name, literal in RULE_9_LITERALS.items():
+        if f'"{literal}"' not in rules_test_text:
+            found.append(f"ArchitectureRulesTest does not hold the rule 9 literal for {name}")
+    if RULE_9_LITERALS["api"] != API_PACKAGE or RULE_9_LITERALS["model"] != MODEL_PACKAGE:
+        found.append("the rule 9 api/model literals differ from the build's apiPackage/modelPackage")
+    return found
+
+
+def _http_dirs() -> set[str]:
+    return {entry.name for entry in HTTP_MAIN.iterdir() if entry.is_dir()}
+
+
+def test_the_http_adapter_packages_match_the_recorded_contract_mode() -> None:
+    assert contract_package_violations(_code(BUILD_SCRIPT), _text(ARCH_RULES_TEST), _http_dirs()) == []
+
+
+def test_the_package_pin_turns_red_for_a_dropped_dto_literal_a_populated_dto_package_or_other_names() -> None:
+    build, rules, dirs = _code(BUILD_SCRIPT), _text(ARCH_RULES_TEST), _http_dirs()
+    assert contract_package_violations(build, rules.replace(f'"{RULE_9_LITERALS["dto"]}"', '"x"'), dirs)
+    assert contract_package_violations(build, rules, dirs | {"dto"})
+    assert contract_package_violations(build.replace(API_PACKAGE, "org.example.api"), rules, dirs)
+    assert contract_package_violations(build, rules.replace(f'"{RULE_9_LITERALS["api"]}"', '"x"'), dirs)
+
+
+def date_time_mapping_violations(build_text: str) -> list[str]:
+    needle = 'typeMappings.set(mapOf("OffsetDateTime" to "String"))'
+    return [] if needle in build_text else ["timestamps must be generated as text (typeMappings OffsetDateTime to String): the service serves the text it holds"]
+
+
+def test_generated_timestamps_are_text() -> None:
+    assert date_time_mapping_violations(_code(BUILD_SCRIPT)) == []
+
+
+def test_the_timestamp_pin_turns_red_when_the_mapping_is_dropped() -> None:
+    assert date_time_mapping_violations(_code(BUILD_SCRIPT).replace("typeMappings", "ignoredMappings"))
+
+
+def drift_probe_violations(probe_text: str | None, skeleton_present: bool) -> list[str]:
+    found: list[str] = []
+    if probe_text is None:
+        found.append("ContractDriftProbe is not in adapter.in.http")
+    else:
+        for reference in ("new MissionOverview().blockedCount(1)", 'new Project().currentBranch("main")'):
+            if reference not in probe_text:
+                found.append(f"the drift probe lost its reference {reference}")
+    if skeleton_present:
+        found.append("a second drift probe is left in the skeleton package")
+    return found
+
+
+def test_the_drift_probe_was_moved_into_the_http_package_with_both_references() -> None:
+    probe = HTTP_MAIN / "ContractDriftProbe.java"
+    text = _text(probe) if probe.is_file() else None
+    assert drift_probe_violations(text, (HTTP_MAIN / "skeleton" / "ContractDriftProbe.java").exists()) == []
+
+
+def test_the_drift_probe_pin_turns_red_for_a_missing_probe_or_a_broken_reference() -> None:
+    text = _text(HTTP_MAIN / "ContractDriftProbe.java")
+    assert drift_probe_violations(None, False)
+    assert drift_probe_violations(text.replace("blockedCount(1)", "blockedCount(2)"), False)
+    assert drift_probe_violations(text.replace("currentBranch(", "branch("), False)
+    assert drift_probe_violations(text, True)
+
+
+BIND_GUARD_LISTENERS = ("org.speckitty.missionstatus.config.BindGuard$BeforeStart", "org.speckitty.missionstatus.config.BindGuard$AfterStart")
+
+
+def bind_guard_registration_violations(factories_text: str | None) -> list[str]:
+    if factories_text is None:
+        return ["META-INF/spring.factories is absent: the bind guard is not registered"]
+    return [f"{name} is not registered as an ApplicationListener" for name in BIND_GUARD_LISTENERS if name not in factories_text]
+
+
+def test_the_bind_guard_is_registered_in_every_application_context() -> None:
+    factories = MAIN_RESOURCES / "META-INF" / "spring.factories"
+    assert bind_guard_registration_violations(_text(factories) if factories.is_file() else None) == []
+
+
+def test_the_bind_guard_pin_turns_red_when_a_listener_or_the_file_is_missing() -> None:
+    text = _text(MAIN_RESOURCES / "META-INF" / "spring.factories")
+    assert bind_guard_registration_violations(None)
+    for name in BIND_GUARD_LISTENERS:
+        assert bind_guard_registration_violations(text.replace(name, "x"))
+
+
+def test_the_jar_name_stays_pinned_beside_the_wp10_resources() -> None:
+    assert 'archiveFileName.set("mission-status-api.jar")' in _code(BUILD_SCRIPT)
+
+
+# --- WP20 ---------------------------------------------------------------------------------------------------------------------------
+# The event stream's wiring, the path-free startup log and the real native-tagged tests that replace the three skeletons.
+
+TEST_JAVA = SERVICE / "src" / "test" / "java" / "org" / "speckitty" / "missionstatus"
+NATIVE_TAGGED_DIR = TEST_JAVA / "config" / "nativetags"
+REAL_NATIVE_TESTS = ("NativeVirtualThreadProbeTest", "NativeJsonSseRoundTripTest", "NativeContractResourceTest")
+WP20_LOG_DEFAULTS = {"spring.main.log-startup-info": "false", "spring.main.banner-mode": "off"}
+
+
+def startup_log_violations(properties_text: str) -> list[str]:
+    props = _properties(properties_text)
+    return [f"{key} is {props.get(key)!r}, expected {want!r}" for key, want in WP20_LOG_DEFAULTS.items() if props.get(key) != want]
+
+
+def test_the_startup_line_that_names_the_user_and_the_directory_is_not_written() -> None:
+    assert startup_log_violations(_text(MAIN_RESOURCES / "application.properties")) == []
+
+
+def test_the_startup_log_pin_turns_red_when_either_key_is_dropped_or_flipped() -> None:
+    good = _text(MAIN_RESOURCES / "application.properties")
+    for text in (
+        good.replace("spring.main.log-startup-info=false", ""),
+        good.replace("spring.main.log-startup-info=false", "spring.main.log-startup-info=true"),
+        good.replace("spring.main.banner-mode=off", ""),
+    ):
+        assert text != good
+        assert startup_log_violations(text), text
+
+
+def events_controller_violations(source: str) -> list[str]:
+    found = []
+    if "new SseEmitter(0L)" not in source:
+        found.append("the emitter must be built with no timeout: new SseEmitter(0L)")
+    if "mission-status.stream.heartbeat-interval" not in source:
+        found.append("the heartbeat interval must be read from mission-status.stream.heartbeat-interval")
+    if '.comment(" heartbeat")' not in source:
+        found.append("the heartbeat must be the comment line `: heartbeat`")
+    if 'name = "Last-Event-ID"' not in source or 'name = "streamCursor"' not in source:
+        found.append("both the streamCursor parameter and the Last-Event-ID header must be read")
+    if "import org.speckitty.missionstatus.config" in source:
+        found.append("adapter.in.http must not import config (ArchUnit rule 3)")
+    return found
+
+
+def test_the_events_controller_keeps_its_wiring() -> None:
+    assert events_controller_violations(_text(HTTP_MAIN / "EventsController.java")) == []
+
+
+def test_the_events_controller_pin_turns_red_for_each_drift() -> None:
+    good = _text(HTTP_MAIN / "EventsController.java")
+    for text in (
+        good.replace("new SseEmitter(0L)", "new SseEmitter()"),
+        good.replace("mission-status.stream.heartbeat-interval", "mission-status.stream.beat"),
+        good.replace('.comment(" heartbeat")', '.comment("beat")'),
+        good.replace('name = "Last-Event-ID"', 'name = "Last-Id"'),
+        good + "\nimport org.speckitty.missionstatus.config.BindGuard;\n",
+    ):
+        assert text != good
+        assert events_controller_violations(text), text
+
+
+def native_tag_violations(sources: dict[str, str]) -> list[str]:
+    found = []
+    for name in REAL_NATIVE_TESTS:
+        text = sources.get(name)
+        if text is None:
+            found.append(f"{name} is missing")
+            continue
+        if '@Tag("native")' not in text:
+            found.append(f"{name} is not tagged native")
+        if "classes = MissionStatusApplication.class" not in text:
+            found.append(f"{name} does not name classes = MissionStatusApplication.class")
+    return found
+
+
+def _native_sources() -> dict[str, str]:
+    return {path.stem: _text(path) for path in NATIVE_TAGGED_DIR.glob("*.java")}
+
+
+def test_the_real_native_tagged_tests_exist_and_are_tagged() -> None:
+    assert native_tag_violations(_native_sources()) == []
+
+
+def test_the_native_tag_pin_turns_red_for_a_missing_class_a_dropped_tag_or_a_dropped_application_class() -> None:
+    sources = _native_sources()
+    name = REAL_NATIVE_TESTS[0]
+    assert native_tag_violations({k: v for k, v in sources.items() if k != name})
+    assert native_tag_violations({**sources, name: sources[name].replace('@Tag("native")', "")})
+    assert native_tag_violations({**sources, name: sources[name].replace("classes = MissionStatusApplication.class", "")})

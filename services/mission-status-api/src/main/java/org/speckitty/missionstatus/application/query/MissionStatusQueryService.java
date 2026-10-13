@@ -118,7 +118,7 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
     }
     List<MissionOverview> overviews = listing().stream().map(Pager.Entry::overview).toList();
     return ProjectHeaderDeriver.derive(
-        projectName(inputs.name()),
+        strictName(inputs.name()),
         inputs.specKittyVersion(),
         inputs.schemaVersion(),
         inputs.branchName(),
@@ -127,8 +127,12 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
         overviews.stream().map(MissionOverview::lastActivityAt).toList());
   }
 
-  /** {@code build_project}: the project slug is a strict field, so one that is not clean is refused like any other (the contract's Project never carries a path or a credential). */
-  private String projectName(String name) {
+  /**
+   * The Project name is a strict field (landing fold A1): a slug shaped like a path, an address or a secret refuses the read with
+   * {@code projection_refused}, as the same shape does in a Mission slug. The oracle refuses the same slug (build_project), so this
+   * is not a divergence.
+   */
+  private String strictName(String name) {
     try {
       return new Projector(leaks).strict(name, "name", false);
     } catch (ProjectionError refused) {
@@ -307,7 +311,7 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
   private Optional<MissionOverview> overview(MissionRef ref) {
     String mid8 = Diagnostic.NONE;
     try {
-      MissionMeta meta = source.readMeta(ref);
+      MissionMeta meta = withProjectedDates(source.readMeta(ref));
       mid8 = meta.missionId().mid8();
       requireInstant(meta.createdAt(), DiagnosticCode.META_UNPARSEABLE, mid8);
       ProjectionCache.Entry entry = ledger(ref, mid8);
@@ -326,6 +330,45 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
       case DIR_UNREADABLE, LEDGER_UNREADABLE -> throw refuse(DiagnosticCode.MISSION_DIR_UNREADABLE, mid8, null);
     }
     return Optional.empty();
+  }
+
+  /**
+   * {@code acceptedAt}, {@code mergedAt} and {@code discardedAt} are projected strictly and are nullable (pre-merge fold J7, ruling 1 of
+   * 2026-10-13): a value that is not an instant, or that is shaped like a path, an address or a secret, is served as null. This runs before
+   * the overview is derived, so a junk value can neither be served nor decide the lifecycle status (an {@code accepted_at} of junk would
+   * otherwise make a finished Mission {@code done}). A deliberate divergence from the oracle, which serves the text as stored.
+   */
+  private MissionMeta withProjectedDates(MissionMeta meta) {
+    Projector projector = new Projector(leaks);
+    String mid8 = meta.missionId().mid8();
+    return new MissionMeta(
+        meta.missionId(),
+        meta.slug(),
+        meta.friendlyName(),
+        meta.displayNumber(),
+        meta.missionType(),
+        meta.targetBranch(),
+        meta.topology(),
+        meta.createdAt(),
+        instantOrNull(projector, meta.acceptedAt(), "acceptedAt", mid8),
+        instantOrNull(projector, meta.mergedAt(), "mergedAt", mid8),
+        instantOrNull(projector, meta.discardedAt(), "discardedAt", mid8),
+        meta.hasBaseline());
+  }
+
+  /**
+   * A served date-time: clean, and an instant with an offset (landing fold R-7: the contract's {@code date-time} needs one). Anything else
+   * is null, and a value that was there and is dropped writes one {@code projection_refused} diagnostic.
+   */
+  private String instantOrNull(Projector projector, String value, String field, String mid8) {
+    String clean = projector.strict(value, field, true);
+    if (clean != null && Instants.hasOffset(clean)) {
+      return clean;
+    }
+    if (value != null) {
+      note(DiagnosticCode.PROJECTION_REFUSED, mid8);
+    }
+    return null;
   }
 
   private void requireInstant(String text, DiagnosticCode code, String mid8) {
@@ -404,6 +447,7 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
       String mergedAt = instantOrNull(o.mergedAt());
       String discardedAt = instantOrNull(o.discardedAt());
       String lastEventId = projector.strict(o.lastEventId(), "lastEventId", true, EVENT_ID);
+      String lastActivityAt = instantOrNull(projector, o.lastActivityAt(), "lastActivityAt", mid8);
       return new MissionOverview(
           o.missionId(),
           o.mid8(),
@@ -423,7 +467,7 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
           mergedAt,
           discardedAt,
           lastEventId,
-          o.lastActivityAt(),
+          lastActivityAt,
           o.eventCount(),
           o.streamCursor(),
           nextAction);

@@ -1,6 +1,8 @@
 package org.speckitty.missionstatus.config;
 
 import org.springframework.context.annotation.Configuration;
+import org.springframework.format.FormatterRegistry;
+import org.springframework.http.converter.HttpMessageConverters;
 import org.springframework.web.method.HandlerTypePredicate;
 import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -18,5 +20,17 @@ class MissionStatusApplicationWeb implements WebMvcConfigurer {
   @Override
   public void configurePathMatch(PathMatchConfigurer configurer) {
     configurer.addPathPrefix(API_PREFIX, HandlerTypePredicate.forBasePackage("org.speckitty.missionstatus.adapter.in.http"));
+  }
+
+  /** The adapter's documents are written by the canonical converter, ahead of the defaults. */
+  @Override
+  public void configureMessageConverters(HttpMessageConverters.ServerBuilder builder) {
+    builder.addCustomConverter(new CanonicalJsonMessageConverter(MissionStatusApplicationJson.mapper()));
+  }
+
+  /** Text to integer for the query parameters: lenient (see {@link LenientIntegerConverter}). */
+  @Override
+  public void addFormatters(FormatterRegistry registry) {
+    registry.addConverter(String.class, Integer.class, new LenientIntegerConverter());
   }
 }

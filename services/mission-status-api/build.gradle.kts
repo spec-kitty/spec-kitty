@@ -78,6 +78,10 @@ tasks.named<GenerateTask>("openApiGenerate") {
     // two (the filter alone still generates all schemas). `Problem_1` is the generator's inline duplicate of Problem; a missing
     // name is a compile error in ProjectApi/MissionsApi, an extra name is harmless.
     openapiNormalizer.set(mapOf("FILTER" to "operationId:getProject|listMissions"))
+    // The contract types every timestamp `date-time`; the service serves each one as the text it holds (a Mission's own createdAt, or an
+    // event time exactly as written), which an OffsetDateTime cannot reproduce byte for byte (`+00:00` against `Z`, fraction widths).
+    typeMappings.set(mapOf("OffsetDateTime" to "String"))
+    importMappings.set(mapOf("OffsetDateTime" to "java.lang.String"))
     globalProperties.set(
         mapOf(
             "apis" to "",

@@ -1,0 +1,2 @@
+# The configuration pin and the bind guard run in every application context, whether it was started by main() or by a test.
+org.springframework.context.ApplicationListener=org.speckitty.missionstatus.config.ConfigPin,org.speckitty.missionstatus.config.BindGuard$BeforeStart,org.speckitty.missionstatus.config.BindGuard$AfterStart
