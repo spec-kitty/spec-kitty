@@ -5112,12 +5112,16 @@ _Machine-contract API for external orchestrators (JSON-first)_
 ```
  Usage: spec-kitty plan [OPTIONS]
 
- Scaffold plan.md for a feature.
+ Scaffold plan.md for a Mission.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug (e.g., 001-user-authentication)        │
-│ --json                   Emit JSON result                                    │
-│ --help     -h            Show this message and exit.                         │
+│ --mission                 TEXT  Mission slug (e.g., 001-user-authentication) │
+│ --json                          Emit JSON result                             │
+│ --owned-checkout          PATH  Run against an owned checkout: a linked      │
+│                                 checkout that owns this mission. Refuses the │
+│                                 repository root checkout, lane worktrees and │
+│                                 coordination worktrees.                      │
+│ --help            -h            Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5320,9 +5324,13 @@ _Regenerate the committed generated agent-command + skill fixtures from source (
  Scaffold research artifacts from the mission type's shipped templates.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission          TEXT  Mission slug to target                              │
-│ --force                  Overwrite existing research artifacts               │
-│ --help     -h            Show this message and exit.                         │
+│ --mission                 TEXT  Mission slug to target                       │
+│ --force                         Overwrite existing research artifacts        │
+│ --owned-checkout          PATH  Run against an owned checkout: a linked      │
+│                                 checkout that owns this mission. Refuses the │
+│                                 repository root checkout, lane worktrees and │
+│                                 coordination worktrees.                      │
+│ --help            -h            Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

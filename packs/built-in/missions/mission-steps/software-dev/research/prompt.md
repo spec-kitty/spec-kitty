@@ -86,9 +86,9 @@ spec-kitty research --mission <handle> --owned-checkout <owned-checkout-path>
 
 Run from inside the owned checkout the selector is optional — `research`
 auto-adopts it — but passing `--owned-checkout` explicitly is safe from any
-working directory. Without it, a command run from an owned checkout resolves the
-primary checkout, so always render the ownership selector for the authoring
-commands an owned run invokes.
+working directory. Not every authoring command auto-adopts; one that does not
+resolves the primary checkout, so always render the ownership selector for the
+authoring commands an owned run invokes.
 
 ---
 
