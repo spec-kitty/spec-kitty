@@ -131,7 +131,10 @@ def test_real_drift_is_regenerated_by_unattended_upgrade(project: Path) -> None:
     assert skill.read_bytes() == canonical_bytes
     assert _entry_hash(project) == canonical_hash
 
+    # The --json leg must see drift too, not just re-run against the regenerated file.
+    skill.write_bytes(canonical_bytes + b"\n<!-- stale generated output from another checkout -->\n")
     json_exit, payload = _upgrade_yes_json(project)
     assert json_exit == 0, payload
     assert payload["surface_repair"]["drifted_reported"] == [], payload
     assert skill.read_bytes() == canonical_bytes
+    assert _entry_hash(project) == canonical_hash

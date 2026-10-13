@@ -143,13 +143,36 @@ def test_702_third_party_paths_preserved_during_regeneration(repo: Path) -> None
     third_party = repo / ".agents" / "skills" / "my-custom-skill"
     third_party.mkdir(parents=True)
     (third_party / "SKILL.md").write_bytes(b"---\nname: my-custom-skill\n---\nmine\n")
-
     install(repo, "codex")
 
     assert drift_path.read_bytes() == canonical, "manifest-owned drift regenerated"
     assert (third_party / "SKILL.md").read_bytes() == b"---\nname: my-custom-skill\n---\nmine\n", (
         "third-party content must stay untouched while manifest-owned projections regenerate"
     )
+
+
+def test_702_unowned_file_at_canonical_path_is_not_regenerated(repo: Path) -> None:
+    """The boundary of the fix: only manifest-owned projections regenerate.
+
+    An unowned file at a canonical ``spec-kitty.*`` path is refused as a collision before
+    any write, so neither it nor a drifted owned projection is rewritten.
+    """
+    install(repo, "codex")
+    drift_path, _canonical = _introduce_drift(repo, "plan")
+    drifted_bytes = drift_path.read_bytes()
+    unowned = repo / ".agents" / "skills" / "spec-kitty.status" / "SKILL.md"
+    unowned_rel = unowned.relative_to(repo).as_posix()
+    manifest = manifest_store.load(repo)
+    manifest.remove_path(unowned_rel)
+    manifest_store.save(repo, manifest)
+    unowned.write_bytes(b"mine")
+
+    with pytest.raises(command_installer.InstallerError, match="unexpected_collision"):
+        install(repo, "codex")
+
+    assert unowned.read_bytes() == b"mine"
+    assert manifest_store.load(repo).find(unowned_rel) is None
+    assert drift_path.read_bytes() == drifted_bytes  # refused before any write
 
 
 # ---------------------------------------------------------------------------

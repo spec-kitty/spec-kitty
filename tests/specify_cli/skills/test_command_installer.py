@@ -227,7 +227,9 @@ def test_wp04_owned_drift_regenerated_and_unknown_preserved_while_gap_repaired(r
     manifest_store.save(repo, manifest)
     missing = _skill_path(repo, "accept")
     missing.unlink()
+    from tests.upgrade.preview_support.snapshot import snapshot
 
+    before = snapshot({"project": repo})
     assessment = _wp04_assess(repo)
     assert assessment.complete
     assert "consent_required" not in {d.state for d in assessment.dispositions if d.path == drift_rel}
@@ -237,6 +239,7 @@ def test_wp04_owned_drift_regenerated_and_unknown_preserved_while_gap_repaired(r
     assert drift.read_bytes() == canonical_plan  # owned drift regenerated, not kept
     assert custom.read_bytes() == b"unknown custom command"  # unowned content preserved
     assert manifest_store.load(repo).find(custom.relative_to(repo).as_posix()) is None
+    _wp04_equal_effects(assessment, before, snapshot({"project": repo}))  # preview == apply
 
 
 def test_wp04_missing_manifest_adopts_only_canonical_bytes(repo: Path) -> None:
@@ -1282,13 +1285,16 @@ def test_5575_drift_regenerates_regardless_of_named_consent_path(repo: Path) -> 
     from specify_cli.skills import command_installer as owner
 
     skill, rel, canonical = _edited_plan(repo)
-    other = _skill_path(repo, "status").relative_to(repo).as_posix()
+    other_path = _skill_path(repo, "status")
+    other = other_path.relative_to(repo).as_posix()
+    other_bytes = other_path.read_bytes()
 
     assessment = _prepare(repo, overwrite_paths=(other,))
 
     assert "consent_required" not in _states_for(assessment, rel)
-    owner.apply_commands(assessment, assessment.consent)
+    assert owner.apply_commands(assessment, assessment.consent).outcome == "applied"
     assert skill.read_bytes() == canonical
+    assert other_path.read_bytes() == other_bytes  # the consented, in-sync path is untouched
 
 
 def _entry(content_hash: str, agents: tuple[str, ...] = ("codex",)) -> ManifestEntry:
