@@ -18,6 +18,13 @@ cutover calls it to emit the rule going forward, and
 installs, so there is ONE authority for the placement and the idempotency
 rather than two drifting copies. The rule strings are built from the canonical
 :mod:`kernel.charter_pack_paths` project-pack root, never a bare literal.
+
+Both spellings of the blanket rule are recognised: the plain form and the
+root-anchored form (a leading ``/``), because the cutover rewrites a legacy rule
+verbatim and an anchored legacy rule stays anchored. The inserted allow-rule
+matches the form of the blanket rule it negates. The *directory* form
+(``.kittify/charter-packs/``) is deliberately left alone: git cannot re-include
+a file beneath an excluded directory, so a negation would be inert.
 """
 
 from __future__ import annotations
@@ -35,10 +42,17 @@ __all__ = [
 #: NOT in ``__all__``: the dead-symbol gate holds every ``__all__`` member to a
 #: cross-module-export standard, and nothing outside this module imports it.
 CHARTER_PACK_BLANKET_RULE = f"{PROJECT_PACK_ROOT_POSIX}/**"
+#: The root-anchored spelling of the blanket rule (``/`` prefix).
+_ANCHORED_BLANKET_RULE = f"/{CHARTER_PACK_BLANKET_RULE}"
+#: The root-anchored spelling of the ``pack.yaml`` allow-rule.
+_ANCHORED_PACK_YAML_ALLOW_RULE = f"!/{PROJECT_PACK_ROOT_POSIX}/pack.yaml"
 #: The allow-rule that keeps the authored ``pack.yaml`` descriptor trackable.
 CHARTER_PACK_YAML_ALLOW_RULE = f"!{PROJECT_PACK_ROOT_POSIX}/pack.yaml"
-#: Prefix shared by every charter-pack allow-rule (``!.kittify/charter-packs/…``).
-_ALLOW_RULE_PREFIX = f"!{PROJECT_PACK_ROOT_POSIX}/"
+#: Every accepted spelling of the blanket rule / the ``pack.yaml`` allow-rule.
+_BLANKET_RULES = frozenset({CHARTER_PACK_BLANKET_RULE, _ANCHORED_BLANKET_RULE})
+_PACK_YAML_ALLOW_RULES = frozenset({CHARTER_PACK_YAML_ALLOW_RULE, _ANCHORED_PACK_YAML_ALLOW_RULE})
+#: Prefixes shared by every charter-pack allow-rule (plain and anchored).
+_ALLOW_RULE_PREFIXES = (f"!{PROJECT_PACK_ROOT_POSIX}/", f"!/{PROJECT_PACK_ROOT_POSIX}/")
 
 
 def needs_pack_yaml_allow_rule(text: str) -> bool:
@@ -49,7 +63,7 @@ def needs_pack_yaml_allow_rule(text: str) -> bool:
     untouched, so a user-owned ``.gitignore`` customisation is never clobbered.
     """
     rules = {line.strip() for line in text.splitlines()}
-    return CHARTER_PACK_BLANKET_RULE in rules and CHARTER_PACK_YAML_ALLOW_RULE not in rules
+    return bool(rules & _BLANKET_RULES) and not rules & _PACK_YAML_ALLOW_RULES
 
 
 def _detect_newline(lines: list[str]) -> str:
@@ -72,14 +86,16 @@ def ensure_pack_yaml_allow_rule(lines: list[str]) -> tuple[list[str], bool]:
     ``changed=False``. Idempotent and position-stable.
     """
     stripped = [line.strip() for line in lines]
-    if CHARTER_PACK_BLANKET_RULE not in stripped or CHARTER_PACK_YAML_ALLOW_RULE in stripped:
+    blanket_indexes = [index for index, rule in enumerate(stripped) if rule in _BLANKET_RULES]
+    if not blanket_indexes or _PACK_YAML_ALLOW_RULES & set(stripped):
         return lines, False
 
     # Anchor on the LAST blanket rule so the negation always wins, then skip
     # past any consecutive charter-pack allow-rules to keep the block grouped.
-    blanket_index = max(index for index, rule in enumerate(stripped) if rule == CHARTER_PACK_BLANKET_RULE)
+    blanket_index = blanket_indexes[-1]
+    allow_rule = _ANCHORED_PACK_YAML_ALLOW_RULE if stripped[blanket_index] == _ANCHORED_BLANKET_RULE else CHARTER_PACK_YAML_ALLOW_RULE
     insert_at = blanket_index + 1
-    while insert_at < len(stripped) and stripped[insert_at].startswith(_ALLOW_RULE_PREFIX):
+    while insert_at < len(stripped) and stripped[insert_at].startswith(_ALLOW_RULE_PREFIXES):
         insert_at += 1
 
     newline = _detect_newline(lines)
@@ -89,5 +105,5 @@ def ensure_pack_yaml_allow_rule(lines: list[str]) -> tuple[list[str], bool]:
     anchor = insert_at - 1
     if anchor >= 0 and out[anchor] and not out[anchor].endswith(("\n", "\r")):
         out[anchor] = out[anchor] + newline
-    out.insert(insert_at, f"{CHARTER_PACK_YAML_ALLOW_RULE}{newline}")
+    out.insert(insert_at, f"{allow_rule}{newline}")
     return out, True

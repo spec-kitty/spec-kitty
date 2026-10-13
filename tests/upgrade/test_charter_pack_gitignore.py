@@ -27,6 +27,8 @@ from specify_cli.upgrade.migrations.m_4_0_0rc7_track_charter_pack_yaml import (
 _BLANKET = ".kittify/charter-packs/**"
 _GRAPH_ALLOW = "!.kittify/charter-packs/graph.yaml"
 _PACK_ALLOW = "!.kittify/charter-packs/pack.yaml"
+_ANCHORED_BLANKET = "/.kittify/charter-packs/**"
+_ANCHORED_PACK_ALLOW = "!/.kittify/charter-packs/pack.yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -39,6 +41,9 @@ _PACK_ALLOW = "!.kittify/charter-packs/pack.yaml"
     [
         (f"{_BLANKET}\n{_GRAPH_ALLOW}\n", True),  # post-cutover bug state
         (f"{_BLANKET}\n{_GRAPH_ALLOW}\n{_PACK_ALLOW}\n", False),  # already allowed
+        (f"{_ANCHORED_BLANKET}\n", True),  # rc6 cutover keeps a legacy anchored rule anchored (#6076)
+        (f"{_ANCHORED_BLANKET}\n{_ANCHORED_PACK_ALLOW}\n", False),  # anchored allow-rule present
+        (".kittify/charter-packs/\n", False),  # directory form: a negation could not re-include
         ("build/\n.venv/\n", False),  # no blanket rule → not our concern
         ("", False),
     ],
@@ -58,6 +63,12 @@ def test_inserts_after_the_graph_allow_rule_grouped() -> None:
     assert changed is True
     # Grouped with its sibling allow-rule, before the unrelated entry.
     assert [line.rstrip("\n") for line in out] == [_BLANKET, _GRAPH_ALLOW, _PACK_ALLOW, "build/"]
+
+
+def test_anchored_blanket_gets_the_anchored_allow_rule() -> None:
+    out, changed = ensure_pack_yaml_allow_rule([f"{_ANCHORED_BLANKET}\n", "!/.kittify/charter-packs/graph.yaml\n", "build/\n"])
+    assert changed is True
+    assert [line.rstrip("\n") for line in out] == [_ANCHORED_BLANKET, "!/.kittify/charter-packs/graph.yaml", _ANCHORED_PACK_ALLOW, "build/"]
 
 
 def test_inserts_directly_after_a_standalone_blanket_rule() -> None:
