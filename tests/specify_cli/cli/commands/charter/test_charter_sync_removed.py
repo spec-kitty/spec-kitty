@@ -25,7 +25,8 @@ runner = CliRunner()
 _UNKNOWN_COMMAND = "No such command"
 
 
-def test_charter_sync_exits_2_as_an_unknown_command(tmp_path: Path) -> None:
+def test_charter_sync_exits_2_as_an_unknown_command(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.chdir(tmp_path)
     result = runner.invoke(cli_app, ["charter", "sync"])
 
     assert result.exit_code == 2, result.output
