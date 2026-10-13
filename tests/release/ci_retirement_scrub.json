@@ -125,13 +125,26 @@
       "group": "charter",
       "roots": [
         "src/charter/**",
-        "src/specify_cli/charter_runtime/**"
+        "src/specify_cli/charter_runtime/**",
+        "packs/built-in/missions/**/expected-artifacts.yaml"
       ],
       "cov_targets": [
         "charter",
         "specify_cli.charter_runtime"
       ],
       "census_evidence": "known-live"
+    },
+    {
+      "group": "dossier",
+      "roots": [
+        "src/specify_cli/dossier/**",
+        "packs/built-in/missions/**/expected-artifacts.yaml"
+      ],
+      "cov_targets": [
+        "specify_cli.dossier"
+      ],
+      "census_evidence": "known-live",
+      "note": "CI-ROUTED MANIFEST CONSUMER (issue #6125): dossier.ManifestRegistry (src/specify_cli/dossier/manifest.py) consumes packs/built-in/missions/<type>/expected-artifacts.yaml; minted as a module so a dossier-source OR manifest edit runs tests/dossier + tests/specify_cli/dossier per-PR instead of nightly-only. The manifest glob is file-specific and non-src; roots + cov_targets are mirrored verbatim into the registry row and the router filter group."
     },
     {
       "group": "agent",

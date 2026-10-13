@@ -90,6 +90,9 @@ jobs:
       upgrade: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.upgrade }}
       cli: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli }}
       charter: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.charter }}
+      # issue #6125: dossier is src-backed (src/specify_cli/dossier/**) -- same fold shape as the
+      # rows above; it is in the unmatched union and the heavy battery's `if:` below.
+      dossier: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.dossier }}
       agent: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.agent }}
       kernel: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.kernel }}
       glossary: ${{ (inputs.mode == 'full' || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.glossary }}
@@ -194,6 +197,16 @@ jobs:
             charter:
               - 'src/charter/**'
               - 'src/specify_cli/charter_runtime/**'
+              # issue #6125: a mission-manifest edit must run the charter module per-PR. File-specific
+              # (never broad packs/built-in/missions/**). Verbatim the scrub `charter` roots.
+              - 'packs/built-in/missions/**/expected-artifacts.yaml'
+            # issue #6125: dossier is a src-backed module (minted so tests/dossier runs per-PR);
+            # it also routes the file-specific mission-manifest glob (its consumer is
+            # dossier.ManifestRegistry). Globs verbatim the scrub `dossier` roots; because it is
+            # src-backed it joins the unmatched union and the heavy-battery `if:` below.
+            dossier:
+              - 'src/specify_cli/dossier/**'
+              - 'packs/built-in/missions/**/expected-artifacts.yaml'
             agent:
               - 'src/specify_cli/agent_utils/**'
             kernel:
@@ -443,6 +456,7 @@ jobs:
             "${{ steps.filter.outputs.upgrade }}" \
             "${{ steps.filter.outputs.cli }}" \
             "${{ steps.filter.outputs.charter }}" \
+            "${{ steps.filter.outputs.dossier }}" \
             "${{ steps.filter.outputs.agent }}" \
             "${{ steps.filter.outputs.kernel }}" \
             "${{ steps.filter.outputs.glossary }}" \
@@ -853,6 +867,7 @@ jobs:
       needs.changes.outputs.upgrade == 'true' ||
       needs.changes.outputs.cli == 'true' ||
       needs.changes.outputs.charter == 'true' ||
+      needs.changes.outputs.dossier == 'true' ||
       needs.changes.outputs.agent == 'true' ||
       needs.changes.outputs.kernel == 'true' ||
       needs.changes.outputs.glossary == 'true' ||

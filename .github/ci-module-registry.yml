@@ -148,6 +148,14 @@ modules:
   roots:
   - src/charter/**
   - src/specify_cli/charter_runtime/**
+  # issue #6125: a mission-manifest edit (packs/built-in/missions/<type>/expected-artifacts.yaml)
+  # is consumed by charter.activation (tests/charter, tests/charter_offering); route it to the
+  # charter module per-PR. File-specific on purpose (never the broad packs/built-in/missions/**,
+  # which _canonical_test_mirror would map to tests/missions). Non-src root, like the `ci` row's
+  # scripts/ci/** + .github/workflows/** — verbatim from the scrub group (test_registry_consumes_
+  # scrub_verbatim_no_divergent_rescrub) and the router filter (test_router_src_filters_derive_
+  # from_scrub_verbatim).
+  - packs/built-in/missions/**/expected-artifacts.yaml
   cov_targets:
   - charter
   - specify_cli.charter_runtime
@@ -205,6 +213,25 @@ modules:
   test_dirs:
   - tests/charter
   - tests/charter_offering
+- module: dossier
+  roots:
+  - src/specify_cli/dossier/**
+  - packs/built-in/missions/**/expected-artifacts.yaml
+  cov_targets:
+  - specify_cli.dossier
+  tier: standard
+  # issue #6125: minted so a dossier-source OR mission-manifest edit runs tests/dossier +
+  # tests/specify_cli/dossier per-PR. Previously nightly-only (out_of_matrix_test_dirs); a
+  # src/specify_cli/dossier/** edit used to force run-all yet still never ran tests/dossier
+  # (it was in no module's matrix). roots + cov_targets are VERBATIM from the scrub `dossier`
+  # group; the manifest glob is file-specific and non-src (like the `ci` row's non-src roots).
+  # shard_count=1: measured via scripts/ci/capture_shard_timings.py --module dossier --write
+  # (committed == collected; inter-shard skew is trivially 0 at one shard, and the measured
+  # local total projects well under module-tests.yml's 40m per-shard cap).
+  shard_count: 1
+  test_dirs:
+  - tests/dossier
+  - tests/specify_cli/dossier
 - module: agent
   roots:
   - src/specify_cli/agent_utils/**
@@ -637,7 +664,9 @@ out_of_matrix_test_dirs:
     bounded single-PR cap, never silently absorbed. Per-tree import-census rationale is
     recorded in analysis/disposition-ledger.md (WP01); several of these trees are
     flagged there for a follow-up naming/consolidation triage against similarly-named
-    pop-(b) trees (dossier, git, migration/migrate, retrospect/retrospective, tracker).
+    pop-(b) trees (git, migration/migrate, retrospect/retrospective, tracker). The dossier
+    tree was promoted to a module row (issue #6125), so tests/specify_cli/dossier is claimed
+    there and no longer recorded here.
   dirs:
   - tests/specify_cli/acceptance
   - tests/specify_cli/audit
@@ -648,7 +677,6 @@ out_of_matrix_test_dirs:
   - tests/specify_cli/contracts
   - tests/specify_cli/decisions
   - tests/specify_cli/distribution
-  - tests/specify_cli/dossier
   - tests/specify_cli/events
   - tests/specify_cli/git
   - tests/specify_cli/identity
@@ -856,7 +884,6 @@ out_of_matrix_test_dirs:
   - tests/cross_branch
   - tests/cross_cutting/packaging
   - tests/cross_cutting/versioning
-  - tests/dossier
   - tests/git_ops
   - tests/init
   - tests/invocation

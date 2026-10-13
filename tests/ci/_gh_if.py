@@ -180,6 +180,7 @@ BASE_CONTEXT_ALL_FALSE: dict[str, bool] = {
     "changes.upgrade": False,
     "changes.cli": False,
     "changes.charter": False,
+    "changes.dossier": False,
     "changes.agent": False,
     "changes.kernel": False,
     "changes.glossary": False,
