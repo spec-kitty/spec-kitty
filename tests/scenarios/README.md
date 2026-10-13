@@ -64,7 +64,7 @@ Any other tag containing `:` is an unknown prefixed tag and is an error.
 
 Every scenario except those tagged `@wip` or `@manual` gates the nightly. `@wip`
 scenarios run without failing it. Tags on a `Feature` or `Rule` apply to all scenarios
-under it.
+under it; tags on an `Examples:` block apply to the rows of that table.
 
 The per-PR check in `tests/architectural/test_scenario_contract.py` enforces this
 vocabulary.

@@ -70,7 +70,7 @@ code. Assertions use AssertJ.
 | none | Runs in the gating nightly. A failure fails that OS leg. |
 
 Any other tag containing `:` is an error. Tags on a `Feature` or `Rule` apply to every
-scenario under it. Everything except `@wip` and `@manual` gates the nightly.
+scenario under it, and tags on an `Examples:` block apply to the rows of that table. Everything except `@wip` and `@manual` gates the nightly.
 
 ### Linking a scenario to a promise
 

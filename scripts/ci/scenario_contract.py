@@ -4,7 +4,8 @@ Reads the Gherkin files under ``tests/scenarios`` with a small line-based reader
 without running anything:
 
 * every ``.feature`` file parses, holds at least one scenario, and every scenario has steps;
-* every tag follows the vocabulary documented in ``tests/scenarios/README.md``;
+* every tag follows the vocabulary documented in ``tests/scenarios/README.md``; tags on an
+  ``Examples:`` block apply to the rows of that block only;
 * every step of a gating scenario (not ``@wip``, not ``@manual``) matches exactly one step
   definition. The step vocabulary is read from the Java sources
   (``acceptance-jvm/src/test/java/**/steps/*.java``); it is never duplicated here.
@@ -155,6 +156,7 @@ class _Block:
     tags: tuple[str, ...] = ()
     steps: list[Step] = field(default_factory=list)
     tables: list[list[list[str]]] = field(default_factory=list)
+    table_tags: list[tuple[str, ...]] = field(default_factory=list)
     in_examples: bool = False
     last_keyword: str | None = None
 
@@ -307,13 +309,14 @@ class _Reader:
         self._open_scenario("outline", number, stripped)
 
     def _on_examples(self, number: int, _stripped: str) -> None:
-        self.pending = []
+        tags = self._take_pending()
         block = self.current
         if block is None or block.kind != "outline":
             self.error(PARSE_ERROR, number, "Examples outside a Scenario Outline")
             return
         block.in_examples = True
         block.tables.append([])
+        block.table_tags.append(tags)
 
     def _on_step(self, number: int, stripped: str) -> None:
         self._reject_pending(number)
@@ -384,8 +387,8 @@ class _Reader:
         else:
             self._emit_outline(block, base)
 
-    def _emit(self, block: _Block, keyword: str, steps: tuple[Step, ...]) -> None:
-        self.scenarios.append(Scenario(self.file, block.line, block.name, keyword, block.tags, steps))
+    def _emit(self, block: _Block, keyword: str, steps: tuple[Step, ...], extra_tags: tuple[str, ...] = ()) -> None:
+        self.scenarios.append(Scenario(self.file, block.line, block.name, keyword, block.tags + extra_tags, steps))
 
     def _emit_outline(self, block: _Block, base: tuple[Step, ...]) -> None:
         rows = self._outline_rows(block)
@@ -393,13 +396,14 @@ class _Reader:
             self.error(NO_EXAMPLES, block.line, f"scenario outline {block.name!r} has no Examples rows")
             self._emit(block, "Scenario Outline", base + tuple(block.steps))
             return
-        for values in rows:
+        for values, tags in rows:
             expanded = tuple(Step(s.keyword, _substitute(s.text, values), s.line) for s in block.steps)
-            self._emit(block, "Scenario Outline", base + expanded)
+            self._emit(block, "Scenario Outline", base + expanded, tags)
 
-    def _outline_rows(self, block: _Block) -> list[dict[str, str]]:
-        rows: list[dict[str, str]] = []
-        for table in block.tables:
+    def _outline_rows(self, block: _Block) -> list[tuple[dict[str, str], tuple[str, ...]]]:
+        """Each Examples row as its placeholder values plus the tags of its Examples block."""
+        rows: list[tuple[dict[str, str], tuple[str, ...]]] = []
+        for table, tags in zip(block.tables, block.table_tags, strict=True):
             if not table:
                 self.error(PARSE_ERROR, block.line, "Examples without a header row")
                 continue
@@ -408,7 +412,7 @@ class _Reader:
                 if len(cells) != len(header):
                     self.error(PARSE_ERROR, block.line, f"Examples row has {len(cells)} cells, header has {len(header)}")
                     continue
-                rows.append(dict(zip(header, cells, strict=True)))
+                rows.append((dict(zip(header, cells, strict=True)), tags))
         return rows
 
 
