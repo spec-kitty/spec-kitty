@@ -88,7 +88,9 @@ an identifier.
 ### Per-PR check
 
 `tests/architectural/test_scenario_contract.py` validates the feature files, the tags and
-the step bindings on every pull request. Run it locally with:
+the step bindings on every pull request. A feature file with no scenario fails it with
+`NO_SCENARIOS`, so a misspelt `Scenario:` keyword cannot hide its steps as description
+text. Run it locally with:
 
 ```bash
 uv run --frozen pytest -q tests/architectural/test_scenario_contract.py

@@ -112,7 +112,8 @@ step is found the next morning. The check below finds it on the pull request, wi
   `Scenario Outline`, `Examples`, `Rule`, tags, steps, doc strings and data tables). No new
   dependency.
 - **What it asserts:**
-  1. Every `.feature` file parses, and every scenario has at least one step.
+  1. Every `.feature` file parses and holds at least one scenario (`NO_SCENARIOS` otherwise,
+     which catches a misspelt `Scenario:` keyword), and every scenario has at least one step.
   2. Every tag follows the vocabulary table above.
   3. Every step of a scenario **without** `@wip` matches exactly one step definition. Step
      definitions are read from the `@Given`/`@When`/`@Then` annotations in

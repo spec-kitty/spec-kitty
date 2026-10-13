@@ -3,7 +3,7 @@
 Reads the Gherkin files under ``tests/scenarios`` with a small line-based reader and checks,
 without running anything:
 
-* every ``.feature`` file parses and every scenario has steps;
+* every ``.feature`` file parses, holds at least one scenario, and every scenario has steps;
 * every tag follows the vocabulary documented in ``tests/scenarios/README.md``;
 * every step of a gating scenario (not ``@wip``, not ``@manual``) matches exactly one step
   definition. The step vocabulary is read from the Java sources
@@ -46,6 +46,7 @@ INFO = "info"
 
 PARSE_ERROR = "PARSE_ERROR"
 NO_STEPS = "NO_STEPS"
+NO_SCENARIOS = "NO_SCENARIOS"
 NO_EXAMPLES = "NO_EXAMPLES"
 UNBOUND_STEP = "UNBOUND_STEP"
 AMBIGUOUS_STEP = "AMBIGUOUS_STEP"
@@ -173,6 +174,7 @@ class _Reader:
         self.problems: list[Problem] = []
         self.scenarios: list[Scenario] = []
         self.feature_seen = False
+        self.feature_line = 0
         self.feature_tags: tuple[str, ...] = ()
         self.rule_tags: tuple[str, ...] = ()
         self.feature_background: list[Step] = []
@@ -212,6 +214,8 @@ class _Reader:
         self._close_block()
         if not self.feature_seen:
             self.error(PARSE_ERROR, 1, "no Feature line found")
+        elif not self.scenarios:
+            self.error(NO_SCENARIOS, self.feature_line, "the feature has no Scenario, Example or Scenario Outline")
 
     def line(self, number: int, stripped: str) -> None:
         if self.doc_delimiter is not None:
@@ -264,6 +268,7 @@ class _Reader:
             self._reject_pending(number)
             return
         self.feature_seen = True
+        self.feature_line = number
         self.feature_tags = self._take_pending()
 
     def _require_feature(self, number: int) -> bool:
