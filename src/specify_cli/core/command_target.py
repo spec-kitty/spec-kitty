@@ -5,7 +5,7 @@ ADR ``docs/adr/4.x/2026-10-10-1-scoped-shadow-workspace-write-boundary-layers-on
 command's ``(repo_root, target_branch)`` target. It exists so that the Mission's **stored
 declaration** -- not ambient location (the current working directory, the invoking
 worktree, or the checked-out HEAD) -- is the source of truth for a command's write/read
-target, and so that a newly-added mutating command obtains that target by calling one
+target whenever the Mission declares one, and so that a newly-added mutating command obtains that target by calling one
 typed entry rather than re-deriving it from ambient location and re-copying the
 "never ``Path.cwd()``" folklore by hand.
 
@@ -20,8 +20,9 @@ Terminology (named explicitly per the ADR and the CLAUDE.md footguns):
 
 The "never ``Path.cwd()``" invariant (C-003 / #2647) is held **by construction** here:
 
-* the single ambient read is the documented ``cwd`` parameter default, taken exactly
-  ONCE, at this boundary;
+* the single ambient read this module makes is the documented ``cwd`` parameter default,
+  taken exactly ONCE, at this boundary (the delegated branch fallback below may read the
+  checked-out branch inside the placement authority; see #6152);
 * the ``repo_root`` is always the canonical primary (worktree -> primary collapse, via the
   existing ``resolve_canonical_root`` / ``get_main_repo_root`` authorities), never a raw
   worktree;
