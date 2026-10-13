@@ -1,6 +1,6 @@
 ---
 title: 'ADR: acceptance scenarios link to product promises by identifier only; core checks the scenario contract per pull request and hands on versioned evidence'
-description: 'Scenarios cite promises only by @promise identifier; a per-PR check with no third-party dependency validates feature files, tags and step bindings; nightly legs upload versioned evidence.'
+description: 'Scenarios cite promises only by @promise identifier; a JDK-free per-PR check validates feature files, tags and step bindings; nightly legs upload versioned evidence.'
 status: Accepted
 date: '2026-10-13'
 ---
