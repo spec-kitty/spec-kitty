@@ -186,3 +186,27 @@ def test_nested_suites_not_double_counted(tmp_path: Path) -> None:
 def test_non_numeric_counter_counts_as_error(tmp_path: Path) -> None:
     _make_pass(tmp_path, "gating", '<testsuite tests="many"/>')
     assert ev.build_bundle(tmp_path, "x")["passes"]["gating"]["outcome"] == "failed"
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("cli.version=1\\:2\\=3", "1:2=3"),
+        ("k=a\\#b\\!c", "a#b!c"),
+        ("k=back\\\\slash", "back\\slash"),
+        ("k=caf\\u00e9", "café"),
+        ("k=\\ leading", " leading"),
+        ("k=tab\\there\\nnl", "tab\there\nnl"),
+    ],
+)
+def test_properties_values_are_unescaped(tmp_path: Path, raw: str, expected: str) -> None:
+    path = tmp_path / "environment.properties"
+    path.write_text(raw + "\n", encoding="utf-8")
+    key = raw.split("=", 1)[0]
+    assert ev._read_properties(path)[key] == expected
+
+
+def test_properties_keys_are_unescaped(tmp_path: Path) -> None:
+    path = tmp_path / "environment.properties"
+    path.write_text("a\\:b=1\n", encoding="utf-8")
+    assert ev._read_properties(path) == {"a:b": "1"}

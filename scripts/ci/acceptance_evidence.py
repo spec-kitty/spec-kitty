@@ -98,16 +98,54 @@ def _pass_entry(root: Path, name: str) -> dict[str, Any]:
     }
 
 
+_PROPERTY_ESCAPES = {"t": "\t", "n": "\n", "r": "\r", "f": "\f"}
+
+
+def _unescape_property(raw: str) -> str:
+    """Undo ``Properties.store`` escaping: ``\\uXXXX``, ``\\t \\n \\r \\f``, and ``\\<char>`` for the rest."""
+    out: list[str] = []
+    index = 0
+    while index < len(raw):
+        char = raw[index]
+        if char != "\\" or index + 1 >= len(raw):
+            out.append(char)
+            index += 1
+            continue
+        nxt = raw[index + 1]
+        hex_digits = raw[index + 2 : index + 6]
+        if nxt == "u" and len(hex_digits) == 4 and all(c in "0123456789abcdefABCDEF" for c in hex_digits):
+            out.append(chr(int(hex_digits, 16)))
+            index += 6
+        else:
+            out.append(_PROPERTY_ESCAPES.get(nxt, nxt))
+            index += 2
+    return "".join(out)
+
+
+def _split_property(line: str) -> tuple[str, str] | None:
+    """Split at the first unescaped ``=`` or ``:``; None when the line has no separator."""
+    index = 0
+    while index < len(line):
+        if line[index] == "\\":
+            index += 2
+            continue
+        if line[index] in "=:":
+            return line[:index].rstrip(), line[index + 1 :].lstrip()
+        index += 1
+    return None
+
+
 def _read_properties(path: Path) -> dict[str, str]:
     props: dict[str, str] = {}
     if not path.is_file():
         return props
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        text = line.strip()
-        if not text or text.startswith(("#", "!")) or "=" not in text:
+        text = line.lstrip()
+        if not text or text.startswith(("#", "!")):
             continue
-        key, _, value = text.partition("=")
-        props[key.strip()] = value.strip()
+        pair = _split_property(text)
+        if pair is not None:
+            props[_unescape_property(pair[0])] = _unescape_property(pair[1])
     return props
 
 
