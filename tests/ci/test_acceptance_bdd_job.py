@@ -50,6 +50,8 @@ def test_evidence_step_runs_always(job: dict[str, Any]) -> None:
     run = step["run"]
     assert "--root acceptance-jvm/build/acceptance" in run
     assert '--os "${{ matrix.os }}"' in run
+    (gating,) = _steps_running(job, "-Pacceptance.pass=gating")
+    assert f'--gating-step-outcome "${{{{ steps.{gating["id"]}.outcome }}}}"' in run
 
 
 def test_upload_is_strict_and_single_path(job: dict[str, Any]) -> None:

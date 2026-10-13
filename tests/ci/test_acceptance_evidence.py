@@ -210,3 +210,38 @@ def test_properties_keys_are_unescaped(tmp_path: Path) -> None:
     path = tmp_path / "environment.properties"
     path.write_text("a\\:b=1\n", encoding="utf-8")
     assert ev._read_properties(path) == {"a:b": "1"}
+
+
+@pytest.mark.parametrize("step_outcome", ["failure", "cancelled", "skipped"])
+def test_non_success_gating_step_fails_a_green_junit_pass(tmp_path: Path, step_outcome: str) -> None:
+    _make_pass(tmp_path, "gating", _suite(3))
+    gating = ev.build_bundle(tmp_path, "x", gating_step_outcome=step_outcome)["passes"]["gating"]
+    assert gating["outcome"] == "failed"
+    assert gating["tests"] == 3
+
+
+def test_successful_gating_step_keeps_the_junit_outcome(tmp_path: Path) -> None:
+    _make_pass(tmp_path, "gating", _suite(3))
+    _make_pass(tmp_path, "wip", _suite(1, failures=1))
+    passes = ev.build_bundle(tmp_path, "x", gating_step_outcome="success")["passes"]
+    assert passes["gating"]["outcome"] == "passed"
+    assert passes["wip"]["outcome"] == "failed"
+
+
+def test_failed_gating_step_without_junit_stays_missing(tmp_path: Path) -> None:
+    gating = ev.build_bundle(tmp_path, "x", gating_step_outcome="failure")["passes"]["gating"]
+    assert gating["outcome"] == "missing"
+
+
+def test_main_fails_when_the_gating_step_failed(tmp_path: Path) -> None:
+    _make_pass(tmp_path, "gating", _suite(2))
+    assert ev.main(["--root", str(tmp_path), "--os", "x", "--gating-step-outcome", "failure"]) == 1
+    written = json.loads((tmp_path / "evidence.json").read_text(encoding="utf-8"))
+    assert written["passes"]["gating"]["outcome"] == "failed"
+    _check_against_schema(written, json.loads(SCHEMA.read_text(encoding="utf-8")))
+    assert ev.main(["--root", str(tmp_path), "--os", "x", "--gating-step-outcome", "success"]) == 0
+
+
+def test_main_rejects_an_unknown_step_outcome(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit):
+        ev.main(["--root", str(tmp_path), "--os", "x", "--gating-step-outcome", "green"])
