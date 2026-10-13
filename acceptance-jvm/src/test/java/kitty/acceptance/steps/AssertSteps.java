@@ -10,7 +10,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -40,16 +41,16 @@ public final class AssertSteps {
 
     @Then("the mission {string} is listed")
     public void theMissionIsListed(String handle) {
-        assertThat(listedMissionSlug()).as("Mission listed by the status command").isPresent()
-                .hasValueSatisfying(slug -> assertThat(isMission(slug, handle))
-                        .as("Listed mission '%s' is the mission '%s'", slug, handle).isTrue());
+        List<String> slugs = listedMissionSlugs();
+        assertThat(slugs).as("Missions listed by the status command").isNotEmpty();
+        assertThat(slugs).as("Missions listed by the status command include the mission '%s'", handle)
+                .anyMatch(slug -> isMission(slug, handle));
     }
 
     @Then("the mission {string} is not listed")
     public void theMissionIsNotListed(String handle) {
-        assertThat(listedMissionSlug().filter(slug -> isMission(slug, handle)))
-                .as("Mission '%s' in the output of the status command", handle)
-                .isEmpty();
+        assertThat(listedMissionSlugs()).as("Mission '%s' in the output of the status command", handle)
+                .noneMatch(slug -> isMission(slug, handle));
     }
 
     /** The CLI appends an identifier to the slug it is given, so a mission matches its name or name-plus-suffix. */
@@ -57,9 +58,14 @@ public final class AssertSteps {
         return listedSlug.matches(Pattern.quote(handle) + "(-[0-9A-Z]{8})?");
     }
 
-    private Optional<String> listedMissionSlug() {
+    /** Every {@code mission_slug} value in the output of the last command, in order. */
+    private List<String> listedMissionSlugs() {
         Matcher matcher = MISSION_SLUG.matcher(context.lastResult().stdout());
-        return matcher.find() ? Optional.of(matcher.group(1)) : Optional.empty();
+        List<String> slugs = new ArrayList<>();
+        while (matcher.find()) {
+            slugs.add(matcher.group(1));
+        }
+        return slugs;
     }
 
     @Then("the folder {string} exists")
