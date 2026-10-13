@@ -3,7 +3,7 @@
 The charter-pack cutover (:mod:`m_4_0_0rc6_charter_pack_cutover`) rewrites a
 consumer's retired project-layer ignore rules (a blanket ``**`` rule plus a
 ``!…/graph.yaml`` allow-rule) into ``.kittify/charter-packs/**`` +
-``!.kittify/charter-packs/graph.yaml`` but adds no allow-rule for ``pack.yaml``. The later
+a sibling ``graph.yaml`` allow-rule but adds no allow-rule for ``pack.yaml``. The later
 :mod:`m_4_0_0rc7_pack_level_backfill` then writes
 ``.kittify/charter-packs/pack.yaml``, which the blanket ``.kittify/charter-packs/**``
 rule ignores — so the pack's ``pack_level`` never reaches other contributors

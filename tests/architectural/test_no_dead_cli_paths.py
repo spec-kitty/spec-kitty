@@ -381,14 +381,6 @@ def test_project_tier_graph_path_would_false_red_without_its_discriminator() -> 
         "src/charter/offering/drg/merge.py",
         "src/glossary/drg_builder.py",
         "src/specify_cli/charter_runtime/freshness/computer.py",
-        # Grew by two under #6076 (charter-pack pack.yaml tracking): the shared
-        # gitignore helper and its healing migration both document the cutover's
-        # rewritten ignore block, naming the live project overlay
-        # ``.kittify/charter-packs/graph.yaml`` in prose to explain where the new
-        # ``!.kittify/charter-packs/pack.yaml`` allow-rule sits beside it. These
-        # are live project-tier mentions, not retired built-in monolith paths.
-        "src/specify_cli/upgrade/migrations/_charter_pack_gitignore.py",
-        "src/specify_cli/upgrade/migrations/m_4_0_0rc7_track_charter_pack_yaml.py",
     ], f"A1's effect set moved -- widening it needs a reason, not a regex tweak: {excluded}"
 
 

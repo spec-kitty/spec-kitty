@@ -3,7 +3,7 @@
 The charter-pack cutover (:mod:`m_4_0_0rc6_charter_pack_cutover`) rewrites a
 consumer's retired project-layer ignore rules (a blanket ``**`` rule plus a
 ``!…/graph.yaml`` allow-rule) into ``.kittify/charter-packs/**`` +
-``!.kittify/charter-packs/graph.yaml`` — but it only *rewrites* existing rules;
+a sibling ``graph.yaml`` allow-rule — but it only *rewrites* existing rules;
 it never *adds* an allow-rule for ``pack.yaml``.
 The later :mod:`m_4_0_0rc7_pack_level_backfill` then writes
 ``.kittify/charter-packs/pack.yaml``, which the blanket ``.kittify/charter-packs/**``
@@ -77,7 +77,7 @@ def ensure_pack_yaml_allow_rule(lines: list[str]) -> tuple[list[str], bool]:
     *lines* are ``.gitignore`` lines WITH their line endings
     (``str.splitlines(keepends=True)``). The allow-rule is inserted immediately
     after the run of charter-pack allow-rules that follows the LAST blanket
-    rule — so it groups with ``!.kittify/charter-packs/graph.yaml`` and lands
+    rule — so it groups with the sibling ``graph.yaml`` allow-rule and lands
     after the blanket rule it negates (``git`` is last-match-wins). When the
     blanket rule stands alone, the allow-rule is inserted directly after it.
 
