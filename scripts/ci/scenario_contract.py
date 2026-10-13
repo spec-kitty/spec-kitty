@@ -19,6 +19,13 @@ Known limits of the step matcher (it models Cucumber expressions, not every Cucu
   with ``^`` or ends with an unescaped ``$`` is reported as ``UNSUPPORTED_EXPRESSION``;
 * only ``@Given``, ``@When`` and ``@Then`` annotations are read; ``@And`` and ``@But`` step
   definitions are not seen.
+* only the plain form ``@Given("...")`` is read, with the string literal directly inside the
+  parentheses: ``@Then(value = "...")``, a fully qualified ``@io.cucumber.java.en.Then("...")``,
+  whitespace as in ``@Given( "..." )`` and a concatenated expression (``"a " + "b"``) are not
+  recognised. Such a definition is not seen, so the steps it binds fail loudly as
+  ``UNBOUND_STEP`` rather than passing silently;
+* ``//`` and ``/* */`` comments are ignored, but an annotation-shaped text inside a string or
+  text block is still read.
 
 Usage::
 
