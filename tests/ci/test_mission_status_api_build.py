@@ -1323,7 +1323,7 @@ def test_dropping_or_unpinning_the_native_python_setup_turns_the_native_python_p
     assert found == ["the native job must give Windows a python3 name, only on Windows"]
     install = "      - name: Install PyYAML for the contract-document test\n"
     found = native_python_violations(_mutate(install, "      - name: Compile first\n        run: ./gradlew --no-daemon bootJar\n" + install))
-    assert "setup-python must precede the first gradlew step" in found and "the PyYAML install must precede the first gradlew step" in found
+    assert found == ["the PyYAML install must precede the first gradlew step"]
 
 
 def test_the_pyyaml_install_is_hash_verified_from_the_lock() -> None:

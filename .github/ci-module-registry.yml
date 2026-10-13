@@ -399,6 +399,7 @@ modules:
   roots:
   - scripts/ci/**
   - .github/workflows/**
+  - services/mission-status-api/**
   cov_targets:
   - kernel
   - specify_cli.core
@@ -428,6 +429,9 @@ modules:
   # (~67s serial wall, the rest collection/import time) -- shard_count stays 1,
   # far inside the 30m shard budget, so no split is needed (skew is trivially
   # 0%).
+  # services/mission-status-api/** (#5529 landing review B): tests/ci pins
+  # that service's build inputs, and its own workflow runs no pytest, so a
+  # services-only diff selects this row too. Non-src, like the other roots.
   shard_count: 1
   test_dirs:
   - tests/ci

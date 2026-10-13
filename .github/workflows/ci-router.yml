@@ -382,9 +382,13 @@ jobs:
             # tests/architectural/test_no_duplicate_suite_execution.py exists to
             # remove. The group makes the path family's routing visible and
             # asserted (tests/ci/test_ci_module_wiring.py) instead of silent.
+            # services/mission-status-api/** (#5529 landing review B): the build pins of that service live in
+            # tests/ci/test_mission_status_api_build.py, and the service's own workflow runs no pytest, so a
+            # services-only diff must select the `ci` module shard or the pins never run on the PR that breaks them.
             ci:
               - 'scripts/ci/**'
               - '.github/workflows/**'
+              - 'services/mission-status-api/**'
             # Architectural-gate group (spec-kitty#5168): NON-src (not in the
             # unmatched loop); gates only the heavy battery, the sole per-PR home
             # of tests/architectural (see .github/ci-module-registry.yml).

@@ -1,8 +1,11 @@
 # Mission Status API: the standalone Java service under services/mission-status-api/. Path-filtered on push to main and on pull
-# requests; `schedule` and `workflow_dispatch` carry no filter. Jobs: `contract-bundle` (the contract document, built once by the
-# Python resolver), `jvm` (./gradlew check), `native` (four targets, binary smoke) and the terminal `mission-status-api-gate`.
-# It is NOT a router dependency and is not listed in ci-fleet-verdict.yml: a path-filtered workflow posts no check when skipped.
-# No pytest runs here: the Python tests of the helper script run in the router's module shards (tests/ci).
+# requests (the service tree, the contract module, the shared contract fragments, the bundler and the gate helper script);
+# `workflow_dispatch` carries no filter. There is no `schedule` trigger. Jobs: `contract-bundle` (the contract document, built once
+# by the Python resolver), `jvm` (./gradlew check), `native` (four targets, binary smoke) and the terminal `mission-status-api-gate`.
+# It is NOT a router dependency, but it IS registered in the fleet verdict (ci-fleet-verdict.yml on.workflow_run.workflows and
+# scripts/ci/fleet_verdict.py PR_WORKFLOWS), which treats it as applicable only when its path filter matches the PR.
+# No pytest runs here: the Python tests of the helper script and the build pins run in the router's `ci` module shard (tests/ci),
+# which a services/mission-status-api/ diff selects.
 name: Mission Status API
 
 on:
@@ -11,14 +14,18 @@ on:
     paths:
       - 'services/mission-status-api/**'
       - 'contracts/mission-status/**'
+      - 'contracts/_shared/**'
+      - 'contracts/tools/**'
+      - 'scripts/ci/mission_status_gate_checks.py'
       - '.github/workflows/mission-status-api.yml'
   pull_request:
     paths:
       - 'services/mission-status-api/**'
       - 'contracts/mission-status/**'
+      - 'contracts/_shared/**'
+      - 'contracts/tools/**'
+      - 'scripts/ci/mission_status_gate_checks.py'
       - '.github/workflows/mission-status-api.yml'
-  schedule:
-    - cron: '37 5 * * *'
   workflow_dispatch:
 
 permissions:
@@ -37,8 +44,8 @@ jobs:
   # Mechanism B (research.md WP02 record, DD-56): the contract document is built ONCE, outside the checkout, so every leg serves
   # the same bytes by construction. bundle.py refuses an output directory inside the repository.
   contract-bundle:
-    # A root job: it carries the canonical fork guard as the first conjunct, then the schedule conjunct.
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule'
+    # A root job: it carries the canonical fork guard.
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -67,8 +74,8 @@ jobs:
 
   jvm:
     needs: contract-bundle
-    # A root-equivalent job: the canonical fork guard first, then the schedule conjunct (a scheduled run skips it and the gate together).
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule'
+    # A root-equivalent job: the canonical fork guard.
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-24.04
     # Provisional (research.md budgets); final value from the first CI run's per-step times.
     timeout-minutes: 45
@@ -116,7 +123,7 @@ jobs:
 
   native:
     needs: contract-bundle
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule'
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
     name: native (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
     # Provisional: the doubled native compile (nativeCompile plus the test image) on a 4-core runner; the first CI run sets it.
@@ -155,12 +162,25 @@ jobs:
           distribution: 'graalvm-community'
           github-token: ${{ github.token }}
       # ContractDocumentTest (AC-11d) shells out to `python3 contracts/tools/bundle.py`, which imports PyYAML; the macOS and Windows
-      # images carry neither a `python3` with PyYAML nor, on Windows, a `python3` name at all. PyYAML is pinned to the locked version.
+      # images carry neither a `python3` with PyYAML nor, on Windows, a `python3` name at all. PyYAML is pinned to the locked version
+      # and installed hash-verified: the hashes are uv.lock's own for the four native wheels and the sdist (pinned by
+      # tests/ci/test_mission_status_api_build.py, which re-reads them from uv.lock).
       - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           python-version: '3.12'
       - name: Install PyYAML for the contract-document test
-        run: python -m pip install "PyYAML==6.0.3"
+        run: |
+          set -eu
+          requirements="$RUNNER_TEMP/pyyaml-requirements.txt"
+          cat > "$requirements" <<'REQUIREMENTS'
+          PyYAML==6.0.3 \
+              --hash=sha256:ba1cc08a7ccde2d2ec775841541641e4548226580ab850948cbfda66a1befcdc \
+              --hash=sha256:9149cad251584d5fb4981be1ecde53a1ca46c891a79788c0df828d2f166bda28 \
+              --hash=sha256:fc09d0aa354569bc501d4e787133afc08552722d3ab34836a80547331bb5d4a0 \
+              --hash=sha256:5fcd34e47f6e0b794d17de1b4ff496c00986e1c83f7ab2fb8fcfe9616ff7477b \
+              --hash=sha256:d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f
+          REQUIREMENTS
+          python -m pip install --no-deps --require-hashes -r "$requirements"
       - name: Give Windows a python3 name
         if: runner.os == 'Windows'
         run: |
@@ -228,9 +248,8 @@ jobs:
 
   mission-status-api-gate:
     needs: [jvm, native]
-    # always() makes the job self-starting, so the canonical fork guard is first; the schedule conjunct keeps a scheduled run from
-    # meeting the rule (it skips the legs and this gate together); always() is last.
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && github.event_name != 'schedule' && always()
+    # always() makes the job self-starting, so the canonical fork guard is first; always() is last.
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
