@@ -2,7 +2,7 @@
 title: Isolated Dev Environments (Shadow Clones)
 description: 'Run several standalone spec-kitty checkouts on one machine without cross-mission pollution: a clone-local venv plus a clone-local runtime-state root, machine-global CLI intact.'
 doc_status: active
-updated: '2026-10-09'
+updated: '2026-10-13'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -68,6 +68,25 @@ binds the current worktree.
 > with the worktree and leaves your shell pointing at a `SPEC_KITTY_HOME` and a
 > `spec-kitty` CLI that no longer exist. Use a worktree you create yourself,
 > outside `.worktrees/`.
+
+> **Activation isolates your dev-env state root, not a Mission's write target.**
+> Sourcing the helper inside a worktree binds `SPEC_KITTY_HOME` — and with it
+> your auth session, gate-locks, and tracker bindings under `.spec-kitty-home/`
+> — to that worktree. The product's own write-side root resolver does the
+> opposite: `locate_project_root` / `get_main_repo_root` re-anchor a linked
+> worktree back to the **repository-root checkout** (the PRIMARY-partition root
+> a Mission's writes land in — *not* the Primary Branch `main`), so a worktree
+> is not a distinct write target to it. The two resolvers therefore disagree
+> about "where you are": drive one Mission partly from a repository-root-checkout
+> shell and partly from a worktree-activated shell, and its gate-locks and
+> ledger split across two state roots and stop coordinating. Shadow Clone
+> activation is a dev-env convenience for running the CLI and tests against a
+> checkout — it is **not** a way to own a Mission from a worktree.
+> Mission-mutating commands fail closed when run from a checkout the Mission
+> does not own; to give a Mission its own linked-worktree checkout — isolating
+> runtime state *and* mission/ref writes together — use the product's explicit
+> owned-checkout scope (`--owned-checkout`), not a Shadow Clone shell.
+> Background: ADR [scoped shadow workspace write boundary](../../adr/4.x/2026-10-10-1-scoped-shadow-workspace-write-boundary-layers-onto-the-partition.md).
 
 The rest of this guide keeps those two intact at the same time: the global CLI
 stays the default everywhere, and each Shadow Clone overrides it only for the
