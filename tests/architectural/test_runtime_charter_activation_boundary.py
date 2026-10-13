@@ -196,7 +196,7 @@ def test_external_consumers_add_no_new_activation_internal_reach() -> None:
         print(
             "charter.activation seam: these baselined internal reaches are drained — "
             "evict them from charter_activation_boundary_baseline.yaml and lower the "
-            f"_baselines.yaml count:\n  - " + "\n  - ".join(f"{f} -> {m}" for f, m in drained)
+            "_baselines.yaml count:\n  - " + "\n  - ".join(f"{f} -> {m}" for f, m in drained)
         )
 
     assert not new, (

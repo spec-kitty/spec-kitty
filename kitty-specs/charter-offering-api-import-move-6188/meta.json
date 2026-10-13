@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-10-13T20:00:00Z",
+  "flattened": false,
+  "friendly_name": "Charter module entry-point seams (offering + activation)",
+  "mission_id": "01M4VF15B81HP8Q3EXE5ZJBA1D",
+  "mission_number": null,
+  "mission_slug": "charter-offering-api-import-move-6188",
+  "mission_type": "research",
+  "slug": "charter-offering-api-import-move-6188",
+  "source_description": "Hide charter internals behind split module entry-point seams (offering + activation) so internals are extractable without impacting consumers (#6188).",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch"
+}
