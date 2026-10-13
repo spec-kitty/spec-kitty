@@ -220,10 +220,28 @@ _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset({"kitty-specs/common-d
 #   Follow-up: once this correction is in main's baseline, this entry is dead
 #   weight and should be removed to restore the byte-freeze on the corrected
 #   file (same convention as the #4972 and #5579 entries above).
+#
+# - kitty-specs/codex-skills-drift-01M4RXXH/issue-matrix.json
+#   kitty-specs/codex-skills-drift-01M4RXXH/status.events.jsonl
+#   kitty-specs/codex-skills-drift-01M4RXXH/status.json
+#   (2026-10-13, operator decision by stijn-dejongh in session, "6113 -> fix the
+#   status", #702 / #6113): the Mission merged to main (ebf40abb6) with WP01 still
+#   in `for_review`, since its implementation was recorded as a forced batched
+#   dispatch and no review or approval went through the status pipeline. The
+#   close-out ran only canonical CLI writes: `agent tasks mark-status T001..T006
+#   --status done`, `agent tasks move-task WP01 --to approved` and `--to done`
+#   (approval-ref PR#6113, the landing review), and `agent issue-verdict #702
+#   fixed`. The event log is APPENDED (no existing line rewritten), status.json is
+#   the reducer's materialization and the issue matrix changes one row's verdict.
+#   Follow-up: once this correction is in main's baseline, these entries are dead
+#   weight and should be removed to restore the byte-freeze on the corrected files.
 _OPERATOR_SANCTIONED_CORRECTIONS: frozenset[str] = frozenset(
     {
         "kitty-specs/acceptance-matrix-merge-fail-closed-01M34HG8/status.json",
         "kitty-specs/composition-advance-alignment-01M49EKF/status.json",
+        "kitty-specs/codex-skills-drift-01M4RXXH/issue-matrix.json",
+        "kitty-specs/codex-skills-drift-01M4RXXH/status.events.jsonl",
+        "kitty-specs/codex-skills-drift-01M4RXXH/status.json",
         "kitty-specs/coord-read-fail-closed-01M38VVH/status.json",
         "kitty-specs/silent-write-hardening-residuals-01M37QN4/status.json",
         "kitty-specs/025-cli-event-log-integration/tasks/WP01-git-dependency-setup-and-library-integration.md",
