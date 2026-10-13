@@ -447,6 +447,25 @@ class TestGitSource:
 
     @pytest.mark.regression
     @_requires_git
+    def test_changed_url_refuses_without_fetching_old_origin(self, tmp_path: Path) -> None:
+        """#5778: a changed repository must not silently fetch the old origin."""
+        old_remote, _ = _seed_bare_remote(tmp_path)
+        target = tmp_path / "installed"
+        assert GitSource(url=str(old_remote), inject_token=False).fetch(target).ok
+
+        new_root = tmp_path / "new"
+        new_root.mkdir()
+        new_remote, _ = _seed_bare_remote(new_root)
+        result = GitSource(url=str(new_remote), inject_token=False).fetch(target)
+
+        assert result.ok is False
+        assert "origin" in result.errors[0]
+        assert "configured" in result.errors[0]
+        assert _run_real_git(target, "remote", "get-url", "origin").stdout.strip() == str(old_remote)
+        assert (target / "directives" / "SEED.directive.yaml").read_text() == "id: seed\n"
+
+    @pytest.mark.regression
+    @_requires_git
     def test_update_preserves_uncommitted_local_edits(self, tmp_path: Path) -> None:
         """#4989: _update must not ``reset --hard`` away uncommitted local pack edits."""
         remote, _ = _seed_bare_remote(tmp_path)
