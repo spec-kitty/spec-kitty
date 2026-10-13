@@ -14,6 +14,7 @@ This is the closed enumeration of error and warning codes emitted by `mission_lo
 | `MISSION_RETROSPECTIVE_MISSING` | Validator R-001: the last step's `id` is not `"retrospective"`. | `file`, `mission_key`, `actual_last_step_id`, `expected: "retrospective"` |
 | `MISSION_STEP_NO_PROFILE_BINDING` | Validator FR-008: a step with empty `requires_inputs` declares neither `agent_profile` nor `contract_ref`. | `file`, `mission_key`, `step_id` |
 | `MISSION_STEP_AMBIGUOUS_BINDING` | Validator: a step declares both `agent_profile` AND `contract_ref`. | `file`, `mission_key`, `step_id` |
+| `MISSION_STEP_DEPENDENCY_INVALID` | A prompt or audit step names an unknown `depends_on` step or the dependency graph contains a cycle. | `file`, `mission_key`, `step_id`, and either `dependency` (unknown reference) or `cycle` (ordered list of step ids) |
 | `MISSION_CONTRACT_REF_UNRESOLVED` | A step's `contract_ref` does not resolve in the on-disk `MissionStepContractRepository`. | `file`, `mission_key`, `step_id`, `contract_ref` |
 
 ## Warnings (exit code unaffected; included in envelope)

@@ -49,9 +49,12 @@ from runtime.next._internal_runtime.discovery import (
     is_reserved_key,
 )
 from runtime.next._internal_runtime.schema import (
+    AuditStep,
     DiscoveredMission,
     MissionRuntimeError,
+    MissionTemplate,
     MissionTemplateHasNoStepsError,
+    PromptStep,
     load_mission_template_file,
 )
 
@@ -77,7 +80,7 @@ def validate_custom_mission(
        declaring a key in :data:`RESERVED_BUILTIN_KEYS`.
     3. YAML / Pydantic load of the selected mission template.
     4. Structural checks: retrospective marker (R-001), per-step
-       profile-binding rules (FR-008).
+       profile-binding rules (FR-008), and dependency references and cycles.
     5. Warning aggregation: shadow warnings + pack-load-failure warnings.
 
     Returns a :class:`ValidationReport` whose ``ok`` is True only when a
@@ -280,6 +283,8 @@ def validate_custom_mission(
                 )
             )
 
+    errors.extend(_dependency_errors(template, selected.path, mission_key))
+
     return ValidationReport(
         template=template,
         discovered=selected,
@@ -295,6 +300,59 @@ def validate_custom_mission(
 
 def _has_text(value: str | None) -> bool:
     return bool(value and value.strip())
+
+
+def _dependency_errors(
+    template: MissionTemplate, source_path: str, mission_key: str
+) -> list[LoaderError]:
+    """Reject missing references and cycles across prompt and audit steps."""
+    steps: list[PromptStep | AuditStep] = [*template.steps, *template.audit_steps]
+    dependencies = {step.id: step.depends_on for step in steps}
+    details = {"file": source_path, "mission_key": mission_key}
+    errors: list[LoaderError] = []
+
+    for step in steps:
+        for dependency in step.depends_on:
+            if dependency not in dependencies:
+                errors.append(
+                    LoaderError(
+                        code=LoaderErrorCode.MISSION_STEP_DEPENDENCY_INVALID,
+                        message=f"Step '{step.id}' depends on unknown step '{dependency}'.",
+                        details={**details, "step_id": step.id, "dependency": dependency},
+                    )
+                )
+    if errors:
+        return errors
+
+    visited: set[str] = set()
+    visiting: list[str] = []
+
+    def visit(step_id: str) -> list[str] | None:
+        if step_id in visiting:
+            return [*visiting[visiting.index(step_id) :], step_id]
+        if step_id in visited:
+            return None
+        visiting.append(step_id)
+        for dependency in dependencies[step_id]:
+            cycle = visit(dependency)
+            if cycle is not None:
+                return cycle
+        visiting.pop()
+        visited.add(step_id)
+        return None
+
+    for step in steps:
+        cycle = visit(step.id)
+        if cycle is not None:
+            errors.append(
+                LoaderError(
+                    code=LoaderErrorCode.MISSION_STEP_DEPENDENCY_INVALID,
+                    message=f"Mission dependency cycle: {' -> '.join(cycle)}.",
+                    details={**details, "step_id": cycle[0], "cycle": cycle},
+                )
+            )
+            break
+    return errors
 
 
 def _find_selected(
