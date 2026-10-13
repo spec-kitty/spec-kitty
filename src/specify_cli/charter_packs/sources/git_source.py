@@ -91,6 +91,14 @@ class GitSource:
         effective_url = self._inject_token(self.url)
 
         if (target_dir / ".git").exists():
+            origin = self._run_git(["git", "-C", str(target_dir), "remote", "get-url", "origin"])
+            if origin.returncode != 0:
+                return _error_result(f"Refusing to update pack at {target_dir}: could not read the installed clone's origin")
+            if _without_injected_token(origin.stdout.strip()) != _without_injected_token(self.url):
+                return _error_result(
+                    f"Refusing to update pack at {target_dir}: configured URL differs from the installed clone's origin. "
+                    "Move the existing clone aside or change its origin to the configured URL, then re-fetch."
+                )
             return self._update(target_dir)
         return self._first_install(target_dir, effective_url)
 
@@ -351,3 +359,8 @@ def _redact_git_tokens(text: str) -> str:
         "oauth2:<redacted>@",
         text,
     )
+
+
+def _without_injected_token(url: str) -> str:
+    """Compare repository identity without a rotating CI OAuth token."""
+    return re.sub(r"^https://oauth2:[^@/]+@", "https://", url)

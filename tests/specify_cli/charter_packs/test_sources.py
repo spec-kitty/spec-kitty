@@ -250,6 +250,7 @@ class TestGitSource:
         # patched at the names `ref_advance` imports, returning a clean pack.
         runner = _GitRunRecorder(
             script=[
+                (0, "git@example.com:org/d.git\n", ""),  # remote get-url origin
                 (0, "", ""),  # fetch --tags origin
                 (0, "0\n", ""),  # rev-list --count origin/HEAD..HEAD -> not ahead
                 (0, "", ""),  # reset --hard origin/HEAD
@@ -267,7 +268,7 @@ class TestGitSource:
         assert result.pack_version == "v1.3.0"
         # `git fetch` first; a `git reset` follows (after the interposed dirty/ahead
         # checks) and targets the remote-tracking ref; never a clone on the update path.
-        assert "fetch" in runner.calls[0]
+        assert "fetch" in runner.calls[1]
         reset_index = next(i for i, call in enumerate(runner.calls) if "reset" in call)
         assert reset_index > 0
         assert runner.calls[reset_index][-1] == "origin/HEAD"
@@ -300,7 +301,7 @@ class TestGitSource:
         (target / "directives").mkdir()
         (target / "directives" / "A.yaml").write_text("id: a\n")
 
-        runner = _GitRunRecorder(script=[(1, "", "network unreachable")])
+        runner = _GitRunRecorder(script=[(0, "git@example.com:org/d.git\n", ""), (1, "", "network unreachable")])
         monkeypatch.setattr("specify_cli.charter_packs.sources.git_source.subprocess.run", runner)
 
         result = GitSource(url="git@example.com:org/d.git").fetch(target)
