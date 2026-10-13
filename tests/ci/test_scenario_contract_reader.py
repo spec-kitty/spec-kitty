@@ -610,3 +610,33 @@ def test_feature_without_scenarios_is_an_error():
 
 def test_file_without_feature_line_reports_only_the_parse_error():
     assert set(codes(parse("Scenaro: typo\n")[1])) == {"PARSE_ERROR"}
+
+
+# ---- tags on Examples blocks ------------------------------------------------
+
+TAGGED_EXAMPLES = (
+    "@f\nFeature: F\n  @o\n  Scenario Outline: O\n    Given <x>\n"
+    "    Examples: ratified\n      | x |\n      | a |\n"
+    "    @wip @wip-owner:pedro @wip-since:2026-10-13\n    Examples: drafted\n      | x |\n      | zzz |\n"
+)
+
+
+def test_examples_tags_are_merged_into_each_row():
+    scenarios, problems = parse(TAGGED_EXAMPLES)
+    assert problems == []
+    assert [s.tags for s in scenarios] == [
+        ("f", "o"),
+        ("f", "o", "wip", "wip-owner:pedro", "wip-since:2026-10-13"),
+    ]
+
+
+def test_wip_examples_rows_are_not_gating(tmp_path):
+    features, steps = make_tree(tmp_path, TAGGED_EXAMPLES)
+    problems = sc.check_tree(features, steps)
+    assert [(p.code, p.severity, p.line) for p in problems] == [("UNBOUND_STEP", "info", 5)]
+
+
+def test_examples_tags_are_validated(tmp_path):
+    text = "Feature: F\n  Scenario Outline: O\n    Given <x>\n    @foo:bar @wip\n    Examples:\n      | x |\n      | a |\n"
+    features, steps = make_tree(tmp_path, text)
+    assert codes(sc.check_tree(features, steps)) == ["UNKNOWN_PREFIXED_TAG", "WIP_MISSING_OWNER", "WIP_MISSING_SINCE", "NO_GATING_SCENARIOS"]
