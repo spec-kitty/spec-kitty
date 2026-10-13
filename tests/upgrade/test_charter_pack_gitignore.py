@@ -24,6 +24,8 @@ from specify_cli.upgrade.migrations.m_4_0_0rc7_track_charter_pack_yaml import (
     TrackCharterPackYamlMigration,
 )
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 _BLANKET = ".kittify/charter-packs/**"
 _GRAPH_ALLOW = "!.kittify/charter-packs/graph.yaml"
 _PACK_ALLOW = "!.kittify/charter-packs/pack.yaml"
