@@ -39,8 +39,8 @@ from specify_cli.coordination.coherence import is_coord_residue_churn, is_self_b
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import is_git_repo
 from specify_cli.review.dirty_classifier import status_entry_paths
+from specify_cli.core.command_target import resolve_command_repo_target
 from specify_cli.core.paths import (
-    get_feature_target_branch,
     get_main_repo_root,
     locate_project_root,
 )
@@ -333,7 +333,9 @@ def _run_report_only(
         feature_dir=write_feature_dir,
         body=body,
         analyzer_agent=analyzer_agent,
-        target_branch=owned.write_branch if owned else get_feature_target_branch(repo_root, feature_dir.name),
+        # Declaration-first target via the single command-entry producer (#6142):
+        # same meta.json read as before, but a non-ambient validated fallback.
+        target_branch=owned.write_branch if owned else resolve_command_repo_target(feature_dir.name, repo_root=repo_root).target_branch,
         owned=owned,
     )
     payload = report_outcome.payload
@@ -518,7 +520,8 @@ def record_analysis(
             repo_root=repo_root,
             mission_slug=_analysis_mission_slug,
             report_path=result.path,
-            target_branch=owned.write_branch if owned else get_feature_target_branch(repo_root, _analysis_mission_slug),
+            # Declaration-first target via the single command-entry producer (#6142).
+            target_branch=owned.write_branch if owned else resolve_command_repo_target(_analysis_mission_slug, repo_root=repo_root).target_branch,
             owned=owned,
         )
 

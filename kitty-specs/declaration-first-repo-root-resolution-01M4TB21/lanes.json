@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "mission_slug": "declaration-first-repo-root-resolution-01M4TB21",
+  "mission_id": "01M4TB21RB92020MBTJ6843PSN",
+  "mission_branch": "kitty/mission-declaration-first-repo-root-resolution-01M4TB21",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/issue_verdict.py",
+        "src/specify_cli/cli/commands/verify.py",
+        "src/specify_cli/core/command_target.py",
+        "tests/specify_cli/cli/test_command_target_routing.py",
+        "tests/specify_cli/core/test_command_target.py",
+        "tests/specify_cli/core/test_command_target_behaviour.py",
+        "tests/specify_cli/workspace/test_declaration_first_failclosed_preserved.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-13T10:08:18.675342+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "9576498db7aace16fc1968f41eab2dff146cc024"
+}

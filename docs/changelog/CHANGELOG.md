@@ -47,6 +47,7 @@ this section at publish._
 
 - **Charter Packs can ship activation presets** (#3732). A pack carries `presets/<name>.yaml`; `spec-kitty charter pack list` shows each pack with its presets, and `spec-kitty charter activate --pack <pack> --preset <name>` applies one. The built-in pack ships `default` and `minimal`.
 - **`pack.yaml` can declare an optional `requires_core` version range** (#6046). It is a standard Python (PEP 440) version specifier for the spec-kitty versions the pack works with.
+- **One declaration-first `repo_root`/branch resolution entry at the command-entry layer** (#6142). A new typed producer (`specify_cli.core.command_target.resolve_command_repo_target`) resolves a mission-scoped command's `(repo_root, target_branch)` from the Mission's stored declaration (`meta.json` `target_branch`), with a validated primary-branch fallback that never reads the ambient checked-out branch — so a command whose checked-out branch disagrees with the declaration now follows the declaration. `spec-kitty agent record-analysis` is the first command routed through it: its commit target branch no longer silently follows whatever branch happens to be checked out when the Mission declares no `target_branch`. Increment 1 of the scoped-shadow-workspace direction (ADR `2026-10-10-1`).
 
 ### Changed
 

@@ -1,0 +1,54 @@
+{
+  "accept_commit": "830d69bc1d2a25a42f09e6db902555557aa22a4e",
+  "acceptance_history": [
+    {
+      "accept_commit": "a795c9aacdf2aa446fb2e00accabc80ea19f5ead",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-13T10:52:37.074292+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "a0d4f92d040ee0bf9519891167975feba47d881e"
+    },
+    {
+      "accept_commit": "56d434059d749a6b92069687233dca2c23b7b093",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-13T10:53:08.591269+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "5a07b563ca4648c6f6c7f5089f6384b9ae64c704"
+    },
+    {
+      "accept_commit": "a8aef395b7ea2523c4b0f4afc16b840bfed3d1d2",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-13T10:53:23.223863+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "65d924a064d1c7bcab12d3abb8efb9e619a0c3d3"
+    },
+    {
+      "accept_commit": "830d69bc1d2a25a42f09e6db902555557aa22a4e",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-13T10:53:40.144409+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "0d48e29ed45a1fb30b99298efa98b7e9a9e2aaa7"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-13T10:53:40.144409+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "0d48e29ed45a1fb30b99298efa98b7e9a9e2aaa7",
+  "created_at": "2026-10-13T09:56:19.349314+00:00",
+  "flattened": false,
+  "friendly_name": "Declaration-first repo_root/branch resolution entry (Increment 1)",
+  "mid8": "01M4TB21",
+  "mission_branch": "kitty/mission-declaration-first-repo-root-resolution-01M4TB21",
+  "mission_id": "01M4TB21RB92020MBTJ6843PSN",
+  "mission_number": 230,
+  "mission_slug": "declaration-first-repo-root-resolution-01M4TB21",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Declaration-first repo_root/branch resolution entry (Increment 1) on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "One typed declaration-first repo_root/branch resolution entry at the command-entry layer (ADR 2026-10-10-1, Option B Increment 1).",
+  "slug": "declaration-first-repo-root-resolution-01M4TB21",
+  "status_phase": "1",
+  "target_branch": "main",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-10-13T10:11:02.070510+00:00"
+}

@@ -1,0 +1,89 @@
+{
+  "rows": {
+    "#2453": {
+      "evidence_ref": "https://github.com/spec-kitty/spec-kitty/issues/6152",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": "WP02"
+    },
+    "#2802": {
+      "evidence_ref": "Follow-up: #6152",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#3128": {
+      "evidence_ref": "tests/specify_cli/workspace/test_declaration_first_failclosed_preserved.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP03"
+    },
+    "#3129": {
+      "evidence_ref": "Follow-up: #6152",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP03"
+    },
+    "#3328": {
+      "evidence_ref": "tests/specify_cli/workspace/test_declaration_first_failclosed_preserved.py",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP03"
+    },
+    "#5114": {
+      "evidence_ref": "Follow-up: #6152",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": "WP02"
+    },
+    "#6142": {
+      "evidence_ref": "kitty-specs/declaration-first-repo-root-resolution-01M4TB21/spec.md",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
