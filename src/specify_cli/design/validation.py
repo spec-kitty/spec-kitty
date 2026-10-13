@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from contextlib import ExitStack, contextmanager
+from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Literal
@@ -49,24 +49,30 @@ def require_unfinalized(repo_root: Path, mission_slug: str) -> None:
 
 @contextmanager
 def _marker_gated_lock(repo_root: Path, mission_slug: str) -> Iterator[bool]:
-    """Hold the cooperative authoring lock and yield whether API authoring is enabled.
+    """Yield whether API authoring is enabled, holding the authoring lock only if it is.
 
-    The marker is read INSIDE the lock, so a concurrent API writer cannot enable
-    authoring or change content between the proof and the guarded completion. A
-    path with no git repository cannot carry the marker (it lives in the git
-    common dir): nothing to enforce. Any other topology failure (git missing,
-    corrupt ``.git``, dubious ownership) refuses instead of failing open.
+    Double-checked: the marker is read WITHOUT the lock first, so a Mission that
+    is not API-authored never takes the lock. A marked Mission takes the lock and
+    re-reads the marker inside it, so a concurrent API writer cannot change
+    content between the proof and the guarded completion. A path with no git
+    repository cannot carry the marker (it lives in the git common dir): skip.
+    If git is present but unusable, the marker cannot be read and the Mission
+    cannot be proved not API-authored, so refuse instead of failing open.
     """
-    stack = ExitStack()
-    try:
-        stack.enter_context(authoring_lock(repo_root, mission_slug))
-    except NotAGitRepositoryError:
+    if not _marker_present(repo_root, mission_slug):
         yield False
         return
+    with authoring_lock(repo_root, mission_slug):
+        yield api_authoring_enabled(repo_root, mission_slug)
+
+
+def _marker_present(repo_root: Path, mission_slug: str) -> bool:
+    try:
+        return bool(api_authoring_enabled(repo_root, mission_slug))
+    except NotAGitRepositoryError:
+        return False
     except GitTopologyError as exc:
         raise DesignError("DESIGN_IO_FAILED", "Git topology is unavailable, so API-authored content cannot be verified") from exc
-    with stack:
-        yield api_authoring_enabled(repo_root, mission_slug)
 
 
 @contextmanager

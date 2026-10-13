@@ -7,6 +7,7 @@ unusable must refuse rather than fail open.
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -23,6 +24,17 @@ def test_completion_gate_noop_outside_git_repository(tmp_path: Path) -> None:
     # tmp_path is a bare directory, not a git repository: the lock probe raises
     # NotAGitRepositoryError, which the gate must treat as "no marker" and skip.
     with _api_authoring_completion_gate("no-such-mission", tmp_path, True, result="success", owned=None):
+        pass
+
+
+def test_completion_gate_never_locks_an_unmarked_mission(tmp_path: Path) -> None:
+    # A healthy git repo whose Mission has no API-authoring marker must not touch
+    # the authoring lock, validate, or refuse: only API-authored Missions are bound.
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    with (
+        patch("specify_cli.design.validation.authoring_lock", side_effect=AssertionError("lock must not be taken")),
+        _api_authoring_completion_gate("unmarked-mission", tmp_path, True, result="success", owned=None),
+    ):
         pass
 
 
