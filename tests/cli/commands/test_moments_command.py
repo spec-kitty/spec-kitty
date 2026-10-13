@@ -271,6 +271,25 @@ def test_off_preserves_unrelated_keys_in_an_existing_config(kittify_home: Path) 
     assert document["other"] == {"keep": "yes"}
 
 
+@pytest.mark.parametrize("command", ["on", "off"])
+def test_on_off_over_unparseable_config_refuses_cleanly_and_leaves_file_unchanged(kittify_home: Path, command: str) -> None:
+    """#5451 landing: a corrupt global config must not crash ``on``/``off``
+    with a traceback (``UnreadableTomlTableError``) -- mirror ``drain on``:
+    one clear refusal naming the file, exit 1, bytes untouched."""
+    config_path = kittify_home / "config.toml"
+    original = b'[sync]\nserver_url = "http://127.0.0.1:9"\n[moments]\nkinds = ["MissionCreated"\n'
+    config_path.write_bytes(original)
+
+    result = runner.invoke(moments_app, [command])
+
+    assert result.exit_code == 1
+    assert isinstance(result.exception, SystemExit), f"unhandled {result.exception!r}"
+    assert "Traceback" not in result.stdout
+    assert str(config_path) in result.stdout.replace("\n", "")
+    assert "unchanged" in result.stdout
+    assert config_path.read_bytes() == original
+
+
 def test_status_reports_disjoint_allowlists(kittify_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     (kittify_home / "config.toml").write_text('[moments]\nteammates = ["alice"]\n')
     root = _checkout_with_kittify(tmp_path, monkeypatch)
