@@ -663,7 +663,12 @@ def _first_missing_dependency_failure(snapshot: _ArtifactPresenceSnapshotLike) -
 
 
 def _evaluate_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
-    """CLI-native ``tasks_packages`` — generated tasks.md is not required yet.
+    """``tasks_packages`` guard — generated tasks.md is not required yet.
+
+    The single canonical helper for both vocabularies (#6112): the CLI-native
+    ``tasks_packages`` step and the composed ``tasks`` action with
+    ``legacy_step_id="tasks_packages"`` both dispatch here. The finalize/terminal
+    pair stays deliberately split (distinct messages and checks).
 
     WP05 (#3396) FR-002: the bare-prose requirement fact is read FIRST,
     unconditionally, before the ``_tasks_dir_ready`` short-circuit below --
@@ -714,18 +719,6 @@ def _evaluate_cli_tasks_guard(step_id: str, snapshot: _ArtifactPresenceSnapshotL
     return _evaluate_tasks_finalize_guard(snapshot)
 
 
-def _evaluate_composed_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
-    """WP05 (#3396) FR-002: the bare-prose fact is read FIRST, unconditionally,
-    before the ``_tasks_dir_ready`` short-circuit below -- see
-    ``_evaluate_tasks_packages_guard`` for the full ordering rationale."""
-    failures = list(snapshot.status_facts.get("bare_prose_requirement_failures", ()))
-    if not _tasks_dir_ready(snapshot):
-        failures.append(MISSING_TASK_FILES_MESSAGE)
-    else:
-        failures.extend(snapshot.status_facts["requirement_mapping_failures"])
-    return failures
-
-
 def _evaluate_composed_tasks_terminal_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     """Composed ``tasks`` for ``legacy_step_id in {"tasks_finalize", None}`` —
     the terminal checks (``tasks.md``, finalized WP files, requirement mapping,
@@ -752,7 +745,7 @@ def _evaluate_composed_tasks_guard(snapshot: _ArtifactPresenceSnapshotLike) -> l
     if legacy_step_id == "tasks_outline":
         return _check_artifact_present(snapshot, TASKS_INDEX_ARTIFACT)
     if legacy_step_id == "tasks_packages":
-        return _evaluate_composed_tasks_packages_guard(snapshot)
+        return _evaluate_tasks_packages_guard(snapshot)
     return _evaluate_composed_tasks_terminal_guard(snapshot)
 
 

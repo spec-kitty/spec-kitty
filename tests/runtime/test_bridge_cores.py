@@ -690,6 +690,38 @@ def test_cli_native_and_composed_tasks_vocabularies_diverge_for_same_substep() -
     assert cli_native != composed
 
 
+@pytest.mark.parametrize(
+    ("present_artifacts", "status_facts", "expected"),
+    [
+        pytest.param(frozenset(), {"tasks_dir_is_dir": False}, ["Required: at least one tasks/WP*.md file"], id="dir-not-ready"),
+        pytest.param(
+            frozenset({"tasks_wp_files"}),
+            {"tasks_dir_is_dir": True, "requirement_mapping_failures": ("WP01 has no requirement refs",)},
+            ["WP01 has no requirement refs"],
+            id="dir-ready-requirement-mapping-failure",
+        ),
+        pytest.param(
+            frozenset(),
+            {"tasks_dir_is_dir": False, "bare_prose_requirement_failures": ("FR-001 is bare prose",)},
+            ["FR-001 is bare prose", "Required: at least one tasks/WP*.md file"],
+            id="bare-prose-requirement-failure",
+        ),
+    ],
+)
+def test_cli_native_and_composed_tasks_vocabularies_converge_for_tasks_packages(
+    present_artifacts: frozenset[str], status_facts: dict[str, Any], expected: list[str]
+) -> None:
+    """The two ``tasks_packages`` vocabularies share one canonical guard (#6112).
+
+    The convergence complement of the finalize divergence test above: a mission
+    reports the same guard_failures for ``tasks_packages`` whether it runs the
+    CLI-native step or the composed ``tasks`` action with that legacy substep.
+    """
+    cli_native = cores.evaluate_guards(_snapshot(present_artifacts=present_artifacts, status_facts=status_facts, step_id="tasks_packages"))
+    composed = cores.evaluate_guards(_snapshot(present_artifacts=present_artifacts, status_facts=status_facts, step_id="tasks", legacy_step_id="tasks_packages"))
+    assert cli_native == composed == expected
+
+
 # ---------------------------------------------------------------------------
 # 6. evaluate_guards — research mission family (incl. its fail-closed default)
 # ---------------------------------------------------------------------------
