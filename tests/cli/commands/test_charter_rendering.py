@@ -149,7 +149,8 @@ def test_status_renders_stale_when_charter_is_stale(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "STALE" in result.output
     # The hint is the freshness computer's own remediation (no charter.yaml here).
-    assert "Run: spec-kitty charter generate --no-from-interview" in " ".join(result.output.split())
+    # Tied to the STALE block: the freshness section prints the same Run: line.
+    assert "Current hash: newHash Run: spec-kitty charter generate --no-from-interview" in " ".join(result.output.split())
 
 
 def test_status_renders_synced_when_charter_is_current(tmp_path: Path) -> None:

@@ -35,7 +35,7 @@ def test_charter_sync_exits_2_as_an_unknown_command(tmp_path: Path, monkeypatch:
     assert not (tmp_path / ".kittify").exists(), "the removed command must not write anything"
 
 
-def test_charter_sync_force_and_json_also_unknown(tmp_path: Path) -> None:
+def test_charter_sync_force_and_json_also_unknown() -> None:
     """The removed command took `--force`/`--json`; neither resurrects it."""
     for extra in (["--force"], ["--json"], ["--force", "--json"]):
         result = runner.invoke(cli_app, ["charter", "sync", *extra])
