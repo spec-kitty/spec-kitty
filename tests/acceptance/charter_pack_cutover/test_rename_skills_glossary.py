@@ -214,12 +214,12 @@ def test_us3_4_doctrine_pack_id_rejected_on_load(tmp_path: Path) -> None:
 
 @covers("OD-5", "C-005")
 @pytest.mark.integration
-def test_od5_charter_sync_noop_left_in_place(tmp_path: Path) -> None:
-    """Regression guard (passes at base): compatibility residue unrelated to doctrine vocabulary stays (OD-5, follow-up #5828)."""
+def test_od5_charter_sync_noop_is_removed(tmp_path: Path) -> None:
+    """Compatibility residue unrelated to doctrine vocabulary was deferred in OD-5; #5828 removed `charter sync`."""
     project = project_from_template("two_org_packs", tmp_path / "p")
     result = run_cli(["charter", "sync", "--help"], project)
-    assert result.exit_code == 0, describe(result)
-    assert "sync" in output_of(run_cli(["charter", "--help"], project))
+    assert result.exit_code != 0, describe(result)
+    assert "No such command" in output_of(result), describe(result)
 
 
 # --------------------------------------------------------------------------------------
