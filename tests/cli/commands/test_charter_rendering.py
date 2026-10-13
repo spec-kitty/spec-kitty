@@ -92,7 +92,7 @@ def test_status_renders_unavailable_when_charter_not_found(tmp_path: Path) -> No
 
 
 def test_status_renders_stale_when_charter_is_stale(tmp_path: Path) -> None:
-    """Arrange: charter sync reports stale;
+    """Arrange: charter status reports stale;
     Act: status;
     Assert: 'STALE' in output."""
     project = _project(tmp_path)
@@ -148,6 +148,8 @@ def test_status_renders_stale_when_charter_is_stale(tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "STALE" in result.output
+    # The hint is the freshness computer's own remediation (no charter.yaml here).
+    assert "Run: spec-kitty charter generate --no-from-interview" in " ".join(result.output.split())
 
 
 def test_status_renders_synced_when_charter_is_current(tmp_path: Path) -> None:

@@ -89,6 +89,11 @@ def status(  # noqa: C901
                 if sync_status["stored_hash"]:
                     console.print(f"Expected hash: {sync_status['stored_hash']}")
                 console.print(f"Current hash:  {sync_status['current_hash']}")
+                # Reuse the freshness computer's recommendation (single source);
+                # it is None when no command can clear the state.
+                remediation = payload["freshness"]["charter_source"]["remediation"]
+                if remediation:
+                    console.print(f"\n[dim]Run: {remediation}[/dim]")
             else:
                 console.print("Status: [green]SYNCED[/green]")
                 if sync_status["last_sync"]:
