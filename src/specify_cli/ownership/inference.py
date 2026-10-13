@@ -222,15 +222,18 @@ def infer_authoritative_surface(owned_files: list[str]) -> str:
     """Derive the authoritative_surface from a list of owned_files patterns.
 
     Returns the longest common path prefix shared by all owned_files entries.
+    If they have no common directory, use the first entry's directory as a
+    valid narrow surface. An empty list has no inferable surface.
     A glob-bearing final path segment (whole-wildcard tokens like ``/**``/``/*``
     *and* filename globs like ``*.py``, ``data_?.json`` or ``[abc].py``) is
-    reduced to its containing directory before comparison.
+    reduced to its containing directory before comparison. Literal files are
+    likewise reduced to their containing directory.
 
     Args:
         owned_files: List of glob patterns.
 
     Returns:
-        A path prefix string (may be empty if patterns share no common prefix).
+        A path prefix string (empty only when owned_files is empty).
     """
     if not owned_files:
         return ""
@@ -241,21 +244,21 @@ def infer_authoritative_surface(owned_files: list[str]) -> str:
         When the *last* path segment carries a glob metacharacter (``*``,
         ``?`` or ``[``) — covering both whole-wildcard tokens (``**``, ``*``)
         and filename globs (``*.py``, ``data_?.json``, ``[abc].py``) — drop
-        that segment and keep its directory. A plain literal path is returned
-        unchanged. In every case the result carries no trailing ``/``: the
+        that segment and keep its directory. Literal filenames are handled the
+        same way. In every case the result carries no trailing ``/``: the
         single-entry branch re-appends one and the multi-entry branch splits
         on ``/``, so a trailing slash would create a spurious empty segment.
         """
         head, _, tail = pattern.rpartition("/")
-        if any(ch in tail for ch in "*?["):
+        if any(ch in tail for ch in "*?[") or "." in tail:
             return head
         return pattern.rstrip("/")
 
     stripped = [_strip_glob(p) for p in owned_files]
 
     if len(stripped) == 1:
-        # Return with trailing slash to indicate a directory prefix
-        return stripped[0].rstrip("/") + "/"
+        candidate = stripped[0].rstrip("/") + "/"
+        return candidate if owned_files[0].startswith(candidate) else owned_files[0]
 
     # Split by "/" and find common prefix segments
     split = [s.split("/") for s in stripped]
@@ -266,10 +269,8 @@ def infer_authoritative_surface(owned_files: list[str]) -> str:
         else:
             break
 
-    if not common:
-        return ""
-
-    return "/".join(common) + "/"
+    candidate = "/".join(common or split[0]).rstrip("/") + "/"
+    return candidate if any(p.startswith(candidate) for p in owned_files) else owned_files[0]
 
 
 def infer_ownership(

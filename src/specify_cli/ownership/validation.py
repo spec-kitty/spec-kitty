@@ -170,8 +170,10 @@ def validate_no_overlap(
     linearized refactor chain shares one execution worktree and runs in
     dependency order, so two such WPs legitimately own the same files. The
     no-overlap guard exists to stop *parallel* (dependency-unordered) WPs from
-    colliding, so only concurrent pairs are flagged. When *dependencies* is
-    ``None`` the legacy all-pairs behaviour is preserved.
+    colliding, so only concurrent pairs are flagged. Lane computation separately
+    groups WPs with overlapping write scopes, including sequential pairs, in
+    one lane; this validation exemption does not override lane placement.
+    When *dependencies* is ``None`` the legacy all-pairs behaviour is preserved.
 
     Args:
         manifests: Mapping of WP ID (e.g. ``"WP01"``) to its OwnershipManifest.

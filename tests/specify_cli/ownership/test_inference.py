@@ -184,16 +184,11 @@ class TestInferAuthoritativeSurface:
         surface = infer_authoritative_surface(["src/api/*.py", "src/api/*.ts"])
         assert surface == "src/api/"
 
-    def test_two_entry_disjoint_top_level_returns_empty(self) -> None:
-        """Two entries with no shared top-level segment have no common prefix.
+    def test_disjoint_top_level_uses_first_owned_directory(self) -> None:
+        assert infer_authoritative_surface(["src/foo/*.py", "tests/foo/test_bar.py"]) == "src/foo/"
 
-        Empty is correct-by-design: collapsing two disjoint top-level trees
-        (e.g. ``src/`` and ``docs/``) into one authoritative surface would
-        over-broaden the WP's blast radius. Such WPs must declare an explicit
-        ``authoritative_surface`` or ``scope``. The #2446 filename-glob fix
-        neither does nor should change this.
-        """
-        assert infer_authoritative_surface(["src/foo/*.py", "docs/bar.md"]) == ""
+    def test_single_literal_file_uses_its_directory(self) -> None:
+        assert infer_authoritative_surface(["src/foo/bar.py"]) == "src/foo/"
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +210,8 @@ class TestInferredSurfacePassesValidation:
             ["src/foo/*"],
             ["src/foo/"],
             ["src/api/*.py", "src/api/*.ts"],
+            ["src/foo/bar.py"],
+            ["src/foo/*.py", "tests/foo/test_bar.py"],
         ],
     )
     def test_inferred_surface_validates(self, owned: list[str]) -> None:
@@ -233,6 +230,13 @@ class TestInferredSurfacePassesValidation:
 
 
 class TestInferOwnership:
+    def test_code_and_tests_manifest_passes_surface_validation(self) -> None:
+        content = "Update src/foo/bar.py and tests/foo/test_bar.py."
+        manifest, warnings = infer_ownership(content, "057-feature")
+        assert warnings == []
+        assert manifest.authoritative_surface == "src/foo/"
+        assert validate_authoritative_surface(manifest) == []
+
     def test_returns_ownership_manifest(self) -> None:
         content = "Create src/specify_cli/ownership/__init__.py"
         manifest, warnings = infer_ownership(content, "057-feature")

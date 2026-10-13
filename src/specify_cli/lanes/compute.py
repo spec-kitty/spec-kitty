@@ -3,7 +3,8 @@
 Groups work packages into execution lanes using a union-find structure.
 Two WPs are placed in the same lane when:
 
-1. They have overlapping owned_files globs (write-scope conflict).
+1. They have overlapping owned_files globs (write-scope conflict), including
+   dependency-ordered pairs so shared files stay in one execution worktree.
 2. They share predicted surface tags and ownership is not provably disjoint.
 
 Dependency edges do not collapse lanes by themselves. They are preserved as
