@@ -2,7 +2,7 @@
 title: CLI Acceptance Scenarios (Cucumber-JVM nightly)
 description: How to write, run and read the Gherkin acceptance scenarios that check the built spec-kitty CLI every night on Linux, macOS and Windows.
 doc_status: active
-updated: '2026-10-12'
+updated: '2026-10-13'
 audience: docs/context/audience/internal/lead-developer.md
 type: how-to
 related:
@@ -57,11 +57,42 @@ code. Assertions use AssertJ.
 
 ## Tags
 
-| Tag | Effect |
-|-----|--------|
-| none | Runs in the gating nightly. A failure fails that OS leg. |
-| `@wip` | Runs in a separate non-gating step that never fails the leg. |
+| Tag | Rule |
+|-----|------|
+| `@promise:<id>` | Names the promise the scenario checks. `<id>` matches `[A-Za-z0-9][A-Za-z0-9._-]*`, for example `PR-CLI-INIT-001`. Not repeated on one scenario. |
+| `@wip` | Draft or under repair. Needs `@wip-owner:<handle>` and `@wip-since:<YYYY-MM-DD>`. Runs in a separate non-gating step that never fails the leg. |
+| `@wip-owner:<handle>` | Owner of the draft. `<handle>` matches `[A-Za-z0-9][A-Za-z0-9._-]*`. |
+| `@wip-since:<YYYY-MM-DD>` | Date the scenario was marked `@wip`. |
 | `@manual` | Never runs automatically. |
+| `@defect:<issue>` | Links a known defect. `<issue>` is a positive integer. |
+| `@qa:<ref>` | Reference for the QA repository. `<ref>` uses the identifier character set. |
+| `@<bare>` | Bare tag matching `[A-Za-z0-9][A-Za-z0-9_-]*`, with no `:`. |
+| none | Runs in the gating nightly. A failure fails that OS leg. |
+
+Any other tag containing `:` is an error. Tags on a `Feature` or `Rule` apply to every
+scenario under it. Everything except `@wip` and `@manual` gates the nightly.
+
+### Linking a scenario to a promise
+
+A scenario links to a promise by identifier only, with `@promise:<id>`. The scenario
+carries no promise wording, rationale or status. This repository checks the shape of the
+identifier and nothing more; resolving it to a promise happens in the QA repository.
+
+### Drafted scenarios
+
+A scenario drafted from a promise page lands as `@wip`, with its `@promise:<id>` tag,
+`@wip-owner` and `@wip-since`. It may use steps that have no binding yet. An engineer
+then binds the steps, adds a positive control and removes `@wip`. Tooling never invents
+an identifier.
+
+### Per-PR check
+
+`tests/architectural/test_scenario_contract.py` validates the feature files, the tags and
+the step bindings on every pull request. Run it locally with:
+
+```bash
+uv run --frozen pytest -q tests/architectural/test_scenario_contract.py
+```
 
 The gating run has no retries. A flaky scenario is a defect to fix, not to retry
 (see [the flakiness policy](testing-flakiness.md)).

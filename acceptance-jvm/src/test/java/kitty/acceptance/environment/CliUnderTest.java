@@ -28,10 +28,12 @@ public final class CliUnderTest {
 
     private final Path entryPoint;
     private final Path binDir;
+    private final String version;
 
-    private CliUnderTest(Path entryPoint, Path binDir) {
+    private CliUnderTest(Path entryPoint, Path binDir, String version) {
         this.entryPoint = entryPoint;
         this.binDir = binDir;
+        this.version = version;
     }
 
     /** The provisioned CLI, built once and shared across every scenario in the run. */
@@ -69,6 +71,25 @@ public final class CliUnderTest {
         return binDir;
     }
 
+    /** The version of the wheel under test, read from its file name (never by running the CLI). */
+    public String version() {
+        return version;
+    }
+
+    /**
+     * Extracts the version from a wheel file name {@code <distribution>-<version>-<tags>.whl}
+     * (PEP 427: the version is the second {@code -}-separated field).
+     *
+     * @throws IllegalStateException when the name does not have that shape
+     */
+    static String versionOfWheel(String wheelFileName) {
+        String[] fields = wheelFileName.split("-");
+        if (fields.length < 3 || fields[1].isEmpty() || !wheelFileName.endsWith(".whl")) {
+            throw new IllegalStateException("Cannot read the version from wheel name '" + wheelFileName + "'");
+        }
+        return fields[1];
+    }
+
     private static CliUnderTest provision() {
         try {
             Path repoRoot = findRepoRoot();
@@ -90,7 +111,7 @@ public final class CliUnderTest {
             if (!Files.exists(entry)) {
                 throw new IllegalStateException("spec-kitty entry point was not installed at " + entry);
             }
-            return new CliUnderTest(entry, binDir);
+            return new CliUnderTest(entry, binDir, versionOfWheel(wheel.getFileName().toString()));
         } catch (IOException e) {
             throw new IllegalStateException("Failed to provision the spec-kitty wheel under test", e);
         }
@@ -108,7 +129,8 @@ public final class CliUnderTest {
         }
     }
 
-    private static Path findRepoRoot() {
+    /** The repository root: the nearest ancestor of the working directory holding {@code pyproject.toml}. */
+    static Path findRepoRoot() {
         Path start = Path.of("").toAbsolutePath();
         for (Path dir = start; dir != null; dir = dir.getParent()) {
             if (Files.exists(dir.resolve("pyproject.toml"))) {

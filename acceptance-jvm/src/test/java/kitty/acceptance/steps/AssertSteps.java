@@ -10,10 +10,15 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 /** Assert ({@code Then}): check that the post-conditions hold after the action. */
 public final class AssertSteps {
+
+    private static final Pattern MISSION_SLUG = Pattern.compile("\"mission_slug\"\\s*:\\s*\"([^\"]+)\"");
 
     private final ScenarioContext context;
 
@@ -25,6 +30,36 @@ public final class AssertSteps {
     public void theCommandSucceeds() {
         CliResult result = context.lastResult();
         assertThat(result.exitCode()).as("Exit code of the command:%n%s", result).isZero();
+    }
+
+    @Then("the command fails")
+    public void theCommandFails() {
+        CliResult result = context.lastResult();
+        assertThat(result.exitCode()).as("Exit code of the command:%n%s", result).isNotZero();
+    }
+
+    @Then("the mission {string} is listed")
+    public void theMissionIsListed(String handle) {
+        assertThat(listedMissionSlug()).as("Mission listed by the status command").isPresent()
+                .hasValueSatisfying(slug -> assertThat(isMission(slug, handle))
+                        .as("Listed mission '%s' is the mission '%s'", slug, handle).isTrue());
+    }
+
+    @Then("the mission {string} is not listed")
+    public void theMissionIsNotListed(String handle) {
+        assertThat(listedMissionSlug().filter(slug -> isMission(slug, handle)))
+                .as("Mission '%s' in the output of the status command", handle)
+                .isEmpty();
+    }
+
+    /** The CLI appends an identifier to the slug it is given, so a mission matches its name or name-plus-suffix. */
+    private static boolean isMission(String listedSlug, String handle) {
+        return listedSlug.matches(Pattern.quote(handle) + "(-[0-9A-Z]{8})?");
+    }
+
+    private Optional<String> listedMissionSlug() {
+        Matcher matcher = MISSION_SLUG.matcher(context.lastResult().stdout());
+        return matcher.find() ? Optional.of(matcher.group(1)) : Optional.empty();
     }
 
     @Then("the folder {string} exists")

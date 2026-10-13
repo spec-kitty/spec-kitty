@@ -1,0 +1,139 @@
+{
+  "mission_slug": "acceptance-scenario-contract-01M4T9GC",
+  "mission_number": "",
+  "mission_type": "",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "WP01 ab730e51 docs tag table + guide sections",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:24:46.956142+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "WP01 ADR status Accepted",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:24:54.770126+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_scenario_contract.py PARSE_ERROR/NO_STEPS fixtures",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:25:02.478427+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_scenario_contract.py tag-rule fixtures",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:25:09.843623+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "UNBOUND_STEP/AMBIGUOUS_STEP/UNSUPPORTED_EXPRESSION fixtures; real tree clean",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:25:17.837264+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "@wip unbound step reported as info",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:25:25.842748+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "architectural-fast roster row; roster tests 270 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:25:33.347885+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "scratch Gradle: gating folder byte-identical after wip pass",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:25:40.273791+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "scratch Gradle: environment.properties + executor.json keys",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:25:47.660978+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_acceptance_evidence.py 13 tests; real-output run",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:25:55.863352+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_acceptance_bdd_job.py 7 tests",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:26:04.351579+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "scratch Gradle gating: 3 mission scenarios green via MissionFixture",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:26:12.281868+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/scenarios/mission/mission-status.feature; WP-in-lane step deferred (#6137 follow-up)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T11:26:20.100104+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

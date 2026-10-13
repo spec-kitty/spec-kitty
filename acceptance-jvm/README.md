@@ -50,9 +50,28 @@ subproject checks only that the `url` in `tools/pins.json` carries the pinned `v
 
 ## Run the scenarios
 
+Pick the pass with one Gradle property; it selects the Cucumber tag filter and the output folder together:
+
 ```bash
-gradle test -Dcucumber.filter.tags='not @wip and not @manual' --no-daemon
+gradle test -Pacceptance.pass=gating --no-daemon   # not @wip and not @manual
+gradle test -Pacceptance.pass=wip --no-daemon      # @wip
 ```
 
-The feature files are read from `../tests/scenarios` in place (no copy). The
-`-Dcucumber.filter.tags` system property is passed through to Cucumber's tag filter.
+Each pass writes only under `build/acceptance/<pass>/`, so running `wip` after `gating` (even with
+`--rerun-tasks`) leaves the gating results untouched:
+
+| Path | Content |
+|------|---------|
+| `allure-results/` | Allure results, plus `environment.properties` and (in GitHub Actions) `executor.json` |
+| `cucumber.json` | Cucumber JSON report |
+| `junit/` | JUnit XML |
+| `binary/` | Gradle binary results |
+
+`environment.properties` carries `cli.version`, `commit.sha`, `os.name`, `java.version` and
+`acceptance.pass`. An unknown pass value fails the build. Only the `wip` pass may run zero scenarios.
+
+For an ad-hoc run, omit the property and pass a tag filter instead
+(`gradle test -Dcucumber.filter.tags='@init' --no-daemon`); its results land in
+`build/acceptance/adhoc/`. Giving both the property and `-Dcucumber.filter.tags` is refused.
+
+The feature files are read from `../tests/scenarios` in place (no copy).

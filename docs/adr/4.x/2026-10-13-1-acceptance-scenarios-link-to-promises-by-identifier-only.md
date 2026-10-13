@@ -1,11 +1,11 @@
 ---
 title: 'ADR: acceptance scenarios link to product promises by identifier only; core checks the scenario contract per pull request and hands on versioned evidence'
 description: 'Scenarios cite promises only by @promise identifier; a stdlib per-PR check validates feature files, tags and step bindings; nightly legs upload versioned evidence.'
-status: Proposed
+status: Accepted
 date: '2026-10-13'
 ---
 
-**Status:** Proposed
+**Status:** Accepted, accepted by the owner on 2026-10-13
 
 **Date:** 2026-10-13
 

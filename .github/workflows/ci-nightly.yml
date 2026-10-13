@@ -1443,7 +1443,7 @@ jobs:
   # Maintainer guide (writing, running and reading the scenarios):
   # docs/development/testing/acceptance-scenarios.md.
   #
-  # The GATING run filters `not @wip and not @manual` with NO retry wrapper --
+  # The GATING run (`-Pacceptance.pass=gating`: `not @wip and not @manual`) has NO retry wrapper --
   # a flake IS the signal (NFR-005), never retried-to-green. A separate
   # non-gating `@wip` run is continue-on-error so WIP scenarios never fail the
   # leg (FR-014). timeout-minutes: the job is new and unmeasured; sized
@@ -1451,7 +1451,7 @@ jobs:
   # and two scenario runs) -- a generous cap costs nothing unless a leg hangs.
   # ---------------------------------------------------------------------------
   acceptance-bdd:
-    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch')
+    if: (github.repository == 'spec-kitty/spec-kitty' || github.event_name == 'workflow_dispatch')
     name: Acceptance BDD (acceptance-jvm, nightly-only, 3-OS)
     strategy:
       fail-fast: false
@@ -1494,35 +1494,46 @@ jobs:
         shell: bash
         run: uv run --frozen --no-sync python contracts/tools/install_tools.py --pins acceptance-jvm/tools/pins.json --dest "$RUNNER_TEMP/tools" --only gradle
 
-      # GATING run: the ratified scenarios (`not @wip and not @manual`) with NO
-      # retry wrapper. A flake here fails the leg -- that IS the signal (NFR-005).
+      # GATING run: the ratified scenarios (`-Pacceptance.pass=gating` selects
+      # `not @wip and not @manual` and its own build/acceptance/gating/ folder) with
+      # NO retry wrapper. A flake here fails the leg -- that IS the signal (NFR-005).
+      # The id lets later steps and the evidence bundle refer to this outcome.
       - name: Run the gating acceptance scenarios (no retries)
+        id: gating
         shell: bash
-        run: gradle -p acceptance-jvm test --no-daemon -Dcucumber.filter.tags="not @wip and not @manual"
+        run: gradle -p acceptance-jvm test --no-daemon -Pacceptance.pass=gating
 
-      # NON-GATING run: the @wip scenarios. continue-on-error so a WIP scenario
-      # never fails the leg (FR-014); --rerun-tasks forces the test task to
-      # re-execute with the new tag filter rather than resolving UP-TO-DATE.
+      # NON-GATING run: the @wip scenarios, in their own build/acceptance/wip/
+      # folder. continue-on-error so a WIP scenario never fails the leg (FR-014).
+      # --rerun-tasks is kept on purpose: the pass is a Gradle input so the test
+      # task would re-execute anyway, but forcing it guarantees the wip results
+      # are fresh and never resolved UP-TO-DATE from a cached run.
       - name: Run the non-gating @wip scenarios (never fails the leg)
         continue-on-error: true
         shell: bash
-        run: gradle -p acceptance-jvm test --no-daemon --rerun-tasks -Dcucumber.filter.tags="@wip"
+        run: gradle -p acceptance-jvm test --no-daemon --rerun-tasks -Pacceptance.pass=wip
 
-      # Hand all three result formats (Cucumber JSON, JUnit XML, Allure) to the
-      # spec-kitty-qa nightly (FR-011) under an OS-qualified name so the three
-      # legs never collide. if: always() so a red gating run still uploads its
-      # evidence. Allure's default results dir can land beside build/, so both
-      # are listed; if-no-files-found: warn keeps a format a leg did not emit
-      # from failing the upload.
-      - name: Upload acceptance-bdd results (Cucumber JSON, JUnit XML, Allure)
+      # Evidence bundle (FR-011): one versioned evidence.json per leg, counted from
+      # the JUnit XML of each pass folder (not from step outcomes). if: always() so
+      # a red gating step still produces it; it is written under the uploaded root.
+      - name: Write the acceptance evidence bundle
+        if: always()
+        shell: bash
+        run: uv run --frozen --no-sync python -m scripts.ci.acceptance_evidence --root acceptance-jvm/build/acceptance --os "${{ matrix.os }}"
+
+      # Hand the per-pass results (allure-results, cucumber.json, junit) and
+      # evidence.json to the spec-kitty-qa nightly under an OS-qualified name so
+      # the three legs never collide. if: always() so a red gating run still
+      # uploads. The single path is the whole per-pass tree; if-no-files-found:
+      # error makes an empty upload a red leg rather than silent absence.
+      - name: Upload acceptance-bdd results (per-pass results and evidence.json)
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: acceptance-bdd-results-${{ matrix.os }}
-          path: |
-            acceptance-jvm/build/
-            acceptance-jvm/allure-results/
-          if-no-files-found: warn
+          path: acceptance-jvm/build/acceptance/
+          if-no-files-found: error
+          retention-days: 30
 
   # ---------------------------------------------------------------------------
   # mission-state-audit (#6058): the post-merge backstop of the router's `mission-state audit`.

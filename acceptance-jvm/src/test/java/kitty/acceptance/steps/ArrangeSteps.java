@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import io.cucumber.java.en.Given;
 
 import kitty.acceptance.driver.CliResult;
+import kitty.acceptance.environment.MissionFixture;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -21,6 +22,7 @@ import java.util.stream.Stream;
 public final class ArrangeSteps {
 
     private final ScenarioContext context;
+    private MissionFixture missions;
 
     public ArrangeSteps(ScenarioContext context) {
         this.context = context;
@@ -37,6 +39,32 @@ public final class ArrangeSteps {
     @Given("an existing git repository with commit history")
     public void anExistingGitRepositoryWithCommitHistory() {
         context.world().initGitRepoWithCommit();
+    }
+
+    @Given("a project with a mission {string}")
+    public void aProjectWithAMission(String slug) {
+        missions().createMission(slug);
+    }
+
+    @Given("the project also has a mission {string}")
+    public void theProjectAlsoHasAMission(String slug) {
+        missions().createMission(slug);
+    }
+
+    @Given("the status of the mission {string} can be read")
+    public void theStatusOfTheMissionCanBeRead(String slug) {
+        CliResult result = context.run(List.of("spec-kitty", "agent", "tasks", "status", "--mission", slug, "--json"));
+        assertThat(result.exitCode())
+                .as("Reading the status of mission '%s' before the action:%n%s", slug, result)
+                .isZero();
+    }
+
+    private MissionFixture missions() {
+        if (missions == null) {
+            missions = new MissionFixture(context.world().workDir(), context.world().environment(),
+                    context.world()::initGitRepoWithCommit, context::run);
+        }
+        return missions;
     }
 
     @Given("the folder {string} has been deleted")

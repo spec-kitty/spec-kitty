@@ -44,21 +44,61 @@ dependencies {
     testImplementation "io.qameta.allure:allure-cucumber7-jvm:${allureVersion}"
 }
 
+// Acceptance pass selection (#6136). One Gradle property picks the pass and, with it, the Cucumber
+// tag filter AND the output folder, so the gating and @wip passes never share result files:
+//   gradle test -Pacceptance.pass=gating   -> not @wip and not @manual
+//   gradle test -Pacceptance.pass=wip      -> @wip
+// With no property, a developer's -Dcucumber.filter.tags keeps working and lands in the 'adhoc'
+// pass folder. Giving both the property and the system property is refused (two sources of truth).
+def passTagFilters = [
+    gating: 'not @wip and not @manual',
+    wip   : '@wip',
+]
+def requestedPass = findProperty('acceptance.pass')
+def adhocTagFilter = System.getProperty('cucumber.filter.tags')
+if (requestedPass != null && adhocTagFilter != null) {
+    throw new GradleException("Give either -Pacceptance.pass=${requestedPass} or "
+        + "-Dcucumber.filter.tags, not both: the pass already selects its own tag filter.")
+}
+if (requestedPass != null && !passTagFilters.containsKey(requestedPass.toString())) {
+    throw new GradleException("Unknown acceptance.pass '${requestedPass}'; expected one of "
+        + passTagFilters.keySet())
+}
+def acceptancePass = requestedPass != null ? requestedPass.toString() : 'adhoc'
+def tagFilter = requestedPass != null ? passTagFilters[acceptancePass] : adhocTagFilter
+// Every result of one pass lives under build/acceptance/<pass>/ (Gradle layout API, no raw paths).
+def passRoot = layout.buildDirectory.dir("acceptance/${acceptancePass}")
+
 test {
     useJUnitPlatform()
 
     // Read the scenarios from ../tests/scenarios IN PLACE (no copy). WP04 binds the step
     // glue and the driver port under acceptance-jvm/src/**.
     systemProperty 'cucumber.features', layout.projectDirectory.dir('../tests/scenarios').asFile.absolutePath
+
+    // Per-pass output root. Absolute paths: the test JVM's working directory is the project dir.
+    def passRootPath = passRoot.get().asFile.absolutePath
+    def cucumberJson = passRoot.get().file('cucumber.json').asFile.absolutePath
+
     // Emit all three result formats the nightly uploads for the spec-kitty-qa handoff (FR-011):
     //   Allure results (allure-cucumber7-jvm), Cucumber JSON, and JUnit XML (JUnit Platform native).
-    // The json: formatter ships inside cucumber-core (already a transitive dep) — no new dependency.
+    // The json: formatter ships inside cucumber-core (already a transitive dep) - no new dependency.
     systemProperty 'cucumber.plugin',
-        'io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm, json:build/cucumber-report/cucumber.json'
+        "io.qameta.allure.cucumber7jvm.AllureCucumber7Jvm, json:${cucumberJson}"
+    // allure-java-commons 2.29.1 overlays System properties on allure.properties and reads
+    // allure.results.directory from the result (verified in AllureLifecycle.getDefaultWriter).
+    systemProperty 'allure.results.directory', passRoot.get().dir('allure-results').asFile.absolutePath
+    reports.junitXml.outputLocation = passRoot.get().dir('junit')
+    binaryResultsDirectory = passRoot.get().dir('binary')
 
-    // Pass the Cucumber tag filter through from the invoking JVM, e.g.
-    // `gradle test -Dcucumber.filter.tags='@init and not @manual'`.
-    def tagFilter = System.getProperty('cucumber.filter.tags')
+    // RunMetadata (steps/RunHooks) stamps these into the pass's Allure results.
+    systemProperty 'acceptance.pass', acceptancePass
+    systemProperty 'acceptance.pass.root', passRootPath
+
+    // Declared inputs make Gradle re-run the task when the pass or filter changes.
+    inputs.property('acceptance.pass', acceptancePass)
+    inputs.property('cucumber.filter.tags', tagFilter ?: '')
+
     if (tagFilter != null) {
         systemProperty 'cucumber.filter.tags', tagFilter
     }
@@ -67,12 +107,11 @@ test {
 // Zero-scenario guard. Gradle 8.14 treats a test task that discovers no tests as a pass, so a
 // typo'd tag filter or a broken feature path would turn the gating nightly green while checking
 // nothing. Count the executed (non-skipped) tests of the root suite and fail the task when
-// none ran. Only the @wip run (a filter that selects @wip without negating it) may
-// legitimately find zero scenarios.
+// none ran. Only the wip pass may legitimately find zero scenarios.
 test {
     def ranTests = new java.util.concurrent.atomic.AtomicLong()
-    def filter = System.getProperty('cucumber.filter.tags') ?: ''
-    def mayBeEmpty = filter.trim() == '@wip'
+    def filter = tagFilter ?: ''
+    def mayBeEmpty = acceptancePass == 'wip'
 
     afterSuite { descriptor, result ->
         if (descriptor.parent == null) {
@@ -82,7 +121,8 @@ test {
     }
     doLast {
         if (!mayBeEmpty && ranTests.get() == 0) {
-            throw new GradleException("No acceptance scenario ran (cucumber.filter.tags='${filter}'). "
+            throw new GradleException("No acceptance scenario ran (pass='${acceptancePass}', "
+                + "cucumber.filter.tags='${filter}'). "
                 + 'A gating run that finds zero scenarios is a defect, not a pass.')
         }
     }
