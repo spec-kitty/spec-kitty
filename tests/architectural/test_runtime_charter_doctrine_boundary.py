@@ -24,9 +24,17 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 # visible, reviewed decision — not an accident of a single hardcoded root.
 # ``src/runtime`` was silently unscanned before (the #3522 gap: a direct
 # doctrine import there passed CI); it is now a first-class scan root.
+#
+# ``src/glossary`` and ``src/mission_runtime`` were added (#6188): they are
+# external consumers of the charter offering layer too, and the offering seam
+# must hold for every consumer, not only ``specify_cli`` / ``runtime``. Before
+# this, ``src/glossary/entity_pages.py`` reached ``charter.offering.drg.models``
+# directly, unguarded; it now routes through the ``charter.drg`` facade.
 _SCAN_ROOTS: tuple[Path, ...] = (
     _REPO_ROOT / "src" / "specify_cli",
     _REPO_ROOT / "src" / "runtime",
+    _REPO_ROOT / "src" / "glossary",
+    _REPO_ROOT / "src" / "mission_runtime",
 )
 
 

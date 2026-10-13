@@ -19,7 +19,7 @@ from typing import Any, Literal
 from ruamel.yaml import YAML
 
 from kernel.yaml_io import write_mapping_atomic
-from charter.activation.mission_type_key import read_mission_type
+from charter.activation.api import read_mission_type
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 from specify_cli.retrospective.schema import (
     GenActor,

@@ -10,7 +10,7 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from charter.activation.mission_type_key import read_mission_type
+from charter.activation.api import read_mission_type
 
 if TYPE_CHECKING:
     from specify_cli.manifest import WorktreeStatus

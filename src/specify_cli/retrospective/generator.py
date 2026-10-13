@@ -17,7 +17,7 @@ Design decision:
 
 from __future__ import annotations
 
-from charter.activation.mission_type_key import read_mission_type
+from charter.activation.api import read_mission_type
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import resolve_primary_branch
 from specify_cli.core.paths import read_target_branch_from_meta

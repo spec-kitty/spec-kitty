@@ -206,6 +206,13 @@ _SIZE_RATCHETS: tuple[_SizeRatchet, ...] = (
         "tests.architectural.test_runtime_charter_doctrine_boundary",
         "_LAZY_BASELINE_ALLOWLIST",
     ),
+    # #6188: the activation seam's shrink-only internal-reach baseline (owner #6099).
+    _SizeRatchet(
+        "test_runtime_charter_activation_boundary",
+        "boundary_baseline",
+        "tests.architectural.test_runtime_charter_activation_boundary",
+        "BASELINE",
+    ),
     _SizeRatchet(
         "test_doctrine_census",
         "orphan_reached_exceptions",

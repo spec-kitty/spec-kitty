@@ -30,7 +30,7 @@ process is in the picture.
 
 from __future__ import annotations
 
-from charter.activation.mission_type_key import read_mission_type
+from charter.activation.api import read_mission_type
 from kernel.charter_pack_paths import project_pack_root
 from mission_runtime import MissionArtifactKind, placement_seam
 from dataclasses import dataclass, field

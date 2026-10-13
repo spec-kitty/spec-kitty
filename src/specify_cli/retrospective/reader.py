@@ -13,7 +13,7 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from charter.activation.mission_type_key import read_mission_type
+from charter.activation.api import read_mission_type
 from specify_cli.retrospective.schema import (
     GenActor,
     GenEvidenceRef,

@@ -20,7 +20,7 @@ from specify_cli.context.errors import (
     MissingIdentityError,
     WorkPackageNotFoundError,
 )
-from charter.activation.mission_type_key import read_mission_type
+from charter.activation.api import read_mission_type
 from specify_cli.context.models import MissionContext
 from specify_cli.context.store import load_context as _load_context
 from specify_cli.context.store import save_context

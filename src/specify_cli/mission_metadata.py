@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
-from charter.activation.mission_type_key import read_mission_type
+from charter.activation.api import read_mission_type
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
 from kernel.clock import now_utc_iso

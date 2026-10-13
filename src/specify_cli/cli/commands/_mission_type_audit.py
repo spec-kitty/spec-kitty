@@ -74,7 +74,7 @@ from typing import Literal
 import typer
 from rich.table import Table
 
-from charter.activation.mission_type_key import canonical_mission_type_key
+from charter.activation.api import canonical_mission_type_key
 from charter.activation.mission_type_profiles import existing_mission_types
 from charter.missions import MissionTemplateRepository, resolve_layered_mission_types
 from specify_cli.core.constants import KITTY_SPECS_DIR

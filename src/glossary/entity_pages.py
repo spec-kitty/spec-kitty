@@ -67,7 +67,11 @@ def _load_merged_drg(repo_root: Path) -> Any | None:
     - any other error occurs.
     """
     try:
-        from charter.offering.drg.models import DRGGraph
+        # Reach the offering layer only through the charter.drg facade seam
+        # (identity-preserved re-export) so glossary never binds a charter.offering
+        # internal directly — the module-entry-point boundary the activation/offering
+        # extraction depends on (#6188 / #6099).
+        from charter.drg import DRGGraph
         from ruamel.yaml import YAML
 
         drg_dir = project_pack_root(repo_root)

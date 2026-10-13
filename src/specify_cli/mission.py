@@ -21,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 # WP02 / FR-012 (C-001): the single boundary-safe mission-type canonicalizer lives
 # in ``charter`` so ``specify_cli`` may consume it without crossing the layer rule.
-from charter.activation.mission_type_key import read_mission_type
+from charter.activation.api import read_mission_type
 from specify_cli.mission_metadata import load_meta_or_empty
 
 if TYPE_CHECKING:

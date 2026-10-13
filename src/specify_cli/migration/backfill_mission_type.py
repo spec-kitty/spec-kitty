@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from charter.activation.mission_type_key import canonical_mission_type_key
+from charter.activation.api import canonical_mission_type_key
 from charter.activation.mission_type_profile_repository import MissionTypeProfileRepository
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from specify_cli.mission_metadata import locked_update_meta
