@@ -103,6 +103,38 @@ class TestReadMalformedInput:
 class TestReadValidInput:
     """FrontmatterManager.read() parses well-formed frontmatter correctly."""
 
+    def test_indented_rule_in_block_scalar_preserves_wp_fields(self, tmp_path: Path, fm: FrontmatterManager) -> None:
+        """A markdown rule in a YAML description is not the closing fence."""
+        f = tmp_path / "WP01-one.md"
+        f.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "description: |\n"
+            "  Implements module one.\n"
+            "  ---\n"
+            "  Out of scope: module two.\n"
+            "dependencies: []\n"
+            "requirement_refs: [FR-001]\n"
+            "owned_files: [src/m1/**]\n"
+            "subtasks: [T001]\n"
+            "---\n"
+            "# WP01\n\n- [ ] T001 do one\n",
+            encoding="utf-8",
+        )
+
+        frontmatter, body = fm.read(f)
+
+        assert frontmatter["description"] == "Implements module one.\n---\nOut of scope: module two.\n"
+        assert frontmatter["requirement_refs"] == ["FR-001"]
+        assert frontmatter["owned_files"] == ["src/m1/**"]
+        assert frontmatter["subtasks"] == ["T001"]
+        assert body == "# WP01\n\n- [ ] T001 do one\n"
+
+        fm.write(f, frontmatter, body)
+        rewritten, rewritten_body = fm.read(f)
+        assert rewritten["subtasks"] == ["T001"]
+        assert rewritten_body == body
+
     def test_reads_simple_fields(self, tmp_path: Path, fm: FrontmatterManager) -> None:
         """Standard WP frontmatter fields round-trip correctly."""
         # Arrange

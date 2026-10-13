@@ -118,11 +118,12 @@ class FrontmatterManager:
         if not content.startswith("---"):
             raise FrontmatterError(f"File has no frontmatter: {file_path}")
 
-        # Find closing ---
+        # Only a column-zero fence closes frontmatter; an indented --- can be
+        # content of a YAML block scalar (for example, a markdown rule).
         lines = content.split("\n")
         closing_idx = -1
         for i, line in enumerate(lines[1:], start=1):
-            if line.strip() == "---":
+            if line.rstrip() == "---":
                 closing_idx = i
                 break
 
