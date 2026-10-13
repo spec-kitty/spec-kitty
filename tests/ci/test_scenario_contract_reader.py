@@ -546,3 +546,36 @@ def test_regex_anchored_expressions_are_unsupported(expr):
 
 def test_escaped_trailing_dollar_is_a_literal():
     assert sc.expression_to_regex("costs 5\\$").fullmatch("costs 5$")
+
+
+# ---- comments in step-definition sources -----------------------------------
+
+COMMENTED_JAVA = (
+    "class S {\n"
+    '  // @Given("line commented")\n'
+    '  /* @When("block commented") */\n'
+    "  /*\n"
+    '   * @Then("multi line commented")\n'
+    "   */\n"
+    '  @Given("real")\n'
+    '  @When("keeps \\\\/\\\\/ and \\\\/* inside")\n'
+    "  char c = '\"'; // @Then(\"after a char literal\")\n"
+    '  String t = """\n'
+    "      /* inside a text block this opens no comment\n"
+    '      """;\n'
+    '  @Then("last")\n'
+    "}\n"
+)
+
+
+def test_commented_out_step_definitions_are_not_read(tmp_path):
+    defs, problems = sc.load_step_definitions(write_java(tmp_path, COMMENTED_JAVA))
+    assert problems == []
+    assert [d.expression for d in defs] == ["real", "keeps \\/\\/ and \\/* inside", "last"]
+    assert [d.source for d in defs] == ["S.java:7", "S.java:8", "S.java:13"]
+
+
+def test_step_bound_only_by_a_commented_annotation_is_unbound(tmp_path):
+    features, steps = make_tree(tmp_path, "Feature: F\n  Scenario: S\n    Given real\n    When block commented\n", java=COMMENTED_JAVA)
+    problems = sc.check_tree(features, steps)
+    assert [(p.code, p.line) for p in problems] == [("UNBOUND_STEP", 4)]
