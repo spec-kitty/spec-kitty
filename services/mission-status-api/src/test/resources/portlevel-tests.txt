@@ -1,0 +1,28 @@
+# portlevel-tests.txt, grammar v1: the port-level subset of FR-013 (AC-13a, AC-13b).
+# One test per line: "<id> <ClassName>#<method>". Blank lines and lines starting with '#' are ignored.
+#   <id>        <criterion>[/<case>...], for example AC-4a/L3a. The criterion is an acceptance criterion; each case is [A-Za-z0-9][A-Za-z0-9-]*.
+#   <ClassName> the simple name of a top-level class in org.speckitty.missionstatus.conformance.port.
+#   <method>    a public no-arg method of that class carrying @PortLevelTest("<id>").
+# Floor (FR-013): AC-2a for interleaved, lifecycle-only, no-ledger, log-truncated and crlf-and-listing; AC-2b; AC-5a; AC-5c; the port
+# legs of AC-3g and AC-3i; the port legs of AC-4a for L1, L3a, L3b, L4 and L4b. testsupport.PortLevelIds.FR013_GROUPS records the floor.
+# The five AC-2a ids are shells that delegate to testsupport.Ac2aGoldenHook; until the goldens exist they are skipped (PortLevelInterim).
+AC-2a/interleaved Ac2aGoldenShellsTest#interleaved
+AC-2a/lifecycle-only Ac2aGoldenShellsTest#lifecycleOnly
+AC-2a/no-ledger Ac2aGoldenShellsTest#noLedger
+AC-2a/log-truncated Ac2aGoldenShellsTest#logTruncated
+AC-2a/crlf-and-listing Ac2aGoldenShellsTest#crlfAndListing
+AC-2b/page-size-one Ac2bPagingTest#pageSizeOneYieldsEveryMissionOnceInContractOrder
+AC-2b/equal-created-at Ac2bPagingTest#twoMissionsWithEqualCreatedAtAreOrderedByMissionIdAcrossPages
+AC-5a/alpha-sort-and-dedup Ac5ReductionTest#alphaReducesToTheOracleLanesAndCounts
+AC-5a/beta-at-before-event-id Ac5ReductionTest#betaOrdersByAtBeforeEventId
+AC-5a/project-last-activity Ac5ReductionTest#theProjectHeaderTakesTheLatestInstant
+AC-5c Ac5ReductionTest#theReductionNeedsNoSpringContext
+AC-3g/resume-after-k Ac3ResumeAndBatchTest#aCursorResumesWithTheForwardedRowsAfterIt
+AC-3g/no-cursor-live-only Ac3ResumeAndBatchTest#noCursorReceivesNoneOfTheExistingRows
+AC-3i/batch-order Ac3ResumeAndBatchTest#rowsAppendedInOneWriteArriveInLogOrderEachWithItsOwnCursor
+AC-4a/L1 Ac4aPortLegsTest#l1AnAbsentLedgerIsADraftAtOffsetZeroWithNoDiagnostic
+AC-4a/L1/discarded Ac4aPortLegsTest#l1WithDiscardedAtIsDiscardedNotDraft
+AC-4a/L3a Ac4aPortLegsTest#l3aABadTerminatedLineRefusesTheProjectHeader
+AC-4a/L3b Ac4aPortLegsTest#l3bABadTerminatedLineRefusesTheMissionListWhicheverPageIsRequested
+AC-4a/L4 Ac4aPortLegsTest#l4AnUnparseableTornTailRefusesBothReads
+AC-4a/L4b Ac4aPortLegsTest#l4bAParseableUnterminatedTailRefusesBothReads
