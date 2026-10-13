@@ -577,6 +577,50 @@ def expression_to_regex(expression: str) -> re.Pattern[str]:
     return re.compile("".join(parts))
 
 
+_NOT_NEWLINE_RE = re.compile(r"[^\n]")
+_TEXT_BLOCK = '"""'
+
+
+def _closing(text: str, marker: str, start: int, *, keep: int = 0) -> int:
+    """Index just past ``marker`` found from ``start`` (end of text when absent), minus ``keep``."""
+    end = text.find(marker, start)
+    return len(text) if end == -1 else end + len(marker) - keep
+
+
+def _literal_end(text: str, index: int) -> int:
+    """Index just past the string or char literal opening at ``index`` (stops at a newline)."""
+    quote = text[index]
+    position = index + 1
+    while position < len(text) and text[position] not in (quote, "\n"):
+        position += 2 if text[position] == "\\" else 1
+    return min(position + 1, len(text))
+
+
+def _java_token(text: str, index: int) -> tuple[int, bool]:
+    """End of the token at ``index`` and whether it is a comment."""
+    if text.startswith("//", index):
+        return _closing(text, "\n", index, keep=1), True
+    if text.startswith("/*", index):
+        return _closing(text, "*/", index + 2), True
+    if text.startswith(_TEXT_BLOCK, index):
+        return _closing(text, _TEXT_BLOCK, index + 3), False
+    if text[index] in "\"'":
+        return _literal_end(text, index), False
+    return index + 1, False
+
+
+def strip_java_comments(text: str) -> str:
+    """Blank out ``//`` and ``/* */`` comments outside literals; line numbers are kept."""
+    out: list[str] = []
+    index = 0
+    while index < len(text):
+        end, comment = _java_token(text, index)
+        chunk = text[index:end]
+        out.append(_NOT_NEWLINE_RE.sub(" ", chunk) if comment else chunk)
+        index = end
+    return "".join(out)
+
+
 def _step_files(steps_dir: Path) -> list[Path]:
     return sorted(p for p in steps_dir.rglob("*.java") if p.parent.name == "steps" or p.parent == steps_dir)
 
@@ -589,7 +633,7 @@ def _definitions_in(path: Path) -> tuple[list[StepDefinition], list[Problem], bo
     defs: list[StepDefinition] = []
     problems: list[Problem] = []
     found = False
-    for match in _JAVA_STEP_RE.finditer(text):
+    for match in _JAVA_STEP_RE.finditer(strip_java_comments(text)):
         found = True
         line = text.count("\n", 0, match.start()) + 1
         expression = decode_java_string(match.group(2))

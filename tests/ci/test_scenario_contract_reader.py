@@ -559,7 +559,7 @@ COMMENTED_JAVA = (
     "   */\n"
     '  @Given("real")\n'
     '  @When("keeps \\\\/\\\\/ and \\\\/* inside")\n'
-    "  char c = '\"'; // @Then(\"after a char literal\")\n"
+    '  char c = \'"\'; // @Then("after a char literal")\n'
     '  String t = """\n'
     "      /* inside a text block this opens no comment\n"
     '      """;\n'
@@ -579,3 +579,22 @@ def test_step_bound_only_by_a_commented_annotation_is_unbound(tmp_path):
     features, steps = make_tree(tmp_path, "Feature: F\n  Scenario: S\n    Given real\n    When block commented\n", java=COMMENTED_JAVA)
     problems = sc.check_tree(features, steps)
     assert [(p.code, p.line) for p in problems] == [("UNBOUND_STEP", 4)]
+
+
+@pytest.mark.parametrize(
+    "source,expected",
+    [
+        ('a // c "x"', "a         "),
+        ("a /* c\nd */ b", "a     \n     b"),
+        ("a /* never closed\nx", "a                \n "),
+        ('s = "q\\" // still in string"; // c', 's = "q\\" // still in string";     '),
+        ('s = "open\n// c', 's = "open\n    '),
+        ("c = '/'; // c", "c = '/';     "),
+        ('t = """\n/* x\n""" // c', 't = """\n/* x\n"""     '),
+        ('t = """ never closed /* x', 't = """ never closed /* x'),
+    ],
+)
+def test_strip_java_comments(source, expected):
+    stripped = sc.strip_java_comments(source)
+    assert stripped == expected
+    assert stripped.count("\n") == source.count("\n")
