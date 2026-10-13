@@ -30,14 +30,12 @@ change without an explicit, reviewed update to this suite)
   ``{"status": "ok", "message": "No crashed implementation sessions
   found.", "recovered_wps": [], "worktrees_recreated": 0,
   "transitions_emitted": 0, "errors": []}`` -- for a mission with no
-  in-flight worktree/context state. This is the ONLY read-only,
-  side-effect-free path through ``implement.py``'s ``--json`` surface; the
+  in-flight worktree/context state. This is the ONLY recovery path through
+  ``implement.py``'s ``--json`` surface; the
   non-recover path materializes a real git worktree and is out of scope
   for this WP (tracked as a gap below). The coord case runs on a fixture
-  whose coordination worktree IS materialized (``coord_repo_materialized``,
-  the shape ``mission create`` leaves): since ``2fd7eabf0`` a coordination
-  read on an unmaterialized coordination worktree fails closed by design,
-  so ``--recover`` on the unmaterialized ``coord_repo`` refuses instead.
+  whose coordination worktree was removed after mission creation. Recovery
+  materializes it before reading status, so the clean result remains available.
 
 * ``spec-kitty agent action implement WP01 --mission <slug>`` (flat + coord
   MATERIALIZED, TEXT output -- see gap note below): a FIRST call on a
@@ -333,6 +331,19 @@ def coord_repo_materialized(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
 
 
 @pytest.fixture()
+def coord_repo_recover_unmaterialized(coord_repo_materialized: tuple[Path, str]) -> tuple[Path, str]:
+    """A declared local coordination branch whose worktree was removed."""
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    repo_root, mission_slug = coord_repo_materialized
+    meta = json.loads((repo_root / "kitty-specs" / mission_slug / "meta.json").read_text(encoding="utf-8"))
+    mid8 = meta["mid8"]
+    CoordinationWorkspace.teardown(repo_root, meta["mission_slug"], mid8)
+    assert not CoordinationWorkspace.worktree_path(repo_root, meta["mission_slug"], mid8).exists()
+    return repo_root, mission_slug
+
+
+@pytest.fixture()
 def flat_repo_planned(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, str]:
     """Flat mission, WP01 ``planned`` -- implement surface (claimable)."""
     return _build_mission_repo(tmp_path, monkeypatch, coord=False, mission_slug="trio-flat-implement", wp_lane="planned")
@@ -467,9 +478,14 @@ class TestImplementRecoverJson:
             "errors": [],
         }
 
-    def test_coord_mission_no_crashed_sessions(self, coord_repo_materialized: tuple[Path, str]) -> None:
-        repo_root, mission_slug = coord_repo_materialized
+    def test_coord_mission_no_crashed_sessions(self, coord_repo_recover_unmaterialized: tuple[Path, str]) -> None:
+        repo_root, mission_slug = coord_repo_recover_unmaterialized
         payload = self._run(repo_root, mission_slug)
+
+        from specify_cli.coordination.workspace import CoordinationWorkspace
+
+        meta = json.loads((repo_root / "kitty-specs" / mission_slug / "meta.json").read_text(encoding="utf-8"))
+        assert CoordinationWorkspace.worktree_path(repo_root, meta["mission_slug"], meta["mid8"]).exists()
 
         assert payload == {
             "status": "ok",

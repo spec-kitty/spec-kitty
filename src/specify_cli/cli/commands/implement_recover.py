@@ -121,8 +121,14 @@ def _run_recover_mode(
     the mission are scanned.
     """
     from specify_cli.lanes.recovery import run_recovery, scan_recovery_state
+    from specify_cli.coordination.surface_resolver import materialize_coord_surface_for_write
 
     repo_root, mission_slug = _recover_resolve_context(mission, json_output)
+
+    # Recovery can write worktrees and status. Make a declared local coordination
+    # branch readable before the status scan; the materializer is a no-op for
+    # flat and already-materialized missions and refuses unsafe remote-only refs.
+    materialize_coord_surface_for_write(repo_root, mission_slug)
 
     # First, show what we found
     states = scan_recovery_state(repo_root, mission_slug)
