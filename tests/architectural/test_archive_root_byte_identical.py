@@ -433,9 +433,10 @@ def _lifecycle_prefix(path: str, before: bytes, after: bytes) -> None:
     for number, row in enumerate(suffix[:-1].split(b"\n"), 1):
         try:
             data = json.loads(row.decode("utf-8"))
-            assert isinstance(data, dict), "record must be an object"
+            if not isinstance(data, dict):
+                raise ValueError("record must be an object")
             ProfileInvocationRecord.from_dict(data)
-        except (UnicodeError, ValueError, KeyError, TypeError, AssertionError) as error:
+        except (UnicodeError, ValueError, KeyError, TypeError) as error:
             raise AssertionError(f"{path}: invalid suffix row {number}: {error}") from error
 
 
@@ -470,10 +471,12 @@ def _op_closure_suffix(path: str, before: bytes, after: bytes) -> None:
     for number, row in enumerate(suffix[:-1].split(b"\n"), 1):
         try:
             data = json.loads(row.decode("utf-8"))
-            assert isinstance(data, dict), "record must be an object"
+            if not isinstance(data, dict):
+                raise ValueError("record must be an object")
             event = parse_op_event(data)
-            assert isinstance(event, OpCompletedEvent), "closure row must be a completed event"
-        except (UnicodeError, ValueError, KeyError, TypeError, AssertionError, LegacyRecordError) as error:
+            if not isinstance(event, OpCompletedEvent):
+                raise ValueError("closure row must be a completed event")
+        except (UnicodeError, ValueError, KeyError, TypeError, LegacyRecordError) as error:
             raise AssertionError(f"{path}: invalid suffix row {number}: {error}") from error
 
 
