@@ -105,18 +105,25 @@ checks the download against its pinned sha256:
 ```bash
 python contracts/tools/install_tools.py --pins acceptance-jvm/tools/pins.json --dest "$HOME/.cache/spec-kitty-tools" --only gradle
 export PATH="$HOME/.cache/spec-kitty-tools/gradle-8.14.5/bin:$PATH"
-gradle -p acceptance-jvm test --no-daemon -Dcucumber.filter.tags="not @wip and not @manual"
+gradle -p acceptance-jvm test --no-daemon -Pacceptance.pass=gating
 ```
+
+`-Pacceptance.pass=gating` runs `not @wip and not @manual`; `-Pacceptance.pass=wip` runs the
+`@wip` scenarios. The property selects the tag filter and the output folder together.
 
 The runner builds a wheel from your checkout with `uv build` and installs it into a
 throwaway virtual environment, so it tests your working tree as a user would install
 it. Each scenario gets its own temporary directory, home directory and git repository.
 
-Reports land in three places:
+Each pass writes only under `acceptance-jvm/build/acceptance/<pass>/`, so running `wip`
+after `gating` leaves the gating results untouched:
 
-- JUnit XML: `acceptance-jvm/build/test-results/test/`
-- Cucumber JSON: `acceptance-jvm/build/cucumber-report/cucumber.json`
-- Allure results: `acceptance-jvm/allure-results/` (written beside `build/`, not inside it)
+- JUnit XML: `acceptance-jvm/build/acceptance/<pass>/junit/`
+- Cucumber JSON: `acceptance-jvm/build/acceptance/<pass>/cucumber.json`
+- Allure results: `acceptance-jvm/build/acceptance/<pass>/allure-results/`
+
+The nightly's evidence script also writes `acceptance-jvm/build/acceptance/evidence.json`,
+counted from the JUnit XML of both passes.
 
 A gating run fails if no scenario ran, so a mistyped tag filter or a wrong feature path
 cannot pass as green. Only the `@wip` run may find none.
@@ -128,31 +135,31 @@ because another `spec-kitty` process on your machine may touch them.
 
 ## View the Allure report
 
-`acceptance-jvm/allure-results/` holds raw result JSON, not a report you can open in a
+`acceptance-jvm/build/acceptance/gating/allure-results/` holds raw result JSON, not a report you can open in a
 browser. Turn it into the HTML report with the Allure command-line tool. If you have it
 installed, `serve` builds the report into a temporary directory and opens it:
 
 ```bash
-allure serve acceptance-jvm/allure-results
+allure serve acceptance-jvm/build/acceptance/gating/allure-results
 ```
 
 Without a local install, run the same tool through `npx` (it needs a JDK on `PATH`):
 
 ```bash
-npx allure-commandline serve acceptance-jvm/allure-results
+npx allure-commandline serve acceptance-jvm/build/acceptance/gating/allure-results
 ```
 
 To keep the report rather than serve it from a temporary directory, generate it into a
 folder and open that folder:
 
 ```bash
-allure generate acceptance-jvm/allure-results --clean -o acceptance-jvm/allure-report
+allure generate acceptance-jvm/build/acceptance/gating/allure-results --clean -o acceptance-jvm/allure-report
 allure open acceptance-jvm/allure-report
 ```
 
 The nightly does not build this report; it uploads the raw Allure results inside the
 `acceptance-bdd-results-<os>` artifact. To view a nightly run as a report, download that
-artifact and run one of these commands on its `allure-results/` directory.
+artifact and run one of these commands on its `gating/allure-results/` directory.
 
 ## Change a dependency
 
