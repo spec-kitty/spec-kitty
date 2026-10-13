@@ -8,6 +8,7 @@ collect no coverage), plus the executor's recording of the requests before the c
 
 from __future__ import annotations
 
+import os
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -91,6 +92,28 @@ def unstamped_mission(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Coor
     mission = build_post_approval_lanes_mission(tmp_path_factory.mktemp("unstamped"))
     strip_approval_stamps(mission, "WP01")
     yield mission
+
+
+@pytest.mark.integration
+@pytest.mark.git_repo
+def test_stripping_approval_stamps_does_not_scan_git_object_directories(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    mission = build_post_approval_lanes_mission(tmp_path)
+    scandir = os.scandir
+    scanned_git: list[str] = []
+
+    def _object_directory_disappeared(path: str | os.PathLike[str]) -> Iterator[os.DirEntry[str]]:
+        if ".git" in Path(path).parts:
+            scanned_git.append(str(path))
+            raise FileNotFoundError(f"Git object directory disappeared during packing: {path}")
+        return scandir(path)
+
+    monkeypatch.setattr(os, "scandir", _object_directory_disappeared)
+    strip_approval_stamps(mission, "WP01")
+
+    assert not scanned_git, "fixture log discovery must prune Git internals before traversing them"
+    events = read_events(mission.feature_dir)
+    assert not any((event.policy_metadata or {}).get("lane_head") for event in events if event.wp_id == "WP01")
+    assert any((event.policy_metadata or {}).get("lane_head") for event in events if event.wp_id == "WP02")
 
 
 @pytest.mark.parametrize(
