@@ -500,3 +500,16 @@ def test_main_defaults_resolve_to_repo_tree(capsys):
 def test_format_problems_is_stable():
     p = sc.Problem("X_CODE", "error", "f.feature", 3, "msg")
     assert sc.format_problems([p]) == "f.feature:3: error X_CODE: msg"
+
+
+def test_star_step_may_open_a_scenario():
+    scenarios, problems = parse("Feature: F\n  Scenario: S\n    * a\n    * b\n    Then c\n")
+    assert problems == []
+    assert [s.keyword for s in scenarios[0].steps] == ["*", "*", "Then"]
+    assert [s.text for s in scenarios[0].steps] == ["a", "b", "c"]
+
+
+def test_and_after_star_opener_is_accepted():
+    scenarios, problems = parse("Feature: F\n  Scenario: S\n    * a\n    And b\n")
+    assert problems == []
+    assert [s.keyword for s in scenarios[0].steps] == ["*", "*"]

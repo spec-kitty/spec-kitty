@@ -312,6 +312,8 @@ class _Reader:
         word, text = match.group(1), match.group(2)
         if word in _STEP_KEYWORDS:
             block.last_keyword = word
+        elif block.last_keyword is None and word == "*":
+            block.last_keyword = "*"  # a bare bullet may open a scenario; matching ignores keywords
         elif block.last_keyword is None:
             self.error(PARSE_ERROR, number, f"{word!r} step has no preceding Given, When or Then")
             return
