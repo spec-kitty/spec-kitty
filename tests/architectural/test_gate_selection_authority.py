@@ -262,9 +262,59 @@ def test_group_module_fanout_is_wired(router: Router) -> None:
     """
     assert len(_MANIFESTS) >= 4, "the manifest glob matched too little: the selection gate would be vacuous"
     assert GROUP_MODULE_FANOUT["mission_manifest"] == frozenset({"charter", "dossier", "specify_cli_runtime"})
+    # #6166: the chosen target sets, pinned so a future routing change cannot silently shrink them
+    # (DIRECTIVE_003 -- the PR records the set + the per-module reason in gate_selection.py).
+    assert GROUP_MODULE_FANOUT["mission_pack_content"] == frozenset({"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime"})
+    assert GROUP_MODULE_FANOUT["cli_lifecycle"] == frozenset({"agent", "core_misc"})
     for group, targets in GROUP_MODULE_FANOUT.items():
         assert group in router.filters, f"fan-out group {group!r} is not a router filter group"
         assert targets <= _registry_module_names(), f"fan-out targets of {group!r} are not all registry modules"
+
+
+# ---------------------------------------------------------------------------
+# #6166 — consumer fanout for mission-pack content and cli/commands/lifecycle.py.
+# Each pin fixes a historical path (the #6166 Problem table) to the module whose
+# test broke because the router selected zero / too-few modules for it. One
+# failed shard cancels the matrix, so each regression cost several CI cycles and
+# reached `main`. Red-first (charter C-011): the prompt.md and lifecycle.py pins
+# are RED on current `main` (recorded before the task-A/B fix); the
+# expected-artifacts.yaml pin is already green and is kept as a regression guard.
+# ---------------------------------------------------------------------------
+def test_manifest_edit_still_selects_dossier_regression_guard(router: Router) -> None:
+    """#6166 T0 (green guard): an ``expected-artifacts.yaml`` edit selects ``dossier``.
+
+    Closed by #6131 (issue #6125) via the ``mission_manifest`` fan-out; the #6153
+    symptom was a ``dossier`` manifest assertion reaching ``main`` unrun. Pinned to
+    the exact historical path so a future routing change cannot silently drop it.
+    """
+    manifest = "packs/built-in/missions/software-dev/expected-artifacts.yaml"
+    assert "dossier" in select_modules([manifest], router=router)
+
+
+def test_mission_step_prompt_edit_selects_next(router: Router) -> None:
+    """#6166 T0 (red-first): a mission-step ``prompt.md`` edit selects the ``next`` module.
+
+    ``tests/next/test_discovery_step_contract.py`` executes the software-dev research
+    prompt through runtime resolution (it never names the pack path). #6114 edited the
+    prompt and #6156 broke on ``main`` because the router selected zero modules for
+    ``packs/built-in/missions/mission-steps/**`` (only the non-module ``corpus`` group
+    matched). RED on ``main`` (``select_modules`` == ``frozenset()``); green after task A.
+    """
+    prompt = "packs/built-in/missions/mission-steps/software-dev/research/prompt.md"
+    assert "next" in select_modules([prompt], router=router)
+
+
+def test_lifecycle_command_edit_selects_agent(router: Router) -> None:
+    """#6166 T0 (red-first): a ``cli/commands/lifecycle.py`` edit selects the ``agent`` module.
+
+    ``tests/agent/test_commands.py`` imports ``specify_cli.cli.commands.lifecycle``;
+    #6114 changed ``plan``'s signature and #6161 broke on ``main`` because the router
+    selected only ``cli`` (``lifecycle.py`` matches the ``cli`` group alone, and the
+    ``agent`` row's roots are ``src/specify_cli/agent_utils/**``). RED on ``main``
+    (``select_modules`` == ``{'cli'}``); green after task B.
+    """
+    lifecycle = "src/specify_cli/cli/commands/lifecycle.py"
+    assert "agent" in select_modules([lifecycle], router=router)
 
 
 def test_select_modules_single_src_group_selects_only_that_module(router: Router) -> None:

@@ -56,6 +56,23 @@ PROBE_GROUPS = frozenset({"any_src"})
 # be a registry module (pinned by tests/architectural/test_gate_selection_authority.py).
 GROUP_MODULE_FANOUT: dict[str, frozenset[str]] = {
     "mission_manifest": frozenset({"charter", "dossier", "specify_cli_runtime"}),
+    # #6166 task A -- mission pack content beyond expected-artifacts.yaml (the mission-step
+    # prompt/step contracts, per-type templates, mission yaml). Every module whose tests read
+    # that content, so a pack edit runs them per-PR instead of selecting zero (the #6156 class).
+    #   charter            -- reads mission-step prompt.md BODIES + mission.yaml + templates and
+    #                         asserts on their content (tests/charter_offering prompt-walk/emptiness).
+    #   next               -- runtime-resolves the prompts (spec-kitty next) and reads prompt.md
+    #                         directly (tests/next discovery-step contract -- the #6156 break).
+    #   missions           -- globs the real mission-steps prompt.md + loads mission.yaml.
+    #   execution_context  -- inherits tests/runtime (resolve_command -> mission-steps prompt.md).
+    #   dossier            -- reads expected-artifacts.yaml manifests (the #6153 class).
+    #   specify_cli_runtime-- owns src/charter/offering/missions/**; its tests read real manifests.
+    "mission_pack_content": frozenset({"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime"}),
+    # #6166 task B -- src/specify_cli/cli/commands/lifecycle.py already routes to `cli`; add the
+    # modules whose tests exercise it but that `cli` does not reach:
+    #   agent     -- tests/agent/test_commands.py imports specify_cli.cli.commands.lifecycle (the #6161 break).
+    #   core_misc -- tests/specify_cli/design imports the same lifecycle command module.
+    "cli_lifecycle": frozenset({"agent", "core_misc"}),
 }
 
 _GROUP_REF = re.compile(r"needs\.changes\.outputs\.([A-Za-z0-9_]+)")

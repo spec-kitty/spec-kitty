@@ -320,7 +320,18 @@ def needs_declaration_violations(model: gc.WorkflowModel) -> list[str]:
 #   BY DESIGN: ``select_modules`` fans it out to charter/dossier/specify_cli_runtime
 #   (``GROUP_MODULE_FANOUT``), so the module matrix is its per-PR executor. Pinned
 #   by tests/architectural/test_gate_selection_authority.py.
-_DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset({"any_src", "ci", "scenarios", "acceptance_jvm", "mission_manifest"})
+#
+# * ``mission_pack_content`` + ``cli_lifecycle`` (#6166) — the consumer-fanout groups for
+#   mission pack content (beyond expected-artifacts.yaml) and for
+#   ``cli/commands/lifecycle.py``. Both gate no router job BY DESIGN:
+#   ``select_modules`` fans each out to the modules whose tests read/exercise the
+#   changed surface (``GROUP_MODULE_FANOUT``), so the module matrix is their per-PR
+#   executor. ``cli_lifecycle``'s glob is ``**/``-prefixed (not ``src/...``), so the
+#   group is non-src and stays out of the ``unmatched`` union. Both are pinned by
+#   tests/architectural/test_gate_selection_authority.py.
+_DELIBERATELY_UNGATED_FILTER_GROUPS = frozenset(
+    {"any_src", "ci", "scenarios", "acceptance_jvm", "mission_manifest", "mission_pack_content", "cli_lifecycle"}
+)
 
 
 def test_every_literal_cov_target_is_live() -> None:
