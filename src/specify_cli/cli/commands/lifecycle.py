@@ -249,7 +249,7 @@ def plan(
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
     owned_checkout: OwnedCheckoutOption = None,
 ) -> None:
-    """Scaffold plan.md for a feature."""
+    """Scaffold plan.md for a Mission."""
     _enforce_initialized(json_output=json_output)
     mission_slug = _require_mission_or_exit(mission, json_output=json_output)
     # #5882: the top-level `plan` wrapper is a thin delegate to the owned-aware
@@ -257,14 +257,15 @@ def plan(
     # owned selector so the plan authoring path honours an owned single-branch
     # checkout instead of resolving the primary. `setup_plan` performs the single
     # ownership validation/refusal; a non-owned run passes `None` and is
-    # unchanged. The interactive widen interview below stays primary-keyed and is
-    # already skipped in `--json` (agent) mode, which is the owned-flow path;
-    # owned-aware interactive interview resolution is tracked as a follow-up.
+    # unchanged.
     agent_feature.setup_plan(feature=mission_slug, json_output=json_output, owned_checkout=owned_checkout)
 
     # FR-002: Wire widen-enabled interview for the plan flow.
     # Only run in interactive (non-JSON) mode so agent/script callers are unaffected.
-    if not json_output:
+    # The interview resolves the repository root checkout and has no owned seam, so
+    # with an owned checkout it would record Decision Moments into R's copy of the
+    # Mission while plan.md went to P; skip it there (owned-aware interview: #6143).
+    if not json_output and owned_checkout is None:
         import pathlib
 
         from specify_cli.missions.plan.plan_interview import run_plan_interview

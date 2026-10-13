@@ -13,6 +13,7 @@ from specify_cli.asset_preservation import guard_destructive_overwrite
 from specify_cli.cli import StepTracker
 from specify_cli.cli.commands._owned_checkout import (
     OwnedCheckoutOption,
+    echo_stale_copy_warning,
     resolve_owned_or_refuse,
     success_false_envelope,
 )
@@ -223,6 +224,7 @@ def research(
     )
     if owned is not None:
         repo_root = owned.owned_root
+        echo_stale_copy_warning(owned)
 
     project_root = owned.owned_root if owned is not None else get_project_root_or_exit(repo_root)
 
