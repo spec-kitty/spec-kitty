@@ -27,6 +27,7 @@ import pytest
 
 from specify_cli.gitignore_manager import is_gitignore_path_ignored
 from specify_cli.upgrade.migrations.m_4_0_0rc7_track_charter_pack_yaml import (
+    CHARTER_PACK_YAML_ALLOW_RULE,
     TrackCharterPackYamlMigration,
 )
 
@@ -109,3 +110,17 @@ def test_warns_when_a_later_rule_still_ignores_pack_yaml(tmp_path: Path) -> None
     assert result.success is True
     assert is_gitignore_path_ignored(tmp_path, _PACK_YAML) is True
     assert any(_PACK_YAML in warning for warning in result.warnings)
+
+
+def test_unreadable_gitignore_fails_closed_without_aborting_the_upgrade(tmp_path: Path) -> None:
+    """A `.gitignore` that cannot be read (here: a directory) selects the
+    migration and yields an "add it by hand" warning instead of crashing."""
+    (tmp_path / ".gitignore").mkdir()
+    migration = TrackCharterPackYamlMigration()
+
+    assert migration.detect(tmp_path) is True
+    result = migration.apply(tmp_path)
+
+    assert result.success is True
+    assert not result.changes_made
+    assert result.warnings and CHARTER_PACK_YAML_ALLOW_RULE in result.warnings[0]
