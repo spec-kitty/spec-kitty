@@ -993,6 +993,15 @@ def test_gather_artifact_presence_reads_file_presence(tmp_path: Path, monkeypatc
     assert snapshot.status_facts["tasks_dir_is_dir"] is False
     assert snapshot.status_facts["wp_ids"] == ()
 
+    # An org/project whole-file manifest override that predates wps.yaml never
+    # lists it, yet the guard still requires it: presence must be gathered
+    # anyway, or the guard reports a file that is on disk as missing (#2642).
+    monkeypatch.setattr(io_seam, "_presence_filenames_for", lambda *_a, **_k: frozenset({"spec.md", "plan.md"}))
+    overridden = io_seam.gather_artifact_presence(
+        tmp_path, mission_family="software-dev", step_id="tasks_outline"
+    )
+    assert "wps.yaml" in overridden.present_artifacts
+
 
 def test_gather_artifact_presence_reads_research_md_presence(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch

@@ -87,7 +87,12 @@ from runtime.next import run_index
 from runtime.next import runtime_bridge_guards as _guards
 from runtime.next import runtime_bridge_identity as _identity
 from runtime.next.decision import AnalysisCurrency
-from runtime.next.runtime_bridge_cores import ANALYSIS_CURRENCY_FACT, ANALYZE_STEP_ID
+from runtime.next.runtime_bridge_cores import (
+    ANALYSIS_CURRENCY_FACT,
+    ANALYZE_STEP_ID,
+    TASKS_ARTIFACT,
+    TASKS_INDEX_ARTIFACT,
+)
 from runtime.next.run_index import FEATURE_RUNS_FILENAME
 from runtime.next.run_index import RunDirOutsideRepoError as RunDirOutsideRepoError  # re-export
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
@@ -1469,7 +1474,11 @@ def gather_artifact_presence(
 
     homes = _ArtifactPresenceHomes(feature_dir, _artifact_presence_seam(feature_dir, repo_root, owned=owned))
     present: set[str] = set()
-    for tag in _presence_filenames_for(mission_family, repo_root=repo_root):
+    # The tasks guards decide on these two files whatever the resolved manifest
+    # lists: an org/project whole-file override written before ``wps.yaml``
+    # existed would otherwise never gather it and deadlock the outline (#2642).
+    guard_required = {TASKS_ARTIFACT, TASKS_INDEX_ARTIFACT}
+    for tag in _presence_filenames_for(mission_family, repo_root=repo_root) | guard_required:
         if (homes.read_dir(tag) / tag).is_file():
             present.add(tag)
 
