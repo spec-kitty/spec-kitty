@@ -29,9 +29,8 @@ def test_job_is_not_a_pull_request_job(job: dict[str, Any]) -> None:
     assert "pull_request" not in str(job["if"])
 
 
-def test_gating_step_has_id_and_pass_property(job: dict[str, Any]) -> None:
+def test_gating_step_has_pass_property_and_no_retry(job: dict[str, Any]) -> None:
     (step,) = _steps_running(job, "-Pacceptance.pass=gating")
-    assert step.get("id")
     assert not step.get("continue-on-error")
 
 

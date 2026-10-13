@@ -5,6 +5,8 @@ Counts come from the JUnit XML of each pass folder under ``--root``
 (``<pass>/{allure-results,cucumber.json,junit}``), never from step outcomes.
 The bundle follows ``contracts/evidence.schema.json`` of the
 ``acceptance-scenario-contract`` Mission (schema_version 1). Stdlib only.
+
+``evidence.json`` is always written. The exit status is 1 unless the gating pass is ``passed`` (no JUnit XML, failures, or nothing executed).
 """
 
 from __future__ import annotations
@@ -18,7 +20,8 @@ from pathlib import Path
 from typing import Any
 
 SCHEMA_VERSION = 1
-PASSES = ("gating", "wip")
+GATING_NAME = "gating"
+PASSES = (GATING_NAME, "wip")
 COUNTERS = ("tests", "failures", "errors", "skipped")
 EVIDENCE_FILE = "evidence.json"
 ENVIRONMENT_FILE = "environment.properties"
@@ -67,16 +70,25 @@ def _junit_counts(junit_dir: Path) -> tuple[dict[str, int], bool]:
     return totals, bool(files)
 
 
-def _outcome(counts: dict[str, int], has_xml: bool) -> str:
+def _outcome(counts: dict[str, int], has_xml: bool, *, gating: bool = False) -> str:
+    """``missing`` without XML; ``failed`` on failures or errors.
+
+    A gating pass that executed no scenario (``tests - skipped == 0``) is ``failed``: a green
+    leg must not rest on nothing having run. The wip pass keeps ``passed`` for zero executed.
+    """
     if not has_xml:
         return "missing"
-    return "failed" if counts["failures"] + counts["errors"] > 0 else "passed"
+    if counts["failures"] + counts["errors"] > 0:
+        return "failed"
+    if gating and counts["tests"] - counts["skipped"] <= 0:
+        return "failed"
+    return "passed"
 
 
 def _pass_entry(root: Path, name: str) -> dict[str, Any]:
     counts, has_xml = _junit_counts(root / name / "junit")
     return {
-        "outcome": _outcome(counts, has_xml),
+        "outcome": _outcome(counts, has_xml, gating=name == GATING_NAME),
         **counts,
         "results": {
             "allure": f"{name}/allure-results",
@@ -138,6 +150,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     target = args.root / EVIDENCE_FILE
     target.write_text(json.dumps(bundle, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(f"wrote {target}")
+    outcome = bundle["passes"][GATING_NAME]["outcome"]
+    if outcome != "passed":
+        print(f"error: the {GATING_NAME} pass is {outcome} under {args.root}")
+        return 1
     return 0
 
 

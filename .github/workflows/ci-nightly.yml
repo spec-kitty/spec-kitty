@@ -1497,9 +1497,7 @@ jobs:
       # GATING run: the ratified scenarios (`-Pacceptance.pass=gating` selects
       # `not @wip and not @manual` and its own build/acceptance/gating/ folder) with
       # NO retry wrapper. A flake here fails the leg -- that IS the signal (NFR-005).
-      # The id lets later steps and the evidence bundle refer to this outcome.
       - name: Run the gating acceptance scenarios (no retries)
-        id: gating
         shell: bash
         run: gradle -p acceptance-jvm test --no-daemon -Pacceptance.pass=gating
 
@@ -1516,6 +1514,8 @@ jobs:
       # Evidence bundle (FR-011): one versioned evidence.json per leg, counted from
       # the JUnit XML of each pass folder (not from step outcomes). if: always() so
       # a red gating step still produces it; it is written under the uploaded root.
+      # The script writes evidence.json first, then exits non-zero unless the gating pass passed (no
+      # JUnit XML, failures, or no scenario executed), so a gating pass that never ran is a red leg.
       - name: Write the acceptance evidence bundle
         if: always()
         shell: bash
@@ -1524,8 +1524,9 @@ jobs:
       # Hand the per-pass results (allure-results, cucumber.json, junit) and
       # evidence.json to the spec-kitty-qa nightly under an OS-qualified name so
       # the three legs never collide. if: always() so a red gating run still
-      # uploads. The single path is the whole per-pass tree; if-no-files-found:
-      # error makes an empty upload a red leg rather than silent absence.
+      # uploads. The single path is the whole per-pass tree. The evidence step always
+      # writes evidence.json there, so if-no-files-found: error only fires when that
+      # step could not run at all (for example the Python environment failed to build).
       - name: Upload acceptance-bdd results (per-pass results and evidence.json)
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

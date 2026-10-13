@@ -144,10 +144,37 @@ def test_main_writes_evidence_json(tmp_path: Path, capsys: pytest.CaptureFixture
     assert "evidence.json" in capsys.readouterr().out
 
 
-def test_main_creates_missing_root(tmp_path: Path) -> None:
+def test_main_creates_missing_root_and_exits_nonzero(tmp_path: Path) -> None:
     root = tmp_path / "absent"
-    assert ev.main(["--root", str(root), "--os", "x"]) == 0
-    assert (root / "evidence.json").is_file()
+    assert ev.main(["--root", str(root), "--os", "x"]) == 1
+    written = json.loads((root / "evidence.json").read_text(encoding="utf-8"))
+    assert written["passes"]["gating"]["outcome"] == "missing"
+
+
+def test_gating_with_nothing_executed_fails(tmp_path: Path) -> None:
+    _make_pass(tmp_path, "gating", _suite(0))
+    assert ev.build_bundle(tmp_path, "x")["passes"]["gating"]["outcome"] == "failed"
+
+
+def test_gating_with_everything_skipped_fails(tmp_path: Path) -> None:
+    _make_pass(tmp_path, "gating", _suite(3, skipped=3))
+    assert ev.build_bundle(tmp_path, "x")["passes"]["gating"]["outcome"] == "failed"
+
+
+def test_wip_with_nothing_executed_still_passes(tmp_path: Path) -> None:
+    _make_pass(tmp_path, "wip", _suite(0))
+    assert ev.build_bundle(tmp_path, "x")["passes"]["wip"]["outcome"] == "passed"
+
+
+def test_main_exits_nonzero_for_empty_gating_but_writes_evidence(tmp_path: Path) -> None:
+    _make_pass(tmp_path, "gating", _suite(0))
+    assert ev.main(["--root", str(tmp_path), "--os", "x"]) == 1
+    assert (tmp_path / "evidence.json").is_file()
+
+
+def test_main_exits_zero_when_only_wip_is_missing(tmp_path: Path) -> None:
+    _make_pass(tmp_path, "gating", _suite(2))
+    assert ev.main(["--root", str(tmp_path), "--os", "x"]) == 0
 
 
 def test_nested_suites_not_double_counted(tmp_path: Path) -> None:
