@@ -105,6 +105,7 @@ this section at publish._
 
 ### Internal
 
+- **The charter activation layer gets its own entry-point seam, `charter.activation.api`, with a boundary gate** (#6200, #6188). External consumers should import activation through that module, as they do offering through `charter.offering.api`. A new gate, `test_runtime_charter_activation_boundary.py`, freezes the 236 existing direct reaches into activation internals as a shrink-only baseline: a new reach fails, and so does a baseline row left behind after its reach is drained.
 - **Start-up, glossary and the charter-offering ADR** (#5991, #3732, #5885). `spec-kitty --help` starts up faster by deferring heavy imports; the glossary now defines the charter offering, Charter Pack, activation preset, topic branch, Mission and Mission Run; and [ADR 2026-10-06-2](../adr/4.x/2026-10-06-2-charter-offering-active-charter-and-activation-presets.md) records the charter-offering model behind the cutover.
 - **The `spec-kitty init` promises now run every night on Linux, macOS and Windows as plain Gherkin scenarios** (#6053).
 - **Every pull request now checks the acceptance scenarios, and the nightly run keeps versioned evidence** (#6133, #6134, #6135, #6136). The always-on architectural fast gate parses each feature file, checks its tags and confirms every gating step matches exactly one step definition. The nightly job writes one folder per pass plus an `evidence.json` bundle, fails when a gating pass produced no results, and keeps the upload for 30 days.
