@@ -71,3 +71,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-10-12 | [the test baseline is captured at for_review, at the lane fork point, not at the claim](2026-10-12-1-baseline-captured-at-for-review-not-claim.md) |
 | 2026-10-12 | [the charter becomes an external contract package in its own repository](2026-10-12-2-charter-extraction-to-its-own-repository.md) |
 | 2026-10-13 | [acceptance scenarios link to product promises by identifier only; core checks the scenario contract per pull request and hands on versioned evidence](2026-10-13-1-acceptance-scenarios-link-to-promises-by-identifier-only.md) |
+| 2026-10-13 | [the event ledger is the publication seam, on by default, with a versioned row contract and local-log retention](2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md) |
