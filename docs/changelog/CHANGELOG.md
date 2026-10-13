@@ -39,6 +39,7 @@ this section at publish._
 ### Upgrade Notes
 
 - **Charter pack cutover: run `spec-kitty upgrade` once in each project before any other command** (#3732). It moves `.kittify/doctrine/` to `.kittify/charter-packs/`, rewrites the old config keys, re-enables newer built-ins (naming any key to set back if you had customized it), and removes the old skill copies (a skill you edited is kept). Upgrade and commit in the repository root checkout, then merge the target branch into each lane — never rebase. Replace `/ad-hoc-profile-load` with `/spk-charter-profile-load` in prompt files an earlier upgrade wrote. See the [runbook](../migrations/charter-pack-cutover.md).
+- **Commit `.kittify/charter-packs/pack.yaml` once after `spec-kitty upgrade`** (#6076). Do it from one clone; other clones delete their local copy and pull, so every contributor shares one `pack_id`.
 
 ### Added
 
@@ -86,6 +87,7 @@ this section at publish._
 - **Broken references in an org pack's `drg/fragment.yaml` now fail validation** (#5833). A `drg_dangling_edge` error names the file and endpoint; a cross-pack reference is reported as an advisory instead.
 - **Re-running charter synthesis after only upgrading spec-kitty no longer rewrites the synthesis manifest** (#5089). There is no longer a noisy no-op diff to review.
 - **The retrospective status event records a repository-relative path** (#5868). A consolidation no longer leaks your home directory into tracked history.
+- **The charter-pack cutover no longer hides the project `pack.yaml`, so its `pack_level` reaches every contributor** (#6076). **Before:** the cutover rewrote a consumer's old ignore rules into `.kittify/charter-packs/**` + `!.kittify/charter-packs/graph.yaml` with no allow-rule for `pack.yaml`, so the descriptor (carrying `pack_id` and `pack_level`) stayed ignored and each clone minted its own `pack_id`. **After:** the cutover adds `!.kittify/charter-packs/pack.yaml`, and `spec-kitty upgrade` adds it to an already-cutover project wherever the blanket rule is present; commit the file once. A `.gitignore` without the blanket rule, or that already allows `pack.yaml`, is untouched.
 
 ### Internal
 
