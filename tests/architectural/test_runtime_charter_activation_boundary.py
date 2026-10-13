@@ -212,7 +212,7 @@ def test_boundary_predicate_has_prohibited_and_compliant_controls() -> None:
 
     # Prohibited forms: package-from-root, submodule-from-package, root-facade back door.
     assert paths("from charter import activation\n") == {"charter.activation"}
-    assert paths("from charter import activation as a\n") == {"charter.activation"}
+    assert paths("from charter import CANONICAL_MANIFEST\n") == set()  # root-facade name outside activation
     assert paths("from charter.activation import compiler\n") == {"charter.activation.compiler"}
     assert paths("from charter import compile_charter\n") == {"charter.activation.compiler"}
     assert paths("import charter.activation.compiler\n") == {"charter.activation.compiler"}

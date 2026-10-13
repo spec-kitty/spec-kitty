@@ -2,7 +2,7 @@
 # (#6188 / owner epic #6099). Each entry is a pre-existing reach from an external
 # consumer into a charter.activation INTERNAL (seam charter.activation.api excluded).
 # Drain an entry by routing the consumer through charter.activation.api, delete the
-# entry, and lower the _baselines.yaml count. New reaches FAIL; drained reaches WARN.
+# entry, and lower the _baselines.yaml count. New reaches and stale (drained) rows FAIL.
 # Generated from the gate's own predicate; keep sorted.
 
 - file: src/glossary/drg_builder.py
