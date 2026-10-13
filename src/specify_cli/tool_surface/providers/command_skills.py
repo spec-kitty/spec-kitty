@@ -382,8 +382,12 @@ class CommandSkillsProvider:
         if not affected:
             return RepairResult(dry_run=dry_run)
         selections = tuple(SurfaceSelection(agent, next(s.instance.definition for s in statuses if s.instance.owner == agent)) for agent in affected)
-        # An explicit repair is the operator's consent to replace a drifted (edited) skill; only
-        # DRIFTED statuses populate it, so missing/stale paths never widen the overwrite set.
+        # overwrite_paths carries the operator's exact-path consent, consulted by the installer
+        # ONLY on the consent fall-through path -- when the command-skill surface is read at
+        # runtime as NOT DERIVED/IGNORED (#6155 item 2). On the normal DERIVED/IGNORED surface a
+        # drifted projection is regenerated unconditionally without consulting this consent, so
+        # here it only ever matters if that classification changes. Only DRIFTED statuses
+        # populate it, so missing/stale paths never widen the overwrite set.
         consent = ApplyConsent(
             automatic=True,
             overwrite_paths=tuple(sorted(s.instance.path.relative_to(project_root).as_posix() for s in statuses if s.state == STATE_DRIFTED)),

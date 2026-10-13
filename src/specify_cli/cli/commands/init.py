@@ -157,6 +157,12 @@ def _install_command_skill_agents(project: Path, agents: list[str]) -> bool:
                 ensure_project_skill_path(project)
             installed = len(report.added) + len(report.reused_shared)
             _console.print(f"[dim]{AI_CHOICES[agent_key]}: {installed} command skills installed[/dim]")
+            # #6155 item 1: name each drifted DERIVED command-skill projection regenerated here,
+            # so a replaced edit on this git-ignored surface is visible rather than silent.
+            from specify_cli.tool_surface.repair import REGENERATED_SURFACE_LINE  # noqa: PLC0415
+
+            for regenerated in report.regenerated:
+                _console.print(f"[dim]{REGENERATED_SURFACE_LINE.format(path=regenerated)}[/dim]")
         except Exception as exc:
             complete = False
             _console.print(f"[yellow]Warning:[/yellow] Could not install skills for {AI_CHOICES[agent_key]}: {exc}")

@@ -195,6 +195,12 @@ def _register_skill_agent(
             f"[green]✓[/green] Registered {agent_key} "
             f"({installed} command skills in .agents/skills/)"
         )
+        # #6155 item 1: name each drifted DERIVED command-skill projection regenerated here, so
+        # a replaced edit on this git-ignored surface is visible rather than silent.
+        from specify_cli.tool_surface.repair import REGENERATED_SURFACE_LINE  # noqa: PLC0415
+
+        for regenerated in report.regenerated:
+            console.print(f"[dim]{REGENERATED_SURFACE_LINE.format(path=regenerated)}[/dim]")
         return True, None
     except Exception as exc:
         return False, f"Failed to install {agent_key} skills: {exc}"

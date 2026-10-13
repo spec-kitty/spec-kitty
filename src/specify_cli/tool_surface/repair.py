@@ -343,9 +343,25 @@ class DriftPolicySummary:
 
     created: list[Path] = field(default_factory=list)
     repaired: list[Path] = field(default_factory=list)
+    regenerated: list[Path] = field(default_factory=list)
     drifted_overwritten: list[Path] = field(default_factory=list)
     drifted_reported: list[Path] = field(default_factory=list)
     skipped: list[Path] = field(default_factory=list)
+
+
+#: Per-path notice for a regenerated DERIVED command-skill projection (#6155 item 1). Named
+#: once so ``init``/``agent config sync`` and ``upgrade`` all report the same line; the literal
+#: is clean of the terminology guard's gated terms.
+REGENERATED_SURFACE_LINE = "Regenerated a generated command skill that differed from the current version: {path}"
+
+
+def render_regenerated_surface_lines(summary: DriftPolicySummary) -> list[str]:
+    """One human line PER regenerated command-skill projection path (#6155 item 1).
+
+    Unlike the count-based buckets in :func:`render_surface_summary_lines`, each regenerated
+    path is named individually so a replaced edit on the git-ignored surface is visible.
+    """
+    return [REGENERATED_SURFACE_LINE.format(path=path) for path in summary.regenerated]
 
 
 def render_surface_summary_lines(summary: DriftPolicySummary) -> list[str]:
@@ -355,6 +371,10 @@ def render_surface_summary_lines(summary: DriftPolicySummary) -> list[str]:
     text (FR-007). Each bucket is reported as a *count*, never the raw list of
     :class:`~pathlib.Path` objects. Returns one line per non-empty bucket, in a
     stable order; the caller is responsible for the drift-exit control flow.
+    Regenerated command skills (#6155) are named per-path by the separate
+    :func:`render_regenerated_surface_lines`, which callers that fill
+    ``summary.regenerated`` (``upgrade``) invoke directly; the ``run_surface_repair``
+    path never fills that bucket, so it is intentionally not folded in here.
     """
     lines: list[str] = []
     if summary.created:

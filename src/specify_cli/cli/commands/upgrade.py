@@ -431,6 +431,7 @@ def _surface_repair_payload(
         return {
             "created": [],
             "repaired": [],
+            "regenerated": [],
             "drifted_overwritten": [],
             "drifted_reported": [],
             "skipped": [],
@@ -438,6 +439,7 @@ def _surface_repair_payload(
     return {
         "created": [str(path) for path in summary.created],
         "repaired": [str(path) for path in summary.repaired],
+        "regenerated": [str(path) for path in summary.regenerated],
         "drifted_overwritten": [str(path) for path in summary.drifted_overwritten],
         "drifted_reported": [str(path) for path in summary.drifted_reported],
         "skipped": [str(path) for path in summary.skipped],
@@ -994,12 +996,20 @@ def _render_text_report(
     left_uncommitted: bool,
     project_path: Path,
     dry_run: bool,
+    surface_repair_summary: DriftPolicySummary | None = None,
 ) -> None:
     """Render a completed run in text mode, for both the migrations and no-migrations paths."""
     if outcome.had_migrations:
         _display_upgrade_results(outcome.result)
     for notice in outcome.notices():
         console.print(notice, style="dim", markup=False, highlight=False)
+    # #6155 item 1: name each regenerated DERIVED command-skill projection. These are owned by
+    # the surface-repair summary (not the outcome), so this does not assemble outcome messages.
+    if surface_repair_summary is not None:
+        from specify_cli.tool_surface.repair import render_regenerated_surface_lines  # noqa: PLC0415
+
+        for regenerated_line in render_regenerated_surface_lines(surface_repair_summary):
+            console.print(regenerated_line, markup=False, highlight=False)
     # Dry-run parity: the finalizer provisions mission_type_activations on BOTH paths, so an
     # up-to-date project still missing the key is seeded on a real run; a dry run must preview
     # that too (no-op for --json and outside dry-run). A no-op keeps it after the closing line;
@@ -1154,6 +1164,26 @@ def _preserved_for_consent(prepared: PreparedUpgradeRepairs) -> dict[Path, str]:
     return preserved
 
 
+def _regenerated_paths(prepared: PreparedUpgradeRepairs) -> set[Path]:
+    """Destinations of drifted DERIVED command-skill projections regenerated this run (#6155).
+
+    The command-skill installer stamps a ``regenerated`` ``report_kind`` on the
+    ``PreparedCommand`` of each drifted git-ignored projection it rewrote to the canonical
+    render (see ``command_installer._CommandBatch``), so these are reported per-path rather than
+    folded into the ``repaired`` count. The path is built the same way an effect's
+    ``destination`` is, so membership against ``effect.destination`` matches.
+    """
+    from specify_cli.skills.command_installer import PreparedCommands  # noqa: PLC0415
+
+    regenerated: set[Path] = set()
+    for owner in prepared.owners:
+        payload = owner.prepared
+        if not isinstance(payload, PreparedCommands):
+            continue
+        regenerated.update(owner.root.path.joinpath(*command.path.split("/")) for command in payload.commands if command.report_kind == "regenerated")
+    return regenerated
+
+
 def _apply_prepared_surface_repairs(outcome: UpgradeOutcome, ctx: _FinalizerRenderContext, prepared: PreparedUpgradeRepairs) -> SurfaceRepairReport:
     """Apply the prepared repairs and report drift, failures and the summary the JSON payload reads."""
     from specify_cli.upgrade.assessment import apply_upgrade_repairs
@@ -1161,10 +1191,17 @@ def _apply_prepared_surface_repairs(outcome: UpgradeOutcome, ctx: _FinalizerRend
 
     results = apply_upgrade_repairs(prepared)
     succeeded = {effect_id for result in results for effect_id in result.succeeded}
+    regenerated = _regenerated_paths(prepared)
     summary = DriftPolicySummary()
     for effect in prepared.effects:
-        if effect.id in succeeded:
-            (summary.created if effect.action == "create" else summary.repaired).append(effect.destination)
+        if effect.id not in succeeded:
+            continue
+        if effect.destination in regenerated:
+            summary.regenerated.append(effect.destination)
+        elif effect.action == "create":
+            summary.created.append(effect.destination)
+        else:
+            summary.repaired.append(effect.destination)
     drifted_reasons = _preserved_for_consent(prepared)
     summary.drifted_reported.extend(drifted_reasons)
     ctx.surface_repair_summary = summary
@@ -2123,6 +2160,7 @@ def upgrade(
             left_uncommitted=left_uncommitted,
             project_path=project_path,
             dry_run=dry_run,
+            surface_repair_summary=surface_repair_summary,
         )
 
     # D-5 — the exit code is derived exactly once, here, from the finalized
