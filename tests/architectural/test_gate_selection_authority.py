@@ -23,8 +23,10 @@ import pytest
 
 from scripts.ci.gate_selection import (
     DEFAULT_ROUTER_PATH,
+    GROUP_MODULE_FANOUT,
     GateSelection,
     Router,
+    _registry_module_names,
     load_router,
     select_gates,
     select_modules,
@@ -73,6 +75,8 @@ def test_corpus_only_diff_selects_zero_code_shards(router: Router) -> None:
     selection = select_gates(["packs/built-in/missions/foo.md"], router=router)
     assert selection.selected_code_shards == frozenset()
     assert not selection.unmatched_src
+    # File-specific manifest routing (#6125) must not broaden to the whole missions tree.
+    assert select_modules(["packs/built-in/missions/foo.md"], router=router) == frozenset()
 
 
 def test_src_group_diff_selects_its_group_and_heavy_arch(router: Router) -> None:
@@ -236,6 +240,23 @@ def test_manifest_edit_cannot_mask_an_unmapped_src_change(router: Router) -> Non
     manifest = "packs/built-in/missions/software-dev/expected-artifacts.yaml"
     assert select_gates([unmapped, manifest], router=router).unmatched_src is True
     assert select_modules([unmapped, manifest], router=router) == select_modules([], router=router, mode="full")
+
+
+_MANIFESTS = sorted((_REPO_ROOT / "packs/built-in/missions").glob("*/expected-artifacts.yaml"))
+
+
+@pytest.mark.parametrize("manifest", [m.relative_to(_REPO_ROOT).as_posix() for m in _MANIFESTS])
+def test_manifest_edit_selects_charter_dossier_and_runtime(router: Router, manifest: str) -> None:
+    """#6125: a mission-manifest diff selects the modules whose tests read it, per-PR.
+
+    Before, it matched only the non-module ``corpus`` group and selected zero modules.
+    The fan-out targets must also be real registry modules, or they would drop silently.
+    """
+    assert _MANIFESTS, "no mission manifests found: the glob would make this gate vacuous"
+    required = frozenset({"charter", "dossier", "specify_cli_runtime"})
+    assert required <= select_modules([manifest], router=router)
+    assert GROUP_MODULE_FANOUT["mission_manifest"] == required
+    assert required <= _registry_module_names()
 
 
 def test_select_modules_single_src_group_selects_only_that_module(router: Router) -> None:
