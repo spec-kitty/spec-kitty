@@ -21,7 +21,12 @@ from typing import Any
 import tomllib
 import tomli_w
 
-__all__ = ["UnreadableTomlTableError", "write_toml_table_key"]
+# ``UnreadableTomlTableError`` is intentionally NOT in ``__all__``: no in-tree
+# caller catches it yet (the non-strict caller ``moments.py`` is slated for
+# removal, #6164), so exporting it trips the #470 symbol-level dead-code gate.
+# It stays a public module-level name kept alive by its own ``raise`` below, and
+# tests / future catchers import it directly.
+__all__ = ["write_toml_table_key"]
 
 
 class UnreadableTomlTableError(RuntimeError):
