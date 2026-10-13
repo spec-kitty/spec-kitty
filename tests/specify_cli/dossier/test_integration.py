@@ -737,12 +737,14 @@ class TestEdgeCasesCombined:
         assert dossier2.manifest is not None
         assert dossier2.completeness_status == 'complete'
 
-        # tasks.md is required at the 'tasks_outline' step, not 'plan'
+        # The 'tasks_outline' step is gated on its own artifact, wps.yaml; tasks.md
+        # belongs to the later 'tasks_packages' step (#6112), so it does not satisfy it.
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding='utf-8')
         dossier3 = indexer.index_feature(feature_dir, 'software-dev', step_id='tasks_outline')
         assert dossier3.manifest is not None
         assert dossier3.completeness_status == 'incomplete'
 
-        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding='utf-8')
+        (feature_dir / "wps.yaml").write_text("work_packages: []\n", encoding='utf-8')
         dossier4 = indexer.index_feature(feature_dir, 'software-dev', step_id='tasks_outline')
         assert dossier4.manifest is not None
         assert dossier4.completeness_status == 'complete'
