@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from kernel.git import GitCommandError, run_git
+from kernel.git_topology import GitTopologyError, NotAGitRepositoryError
 from kernel.paths import repo_tree_path
 from mission_runtime import MissionArtifactKind, placement_seam
 from pydantic import ValidationError
@@ -19,7 +20,7 @@ from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
 from specify_cli.design.errors import DesignError
 from specify_cli.design.models import ArtifactInput, ReceiptSet
-from specify_cli.design.receipts import authoring_lock, content_digest, read_receipts, save_receipts
+from specify_cli.design.receipts import api_authoring_enabled, authoring_lock, content_digest, read_receipts, save_receipts
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter
 from specify_cli.mission import get_mission_type
 from specify_cli.missions._substantive import is_committed, is_substantive
@@ -28,56 +29,68 @@ from specify_cli.requirement_mapping.lint import lint_spec_requirement_ids
 from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.status import StoreError, tasks_are_finalized
 
+if TYPE_CHECKING:
+    from mission_runtime import OwnedCheckout
+
+
+def _tasks_finalized(repo_root: Path, mission_slug: str) -> bool:
+    status_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
+    try:
+        return bool(tasks_are_finalized(status_dir))
+    except StoreError as exc:
+        raise DesignError("DESIGN_STATUS_EVENT_LOG_UNREADABLE", "Canonical mission status cannot be trusted") from exc
+
 
 def require_unfinalized(repo_root: Path, mission_slug: str) -> None:
     """Any native finalized WP freezes all design writes through this surface."""
-    status_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
-    try:
-        finalized = tasks_are_finalized(status_dir)
-    except StoreError as exc:
-        raise DesignError("DESIGN_STATUS_EVENT_LOG_UNREADABLE", "Canonical mission status cannot be trusted") from exc
-    if finalized:
+    if _tasks_finalized(repo_root, mission_slug):
         raise DesignError("DESIGN_FINALIZED", "Finalized planning content requires the native reconciliation workflow")
 
 
-def guard_native_finalization(repo_root: Path, mission_slug: str) -> None:
-    """Refuse native ``finalize-tasks`` of an API-authored Mission with stale content (#5879).
+@contextmanager
+def _marker_gated_lock(repo_root: Path, mission_slug: str) -> Iterator[bool]:
+    """Hold the cooperative authoring lock and yield whether API authoring is enabled.
 
-    The marker-gated tasks-stage proof (``validate_stage``) previously ran only on
-    the orchestrator-api ``tasks`` verb, so native ``spec-kitty agent …
-    finalize-tasks`` could finalize an API-authored Mission whose planning content
-    was stale, unfinished, or carried unresolved decisions. Running it here makes
-    the native finalize surface enforce the same refusal, and acquires the
-    cooperative ``authoring_lock`` across the proof — closing the
-    writer-takes-no-lock half of the ADR ``2026-10-07-2`` race.
-
-    Marker-gated and first-finalize-only: a non-API-authored Mission (no marker) is
-    untouched, and an already-finalized Mission is not re-validated — its content
-    was proved at first finalization and API authoring is frozen, so re-validating
-    would raise a false stale verdict once finalization rewrote the work-package
-    frontmatter. The check is read-only; it never writes or advances state.
+    The marker is read INSIDE the lock, so a concurrent API writer cannot enable
+    authoring or change content between the proof and the guarded completion. A
+    path with no git repository cannot carry the marker (it lives in the git
+    common dir): nothing to enforce. Any other topology failure (git missing,
+    corrupt ``.git``, dubious ownership) refuses instead of failing open.
     """
-    from kernel.git_topology import GitTopologyError
-
-    from specify_cli.design.receipts import api_authoring_enabled, authoring_lock
-
+    stack = ExitStack()
     try:
-        enabled = api_authoring_enabled(repo_root, mission_slug)
-    except GitTopologyError:
-        # The API-authoring marker lives in the git common dir, so a path with no
-        # resolvable git repository cannot carry one — there is nothing to enforce.
-        # (The native finalize path owns any real git failure downstream.)
+        stack.enter_context(authoring_lock(repo_root, mission_slug))
+    except NotAGitRepositoryError:
+        yield False
         return
-    if not enabled:
-        return
-    status_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.STATUS_STATE)
-    with authoring_lock(repo_root, mission_slug):
-        try:
-            finalized = tasks_are_finalized(status_dir)
-        except StoreError as exc:
-            raise DesignError("DESIGN_STATUS_EVENT_LOG_UNREADABLE", "Canonical mission status cannot be trusted") from exc
-        if not finalized:
-            validate_stage(repo_root, mission_slug, "tasks")
+    except GitTopologyError as exc:
+        raise DesignError("DESIGN_IO_FAILED", "Git topology is unavailable, so API-authored content cannot be verified") from exc
+    with stack:
+        yield api_authoring_enabled(repo_root, mission_slug)
+
+
+@contextmanager
+def api_authoring_completion_gate(repo_root: Path, mission_slug: str, *, owned: OwnedCheckout | None = None) -> Iterator[None]:
+    """Native-completion gate for an API-authored Mission (#5879): prove, then complete.
+
+    Holds the authoring lock across the read-only stale/unfinished-content proof
+    of the natively issued stage AND the caller's completion, so an API writer
+    cannot change content in between. Raises ``DesignError`` before the body runs
+    (no mutation on refusal). A Mission without the marker, or whose tasks are
+    already finalized (later native edits are the reconciliation workflow's), is
+    not re-proved.
+    """
+    from runtime.next.runtime_bridge_query import MissionNotFoundError, issued_step_id_for_mission
+
+    with _marker_gated_lock(repo_root, mission_slug) as enabled:
+        if enabled and not _tasks_finalized(repo_root, mission_slug):
+            try:
+                issued_stage = issued_step_id_for_mission(mission_slug, repo_root, owned=owned)
+            except MissionNotFoundError as exc:
+                raise DesignError("DESIGN_PREREQUISITES_FAILED", "Native issued state is unavailable") from exc
+            if issued_stage in ("specify", "plan", "tasks"):
+                validate_stage(repo_root, mission_slug, issued_stage)
+        yield
 
 
 def _validate_manifest_graph(manifest: WpsManifest, mission_dir: Path) -> None:
@@ -269,3 +282,22 @@ def finalization_scope(repo_root: Path, mission_slug: str) -> Iterator[Finalizat
                 if receipt.kind == "work_package":
                     receipt.sha256 = content_digest(artifact_path(repo_root, mission_slug, receipt.kind, receipt.artifact_id))
             save_receipts(repo_root, mission_slug, receipts)
+
+
+@contextmanager
+def native_finalization_scope(repo_root: Path, mission_slug: str) -> Iterator[FinalizationScope | None]:
+    """Run native ``finalize-tasks`` of an API-authored Mission inside ``finalization_scope`` (#5879).
+
+    Yields ``None`` (nothing enforced, nothing re-stamped) for a Mission without
+    the API-authoring marker or whose tasks are already finalized. Otherwise the
+    stale-content proof runs before any mutation, the lock is held across the
+    finalize, and the caller's ``confirm`` on success re-stamps the work-package
+    receipts to the bytes finalization wrote. The lock is reentrant, so the
+    orchestrator-api ``tasks`` verb may nest its own scope around this one.
+    """
+    with _marker_gated_lock(repo_root, mission_slug) as enabled:
+        if not enabled or _tasks_finalized(repo_root, mission_slug):
+            yield None
+            return
+        with finalization_scope(repo_root, mission_slug) as scope:
+            yield scope

@@ -36,6 +36,8 @@ from mission_runtime import MissionArtifactKind, placement_seam
 # behind ``_owned_checkout``'s own lazy imports so the ``next --help`` no-op
 # path never loads them (tests/specify_cli/next/test_next_import_footprint.py).
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from mission_runtime import OwnedCheckout
     from runtime.next.decision import AnalysisCurrency, AnalysisVerdict
     from specify_cli.context.mission_resolver import MissionListing
@@ -164,56 +166,34 @@ def _emit_design_refusal(exc: object, mission_slug: str, json_output: bool) -> N
         print(f"Error: {message} ({code})", file=sys.stderr)
 
 
-def _enforce_api_authoring_completion_gate(
+@contextlib.contextmanager
+def _api_authoring_completion_gate(
     mission_slug: str,
     repo_root: object,
     json_output: bool,
     *,
+    result: str | None,
     owned: OwnedCheckout | None,
-) -> None:
-    """Refuse native completion of an API-authored Mission with stale content (#5879).
+) -> Iterator[None]:
+    """Render ``design.validation.api_authoring_completion_gate`` refusals (#5879).
 
-    The marker-gated stale/unfinished-content proof (``validate_stage``) used to
-    run only on the orchestrator-api ``next`` path, so a user could bypass the
-    API-authoring contract by switching to native ``spec-kitty next
-    --result success``. Running it here makes the native surface enforce the same
-    refusal, and the orchestrator-api verb inherits it because that verb drives
-    ``next_step`` in-process (one canonical authority). The check is read-only and
-    runs before any runtime mutation; the stage validated is the native persisted
-    ``issued_step_id``, never a caller-supplied stage. Non-API-authored Missions
-    (no marker) keep byte-identical native behavior.
+    Only a ``--result success`` completion is gated. The authority (marker, lock,
+    proof) lives in the design seam; a refusal is surfaced here as the
+    single-JSON error contract and ``typer.Exit(1)`` BEFORE the body mutates.
     """
-    from kernel.git_topology import GitTopologyError
-    from runtime.next.runtime_bridge_query import MissionNotFoundError, issued_step_id_for_mission
-
+    if result != "success":
+        yield
+        return
     from specify_cli.design.errors import DesignError
-    from specify_cli.design.receipts import api_authoring_enabled, authoring_lock
-    from specify_cli.design.validation import validate_stage
+    from specify_cli.design.validation import api_authoring_completion_gate
 
-    root = Path(str(repo_root))
-    try:
-        enabled = api_authoring_enabled(root, mission_slug)
-    except GitTopologyError:
-        # The API-authoring marker lives in the git common dir; a path with no
-        # resolvable git repository cannot carry one, so there is nothing to
-        # enforce here (the native authority owns any real git failure).
-        return
-    if not enabled:
-        return
-    try:
-        with authoring_lock(root, mission_slug):
-            issued_stage = issued_step_id_for_mission(mission_slug, root, owned=owned)
-            if issued_stage in {"specify", "plan", "tasks"}:
-                validate_stage(root, mission_slug, issued_stage)
-    except MissionNotFoundError as exc:
-        # Fail closed, matching the refusal the orchestrator-api path has always
-        # raised here: a marker-enabled Mission whose native issued state cannot
-        # be resolved must not complete, not silently proceed.
-        _emit_design_refusal(DesignError("RUNTIME_NEXT_FAILED", "Native issued state is unavailable"), mission_slug, json_output)
-        raise typer.Exit(1) from exc
-    except DesignError as exc:
-        _emit_design_refusal(exc, mission_slug, json_output)
-        raise typer.Exit(1) from exc
+    with contextlib.ExitStack() as stack:
+        try:
+            stack.enter_context(api_authoring_completion_gate(Path(str(repo_root)), mission_slug, owned=owned))
+        except DesignError as exc:
+            _emit_design_refusal(exc, mission_slug, json_output)
+            raise typer.Exit(1) from exc
+        yield
 
 
 def _legacy_main_repo_guard() -> None:
@@ -370,53 +350,50 @@ def next_step(
         # (no ``mission_id``) still proceeds, with an advisory backfill nudge.
         _maybe_emit_backfill_nudge(mission_slug, repo_root, owned=owned)
     _validate_result_and_answer(result, answer, json_output)
-    # #5879: for an API-authored Mission, enforce the marker-gated stale/unfinished
-    # content refusal on native completion, matching the orchestrator-api path. It
-    # runs BEFORE any mutation — including the decision-answer persistence and
-    # run-start in ``_maybe_handle_answer`` below — so a refused completion leaves
-    # no side effect. The validated stage is the native persisted ``issued_step_id``
-    # (``decide_next`` has not advanced yet), so answering an input to ISSUE a stage
-    # is unaffected.
-    if result == "success":
-        _enforce_api_authoring_completion_gate(mission_slug, repo_root, json_output, owned=owned)
-    answered_id = _maybe_handle_answer(
-        agent,
-        mission_slug,
-        answer,
-        decision_id,
-        repo_root,
-        json_output,
-        owned=owned,
-    )
-
-    # Query mode: bare call without --result remains read-only and does not
-    # require agent identity.
-    if result is None:
-        _dispatch_query_mode(
+    # #5879: for an API-authored Mission, a ``--result success`` completion first
+    # proves the issued stage's content (stale/unfinished refusal) and holds the
+    # authoring lock across the completion below, so a refusal leaves no side
+    # effect (it precedes the decision-answer persistence and run-start in
+    # ``_maybe_handle_answer``) and a concurrent API writer cannot slip in.
+    with _api_authoring_completion_gate(mission_slug, repo_root, json_output, result=result, owned=owned):
+        answered_id = _maybe_handle_answer(
             agent,
             mission_slug,
+            answer,
+            decision_id,
+            repo_root,
+            json_output,
+            owned=owned,
+        )
+
+        # Query mode: bare call without --result remains read-only and does not
+        # require agent identity.
+        if result is None:
+            _dispatch_query_mode(
+                agent,
+                mission_slug,
+                repo_root,
+                json_output,
+                answered_id,
+                answer,
+                owned=owned,
+            )
+            return  # No event emitted, no DAG advancement
+
+        if not agent:
+            print("Error: --agent is required when --result is provided", file=sys.stderr)
+            raise typer.Exit(1)
+
+        _dispatch_advancing_mode(
+            agent,
+            mission_slug,
+            result,
             repo_root,
             json_output,
             answered_id,
             answer,
             owned=owned,
         )
-        return  # No event emitted, no DAG advancement
-
-    if not agent:
-        print("Error: --agent is required when --result is provided", file=sys.stderr)
-        raise typer.Exit(1)
-
-    _dispatch_advancing_mode(
-        agent,
-        mission_slug,
-        result,
-        repo_root,
-        json_output,
-        answered_id,
-        answer,
-        owned=owned,
-    )
 
 
 def _dispatch_query_mode(

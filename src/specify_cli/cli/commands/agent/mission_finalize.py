@@ -52,6 +52,7 @@ are NOT relocated here — WP08 moves them to ``commit_router``.
 
 from __future__ import annotations
 
+import contextlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
@@ -60,9 +61,10 @@ import typer
 
 from specify_cli.cli.console import console as console
 from specify_cli.design.errors import DesignError
-from specify_cli.design.validation import guard_native_finalization
+from specify_cli.design.validation import native_finalization_scope
 
 if TYPE_CHECKING:
+    from specify_cli.design.validation import FinalizationScope
     from specify_cli.lanes.frozen_membership import FrozenLaneMembership
 from kernel.paths import repo_tree_path
 from mission_runtime import ActionContextError, MissionArtifactKind, OwnedRefusalCode
@@ -1085,27 +1087,28 @@ def _run_finalize_ownership_gates(
     )
 
 
-def _enforce_api_authored_native_finalize(
+def _enter_api_authored_finalize_scope(
+    stack: contextlib.ExitStack,
     repo_root: Path,
     mission_slug: str,
     *,
     validate_only: bool,
     refresh_planning_commit: bool,
     json_output: bool,
-) -> None:
-    """Refuse native finalize of an API-authored Mission with stale content (#5879).
+) -> FinalizationScope | None:
+    """Enter ``native_finalization_scope`` for an API-authored Mission (#5879).
 
-    Delegates the marker-gated, read-only proof to
-    ``design.validation.guard_native_finalization`` and renders a typed refusal
+    The scope proves the planning content is current before any mutation, holds
+    the authoring lock across the finalize, and re-stamps work-package receipts
+    once the caller confirms success. A typed ``DesignError`` refusal is rendered
     (machine-readable ``error_code``, matching the orchestrator-api path) before
-    raising ``typer.Exit``. Skipped for ``--validate-only`` and the pin-only
-    ``--refresh-planning-commit`` path. Extracted from ``finalize_tasks`` to keep
-    that entrypoint within the complexity ceiling.
+    ``typer.Exit``. Skipped (``None``) for ``--validate-only`` and the pin-only
+    ``--refresh-planning-commit`` path, which write no planning content.
     """
     if validate_only or refresh_planning_commit:
-        return
+        return None
     try:
-        guard_native_finalization(repo_root, mission_slug)
+        return stack.enter_context(native_finalization_scope(repo_root, mission_slug))
     except DesignError as de:
         if json_output:
             design_payload: dict[str, object] = {"result": "error", "error": de.message, "error_code": de.code}
@@ -1282,6 +1285,7 @@ def finalize_tasks(
     envelope_token = _OWNED_ENVELOPE_EXTRAS.set(None)
     # Every file this run writes is recorded as it is written; the except handlers restore only those, by compare-and-swap.
     write_ledger, ledger_token, observer_token = begin_write_ledger()
+    scope_stack = contextlib.ExitStack()
     try:
         ctx = _resolve_finalize_context(
             feature,
@@ -1298,11 +1302,12 @@ def finalize_tasks(
         planning_dir = ctx.planning_dir
 
         # #5879: an API-authored Mission must not be finalized natively with stale
-        # or unfinished planning content. Read-only; runs before any mutation
-        # (branch setup / writes below). The typed refusal raises ``typer.Exit``,
-        # which the ``except typer.Exit`` arm below re-raises as a no-op (nothing
-        # mutated yet).
-        _enforce_api_authored_native_finalize(
+        # or unfinished planning content, and native finalize re-stamps the
+        # work-package receipts it rewrites (as the orchestrator-api ``tasks`` verb
+        # does). Proof runs before any mutation; the refusal raises ``typer.Exit``,
+        # which the ``except typer.Exit`` arm below re-raises as a no-op.
+        finalize_scope = _enter_api_authored_finalize_scope(
+            scope_stack,
             repo_root,
             mission_slug,
             validate_only=validate_only,
@@ -1505,6 +1510,11 @@ def finalize_tasks(
             frozen=frozen,
             **({"owned": owned} if owned else {}),
         )
+        if finalize_scope is not None:
+            # The commit landed; accept finalize's resulting WP bytes as the
+            # receipts' lineage (closing the scope re-stamps under the lock).
+            finalize_scope.confirm({"result": "success"})
+            scope_stack.close()
 
     except typer.Exit:
         revert_error = _revert_unpersisted_target_branch_override(
@@ -1555,5 +1565,6 @@ def finalize_tasks(
         _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output, status_leftover=status_leftover, kept_files=kept_files)
         raise typer.Exit(1) from None
     finally:
+        scope_stack.close()
         end_write_ledger(ledger_token, observer_token)
         _OWNED_ENVELOPE_EXTRAS.reset(envelope_token)

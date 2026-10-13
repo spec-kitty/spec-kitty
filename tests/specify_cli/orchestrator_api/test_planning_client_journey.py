@@ -395,17 +395,30 @@ def _native_finalize(root: Path, mission: str) -> tuple[int, str]:
     return result.exit_code, result.stdout + result.stderr
 
 
-def _build_api_authored_tasks_stage(root: Path, mission_name: str) -> tuple[str, dict[str, str]]:
-    """Author a complete, valid API-authored tasks stage; return (slug, parents)."""
+def _build_api_authored_tasks_stage(root: Path, mission_name: str, *, issue_tasks: bool = False) -> tuple[str, dict[str, str]]:
+    """Author a complete, valid API-authored tasks stage; return (slug, parents).
+
+    With ``issue_tasks`` the native runtime is also walked to the issued ``tasks``
+    step, so a following native ``next --result success`` completes that stage.
+    """
     created = _call(root, "specify", "--mission", mission_name, "--mission-type", "software-dev", "--topology", "single_branch", "--policy", POLICY)["data"]
     mission = created["mission_slug"]
+    if issue_tasks:
+        assert _advance(root, mission)["step_id"] == "discovery"
     _interview(root, mission, "specify")
+    if issue_tasks:
+        _submit(root, mission, "specify", "research", "# Research\n\nThe README client uses the canonical local API.\n", {})
+        assert _advance(root, mission)["step_id"] == "specify"
     spec = _submit(root, mission, "specify", "specification", SPEC, {})
     _call(root, "design-validate", "--mission", mission, "--stage", "specify")
+    if issue_tasks:
+        assert _advance(root, mission)["step_id"] == "plan"
     _call(root, "plan", "--mission", mission, "--policy", POLICY)
     _interview(root, mission, "plan")
     plan = _submit(root, mission, "plan", "plan", PLAN, {"specification": spec["sha256"]})
     _call(root, "design-validate", "--mission", mission, "--stage", "plan")
+    if issue_tasks:
+        assert _advance(root, mission)["step_id"] == "tasks"
     parents = {"specification": spec["sha256"], "plan": plan["sha256"]}
     outline = _submit(root, mission, "tasks", "outline", OUTLINE, parents)
     _submit(root, mission, "tasks", "work_package", PROMPT, {**parents, "outline": outline["sha256"]}, "WP01")
@@ -431,12 +444,17 @@ def test_native_mission_finalize_refuses_api_authored_stale(tmp_path: Path) -> N
 
 def test_native_mission_finalize_accepts_api_authored_valid(tmp_path: Path) -> None:
     """#5879 guard is not over-eager: a valid, current API-authored Mission still
-    finalizes natively (the marker gate passes, no false refusal)."""
+    finalizes natively, and native finalize re-stamps the work-package receipts
+    it rewrote, so native ``next --result success`` at ``tasks`` then advances
+    instead of refusing forever with ``DESIGN_PARENT_STALE``."""
     root = _project(tmp_path)
-    mission, _ = _build_api_authored_tasks_stage(root, "native-finalize-valid")
+    mission, _ = _build_api_authored_tasks_stage(root, "native-finalize-valid", issue_tasks=True)
     exit_code, output = _native_finalize(root, mission)
     assert exit_code == 0, output
     assert '"result": "success"' in output, output
+    exit_code, payload = _native_next(root, mission, "--agent", "planning-client", "--result", "success")
+    assert exit_code == 0, payload
+    assert payload.get("step_id") == "analyze", payload
 
 
 def _configure_required_input(root: Path, step_id: str) -> None:
