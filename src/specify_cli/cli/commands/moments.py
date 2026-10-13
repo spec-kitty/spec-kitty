@@ -42,6 +42,7 @@ from ruamel.yaml.error import YAMLError
 
 from specify_cli.cli.console import console
 from specify_cli.core import hosted_posture
+from specify_cli.core.toml_table import UnreadableTomlTableError
 from specify_cli.zeitgeist_client import moments
 
 moments_app = typer.Typer(
@@ -102,12 +103,26 @@ def _print_effective(settings: moments.MomentSettings) -> None:
     console.print(f"{_EFFECTIVE_PREFIX}{settings.agents.value} ({settings.agents_source})", markup=False)
 
 
+def _write_agents_mode_or_exit(mode: moments.MomentsMode, *, scope: str, project_root: Path | None) -> Path:
+    """Shared write for ``on``/``off``: a present-but-unreadable config is
+    refused by the writer (#5451); reduce that to one markup-safe line naming
+    the file, exit 1, file left untouched -- the same contract as
+    ``drain on``/``drain off`` (``_drain_set``), never a traceback."""
+    try:
+        written: Path = moments.write_agents_mode(mode, scope=scope, project_root=project_root)
+    except UnreadableTomlTableError:
+        config_path = moments.repo_config_path(project_root) if project_root is not None else moments.global_config_path()
+        _drain_parse_error(config_path, "TOML")
+        raise typer.Exit(1) from None
+    return written
+
+
 @moments_app.command()
 def off(repo: bool = _REPO_SCOPE_OPTION) -> None:
     """Switch moments to agents OFF: nothing surfaces, and
     the internal agent-context bridge exits cleanly with one line."""
     scope, project_root = _resolve_scope(repo)
-    written = moments.write_agents_mode(moments.MomentsMode.OFF, scope=scope, project_root=project_root)
+    written = _write_agents_mode_or_exit(moments.MomentsMode.OFF, scope=scope, project_root=project_root)
     console.print(f"off — written to {written}", markup=False)
     _print_effective(moments.load_settings(project_root=project_root))
 
@@ -116,7 +131,7 @@ def off(repo: bool = _REPO_SCOPE_OPTION) -> None:
 def on(repo: bool = _REPO_SCOPE_OPTION) -> None:
     """Switch moments back ON at the documented default (`team`)."""
     scope, project_root = _resolve_scope(repo)
-    written = moments.write_agents_mode(moments.DEFAULT_AGENTS_MODE, scope=scope, project_root=project_root)
+    written = _write_agents_mode_or_exit(moments.DEFAULT_AGENTS_MODE, scope=scope, project_root=project_root)
     console.print(f"on — {moments.DEFAULT_AGENTS_MODE.value} written to {written}", markup=False)
     _print_effective(moments.load_settings(project_root=project_root))
 

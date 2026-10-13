@@ -21,12 +21,7 @@ from typing import Any
 import tomllib
 import tomli_w
 
-# ``UnreadableTomlTableError`` is intentionally NOT in ``__all__``: no in-tree
-# caller catches it yet (the non-strict caller ``moments.py`` is slated for
-# removal, #6164), so exporting it trips the #470 symbol-level dead-code gate.
-# It stays a public module-level name kept alive by its own ``raise`` below, and
-# tests / future catchers import it directly.
-__all__ = ["write_toml_table_key"]
+__all__ = ["UnreadableTomlTableError", "write_toml_table_key"]
 
 
 class UnreadableTomlTableError(RuntimeError):
@@ -54,12 +49,13 @@ def write_toml_table_key(
 
     A missing file (``FileNotFoundError``) always starts from an empty
     document -- there is nothing to preserve. An existing file that
-    ``tomllib`` cannot parse, or cannot be read for another OS-level reason,
+    ``tomllib`` cannot parse (including non-UTF-8 bytes, which surface as
+    ``UnicodeDecodeError``), or cannot be read for another OS-level reason,
     must NOT start from ``{}``: the whole-file rewrite below would then drop
     every other table and key. Both modes refuse rather than destroy data:
 
     * ``strict=True``: re-raises the original ``tomllib.TOMLDecodeError`` /
-      ``OSError`` and writes nothing. Used by a caller whose file carries
+      ``UnicodeDecodeError`` / ``OSError`` and writes nothing. Used by a caller whose file carries
       state it must never silently drop (e.g. the personal ``config.toml``'s
       ``[sync].server_url`` -- see ``hosted_posture.set_personal_drain``).
     * ``strict=False`` (the default, used by ``moments.write_agents_mode``):
@@ -73,7 +69,7 @@ def write_toml_table_key(
             document: dict[str, Any] = tomllib.load(fh)
     except FileNotFoundError:
         document = {}
-    except (tomllib.TOMLDecodeError, OSError) as error:
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError, OSError) as error:
         if strict:
             raise
         raise UnreadableTomlTableError(
