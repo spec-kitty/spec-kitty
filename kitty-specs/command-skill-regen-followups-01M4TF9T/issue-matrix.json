@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#5677": {
+      "evidence_ref": "Adjacent 'doctor --fix' overwrite-visibility issue (different code path); cited as file-and-link in research/PR, out of #6155's three items, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5710": {
+      "evidence_ref": "Adjacent stale-manifest/unsafe-symlink healing gap (different gap on same surface); cited as file-and-link, out of #6155's three items, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#5745": {
+      "evidence_ref": "Unresolved-drift exit code is explicitly out of #6155 scope (ADR 2026-10-04-3); this surface stops producing drift, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    },
+    "#6113": {
+      "evidence_ref": "<auto-classified: no action required>",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<auto-classified: pr_or_commit_ref>",
+      "verdict": "not-applicable",
+      "wp": null
+    },
+    "#6155": {
+      "evidence_ref": "Delivered by this mission (items 1-3); fix commits 3b7109fa,8c6dc4a3 on issue-6155-command-skill-regeneration-followups; PR #6160 Closes #6155",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#702": {
+      "evidence_ref": "Parent defect fixed by PR #6113 (merged to main); cited here as the prerequisite this mission extends, no work owed",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "not-applicable",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}

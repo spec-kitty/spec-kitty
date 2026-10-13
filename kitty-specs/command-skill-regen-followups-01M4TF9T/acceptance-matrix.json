@@ -1,0 +1,49 @@
+{
+  "mission_slug": "command-skill-regen-followups-01M4TF9T",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_upgrade_command_skill_drift.py::test_6155_regenerated_projection_named_once_human_and_json + test_6155_install_report_names_regenerated_path (human+--json surface_repair, exactly once; silent for in-sync/recorded-hash; exit+outcome unchanged)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T14:21:52.403431+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/skills/test_command_installer_derived_regeneration_702.py::test_6155_non_derived_class_keeps_drift_as_consent_required + test_6155_real_derived_class_regenerates_drift (runtime DERIVED/IGNORED gate; fall-through to consent)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T14:21:59.069575+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_command_installer_derived_regeneration_702.py overwrite-consent fall-through test + command_skills.py provider comment reconciled (overwrite_paths revived on non-adopt path)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T14:22:05.875975+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_command_installer_derived_regeneration_702.py::test_6155_retired_command_drifted_projection_is_pruned + _prune_preserves_unowned_spec_kitty_path + _prune_still_refuses_directory_at_projection_path (retired prune; directory refused; unowned preserved)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-13T14:22:12.171093+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

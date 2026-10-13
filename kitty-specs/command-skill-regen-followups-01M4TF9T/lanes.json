@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "mission_slug": "command-skill-regen-followups-01M4TF9T",
+  "mission_id": "01M4TF9T1Y9FXSZZRK1DDBEYV6",
+  "mission_branch": "issue-6155-command-skill-regeneration-followups",
+  "target_branch": "issue-6155-command-skill-regeneration-followups",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/cli/commands/agent/config.py",
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/cli/commands/upgrade.py",
+        "src/specify_cli/skills/command_installer.py",
+        "src/specify_cli/tool_surface/providers/command_skills.py",
+        "src/specify_cli/tool_surface/repair.py",
+        "tests/specify_cli/cli/commands/test_doctor_skills.py",
+        "tests/specify_cli/cli/commands/test_upgrade_command_skill_drift.py",
+        "tests/specify_cli/skills/test_command_installer.py",
+        "tests/specify_cli/skills/test_command_installer_derived_regeneration_702.py",
+        "tests/specify_cli/tool_surface/providers/test_command_skills.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-13T11:24:07.903808+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "fff614f5a669c3abae4257c75efe7a84e7632e26"
+}
