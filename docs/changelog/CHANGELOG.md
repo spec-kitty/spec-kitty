@@ -97,6 +97,7 @@ this section at publish._
 - **The pull-request mission-state audit always publishes every blocker, and a nightly run on `main` backstops it** (#6087, #6058).
 - **The 4.0.0 nightly interpreter, integration and contract shards are green again, and seven P0 escalations are closed** (#6024, #6025, #6026, #6027, #6028, #6029, #6030, #5989, #5990).
 - **Two dead `charter` modules were removed (`CharterParser`, `CharterSection` and `CharterTemplateResolver` leave the public names; nothing imported them), a credential-redaction test now drives the real clone path, and the acceptance-test harness was split into smaller pieces** (#6009, #5987, #6097).
+- **A mission-manifest edit now runs the `charter`, `dossier` and `specify_cli_runtime` tests per pull request, for maintainers** (#6125). `tests/dossier` used to run only nightly; a `dossier` CI module now runs it when dossier code or a manifest changes.
 - **Maintainers gain an internal-only `kitty-semi-auto` command; `packs/internal/` never ships to consumers** (#6055, #6057).
 
 ## [4.0.0rc6] - 2026-10-08
