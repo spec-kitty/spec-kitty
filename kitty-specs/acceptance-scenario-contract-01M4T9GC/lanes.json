@@ -1,0 +1,113 @@
+{
+  "version": 1,
+  "mission_slug": "acceptance-scenario-contract-01M4T9GC",
+  "mission_id": "01M4T9GCCX60YQ1DZ2W2R7H3H6",
+  "mission_branch": "kitty/mission-acceptance-scenario-contract-01M4T9GC",
+  "target_branch": "ccr-002603b2-bip646",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/adr/4.x/2026-10-13-1-acceptance-scenarios-link-to-promises-by-identifier-only.md",
+        "docs/adr/4.x/index.md",
+        "docs/development/page-inventory.yaml",
+        "docs/development/testing/acceptance-scenarios.md",
+        "tests/scenarios/README.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "acceptance-jvm/README.md",
+        "acceptance-jvm/build.gradle",
+        "acceptance-jvm/src/test/java/kitty/acceptance/environment/CliUnderTest.java",
+        "acceptance-jvm/src/test/java/kitty/acceptance/environment/RunMetadata.java",
+        "acceptance-jvm/src/test/java/kitty/acceptance/steps/RunHooks.java"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-nightly.yml",
+        "scripts/ci/acceptance_evidence.py",
+        "tests/ci/test_acceptance_bdd_job.py",
+        "tests/ci/test_acceptance_evidence.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        ".github/ci-module-registry.yml",
+        "scripts/ci/scenario_contract.py",
+        "tests/architectural/fixtures/scenarios/**",
+        "tests/architectural/test_scenario_contract.py",
+        "tests/ci/test_scenario_contract_reader.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "acceptance-jvm/src/test/java/kitty/acceptance/environment/MissionFixture.java",
+        "acceptance-jvm/src/test/java/kitty/acceptance/steps/ArrangeSteps.java",
+        "acceptance-jvm/src/test/java/kitty/acceptance/steps/AssertSteps.java",
+        "tests/scenarios/mission/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-d"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-10-13T09:36:15.417259+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "0068987181043c7c7f59d0fb4c0370dbdabbb561"
+}

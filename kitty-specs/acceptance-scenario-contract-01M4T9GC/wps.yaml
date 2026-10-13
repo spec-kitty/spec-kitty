@@ -1,0 +1,68 @@
+work_packages:
+  - id: WP01
+    title: "Scenario contract documentation and ADR acceptance"
+    dependencies: []
+    owned_files:
+      - "tests/scenarios/README.md"
+      - "docs/development/testing/acceptance-scenarios.md"
+      - "docs/adr/4.x/2026-10-13-1-acceptance-scenarios-link-to-promises-by-identifier-only.md"
+      - "docs/adr/4.x/index.md"
+      - "docs/development/page-inventory.yaml"
+    requirement_refs: [FR-001, FR-002, C-001, C-003, C-006]
+    plan_concern_refs: [IC-01]
+    subtasks: [T001, T002, T003]
+    prompt_file: "tasks/WP01-scenario-contract-docs.md"
+
+  - id: WP02
+    title: "Per-pass results and run metadata in acceptance-jvm"
+    dependencies: []
+    owned_files:
+      - "acceptance-jvm/build.gradle"
+      - "acceptance-jvm/src/test/java/kitty/acceptance/environment/CliUnderTest.java"
+      - "acceptance-jvm/src/test/java/kitty/acceptance/environment/RunMetadata.java"
+      - "acceptance-jvm/src/test/java/kitty/acceptance/steps/RunHooks.java"
+      - "acceptance-jvm/README.md"
+    requirement_refs: [FR-008, FR-009, NFR-004, C-002, C-004, C-005]
+    plan_concern_refs: [IC-02]
+    subtasks: [T004, T005, T006, T007]
+    prompt_file: "tasks/WP02-per-pass-results-and-metadata.md"
+
+  - id: WP03
+    title: "Evidence bundle script and nightly job"
+    dependencies: [WP02]
+    owned_files:
+      - "scripts/ci/acceptance_evidence.py"
+      - "tests/ci/test_acceptance_evidence.py"
+      - "tests/ci/test_acceptance_bdd_job.py"
+      - ".github/workflows/ci-nightly.yml"
+    requirement_refs: [FR-010, FR-011, NFR-003, NFR-004, SC-002, SC-003]
+    plan_concern_refs: [IC-03]
+    subtasks: [T008, T009, T010, T011]
+    prompt_file: "tasks/WP03-evidence-bundle-and-nightly-job.md"
+
+  - id: WP04
+    title: "Per-PR scenario contract check"
+    dependencies: [WP01]
+    owned_files:
+      - "scripts/ci/scenario_contract.py"
+      - "tests/architectural/test_scenario_contract.py"
+      - "tests/architectural/fixtures/scenarios/**"
+      - "tests/ci/test_scenario_contract_reader.py"
+      - ".github/ci-module-registry.yml"
+    requirement_refs: [FR-003, FR-004, FR-005, FR-006, FR-007, NFR-001, NFR-002, NFR-003, SC-001]
+    plan_concern_refs: [IC-04]
+    subtasks: [T012, T013, T014, T015, T016]
+    prompt_file: "tasks/WP04-per-pr-scenario-contract-check.md"
+
+  - id: WP05
+    title: "Mission state builders and mission-lifecycle scenarios"
+    dependencies: [WP02, WP04]
+    owned_files:
+      - "acceptance-jvm/src/test/java/kitty/acceptance/environment/MissionFixture.java"
+      - "acceptance-jvm/src/test/java/kitty/acceptance/steps/ArrangeSteps.java"
+      - "acceptance-jvm/src/test/java/kitty/acceptance/steps/AssertSteps.java"
+      - "tests/scenarios/mission/**"
+    requirement_refs: [FR-012, FR-013, C-002, SC-004]
+    plan_concern_refs: [IC-05]
+    subtasks: [T017, T018, T019]
+    prompt_file: "tasks/WP05-mission-builders-and-scenarios.md"
