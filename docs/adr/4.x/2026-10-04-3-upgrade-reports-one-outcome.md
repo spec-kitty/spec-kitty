@@ -3,7 +3,7 @@ title: 'ADR: a completed upgrade run reports one outcome'
 description: 'The upgrade outcome owns the kind, reasons, messages, JSON status, closing line and exit code of a run; presentation code reads them and cannot build its own.'
 status: Accepted
 date: '2026-10-04'
-updated: '2026-10-05'
+updated: '2026-10-13'
 ---
 
 **Status:** Accepted, except the exit-code rule for unresolved drift, which is the current contract and is **pending operator confirmation** in [#5745](https://github.com/spec-kitty/spec-kitty/issues/5745) (see [Open decision](#open-decision-exit-code-for-unresolved-drift)).
@@ -143,3 +143,11 @@ Consequences:
 - Every other managed surface (slash-command files, managed skills, agent profiles, plugin-bundle components) keeps Decision 5 unchanged, and so does removing a retired command's drifted projection, which is still kept as `consent_required`.
 - The exit code for unresolved drift (#5745) is unaffected; this surface simply no longer produces drift.
 
+
+### Follow-up 2026-10-13: the regenerate is named, gated and prunes retired drift (#6155, #6160)
+
+Three statements above no longer match the code. This note records what changed; the amendment text stays as written.
+
+- **A regenerated projection is named.** `init`, `upgrade` and `spec-kitty agent config sync` print one line per regenerated path, `Regenerated a generated command skill that differed from the current version: <path>`. `upgrade --json` lists the paths under `surface_repair.regenerated`, and `spec-kitty agent config sync --json` lists them under `regenerated` without printing the line. A regenerated path counts as installed in the `N command skills installed` count. The exit code and the upgrade outcome kind are unchanged. "Without a `Not updated, your local edit was kept` line" still holds: the line is a notice, not a kept-drift report.
+- **The regenerate checks the state contract when it runs.** The installer reads `shared_skills_projection` from `STATE_SURFACES` and regenerates only while that surface is `DERIVED` and git-`IGNORED`. Otherwise, including when the surface is missing from `STATE_SURFACES`, it fails closed to the exact-path consent path: a drifted projection is kept as `consent_required` unless the operator named it for overwrite.
+- **A retired command's drifted projection is pruned.** Under the same check, removing a retired command now deletes its drifted manifest-owned projection and its manifest entry, so the earlier consequence that it "is still kept as `consent_required`" no longer applies. A directory at the projection path is still refused, a path the manifest does not own is never touched, and an entry that other agents still own is narrowed to those owners while the file is left alone. Removing an agent (`spec-kitty agent config remove`) still refuses a drifted projection.

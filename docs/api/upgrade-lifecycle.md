@@ -75,6 +75,17 @@ regenerate it **idempotently to the canonical render**:
 - A hand edit to a `spec-kitty.*` command skill is replaced the same way. Put customizations in a
   skill of your own.
 - Your own, non-`spec-kitty` skills and files under `.agents/skills/` are never touched.
+- Each regenerated projection is named once: `Regenerated a generated command skill that
+  differed from the current version: <path>`. `upgrade --json` lists these paths under
+  `surface_repair.regenerated`, and `spec-kitty agent config sync --json` under `regenerated`
+  (without the human line). A regenerated skill counts as installed in the
+  `N command skills installed` line. The exit code is unchanged (#6155).
+- The regenerate only runs while the state contract still declares `shared_skills_projection`
+  `DERIVED` and git-`IGNORED`. If it does not, or the surface is missing, a drifted projection is
+  kept and reported for consent, like any other managed surface.
+- A **retired** command's drifted projection is removed together with its manifest entry. A
+  directory at that path is refused, a path the manifest does not own is never touched, and a
+  projection another configured agent still owns is left in place.
 
 **Fresh clone:** `.agents/skills/` is absent until it is produced by `init`/`upgrade`, or
 restored with `spec-kitty agent config sync --create-missing`. Its absence is expected, not a

@@ -3475,6 +3475,7 @@ pages:
     - {slug: "enforcement", text: "Enforcement", level: 3}
     - {slug: "follow-ups-not-in-scope", text: "Follow-ups, not in scope", level: 3}
     - {slug: "amendment-2026-10-13-the-shared-command-skill-projection-is-regenerated-not-kept-702", text: "Amendment 2026-10-13: the shared command-skill projection is regenerated, not kept (#702)", level: 2}
+    - {slug: "follow-up-2026-10-13-the-regenerate-is-named-gated-and-prunes-retired-drift-6155-6160", text: "Follow-up 2026-10-13: the regenerate is named, gated and prunes retired drift (#6155, #6160)", level: 3}
   - path: "docs/adr/4.x/2026-10-04-4-upgrade-writes-project-global-state-once.md"
     title: "ADR: upgrade writes project-global state once, in the repository root checkout"
     divio_type: "none"
