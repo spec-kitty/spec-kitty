@@ -266,6 +266,7 @@ def test_group_module_fanout_is_wired(router: Router) -> None:
     # (DIRECTIVE_003 -- the PR records the set + the per-module reason in gate_selection.py).
     assert GROUP_MODULE_FANOUT["mission_pack_content"] == frozenset({"charter", "next", "missions", "execution_context", "dossier", "specify_cli_runtime"})
     assert GROUP_MODULE_FANOUT["cli_lifecycle"] == frozenset({"agent", "core_misc"})
+    assert GROUP_MODULE_FANOUT["mission_type_definitions"] == frozenset({"charter", "core_misc", "upgrade"})
     for group, targets in GROUP_MODULE_FANOUT.items():
         assert group in router.filters, f"fan-out group {group!r} is not a router filter group"
         assert targets <= _registry_module_names(), f"fan-out targets of {group!r} are not all registry modules"
@@ -314,7 +315,56 @@ def test_lifecycle_command_edit_selects_agent(router: Router) -> None:
     (``select_modules`` == ``{'cli'}``); green after task B.
     """
     lifecycle = "src/specify_cli/cli/commands/lifecycle.py"
-    assert "agent" in select_modules([lifecycle], router=router)
+    selected = select_modules([lifecycle], router=router)
+    assert "agent" in selected
+    # The fan-out ADDS consumers; it must never displace the owning `cli` module.
+    assert "cli" in selected
+
+
+# #6166 landing review: the first cut of task A routed only mission-steps/**, the
+# per-type templates/** and mission.yaml, leaving 59 of the 177 tracked files under
+# packs/built-in/missions selecting zero modules -- consumed sub-trees among them.
+# One representative path per consumed sub-tree, pinned to a module whose test dirs
+# (.github/ci-module-registry.yml) read that sub-tree from the real built-in pack.
+_CONSUMED_PACK_SUBTREE_CASES = [
+    # runtime/next/runtime_bridge_io.py reads it; tests/next/test_plan_mission_runtime.py
+    # opens the real plan/software-dev mission-runtime.yaml.
+    ("packs/built-in/missions/plan/mission-runtime.yaml", "next"),
+    # tests/runtime/test_bridge_io.py + test_pack_runtime_template_parity.py (execution_context).
+    ("packs/built-in/missions/software-dev/mission-runtime.yaml", "execution_context"),
+    # tests/charter_offering/missions/test_repository.py asserts the real
+    # built-in/software-dev/actions/implement/index.yaml origin.
+    ("packs/built-in/missions/software-dev/actions/implement/index.yaml", "charter"),
+    # tests/charter_offering/mission_step_contracts + test_* load the shipped step contracts.
+    ("packs/built-in/missions/built_in_step_contracts/implement.step-contract.yaml", "charter"),
+    # tests/missions/test_mission_type_profile_resolution.py loads the shipped profiles.
+    ("packs/built-in/missions/software-dev/governance-profile.yaml", "missions"),
+    ("packs/built-in/missions/research/governance-profile.yaml", "charter"),
+    # tests/charter* (MissionTypeRepository.default), tests/core/test_mission_creation_identity.py
+    # (core_misc; default_missions_root()/"mission_types"), and
+    # tests/upgrade/test_activate_builtin_types_migration.py (copies the shipped *.yaml).
+    ("packs/built-in/missions/mission_types/software-dev.yaml", "charter"),
+    ("packs/built-in/missions/mission_types/software-dev.yaml", "core_misc"),
+    ("packs/built-in/missions/mission_types/plan.yaml", "upgrade"),
+]
+
+
+@pytest.mark.parametrize(("path", "module"), _CONSUMED_PACK_SUBTREE_CASES)
+def test_consumed_pack_subtree_edit_selects_its_consumer(router: Router, path: str, module: str) -> None:
+    """#6166 landing review (red-first): each consumed pack sub-tree selects its consumer module."""
+    assert (_REPO_ROOT / path).is_file(), f"{path} is not a tracked pack file: the pin would be vacuous"
+    assert module in select_modules([path], router=router)
+
+
+def test_non_consumed_pack_readme_still_selects_zero_modules(router: Router) -> None:
+    """A pack README no module test reads keeps selecting zero modules (no blanket glob).
+
+    ``packs/built-in/missions/README.md`` is named only in a docstring of an
+    architectural sweep (the always-on battery, not a module); no module test reads it.
+    """
+    readme = "packs/built-in/missions/README.md"
+    assert (_REPO_ROOT / readme).is_file()
+    assert select_modules([readme], router=router) == frozenset()
 
 
 def test_select_modules_single_src_group_selects_only_that_module(router: Router) -> None:
