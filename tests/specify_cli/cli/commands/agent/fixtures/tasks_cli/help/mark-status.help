@@ -1,4 +1,4 @@
-Usage: tasks mark-status [OPTIONS] TASK_IDS...
+Usage: tasks mark-status [OPTIONS] {task_ids}...
 Record subtask status for one or more tasks.
 Accepts multiple task IDs separated by spaces. Status is recorded in the
 mission event log. Use --wp when the same ID appears in more than one WP.
@@ -14,12 +14,12 @@ spec-kitty agent tasks mark-status T001 T002 --status done --json
 # When IDs repeat across work packages:
 spec-kitty agent tasks mark-status T001 --wp WP02 --status skipped
 Arguments
-* task_ids TASK_IDS... Task ID(s) - space-separated (e.g., T001 T002 T003) [required]
+* task_ids <str> Task ID(s) - space-separated (e.g., T001 T002 T003) [required]
 Options
-* --status TEXT Status: done/pending/skipped/not_applicable [required]
---mission TEXT Mission slug
---wp TEXT Work package containing the subtasks (e.g., WP02)
---owned-checkout PATH Explicit single-branch checkout root.
+* --status <str> Status: done/pending/skipped/not_applicable [required]
+--mission <str> Mission slug
+--wp <str> Work package containing the subtasks (e.g., WP02)
+--owned-checkout <path> Explicit single-branch checkout root.
 --auto-commit --no-auto-commit Automatically commit status events when supported (default: from project config)
 --json Output JSON format
 --help -h Show this message and exit.
