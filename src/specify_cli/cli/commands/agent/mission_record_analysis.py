@@ -333,8 +333,8 @@ def _run_report_only(
         feature_dir=write_feature_dir,
         body=body,
         analyzer_agent=analyzer_agent,
-        # Declaration-first target via the single command-entry producer (#6142):
-        # same meta.json read as before, but a non-ambient validated fallback.
+        # Target via the single command-entry producer (#6142). Its branch is the
+        # placement authority's, so record_report_transaction's placement re-check agrees.
         target_branch=owned.write_branch if owned else resolve_command_repo_target(feature_dir.name, repo_root=repo_root).target_branch,
         owned=owned,
     )
@@ -520,7 +520,7 @@ def record_analysis(
             repo_root=repo_root,
             mission_slug=_analysis_mission_slug,
             report_path=result.path,
-            # Declaration-first target via the single command-entry producer (#6142).
+            # Target via the single command-entry producer (#6142); same branch as placement.
             target_branch=owned.write_branch if owned else resolve_command_repo_target(_analysis_mission_slug, repo_root=repo_root).target_branch,
             owned=owned,
         )

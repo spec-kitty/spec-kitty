@@ -5,8 +5,10 @@ target (ADR ``docs/adr/4.x/2026-10-10-1``, Option B, Increment 1). These tests p
 resolution branch directly:
 
 * declaration present -> the declared ``target_branch`` + ``DECLARATION`` provenance;
-* declaration absent -> the configured primary branch via a ``VALIDATED_FALLBACK`` that
-  NEVER reads the ambient checked-out HEAD (the behaviour correction);
+* declaration absent -> the placement authority's fallback
+  (``get_feature_target_branch``) with ``VALIDATED_FALLBACK`` provenance, so the entry and
+  the placement seam give one answer (making that fallback independent of the checked-out
+  branch is follow-up #6152);
 * corrupt ``meta.json`` -> fail-closed (``MissionMetaReadError`` propagates);
 * invoked from a worktree -> ``repo_root`` is the canonical primary (worktree->primary
   collapse), never the raw worktree;
@@ -31,8 +33,8 @@ from specify_cli.core.paths import (
     MissionMetaReadError,
     UnsafePathSegmentError,
     WorkspaceRootNotFound,
+    get_feature_target_branch,
 )
-from specify_cli.core.git_ops import resolve_primary_branch
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -80,13 +82,12 @@ def test_declaration_present_wins_with_declaration_provenance(tmp_path: Path) ->
     assert result.provenance is TargetProvenance.DECLARATION
 
 
-def test_declaration_absent_falls_back_to_configured_primary_not_ambient(tmp_path: Path) -> None:
-    """The behaviour correction: ambient checked-out branch NEVER wins.
+def test_declaration_absent_delegates_to_the_placement_authority(tmp_path: Path) -> None:
+    """With no declared ``target_branch`` the entry's branch is the placement authority's.
 
-    With no declared ``target_branch`` and the checkout standing on a non-primary
-    branch, the entry resolves to the configured primary (``main``), not the ambient
-    branch. The contrast assertion documents the ambient seed the scattered call sites
-    carried (``resolve_primary_branch(..., bias=True)`` returned the checked-out branch).
+    In a repository with no ``origin/HEAD`` that authority currently answers the
+    checked-out branch; the entry follows it rather than inventing a second answer
+    (the non-ambient fallback is follow-up #6152).
     """
     repo = _init_repo(tmp_path / "repo")
     _write_mission_meta(repo, target_branch=None)
@@ -94,19 +95,17 @@ def test_declaration_absent_falls_back_to_configured_primary_not_ambient(tmp_pat
 
     result = resolve_command_repo_target(_SLUG, cwd=repo)
 
-    assert result.target_branch == "main"
+    assert result.target_branch == get_feature_target_branch(repo, _SLUG)
     assert result.provenance is TargetProvenance.VALIDATED_FALLBACK
-    # Contrast: the ambient seed the entry replaces returned the checked-out branch.
-    assert resolve_primary_branch(repo, bias=True) == "feature-x"
 
 
-def test_no_mission_dir_falls_back_to_configured_primary(tmp_path: Path) -> None:
+def test_no_mission_dir_delegates_to_the_placement_authority(tmp_path: Path) -> None:
     repo = _init_repo(tmp_path / "repo")  # no kitty-specs/<slug> at all
     _git(repo, "checkout", "-b", "feature-y")
 
     result = resolve_command_repo_target(_SLUG, cwd=repo)
 
-    assert result.target_branch == "main"
+    assert result.target_branch == get_feature_target_branch(repo, _SLUG)
     assert result.provenance is TargetProvenance.VALIDATED_FALLBACK
 
 
@@ -159,10 +158,10 @@ def test_unsafe_slug_is_rejected(tmp_path: Path) -> None:
         resolve_command_repo_target("../evil", repo_root=repo)
 
 
-def test_cornerstone_less_repo_fallback_is_not_the_ambient_branch(tmp_path: Path) -> None:
-    """Regression for the fallback hole: a repo with no origin/HEAD and no common branch,
-    standing on a feature branch, with no declared target, must NOT fall back to the
-    checked-out branch (the VALIDATED_FALLBACK contract)."""
+def test_cornerstone_less_repo_follows_the_placement_authority(tmp_path: Path) -> None:
+    """No ``origin/HEAD`` and no common primary branch, no declared target: the entry
+    answers what the placement authority answers and does not invent ``main`` (an
+    invented branch would disagree with the placement seam's write target)."""
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init", "--initial-branch=wip-ticket-123")  # no main/master/develop, no remote
@@ -177,10 +176,7 @@ def test_cornerstone_less_repo_fallback_is_not_the_ambient_branch(tmp_path: Path
     result = resolve_command_repo_target(_SLUG, cwd=repo.resolve())
 
     assert result.provenance is TargetProvenance.VALIDATED_FALLBACK
-    assert result.target_branch != "wip-ticket-123"
-    assert result.target_branch == "main"
-    # Document that the un-guarded ambient resolver WOULD have returned the feature branch.
-    assert resolve_primary_branch(repo.resolve(), bias=True) == "wip-ticket-123"
+    assert result.target_branch == get_feature_target_branch(repo.resolve(), _SLUG)
 
 
 def test_explicit_repo_root_nongit_does_not_raise(tmp_path: Path) -> None:

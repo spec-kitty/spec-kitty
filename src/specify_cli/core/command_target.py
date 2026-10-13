@@ -25,13 +25,15 @@ The "never ``Path.cwd()``" invariant (C-003 / #2647) is held **by construction**
 * the ``repo_root`` is always the canonical primary (worktree -> primary collapse, via the
   existing ``resolve_canonical_root`` / ``get_main_repo_root`` authorities), never a raw
   worktree;
-* the ``target_branch`` is resolved declaration-first (``read_target_branch_from_meta``)
-  with a non-ambient fallback (``resolve_primary_branch(..., bias=False)``, guarded against
-  that function's cornerstone-less last-resort recursion -- see
-  :func:`_validated_fallback_branch`) -- so the ambient checked-out branch is never
-  **returned** as the target, and "the ambient branch never wins when it disagrees with the
-  declaration" holds. The one ambient read on the fallback path is a defensive comparison
-  (to exclude the HEAD), never a use of it as the target.
+* the ``target_branch`` is the placement authority's answer
+  (:func:`specify_cli.core.paths.get_feature_target_branch`, the resolution
+  ``placement_seam(...).write_target(...)`` uses through ``resolve_placement_only``), so a
+  command handed this target and a transaction that re-checks placement always agree.
+  A declared ``meta.json`` ``target_branch`` wins over the checked-out branch. With no
+  declaration, the fallback is whatever the placement authority resolves today, which in a
+  repository without ``origin/HEAD`` can be the checked-out branch; making that fallback
+  independent of the checked-out branch changes the placement seam itself and is
+  follow-up #6152.
 
 Scope (Increment 1): this resolves the canonical declaration-first target. The
 worktree-preferring READ root stays owned by
@@ -46,11 +48,10 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import (
     assert_safe_path_segment,
+    get_feature_target_branch,
     get_main_repo_root,
-    read_target_branch_from_meta,
     resolve_canonical_root,
 )
 
@@ -65,11 +66,10 @@ class TargetProvenance(Enum):
     """Where a :class:`CommandRepoTarget`'s ``target_branch`` came from.
 
     ``DECLARATION`` -- read from the Mission's ``meta.json`` ``target_branch`` field.
-    ``VALIDATED_FALLBACK`` -- the field was absent, so the repository's configured primary
-    branch was resolved non-ambiently (``origin/HEAD`` or the common-branch ladder via
-    ``resolve_primary_branch(..., bias=False)``), and, in a cornerstone-less repository
-    where even that has no answer, the conventional default -- never the ambient
-    checked-out branch (see :func:`_validated_fallback_branch`). A marked, explicit
+    ``VALIDATED_FALLBACK`` -- the field was absent, so the branch is the placement
+    authority's fallback (:func:`~specify_cli.core.paths.get_feature_target_branch`), the
+    same answer the placement seam gives for the write. Without ``origin/HEAD`` that can be
+    the checked-out branch; the non-ambient fallback is follow-up #6152. A marked, explicit
     fallback, never a silent default.
     """
 
@@ -102,24 +102,26 @@ def resolve_command_repo_target(
     This is the single command-entry producer of that target. Callers pass the stored
     Mission ``mission_slug`` (the ``kitty-specs/<slug>`` directory name). Resolution:
 
-    ``mission_slug`` MUST be the stored mission DIRECTORY name (``kitty-specs/<slug>``),
-    not a fuzzy operator handle (a bare ``mid8``, numeric prefix or human slug). Routing a
-    fuzzy handle is deferred (it needs the read-path canonicalization this entry
-    deliberately omits -- #6152); callers with a raw handle resolve it to the on-disk dir
-    name first. The slug is validated as a safe single path segment, so a traversal payload
-    (``../x``) is refused rather than composed.
+    ``mission_slug`` is folded to its canonical on-disk directory name by the same
+    read-path canonicalizer the placement authority uses, so a handle the placement seam
+    accepts resolves to the same Mission directory here. The slug is validated as a safe
+    single path segment first, so a traversal payload (``../x``) is refused rather than
+    composed.
 
     1. **repo_root** -- when ``repo_root`` is supplied it is collapsed to the canonical
        primary with :func:`get_main_repo_root`; otherwise it is resolved from ``cwd``
        (defaulting to :func:`Path.cwd` -- the ONE sanctioned ambient read, taken once)
        with :func:`resolve_canonical_root`, which already collapses a worktree to its
        primary. The result is always the canonical primary, never a raw worktree.
-    2. **target_branch** -- declaration-first: :func:`read_target_branch_from_meta` reads
-       ``meta.json`` ``target_branch`` from the primary mission directory. When present the
-       provenance is :attr:`TargetProvenance.DECLARATION`. When absent, the configured
-       primary branch is resolved with ``bias=False`` and then guarded so it is never the
-       ambient checked-out branch (see :attr:`TargetProvenance.VALIDATED_FALLBACK`); the
-       provenance is :attr:`TargetProvenance.VALIDATED_FALLBACK`.
+    2. **target_branch** -- delegated to the placement authority,
+       :func:`~specify_cli.core.paths.get_feature_target_branch`, so the entry and
+       ``placement_seam(...).write_target(...)`` give ONE answer. That authority reads the
+       declared ``meta.json`` ``target_branch`` from the canonical primary mission
+       directory and falls back to the repository's primary branch when it is absent. The
+       provenance is :attr:`TargetProvenance.DECLARATION` when the primary ``meta.json``
+       declares a ``target_branch``, else :attr:`TargetProvenance.VALIDATED_FALLBACK`.
+       Both reads canonicalize the handle through the sanctioned read-path resolver, so no
+       mission path is composed here.
 
     Fail-closed: a corrupt ``meta.json`` propagates ``MissionMetaReadError``; an unsafe
     ``mission_slug`` propagates ``UnsafePathSegmentError``; and, on the ``cwd`` path only, a
@@ -128,6 +130,10 @@ def resolve_command_repo_target(
     path for a non-repo input rather than raising (mirroring the resolver the routed call
     sites already relied on).
     """
+    # Deferred import: the missions read-path layer imports core.paths, which loads
+    # very early (mirrors get_feature_target_branch's own deferral).
+    from specify_cli.missions._read_path_resolver import read_primary_meta
+
     assert_safe_path_segment(mission_slug)
     if repo_root is not None:
         primary_root = get_main_repo_root(repo_root)
@@ -136,43 +142,10 @@ def resolve_command_repo_target(
         start = cwd if cwd is not None else Path.cwd()
         primary_root = resolve_canonical_root(start)
 
-    feature_dir = primary_root / KITTY_SPECS_DIR / mission_slug
-    declared = read_target_branch_from_meta(feature_dir)
-    if declared is not None:
-        return CommandRepoTarget(
-            repo_root=primary_root,
-            target_branch=declared,
-            provenance=TargetProvenance.DECLARATION,
-        )
-
+    primary_meta, _declares_coordination = read_primary_meta(primary_root, mission_slug)
+    provenance = TargetProvenance.DECLARATION if primary_meta.get("target_branch") else TargetProvenance.VALIDATED_FALLBACK
     return CommandRepoTarget(
         repo_root=primary_root,
-        target_branch=_validated_fallback_branch(primary_root),
-        provenance=TargetProvenance.VALIDATED_FALLBACK,
+        target_branch=get_feature_target_branch(primary_root, mission_slug),
+        provenance=provenance,
     )
-
-
-def _validated_fallback_branch(primary_root: Path) -> str:
-    """Resolve the configured primary branch, never the ambient checked-out branch.
-
-    ``resolve_primary_branch(bias=False)`` resolves ``origin/HEAD`` then the common-branch
-    ladder (``main``/``master``/``develop``, local + origin), which is non-ambient. Its
-    documented last resort, however, recurses into the ambient-biased cascade and would
-    return the checked-out branch in a cornerstone-less repository (no ``origin/HEAD`` and
-    no common branch). We close that one hole: if the resolved branch is the live HEAD and
-    is not itself a common primary name, the configured primary is genuinely unknown, so we
-    use the conventional default instead of the ambient feature branch -- keeping the
-    :attr:`TargetProvenance.VALIDATED_FALLBACK` contract (never the ambient HEAD) true.
-    """
-    # Deferred import: core.paths loads very early and git_ops <-> core.paths form a
-    # circular import at module scope (mirrors get_feature_target_branch's own deferral).
-    from specify_cli.core.git_ops import (
-        COMMON_PRIMARY_BRANCHES,
-        get_current_branch,
-        resolve_primary_branch,
-    )
-
-    fallback = str(resolve_primary_branch(primary_root, bias=False))
-    if fallback not in COMMON_PRIMARY_BRANCHES and fallback == get_current_branch(primary_root):
-        return str(COMMON_PRIMARY_BRANCHES[0])
-    return fallback

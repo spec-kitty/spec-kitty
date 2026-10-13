@@ -1,10 +1,10 @@
 """WP02 routing witness (#6142, Increment 1).
 
 `mission_record_analysis` (record-analysis) resolves its declaration-first target branch
-through the single command-entry producer :func:`resolve_command_repo_target`, not through
-the ambient-biased `get_feature_target_branch` fallback. These are source-level assertions
-(the ratchet idiom): they pin that the ambient-fallback seed is GONE at the routed site and
-the target now comes from the entry.
+through the single command-entry producer :func:`resolve_command_repo_target` instead of
+calling `get_feature_target_branch` itself. The entry delegates its branch to that same
+placement authority, so the answer is unchanged; what these source-level assertions (the
+ratchet idiom) pin is that the command obtains its target from the one entry.
 """
 
 from __future__ import annotations
@@ -29,8 +29,8 @@ def test_record_analysis_imports_the_declaration_first_entry() -> None:
     assert "from specify_cli.core.command_target import resolve_command_repo_target" in source
 
 
-def test_record_analysis_no_longer_uses_the_ambient_fallback_seed() -> None:
-    """The ambient-biased ``get_feature_target_branch`` seed is gone at this site.
+def test_record_analysis_calls_the_entry_not_the_authority_directly() -> None:
+    """``get_feature_target_branch`` is reached through the entry, not called at this site.
 
     Code-token check (ignores docstrings/comments): no ``get_feature_target_branch``
     call remains, and the entry is called for the ``target_branch``.
@@ -45,12 +45,12 @@ def test_record_analysis_no_longer_uses_the_ambient_fallback_seed() -> None:
             elif isinstance(func, ast.Attribute):
                 called_names.add(func.attr)
     assert "get_feature_target_branch" not in called_names, (
-        "record-analysis still calls the ambient-biased get_feature_target_branch; route its target_branch through resolve_command_repo_target instead"
+        "record-analysis still calls get_feature_target_branch directly; route its target_branch through resolve_command_repo_target instead"
     )
     assert "resolve_command_repo_target" in called_names, "record-analysis no longer produces its target_branch via the declaration-first entry"
 
 
 def test_record_analysis_does_not_import_get_feature_target_branch() -> None:
     assert "get_feature_target_branch" not in _module_source(), (
-        "the get_feature_target_branch import/reference should be fully removed from the routed site (no dangling ambient-fallback seed)"
+        "the get_feature_target_branch import/reference should be fully removed from the routed site (the entry owns that call)"
     )

@@ -324,7 +324,7 @@ def _patch_record_analysis_resolution(monkeypatch: pytest.MonkeyPatch, repo_root
     monkeypatch.setattr(seam, "_find_feature_directory", lambda *_args, **_kwargs: feature_dir)
     # #6142: record-analysis now resolves its target branch through the
     # declaration-first command-entry producer; stub it to the controlled branch
-    # (was: the ambient-biased get_feature_target_branch, now rerouted).
+    # (record-analysis no longer calls get_feature_target_branch directly; the entry does).
     monkeypatch.setattr(
         seam,
         "resolve_command_repo_target",

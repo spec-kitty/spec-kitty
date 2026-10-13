@@ -1,13 +1,12 @@
-"""WP03 behaviour-correction witness (#6142, Increment 1, FR-006).
+"""WP03 behaviour witness (#6142, Increment 1, FR-006).
 
-The correction: a mission-scoped resolution whose AMBIENT location (the checked-out
-branch) disagrees with the Mission's stored declaration resolves to the DECLARATION, and
-when no declaration exists it resolves to the configured primary via a validated fallback
-that NEVER reads the ambient checked-out HEAD. This is the behaviour the scattered
-ambient seeds (``resolve_primary_branch(repo_root)`` with ``bias=True``, reached via
-``get_feature_target_branch``'s fallback) did NOT have — the red-first witness landed with
-the entry in WP01 (its unit contract was RED before the module existed) and the routing in
-WP02; this file pins the correction explicitly against the ambient seed it replaces.
+A mission-scoped resolution whose AMBIENT location (the checked-out branch) disagrees
+with the Mission's stored declaration resolves to the DECLARATION. With no declaration,
+the entry's branch is the placement authority's fallback
+(``get_feature_target_branch``), so the entry and the placement seam give one answer; in
+a repository with no ``origin/HEAD`` that fallback can still be the checked-out branch.
+Making it independent of the checked-out branch changes the placement seam itself and is
+follow-up #6152.
 """
 
 from __future__ import annotations
@@ -21,6 +20,7 @@ import pytest
 from specify_cli.core.command_target import TargetProvenance, resolve_command_repo_target
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import resolve_primary_branch
+from specify_cli.core.paths import get_feature_target_branch
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -58,16 +58,15 @@ def test_declaration_wins_over_disagreeing_ambient_branch(tmp_path: Path) -> Non
 
     assert resolved.target_branch == "release-4.x"
     assert resolved.provenance is TargetProvenance.DECLARATION
-    # The ambient seed the entry replaces would have returned the checked-out branch.
+    # Sanity: the ambient-biased primary-branch resolver does see the checked-out branch.
     assert resolve_primary_branch(repo, bias=True) == "some-feature"
 
 
-def test_validated_fallback_never_returns_the_ambient_branch(tmp_path: Path) -> None:
+def test_undeclared_fallback_is_the_placement_authority_answer(tmp_path: Path) -> None:
     repo = _repo(tmp_path, target_branch=None)  # no declaration
     _git(repo, "checkout", "-b", "some-feature")
 
     resolved = resolve_command_repo_target(_SLUG, cwd=repo)
 
-    assert resolved.target_branch == "main"  # configured primary, NOT "some-feature"
+    assert resolved.target_branch == get_feature_target_branch(repo, _SLUG)
     assert resolved.provenance is TargetProvenance.VALIDATED_FALLBACK
-    assert resolved.target_branch != resolve_primary_branch(repo, bias=True)
