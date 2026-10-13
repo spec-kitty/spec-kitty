@@ -106,8 +106,9 @@ def test_multiple_junit_files_summed_and_testsuites_root(tmp_path: Path) -> None
 
 
 def test_unparseable_junit_counts_as_failed(tmp_path: Path) -> None:
-    _make_pass(tmp_path, "gating", "<not-xml")
-    assert ev.build_bundle(tmp_path, "x")["passes"]["gating"]["outcome"] == "failed"
+    _make_pass(tmp_path, "gating", _suite(4), "<not-xml")
+    gating = ev.build_bundle(tmp_path, "x")["passes"]["gating"]
+    assert (gating["outcome"], gating["tests"], gating["errors"]) == ("failed", 4, 1)
 
 
 def test_environment_falls_back_to_wip(tmp_path: Path) -> None:
@@ -184,8 +185,9 @@ def test_nested_suites_not_double_counted(tmp_path: Path) -> None:
 
 
 def test_non_numeric_counter_counts_as_error(tmp_path: Path) -> None:
-    _make_pass(tmp_path, "gating", '<testsuite tests="many"/>')
-    assert ev.build_bundle(tmp_path, "x")["passes"]["gating"]["outcome"] == "failed"
+    _make_pass(tmp_path, "gating", _suite(4), '<testsuite tests="many"/>')
+    gating = ev.build_bundle(tmp_path, "x")["passes"]["gating"]
+    assert (gating["outcome"], gating["tests"], gating["errors"]) == ("failed", 4, 1)
 
 
 @pytest.mark.parametrize(
