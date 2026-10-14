@@ -164,6 +164,9 @@ public final class ProvisionPlan {
     }
     Path target = inside(root, path, true);
     Files.createDirectories(target.getParent());
+    if (Files.isSymbolicLink(target)) {
+      throw new IllegalArgumentException(FILE + ": a write would follow a link");
+    }
     Files.writeString(target, text, StandardCharsets.UTF_8);
   }
 
