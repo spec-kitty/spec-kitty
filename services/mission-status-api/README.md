@@ -1,6 +1,6 @@
 # Mission status API
 
-A read-only service that reads the Missions of one project directory and serves their status over HTTP: a project header, a page of Mission overviews and a stream of changes. It reads a Mission's event log and the few files needed to find it, never writes to the project, starts no process and reads no git state beyond the one `HEAD` file.
+A read-only service that reads the Missions of one project directory and serves their status over HTTP: a project header, a page of Mission overviews and a stream of changes. The HTTP surface lands in slices 4 and 5 of the Mission; until then the read model, the filesystem adapter and the conformance suites exist and nothing is wired to a route. It reads a Mission's event log and the few files needed to find it, never writes to the project, starts no process and reads no git state beyond the one `HEAD` file.
 
 ## Read allowlist
 
@@ -33,6 +33,15 @@ What each line is read for:
 ### Threat note
 
 Every read opens its target without following a symbolic link in the final path component, and a Mission directory must resolve to a real path inside the project root. That guards the final component only. An intermediate directory that is swapped for a link after the containment check has run is not covered: the check and the open are two steps, and the service does not hold a directory handle across them. This residual time-of-check to time-of-use window is accepted for a service that only reads, and it is why the service must run against a project directory whose owner trusts the processes that can write to it.
+
+### Known residuals
+
+Each of these is accepted for a local, read-only service and is recorded here so that nobody assumes otherwise.
+
+- **Stat, then open, on a final component.** A non-regular file is refused on its stat, before any open, so a FIFO placed there is refused without blocking. A local process that swaps a regular file for a FIFO between the stat and the open can make a request thread block, because Java has no `O_NONBLOCK` open for a file.
+- **Intermediate path steps are resolved again between the containment check and the read.** Only `meta.json`, `status.events.jsonl` and `lanes.json` of a Mission are reachable that way, and only a local process that can write to the project can race it (see the threat note above).
+- **The ledger cap is per read.** One read holds at most 64 MiB of ledger bytes and then the decoded lines, so concurrent requests multiply that. Size the heap (`-Xmx`) for the number of concurrent ledger reads the deployment allows, not for one.
+- **Run under a UTF-8 locale.** The JVM decodes file names with `sun.jnu.encoding`, taken from the locale. Under a non-UTF-8 locale (for example `LANG=C` or `POSIX`), a Mission directory whose name holds non-ASCII characters cannot be opened by name and is read as vanished.
 
 ## Terms
 

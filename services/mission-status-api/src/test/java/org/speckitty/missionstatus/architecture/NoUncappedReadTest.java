@@ -14,8 +14,9 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Pre-merge fold J2: there is no uncapped read helper. The only whole-file read, {@code SafeFiles.readRegular}, takes a required
- * {@code int} cap; the helper that opened a channel for a caller to drain is private; and only {@code SafeFiles} and the ledger (which
- * checks its own cap on the stat and again while reading) open a file for reading at all.
+ * {@code int} cap; the helper that opened a channel for a caller to drain is private; and only {@code SafeFiles}, the ledger (which
+ * checks its own cap on the stat and again while reading) and the allowlist access seam it reads through ({@code AllowlistAccess} and
+ * its pass-through implementation) open a file for reading at all.
  */
 class NoUncappedReadTest {
 

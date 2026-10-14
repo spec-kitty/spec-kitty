@@ -486,6 +486,8 @@ jobs:
               - '**/specify_cli/status/wp_view.py'
               - '**/specify_cli/upgrade/metadata.py'
               - '**/specify_cli/workspace/context.py'
+              # Not a src file: the Mission Status API conformance goldens and fixtures. A golden-only diff runs `tests (contract tools)`,
+              # the one home of the golden-honesty test (tests/ci/test_mission_status_routing.py).
               - 'services/mission-status-api/src/test/resources/conformance/**'
             # FR-004 probe: matches ANY src change. The `unmatched` step computes
             # `any_src AND NOT (any named src group)` from the filter's own outputs.

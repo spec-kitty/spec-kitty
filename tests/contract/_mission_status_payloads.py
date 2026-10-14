@@ -740,7 +740,12 @@ def blank_line_cursor(log: Path) -> TailCursor:
 
 
 def load_source(repo_root: Path, name: str) -> MissionSource:
-    """Read meta, identity, snapshot and the event rows of one Mission through public readers only."""
+    """Read meta, identity, snapshot and the event rows of one Mission through public readers, with one exception.
+
+    The exception is ``blank_line_cursor``, which imports the private ``tail_reader._content_invariant_for``: the cursor after a blank
+    line is the digest ``tail_reader`` itself holds, and no public reader returns it for a ledger that ``poll_once`` refuses. Recomputing
+    it here would let the oracle drift from the code it is the oracle of, so the private helper is called and ``src/specify_cli`` is left alone.
+    """
     own = repo_root / "kitty-specs" / name
     read_dir, fallback = resolve_read_dir(repo_root, name)
     meta = load_meta(own, on_malformed="raise") or {}
