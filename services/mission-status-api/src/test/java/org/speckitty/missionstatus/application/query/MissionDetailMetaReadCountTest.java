@@ -23,7 +23,7 @@ import org.speckitty.missionstatus.testsupport.Rows;
 /**
  * AC-1.8 on the real {@link MissionDetailQueryService} over {@link MissionReadModel}: the matched Mission's {@code meta.json} is read three
  * times on a warm ledger cache and four times on a cold one, every other Mission exactly once, whichever Mission of the listing is
- * requested; the stream route, which probes, reads the matched Mission twice before its feed starts (the control that makes the detail
+ * requested; the stream route, which probes, reads the matched Mission three times, cold or warm, before its feed starts (resolve's lookup read, its probe read, and the read readLedgerFrom adds) (the control that makes the detail
  * route's count visible). The recorder counts only {@code (MISSION_META, READ)} accesses, per Mission directory.
  */
 class MissionDetailMetaReadCountTest {
@@ -104,6 +104,23 @@ class MissionDetailMetaReadCountTest {
     Map<String, Integer> reads = readsPerMission(fixture.recorder());
     // the control: resolve looks the Mission up (one read) and then probes its ledger, which reads the Mission's meta.json again
     assertThat(reads.get("beta")).as("changesSince(one Mission) on a cold cache: " + reads).isEqualTo(3);
+  }
+
+  /**
+   * AC-1.8(a) and spec line 262: the stream routes keep resolve and their reads byte-identical to before the extraction. resolve takes no
+   * ledger cache, so the matched Mission is read three times warm as well as cold (lookup, probe, readLedgerFrom). AC-1.8(c) prices only the
+   * five detail routes.
+   */
+  @Test
+  void theStreamRouteReadsTheMatchedMissionThreeTimesWarmAsWellAsCold() {
+    DetailFixture fixture = three();
+    fixture.built().query().changesSince(StreamScope.mission(new MissionId(MIDDLE)), Optional.empty());
+    fixture.recorder().clear();
+
+    fixture.built().query().changesSince(StreamScope.mission(new MissionId(MIDDLE)), Optional.empty());
+
+    Map<String, Integer> reads = readsPerMission(fixture.recorder());
+    assertThat(reads.get("beta")).as("changesSince(one Mission) warm: " + reads).isEqualTo(3);
   }
 
   /** The ledger texts of the three Missions. */
