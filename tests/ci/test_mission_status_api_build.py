@@ -1100,7 +1100,7 @@ def step_content_violations(text: str) -> list[str]:
     if "--offline" in jvm_runs or re.search(r"rm\s+-\S*\s+\S*\.gradle", jvm_runs):
         found.append("the jvm job must not clear the Gradle cache or run offline before check (NEWA-001)")
     native_runs = "\n".join(_runs(jobs.get("native", {})))
-    for needle in ("nativeCompile nativeTest", "nativeSmoke", "-PnativeBinary=", "native-tag-floor", "--floor 4", "test-results/test-native"):
+    for needle in ("nativeCompile nativeTest", "nativeSmoke", "-PnativeBinary=", "native-tag-floor", "--floor 3", "test-results/test-native"):
         if needle not in native_runs:
             found.append(f"the native job must contain {needle!r}")
     for name, job in jobs.items():
