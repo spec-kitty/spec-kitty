@@ -43,19 +43,15 @@ class PortLevelIdsTest {
   }
 
   @Test
-  void everyListedIdRunsExceptTheInterimGoldenDependentOnes() {
+  void everyListedIdRuns() {
+    // The goldens are committed, so the AC-2a shells run like every other id: nothing may skip or fail.
     List<Entry> entries = PortLevelIds.load();
-
-    assertThat(PortLevelIds.INTERIM_GOLDEN_DEPENDENT_IDS).as("a skip list may only name AC-2a ids of the file").isSubsetOf(PortLevelIds.ids(entries));
-    assertThat(PortLevelIds.INTERIM_GOLDEN_DEPENDENT_IDS).allMatch(id -> id.startsWith("AC-2a/"));
 
     Map<String, PortLevelRun.Outcome> outcomes = PortLevelRun.run(entries);
 
     assertThat(outcomes.values().stream().filter(o -> o.status() == PortLevelRun.Status.FAILED)).as("failed ids").isEmpty();
-    assertThat(statusIds(outcomes, PortLevelRun.Status.SKIPPED)).as("skipped ids").isEqualTo(PortLevelIds.INTERIM_GOLDEN_DEPENDENT_IDS);
-    Set<String> expectedExecuted = new HashSet<>(PortLevelIds.ids(entries));
-    expectedExecuted.removeAll(PortLevelIds.INTERIM_GOLDEN_DEPENDENT_IDS);
-    assertThat(statusIds(outcomes, PortLevelRun.Status.EXECUTED)).as("executed ids").isEqualTo(expectedExecuted);
+    assertThat(statusIds(outcomes, PortLevelRun.Status.SKIPPED)).as("skipped ids").isEmpty();
+    assertThat(statusIds(outcomes, PortLevelRun.Status.EXECUTED)).as("executed ids").isEqualTo(new HashSet<>(PortLevelIds.ids(entries)));
   }
 
   private static Set<String> statusIds(Map<String, PortLevelRun.Outcome> outcomes, PortLevelRun.Status status) {
