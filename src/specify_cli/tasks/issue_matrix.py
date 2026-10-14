@@ -137,6 +137,13 @@ _SCAFFOLD_NON_GATING_EVIDENCE = "<auto-classified: no action required>"
 # ``>``, ``*``, quote, ``:`` or ``?`` as well as ``#`` (an anchor, e.g.
 # ``#issuecomment-...``) and a trailing ``/``, so none is silently dropped.
 #
+# The two arms deliberately differ. The URL arm ends at any non-word
+# character because a URL names its issue unambiguously, so
+# ``.../issues/12:L5`` and ``.../issues/12-foo`` match. The bare arm ends
+# only at whitespace, ``) ] , ; .`` or ``:!?`` not followed by a word
+# character, so ``#12:45`` and ``#12-fix`` stay out. Bare refs wrapped as
+# ``\`#N\```, ``**#N**``, ``#N"``, ``#N—`` or ``#N|`` are still not recognized.
+#
 # This deliberately rejects:
 #   * markdown anchor links like ``#section-name`` (alphabetical, not 2-6 digits)
 #   * heading markers like ``# Title`` (no digits)
