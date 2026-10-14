@@ -29,7 +29,7 @@ public final class SseScenario {
   public static Outcome drive(
       SseSwarm swarm, int port, Path root, int connections, int appends, Duration hold, int missions, LongSupplier threads, Runnable afterConnect) {
     swarm.connect(port, connections);
-    swarm.awaitOpen(connections, Duration.ofSeconds(30));
+    swarm.awaitOpen(connections, Duration.ofSeconds(PerfBudgets.NFR004_OPEN_CEILING_SECONDS));
     afterConnect.run();
 
     long peak = threads.getAsLong();

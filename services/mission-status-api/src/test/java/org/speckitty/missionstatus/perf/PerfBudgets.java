@@ -91,6 +91,14 @@ public final class PerfBudgets {
 
   public static final long NFR004_MEMORY_FLOOR_UNIT_MIB = 8;
 
+  /**
+   * Provisional wait (not an NFR-004 budget: the spec bounds threads, memory, reducer invocations and delivery, not connect time): every
+   * connection has its 200 head within this many seconds. An unscoped connect sets a floor for every Mission under the feed's one lock, so
+   * 100 connects over the 588-Mission fixture are serialized. Amended by measurement from 30 s on 2026-10-14: the windows-x64 native leg
+   * opened 61, then 83, of 100 within 30 s (about 0.36 to 0.5 s per connect, so 50 to 80 s for all 100).
+   */
+  public static final int NFR004_OPEN_CEILING_SECONDS = 120;
+
   /** Provisional ceiling: every connection has every forwarded append within this many seconds of the last append. */
   public static final int NFR004_DELIVERY_CEILING_SECONDS = 10;
 }
