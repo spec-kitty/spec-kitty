@@ -243,7 +243,7 @@ _C004_NAMES: tuple[str, ...] = ("doctrine-daphne", "DIRECTIVE_039")
 #: #6164 removed the frozen hosted/sync/drain surfaces (src packages + their test
 #: suites tests/auth, tests/zeitgeist_client, tests/live_work, …); re-floored to the
 #: new measured living-surface count.
-_FILE_FLOOR = 2369
+_FILE_FLOOR = 2368
 
 
 @dataclass(frozen=True)
