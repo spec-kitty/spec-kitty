@@ -2,6 +2,7 @@ package org.speckitty.missionstatus.adapter.in.http;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.List;
 import org.apache.tomcat.util.http.InvalidParameterException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -9,6 +10,7 @@ import org.speckitty.missionstatus.application.query.port.in.exceptions.MissionS
 import org.speckitty.missionstatus.application.query.port.in.dto.StreamCursorText;
 import org.speckitty.missionstatus.application.query.port.in.exceptions.StreamRefused;
 import org.speckitty.missionstatus.domain.readmodel.cursor.InvalidPageCursor;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.TypeMismatchException;
@@ -89,7 +91,13 @@ class ProblemAdvice {
     if (failure instanceof ErrorResponse refusal) {
       // The framework's own refusals (404 for an unknown path, 405, 415, 400 for a missing parameter): the status, no detail.
       HttpStatus status = HttpStatus.resolve(refusal.getStatusCode().value());
-      return ProblemMapper.status(status == null ? HttpStatus.INTERNAL_SERVER_ERROR : status);
+      ResponseEntity<ProblemBody> problem = ProblemMapper.status(status == null ? HttpStatus.INTERNAL_SERVER_ERROR : status);
+      List<HttpMethod> allowed = List.copyOf(refusal.getHeaders().getAllow());
+      if (allowed.isEmpty()) {
+        return problem;
+      }
+      // a 405 names the methods the route takes
+      return ResponseEntity.status(problem.getStatusCode()).headers(problem.getHeaders()).allow(allowed.toArray(HttpMethod[]::new)).body(problem.getBody());
     }
     // One line, no path, no message, no stack trace: the exception class only.
     LOG.error("unexpected failure class={}", failure.getClass().getSimpleName());

@@ -2,6 +2,10 @@ package org.speckitty.missionstatus.adapter.in.http.stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
 import org.speckitty.missionstatus.testsupport.FixtureSpec;
@@ -74,6 +78,24 @@ class StreamCapacityTest {
         }
       }
       assertThat(only.status()).isEqualTo(200);
+    }
+  }
+
+  /** A HEAD request never writes a body, so it could never notice a disconnect: it takes no place and gets 405 with {@code Allow: GET}. */
+  @Test
+  void aHeadRequestTakesNoPlaceAndIsRefusedWithAllowGet() throws Exception {
+    HttpClient client = HttpClient.newHttpClient();
+    try (StreamRig rig = rig(1)) {
+      HttpRequest head = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + rig.http.port() + "/api/v1/events")).method("HEAD", HttpRequest.BodyPublishers.noBody()).build();
+      for (int i = 0; i < 3; i++) {
+        HttpResponse<Void> reply = client.send(head, HttpResponse.BodyHandlers.discarding());
+        assertThat(reply.statusCode()).as("HEAD " + i).isEqualTo(405);
+        assertThat(reply.headers().firstValue("Allow")).hasValue("GET");
+      }
+      assertThat(rig.spy.totalSubscriptions()).as("a HEAD request subscribed nothing").isZero();
+      try (SseClient stream = rig.unscoped()) {
+        assertThat(stream.status()).as("the one place is still free").isEqualTo(200);
+      }
     }
   }
 }

@@ -1,9 +1,11 @@
 package org.speckitty.missionstatus.adapter.in.http;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -16,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.ContextClosedEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.http.MediaType;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -87,7 +90,14 @@ class EventsController {
       @RequestParam(name = "missionId", required = false) String missionId,
       @RequestParam(name = "streamCursor", required = false) String streamCursor,
       @RequestHeader(name = "Last-Event-ID", required = false) String lastEventId,
-      HttpServletResponse response) {
+      HttpServletRequest request,
+      HttpServletResponse response)
+      throws HttpRequestMethodNotSupportedException {
+    // Spring routes HEAD to a GET mapping. A HEAD request never writes a body, so a disconnect would never be noticed and its place never
+    // freed: refuse it before anything is admitted or subscribed (the contract declares GET only).
+    if ("HEAD".equals(request.getMethod())) {
+      throw new HttpRequestMethodNotSupportedException("HEAD", List.of("GET"));
+    }
     // streamCursor wins over Last-Event-ID (AC-3h); an empty header is no header
     String cursorText = streamCursor != null ? streamCursor : (lastEventId == null || lastEventId.isEmpty() ? null : lastEventId);
     if (cursorText != null && missionId == null) {
