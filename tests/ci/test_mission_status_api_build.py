@@ -1473,6 +1473,7 @@ PACKAGED_DEFAULTS = {
     "mission-status.stream.heartbeat-interval": "PT30S",
     "spring.main.log-startup-info": "false",
     "spring.main.banner-mode": "off",
+    "logging.level.org.apache.tomcat.util.http.parser.Cookie": "WARN",
 }
 
 
@@ -1517,6 +1518,7 @@ def test_the_packaged_defaults_pin_turns_red_for_each_drift() -> None:
         good.replace("spring.main.log-startup-info=false", ""),
         good.replace("spring.main.log-startup-info=false", "spring.main.log-startup-info=true"),
         good.replace("spring.main.banner-mode=off", ""),
+        good.replace("logging.level.org.apache.tomcat.util.http.parser.Cookie=WARN", ""),
     ]
     for text in drifted:
         assert text != good

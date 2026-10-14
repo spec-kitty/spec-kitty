@@ -69,6 +69,9 @@ class RequestEchoTest {
       server.send("GET /api/v1/missions HTTP/1.1", "Host: " + MAIL + HOME_PATH);
       server.send("GET /api/v1/missions HTTP/1.1", "Host: localhost:" + port + ".evil.example/" + MAIL);
       server.send("GET /api/v1/missions HTTP/1.1", "Host: evil.example:" + port);
+      // another local application's cookie reaches this port too (browsers send cookies per host, not per port); an invalid one is
+      // logged in full by Tomcat's cookie parser at INFO unless its logger is raised
+      server.send("GET /api/v1/project HTTP/1.1", accepted, "Cookie: token=" + MAIL + "\"unterminated; a=b\\");
     }
     assertThat(output.getAll())
         .doesNotContain("URLCANARY")
