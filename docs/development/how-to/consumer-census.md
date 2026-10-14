@@ -50,3 +50,7 @@ Commit the regenerated file with the change that caused it.
    If the read is incidental (a fixture or side effect), add it to `FANOUT_ALLOWLIST`
    with a one-line reason.
 4. Re-run `--write`, then the two tests above.
+
+The census covers pack and source paths only. The `uv.lock` route to the `upgrade`
+and `status` shards lives in `DEPENDENCY_MODULE_FANOUT` (`scripts/ci/gate_selection.py`),
+outside the census, because a lock file has no test consumer to derive (#6238).
