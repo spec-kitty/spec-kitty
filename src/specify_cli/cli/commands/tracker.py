@@ -255,6 +255,10 @@ def status_command(
             _print_json(payload)
             return
 
+        if payload.get("inert"):
+            typer.echo(f"Tracker {payload['message']}")
+            return
+
         if not payload.get("configured"):
             typer.echo("Tracker is not configured")
             return

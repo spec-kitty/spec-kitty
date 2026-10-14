@@ -15,8 +15,11 @@ from specify_cli.tracker.config import (
     ALL_SUPPORTED_PROVIDERS,
     LOCAL_PROVIDERS,
     REMOVED_PROVIDERS,
+    clear_tracker_config,
     load_tracker_config,
 )
+
+_LEAVE_REMEDY = "Run `spec-kitty tracker unbind`, or `spec-kitty tracker bind --provider beads|fp`."
 
 
 class TrackerServiceError(RuntimeError):
@@ -72,10 +75,9 @@ class TrackerService:
             return LocalTrackerService(self._repo_root, config)
         if config.provider in REMOVED_PROVIDERS:
             raise TrackerServiceError(
-                f"Provider '{config.provider}' is no longer supported. "
-                "See the Spec Kitty documentation for supported providers."
+                f"Provider '{config.provider}' is no longer supported. {_LEAVE_REMEDY}"
             )
-        raise TrackerServiceError(f"Unknown provider: {config.provider}")
+        raise TrackerServiceError(f"Unknown provider: {config.provider}. {_LEAVE_REMEDY}")
 
     @staticmethod
     def supported_providers() -> tuple[str, ...]:
@@ -104,10 +106,30 @@ class TrackerService:
     # ------------------------------------------------------------------
 
     def unbind(self) -> None:
+        """Clear the binding; a removed or unknown provider needs no backend."""
+        provider = load_tracker_config(self._repo_root).provider
+        if provider and provider not in LOCAL_PROVIDERS:
+            clear_tracker_config(self._repo_root)
+            return None
         return self._resolve_backend().unbind()
 
     def status(self) -> dict[str, Any]:
-        """Retrieve project-scoped tracker status."""
+        """Retrieve project-scoped tracker status.
+
+        A binding to a removed or unknown provider is reported as inert rather
+        than refused, so the operator can see why and how to leave it.
+        """
+        provider = load_tracker_config(self._repo_root).provider
+        if provider and provider not in LOCAL_PROVIDERS:
+            return {
+                "configured": False,
+                "provider": provider,
+                "inert": True,
+                "message": (
+                    f"bound to removed provider '{provider}' (inert) -- "
+                    "run `spec-kitty tracker unbind`, or `tracker bind --provider beads|fp`"
+                ),
+            }
         return self._resolve_backend().status()
 
     def sync_pull(self, **kwargs: Any) -> dict[str, Any]:

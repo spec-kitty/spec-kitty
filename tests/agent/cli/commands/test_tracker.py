@@ -300,6 +300,42 @@ def test_sync_publish_local_unsupported(mock_service_fn, monkeypatch) -> None:
 
 
 # ---------------------------------------------------------------------------
+# a repo that still carries a binding to a removed provider can leave it
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def linear_bound_repo(tmp_path, monkeypatch):
+    """A repo whose .kittify/config.yaml still binds the removed ``linear`` provider."""
+    from specify_cli.tracker.config import TrackerProjectConfig, save_tracker_config
+
+    save_tracker_config(tmp_path, TrackerProjectConfig(provider="linear", workspace="org/proj"))
+    monkeypatch.setattr("specify_cli.cli.commands.tracker.require_repo_root", lambda: tmp_path)
+    return tmp_path
+
+
+def test_removed_provider_binding_can_be_inspected_and_unbound(linear_bound_repo) -> None:
+    from specify_cli.tracker.config import load_tracker_config
+
+    app = _make_app()
+
+    status = runner.invoke(app, ["status"])
+    assert status.exit_code == 0, status.output
+    out = strip_ansi(status.output)
+    assert "removed provider 'linear'" in out
+    assert "tracker unbind" in out
+
+    # Other commands keep refusing, and the refusal names the way out.
+    refused = runner.invoke(app, ["map", "list"])
+    assert refused.exit_code == 1
+    assert "tracker unbind" in strip_ansi(refused.output)
+
+    unbound = runner.invoke(app, ["unbind"])
+    assert unbound.exit_code == 0, unbound.output
+    assert load_tracker_config(linear_bound_repo).provider is None
+
+
+# ---------------------------------------------------------------------------
 # status: dispatches through facade (local rendering)
 # ---------------------------------------------------------------------------
 
