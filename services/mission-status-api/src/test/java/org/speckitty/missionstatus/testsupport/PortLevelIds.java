@@ -34,6 +34,14 @@ public final class PortLevelIds {
           "AC-2b", "AC-5a", "AC-5c", "AC-3g", "AC-3i",
           "AC-4a/L1", "AC-4a/L3a", "AC-4a/L3b", "AC-4a/L4", "AC-4a/L4b");
 
+  /**
+   * The ids that cannot run yet: the AC-2a shells delegate to {@link Ac2aGoldenHook}, which has no goldens to compare until the golden
+   * work package lands, so it skips them. The interim run check executes every listed id except these and requires exactly these to be
+   * skipped. The golden work package deletes this constant together with that check.
+   */
+  public static final Set<String> INTERIM_GOLDEN_DEPENDENT_IDS =
+      Set.of("AC-2a/interleaved", "AC-2a/lifecycle-only", "AC-2a/no-ledger", "AC-2a/log-truncated", "AC-2a/crlf-and-listing");
+
   private static final Pattern LINE = Pattern.compile("^(AC-[0-9]+[a-z]?(?:/[A-Za-z0-9][A-Za-z0-9-]*)*) ([A-Z][A-Za-z0-9]*)#([a-z][A-Za-z0-9]*)$");
 
   private PortLevelIds() {}

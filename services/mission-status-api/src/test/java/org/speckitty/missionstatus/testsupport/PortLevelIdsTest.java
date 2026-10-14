@@ -3,7 +3,11 @@ package org.speckitty.missionstatus.testsupport;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.speckitty.missionstatus.testsupport.PortLevelIds.Entry;
 
@@ -36,6 +40,26 @@ class PortLevelIdsTest {
 
     assertThat(PortLevelIds.unmetFloorGroups(entries)).as("FR-013 id groups with no listed id").isEmpty();
     assertThat(entries.size()).as("the recorded id count").isGreaterThanOrEqualTo(PortLevelIds.FR013_GROUPS.size());
+  }
+
+  @Test
+  void everyListedIdRunsExceptTheInterimGoldenDependentOnes() {
+    List<Entry> entries = PortLevelIds.load();
+
+    assertThat(PortLevelIds.INTERIM_GOLDEN_DEPENDENT_IDS).as("a skip list may only name AC-2a ids of the file").isSubsetOf(PortLevelIds.ids(entries));
+    assertThat(PortLevelIds.INTERIM_GOLDEN_DEPENDENT_IDS).allMatch(id -> id.startsWith("AC-2a/"));
+
+    Map<String, PortLevelRun.Outcome> outcomes = PortLevelRun.run(entries);
+
+    assertThat(outcomes.values().stream().filter(o -> o.status() == PortLevelRun.Status.FAILED)).as("failed ids").isEmpty();
+    assertThat(statusIds(outcomes, PortLevelRun.Status.SKIPPED)).as("skipped ids").isEqualTo(PortLevelIds.INTERIM_GOLDEN_DEPENDENT_IDS);
+    Set<String> expectedExecuted = new HashSet<>(PortLevelIds.ids(entries));
+    expectedExecuted.removeAll(PortLevelIds.INTERIM_GOLDEN_DEPENDENT_IDS);
+    assertThat(statusIds(outcomes, PortLevelRun.Status.EXECUTED)).as("executed ids").isEqualTo(expectedExecuted);
+  }
+
+  private static Set<String> statusIds(Map<String, PortLevelRun.Outcome> outcomes, PortLevelRun.Status status) {
+    return outcomes.entrySet().stream().filter(e -> e.getValue().status() == status).map(Map.Entry::getKey).collect(Collectors.toSet());
   }
 
   @Test
