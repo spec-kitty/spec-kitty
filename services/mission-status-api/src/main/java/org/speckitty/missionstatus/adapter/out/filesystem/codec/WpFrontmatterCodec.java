@@ -445,7 +445,8 @@ public final class WpFrontmatterCodec {
                 + "|(?<y2>[0-9]{4})-(?<mo2>[0-9]{1,2})-(?<d2>[0-9]{1,2})(?:[Tt]|[ \\t]+)(?<h>[0-9]{1,2}):(?<mi>[0-9]{2}):(?<s>[0-9]{2})"
                 + "(?:\\.[0-9]*)?(?:[ \\t]*(?:Z|(?<tzs>[-+])(?<tzh>[0-9]{1,2})(?::(?<tzm>[0-9]{2}))?))?");
     private static final Pattern DATE_ONLY = Pattern.compile("[0-9]{4}-[0-9]{2}-[0-9]{2}");
-    private static final Pattern PY_INT = Pattern.compile("[+-]?\\p{Nd}+(?:_\\p{Nd}+)*");
+    /** CPython's {@code sys.int_info.default_max_str_digits}: a decimal int of more digits raises ValueError (3.11+). */
+    static final int MAX_INT_STR_DIGITS = 4300;
 
     private Yaml12() {}
 
@@ -615,6 +616,10 @@ public final class WpFrontmatterCodec {
       if (digits.isEmpty()) {
         throw new Refusal(RejectionClass.UNSUPPORTED_YAML);
       }
+      if (radix == 10 && digits.length() > MAX_INT_STR_DIGITS) {
+        // ruamel's int() raises ValueError, and the oracle skips the file; the power-of-two bases have no limit.
+        throw new Refusal(RejectionClass.UNSUPPORTED_YAML);
+      }
       BigInteger magnitude = new BigInteger(digits, radix);
       return negative ? magnitude.negate() : magnitude;
     }
@@ -645,16 +650,33 @@ public final class WpFrontmatterCodec {
     /** Python's {@code int(str)}: surrounding whitespace, a sign, Unicode decimal digits, single underscores between digits; null if it raises. */
     static BigInteger pyInt(String text) {
       String stripped = PyText.strip(text);
-      if (!PY_INT.matcher(stripped).matches()) {
-        return null;
-      }
+      // A scan, not a regex: a group loop recurses once per underscore group and overflows the stack on a few KB.
       StringBuilder ascii = new StringBuilder();
-      for (int i = 0; i < stripped.length(); i++) {
-        char c = stripped.charAt(i);
+      int index = 0;
+      if (!stripped.isEmpty() && (stripped.charAt(0) == '+' || stripped.charAt(0) == '-')) {
+        ascii.append(stripped.charAt(0));
+        index = 1;
+      }
+      int digits = 0;
+      boolean afterDigit = false;
+      while (index < stripped.length()) {
+        int c = stripped.codePointAt(index);
+        index += Character.charCount(c);
         if (c == '_') {
-          continue;
+          if (!afterDigit) {
+            return null;
+          }
+          afterDigit = false;
+        } else if (Character.getType(c) == Character.DECIMAL_DIGIT_NUMBER) {
+          ascii.append((char) ('0' + Character.digit(c, 10)));
+          digits++;
+          afterDigit = true;
+        } else {
+          return null;
         }
-        ascii.append(c == '+' || c == '-' ? c : Character.forDigit(Character.digit(c, 10), 10));
+      }
+      if (!afterDigit || digits > MAX_INT_STR_DIGITS) {
+        return null;
       }
       return new BigInteger(ascii.toString());
     }

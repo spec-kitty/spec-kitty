@@ -327,6 +327,25 @@ class WpFrontmatterCodecTest {
     assertRejected(ID + "base_commit: '1234567890123456789012345678901234567890a'\n", RejectionClass.VALIDATION);
   }
 
+  /** J-S3a: CPython 3.11+ raises ValueError for a decimal int of more than 4300 digits (sys.int_info.default_max_str_digits); ruamel and int() both. */
+  @Test
+  void aDecimalIntOfMoreThan4300DigitsIsRefusedLikeTheOracleAndOneOf4300IsKept() {
+    assertThat(file(ID + "shell_pid: " + "1".repeat(4300) + "\n")).isInstanceOf(FrontmatterResult.Parsed.class);
+    assertRejected(ID + "shell_pid: " + "1".repeat(4301) + "\n", RejectionClass.UNSUPPORTED_YAML);
+    assertThat(file(ID + "shell_pid: 0x" + "1".repeat(5000) + "\n")).as("a power-of-two base has no limit").isInstanceOf(FrontmatterResult.Parsed.class);
+    assertThat(file(ID + "shell_pid: '" + "1".repeat(4300) + "'\n")).isInstanceOf(FrontmatterResult.Parsed.class);
+    assertRejected(ID + "shell_pid: '" + "1".repeat(4301) + "'\n", RejectionClass.VALIDATION);
+  }
+
+  /** J-S3a: the digit-run pattern recursed once per underscore group; 20000 groups overflowed the stack. */
+  @Test
+  void aLongUnderscoreRunInAShellPidIsRefusedNotAStackOverflow() {
+    assertRejected(ID + "shell_pid: '1" + "_1".repeat(20000) + "'\n", RejectionClass.VALIDATION);
+    assertThat(Yaml12.pyInt("1" + "_1".repeat(20000))).isNull();
+    assertThat(Yaml12.pyInt("1_1")).isEqualTo(BigInteger.valueOf(11));
+    assertThat(Yaml12.pyInt("\ud835\udfd2\ud835\udfd3")).as("supplementary decimal digits").isEqualTo(BigInteger.valueOf(45));
+  }
+
   @Test
   void aShellPidGoesThroughPythonInt() {
     for (String ok : new String[] {"12345", "'12345'", "' 12 '", "'1_000'", "'+5'", "''", "true", "1.5", "0x10", "'\u0661\u0662'", "~"}) {
