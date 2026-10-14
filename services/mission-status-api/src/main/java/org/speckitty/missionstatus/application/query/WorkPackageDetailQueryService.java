@@ -23,7 +23,6 @@ import org.speckitty.missionstatus.application.query.port.out.FrontmatterDecoder
 import org.speckitty.missionstatus.application.query.port.out.LanesDecoder;
 import org.speckitty.missionstatus.application.query.port.out.TextSource;
 import org.speckitty.missionstatus.application.query.port.out.dto.MissionRef;
-import org.speckitty.missionstatus.application.query.port.out.exceptions.SourceFault;
 import org.speckitty.missionstatus.application.query.port.out.exceptions.TextFault;
 import org.speckitty.missionstatus.domain.model.Diagnostic;
 import org.speckitty.missionstatus.domain.model.DiagnosticCode;
@@ -74,6 +73,7 @@ public final class WorkPackageDetailQueryService implements WorkPackageDetailQue
   private final WorkPackageIndex index;
   private final AdmissionGate gate;
   private final Consumer<Diagnostic> diagnostics;
+  private final MissionLocator locator;
   private final LeakClasses leaks;
   private final TasksMdReader tasksMd;
   private final ReviewCycleReader cycles;
@@ -103,6 +103,7 @@ public final class WorkPackageDetailQueryService implements WorkPackageDetailQue
     this.index = Objects.requireNonNull(index, "index");
     this.gate = Objects.requireNonNull(gate, "gate");
     this.diagnostics = Objects.requireNonNull(diagnostics, "diagnostics");
+    this.locator = new MissionLocator(model, diagnostics);
     this.leaks = Objects.requireNonNull(leaks, "leaks");
     Objects.requireNonNull(text, "text");
     this.tasksMd = new TasksMdReader(text);
@@ -117,7 +118,7 @@ public final class WorkPackageDetailQueryService implements WorkPackageDetailQue
   }
 
   private WorkPackageDetail detail(MissionId missionId, WpId wpId) {
-    MissionLookup.Found found = locate(missionId);
+    MissionLookup.Found found = locator.locate(missionId);
     MissionHead head = model.head(found.ref()).orElseThrow(DetailRefusal::notFound);
     String mid8 = found.mid8();
     WorkPackageIndex.Result indexed = indexOf(found.ref(), mid8);
@@ -138,36 +139,6 @@ public final class WorkPackageDetailQueryService implements WorkPackageDetailQue
   }
 
   // ---- the lookup ------------------------------------------------------------------------------------------------------------------
-
-  /**
-   * The Mission that holds the id, with the duplicate continuation. A readable Mission that holds the id wins over any faulted sibling (D-39);
-   * with no match the first fault in byte order decides: a refused directory is a 404 with {@code path_refused}, an unusable
-   * {@code meta.json} and an unreadable directory are 500s.
-   */
-  private MissionLookup.Found locate(MissionId id) {
-    MissionLookup.Scan scan;
-    try {
-      scan = model.find(id);
-    } catch (SourceFault fault) {
-      throw refuse(DiagnosticCode.MISSION_DIR_UNREADABLE, Diagnostic.NONE);
-    }
-    MissionLookup.Found found = scan.found();
-    if (found != null) {
-      if (model.hasDuplicate(scan)) {
-        note(DiagnosticCode.MISSION_ID_DUPLICATE, found.mid8());
-      }
-      return found;
-    }
-    SourceFault.Kind unreadable = scan.firstFault();
-    if (unreadable == SourceFault.Kind.PATH_REFUSED) {
-      note(DiagnosticCode.PATH_REFUSED, Diagnostic.NONE);
-    } else if (unreadable == SourceFault.Kind.META_UNPARSEABLE) {
-      throw refuse(DiagnosticCode.META_UNPARSEABLE, Diagnostic.NONE);
-    } else if (unreadable != null) {
-      throw refuse(DiagnosticCode.MISSION_DIR_UNREADABLE, Diagnostic.NONE);
-    }
-    throw DetailRefusal.notFound();
-  }
 
   /** The Work Package files of the Mission (rows M4a, M5, M6, M10, M13): the index writes its own skip and duplicate diagnostics. The route holds no body. */
   private WorkPackageIndex.Result indexOf(MissionRef ref, String mid8) {

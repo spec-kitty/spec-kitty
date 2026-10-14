@@ -22,7 +22,6 @@ import org.speckitty.missionstatus.application.query.port.out.dto.FileRef;
 import org.speckitty.missionstatus.application.query.port.out.dto.MissionRef;
 import org.speckitty.missionstatus.application.query.port.out.dto.ReadScope;
 import org.speckitty.missionstatus.application.query.port.out.dto.RelativePath;
-import org.speckitty.missionstatus.application.query.port.out.exceptions.SourceFault;
 import org.speckitty.missionstatus.application.query.port.out.exceptions.TextFault;
 import org.speckitty.missionstatus.domain.model.Diagnostic;
 import org.speckitty.missionstatus.domain.model.DiagnosticCode;
@@ -78,6 +77,7 @@ public final class MissionDetailQueryService implements MissionDetailQuery {
   private final WorkPackageIndex index;
   private final TextSource text;
   private final Consumer<Diagnostic> diagnostics;
+  private final MissionLocator locator;
   private final LeakClasses leaks;
 
   /**
@@ -92,12 +92,13 @@ public final class MissionDetailQueryService implements MissionDetailQuery {
     this.index = Objects.requireNonNull(index, "index");
     this.text = Objects.requireNonNull(text, "text");
     this.diagnostics = Objects.requireNonNull(diagnostics, "diagnostics");
+    this.locator = new MissionLocator(model, diagnostics);
     this.leaks = Objects.requireNonNull(leaks, "leaks");
   }
 
   @Override
   public MissionDetail mission(MissionId missionId) {
-    MissionLookup.Found found = locate(missionId);
+    MissionLookup.Found found = locator.locate(missionId);
     MissionHead head = model.head(found.ref()).orElseThrow(DetailRefusal::notFound);
     String mid8 = found.mid8();
     StatusSnapshot snapshot = head.entry().snapshot();
@@ -109,36 +110,6 @@ public final class MissionDetailQueryService implements MissionDetailQuery {
   }
 
   // ---- the lookup ------------------------------------------------------------------------------------------------------------------
-
-  /**
-   * The Mission that holds the id, with the duplicate continuation. A readable Mission that holds the id wins over any faulted sibling (D-39);
-   * with no match the first fault in byte order decides: a refused directory is a 404 with {@code path_refused}, an unusable
-   * {@code meta.json} and an unreadable directory are 500s.
-   */
-  private MissionLookup.Found locate(MissionId id) {
-    MissionLookup.Scan scan;
-    try {
-      scan = model.find(id);
-    } catch (SourceFault fault) {
-      throw refuse(DiagnosticCode.MISSION_DIR_UNREADABLE, Diagnostic.NONE);
-    }
-    MissionLookup.Found found = scan.found();
-    if (found != null) {
-      if (model.hasDuplicate(scan)) {
-        note(DiagnosticCode.MISSION_ID_DUPLICATE, found.mid8());
-      }
-      return found;
-    }
-    SourceFault.Kind unreadable = scan.firstFault();
-    if (unreadable == SourceFault.Kind.PATH_REFUSED) {
-      note(DiagnosticCode.PATH_REFUSED, Diagnostic.NONE);
-    } else if (unreadable == SourceFault.Kind.META_UNPARSEABLE) {
-      throw refuse(DiagnosticCode.META_UNPARSEABLE, Diagnostic.NONE);
-    } else if (unreadable != null) {
-      throw refuse(DiagnosticCode.MISSION_DIR_UNREADABLE, Diagnostic.NONE);
-    }
-    throw DetailRefusal.notFound();
-  }
 
   // ---- the sources the head does not carry -------------------------------------------------------------------------------------------
 
