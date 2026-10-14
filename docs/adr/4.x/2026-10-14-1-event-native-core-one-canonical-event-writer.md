@@ -18,7 +18,7 @@ date: '2026-10-14'
 - It builds on [ADR 2026-10-13-2](2026-10-13-2-the-event-ledger-is-the-publication-seam-default-on-with-local-retention.md) (pub, ledger, sub; a versioned row contract in `spec-kitty-events`). It amends that record's D-1 row list: the lifecycle row kind is retired, not given its own schema (see the Amendments note added there). It also settles how D-1's "versioned row schema" and the operator's "canonical events only" fit: they are one contract, not two (D-3 below).
 - It builds on the produce side of [ADR 2026-10-01-2](2026-10-01-2-mission-status-read-api-and-dashboard-extraction.md), D-6: the read API stays a pull over the committed ledger, and this record names the one thing that writes that ledger.
 - It keeps [ADR 2026-02-09-3](../2.x/2026-02-09-3-event-log-merge-semantics.md) (event-log merge semantics) unchanged. The writer changes, but the log keeps its merge and reduction rules.
-- It keeps [ADR 2026-10-06-1](2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md) unchanged: hosted surfaces stay frozen.
+- It keeps [ADR 2026-10-06-1](2026-10-06-1-team-kitty-surfaces-are-hidden-unless-drain-is-on.md) unchanged. The hosted surfaces that record fenced were removed from open-core by #6164 (PR #6206); their code is preserved in `spec-kitty/event-router`.
 
 **Reader:** a maintainer changing how the CLI or the runtime records what happened to a Mission or a work package, or adding a side effect that reacts to it.
 
@@ -33,6 +33,8 @@ The operator's decision, verbatim:
 The decisions of 2026-10-13 stand: runtime transitions create events; events flow pub, ledger, sub; producers and consumers (the consumers live in `spec-kitty/event-router`) share only `spec-kitty-events` contracts; ledger rows get a versioned row schema in `spec-kitty-events`.
 
 ### Current state (`origin/main`, 566b20b9)
+
+This survey predates #6164 (PR #6206), which removed the hosted surfaces from open-core: `status/zeitgeist_bridge.py`, the hidden hosted CLI entries and the drain gates in `status/adapters.py` are gone. The citations below describe the tree at 566b20b9.
 
 **Many writers, several row shapes.** Counting each module that builds an event-like record and appends it to a log, there are twelve producers writing seven files:
 
@@ -131,7 +133,7 @@ Status commits, artifact writes, coordination commits, worktree work, the lane-s
 - **Synchronous consumers** run inside the bridge's unit of work, after the append and before it returns. The status commit is one: today's guarantee holds that an event is announced only after its commit succeeded (`coordination/status_transition.py:26-29`).
 - **Asynchronous consumers** run after the unit of work. They include the derived projection, the outbound publication adapter and the in-process seam of `status/adapters.py`. Their failure never undoes or blocks the event.
 
-External publication is not one of these. The bridge's external publication adapter is `spec-kitty/event-router`'s concern; it reads the ledger as ADR 2026-10-13-2 D-2 describes. The Zeitgeist handlers stay frozen and drain-gated (ADR 2026-10-06-1, ADR 2026-10-13-2 D-2).
+External publication is not one of these. The bridge's external publication adapter is `spec-kitty/event-router`'s concern; it reads the ledger as ADR 2026-10-13-2 D-2 describes. The Zeitgeist handlers are no longer in this repository (#6164).
 
 This follows Martin Fowler's [Event Sourcing](https://martinfowler.com/eaaDev/EventSourcing.html): every change of state is captured as an event, and the event log, not the side effects, is the record. Lane state already works this way: `status.events.jsonl` is its sole authority. This decision makes the rest of the core work the same way.
 
@@ -153,7 +155,7 @@ This follows Martin Fowler's [Event Sourcing](https://martinfowler.com/eaaDev/Ev
 #### Neutral
 
 - The Mission Status Read API (ADR 2026-10-01-2) is unchanged; it reads the committed ledger.
-- `hosted.drain`, `[hosted] drain` and the hidden hosted CLI entries are unchanged.
+- The hosted surfaces (`hosted.drain`, the hidden hosted CLI entries) were removed by #6164 and are not reintroduced.
 
 #### What must stay true during the migration
 
@@ -162,7 +164,7 @@ This follows Martin Fowler's [Event Sourcing](https://martinfowler.com/eaaDev/Ev
 - **Reducer duality.** The bridge changes who writes, not how logs are reduced. Two reducers still ship: the Lamport wrapper `materialize_snapshot` (`status/reducer.py:373-377`, ADR 2026-02-09-3) and the wall-clock `reduce_parsed` (`status/reducer.py:17`, `:176-181`). The consolidation gates keep reading through the Lamport wrapper (`consolidation/reconciliation.py::build_approved_wp_set`, :1442). #4941 stays open, and nothing here resolves it.
 - **Consolidation gates.** The approval-stamp bound, per-WP attribution, the reconciliation claim, the coordination status-surface guard and the origin-freshness gate read status events. They read `policy_metadata.lane_head`, `review_result`, `force`, `evidence` and actor provenance. The canonical status event carries each of these, so the gates' verdicts do not change. If a field changes form, the gate migrates in the same change. The `lane_head` probe stays a port the adapter fills; the domain never runs git to stamp it.
 - **Ordering and atomicity.** The event is appended before any consumer runs. A synchronous consumer that fails rolls the append back and the call raises, as `BookkeepingTransaction` does today; no consumer runs for an event that was cut. An asynchronous consumer that fails leaves the event recorded and its own work pending. Because consumers are idempotent by `event_id`, it can be rerun. `DecisionGitLog`'s swallowed commit failure becomes a recorded, rerunnable consumer failure.
-- **Hosted stays frozen.** Nothing in this decision turns on, extends or points at Zeitgeist, auth or the hosted backend.
+- **Hosted stays out.** Nothing in this decision reintroduces, extends or points at Zeitgeist, auth or the hosted backend, which #6164 removed from open-core.
 
 ### Confirmation
 
