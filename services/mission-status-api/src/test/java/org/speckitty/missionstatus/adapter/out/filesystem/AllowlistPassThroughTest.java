@@ -69,7 +69,17 @@ class AllowlistPassThroughTest {
   @Test
   void aDirectoryIteratorExceptionMidIterationIsMappedToItsIoException() {
     IOException cause = new IOException("boom");
-    java.nio.file.DirectoryStream<Path> failing =
+    assertThatThrownBy(() -> AllowlistPassThrough.window(failingAfterOne(cause), 5)).isSameAs(cause);
+  }
+
+  @Test
+  void theUnlimitedListingMapsAMidIterationFailureToItsIoException() {
+    IOException cause = new IOException("boom");
+    assertThatThrownBy(() -> AllowlistPassThrough.names(failingAfterOne(cause))).isSameAs(cause);
+  }
+
+  private java.nio.file.DirectoryStream<Path> failingAfterOne(IOException cause) {
+    return
         new java.nio.file.DirectoryStream<>() {
           @Override
           public java.util.Iterator<Path> iterator() {
@@ -94,7 +104,6 @@ class AllowlistPassThroughTest {
           @Override
           public void close() {}
         };
-    assertThatThrownBy(() -> AllowlistPassThrough.window(failing, 5)).isSameAs(cause);
   }
 
   private static java.nio.file.DirectoryStream<Path> emptyStream() {

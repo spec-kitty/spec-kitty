@@ -39,11 +39,20 @@ final class AllowlistPassThrough implements AllowlistAccess {
 
   @Override
   public List<String> listNames(Path dir) throws IOException {
-    List<String> names = new ArrayList<>();
     try (DirectoryStream<Path> entries = Files.newDirectoryStream(dir)) {
+      return names(entries);
+    }
+  }
+
+  /** Every name of one stream. */
+  static List<String> names(DirectoryStream<Path> entries) throws IOException {
+    List<String> names = new ArrayList<>();
+    try {
       for (Path entry : entries) {
         names.add(entry.getFileName().toString());
       }
+    } catch (DirectoryIteratorException e) {
+      throw e.getCause();
     }
     return names;
   }
