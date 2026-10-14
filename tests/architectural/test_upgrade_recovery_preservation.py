@@ -341,6 +341,9 @@ def export_tree(repo: Path, rev: str, *paths: str) -> None:
 # Operator-sanctioned corrections (#6061, #6205, #6238) are read from this pinned
 # commit, never HEAD: HEAD may legitimately re-edit a sanctioned file, which
 # would silently change the fixture. 2ff2f1deb5 holds their final sanctioned bytes.
+# When _OPERATOR_SANCTIONED_CORRECTIONS gains an entry sanctioned after this commit,
+# move the pin to that commit; when an entry inside the export is added or removed,
+# update FULL_CORPUS_SANCTIONED_COUNT with it.
 SANCTIONED_AT = "2ff2f1deb542ecec9a637bd872e91cef3437fee9"
 FULL_CORPUS_SANCTIONED_COUNT = 25
 
@@ -392,10 +395,13 @@ def build_recovery_repo(tmp_path: Path, *, full: bool = False) -> Path:
     git(repo, "commit", "-m", "Original historical corpus")
     applied = _apply_sanctioned_corrections(repo)
     if full:
-        assert len(applied) == FULL_CORPUS_SANCTIONED_COUNT, f"sanctioned overlay applied {len(applied)} paths, expected {FULL_CORPUS_SANCTIONED_COUNT}"
+        assert len(applied) == FULL_CORPUS_SANCTIONED_COUNT, (
+            f"sanctioned overlay applied {len(applied)} paths, expected {FULL_CORPUS_SANCTIONED_COUNT}; "
+            "update FULL_CORPUS_SANCTIONED_COUNT when _OPERATOR_SANCTIONED_CORRECTIONS changes"
+        )
     if applied:
         git(repo, "add", "-f", ".")
-        git(repo, "commit", "-m", "Operator-sanctioned corrections (#6061, #6205)")
+        git(repo, "commit", "-m", "Operator-sanctioned corrections (#6061, #6205, #6238)")
     git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
     return repo
 
