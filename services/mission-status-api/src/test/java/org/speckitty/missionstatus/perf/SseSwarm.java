@@ -29,12 +29,15 @@ public final class SseSwarm implements AutoCloseable {
 
   private final Selector selector;
   private final Thread reader;
-  private final Queue<SocketChannel> pending = new ConcurrentLinkedQueue<>();
+  // The reader thread takes each new channel with its index from this queue; it never reads `channels`, which only the caller's
+  // thread appends to (an unsynchronised list read across threads once lost the reader thread on Windows: 61 of 100 opened).
+  private final Queue<Pending> pending = new ConcurrentLinkedQueue<>();
   private final List<SocketChannel> channels = new ArrayList<>();
   private final AtomicInteger open = new AtomicInteger();
   private final AtomicInteger refused = new AtomicInteger();
   private volatile AtomicIntegerArray counts = new AtomicIntegerArray(0);
   private volatile boolean closed;
+  private volatile Throwable readerFailure;
 
   private SseSwarm() {
     try {
@@ -64,7 +67,7 @@ public final class SseSwarm implements AutoCloseable {
         String request = "GET /api/v1/events HTTP/1.1\r\nHost: 127.0.0.1:" + port + "\r\nAccept: text/event-stream\r\n\r\n";
         channel.write(ByteBuffer.wrap(request.getBytes(StandardCharsets.ISO_8859_1)));
         channels.add(channel);
-        pending.add(channel);
+        pending.add(new Pending(channel, first + i));
         selector.wakeup();
       } catch (IOException failure) {
         throw new UncheckedIOException(failure);
@@ -87,7 +90,10 @@ public final class SseSwarm implements AutoCloseable {
       pause(20);
     }
     if (open.get() < expected) {
-      throw new AssertionError("only " + open.get() + " of " + expected + " stream connections were accepted within " + bound.toSeconds() + " s (" + refused.get() + " refused)");
+      throw new AssertionError(
+          "only " + open.get() + " of " + expected + " stream connections were accepted within " + bound.toSeconds() + " s (" + refused.get()
+              + " refused)" + (readerFailure == null ? "" : "; the client reader thread failed: " + readerFailure),
+          readerFailure);
     }
   }
 
@@ -123,11 +129,10 @@ public final class SseSwarm implements AutoCloseable {
     try {
       while (!closed) {
         selector.select(250);
-        SocketChannel fresh;
+        Pending fresh;
         while ((fresh = pending.poll()) != null) {
-          fresh.configureBlocking(false);
-          int index = channels.indexOf(fresh);
-          fresh.register(selector, SelectionKey.OP_READ, new Conn(index));
+          fresh.channel().configureBlocking(false);
+          fresh.channel().register(selector, SelectionKey.OP_READ, new Conn(fresh.index()));
         }
         for (SelectionKey key : selector.selectedKeys()) {
           read(key, buffer);
@@ -136,6 +141,9 @@ public final class SseSwarm implements AutoCloseable {
       }
     } catch (IOException | java.nio.channels.ClosedSelectorException ended) {
       // closing the swarm ends the loop
+    } catch (RuntimeException | Error failure) {
+      // Any other failure ends the only reader: record it so awaitOpen reports it instead of a bare shortfall.
+      readerFailure = failure;
     }
   }
 
@@ -176,6 +184,8 @@ public final class SseSwarm implements AutoCloseable {
       key.cancel();
     }
   }
+
+  private record Pending(SocketChannel channel, int index) {}
 
   private static final class Conn {
     final int index;
