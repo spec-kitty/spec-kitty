@@ -52,7 +52,7 @@ MODEL_PACKAGE = "org.speckitty.missionstatus.adapter.in.http.model"
 MODELS_LIST = "MissionOverview,MissionOverviewPage,MissionProgress,PageCursorRefusal,PageInfo,Problem,Problem_1,Project,StatusLaneCounts,StreamCursor,Workspace"
 # Discovered-count floor for the NFR-009 scan: the tracked paths under the service tree. It is what the slice holds, rounded down, and
 # is raised slice by slice until it reaches the 300 recorded when WP03 landed (the scan must not pass on a handful of paths).
-TRACKED_SERVICE_PATH_FLOOR = 150
+TRACKED_SERVICE_PATH_FLOOR = 190
 
 
 def _text(path: Path) -> str:
