@@ -234,17 +234,34 @@ class DetailResponseContractValidationTest {
   static final Map<String, String> NOT_REPRODUCED = new TreeMap<>();
 
   static {
-    String illustrative = "its identifiers, instants and text are illustrative of the shape; no fixture is built to say the same bytes";
     String fault = "a refusal for a fault (an unreadable listing or file) that the fixtures cannot provoke under every host";
-    for (String name :
-        List.of(
-            "ArtifactContent.empty", "ArtifactContent.json", "ArtifactContent.markdown", "ArtifactContent.redacted", "ArtifactListing.populated", "ArtifactListing.truncated",
-            "MissionDetail.early", "MissionDetail.populated", "WorkPackage.actor-handle", "WorkPackage.actor-redacted", "WorkPackage.actor-structured", "WorkPackage.canceled",
-            "WorkPackage.no-events", "WorkPackage.override-partial", "WorkPackage.override", "WorkPackage.populated", "WorkPackage.provisional", "WorkPackage.with-prompt",
-            "WorkPackageDetail.cycle-without-path", "WorkPackageDetail.no-cycles", "WorkPackageDetail.null-workspace", "WorkPackageDetail.planning-lane", "WorkPackageDetail.populated",
-            "WorkPackageDetail.unknown-change-state", "WorkPackageDetail.unparseable-cycle")) {
-      NOT_REPRODUCED.put(name + ".yaml", illustrative);
-    }
+    String ids = "its identifiers and instants are hand-picked (a 26-character Mission id, 2026-09-2x instants), where every fixture serves the zero-padded ids and 2026-09-01 instants";
+    // The artifact content examples: the nearest served body differs in path, content and sizeBytes (the closest fixture file is another one).
+    NOT_REPRODUCED.put("ArtifactContent.empty.yaml", "serves notes/empty.txt with sizeBytes 0; no fixture holds a zero-byte file at that path (the closest served body is extra.txt, 11 bytes)");
+    NOT_REPRODUCED.put("ArtifactContent.json.yaml", "serves contracts/schema.json as application/json, 28 bytes; the fixtures serve contracts/api.yaml (application/yaml, 15 bytes), no JSON file");
+    NOT_REPRODUCED.put("ArtifactContent.markdown.yaml", "serves a 64-byte spec.md ('# Example Mission' and a sentence); the fixtures' spec.md is the 16-byte '# planning file'");
+    NOT_REPRODUCED.put("ArtifactContent.redacted.yaml", "serves notes/handoff.md with a [path] and an [email] redaction, 81 bytes; the redaction fixture serves only-mail.md with [email] alone, 38 bytes");
+    NOT_REPRODUCED.put("ArtifactListing.populated.yaml", "lists 12 entries with sizes of thousands of bytes and 2026-09-22 instants; the artifacts-populated fixture lists 14 entries of 11 to 16 bytes at one 2026-09-21 instant");
+    NOT_REPRODUCED.put("ArtifactListing.truncated.yaml", "a stand-in: the example itself says a real truncated listing holds exactly 1000 entries, so a served truncated body has 1000 entries where this one has 3 (no fixture lists 1000 files)");
+    NOT_REPRODUCED.put("MissionDetail.early.yaml", "a Mission with a null missionType, created 2026-09-21T09:00:00+02:00 (a non-UTC offset) with an in-progress lifecycle_event phase; the detail-early fixture is software-dev, UTC, all phases pending");
+    NOT_REPRODUCED.put("MissionDetail.populated.yaml", "a Mission with displayNumber 12, 41 events and 2026-09-2x instants; the nearest served body, phases-matrix/lc-mix, has a null display number, 14 events and 2026-09-01 instants, and differs in 91 members");
+    NOT_REPRODUCED.put("WorkPackage.actor-handle.yaml", ids + "; a finalize-tasks tool actor on WP02 titled 'Define the data model', where the fixtures name the actor claude on WP01");
+    NOT_REPRODUCED.put("WorkPackage.actor-redacted.yaml", ids + "; an actor whose tool is redacted to null on WP03; no fixture redacts the tool of an actor");
+    NOT_REPRODUCED.put("WorkPackage.actor-structured.yaml", ids + "; a structured actor with a role and a profile (implementer, implementer-ivan); the fixtures' actors carry a tool only");
+    NOT_REPRODUCED.put("WorkPackage.canceled.yaml", "a canceled WP (reason 'Superseded by WP09.', source operator) with the structured actor implementer-ivan; the nearest served body, the two-selectors WP08, differs in 17 members, among them a null cancellation and a null actor profile and role");
+    NOT_REPRODUCED.put("WorkPackage.no-events.yaml", "WP07 titled 'Prepare the release notes' depending on WP06; the nearest served body, the planning-only fixture's WP02, differs in exactly four members: wpId, title, the dependency and the unsatisfied readiness entry (WP01 there)");
+    NOT_REPRODUCED.put("WorkPackage.override-partial.yaml", "a populated assignment (agent claude, profile implementer-ivan, model sonnet) with a partial review override; the nearest served body, projection-nulls/override-partial-junk-at, has a null assignment and actor profile, and differs in 57 members");
+    NOT_REPRODUCED.put("WorkPackage.override.yaml", "a populated assignment with a complete review override; the nearest served body, projection-nulls/override-partial-junk-at, has a null assignment and actor profile, and differs in 59 members");
+    NOT_REPRODUCED.put("WorkPackage.populated.yaml", "a WP with a populated assignment, a structured actor (implementer-ivan) and a full authored plan; the nearest served body, resolved-state/review-result-sticky WP03, differs in 79 members");
+    NOT_REPRODUCED.put("WorkPackage.provisional.yaml", "a provisional WP with a populated assignment and authored members; the nearest served body, resolved-state/model-absent-sentinel, has a null assignment profile, model and provider and agent-one as its agent, and differs in 55 members");
+    NOT_REPRODUCED.put("WorkPackage.with-prompt.yaml", "WorkPackage.populated plus its promptMarkdown member (the includePrompt answer); it inherits the populated example's 80 differing members, and no fixture serves a populated plan with a prompt");
+    NOT_REPRODUCED.put("WorkPackageDetail.cycle-without-path.yaml", ids + "; a review cycle 2 with a null artifactPath and a null feedbackReference, on a lane-a workspace; the unparseable-cycle fixture has a cycle 1 with both set and a null workspace");
+    NOT_REPRODUCED.put("WorkPackageDetail.no-cycles.yaml", ids + "; WP05's detail with T005 subtasks and one literal owned file (isGlob false); the populated fixture's WP02 has a glob and T003");
+    NOT_REPRODUCED.put("WorkPackageDetail.null-workspace.yaml", "a detail whose artifactReferences.prompt is null (the prompt file is absent) with the example's own ids; the nearest served body, detail-populated/bad-sibling-after WP01, has the prompt reference set (tasks/WP01-fixture.md) and the zero-padded Mission id");
+    NOT_REPRODUCED.put("WorkPackageDetail.planning-lane.yaml", "a planning-lane WP06 with a spec reference and one unknown-state owned file; the nearest null-workspace fixture has no spec reference and no owned files");
+    NOT_REPRODUCED.put("WorkPackageDetail.populated.yaml", "WP04 depending on an approved WP03 with three owned files in changed state; the populated fixture's WP01 has no dependencies and two owned files in unknown state");
+    NOT_REPRODUCED.put("WorkPackageDetail.unknown-change-state.yaml", "three owned files with an {alpha,beta} brace pattern and a spec reference; the unknown-change-state fixture has two owned files (src/a.py, docs/**) and no spec reference");
+    NOT_REPRODUCED.put("WorkPackageDetail.unparseable-cycle.yaml", ids + "; cycle 3 of WP03 on a lane-a workspace with a feedbackReference naming the example Mission; the cycles fixture has cycle 1 and a null workspace");
     NOT_REPRODUCED.put("ArtifactRefusal.artifact-listing-unreadable.yaml", fault);
     NOT_REPRODUCED.put("ArtifactRefusal.artifact-unreadable.yaml", fault);
   }
