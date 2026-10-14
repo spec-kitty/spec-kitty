@@ -1459,8 +1459,8 @@ MAIN_RESOURCES = SERVICE / "src" / "main" / "resources"
 HTTP_MAIN = SERVICE / "src" / "main" / "java" / "org" / "speckitty" / "missionstatus" / "adapter" / "in" / "http"
 ARCH_RULES_TEST = SERVICE / "src" / "test" / "java" / "org" / "speckitty" / "missionstatus" / "architecture" / "ArchitectureRules.java"
 RULE_9_LITERALS = {
-    "api": "org.speckitty.missionstatus.adapter.in.http.api",
-    "model": "org.speckitty.missionstatus.adapter.in.http.model",
+    "api": API_PACKAGE,
+    "model": MODEL_PACKAGE,
     "dto": "org.speckitty.missionstatus.adapter.in.http.dto",
 }
 PACKAGED_DEFAULTS = {

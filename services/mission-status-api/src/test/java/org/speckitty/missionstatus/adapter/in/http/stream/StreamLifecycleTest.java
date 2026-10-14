@@ -32,7 +32,9 @@ class StreamLifecycleTest {
 
   /**
    * An idle stream held past the first heartbeat (provisional, ADR 2026-10-05-2: 35 s of real time is the only way to show that the
-   * 30 s default of the container does not end it). Revert: build the emitter with the container default timeout and this is red.
+   * 30 s default of the container does not end it). Revert: give the emitter a finite timeout ({@code new SseEmitter(5000L)}), or build it
+   * with the container default AND drop {@code spring.mvc.async.request-timeout=-1}, and this is red; either one alone of the latter two
+   * keeps the stream open.
    */
   @Test
   void anIdleStreamIsHeldPastThirtyFiveSecondsReceivesItsHeartbeatAndStillDeliversARow() {
