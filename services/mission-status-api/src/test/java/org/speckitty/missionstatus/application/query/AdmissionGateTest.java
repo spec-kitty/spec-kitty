@@ -322,4 +322,79 @@ class AdmissionGateTest {
     assertThat(flagKept).as("the interrupt flag survived the wait").isTrue();
     assertThat(failures).isEmpty();
   }
+
+  /**
+   * Fairness as behaviour, not as a flag: a caller that arrives after a parked waiter must not overtake it, even when it sees the freed
+   * permit before the waiter wakes. The late caller watches the gate's own permit count and enters the moment a permit is free; a fair
+   * gate queues it behind the waiter every time, a non-fair semaphore lets it barge. Each round is ordered by latches and thread states.
+   */
+  @Test
+  void aLateCallerNeverOvertakesAParkedWaiterEvenWhenItSeesTheFreedPermit() throws Exception {
+    int overtaken = 0;
+    int rounds = 300;
+    for (int round = 0; round < rounds; round++) {
+      AdmissionGate gate = new AdmissionGate();
+      Semaphore semaphore = (Semaphore) semaphoreField().get(gate);
+      CountDownLatch holding = new CountDownLatch(4);
+      CountDownLatch[] releaseHolder = new CountDownLatch[4];
+      List<Throwable> failures = new ArrayList<>();
+      List<Thread> all = new ArrayList<>();
+      for (int i = 0; i < 4; i++) {
+        CountDownLatch mine = new CountDownLatch(1);
+        releaseHolder[i] = mine;
+        Thread holder =
+            caller(
+                gate,
+                () -> {
+                  holding.countDown();
+                  await(mine);
+                  return null;
+                },
+                failures);
+        all.add(holder);
+        holder.start();
+      }
+      assertThat(holding.await(BOUND_SECONDS, TimeUnit.SECONDS)).isTrue();
+      java.util.concurrent.atomic.AtomicInteger order = new java.util.concurrent.atomic.AtomicInteger();
+      int[] waiterSeq = new int[1];
+      int[] lateSeq = new int[1];
+      Thread waiter = caller(gate, () -> waiterSeq[0] = order.incrementAndGet(), failures);
+      all.add(waiter);
+      waiter.start();
+      awaitWaiting(waiter);
+      java.util.concurrent.atomic.AtomicBoolean armed = new java.util.concurrent.atomic.AtomicBoolean();
+      Thread late =
+          new Thread(
+              () -> {
+                armed.set(true);
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(BOUND_SECONDS);
+                while (semaphore.availablePermits() == 0 && System.nanoTime() < deadline) {
+                  Thread.onSpinWait();
+                }
+                gate.run(() -> lateSeq[0] = order.incrementAndGet());
+              });
+      late.setDaemon(true);
+      all.add(late);
+      late.start();
+      long armDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(BOUND_SECONDS);
+      while (!armed.get() && System.nanoTime() < armDeadline) {
+        Thread.onSpinWait();
+      }
+      releaseHolder[0].countDown();
+      waiter.join(TimeUnit.SECONDS.toMillis(BOUND_SECONDS));
+      late.join(TimeUnit.SECONDS.toMillis(BOUND_SECONDS));
+      for (int i = 1; i < 4; i++) {
+        releaseHolder[i].countDown();
+      }
+      for (Thread thread : all) {
+        thread.join(TimeUnit.SECONDS.toMillis(BOUND_SECONDS));
+      }
+      assertThat(failures).isEmpty();
+      if (waiterSeq[0] > lateSeq[0]) {
+        overtaken++;
+      }
+    }
+
+    assertThat(overtaken).as("rounds in which a later caller was served before the parked waiter").isZero();
+  }
 }
