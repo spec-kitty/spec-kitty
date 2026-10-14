@@ -79,6 +79,7 @@ EXCLUDED_WITH_SIBLING = [
     pytest.param("Ref " + OWN + "/{n}abc", "Ref " + OWN + "/{n} ", id="url-letter-suffix"),
     pytest.param("Ref " + OWN + "/{n}_x", "Ref " + OWN + "/{n} ", id="url-underscore-suffix"),
     pytest.param("Ref " + OWN + "/{n}\u00e9", "Ref " + OWN + "/{n} ", id="url-non-ascii-suffix"),
+    pytest.param("Ref #12345678", "Ref #{n}", id="seven-plus-digits"),
     pytest.param("Ref " + OWN + "/12345678", "Ref " + OWN + "/{n}", id="seven-plus-digits-url"),
 ]
 
