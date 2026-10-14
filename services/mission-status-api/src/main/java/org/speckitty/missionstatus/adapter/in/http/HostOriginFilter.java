@@ -23,6 +23,9 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>{@code Forwarded} and {@code X-Forwarded-Host}, present with any value, are refused.
  *   <li>{@code Origin}, when present, must be {@code http://} plus one of the two accepted host forms; {@code null} and anything else is
  *       refused. There is no allowed-origin configuration.
+ *   <li>{@code Sec-Fetch-Site: cross-site} is refused: a browser sends no {@code Origin} on a cross-site GET (it cannot read the reply, but
+ *       it could fill the stream places). {@code same-origin}, {@code same-site}, {@code none} and an absent header (a non-browser
+ *       client) pass.
  * </ul>
  *
  * Every refusal is {@link HostOriginRefusal#STATUS} with the shared Problem {@code request_refused}; the body names no check and carries
@@ -64,6 +67,9 @@ public class HostOriginFilter extends OncePerRequestFilter {
       return false;
     }
     if (request.getHeader("Forwarded") != null || request.getHeader("X-Forwarded-Host") != null) {
+      return false;
+    }
+    if ("cross-site".equalsIgnoreCase(request.getHeader("Sec-Fetch-Site"))) {
       return false;
     }
     List<String> origins = Collections.list(request.getHeaders("Origin"));

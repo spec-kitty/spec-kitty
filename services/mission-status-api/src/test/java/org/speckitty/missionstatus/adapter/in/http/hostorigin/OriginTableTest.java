@@ -90,6 +90,25 @@ class OriginTableTest {
     }
   }
 
+  static Stream<Arguments> fetchSites() {
+    return Stream.concat(
+        HostOriginRig.TARGETS.stream().map(target -> Arguments.of(target, "cross-site", 403)),
+        Stream.of("same-origin", "same-site", "none").map(site -> Arguments.of("/api/v1/project", site, 200)));
+  }
+
+  /** A browser sends no Origin on a cross-site GET: Sec-Fetch-Site says where the request came from. Non-browser clients send none. */
+  @ParameterizedTest(name = "Sec-Fetch-Site {1} on {0}")
+  @MethodSource("fetchSites")
+  void aCrossSiteFetchIsRefusedWhateverTheOriginAndTheOtherSitesPass(String target, String site, int status) {
+    int port = server.port();
+    int readsBefore = server.reads();
+    RawClient.Reply reply = server.send("GET " + target + " HTTP/1.1", "Host: 127.0.0.1:" + port, "Sec-Fetch-Site: " + site);
+    assertThat(reply.status()).isEqualTo(status);
+    if (status == 403) {
+      assertThat(server.reads() - readsBefore).as("Mission reads and port calls").isZero();
+    }
+  }
+
   @Test
   void aForeignOriginWithAForeignHostIsAlsoOneRefusal() {
     int port = server.port();

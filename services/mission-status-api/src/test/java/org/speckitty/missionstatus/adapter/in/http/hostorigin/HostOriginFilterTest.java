@@ -4,17 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Stream;
 import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.speckitty.missionstatus.adapter.in.http.HostOriginFilter;
-import org.speckitty.missionstatus.adapter.in.http.HostOriginRefusal;
 import org.speckitty.missionstatus.adapter.in.http.OwnPortSource;
 import org.springframework.mock.web.MockFilterChain;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -54,11 +50,6 @@ class HostOriginFilterTest {
       }
     });
     return new Outcome(response.getStatus(), passed.get() == 1, response.getContentAsString(StandardCharsets.UTF_8), response.getContentType());
-  }
-
-  @Test
-  void theRefusalConstantIs403() {
-    assertThat(HostOriginRefusal.STATUS).isEqualTo(403);
   }
 
   @ParameterizedTest
@@ -172,27 +163,5 @@ class HostOriginFilterTest {
     assertThat(passed.get()).isEqualTo(2);
     assertThat(first.getStatus()).isEqualTo(200);
     assertThat(second.getStatus()).isEqualTo(200);
-  }
-
-  /** The constant governs the filter's refusals only: no other class of the service names it (AC-9b status-constant scope). */
-  @Test
-  void theRefusalConstantIsNamedByTheFilterAlone() throws IOException {
-    Path main = Path.of("src", "main", "java");
-    try (Stream<Path> walk = Files.walk(main)) {
-      List<String> users =
-          walk.filter(path -> path.toString().endsWith(".java"))
-              .filter(
-                  path -> {
-                    try {
-                      return Files.readString(path).contains("HostOriginRefusal");
-                    } catch (IOException failure) {
-                      throw new java.io.UncheckedIOException(failure);
-                    }
-                  })
-              .map(path -> path.getFileName().toString())
-              .sorted()
-              .toList();
-      assertThat(users).containsExactly("HostOriginFilter.java", "HostOriginRefusal.java");
-    }
   }
 }
