@@ -2,6 +2,7 @@ package org.speckitty.missionstatus.adapter.out.filesystem;
 
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.file.DirectoryIteratorException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
@@ -60,15 +61,22 @@ final class AllowlistPassThrough implements AllowlistAccess {
   }
 
   /** At most {@code limit} names, pulled lazily from one stream: never more than {@code limit + 1} of them. */
-  static NameWindow window(DirectoryStream<Path> entries, int limit) {
+  static NameWindow window(DirectoryStream<Path> entries, int limit) throws IOException {
+    if (limit < 0) {
+      throw new IllegalArgumentException("nameLimit must not be negative: " + limit);
+    }
     List<String> names = new ArrayList<>();
     boolean more = false;
-    for (Path entry : entries) {
-      if (names.size() == limit) {
-        more = true;
-        break;
+    try {
+      for (Path entry : entries) {
+        if (names.size() == limit) {
+          more = true;
+          break;
+        }
+        names.add(entry.getFileName().toString());
       }
-      names.add(entry.getFileName().toString());
+    } catch (DirectoryIteratorException e) {
+      throw e.getCause();
     }
     return new NameWindow(names, more);
   }

@@ -60,4 +60,52 @@ class AllowlistPassThroughTest {
     assertThat(AllowlistAccess.passThrough().listNames(dir)).containsExactlyInAnyOrder("sub", "f");
     assertThat(AllowlistAccess.passThrough().realPath(dir)).isEqualTo(dir.toRealPath());
   }
+
+  @Test
+  void aNegativeNameLimitIsRefused() {
+    assertThatThrownBy(() -> AllowlistPassThrough.window(emptyStream(), -1)).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void aDirectoryIteratorExceptionMidIterationIsMappedToItsIoException() {
+    IOException cause = new IOException("boom");
+    java.nio.file.DirectoryStream<Path> failing =
+        new java.nio.file.DirectoryStream<>() {
+          @Override
+          public java.util.Iterator<Path> iterator() {
+            return new java.util.Iterator<>() {
+              int served;
+
+              @Override
+              public boolean hasNext() {
+                return true;
+              }
+
+              @Override
+              public Path next() {
+                if (served++ == 0) {
+                  return dir.resolve("first");
+                }
+                throw new java.nio.file.DirectoryIteratorException(cause);
+              }
+            };
+          }
+
+          @Override
+          public void close() {}
+        };
+    assertThatThrownBy(() -> AllowlistPassThrough.window(failing, 5)).isSameAs(cause);
+  }
+
+  private static java.nio.file.DirectoryStream<Path> emptyStream() {
+    return new java.nio.file.DirectoryStream<>() {
+      @Override
+      public java.util.Iterator<Path> iterator() {
+        return java.util.Collections.emptyIterator();
+      }
+
+      @Override
+      public void close() {}
+    };
+  }
 }
