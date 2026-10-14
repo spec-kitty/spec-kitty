@@ -94,6 +94,9 @@ class ContractDriftNestedBuildTest {
           new Target("HistoryEntry", "reviewVerdict", "new HistoryEntry().reviewVerdict(null)"),
           new Target("MissionDetail", "workPackages", "new MissionDetail().addWorkPackagesItem(null)"),
           new Target("MissionPhase", "basis", "new MissionPhase().basis(null)"),
+          new Target("MissionProgress", "doneCount", "new MissionProgress().doneCount(1)"),
+          new Target("StatusLaneCounts", "planned", "new StatusLaneCounts().planned(1)"),
+          new Target("StreamCursor", "invariant", "new StreamCursor().invariant(\"x\")"),
           new Target("OwnedFile", "isGlob", "new OwnedFile().isGlob(false)"),
           new Target("Readiness", "satisfied", "new Readiness().satisfied(true)"),
           new Target("Review", "latestResult", "new Review().latestResult(null)"),
@@ -115,7 +118,7 @@ class ContractDriftNestedBuildTest {
   void everyDetailModelHasAProbeReferenceThatThePinnedExpressionsQuote() throws IOException {
     Path project = Path.of(requiredProperty("kit.projectDir"));
     String probe = Files.readString(project.resolve("src/main/java/org/speckitty/missionstatus/adapter/in/http/ContractDriftProbe.java"), StandardCharsets.UTF_8);
-    assertThat(DETAIL_TARGETS).hasSizeGreaterThanOrEqualTo(28);
+    assertThat(DETAIL_TARGETS).hasSizeGreaterThanOrEqualTo(31);
     for (Target target : DETAIL_TARGETS) {
       assertThat(probe).as("the probe holds the reference of %s", target.schema()).contains(target.probeExpression());
     }

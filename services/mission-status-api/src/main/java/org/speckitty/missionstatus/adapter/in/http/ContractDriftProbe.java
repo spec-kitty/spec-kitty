@@ -16,6 +16,7 @@ import org.speckitty.missionstatus.adapter.in.http.model.HistoryEntry;
 import org.speckitty.missionstatus.adapter.in.http.model.MissionDetail;
 import org.speckitty.missionstatus.adapter.in.http.model.MissionOverview;
 import org.speckitty.missionstatus.adapter.in.http.model.MissionPhase;
+import org.speckitty.missionstatus.adapter.in.http.model.MissionProgress;
 import org.speckitty.missionstatus.adapter.in.http.model.OwnedFile;
 import org.speckitty.missionstatus.adapter.in.http.model.Project;
 import org.speckitty.missionstatus.adapter.in.http.model.Readiness;
@@ -24,6 +25,8 @@ import org.speckitty.missionstatus.adapter.in.http.model.ReviewCycle;
 import org.speckitty.missionstatus.adapter.in.http.model.ReviewOverride;
 import org.speckitty.missionstatus.adapter.in.http.model.ReviewResult;
 import org.speckitty.missionstatus.adapter.in.http.model.Staleness;
+import org.speckitty.missionstatus.adapter.in.http.model.StatusLaneCounts;
+import org.speckitty.missionstatus.adapter.in.http.model.StreamCursor;
 import org.speckitty.missionstatus.adapter.in.http.model.Subtask;
 import org.speckitty.missionstatus.adapter.in.http.model.SubtaskProgress;
 import org.speckitty.missionstatus.adapter.in.http.model.WorkPackage;
@@ -110,6 +113,18 @@ final class ContractDriftProbe {
 
   static MissionPhase missionPhase() {
     return new MissionPhase().basis(null);
+  }
+
+  static MissionProgress missionProgress() {
+    return new MissionProgress().doneCount(1);
+  }
+
+  static StatusLaneCounts statusLaneCounts() {
+    return new StatusLaneCounts().planned(1);
+  }
+
+  static StreamCursor streamCursor() {
+    return new StreamCursor().invariant("x");
   }
 
   static OwnedFile ownedFile() {
