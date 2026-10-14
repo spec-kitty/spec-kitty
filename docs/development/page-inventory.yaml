@@ -1328,6 +1328,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/4.x/2026-10-14-1-event-native-core-one-canonical-event-writer.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/4.x/index.md
   tag: current
   divio_type: explanation
