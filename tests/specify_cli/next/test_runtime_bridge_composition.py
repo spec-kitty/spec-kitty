@@ -738,29 +738,32 @@ def test_unexpected_exception_surfaces_structured_cli_error(feature_dir_with_ful
 # have produced at that substep.
 
 
-def test_collapsed_tasks_guard_passes_after_outline_with_only_tasks_md(
+def test_collapsed_tasks_guard_passes_after_outline_with_wps_yaml(
     feature_dir: Path,
 ) -> None:
-    """tasks_outline guard requires only tasks.md, not WP files yet.
+    """tasks_outline guard requires wps.yaml (the outline artifact), not WP files yet.
 
-    Reproduces the reviewer-reported live-flow blocker: with only spec.md +
-    plan.md + tasks.md (no WP files yet), the collapsed-on-tasks_outline
-    guard previously returned a "Required: at least one tasks/WP*.md file"
-    failure, blocking the user from progressing to tasks_packages.
+    Since PR #5945 (#2642) the outline substep produces ``wps.yaml`` — the
+    structured work-package manifest that ``finalize-tasks`` later renders
+    ``tasks.md`` from (``tasks-outline/prompt.md``: "DO NOT write tasks.md. The
+    system generates it from wps.yaml."). With the post-outline state present
+    (spec.md + plan.md + wps.yaml, no WP files yet) the
+    collapsed-on-tasks_outline guard must accept it instead of demanding the
+    terminal WP files, so the user can progress to tasks_packages.
     """
     (feature_dir / "spec.md").write_text("# spec", encoding="utf-8")
     (feature_dir / "plan.md").write_text("# plan", encoding="utf-8")
-    (feature_dir / "tasks.md").write_text("# tasks", encoding="utf-8")
+    (feature_dir / "wps.yaml").write_text("wps: []\n", encoding="utf-8")
     failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id="tasks_outline")
-    assert failures == [], f"tasks_outline must accept only tasks.md being present at this point; got blocking failures {failures!r}"
+    assert failures == [], f"tasks_outline must accept the post-outline wps.yaml state; got blocking failures {failures!r}"
 
 
-def test_collapsed_tasks_guard_fails_after_outline_when_tasks_md_missing(
+def test_collapsed_tasks_guard_fails_after_outline_when_wps_yaml_missing(
     feature_dir: Path,
 ) -> None:
-    """tasks_outline guard still fails when tasks.md is absent."""
+    """tasks_outline guard fails when wps.yaml (the outline artifact) is absent."""
     failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id="tasks_outline")
-    assert any("tasks.md" in f for f in failures), f"Expected tasks.md missing failure; got {failures!r}"
+    assert any("wps.yaml" in f for f in failures), f"Expected wps.yaml missing failure; got {failures!r}"
 
 
 def test_collapsed_tasks_guard_passes_after_packages_without_dependencies(
@@ -792,16 +795,23 @@ def test_collapsed_tasks_guard_fails_after_packages_when_no_wp_files(
     assert any("WP*.md" in f for f in failures), f"Expected WP*.md missing failure; got {failures!r}"
 
 
-def test_collapsed_tasks_guard_fails_after_packages_when_tasks_md_missing(
+def test_collapsed_tasks_guard_packages_does_not_require_tasks_md(
     feature_dir: Path,
 ) -> None:
-    """tasks_packages guard still requires the top-level tasks.md artifact."""
+    """tasks_packages guard does NOT require the top-level tasks.md artifact.
+
+    Since PR #5945 (#2642) ``tasks.md`` is a ``tasks_finalize`` artifact
+    (``finalize-tasks`` renders it from ``wps.yaml``), not a ``tasks_packages``
+    one. With WP files present but tasks.md still absent, the
+    collapsed-on-tasks_packages guard must accept the state rather than demand
+    the finalize-only artifact.
+    """
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir()
     _write_wp_file(tasks_dir, "WP01", with_dependencies=False)
 
     failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id="tasks_packages")
-    assert any("tasks.md" in f for f in failures), f"tasks_packages must require tasks.md; got {failures!r}"
+    assert failures == [], f"tasks_packages must accept WP files without the finalize-only tasks.md; got {failures!r}"
 
 
 def test_collapsed_tasks_guard_demands_dependencies_on_finalize(
@@ -846,12 +856,12 @@ def test_dispatch_threads_legacy_step_id_to_guard(feature_dir: Path, tmp_path: P
 
     Reproduces the reviewer's decide_next() walk in a tighter form: after a
     successful executor call (mocked) for a tasks_outline substep, the
-    bridge's guard check accepts only-tasks_md state instead of demanding
-    WP files. Without legacy_step_id threading, this would block.
+    bridge's guard check accepts the post-outline wps.yaml state instead of
+    demanding WP files. Without legacy_step_id threading, this would block.
     """
     (feature_dir / "spec.md").write_text("# spec", encoding="utf-8")
     (feature_dir / "plan.md").write_text("# plan", encoding="utf-8")
-    (feature_dir / "tasks.md").write_text("# tasks", encoding="utf-8")
+    (feature_dir / "wps.yaml").write_text("wps: []\n", encoding="utf-8")
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
