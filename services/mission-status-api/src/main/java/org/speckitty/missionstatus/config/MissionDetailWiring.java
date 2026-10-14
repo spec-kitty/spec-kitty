@@ -12,7 +12,7 @@ import org.speckitty.missionstatus.domain.redaction.LeakClasses;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** The wiring of the Mission detail route (shell: the behaviour follows in the next commit). */
+/** The wiring of the Mission detail route: the work-package index, its collaborators and the detail query service. */
 @Configuration(proxyBeanMethods = false)
 class MissionDetailWiring {
 

@@ -95,7 +95,7 @@ class MissionDetailMetaReadCountTest {
   }
 
   @Test
-  void theStreamRouteProbesAndReadsTheMatchedMissionOnceMoreThanTheDetailRouteBeforeItsFeedStarts() {
+  void theStreamRouteReadsTheMatchedMissionOnceFewerThanTheDetailRouteColdBeforeItsFeedStarts() {
     DetailFixture fixture = three();
     fixture.recorder().clear();
 
