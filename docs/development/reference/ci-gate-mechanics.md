@@ -863,12 +863,19 @@ The standalone service under `services/mission-status-api/` has its own workflow
 Python tests of its helper scripts run in the router's module shards.
 
 - **Triggers.** `push` to `main` and `pull_request`, both path-filtered
-  (`services/mission-status-api/**`, `contracts/mission-status/**` and the workflow
-  file itself); `schedule` (the nightly full-corpus comparison only) and
-  `workflow_dispatch`, which carry no path filter; and a pushed tag
-  `mission-status-api-v*.*.*`, which GitHub does not path-filter. The tag pattern is
-  disjoint from the CLI release tags (`v*.*.*`) and the contract tags
+  (`services/mission-status-api/**`, `contracts/mission-status/**`,
+  `contracts/_shared/**`, `contracts/tools/**`, `scripts/ci/mission_status_gate_checks.py`
+  and the workflow file itself: every input that changes the served contract or the
+  gate checks); `schedule` and `workflow_dispatch`, which carry no path filter; and a
+  pushed tag `mission-status-api-v*.*.*`, which GitHub does not path-filter. The tag
+  pattern is disjoint from the CLI release tags (`v*.*.*`) and the contract tags
   (`contract-*-v*.*.*`). A change that touches only `src/` never starts it.
+- **The nightly schedule.** One cron (04:37 UTC, off the hour) runs `nightly-corpus`
+  and nothing else: `contract-bundle`, `jvm`, `native` and the gate carry a
+  `github.event_name != 'schedule'` conjunct (the gate's `always()` would otherwise
+  start it on a scheduled run whose needs were skipped), and `release` needs a tag
+  push. A maintainer can run the same job with `workflow_dispatch`. A scheduled run
+  does not run on a fork (the fork guard).
 - **Router and fleet verdict.** It is not a router dependency: a skipped path-filtered
   workflow posts no check, so `router-gate` ignores it. It is registered in the fleet
   verdict (`fleet_verdict.PR_WORKFLOWS` and the `workflow_run.workflows` list of
@@ -893,14 +900,17 @@ Python tests of its helper scripts run in the router's module shards.
   the `--request-floor`, which must equal the sum of the stage floors in
   `requests.json`. `nightly-corpus` (schedule and dispatch only) compares the service
   with the Python reference over the whole repository corpus, with no exemption list.
-  `release` needs the gate, runs on a tag push only and holds the only write token; it attests
-  build provenance for each binary (verify with
-  `gh attestation verify <binary> --repo spec-kitty/spec-kitty`).
+  `release` needs the gate, runs on a tag push only (the tagged commit must be an
+  ancestor of `origin/main`) and holds the only write token. It publishes the four
+  native binaries with their SHA-256 files as a pre-release-aware GitHub release, and
+  attests build provenance for each binary (verify with
+  `gh attestation verify <binary> --repo spec-kitty/spec-kitty`). The binaries are
+  unsigned.
 - **Run it locally.** From `services/mission-status-api/`: `./gradlew check` (with the
   contract bundle properties the build asks for), then
   `./gradlew nativeCompile nativeTest` and
   `./gradlew nativeSmoke -PnativeBinary=<built binary>`. The Python pins are
-  `.venv/bin/python -m pytest tests/ci/test_mission_status_api_build.py tests/ci/test_mission_status_gate_checks.py -q`.
+  `.venv/bin/python -m pytest tests/ci/test_mission_status_api_build.py tests/ci/test_mission_status_gate_checks.py tests/ci/test_mission_status_routing.py tests/ci/test_mission_status_corpus_compare.py -q`.
 
 ### What only a merge can confirm
 

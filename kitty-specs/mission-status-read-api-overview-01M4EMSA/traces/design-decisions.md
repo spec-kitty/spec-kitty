@@ -274,7 +274,7 @@ Append-only (procedure `mission-tracer-files`). Entry format: `- **[YYYY-MM-DD][
   - **Comparison.** `scripts/ci/mission_status_corpus_compare.py` compares raw bytes, with no exemptions (E-10). Each page item is split out of the raw body and compared with the oracle's canonical JSON. The page frame and the Mission order are checked, and the `/project` body is compared whole.
   - **Non-vacuity.** The floor of 500 is a constant only, not an option. The oracle's Mission count must equal an independent `git ls-files` count of depth-3 `meta.json` files.
   - **Exit codes.** 0 for a pass, 1 when any row is not equal, 2 when the script cannot do its job.
-  - **Job.** The `nightly-corpus` job runs on schedule and on `workflow_dispatch` only, behind the fork guard. It builds its own bundle, has no `needs`, and stops the service by its PID. The cron stays at `37 5 * * *`.
+  - **Job.** The `nightly-corpus` job runs on schedule and on `workflow_dispatch` only, behind the fork guard. It builds its own bundle, has no `needs`, and stops the service by its PID. The cron is `37 4 * * *` (04:37 UTC); every other job excludes `schedule`, the contract-bundle job included.
   - **Local result.** 596 of 596 Missions plus `/project` are byte-equal, with 0 differences. None of the recorded divergences occur in this corpus.
   - **Owed.** The real `workflow_dispatch` run.
 - **[2026-10-12][implement] DD-115 (WP15) Release job and its fleet-main consequence.**
