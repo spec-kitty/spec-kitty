@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "main-red-test-premise-repair-01M4XV67",
+  "mission_id": "01M4XV67YBH04EXQA07E1XZZQ1",
+  "mission_branch": "issue-6240-main-red-test-premise-repair",
+  "target_branch": "issue-6240-main-red-test-premise-repair",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-router.yml",
+        "scripts/ci/gate_selection.py",
+        "tests/architectural/test_gate_selection_authority.py",
+        "tests/architectural/test_upgrade_recovery_preservation.py",
+        "tests/architectural/test_workflow_coherence.py",
+        "tests/ci/test_fanout_derivation.py",
+        "tests/specify_cli/test_requirement_id_lint.py"
+      ],
+      "predicted_surfaces": [],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-10-14T18:45:43.470477+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "e6da64c964cdcde37e4ea0d2b9f0caf5a1c92ce1"
+}

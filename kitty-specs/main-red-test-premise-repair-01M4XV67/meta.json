@@ -1,0 +1,36 @@
+{
+  "accept_commit": "f0656f91cca8a6c2dacbb658f77847d8e2d1949a",
+  "acceptance_history": [
+    {
+      "accept_commit": "f0656f91cca8a6c2dacbb658f77847d8e2d1949a",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-10-14T19:34:11.557300+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "10b3a08014edc0f0f8665f13a45e170bf16507e4"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-10-14T19:34:11.557300+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "10b3a08014edc0f0f8665f13a45e170bf16507e4",
+  "baseline_merge_commit": "5190b87abe16e4ece2df2f49d9efe23cc446d37a",
+  "contracts": "none",
+  "contracts_rationale": "Test, fixture and CI-routing remediation; the mission defines no interfaces.",
+  "created_at": "2026-10-14T18:35:57.368614+00:00",
+  "flattened": false,
+  "friendly_name": "Restore green main: stale test premises after the requirement-grammar scoping and the events 10.4.6 bump",
+  "merged_at": "2026-10-14T19:34:42.180176+00:00",
+  "merged_commit": "5190b87abe16e4ece2df2f49d9efe23cc446d37a",
+  "mid8": "01M4XV67",
+  "mission_id": "01M4XV67YBH04EXQA07E1XZZQ1",
+  "mission_number": 232,
+  "mission_slug": "main-red-test-premise-repair-01M4XV67",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The nightly and every PR that selects the upgrade shards are red. One test calls a helper with its pre-change arity; the other audits a pinned historical corpus that never received the operator-sanctioned events 10.4.6 correction. No product behaviour is wrong; the tests must re-pin to the shipped contract without loosening the audit.",
+  "purpose_tldr": "Two tests on main fail because their premises lagged shipped changes; re-pin them so main and the nightly are honestly green.",
+  "slug": "main-red-test-premise-repair-01M4XV67",
+  "status_phase": "1",
+  "target_branch": "issue-6240-main-red-test-premise-repair",
+  "topology": "single_branch"
+}

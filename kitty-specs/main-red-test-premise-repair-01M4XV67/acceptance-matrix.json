@@ -1,0 +1,49 @@
+{
+  "mission_slug": "main-red-test-premise-repair-01M4XV67",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/test_requirement_id_lint.py: 5 failed at base dcbabeb3ff, 51 passed after eb2a50ed2f (reviewer-renata, WP01)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T19:33:49.315443+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "DR-001/QR-2 research True, DR-001 software-dev False, FR-001 research True, FR-00N False under both; rows verified against grammar (WP01 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T19:33:51.576969+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/upgrade/test_mission_corpus_recovery.py: 3 failed at base, 9 passed after 69cf69152f; overlay from pinned 2ff2f1deb5, 25 paths asserted; recovery+byte-identity 214 passed",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T19:33:54.627443+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/ci/test_reducer_lock_routing.py 4 passed; mutation probes red (2 failed); tests/ci + routing arch gates 2524 passed (b4682327c1, WP02 review)",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-10-14T19:33:57.642684+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

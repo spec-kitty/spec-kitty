@@ -1,0 +1,31 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-10-14T18:36:07.175610Z",
+      "decision_id": "01M4XV6HM7WHEB2B8QG67N29HT",
+      "final_answer": "Fold in: uv.lock changes select the upgrade and status module shards; pyproject.toml does not (a rename / non-version pyproject change must not trigger the upgrade shards)",
+      "input_key": "dependency_bump_shard_selection",
+      "mission_id": "01M4XV67YBH04EXQA07E1XZZQ1",
+      "mission_slug": "main-red-test-premise-repair-01M4XV67",
+      "opened_by": "cli",
+      "options": [
+        "Out of scope; name it in the PR (recommended)",
+        "Fold in: uv.lock + pyproject.toml fan out to upgrade + status",
+        "Fold in narrowly: only .kittify/release/shared-package-compatibility.json",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": true,
+      "question": "Should this mission also make a dependency bump (pyproject.toml / uv.lock) select the upgrade and status module shards in ci-router, or leave that CI-cost decision out of scope?",
+      "rationale": null,
+      "resolved_at": "2026-10-14T18:38:01.848711Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.dependency-bump-shard-selection",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M4XV67YBH04EXQA07E1XZZQ1",
+  "version": 1
+}
