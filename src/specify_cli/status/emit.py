@@ -1318,11 +1318,11 @@ def _resolved_binding_fan_out(event: InnerStateChanged, mission_slug: str, repo_
     ships; the status layer only feature-detects via the gate and hands off kwargs
     (the same handoff shape as :func:`_saas_fan_out` — no local type definition).
 
-    ``repo_root`` (#5181): still threaded through to
-    :func:`fire_resolved_binding_fanout`, which absorbs it. It was the drain-gate
-    input removed in #6164; the handler contract (caller ``**kwargs`` only) is
-    unchanged, so the argument is retained on this write path but no longer gates
-    anything.
+    ``repo_root`` (#5181) is vestigial: it was the drain-gate input removed in
+    #6164, :func:`fire_resolved_binding_fanout` absorbs and discards it, and it is
+    never forwarded to handlers (they receive the caller's ``**kwargs`` only). It
+    stays in the signature so the existing call sites and their tests keep one
+    shape; it gates nothing.
     """
     delta = event.delta
     binding = {name: getattr(delta, name) for name in _RESOLVED_BINDING_DELTA_FIELDS}

@@ -2406,10 +2406,8 @@ module = [
     "specify_cli.asset_preservation.backup",        # backup_before_overwrite() -> Path (overwrite-guard callers, #4895)
     "specify_cli.tasks.issue_matrix_migration",     # load_issue_matrix() -> list[IssueMatrixRow] (merge_gates)
     "specify_cli.cli.commands._test_env_check",     # assert_typer_click_lock_parity() -> list[PackageSkew] (review, #5222)
-    "specify_cli.core.paths",                       # locate_project_root() -> Path | None (core.hosted_posture)
-    "specify_cli.core.toml_table",                  # write_toml_table_key() -> Path (hosted_posture, zeitgeist moments)
+    "specify_cli.core.paths",                       # locate_project_root() -> Path | None (core.ledger_posture)
     "specify_cli.core.errors",                      # error base classes subclassed by callers
-    "specify_cli.auth.errors",                      # error base classes subclassed by callers
     "specify_cli.requirement_mapping.grammar",      # requirement-mapping grammar types
     "specify_cli.skills.paths",                     # get_primary_*_skill_root() (skills/installer.py, #4998)
     "specify_cli.skills.manifest",                  # compute_content_hash() -> str (skills/verifier.py, #4998)
@@ -2447,7 +2445,6 @@ module = [
     "specify_cli.cli.commands.agent.status",
     "specify_cli.cli.commands.agent.tasks",
     "specify_cli.cli.commands.agent.workflow",
-    "specify_cli.cli.commands.auth",
     "specify_cli.cli.commands.init",
     "specify_cli.cli.commands.merge",
     "specify_cli.cli.commands.next_cmd",

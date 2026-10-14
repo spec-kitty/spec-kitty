@@ -975,8 +975,6 @@ EXPECTED_PER_SITE_DESTINATIONS: dict[str, tuple[str, ...]] = {
     "LocalTrackerService.sync_push": ("LOCAL_SUBPROCESS",),
     "LocalTrackerService.sync_run": ("LOCAL_SUBPROCESS",),
 }
-#: #6164: HOSTED_SERVICE / SaaSTrackerClient removed -- only one member survives.
-EXPECTED_LITERAL_MEMBERS = frozenset({"LOCAL_SUBPROCESS"})
 
 _ALIAS_HINT = "If `EgressDestination` was imported under an alias, this is a FALSE RED -- import it under its own name (FR-015 G5, data-model.md section 2). "
 
@@ -1167,8 +1165,8 @@ def test_g5_every_destination_is_a_literal_member_with_the_per_site_mapping_inta
     ``EgressDestination``. No ``ast.Name`` (a loop variable or a config-derived local), no
     ``ast.Call`` (a derivation). This is the live protection the removal leaves fully in force.
 
-    **3. The set-equality clause.** Kept: the one surviving member must appear across the local
-    sites, so deleting the local transport's only literal would red here too.
+    **3. The single-member clause.** ``EgressDestination`` must have exactly one member; adding a
+    second transport reds here until the dual-channel polarity guard is restored.
 
     Why the node-shape clause still matters: a config-derived polarity would read the on-disk
     ``beads``/``fp`` provider and let it pick the destination, instead of the caller stating it as
@@ -1190,7 +1188,13 @@ def test_g5_every_destination_is_a_literal_member_with_the_per_site_mapping_inta
         + f"  found:    {per_site}\n"
         + "A site evaluated under the wrong polarity is the defect that reopens #3030."
     )
-    assert members == EXPECTED_LITERAL_MEMBERS, f"G5: literal member set is {sorted(members)}, expected {sorted(EXPECTED_LITERAL_MEMBERS)}"
+    # With one transport there is no polarity left to choose between, so a "literal member set"
+    # comparison would be vacuous. The enum itself is the thing to pin: the moment a second member
+    # (a hosted channel) is added, the per-site polarity guard must be rebuilt, not silently pass.
+    assert [m.name for m in EgressDestination] == ["LOCAL_SUBPROCESS"], (
+        "G5: EgressDestination no longer has exactly one member (LOCAL_SUBPROCESS). "
+        "Re-adding a hosted channel must restore the dual-channel guard (per-site polarity and the literal member set)."
+    )
     print("[G5] positive control: the real src/ tree PASSES all three clauses")
 
     # As with G4, each kill is a DELTA against a correctly-shaped control, then folded onto the real

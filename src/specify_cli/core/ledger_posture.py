@@ -11,7 +11,8 @@ local feature.
 
 **Fail-open-to-default parsing**: an unparseable ``.kittify/config.yaml`` or a
 present-but-non-boolean ``ledger.projection`` value counts as the default
-(``True``) and warns exactly once, never crashes.
+(``True``) and emits a ``warnings.warn`` on every read (Python's default
+filter dedups per call site, not per process), never crashes.
 
 **No caching**: :func:`ledger_posture` opens the one small config file on every
 call. There is no mtime cache and no frozen-at-import value.
