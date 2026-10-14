@@ -874,7 +874,10 @@ def build_overview(source: MissionSource, projector: Projector) -> dict[str, Any
     meta, identity, snapshot = source.meta, source.identity, source.snapshot
     counts = lane_counts_of(snapshot)
     wp_total = len(snapshot.work_packages)
-    accepted_at, discarded_at = _optional_text(meta.get("accepted_at")), _optional_text(meta.get("discarded_at"))
+    # Ruling 1 of 2026-10-13: an off-shape instant is nulled BEFORE it can decide lifecycleStatus / nextAction.
+    accepted_at = _instant_or_none(_optional_text(meta.get("accepted_at")))
+    merged_at = _instant_or_none(_optional_text(meta.get("merged_at")))
+    discarded_at = _instant_or_none(_optional_text(meta.get("discarded_at")))
     progress = compute_weighted_progress(snapshot)
     mission_id = projector.strict(identity.mission_id, "missionId", nullable=False, pattern=_MISSION_ID)
     slug = projector.strict(identity.mission_slug, "slug", nullable=False)
@@ -900,11 +903,11 @@ def build_overview(source: MissionSource, projector: Projector) -> dict[str, Any
             "semantics": "weighted_readiness",
         },
         "lifecycleStatus": derive_lifecycle_status(counts, wp_total, discarded_at, accepted_at),
-        "acceptedAt": _instant_or_none(accepted_at),
-        "mergedAt": _instant_or_none(_optional_text(meta.get("merged_at"))),
-        "discardedAt": _instant_or_none(discarded_at),
+        "acceptedAt": accepted_at,
+        "mergedAt": merged_at,
+        "discardedAt": discarded_at,
         "lastEventId": projector.strict(snapshot.last_event_id, "lastEventId", nullable=True, pattern=_MISSION_ID),
-        "lastActivityAt": _latest_instant(state.get("last_transition_at") for state in snapshot.work_packages.values()),
+        "lastActivityAt": _instant_or_none(_latest_instant(state.get("last_transition_at") for state in snapshot.work_packages.values())),
         "eventCount": snapshot.event_count,
         "streamCursor": stream_cursor_of(source.cursor),
         "nextAction": projector.human(derive_next_action(str(slug), accepted_at, bool(meta.get("baseline_merge_commit")), counts), "nextAction"),

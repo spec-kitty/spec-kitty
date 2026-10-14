@@ -336,7 +336,7 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
    * {@code acceptedAt}, {@code mergedAt} and {@code discardedAt} are projected strictly and are nullable (pre-merge fold J7, ruling 1 of
    * 2026-10-13): a value that is not an instant, or that is shaped like a path, an address or a secret, is served as null. This runs before
    * the overview is derived, so a junk value can neither be served nor decide the lifecycle status (an {@code accepted_at} of junk would
-   * otherwise make a finished Mission {@code done}). A deliberate divergence from the oracle, which serves the text as stored.
+   * otherwise make a finished Mission {@code done}). The conformance oracle does the same, so the goldens agree.
    */
   private MissionMeta withProjectedDates(MissionMeta meta) {
     Projector projector = new Projector(leaks);
@@ -441,11 +441,8 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
       String missionType = projector.strict(o.missionType() == null || o.missionType().isEmpty() ? null : o.missionType(), "missionType", true);
       String targetBranch = projector.strict(o.targetBranch(), "targetBranch", false);
       String nextAction = projector.human(o.nextAction(), "nextAction");
-      // meta.json text and ledger ids are not shaped by the writer: a value that is not the contract's shape is nulled (AC-9g,
-      // nullable strict fields), never served; the lifecycle status above was derived from the raw values, as in the oracle.
-      String acceptedAt = instantOrNull(o.acceptedAt());
-      String mergedAt = instantOrNull(o.mergedAt());
-      String discardedAt = instantOrNull(o.discardedAt());
+      // Ledger ids are not shaped by the writer: a value that is not the contract's shape is nulled (AC-9g, nullable strict fields).
+      // The meta dates were projected before the overview was derived (withProjectedDates), so they pass through unchanged.
       String lastEventId = projector.strict(o.lastEventId(), "lastEventId", true, EVENT_ID);
       String lastActivityAt = instantOrNull(projector, o.lastActivityAt(), "lastActivityAt", mid8);
       return new MissionOverview(
@@ -463,9 +460,9 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
           o.blockedCount(),
           o.progress(),
           o.lifecycleStatus(),
-          acceptedAt,
-          mergedAt,
-          discardedAt,
+          o.acceptedAt(),
+          o.mergedAt(),
+          o.discardedAt(),
           lastEventId,
           lastActivityAt,
           o.eventCount(),
@@ -474,11 +471,6 @@ public final class MissionStatusQueryService implements MissionStatusQuery {
     } catch (ProjectionError refused) {
       throw refuse(DiagnosticCode.PROJECTION_REFUSED, mid8, null);
     }
-  }
-
-  /** The text when it is an instant with an offset (the shape {@code createdAt} is held to), else null: the contract declares RFC 3339 {@code date-time}. */
-  private static String instantOrNull(String text) {
-    return text != null && Instants.hasOffset(text) ? text : null;
   }
 
   // ---- diagnostics -----------------------------------------------------------------------------------------------------------

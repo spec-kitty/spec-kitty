@@ -634,6 +634,8 @@ def projection_problems(fixtures: list[gen.Fixture], found: Mapping[str, Mapping
     instants = items_of(found.get("non-rfc3339-instants-nulled", {}))
     if not instants or any(instants[0][key] is not None for key in ("acceptedAt", "mergedAt", "discardedAt", "lastEventId")):
         problems.append("non-rfc3339-instants-nulled: an off-shape instant or event id is served")
+    elif instants[0]["lifecycleStatus"] != "active":
+        problems.append("non-rfc3339-instants-nulled: an off-shape instant decided the lifecycle (ruling 1 of 2026-10-13)")
     named = found.get("project-name-refused", {})
     if named.get(PROJECT, {}).get(REFUSAL, {}).get("exception") != "ProjectionError" or not items_of(named):
         problems.append("project-name-refused: the project name was not refused while its Missions were served")
