@@ -1,0 +1,7 @@
+substitute	kitty-specs/alpha-mission/secret.txt	@@SECRET@@	gh	p_	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+mtime	kitty-specs/alpha-mission/meta.json	1790000000
+mtime	kitty-specs/alpha-mission/not-text-latin1.txt	1790000000
+mtime	kitty-specs/alpha-mission/not-text-nul.dat	1790000000
+mtime	kitty-specs/alpha-mission/ok.md	1790000000
+mtime	kitty-specs/alpha-mission/secret.txt	1790000000
+mtime	kitty-specs/alpha-mission/too-large.md	1790000000

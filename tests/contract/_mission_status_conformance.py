@@ -43,6 +43,9 @@ from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.lanes.branch_naming import coord_branch_name, resolve_mid8
 from specify_cli.migration import schema_version as schema
 from specify_cli.status.tail_reader import EMPTY_DIGEST, TailCursor, poll_once
+from specify_cli.status.wp_metadata import read_authored_wp_frontmatter
+from tests.contract import _mission_status_artifacts as art
+from tests.contract import _mission_status_detail as det
 from tests.contract import _mission_status_payloads as payloads
 from tests.contract import _mission_status_project as project
 from tests.contract._mission_status_memo import ResolverMemo
@@ -58,6 +61,27 @@ PROJECT_GOLDEN = "project.json"
 STREAM_GOLDEN = "stream.json"
 GOLDEN_FILES = (MISSIONS_GOLDEN, PROJECT_GOLDEN)
 
+# The detail and artifact surface (FR-014): one golden file per route, named after the operation, holding a canonical-JSON object keyed by the
+# request key (MISSION_KEY for a Mission-level route, the Work Package id, or the artifact path).
+SURFACE_OVERVIEW = "overview"
+SURFACE_DETAIL = "detail"
+GET_MISSION_GOLDEN = "get-mission.json"
+GET_WORK_PACKAGE_GOLDEN = "get-work-package.json"
+GET_PROMPT_GOLDEN = "get-work-package-prompt.json"
+GET_WP_DETAIL_GOLDEN = "get-work-package-detail.json"
+LIST_ARTIFACTS_GOLDEN = "list-artifacts.json"
+GET_ARTIFACT_GOLDEN = "get-artifact-content.json"
+DETAIL_GOLDEN_FILES = (
+    GET_MISSION_GOLDEN,
+    GET_WORK_PACKAGE_GOLDEN,
+    GET_PROMPT_GOLDEN,
+    GET_WP_DETAIL_GOLDEN,
+    LIST_ARTIFACTS_GOLDEN,
+    GET_ARTIFACT_GOLDEN,
+)
+MISSION_KEY = "-"
+UNKNOWN_WP_ID = "WP99"
+
 # Names inside a fixture tree that are provisioning inputs, never copied into the oracle's project root as they are.
 HEAD_TEXT = "HEAD"
 POINTER_TEXT = "GITDIR_POINTER"
@@ -65,9 +89,13 @@ POINTER_TARGET = "gitdir-target"
 COORD_SOURCE = "coord-worktree"
 HUSK_SOURCE = "husk-worktree"
 SYMLINK_PLAN = "SYMLINK_PLAN"
+PROVISION_PLAN = "PROVISION_PLAN"
+ARTIFACT_REQUESTS = "ARTIFACT_REQUESTS"
 OUTSIDE_TREE = "outside"
 BEFORE_LEDGER = "status.events.before.jsonl"
-NOT_COPIED = frozenset({GOLDEN_DIR, HEAD_TEXT, POINTER_TEXT, POINTER_TARGET, COORD_SOURCE, HUSK_SOURCE, SYMLINK_PLAN, OUTSIDE_TREE})
+NOT_COPIED = frozenset(
+    {GOLDEN_DIR, HEAD_TEXT, POINTER_TEXT, POINTER_TARGET, COORD_SOURCE, HUSK_SOURCE, SYMLINK_PLAN, PROVISION_PLAN, ARTIFACT_REQUESTS, OUTSIDE_TREE}
+)
 
 OWN_CLASS = "own"
 COORD_CLASS = "coord"
@@ -126,8 +154,30 @@ PROVISIONING_NOTES: Mapping[str, str] = {
         "Only poll_once refuses the blank line, which the stream golden records"
     ),
     "not-copied": (
-        "golden/, HEAD, GITDIR_POINTER, gitdir-target/, coord-worktree/, husk-worktree/, SYMLINK_PLAN and outside/ "
+        "golden/, HEAD, GITDIR_POINTER, gitdir-target/, coord-worktree/, husk-worktree/, SYMLINK_PLAN, PROVISION_PLAN, ARTIFACT_REQUESTS and outside/ "
         "are provisioning inputs and are not copied into the project root as they are"
+    ),
+    PROVISION_PLAN: (
+        "detail classes: a file at the fixture top level (never inside a Mission directory) of tab-separated, verb-first lines, applied to the temporary "
+        "copy before the oracle runs and by the Java harness before the service runs; paths are relative to the project root and may not leave it. "
+        "'link<TAB>path<TAB>target' creates a symbolic link at path to target (a path relative to the project root; '@outside/x' points into a sibling "
+        "directory created from the fixture's outside/ tree); 'gitentry<TAB>path' creates a plain file named by path (a .git entry; its content is "
+        "irrelevant to a stat); 'mtime<TAB>path<TAB>epochSeconds' sets the modification time; 'dir<TAB>path' creates a directory (the lane worktrees of "
+        "worktree-states); 'write<TAB>path<TAB>text' creates a file with that text as its content (a non-ASCII file name is made this way: a committed one "
+        "stops the native-image test build, whose resource scan cannot decode it); "
+        "'substitute<TAB>path<TAB>marker<TAB>fragment...' replaces the marker text in the committed file by the concatenated fragments, "
+        "so no host path, address or credential shape is committed whole. Blank lines and lines starting with # are ignored. SYMLINK_PLAN keeps its own "
+        "javaOnly grammar and is read exactly as before"
+    ),
+    ARTIFACT_REQUESTS: (
+        "detail classes: one extra artifact path per line, requested from getArtifactContent beside every path of the listing (a path that is not in the "
+        "listing: a missing file, a refused path)"
+    ),
+    "golden-keys": (
+        "detail classes: every golden is one canonical-JSON object keyed by the request key: '-' for a Mission-level route, the Work Package id "
+        "(WP99, a never-present id, is always requested from getWorkPackageDetail), or the artifact path. A value is the payload, "
+        "{'status': n, 'body': {...}} for an operation that answers a status, or {'refusal': {...}} for an exception the oracle raised. "
+        "The subject Mission of a fixture is the first directory, in name order, whose meta.json holds a mission_id"
     ),
 }
 
@@ -139,6 +189,8 @@ class ClassSpec:
     tag: str
     property: str
     parity: str
+    surface: str = SURFACE_OVERVIEW
+    goldens: tuple[str, ...] = GOLDEN_FILES
 
 
 CLASS_SPECS: tuple[ClassSpec, ...] = (
@@ -161,13 +213,319 @@ CLASS_SPECS: tuple[ClassSpec, ...] = (
     ClassSpec("secret-canaries", "canary values planted in config, metadata, meta.json and event payload text", PARITY_JAVA_ONLY),
     ClassSpec("symlink", "a symlinked ledger, a symlinked meta.json and a Mission directory symlink escaping the root", PARITY_JAVA_ONLY),
 )
-CLASS_TAGS = tuple(spec.tag for spec in CLASS_SPECS)
-JAVA_ONLY_TAGS = frozenset(spec.tag for spec in CLASS_SPECS if spec.parity == PARITY_JAVA_ONLY)
 
-# Fixture-level manifest tags, keyed by "<class>/<fixture>".
+_ROUTES_DETAIL = (GET_MISSION_GOLDEN, GET_WORK_PACKAGE_GOLDEN, GET_PROMPT_GOLDEN, GET_WP_DETAIL_GOLDEN)
+_ROUTES_INDEX = (GET_MISSION_GOLDEN, GET_WORK_PACKAGE_GOLDEN, GET_WP_DETAIL_GOLDEN)
+_ROUTES_ARTIFACT = (LIST_ARTIFACTS_GOLDEN, GET_ARTIFACT_GOLDEN)
+
+
+def _detail_spec(tag: str, property_text: str, goldens: tuple[str, ...], parity: str = PARITY_GOLDEN) -> ClassSpec:
+    return ClassSpec(tag, property_text, parity, SURFACE_DETAIL, goldens if parity == PARITY_GOLDEN else ())
+
+
+# The detail and artifact classes of FR-014 as amended by plan section 14 (S-3, S-6, S-15, S-19, S-20); every one carries "surface": "detail".
+DETAIL_CLASS_SPECS: tuple[ClassSpec, ...] = (
+    _detail_spec(
+        "detail-populated",
+        "a Mission served whole: dependencies, lanes, review cycles, an unreadable sibling skipped before and after, subtask ids in code point order",
+        _ROUTES_DETAIL,
+    ),
+    _detail_spec("detail-early", "a Mission with no ledger and no Work Package: five pending phases and an empty Work Package list", (GET_MISSION_GOLDEN,)),
+    _detail_spec(
+        "detail-planning-only",
+        "Work Package files and no events: every Work Package is listed with no recorded lane",
+        (GET_MISSION_GOLDEN, GET_WORK_PACKAGE_GOLDEN),
+    ),
+    _detail_spec(
+        "phases-matrix",
+        "the phase truth table: file, Completed event, Started event, neither, with and without a symlinked planning file, and the lane-count sets",
+        (GET_MISSION_GOLDEN,),
+    ),
+    _detail_spec("wp-malformed-frontmatter", "the 28 cases of AC-6.1: the index-fed oracle serves or skips each Work Package file", _ROUTES_INDEX),
+    _detail_spec("wp-duplicate-id", "one id held by two files or two Missions: the first in byte order wins", _ROUTES_INDEX),
+    _detail_spec("wp-two-selectors", "the frontmatter id and the prompt file name select different Work Packages", (GET_WORK_PACKAGE_GOLDEN, GET_WP_DETAIL_GOLDEN)),
+    _detail_spec(
+        "wp-prompt-bytes",
+        "the exact bytes of promptMarkdown for each body of AC-9.1, absent without the prompt request",
+        (GET_WORK_PACKAGE_GOLDEN, GET_PROMPT_GOLDEN),
+    ),
+    _detail_spec(
+        "cycles", "review cycle entries in numeric order, with a missing feedback pointer and with null members for an unparseable file", (GET_WP_DETAIL_GOLDEN,)
+    ),
+    _detail_spec("legacy-lanes-json", "a lanes.json written with the legacy feature_slug key: the oracle refuses the read", (GET_WP_DETAIL_GOLDEN,)),
+    _detail_spec("tasks-md", "subtask titles from tasks.md in each checkbox, table and edge form", (GET_WP_DETAIL_GOLDEN,)),
+    _detail_spec(
+        "worktree-states", "the worktree directory and its .git entry, present, absent or a symbolic link, with a host that has worktrees", (GET_WP_DETAIL_GOLDEN,)
+    ),
+    _detail_spec("artifacts-populated", "a listing with modification times and the content of each readable file", _ROUTES_ARTIFACT),
+    _detail_spec("artifacts-sort", "a listing in byte order of the UTF-8 path, not locale or case-folded order", (LIST_ARTIFACTS_GOLDEN,)),
+    _detail_spec("artifacts-refusals", "one file for each status of the content read: 200, 400, 404, 413, 415, 422", (GET_ARTIFACT_GOLDEN,)),
+    _detail_spec("artifacts-links", "a symlinked file, a symlinked directory and a junction (links created at test time)", (), PARITY_JAVA_ONLY),
+    _detail_spec("artifacts-redaction", "host paths and addresses redacted with their trailing characters, a clean file unredacted", (GET_ARTIFACT_GOLDEN,)),
+    _detail_spec("lookup-faults", "a requested id next to an unreadable or linked sibling Mission: the oracle skips the sibling", (), PARITY_JAVA_ONLY),
+    _detail_spec(
+        "projection-nulls",
+        "a field the projection nulls: a junk head date, a path-shaped branch, an over-long branch, a partial override, a junk time",
+        _ROUTES_INDEX,
+    ),
+    _detail_spec("projection-refusals", "a stored value the projection cannot show: the detail answers a refusal", (), PARITY_JAVA_ONLY),
+    _detail_spec(
+        "resolved-state",
+        "transitions and annotations that set, overwrite and clear each resolved member, the model-absent sentinel as null, "
+        "each review verdict, a partial and a release-marker override, and the ordered history",
+        (GET_WORK_PACKAGE_GOLDEN,),
+    ),
+)
+ALL_CLASS_SPECS: tuple[ClassSpec, ...] = CLASS_SPECS + DETAIL_CLASS_SPECS
+CLASS_TAGS = tuple(spec.tag for spec in ALL_CLASS_SPECS)
+OVERVIEW_TAGS = tuple(spec.tag for spec in CLASS_SPECS)
+DETAIL_TAGS = tuple(spec.tag for spec in DETAIL_CLASS_SPECS)
+JAVA_ONLY_TAGS = frozenset(spec.tag for spec in ALL_CLASS_SPECS if spec.parity == PARITY_JAVA_ONLY)
+# Per class, the golden files of a python-golden detail class (a java-only class holds none). The 14 overview classes keep GOLDEN_FILES.
+GOLDEN_FILES_OF: Mapping[str, tuple[str, ...]] = {spec.tag: spec.goldens for spec in DETAIL_CLASS_SPECS}
+
+# Fixture-level manifest tags, keyed by "<class>/<fixture>". A knownDivergence fixture is one whose golden differs from the Java outcome on purpose.
 FIXTURE_TAGS: Mapping[str, tuple[str, ...]] = {
     "torn-final-line/valid-json-final-line": (TAG_KNOWN_DIVERGENCE,),
+    "phases-matrix/ps-link-file": (TAG_KNOWN_DIVERGENCE,),
+    "phases-matrix/ps-link-completed": (TAG_KNOWN_DIVERGENCE,),
+    "phases-matrix/ps-link-started": (TAG_KNOWN_DIVERGENCE,),
+    "phases-matrix/ps-link-neither": (TAG_KNOWN_DIVERGENCE,),
+    "worktree-states/directory-symlink": (TAG_KNOWN_DIVERGENCE,),
+    "worktree-states/git-entry-symlink": (TAG_KNOWN_DIVERGENCE,),
+    "projection-nulls/head-dates-nulled": (TAG_KNOWN_DIVERGENCE,),
+    "wp-malformed-frontmatter/wpm-28": (TAG_KNOWN_DIVERGENCE,),
+    # The five D-159 candidates (a) to (e), V21 to V25: the oracle serves a value that the Java reduction reads as null or refuses.
+    "resolved-state/float-agent-and-actor": (TAG_KNOWN_DIVERGENCE,),
+    "resolved-state/annotation-at-float": (TAG_KNOWN_DIVERGENCE,),
+    "resolved-state/annotation-at-list": (TAG_KNOWN_DIVERGENCE,),
+    "resolved-state/override-member-float": (TAG_KNOWN_DIVERGENCE,),
+    "resolved-state/verdict-not-text": (TAG_KNOWN_DIVERGENCE,),
+    "resolved-state/subtask-status-genesis": (TAG_KNOWN_DIVERGENCE,),
+    "resolved-state/history-event-id-not-text": (TAG_KNOWN_DIVERGENCE,),
 }
+
+# The known divergences of the detail and artifact surface (spec FR-014 table V1 to V20, plus the five resolved-state candidates of D-159).
+# An entry: id, cause, fixture (a class/name, "injected" or "generated at test time"), fixtures (the committed keys it covers), the oracle outcome and
+# the Java assertion. The two outcomes of an entry differ (a stale entry whose outcomes are equal is a test failure). V3 and V4 also carry
+# defaultPathFixtures: the generator runs the oracle's default read_authored_files path on each and stores the outcome beside the entry.
+INJECTED = "injected"
+GENERATED = "generated at test time"
+RESOLVED_STATE_PENDING = "resolved-state (fixtures arrive with WP08)"
+RESOLVED_STATE_TAG = "resolved-state"
+KNOWN_DIVERGENCES_KEY = "knownDivergences"
+KNOWN_DIVERGENCES: tuple[Mapping[str, Any], ...] = (
+    {
+        "id": "V1",
+        "cause": "a symlinked spec.md, plan.md or tasks.md",
+        "fixture": "phases-matrix",
+        "fixtures": ["phases-matrix/ps-link-file", "phases-matrix/ps-link-completed", "phases-matrix/ps-link-started", "phases-matrix/ps-link-neither"],
+        "oracleOutcome": "Path.is_file follows the link: the phase is complete with basis artifact",
+        "javaAssertion": "the link is not followed: the phase falls through to the lifecycle events, with the path_refused diagnostic",
+    },
+    {
+        "id": "V2",
+        "cause": "a stat of a planning file fails other than absent",
+        "fixture": INJECTED,
+        "fixtures": [],
+        "oracleOutcome": "is_file swallows the OSError: the phase is pending",
+        "javaAssertion": "500 source_unreadable (M8)",
+    },
+    {
+        "id": "V3",
+        "cause": "a duplicate id and a malformed file on the oracle's default read_authored_files path of getMission",
+        "fixture": "wp-duplicate-id, wp-malformed-frontmatter",
+        "fixtures": ["wp-duplicate-id/duplicate-wp-id", "wp-malformed-frontmatter/wpm-04"],
+        "defaultPathFixtures": ["wp-duplicate-id/duplicate-wp-id", "wp-malformed-frontmatter/wpm-04"],
+        "oracleOutcome": "the default path lists a duplicate id twice and raises on a malformed file (stored per fixture in defaultPathOutcomes)",
+        "javaAssertion": "the index rule (FR-006): the first file wins and a malformed file is skipped with the wp_file_skipped diagnostic",
+    },
+    {
+        "id": "V4",
+        "cause": "a symlinked Work Package file",
+        "fixture": "wp-malformed-frontmatter",
+        "fixtures": ["wp-malformed-frontmatter/wpm-23"],
+        "defaultPathFixtures": ["wp-malformed-frontmatter/wpm-23"],
+        "oracleOutcome": "the default path follows the link and getMission lists it (stored in defaultPathOutcomes)",
+        "javaAssertion": "the symlinked file is skipped with the wp_file_skipped diagnostic",
+    },
+    {
+        "id": "V5",
+        "cause": "a Work Package file over 1 MiB",
+        "fixture": GENERATED,
+        "fixtures": [],
+        "oracleOutcome": "served",
+        "javaAssertion": "500 source_unreadable",
+    },
+    {
+        "id": "V6",
+        "cause": "changeState on a host with git and a lane worktree",
+        "fixture": "worktree-states (host-capable twin, at test time)",
+        "fixtures": ["worktree-states/dir-and-git-present"],
+        "oracleOutcome": "changed or unchanged",
+        "javaAssertion": "unknown",
+    },
+    {
+        "id": "V7",
+        "cause": "a worktreePresent directory, or its .git entry, that is a symbolic link",
+        "fixture": "worktree-states",
+        "fixtures": ["worktree-states/directory-symlink", "worktree-states/git-entry-symlink"],
+        "oracleOutcome": "Path.exists follows the link: true",
+        "javaAssertion": "false, the target is not read",
+    },
+    {
+        "id": "V8",
+        "cause": "resolve_workspace_for_wp branches a stat cannot reproduce (an owned checkout, a persisted workspace context)",
+        "fixture": INJECTED,
+        "fixtures": [],
+        "oracleOutcome": "resolved by the product",
+        "javaAssertion": "the stat rule of FR-010",
+    },
+    {
+        "id": "V9",
+        "cause": "a requested id no readable Mission holds, next to a sibling Mission with an unusable meta.json or a symlinked directory",
+        "fixture": "lookup-faults",
+        "fixtures": ["lookup-faults/bad-sibling-unknown-meta", "lookup-faults/bad-sibling-unknown-link", "lookup-faults/bad-sibling-unknown-two-faults"],
+        "oracleOutcome": "index_missions skips the sibling: a plain 404, no fault",
+        "javaAssertion": "the first fault decides: 404 not_found with path_refused, or 500 (C3 to C5)",
+    },
+    {
+        "id": "V10",
+        "cause": "the walk bound of 100000 entries",
+        "fixture": GENERATED,
+        "fixtures": [],
+        "oracleOutcome": "unbounded",
+        "javaAssertion": "500 artifact_listing_unreadable",
+    },
+    {
+        "id": "V11",
+        "cause": "a name that holds U+FFFD or is not valid UTF-8",
+        "fixture": GENERATED,
+        "fixtures": [],
+        "oracleOutcome": "lists the legitimate U+FFFD name; ineligible for invalid bytes",
+        "javaAssertion": "not listed and never opened (D-31)",
+    },
+    {
+        "id": "V12",
+        "cause": "includePrompt that is not true or false",
+        "fixture": INJECTED,
+        "fixtures": [],
+        "oracleOutcome": "no HTTP layer",
+        "javaAssertion": "400 invalid_parameter",
+    },
+    {
+        "id": "V13",
+        "cause": "a file the content read cannot open",
+        "fixture": INJECTED,
+        "fixtures": [],
+        "oracleOutcome": "the OSError is raised and the caller answers 500",
+        "javaAssertion": "500 artifact_unreadable; the listing entry is readable false with a diagnostic",
+    },
+    {
+        "id": "V14",
+        "cause": "tasks/ is a regular file or a link (M10)",
+        "fixture": GENERATED,
+        "fixtures": [],
+        "oracleOutcome": "wp_task_files returns an empty list for a file and follows a link",
+        "javaAssertion": "500 source_unreadable",
+    },
+    {
+        "id": "V15",
+        "cause": "a non-UTF-8 sun.jnu.encoding and a non-ASCII name (A8), and (M13) on the three index routes",
+        "fixture": INJECTED,
+        "fixtures": [],
+        "oracleOutcome": "the oracle lists and reads the name",
+        "javaAssertion": "listing 500 artifact_listing_unreadable; content 500 artifact_unreadable; index routes 500 source_unreadable",
+    },
+    {
+        "id": "V16",
+        "cause": "an lstat of a path component fails other than absent while the artifact references are built (M9)",
+        "fixture": INJECTED,
+        "fixtures": [],
+        "oracleOutcome": "the oracle follows links and swallows the error",
+        "javaAssertion": "500 source_unreadable",
+    },
+    {
+        "id": "V17",
+        "cause": "lanes.json over 1 MiB (W3) and a review-cycle file over 262144 bytes (M11)",
+        "fixture": GENERATED,
+        "fixtures": [],
+        "oracleOutcome": "the oracle has no cap on either: served and parsed",
+        "javaAssertion": "lanes.json: 500 source_unreadable; cycle file: an entry with null members",
+    },
+    {
+        "id": "V18",
+        "cause": "a non-nullable strict field, a class-3 human field or a history stamp that cannot be shown (M7)",
+        "fixture": "projection-refusals",
+        "fixtures": [
+            "projection-refusals/history-at-not-instant",
+            "projection-refusals/history-event-id-leak",
+            "projection-refusals/owned-file-pattern-leak",
+            "projection-refusals/dependency-id-leak",
+        ],
+        "oracleOutcome": "the stored text is served, or ProjectionError",
+        "javaAssertion": "500 projection_refused (source_unreadable on the detail)",
+    },
+    {
+        "id": "V19",
+        "cause": "a nullable head date that is not an instant (acceptedAt, mergedAt, discardedAt; #5529 ruling 1)",
+        "fixture": "projection-nulls",
+        "fixtures": ["projection-nulls/head-dates-nulled"],
+        "oracleOutcome": "the stored text is served and the lifecycle status is derived from it",
+        "javaAssertion": "null, and the lifecycle status is derived without it",
+    },
+    {
+        "id": "V20",
+        "cause": "subtasks written as mappings (SK-353, D-97)",
+        "fixture": "wp-malformed-frontmatter",
+        "fixtures": ["wp-malformed-frontmatter/wpm-28"],
+        "oracleOutcome": "the oracle serves a stringified mapping (the stored outcome)",
+        "javaAssertion": "projection_refused",
+    },
+    {
+        "id": "V21",
+        "cause": "D-159 (a): a float agent or float actor",
+        "fixture": RESOLVED_STATE_TAG,
+        "fixtures": ["resolved-state/float-agent-and-actor"],
+        "oracleOutcome": "the float's repr when it fits a handle (1.5)",
+        "javaAssertion": "null",
+    },
+    {
+        "id": "V22",
+        "cause": "D-159 (b): an annotation at or an override member that is a float, a list or an object",
+        "fixture": RESOLVED_STATE_TAG,
+        "fixtures": ["resolved-state/annotation-at-float", "resolved-state/annotation-at-list", "resolved-state/override-member-float"],
+        "oracleOutcome": "the repr is read",
+        "javaAssertion": "the row is classified unusable and the reduction raises (as the float wp_id case annotation-wp-id-float)",
+    },
+    {
+        "id": "V23",
+        "cause": "D-159 (c): a review result verdict that is not text",
+        "fixture": RESOLVED_STATE_TAG,
+        "fixtures": ["resolved-state/verdict-not-text"],
+        "oracleOutcome": "the raw JSON value is served (contract-invalid)",
+        "javaAssertion": "null",
+    },
+    {
+        "id": "V24",
+        "cause": "D-159 (d): a subtask status of genesis or uninitialized",
+        "fixture": RESOLVED_STATE_TAG,
+        "fixtures": ["resolved-state/subtask-status-genesis"],
+        "oracleOutcome": "accepted (Status is Lane)",
+        "javaAssertion": "the route mapper refuses it as a value outside StatusLane",
+    },
+    {
+        "id": "V25",
+        "cause": "D-159 (e): a history eventId, at or lane that is not text",
+        "fixture": RESOLVED_STATE_TAG,
+        "fixtures": ["resolved-state/history-event-id-not-text"],
+        "oracleOutcome": (
+            "a non-text event_id is carried as the stored JSON value (a number stays a number); "
+            "a non-text at or lane makes the oracle refuse the Mission (TypeError, StoreError), so only the event_id case has a golden"
+        ),
+        "javaAssertion": "its str() when Java reproduces it, else null, and refused by the mapper (T12, T13)",
+    },
+)
 
 # The strict or human class of each projected field (plan section 13, Projection).
 PROJECTED_FIELD_CLASSES: Mapping[str, str] = {
@@ -215,6 +573,10 @@ class Fixture:
     @property
     def java_only(self) -> bool:
         return self.tag in JAVA_ONLY_TAGS
+
+    @property
+    def detail(self) -> bool:
+        return self.tag in DETAIL_TAGS
 
 
 def discover_fixtures(conformance: Path) -> list[Fixture]:
@@ -369,9 +731,90 @@ def provision_git(fixture_path: Path, root: Path) -> None:
             _install_source(husk_source, worktree)
 
 
+def _inside(root: Path, relative: str) -> Path:
+    """``relative`` below ``root``; a plan path that is absolute or leaves the root is refused."""
+    target = root / relative
+    if Path(relative).is_absolute() or ".." in Path(relative).parts:
+        raise ValueError(f"{PROVISION_PLAN}: {relative!r} leaves the project root")
+    return target
+
+
+def _plan_link(fixture_path: Path, root: Path, path: str, target: str) -> None:
+    """A symbolic link at ``path``: ``@outside/x`` points into a sibling directory made from ``outside/``; any other target is root-relative."""
+    link = _inside(root, path)
+    link.parent.mkdir(parents=True, exist_ok=True)
+    if target.startswith("@outside/"):
+        outside = root.parent / OUTSIDE_TREE
+        if (fixture_path / OUTSIDE_TREE).is_dir():
+            shutil.copytree(fixture_path / OUTSIDE_TREE, outside, symlinks=True, dirs_exist_ok=True)
+        text = str(outside / target.removeprefix("@outside/"))
+    else:
+        text = os.path.relpath(_inside(root, target), link.parent)
+    try:
+        link.symlink_to(text)
+    except OSError as error:
+        raise RuntimeError("not run: link unsupported") from error
+
+
+def _plan_substitute(root: Path, path: str, marker: str, fragments: Sequence[str]) -> None:
+    target = _inside(root, path)
+    data = target.read_bytes()
+    if marker.encode("utf-8") not in data:
+        raise ValueError(f"{PROVISION_PLAN}: the marker {marker!r} is not in {path}")
+    target.write_bytes(data.replace(marker.encode("utf-8"), "".join(fragments).encode("utf-8")))
+
+
+def _plan_mtime(root: Path, path: str, epoch: str) -> None:
+    target = _inside(root, path)
+    os.utime(target, (int(epoch), int(epoch)), follow_symlinks=False)
+
+
+def _plan_gitentry(root: Path, path: str) -> None:
+    target = _inside(root, path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"gitdir: fixture\n")
+
+
+def _plan_dir(root: Path, path: str) -> None:
+    _inside(root, path).mkdir(parents=True, exist_ok=True)
+
+
+def _plan_write(root: Path, path: str, text: str) -> None:
+    """A file at ``path`` with ``text`` as its content: how a name that the native-image test resource scan cannot take is made at test time."""
+    target = _inside(root, path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(text, encoding="utf-8")
+
+
+def apply_provision_plan(fixture_path: Path, root: Path) -> None:
+    """Apply the fixture's ``PROVISION_PLAN`` (if any) to the temporary copy: ``link``, ``gitentry``, ``mtime``, ``dir``, ``write`` and ``substitute`` lines."""
+    plan = fixture_path / PROVISION_PLAN
+    if not plan.is_file():
+        return
+    for line in plan.read_text(encoding="utf-8").splitlines():
+        if not line.strip() or line.startswith("#"):
+            continue
+        verb, *arguments = line.split("\t")
+        if verb == "link" and len(arguments) == 2:
+            _plan_link(fixture_path, root, arguments[0], arguments[1])
+        elif verb == "gitentry" and len(arguments) == 1:
+            _plan_gitentry(root, arguments[0])
+        elif verb == "mtime" and len(arguments) == 2:
+            _plan_mtime(root, arguments[0], arguments[1])
+        elif verb == "dir" and len(arguments) == 1:
+            _plan_dir(root, arguments[0])
+        elif verb == "write" and len(arguments) == 2:
+            _plan_write(root, arguments[0], arguments[1])
+        elif verb == "substitute" and len(arguments) >= 3:
+            _plan_substitute(root, arguments[0], arguments[1], arguments[2:])
+        else:
+            raise ValueError(f"{PROVISION_PLAN}: unusable line {line!r}")
+
+
 def provision(fixture: Fixture, root: Path, *, date: str = DEFAULT_GIT_DATE) -> None:
     """Materialise ``fixture`` into the empty directory ``root``; the caller keeps ``git_environment`` open around any oracle call."""
     copy_primary_tree(fixture.path, root)
+    apply_provision_plan(fixture.path, root)
     install_head(fixture.path, root)
     if needs_git(fixture.path):
         with git_environment(root.parent, date):
@@ -542,6 +985,124 @@ def stream_document(root: Path) -> dict[str, Any] | None:
     return {"scenarios": scenarios} if scenarios else None
 
 
+# ---------------------------------------------------------------------------
+# The detail and artifact oracles (FR-014): composed, never re-implemented
+# ---------------------------------------------------------------------------
+
+# The host a class is asked on: git is never available (the change states are then unknown); only worktree-states has worktrees.
+HOST_OF_CLASS: Mapping[str, det.HostCapability] = {"worktree-states": det.HostCapability(git=False, worktrees=True)}
+
+
+def outcome_document(outcome: det.DetailOutcome | art.ArtifactOutcome) -> dict[str, Any]:
+    """An operation that answers a status is recorded as ``{"status": n, "body": {...}}``."""
+    return {"status": outcome.status, "body": outcome.body}
+
+
+def subject_mission(ctx: art.ReaderContext) -> tuple[str, Path] | None:
+    """The Mission a detail fixture is asked about: the first directory, in name order, whose ``meta.json`` holds a ``mission_id``."""
+    index = art.index_missions(ctx.repo_root)
+    if not index:
+        return None
+    mission_id, directory = min(index.items(), key=lambda item: item[1].name.encode("utf-8"))
+    return mission_id, directory
+
+
+def index_fed_files(ctx: art.ReaderContext, mission_dir: Path) -> list[payloads.AuthoredWorkPackage]:
+    """The winning file of each Work Package id (FR-006), re-read with the authored-frontmatter reader, so the oracle is index-fed (spec FR-014)."""
+    index = det.index_work_packages(ctx, mission_dir)
+    files = []
+    for wp_id in sorted(index):
+        path = mission_dir / det.TASKS_DIR / index[wp_id].name
+        metadata, body = read_authored_wp_frontmatter(path)
+        files.append(payloads.AuthoredWorkPackage(path, metadata, body))
+    return files
+
+
+def _source_of(ctx: art.ReaderContext, mission_dir: Path) -> tuple[payloads.MissionSource, payloads.Projector]:
+    return payloads.load_source(ctx.repo_root, mission_dir.name), payloads.Projector(ctx.tools.leak, mission_dir.name)
+
+
+def mission_detail_document(ctx: art.ReaderContext, mission_dir: Path) -> dict[str, Any]:
+    source, projector = _source_of(ctx, mission_dir)
+    return payloads.build_detail(source, projector, files=index_fed_files(ctx, mission_dir))
+
+
+def work_package_documents(ctx: art.ReaderContext, mission_dir: Path, *, include_prompt: bool) -> dict[str, Any]:
+    """One ``WorkPackage`` payload per winning Work Package id, keyed by the id; a Mission that cannot be read is one refusal under ``-``."""
+    try:
+        source, projector = _source_of(ctx, mission_dir)
+        files = index_fed_files(ctx, mission_dir)
+    except Exception as error:  # the golden records the exception class Python raised
+        return {MISSION_KEY: refusal_of(error)}
+    return {
+        item.metadata.work_package_id: _guarded(lambda item=item: payloads.build_work_package(source, item, projector, include_prompt=include_prompt))
+        for item in files
+    }
+
+
+def work_package_detail_documents(ctx: art.ReaderContext, mission_id: str, host: det.HostCapability) -> dict[str, Any]:
+    """``getWorkPackageDetail`` for every Work Package id of the index and for ``WP99``, an id no fixture holds (the 404 control)."""
+    opened = det.open_mission(ctx, mission_id)
+    ids = sorted(opened.index) if isinstance(opened, det.OpenedMission) else []
+    request = opened if isinstance(opened, det.OpenedMission) else None
+    return {
+        wp_id: _guarded(lambda wp_id=wp_id: outcome_document(det.build_work_package_detail(ctx, mission_id, wp_id, host, opened=request)))
+        for wp_id in [*ids, UNKNOWN_WP_ID]
+    }
+
+
+def requested_artifact_paths(ctx: art.ReaderContext, mission_id: str, fixture_path: Path) -> list[str]:
+    """Every path of the listing, then the extra paths of the fixture's ``ARTIFACT_REQUESTS``, each once."""
+    listing = art.list_artifacts(ctx, mission_id)
+    listed = [entry["path"] for entry in listing.body.get("entries", [])] if listing.status == art.OK else []
+    requests = fixture_path / ARTIFACT_REQUESTS
+    extra = [line for line in requests.read_text(encoding="utf-8").splitlines() if line] if requests.is_file() else []
+    return list(dict.fromkeys([*listed, *extra]))
+
+
+def artifact_content_documents(ctx: art.ReaderContext, mission_id: str, fixture_path: Path) -> dict[str, Any]:
+    return {
+        path: _guarded(lambda path=path: outcome_document(art.read_content(ctx, mission_id, [path])))
+        for path in requested_artifact_paths(ctx, mission_id, fixture_path)
+    }
+
+
+def run_detail_oracle(fixture: Fixture, root: Path, tools: payloads.ContractTools) -> dict[str, dict[str, Any]]:
+    """Every golden document of one provisioned detail fixture, keyed by file name (only the files its class holds)."""
+    ctx = art.ReaderContext(repo_root=root, tools=tools)
+    subject = subject_mission(ctx)
+    wanted = GOLDEN_FILES_OF[fixture.tag]
+    if subject is None:
+        return {name: {MISSION_KEY: refusal_of(LookupError("no Mission with a mission_id"))} for name in wanted}
+    mission_id, mission_dir = subject
+    host = HOST_OF_CLASS.get(fixture.tag, det.NO_WORKTREES)
+    builders: Mapping[str, Callable[[], dict[str, Any]]] = {
+        GET_MISSION_GOLDEN: lambda: {MISSION_KEY: _guarded(lambda: mission_detail_document(ctx, mission_dir))},
+        GET_WORK_PACKAGE_GOLDEN: lambda: work_package_documents(ctx, mission_dir, include_prompt=False),
+        GET_PROMPT_GOLDEN: lambda: work_package_documents(ctx, mission_dir, include_prompt=True),
+        GET_WP_DETAIL_GOLDEN: lambda: work_package_detail_documents(ctx, mission_id, host),
+        LIST_ARTIFACTS_GOLDEN: lambda: {MISSION_KEY: _guarded(lambda: outcome_document(art.list_artifacts(ctx, mission_id)))},
+        GET_ARTIFACT_GOLDEN: lambda: artifact_content_documents(ctx, mission_id, fixture.path),
+    }
+    return {name: builders[name]() for name in wanted}
+
+
+def default_path_outcome(fixture: Fixture, tools: payloads.ContractTools, *, date: str = DEFAULT_GIT_DATE) -> dict[str, Any]:
+    """What the oracle's own default path (``read_authored_files``, no index) answers for the same provisioned fixture (V3, V4)."""
+    with tempfile.TemporaryDirectory(prefix="conformance-default-") as scratch:
+        base = Path(scratch)
+        root = base / "project"
+        root.mkdir()
+        provision(fixture, root, date=date)
+        with git_environment(base, date):
+            ctx = art.ReaderContext(repo_root=root, tools=tools)
+            subject = subject_mission(ctx)
+            if subject is None:
+                return refusal_of(LookupError("no Mission with a mission_id"))
+            source, projector = _source_of(ctx, subject[1])
+            return _guarded(lambda: {"workPackageIds": [item["wpId"] for item in payloads.build_detail(source, projector)["workPackages"]]})
+
+
 def run_oracle(root: Path, tools: payloads.ContractTools) -> dict[str, dict[str, Any]]:
     """Every golden document of one provisioned fixture, keyed by file name, each canonicalisable as it is."""
     documents = {
@@ -562,7 +1123,7 @@ def golden_bytes_of(fixture: Fixture, tools: payloads.ContractTools, *, date: st
         root.mkdir()
         provision(fixture, root, date=date)
         with git_environment(base, date):
-            documents = run_oracle(root, tools)
+            documents = run_detail_oracle(fixture, root, tools) if fixture.detail else run_oracle(root, tools)
     return {name: canonical_bytes(document) for name, document in documents.items()}
 
 
@@ -689,9 +1250,14 @@ def _fixture_entry(fixture: Fixture) -> dict[str, Any]:
 def manifest_document(fixtures: Sequence[Fixture], resolver_case_ids: Sequence[str], leak_bytes: bytes, tools: payloads.ContractTools) -> dict[str, Any]:
     """``manifest.json`` (contract notes, "Conformance data formats")."""
     classes = []
-    for spec in CLASS_SPECS:
+    for spec in ALL_CLASS_SPECS:
         members = [fixture for fixture in fixtures if fixture.tag == spec.tag]
-        classes.append({"tag": spec.tag, "fixtures": [_fixture_entry(member) for member in members], "property": spec.property, "parity": spec.parity})
+        entry: dict[str, Any] = {"tag": spec.tag, "fixtures": [_fixture_entry(member) for member in members], "property": spec.property, "parity": spec.parity}
+        if spec.surface != SURFACE_OVERVIEW:
+            entry["surface"] = spec.surface
+            if spec.parity == PARITY_GOLDEN:
+                entry["goldenFiles"] = list(spec.goldens)
+        classes.append(entry)
     patterns = leak_patterns_document(tools)
     return {
         "specKittyEventsVersion": installed_events_version(),
@@ -704,7 +1270,20 @@ def manifest_document(fixtures: Sequence[Fixture], resolver_case_ids: Sequence[s
         "patternDivergences": unicode_divergences(patterns),
         "projectedFieldClasses": dict(PROJECTED_FIELD_CLASSES),
         "provisioning": dict(PROVISIONING_NOTES),
+        KNOWN_DIVERGENCES_KEY: known_divergences(fixtures, tools),
     }
+
+
+def known_divergences(fixtures: Sequence[Fixture], tools: payloads.ContractTools) -> list[dict[str, Any]]:
+    """The V entries, each with the stored default-path outcome where it names ``defaultPathFixtures`` (V3, V4)."""
+    by_key = {fixture.key: fixture for fixture in fixtures}
+    entries = []
+    for source in KNOWN_DIVERGENCES:
+        entry = {key: value for key, value in source.items() if key != "defaultPathFixtures"}
+        if "defaultPathFixtures" in source:
+            entry["defaultPathOutcomes"] = {key: default_path_outcome(by_key[key], tools) for key in source["defaultPathFixtures"]}
+        entries.append(entry)
+    return entries
 
 
 def resolver_case_ids(conformance: Path) -> list[str]:

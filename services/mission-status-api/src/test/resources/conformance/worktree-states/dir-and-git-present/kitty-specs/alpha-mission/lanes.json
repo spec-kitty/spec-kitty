@@ -1,0 +1,1 @@
+{"computed_at": "2026-09-01T10:00:00+00:00", "computed_from": "fixture", "lanes": [{"depends_on_lanes": [], "lane_id": "lane-a", "parallel_group": 0, "predicted_surfaces": [], "wp_ids": ["WP01"], "write_scope": []}], "mission_branch": "kitty/mission-alpha-mission", "mission_id": "00000000000000000000000001", "mission_slug": "alpha-mission", "target_branch": "main", "version": 1}

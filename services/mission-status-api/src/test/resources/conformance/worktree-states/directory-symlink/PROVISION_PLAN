@@ -1,0 +1,3 @@
+dir	elsewhere/real-worktree
+gitentry	elsewhere/real-worktree/.git
+link	.worktrees/alpha-mission-lane-a	elsewhere/real-worktree

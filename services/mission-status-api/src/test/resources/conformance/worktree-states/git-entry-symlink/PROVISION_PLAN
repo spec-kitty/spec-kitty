@@ -1,0 +1,3 @@
+dir	.worktrees/alpha-mission-lane-a
+gitentry	elsewhere/git-entry-target
+link	.worktrees/alpha-mission-lane-a/.git	elsewhere/git-entry-target
